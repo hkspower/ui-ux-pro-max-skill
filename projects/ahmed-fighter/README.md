@@ -83,18 +83,27 @@ your best rank there.
 
 ## Who you fight
 
-| | Trait |
-| --- | --- |
-| Thug / بلطجي | Basic punches, barely guards. |
-| Brawler / مشاكس | Three-punch pressure. |
-| Runner / خطّاف | Very fast, low health, strikes and retreats. |
-| Kickboxer / ملاكم | Long range, kick-heavy. |
-| Bouncer / حارس | Slow wall of a man, guards 62% of the time. |
-| Grappler / مصارع | Knees and hooks, hard to knock down. |
-| Enforcer / مُنفّذ | Fast technical combos. |
-| Contender / منافس | Uses the full moveset. |
-| **AL-SAQR / الصقر** | Mid-campaign boss. All legs, no patience. |
-| **AL-WAHSH / الوحش** | Final boss. Two phases. |
+Every archetype is built to be recognised across the arena, before it swings.
+Silhouette does the work — height, bulk and headwear read at a glance where a
+colour swap does not, especially in a five-enemy wave.
+
+| | Trait | Reads as |
+| --- | --- | --- |
+| Thug / بلطجي | Basic punches, barely guards. | smallest man on screen, grey vest |
+| Brawler / مشاكس | Three-punch pressure. | stocky, bearded, sleeved tee |
+| Runner / خطّاف | Very fast, low health, strikes and retreats. | slight, orange peaked cap |
+| Kickboxer / ملاكم | Long range, kick-heavy. | gold headband, white shin wraps |
+| Bouncer / حارس | Slow wall of a man, guards 62% of the time. | bald, sunglasses, black kit |
+| Grappler / مصارع | Knees and hooks, hard to knock down. | bald, scarred, no shirt, huge |
+| Enforcer / مُنفّذ | Fast technical combos. | sunglasses but hair, teal kit |
+| Contender / منافس | Uses the full moveset. | fully dressed, purple and gold |
+| **AL-SAQR / الصقر** | Mid-campaign boss. All legs, no patience. | navy headband, shin wraps |
+| **AL-WAHSH / الوحش** | Final boss. Two phases. | biggest, bald, full beard |
+
+The kit is a `look` object on each `TYPES` entry, applied in `makeEnemy`, and it
+uses the same flags Ahmed does — plus `bald`, `cap`, `headband`, `shades`,
+`shin` and `scar`. Adding an archetype means adding a look, not new drawing
+code.
 
 Each stage scrolls through three locked waves. Clear a wave to move on, reach the
 gold **EXIT** gate to finish the stage.

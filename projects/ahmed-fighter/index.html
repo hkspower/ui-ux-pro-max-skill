@@ -586,34 +586,44 @@ var ATK = {
 var TYPES = {
   thug:    {hp:46,  pow:.80, spd:120, reach:54, rate:1.55, xp:14, sc:1.00,
             moves:['jab','cross'], name:'Souq Thug', ar:'بلطجي',
-            col:{skin:'#b8794c', top:'#4e5a6b', bottom:'#2b3240', band:'#8d99ab'}},
+            col:{skin:'#b8794c', top:'#4e5a6b', bottom:'#2b3240', band:'#8d99ab'},
+            look:{ build:0.90, hair:'#26221c' }},
   brawler: {hp:68,  pow:1.00, spd:132, reach:58, rate:1.25, xp:21, sc:1.05,
             moves:['jab','cross','hook'], name:'Brawler', ar:'مشاكس',
-            col:{skin:'#a86c42', top:'#6b3f2e', bottom:'#33241d', band:'#c8102e'}},
+            col:{skin:'#a86c42', top:'#6b3f2e', bottom:'#33241d', band:'#c8102e'},
+            look:{ build:1.12, tee:true, beard:'rgba(34,24,16,.85)', hair:'#2a1d13' }},
   kicker:  {hp:60,  pow:1.15, spd:162, reach:74, rate:1.10, xp:26, sc:1.02,
             moves:['kick','jab','kick','cross'], name:'Kickboxer', ar:'ملاكم',
-            col:{skin:'#c08a58', top:'#1f6f57', bottom:'#0d3f31', band:'#e0b34a'}},
+            col:{skin:'#c08a58', top:'#1f6f57', bottom:'#0d3f31', band:'#e0b34a'},
+            look:{ build:0.98, shin:'#e8e2d4', headband:'#e0b34a', hair:'#1d1a15' }},
   grappler:{hp:110, pow:1.35, spd:98,  reach:46, rate:1.75, xp:34, sc:1.18,
             moves:['knee','hook','knee'], name:'Grappler', ar:'مصارع',
-            col:{skin:'#9c6236', top:'#3b3f46', bottom:'#22252b', band:'#7d8794'}},
+            col:{skin:'#9c6236', top:'#3b3f46', bottom:'#22252b', band:'#7d8794'},
+            look:{ build:1.30, bald:true, scar:true }},
   champ:   {hp:160, pow:1.35, spd:152, reach:68, rate:0.95, xp:52, sc:1.10,
             moves:['jab','cross','kick','hook','knee'], name:'Contender', ar:'منافس',
-            col:{skin:'#b5794a', top:'#5b2a8c', bottom:'#2c1449', band:'#e0b34a'}},
+            col:{skin:'#b5794a', top:'#5b2a8c', bottom:'#2c1449', band:'#e0b34a'},
+            look:{ build:1.14, tee:true, pants:true, hair:'#1a1410', beard:'rgba(26,18,12,.7)' }},
   runner:  {hp:42,  pow:0.85, spd:210, reach:56, rate:0.85, xp:22, sc:0.94,
             moves:['jab','jab','cross'], name:'Runner', ar:'خطّاف', hitRun:true,
-            col:{skin:'#c2905f', top:'#d4762b', bottom:'#5a3417', band:'#ffd166'}},
+            col:{skin:'#c2905f', top:'#d4762b', bottom:'#5a3417', band:'#ffd166'},
+            look:{ build:0.88, cap:'#d4762b', hair:'#231a12' }},
   bouncer: {hp:150, pow:1.30, spd:104, reach:52, rate:1.90, xp:40, sc:1.24,
             moves:['hook','knee','hook'], name:'Bouncer', ar:'حارس', wall:true,
-            col:{skin:'#8a5730', top:'#161a21', bottom:'#0d1015', band:'#5aa9e6'}},
+            col:{skin:'#8a5730', top:'#161a21', bottom:'#0d1015', band:'#5aa9e6'},
+            look:{ build:1.32, tee:true, pants:true, bald:true, shades:true }},
   capo:    {hp:118, pow:1.20, spd:168, reach:64, rate:0.78, xp:44, sc:1.06,
             moves:['jab','cross','hook','jab','kick'], name:'Enforcer', ar:'مُنفّذ',
-            col:{skin:'#a86c42', top:'#1c4f63', bottom:'#0e2833', band:'#8fd3ff'}},
+            col:{skin:'#a86c42', top:'#1c4f63', bottom:'#0e2833', band:'#8fd3ff'},
+            look:{ build:1.08, tee:true, pants:true, hair:'#141922', shades:true }},
   boss:    {hp:430, pow:1.45, spd:146, reach:72, rate:0.88, xp:220, sc:1.26,
             moves:['jab','cross','hook','kick','knee'], name:'AL-WAHSH', ar:'الوحش',
-            col:{skin:'#8f5a30', top:'#12151b', bottom:'#0a0c11', band:'#c8102e'}},
+            col:{skin:'#8f5a30', top:'#12151b', bottom:'#0a0c11', band:'#c8102e'},
+            look:{ build:1.36, pants:true, bald:true, beard:'rgba(20,14,10,.92)', scar:true }},
   saqr:    {hp:290, pow:1.30, spd:186, reach:76, rate:0.80, xp:150, sc:1.14,
             moves:['kick','jab','kick','cross','knee'], name:'AL-SAQR', ar:'الصقر',
-            col:{skin:'#c08a58', top:'#243b6b', bottom:'#101a33', band:'#e8e2d4'}}
+            col:{skin:'#c08a58', top:'#243b6b', bottom:'#101a33', band:'#e8e2d4'},
+            look:{ build:1.12, tee:true, shin:'#e8e2d4', headband:'#243b6b', hair:'#1b1712' }}
 };
 
 function makeFighter(o){
@@ -640,6 +650,9 @@ function makeEnemy(type, x, z, tier){
     pow:t.pow*boost*D.dmg, spd:t.spd, reach:t.reach, rate:t.rate, moves:t.moves.slice(),
     sc:t.sc, col:t.col, name:t.name, ar:t.ar, xp:t.xp, kind:type
   });
+  // Kit and build come from the archetype, so a Grappler is recognisable as a
+  // Grappler before he swings -- the player has to read a crowd fast.
+  if(t.look) for(var k in t.look) f[k] = t.look[k];
   f.stam = f.maxStam = 999;      // enemies are not stamina limited
   return f;
 }
@@ -769,6 +782,32 @@ function bone(x,y,a1,l1,a2,l2,r0,r1,r2,col,muscle,sleeve){
     ctx.stroke();
   }
   return { x:hx, y:hy, ex:ex, ey:ey };
+}
+
+/* Muay-Thai shin wraps: cloth over the lower leg with the binding showing.
+   Drawn between the leg and the shoe so the shoe still covers the ankle. */
+function shinWrap(x,y,a1,l1,a2,l2,r1,r2,col){
+  var kx = x + Math.cos(a1)*l1, ky = y + Math.sin(a1)*l1;
+  var a = a1 + a2;
+  var t0 = 0.16, t1 = 0.90;
+  var sx = kx + Math.cos(a)*l2*t0, sy = ky + Math.sin(a)*l2*t0;
+  var ex = kx + Math.cos(a)*l2*t1, ey = ky + Math.sin(a)*l2*t1;
+  tube(sx, sy, ex, ey, lerp(r1,r2,t0)+1.4, lerp(r1,r2,t1)+1.0, col);
+  if(!GFX_HIGH) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,.24)'; ctx.lineCap = 'round';
+  var n = a - Math.PI/2;
+  for(var i=0;i<4;i++){
+    var t = t0 + (t1-t0) * (0.18 + i*0.22);
+    var px = kx + Math.cos(a)*l2*t, py = ky + Math.sin(a)*l2*t;
+    var rr = lerp(r1, r2, t) + 1.2;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(px + Math.cos(n)*rr, py + Math.sin(n)*rr);
+    ctx.lineTo(px - Math.cos(n)*rr, py - Math.sin(n)*rr);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /* Sportswear detail for a trouser leg: a stripe down the outer seam, a crease
@@ -1042,6 +1081,8 @@ function drawFighter(f, camX){
                 12.0*bd, 8.6*bd, 6.0*bd, legColDark, true);
   if(f.pants) trouserStripe(-6, hipY, legRear[0], 34, legRear[1], 32,
                             12.0*bd, 8.6*bd, 6.0*bd, shade(band, -0.28));
+  if(f.shin) shinWrap(-6, hipY, legRear[0], 34, legRear[1], 32,
+                      8.6*bd, 6.0*bd, shade(f.shin, -0.12));
   shoe(rf, legRear[0] + legRear[1], f.pants ? shade(shoeCol, -0.30) : shade(bot, -0.5));
 
   // ---- rear arm (behind the torso) ---------------------------------------
@@ -1130,6 +1171,8 @@ function drawFighter(f, camX){
                 12.8*bd, 9.2*bd, 6.4*bd, legCol, true);
   if(f.pants) trouserStripe(6, hipY+4, legLead[0], 34, legLead[1], 32,
                             12.8*bd, 9.2*bd, 6.4*bd, band);
+  if(f.shin) shinWrap(6, hipY+4, legLead[0], 34, legLead[1], 32,
+                      9.2*bd, 6.4*bd, f.shin);
   shoe(lf, legLead[0] + legLead[1], shoeCol);
 
   // ---- head ---------------------------------------------------------------
@@ -1184,7 +1227,18 @@ function drawFighter(f, camX){
     ctx.stroke();
 
     var hair = f.hair || (f.isPlayer ? '#241a12' : shade(col.band, -0.5));
-    if(f.quiff){
+    if(f.bald){
+      // Nothing to draw but the light on the scalp -- and a tan line, since a
+      // shaved head still shows where the hair used to stop.
+      ctx.save(); skullPath(); ctx.clip();
+      ctx.fillStyle = 'rgba(255,255,255,.13)';
+      ctx.beginPath(); ctx.ellipse(hx+1, hy-11, 8, 4.5, -0.25, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.10)';
+      ctx.beginPath();
+      ctx.moveTo(hx-13, hy-6); ctx.quadraticCurveTo(hx+2, hy-13, hx+16, hy-7);
+      ctx.lineTo(hx+16, hy-20); ctx.lineTo(hx-13, hy-20); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    } else if(f.quiff){
       // swept-up quiff with faded sides
       ctx.fillStyle = 'rgba(0,0,0,.30)';                      // fade at the temple
       ctx.beginPath();
@@ -1232,6 +1286,68 @@ function drawFighter(f, camX){
       }
     }
 
+    if(f.headband){
+      litShape(function(){
+        ctx.beginPath();
+        ctx.moveTo(hx-13, hy-6.5);
+        ctx.quadraticCurveTo(hx+2, hy-14.5, hx+16, hy-8);
+        ctx.lineTo(hx+15.5, hy-2.5);
+        ctx.quadraticCurveTo(hx+2, hy-9, hx-12.5, hy-1);
+        ctx.closePath();
+      }, f.headband, hx+1, hy-8, 16);
+      if(GFX_HIGH){
+        ctx.fillStyle = shade(f.headband, -0.35);       // knot trailing behind
+        ctx.beginPath();
+        ctx.moveTo(hx-12, hy-4); ctx.lineTo(hx-22, hy+2);
+        ctx.lineTo(hx-21, hy+6); ctx.lineTo(hx-12, hy+1);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+
+    if(f.cap){
+      litShape(function(){                              // crown
+        ctx.beginPath();
+        ctx.moveTo(hx-12.5, hy-7);
+        ctx.bezierCurveTo(hx-13, hy-21, hx-2, hy-24, hx+7, hy-21);
+        ctx.bezierCurveTo(hx+14, hy-18, hx+16, hy-12, hx+15.5, hy-7);
+        ctx.closePath();
+      }, f.cap, hx, hy-16, 17);
+      litShape(function(){                              // peak, over the brow
+        ctx.beginPath();
+        ctx.moveTo(hx+13, hy-9);
+        ctx.quadraticCurveTo(hx+26, hy-8, hx+29, hy-3.5);
+        ctx.quadraticCurveTo(hx+24, hy-4.6, hx+13, hy-5);
+        ctx.closePath();
+      }, shade(f.cap, -0.26), hx+20, hy-7, 12);
+    }
+
+    if(f.shades){
+      ctx.fillStyle = 'rgba(12,15,22,.92)';             // one wrapround lens
+      ctx.beginPath();
+      ctx.moveTo(hx+3, hy-2.4);
+      ctx.quadraticCurveTo(hx+11, hy-4.4, hx+15.6, hy-1.4);
+      ctx.quadraticCurveTo(hx+15, hy+4.6, hx+9, hy+4.8);
+      ctx.quadraticCurveTo(hx+3.5, hy+4, hx+3, hy-2.4);
+      ctx.closePath(); ctx.fill();
+      if(GFX_HIGH){
+        ctx.fillStyle = 'rgba(150,200,255,.30)';        // glint
+        ctx.beginPath();
+        ctx.ellipse(hx+7.5, hy-0.4, 3.4, 1.5, -0.4, 0, 6.2832); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(12,15,22,.9)'; ctx.lineWidth = 1.6;   // arm to the ear
+      ctx.beginPath();
+      ctx.moveTo(hx+3, hy-1.6); ctx.lineTo(hx-8, hy+0.6); ctx.stroke();
+    }
+
+    if(f.scar && GFX_HIGH){
+      ctx.strokeStyle = 'rgba(255,255,255,.30)'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(hx+11, hy-5.5); ctx.lineTo(hx+7.5, hy+6); ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(hx+11.8, hy-5.2); ctx.lineTo(hx+8.3, hy+6.2); ctx.stroke();
+    }
+
     if(f.beard){
       // full trimmed beard: sideburns down the jaw, chin, and a moustache
       ctx.fillStyle = f.beard;
@@ -1263,8 +1379,6 @@ function drawFighter(f, camX){
       ctx.closePath(); ctx.fill();
     }
 
-    if(!f.quiff)
-      litShape(function(){ roundRect(hx-12.5, hy-15, 29, 6, 2.5); }, band, hx, hy-12, 16);
   }
 
   // ---- lead arm -----------------------------------------------------------
