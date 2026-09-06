@@ -1,7 +1,9 @@
 # AHMED — Kuwait Fighter
 
-A 2D mobile beat-'em-up. Ahmed is a young Kuwaiti fighter working his way from the
-old souq to the national title, MMA / kickboxing style.
+A 2D mobile Metroidvania beat-'em-up. Ahmed is a young Kuwaiti fighter working his
+way from the old souq to the national title, MMA / kickboxing style. Kuwait is one
+connected world — you walk between its nine places, and most of the routes between
+them stay sealed until you earn the talent that opens them.
 
 Everything is procedural — the characters, the backgrounds, the sound and the music
 are all generated in code — so the whole game is **one HTML file with no assets and
@@ -63,11 +65,61 @@ Beaten enemies drop loot too, about one in six. A downed boss always does.
 
 ---
 
+## The world
+
+Kuwait is one connected place, not a stage list. Walk off the east edge of an
+area and you arrive at the west edge of the next one — no menu, no loading
+screen, carrying the health, mana, rage and weapon you were holding a step
+earlier. Walk back and you return the same way.
+
+The world is a ring with a hub. Souq Mubarakiya is the hub: its east edge starts
+the loop, its west edge is a shortcut to the Desert Camp that only exists once
+you have beaten the Desert from the other side, and a door partway along it
+leads to the Arena. Every link is two-way, and every link is symmetric — if a
+route wants POWER KICK from one side it wants POWER KICK from the other, so no
+route can ever strand you.
+
+Most routes are sealed until you carry the right talent. Walking into a sealed
+route pushes you back and names what it wants (`SEALED — NEEDS VAULT`). A route
+whose talent you hold but whose far side you have not yet earned says
+`NO WAY THROUGH YET` instead.
+
+An area you have cleared stops spawning ambushes and becomes a corridor — the
+scenery and the loot stay, the waves do not. That is what makes backtracking
+for a talent bearable.
+
+`assets/world.js` is the whole graph:
+
+```js
+areas: [
+  { w:{to:7,needs:'vault',afterCleared:7}, e:{to:1}, d:{to:8,at:1900,needs:'hawk'} },
+  ...
+]
+```
+
+`w` and `e` are the west and east edges, `d` is a door at a given `x`. `needs`
+names a talent; `afterCleared` names an area that has to be beaten first.
+Editing this file re-wires the world — nothing else needs to change.
+
+## The map
+
+**THE WORLD** draws that graph rather than a row of stage buttons:
+
+- A route you can walk is **solid gold**; one that is sealed is **dashed grey**
+  with the icon of the talent it wants sitting on it.
+- An area you have not reached is a grey **?**. One you have visited is red;
+  one you have cleared is green.
+- The area you are standing in carries a pulsing gold ring.
+- A gold **!** on an area means you now hold the key to something still sealed
+  inside it.
+- Tap any **visited** area to fast-travel there. Unvisited ones are inert —
+  you have to walk to a place once before the map will send you back.
+
 ## Stages
 
-Nine stages, each with its own backdrop, enemy mix and story beat. Tapping a
-stage on the map opens a briefing first — the story so far, who is waiting, and
-your best rank there.
+Nine areas, each with its own backdrop, enemy mix and story beat. Fast-travel
+opens a briefing first — the story so far, who is waiting, and your best rank
+there.
 
 | # | Stage | الاسم |
 | --- | --- | --- |
@@ -193,11 +245,18 @@ when Ahmed goes down.
 
 ## Abilities and sealed routes
 
-Every campaign stage hides one route behind an ability. Nothing sealed ever
-blocks the way forward — gates sit in the back wall, so a stage is always
-completable — but finding an ability sends you back through stages you have
-already cleared. The map marks it: a gold **!** on a stage means you now carry
-the key to something still sealed there.
+Abilities seal two different things, and it is worth keeping them apart:
+
+- **Routes between areas** (in `assets/world.js`) are the spine of the world.
+  These *do* block the way forward — that is the point — and the graph is built
+  so that whatever you can reach always contains the talent for the next route.
+- **Gates inside an area** sit in the back wall, so an area is always completable
+  without them. They hide XP caches and the talents themselves.
+
+Finding a talent sends you back through areas you have already cleared, which
+by then are quiet corridors. The map marks the trip: a gold **!** on an area
+means you now carry the key to something still sealed there, and a dashed grey
+route means you do not.
 
 | Ability | Found | Opens |
 | --- | --- | --- |
@@ -435,6 +494,7 @@ how the opposition in the key art is rendered.
 
 ```
 index.html            the entire game (canvas engine, combat, art, audio, UI)
+assets/world.js       the world graph — which area connects to which, and what each route wants
 manifest.webmanifest  PWA metadata — installable, landscape, fullscreen
 sw.js                 offline cache (bump CACHE when index.html changes)
 icon.svg              app icon
@@ -453,6 +513,10 @@ The numbers worth touching live near the top of the script in `index.html`:
 - `buildProps` / `dropItem` — crate density, placement and drop odds.
 - `genSurvivalWave` — how survival scales its enemy pool and wave size.
 - `rankFor` — the S/A/B/C score thresholds.
+- `ASSET_WORLD` (`assets/world.js`) — the world graph. `areas[i].w/e/d` are the
+  west edge, east edge and door of area `i`; `needs` gates a route behind a
+  talent, `afterCleared` behind a beaten area. Keep both halves of a link
+  matched or the route will only work one way.
 - `ABILITIES` / `GATES` — the ability table and what each kind of gate wants.
   A stage's `gates:[{at, type, reward}]` places one; `reward` is either
   `{ability:'…'}` or `{xp:n}`. `GATE_Z` is how far back they sit.

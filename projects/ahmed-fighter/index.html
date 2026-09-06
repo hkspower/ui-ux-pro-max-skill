@@ -45,6 +45,7 @@
 <script src="assets/upgrades.js"></script>
 <script src="assets/weapons.js"></script>
 <script src="assets/levels.js"></script>
+<script src="assets/world.js"></script>
 <script>
 (function(){
 'use strict';
@@ -52,7 +53,7 @@
 /* Every table the game runs on is loaded from assets/. Fail loudly rather
    than half-starting with an undefined table. */
 var ASSETS = ['ASSET_AHMED','ASSET_ENEMIES','ASSET_HITS','ASSET_TALENTS',
-              'ASSET_UPGRADES','ASSET_WEAPONS','ASSET_LEVELS'];
+              'ASSET_UPGRADES','ASSET_WEAPONS','ASSET_LEVELS','ASSET_WORLD'];
 for(var ai=0; ai<ASSETS.length; ai++){
   if(!window[ASSETS[ai]]) throw new Error('Missing asset: assets/' +
     ASSETS[ai].replace('ASSET_','').toLowerCase() + '.js');
@@ -124,7 +125,7 @@ function circle(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,6.2832); ctx.closePath(
 
 /* --------------------------------------------------------------- save state */
 var SAVE_KEY = 'ahmed_kuwait_fighter_v1';
-var save = { unlocked:1, xp:0, xpTotal:0, best:0, up:{box:0,kick:0,vit:0,spd:0,stam:0}, sound:true,
+var save = { unlocked:1, xp:0, xpTotal:0, best:0, visited:[0], at:0, up:{box:0,kick:0,vit:0,spd:0,stam:0}, sound:true,
              abilities:[], gates:{},
              cleared:[], diff:1, ranks:{}, survBest:0, haptics:true, music:true,
              gfx:true, gfxUser:false, achieved:[], stats:{kills:0, crates:0, parries:0, champClears:0,
@@ -154,6 +155,8 @@ function loadSave(){
         save.achieved = Array.isArray(d.achieved) ? d.achieved : [];
         if(d.stats) for(var sk in save.stats) save.stats[sk] = Math.max(0, d.stats[sk]|0);
         save.abilities = Array.isArray(d.abilities) ? d.abilities : [];
+        save.visited = Array.isArray(d.visited) && d.visited.length ? d.visited : [0];
+        save.at = clamp(d.at|0, 0, CAMPAIGN - 1);
         save.gates = (d.gates && typeof d.gates === 'object') ? d.gates : {};
         if(d.up){
           for(var k in save.up) save.up[k] = clamp(d.up[k]|0, 0, 5);
@@ -183,6 +186,37 @@ function haptic(ms){
   if(!save.haptics || !navigator.vibrate) return;
   try{ navigator.vibrate(ms); }catch(e){}
 }
+
+/* Steps through an area edge, carrying the fighter's condition with them. */
+function travelTo(to, cameFrom){
+  var F = G.fight, p = F.player;
+  var keep = { hp:p.hp, mp:p.mp, rage:p.rage, weapon:p.weapon };
+  Music.stop();
+  startStage(to, cameFrom === 'e' ? 'w' : 'e', keep);
+  var st = STAGES[to];
+  toast(st.name, st.ar, visited(to) ? 'ARRIVING' : 'NEW GROUND');
+}
+
+/* ------------------------------------------------------------------- world
+   The areas form a graph, not a list — see assets/world.js. Everything here
+   is about moving between them and knowing which routes are shut. */
+function areaLinks(idx){ return ASSET_WORLD.areas[idx] || {}; }
+function linkOpen(link){
+  if(link.needs && !hasAbility(link.needs)) return false;
+  // A shortcut is opened from the far side: it does not exist until the area
+  // it comes from has been beaten.
+  if(link.afterCleared !== undefined && !areaCleared(link.afterCleared)) return false;
+  return true;
+}
+function visited(idx){ return save.visited.indexOf(idx) >= 0; }
+function markVisited(idx){
+  if(!visited(idx)) save.visited.push(idx);
+  save.at = idx;
+}
+/* An area already beaten is a corridor: no waves, so walking back through it
+   costs time and nothing else. Backtracking has to be cheap or the whole
+   shape stops being inviting. */
+function areaCleared(idx){ return save.cleared.indexOf(idx) >= 0; }
 
 /* ------------------------------------------------------------------ levels
    Earned XP never goes down, so spending in the training camp cannot cost a
@@ -2610,24 +2644,41 @@ function makePlayer(){
   return p;
 }
 
-function startStage(idx){
+function startStage(idx, entry, keep){
   var st = STAGES[idx];
   var p = makePlayer();
+  // Walking in from the east means arriving at that edge, facing back the way
+  // the world runs. Survival and the arena always start at the mouth.
+  if(entry === 'e'){ p.x = Math.max(120, st.len - 150); p.facing = -1; }
+  // Carry the fighter's condition across an area edge — travel is a step
+  // through a doorway, not a fresh run.
+  if(keep){
+    p.hp = clamp(keep.hp, 1, p.maxHp);
+    p.mp = clamp(keep.mp, 0, p.maxMp);
+    p.rage = clamp(keep.rage, 0, 100);
+    if(keep.weapon) p.weapon = keep.weapon;
+  }
+  markVisited(idx);
   G.fight = {
     idx:idx, st:st, player:p, enemies:[], camX:0, lockX:null,
-    waves:st.waves.map(function(w){ return w; }),
+    // A beaten area keeps its scenery and loses its ambushes.
+    waves:areaCleared(idx) ? [] : st.waves.map(function(w){ return w; }),
+    // Entering from the east means every trigger is already behind you.
+    waveIdx: (entry === 'e' && !areaCleared(idx))
+      ? st.waves.filter(function(w){ return w.at < p.x; }).length : 0,
     props:buildProps(st, idx), items:[],
     gates:(st.gates || []).map(function(g){
       return { at:g.at, type:g.type, reward:g.reward,
                open:gateOpen(idx, g.at), t:0, hp:0, flash:0, near:false, can:false };
     }),
-    waveIdx:0, survWave:1, time:0, kills:0, xp:0,
+    survWave:1, time:0, kills:0, xp:0,
     bestCombo:0, done:false, hint:'', hintT:0
   };
   parts.length = 0; nums.length = 0; rings.length = 0;
   shake = 0; hitstop = 0; flashScreen = 0;
-  G.state = 'fight'; G.paused = false; G.intro = 2.2; G.slow = 0;
-  bump('fights');
+  G.state = 'fight'; G.paused = false; G.intro = keep ? 1.1 : 2.2; G.slow = 0;
+  if(!keep) bump('fights');
+  writeSave();
   Sfx.init(); Sfx.resume();
   Music.stop();
   Music.start(!!st.boss || !!st.survival, MUSIC_ROOT[st.theme] || 73.42);
@@ -3327,6 +3378,7 @@ function updateFight(dt){
   if(!F) return;
   var p = F.player, st = F.st;
   F.time += dt;
+  if(F.sealT > 0) F.sealT -= dt;
 
   // --- camera / wave gating ------------------------------------------------
   var wave = F.waveIdx < F.waves.length ? F.waves[F.waveIdx] : null;
@@ -3419,25 +3471,106 @@ function updateFight(dt){
     Music.stop(); Sfx.ko();
     checkAchievements();
   }
-  if(!F.done && !st.survival && F.waveIdx >= F.waves.length && p.x >= st.len - 90){
-    F.done = true;
+  // Clearing an area is a beat, not a screen — you keep walking. Only the
+  // last fight in the world stops play.
+  if(!F.done && !st.survival && F.waveIdx >= F.waves.length && !F.banked){
+    F.banked = true;
+    var first = !areaCleared(F.idx);
     var bonus = 60 + F.bestCombo * 8 + Math.round(p.hp / p.maxHp * 90);
     F.bonus = bonus;
-    grantXp(F.xp + bonus);
-    if(save.cleared.indexOf(F.idx) < 0) save.cleared.push(F.idx);
-    if(F.idx + 1 > save.unlocked - 1) save.unlocked = Math.min(CAMPAIGN, F.idx + 2);
+    if(first){
+      grantXp(F.xp + bonus);
+      save.cleared.push(F.idx);
+      bump('clears'); bump('time', Math.round(F.time));
+      if(save.diff === 2) bump('champClears');
+    }
     if(F.bestCombo > save.best) save.best = F.bestCombo;
-    bump('clears'); bump('time', Math.round(F.time));
-    if(save.diff === 2) bump('champClears');
     F.rank = rankFor(F);
     var prev = save.ranks[F.idx];
     if(!prev || RANK_ORDER.indexOf(F.rank) < RANK_ORDER.indexOf(prev)) save.ranks[F.idx] = F.rank;
+    save.unlocked = Math.min(CAMPAIGN, Math.max(save.unlocked, save.visited.length));
     writeSave();
-    G.state = (F.idx === CAMPAIGN - 1) ? 'victory' : 'clear';
-    G.endT = 0;
-    Music.stop(); Sfx.power();
     checkAchievements();
+    if(F.idx === CAMPAIGN - 1){
+      F.done = true;
+      G.state = 'victory'; G.endT = 0;
+      Music.stop(); Sfx.power();
+    } else if(first){
+      toast('AREA CLEAR · RANK ' + F.rank, st.ar, st.name);
+      Sfx.power();
+    }
   }
+
+  // --- area edges and doors -------------------------------------------------
+  if(!F.done && !st.survival) checkEdges(F, p, st);
+}
+
+/* Draws each way out of the area at its own position. A sealed one names the
+   talent it wants, so the player learns what to look for rather than only
+   that the door is shut. */
+function drawWays(F){
+  var links = areaLinks(F.idx), st = F.st;
+  var ready = F.waveIdx >= F.waves.length;
+  var sides = [['e', st.len + 40], ['w', 0], ['d', links.d ? links.d.at : 0]];
+  for(var i = 0; i < sides.length; i++){
+    var key = sides[i][0], link = links[key];
+    if(!link) continue;
+    if(key !== 'w' && !ready) continue;             // the far side stays shut
+    var gx = sides[i][1] - F.camX;
+    if(gx < -220 || gx > W + 220) continue;
+    var open = linkOpen(link);
+    var col = open ? '237,190,87' : '150,158,172';
+    ctx.globalAlpha = (open ? 0.45 + Math.sin(gameTime*4)*0.2 : 0.30);
+    var g = ctx.createLinearGradient(gx-60, 0, gx+60, 0);
+    g.addColorStop(0, 'rgba(' + col + ',0)');
+    g.addColorStop(0.5, 'rgba(' + col + ',.9)');
+    g.addColorStop(1, 'rgba(' + col + ',0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(gx-60, FLOOR_TOP-190, 120, 380);
+    ctx.globalAlpha = 1;
+    var name = STAGES[link.to] ? STAGES[link.to].name : '';
+    if(open){
+      txtLS(key === 'w' ? '\u2190' : (key === 'd' ? '\u2193' : '\u2192'),
+            gx, FLOOR_TOP-230, UI.t.head, UI.gold, 'center', 900, 0);
+      txtLS(name, gx, FLOOR_TOP-204, UI.t.micro, UI.gold, 'center', 800, 2);
+    } else {
+      var A = ABILITIES[link.needs];
+      txtLS('SEALED', gx, FLOOR_TOP-228, UI.t.label, 'rgba(198,206,220,.9)', 'center', 900, 2);
+      txtLS('NEEDS ' + (A ? A.n : '?'), gx, FLOOR_TOP-206, UI.t.micro,
+            'rgba(198,206,220,.7)', 'center', 800, 1.6);
+    }
+  }
+}
+
+/* Walking into an edge or a door. A route you cannot pass says what it wants
+   and pushes you back a step, so a sealed way reads as a lock rather than an
+   invisible wall. */
+function checkEdges(F, p, st){
+  var links = areaLinks(F.idx);
+  var use = null, side = null;
+  if(links.e && p.x >= st.len - 90) { use = links.e; side = 'e'; }
+  else if(links.w && p.x <= 70)     { use = links.w; side = 'w'; }
+  else if(links.d && Math.abs(p.x - links.d.at) < 60) { use = links.d; side = 'd'; }
+  if(!use) return;
+
+  // Waves have to be down before an area lets you out of its far side.
+  if(side !== 'w' && F.waveIdx < F.waves.length) return;
+
+  if(!linkOpen(use)){
+    if(F.sealT === undefined || F.sealT <= 0){
+      var A = ABILITIES[use.needs];
+      F.sealT = 1.6;
+      if(use.needs && !hasAbility(use.needs)){
+        F.sealMsg = 'SEALED — NEEDS ' + A.n; F.sealAr = A.ar;
+      } else {
+        F.sealMsg = 'NO WAY THROUGH YET'; F.sealAr = 'لا طريق بعد';
+      }
+      Sfx.hurt(); haptic(20);
+    }
+    p.x = side === 'w' ? 78 : (side === 'e' ? st.len - 98 : p.x - 8 * p.facing);
+    return;
+  }
+  travelTo(use.to, side);
 }
 
 /* ==========================================================================
@@ -3653,20 +3786,19 @@ function drawFight(){
 
   drawStageBg(F.st.theme, F.camX);
 
-  // exit gate once all waves are done
-  if(!F.st.survival && F.waveIdx >= F.waves.length){
-    var gx = F.st.len - F.camX + 40;
-    if(gx > -200 && gx < W + 200){
-      ctx.globalAlpha = 0.45 + Math.sin(gameTime*4)*0.2;
-      var g = ctx.createLinearGradient(gx-60, 0, gx+60, 0);
-      g.addColorStop(0, 'rgba(224,179,74,0)');
-      g.addColorStop(0.5, 'rgba(224,179,74,.9)');
-      g.addColorStop(1, 'rgba(224,179,74,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(gx-60, FLOOR_TOP-190, 120, 380);
-      ctx.globalAlpha = 1;
-      txt('EXIT', gx, FLOOR_TOP-210, 26, C.gold, 'center', 900);
-    }
+  // Every way out of the area, drawn where it stands. Gold means you can
+  // pass; grey with the talent's name means come back later.
+  if(!F.st.survival) drawWays(F);
+  if(F.sealT > 0){
+    var sa = clamp(F.sealT / 0.5, 0, 1);
+    ctx.globalAlpha = sa;
+    ctx.fillStyle = 'rgba(8,10,16,.88)';
+    roundRect(W/2-230, H-238, 460, 60, 12); ctx.fill();
+    ctx.strokeStyle = 'rgba(198,206,220,.6)'; ctx.lineWidth = 2;
+    roundRect(W/2-230, H-238, 460, 60, 12); ctx.stroke();
+    txtLS(F.sealMsg, W/2, H-215, UI.t.body, UI.fg, 'center', 900, 2, sa);
+    txt(F.sealAr, W/2, H-193, UI.t.label, UI.fgMut, 'center', 700, sa);
+    ctx.globalAlpha = 1;
   }
   // wave barrier
   if(F.lockX !== null){
@@ -4032,13 +4164,12 @@ function drawHelp(){
 }
 
 /* --------------------------------------------------------------------- map */
-var MAP_POS = [[140,230],[380,230],[620,230],[860,230],[1100,230],
-               [1100,430],[860,430],[620,430],[380,430]];
 function drawMap(){
   screenBg('#131b2a');
-  screenHead('CHOOSE YOUR FIGHT', 'اختر المعركة');
+  screenHead('THE WORLD', 'الخريطة');
   statLine(W - UI.pad, UI.headY - 12, 'CAREER XP', String(save.xp), UI.gold);
-  // abilities carried
+
+  // talents carried
   txtLS('CARRYING', UI.pad, 138, UI.t.micro, UI.fgFaint, 'left', 800, 2);
   var order = ['vault','dashleap','powerkick','haymaker','hawk'];
   for(var ai=0; ai<order.length; ai++){
@@ -4046,78 +4177,97 @@ function drawMap(){
     var ax = UI.pad + 84 + ai*46, ay = 122;
     ctx.fillStyle = got ? 'rgba(237,190,87,.20)' : 'rgba(255,255,255,.05)';
     roundRect(ax, ay, 38, 38, 8); ctx.fill();
-    ctx.strokeStyle = got ? C.gold : 'rgba(255,255,255,.10)';
+    ctx.strokeStyle = got ? UI.gold : 'rgba(255,255,255,.10)';
     ctx.lineWidth = 2; roundRect(ax, ay, 38, 38, 8); ctx.stroke();
-    txt(got ? A.icon : '·', ax+19, ay+19, got ? 21 : 18, got ? C.gold : C.dim, 'center', 900);
+    txt(got ? A.icon : '·', ax+19, ay+19, got ? 21 : 18, got ? UI.gold : UI.fgFaint, 'center', 900);
   }
 
-  // difficulty selector — tap to cycle
   var D = diff();
   uiButton(W - UI.pad - 246, 40, 246, 54, D.n, 'الصعوبة · ' + D.ar, function(){
     save.diff = (save.diff + 1) % 3; writeSave();
   });
   ctx.fillStyle = D.col;
-  roundRect(W-278, 34, 8, 38, 4); ctx.fill();
+  roundRect(W - UI.pad - 234, 48, 8, 38, 4); ctx.fill();
 
-  ctx.strokeStyle = 'rgba(237,190,87,.30)';
-  ctx.lineWidth = 5; ctx.setLineDash([12, 10]);
-  ctx.beginPath();
-  for(var i=0;i<MAP_POS.length;i++){
-    if(i === 0) ctx.moveTo(MAP_POS[i][0], MAP_POS[i][1]);
-    else ctx.lineTo(MAP_POS[i][0], MAP_POS[i][1]);
+  var L = ASSET_WORLD.layout, AR = ASSET_WORLD.areas;
+
+  // --- routes ---------------------------------------------------------------
+  // Drawn once per pair. A route you can walk is solid gold; one you cannot is
+  // dashed and grey and says what it wants, which is the whole map's job.
+  for(var a = 0; a < AR.length; a++){
+    var sides = ['w','e','d'];
+    for(var si = 0; si < sides.length; si++){
+      var link = AR[a][sides[si]];
+      if(!link || link.to < a) continue;               // draw each pair once
+      var A1 = L[a], A2 = L[link.to];
+      var seen = visited(a) || visited(link.to);
+      var open = linkOpen(link);
+      ctx.save();
+      ctx.lineWidth = open ? 5 : 3;
+      ctx.strokeStyle = !seen ? 'rgba(255,255,255,.07)'
+                      : open ? 'rgba(237,190,87,.55)' : 'rgba(150,158,172,.42)';
+      if(!open) ctx.setLineDash([9, 8]);
+      ctx.beginPath(); ctx.moveTo(A1.x, A1.y); ctx.lineTo(A2.x, A2.y); ctx.stroke();
+      ctx.restore();
+      if(seen && !open && link.needs){
+        var mx = (A1.x + A2.x)/2, my = (A1.y + A2.y)/2;
+        var tal = ABILITIES[link.needs];
+        ctx.fillStyle = 'rgba(10,13,20,.92)';
+        roundRect(mx-15, my-15, 30, 30, 8); ctx.fill();
+        ctx.strokeStyle = 'rgba(150,158,172,.5)'; ctx.lineWidth = 1.5;
+        roundRect(mx-15, my-15, 30, 30, 8); ctx.stroke();
+        txt(tal ? tal.icon : '?', mx, my, 16, 'rgba(198,206,220,.85)', 'center', 900);
+      }
+    }
   }
-  ctx.stroke(); ctx.setLineDash([]);
 
-  for(i=0;i<MAP_POS.length;i++){
-    var st = STAGES[i], px = MAP_POS[i][0], py = MAP_POS[i][1];
-    var locked = i >= save.unlocked;
-    var done = save.cleared.indexOf(i) >= 0;
+  // --- areas ----------------------------------------------------------------
+  for(var i = 0; i < L.length; i++){
+    var st = STAGES[i], px = L[i].x, py = L[i].y;
+    var seenIt = visited(i), done = areaCleared(i), here = save.at === i;
     var rank = save.ranks[i];
 
-    ctx.fillStyle = locked ? 'rgba(30,33,42,.9)' : (done ? 'rgba(0,122,61,.85)' : 'rgba(200,16,46,.9)');
-    circle(px, py, 40); ctx.fill();
-    ctx.strokeStyle = locked ? 'rgba(255,255,255,.16)' : C.gold;
-    ctx.lineWidth = 3; circle(px, py, 40); ctx.stroke();
-    txt(locked ? '🔒' : String(i+1), px, py, locked ? 24 : 32, locked ? C.dim : C.white, 'center', 900);
+    if(here){
+      ctx.strokeStyle = 'rgba(237,190,87,' + (0.35 + Math.sin(gameTime*3)*0.22) + ')';
+      ctx.lineWidth = 3; circle(px, py, 50); ctx.stroke();
+    }
+    ctx.fillStyle = !seenIt ? 'rgba(24,28,38,.92)'
+                  : done ? 'rgba(0,122,61,.85)' : 'rgba(200,16,46,.9)';
+    circle(px, py, 38); ctx.fill();
+    ctx.strokeStyle = seenIt ? UI.gold : 'rgba(255,255,255,.14)';
+    ctx.lineWidth = 3; circle(px, py, 38); ctx.stroke();
+    txt(seenIt ? String(i+1) : '?', px, py, seenIt ? 30 : 24,
+        seenIt ? UI.fg : UI.fgFaint, 'center', 900);
 
-    // sealed route marker — gold when you now carry the key, dim when you don't
+    txtLS(seenIt ? L[i].n : '— — —', px, py + 56, UI.t.micro,
+          seenIt ? UI.fg : UI.fgFaint, 'center', 800, 1.6);
+    if(seenIt) txt(st.ar, px, py + 74, UI.t.label - 1, UI.fgMut, 'center', 700);
+    if(rank) txtLS(rank, px + 30, py - 30, UI.t.label, rankColor(rank), 'center', 900, 0);
+
+    // a sealed route inside this area, once you can open it
     var gs = st.gates || [];
-    for(var gi=0; gi<gs.length; gi++){
-      if(gateOpen(i, gs[gi].at)) continue;
+    for(var gi = 0; gi < gs.length; gi++){
+      if(gateOpen(i, gs[gi].at) || !seenIt) continue;
       var spec = GATES[gs[gi].type];
       var can = !spec.need || hasAbility(spec.need);
-      if(locked) continue;
-      ctx.fillStyle = can ? 'rgba(237,190,87,.92)' : 'rgba(30,33,42,.92)';
-      circle(px-32, py-30, 15); ctx.fill();
-      ctx.strokeStyle = can ? '#fff3c4' : 'rgba(255,255,255,.18)';
-      ctx.lineWidth = 2; circle(px-32, py-30, 15); ctx.stroke();
-      txt(can ? '!' : '🔒', px-32, py-29, can ? 20 : 13, can ? '#1a1408' : C.dim, 'center', 900);
+      if(!can) continue;
+      ctx.fillStyle = 'rgba(237,190,87,.92)';
+      circle(px - 30, py - 30, 14); ctx.fill();
+      txt('!', px - 30, py - 29, 19, '#1a1408', 'center', 900);
     }
 
-    if(rank){                                    // best rank earned on this stage
-      ctx.fillStyle = 'rgba(8,10,16,.92)';
-      circle(px+32, py-30, 17); ctx.fill();
-      ctx.strokeStyle = rankColor(rank); ctx.lineWidth = 2.5;
-      circle(px+32, py-30, 17); ctx.stroke();
-      txt(rank, px+32, py-29, 20, rankColor(rank), 'center', 900);
-    } else if(done){
-      txt('✓', px+30, py-28, 22, C.gold, 'center', 900);
-    }
-
-    txt(st.name, px, py+62, 15, locked ? C.dim : C.white, 'center', 800);
-    txt(st.ar,  px, py+82, 14, locked ? 'rgba(255,255,255,.22)' : C.gold, 'center', 700);
-    if(st.boss && !locked) txt('BOSS', px, py-62, 15, C.bad, 'center', 900);
-
-    if(!locked){
-      (function(idx){
-        uiBtns.push({ x:px-52, y:py-52, w:104, h:104, fn:function(){ openBrief(idx); } });
+    if(seenIt){
+      (function(n){
+        uiBtns.push({ x:px-42, y:py-42, w:84, h:84, fn:function(){ openBrief(n); } });
       })(i);
     }
   }
 
-  // survival — unlocked by winning the title fight
+  txtLS('WALK BETWEEN AREAS · TAP A VISITED ONE TO TRAVEL', W/2, UI.navY - 108,
+        UI.t.micro, UI.fgFaint, 'center', 800, 2);
+
   var survIdx = STAGES.length - 1;
-  var survOpen = save.cleared.indexOf(MAP_POS.length - 1) >= 0;
+  var survOpen = areaCleared(ASSET_WORLD.layout.length - 1);
   if(survOpen){
     uiButton(W/2-190, UI.navY - 76, 380, 58, 'SURVIVAL  ·  BEST WAVE ' + save.survBest,
              'البقاء — موجات لا تنتهي', function(){ openBrief(survIdx); }, 'primary');
@@ -4126,7 +4276,7 @@ function drawMap(){
              function(){ Sfx.hurt(); }, 'off');
   }
 
-  navRow([['BACK', 'رجوع', function(){ G.state = 'menu'; }],
+  navRow([['MENU', 'القائمة', function(){ G.state = 'menu'; }],
           ['TRAIN', 'تدريب', function(){ G.state = 'upgrade'; }]]);
 }
 
