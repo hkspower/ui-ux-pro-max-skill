@@ -5,6 +5,7 @@
 #include "AhmedTypes.generated.h"
 
 class UAnimMontage;
+class UStaticMesh;
 class UWorld;
 
 /**
@@ -43,7 +44,11 @@ enum class EAbility : uint8
 	Vault,
 	DashLeap,
 	PowerKick,
-	Haymaker
+	Haymaker,
+	/** Punches carry fire. Spends mana, and only punches -- kicks stay cold.
+	    Unlike the other four this one is not a traversal key: it opens the
+	    door to the arena rather than a gate inside a stage. */
+	HawkFist
 };
 
 /** What a sealed route wants from the player. */
@@ -248,6 +253,163 @@ struct FStageDef : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
 	TSoftObjectPtr<UWorld> Level;
+};
+
+/**
+ * The tables below exist because the browser build grew systems the first
+ * port did not have -- talents, upgrade tracks, an XP curve, weapons -- and
+ * Tools/export/export.mjs now writes all of them. Each one is a straight
+ * mirror of an assets/*.js file, so the shape is dictated by that file rather
+ * than chosen here.
+ */
+
+/** An ability found in the world. Never bought; see FUpgradeDef for those. */
+USTRUCT(BlueprintType)
+struct FTalentDef : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Talent")
+	EAbility Ability = EAbility::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Talent")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Talent")
+	FText DisplayNameArabic;
+
+	/** The glyph the HUD draws for it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Talent")
+	FString Icon;
+
+	/** Mana spent per use. Zero for the traversal talents, which are passive. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Talent", meta = (ClampMin = "0"))
+	float ManaCost = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Talent", meta = (MultiLine = true))
+	FText Description;
+};
+
+/** What a kind of sealed route wants. The placement of one is FGateDef. */
+USTRUCT(BlueprintType)
+struct FGateKindDef : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gate")
+	EGateType GateType = EGateType::Wall;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gate")
+	EAbility RequiredAbility = EAbility::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gate")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gate")
+	FText DisplayNameArabic;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gate")
+	FText Hint;
+
+	/** Shutters take kicks and walls take punches: the right family of strike,
+	    not just any hit. None means the gate opens on approach. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gate")
+	EAttackFamily BreakFamily = EAttackFamily::Box;
+};
+
+/** One bought level of one upgrade track. The browser holds this as a cost
+    function; a DataTable cannot, so the export samples every level into a
+    row and Unreal gets the lookup it wanted anyway. */
+USTRUCT(BlueprintType)
+struct FUpgradeDef : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Upgrade")
+	FName Track;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Upgrade")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Upgrade")
+	FText DisplayNameArabic;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Upgrade")
+	FText Description;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Upgrade", meta = (ClampMin = "1"))
+	int32 Level = 1;
+
+	/** Experience for this level alone. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Upgrade", meta = (ClampMin = "0"))
+	int32 Cost = 120;
+
+	/** Everything spent on this track to reach this level. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Upgrade", meta = (ClampMin = "0"))
+	int32 CumulativeCost = 120;
+};
+
+/** One rung of the fighter's rank. Sampled from the browser's curve for the
+    same reason the upgrade costs are. */
+USTRUCT(BlueprintType)
+struct FLevelDef : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level", meta = (ClampMin = "1"))
+	int32 Level = 1;
+
+	/** Total earned experience needed to stand here. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level", meta = (ClampMin = "0"))
+	int32 ExperienceRequired = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level", meta = (ClampMin = "0"))
+	int32 StepFromPrevious = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
+	FText Title;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
+	float BonusHealth = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
+	float BonusMana = 0.f;
+};
+
+/** What a smashed crate can put in your hands. Every one multiplies punches
+    and none of them touch kicks, so picking one up is a trade. */
+USTRUCT(BlueprintType)
+struct FWeaponDef : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	FText DisplayNameArabic;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = "1"))
+	float DamageMultiplier = 1.9f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	float BonusReach = 62.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	float BonusKnockback = 360.f;
+
+	/** Connecting swings before it gives out. Whiffs cost nothing but time. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = "1"))
+	int32 Uses = 12;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
+	float Length = 86.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
+	float Thickness = 10.8f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
+	TSoftObjectPtr<UStaticMesh> Mesh;
 };
 
 /** Difficulty multipliers, chosen on the map screen. */

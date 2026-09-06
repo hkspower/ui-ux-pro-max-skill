@@ -8,11 +8,28 @@
 			"Name": "AhmedFighter",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"AdditionalDependencies": [ "Engine", "EnhancedInput" ]
+			"AdditionalDependencies": [
+				"Engine",
+				"EnhancedInput"
+			]
 		}
 	],
 	"Plugins": [
-		{ "Name": "EnhancedInput", "Enabled": true },
-		{ "Name": "ModelingToolsEditorMode", "Enabled": true, "TargetAllowList": [ "Editor" ] }
+		{
+			"Name": "EnhancedInput",
+			"Enabled": true
+		},
+		{
+			"Name": "ModelingToolsEditorMode",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		}
+	],
+	"TargetPlatforms": [
+		"IOS",
+		"Mac",
+		"Windows"
 	]
 }

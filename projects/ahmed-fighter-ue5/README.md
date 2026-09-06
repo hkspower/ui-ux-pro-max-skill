@@ -27,14 +27,11 @@ today. This is the engine port, not a replacement for it.
 | Profile | `UAhmedGameInstance` + `UAhmedSaveGame` | XP, upgrades, abilities, opened gates, ranks, difficulty, stats |
 | Scoring | `AAhmedGameMode` | S/A/B/C rank, clear bonus, progress writeback |
 | Character mesh | `Content/Models/Ahmed.fbx` | rigged blockout, Unreal bone names, built by script |
+| Remote balance | `UAhmedConfigSubsystem` | baked tables first, cache second, server third; whole-payload-or-nothing |
 
-Data lives in `Content/Data` and drives everything:
-
-```
-DT_Attacks.csv    every strike: damage, frame timings, reach, knockback, cost
-DT_Fighters.csv   the ten archetypes including both bosses
-DT_Stages.json    nine stages plus survival — waves, triggers, gates, rewards
-```
+Data lives in `Content/Data` and drives everything. It is **generated** from
+the browser project rather than authored here — see **Data comes from the
+browser project** below.
 
 Distances are in centimetres. The browser build worked in canvas pixels, so
 every position was multiplied by **2.4** on the way across; that single factor
@@ -120,6 +117,143 @@ scale of 1.0 — the FBX is already exported in centimetres.
 
 ---
 
+## Data comes from the browser project
+
+Every number the game runs on lives in `../ahmed-fighter/assets/*.js`, and the
+control panel at `../ahmed-fighter/panel/` edits them. `Content/Data` is
+**generated**, never hand-edited — edit it directly and the next export will
+quietly throw your change away.
+
+```bash
+node Tools/export/export.mjs          # write Content/Data
+node Tools/export/export.mjs --api    # …and config.json, the API payload
+node Tools/export/export.mjs --check  # fail if Unreal and the browser disagree
+```
+
+| Written | From |
+| --- | --- |
+| `DT_Attacks.csv` | `hits.js` |
+| `DT_Fighters.csv` | `enemies.js` + `ahmed.js` (he is in the roster too) |
+| `DT_Talents.csv`, `DT_GateKinds.csv` | `talents.js` |
+| `DT_Upgrades.csv` | `upgrades.js` — the cost **function**, sampled per level |
+| `DT_Levels.csv` | `levels.js` — the XP curve and titles, sampled per level |
+| `DT_Weapons.csv` | `weapons.js` |
+| `DT_Stages.json` | `stages.js` — waves expanded to one entry per body |
+| `DT_World.json` | `world.js` — the whole Metroidvania graph |
+| `Player.json` | `ahmed.js` |
+| `config.json` | all of the above, plus a content hash as its revision |
+
+Three things the exporter does that the files cannot:
+
+**Units.** The browser works in canvas pixels and Unreal in centimetres, so
+every distance crosses through one constant (`PX_TO_CM = 2.4`) applied in one
+function. Get it wrong in a single place and reach, knockback and stage length
+stop agreeing with each other.
+
+**Functions.** `levels.need()`, `levels.title()` and `upgrades.cost()` are
+code, and a DataTable cannot hold code. They are sampled instead — every level,
+every upgrade rank, written out as rows.
+
+**Names.** The browser keys a talent `powerkick`; the `EAbility` entry is
+`PowerKick`. The mapping lives in the exporter so neither side has to know
+about the other's spelling — and a talent with no matching enum entry **fails
+the export** rather than writing a row that will not resolve. That is how
+`HawkFist` was found missing from `EAbility` and added.
+
+`--check` is wired into `Tools/ios/build-ios.sh`, so a build whose numbers
+disagree with the browser project stops before the cook rather than after it.
+
+---
+
+## The balance API
+
+Optional, and off by default. The game ships with the tables baked in and is
+complete without a network — what the server buys is turning a store review
+into a thirty-second change.
+
+```bash
+node Tools/api/server.mjs             # port 8787
+PORT=9000 node Tools/api/server.mjs
+node Tools/api/server.mjs --watch     # re-read the payload every request
+```
+
+| | |
+| --- | --- |
+| `GET /v1/revision` | 16 hex characters. Cheap — the client stops here when it matches. |
+| `GET /v1/config` | the payload; honours `If-None-Match`, answers `304` |
+| `GET /health` | for whatever is watching the process |
+
+`UAhmedConfigSubsystem` is the client. On launch it does three things in this
+order, and **the first one is what the player actually plays**:
+
+1. Point at the baked tables. The game is ready. No network, no wait.
+2. Apply anything a previous run cached, if its revision is newer.
+3. Ask the server for its revision, and fetch only if it differs.
+
+A payload is applied **whole or not at all** — every table is parsed into a
+fresh `UDataTable` first, and only if all of them succeed do they replace the
+live ones. Half-applying a balance change is worse than not applying it,
+because the halves were tuned against each other. Anything that goes wrong —
+offline, timeout, malformed, a table that will not parse — leaves the game on
+what it already had and says so in `LogAhmedBalance`.
+
+> **Before this goes on the internet.** The server terminates plain HTTP and
+> knows nothing about TLS. iOS will refuse a plain-HTTP call from a shipped
+> app, and the right answer is to put the server behind HTTPS rather than to
+> punch an ATS hole — an exception would also let anyone on the same wifi
+> rewrite the game's balance in flight. `Config/IOS/IOSEngine.ini` keeps
+> `bDisableHTTPS=False` deliberately and carries a commented local-only
+> exception for development.
+
+---
+
+## Building for iOS, from a Mac
+
+**iOS can only be built on macOS.** Apple's toolchain is Mac-only and Unreal
+shells out to it; there is no cross-compile from Linux or Windows. The script
+checks this first and says so rather than failing halfway through a cook.
+
+```bash
+./Tools/ios/build-ios.sh                # Development
+./Tools/ios/build-ios.sh shipping       # Shipping
+./Tools/ios/build-ios.sh shipping dist  # Shipping, signed for TestFlight/App Store
+```
+
+What has to be in place first, in this order:
+
+1. **macOS**, with **Xcode** installed — the full Xcode, not just the command
+   line tools, and `xcode-select -p` pointing at it.
+2. **Unreal Engine 5.4**. The script looks in `/Users/Shared/Epic Games/UE_5.4`;
+   override with `UE_ROOT=… ./Tools/ios/build-ios.sh`.
+3. An **Apple developer account**, an **App ID** matching `BundleIdentifier` in
+   `Config/IOS/IOSEngine.ini` — change `kw.com.sporta.ahmedfighter` to yours
+   **before the first build**, because changing it later means a new App ID and
+   a new profile — and a signing certificate plus provisioning profile for it
+   in the login keychain.
+
+`Config/IOS/IOSEngine.ini` holds the platform settings. The ones worth knowing:
+landscape only (portrait is disabled rather than deprioritised, so the phone
+cannot rotate mid-fight), Metal only, iOS 15 floor, 60fps lock with ProMotion
+allowed to go higher, and mobile **deferred** shading with bloom and a film
+curve on — motion blur off because it reads as lag in a fighting game, and
+auto-exposure off because the stages are lit deliberately and letting the
+camera re-expose them undoes that.
+
+The result lands in `Build/IOS`. To put it on a device: `ios-deploy --bundle
+Build/IOS/AhmedFighter.ipa`, or drag the `.ipa` into Xcode's *Devices and
+Simulators* window.
+
+---
+
+## Art direction
+
+Not cartoonish. See `CLAUDE.md` in this directory — realistic proportions,
+physically based materials, real lighting, motion-capture-grade animation, a
+grounded palette and damage that accumulates. The browser build next door
+keeps its stylised look on purpose; this one does not share it.
+
+---
+
 ## Design rules the port keeps
 
 **Hits are resolved by an explicit facing/reach/depth test, not physics
@@ -160,3 +294,12 @@ do in the editor, because they are content rather than code:
 - Audio. The browser build synthesises everything at runtime; UE wants real cues.
 - Touch controls. The desktop and gamepad paths are bound; a mobile on-screen
   stick and four buttons still need a UMG layer feeding the same Input Actions.
+
+Also outstanding, and worth knowing before the first build:
+
+- **The DataTable assets themselves.** `Content/Data` holds the exported CSV
+  and JSON; turning them into `/Game/Data/DT_*` assets is a one-time import in
+  the editor (right-click → Import, pick the row struct). `DefaultGame.ini`
+  already points `Baked*Table` at where they will live.
+- **The art pass.** Everything in this project is still a blockout. What it
+  should become is in `CLAUDE.md`.

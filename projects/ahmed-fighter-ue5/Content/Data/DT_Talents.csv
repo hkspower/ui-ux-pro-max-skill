@@ -1,0 +1,6 @@
+Name,Ability,DisplayName,DisplayNameArabic,Icon,ManaCost,Description
+Vault,Vault,VAULT,وثبة,⤴,0,Climb low ledges. Hold toward one and Ahmed pulls himself up.
+DashLeap,DashLeap,DASH LEAP,قفزة,⇥,0,Your dodge dash carries you across broken ground.
+PowerKick,PowerKick,POWER KICK,ركلة قوية,⚡,0,Kicks tear steel shutters off their rails.
+Haymaker,Haymaker,HAYMAKER,قاضية,✊,0,A loaded hook that punches through cracked masonry.
+HawkFist,HawkFist,HAWK FIST,قبضة الباز,✷,14,"Your punches carry fire. Burns MP, and only punches — kicks stay cold."

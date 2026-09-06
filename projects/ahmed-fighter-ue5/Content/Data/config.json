@@ -1,0 +1,1533 @@
+{
+  "Version": 1,
+  "Attacks": [
+    {
+      "Name": "Jab",
+      "Family": "Box",
+      "Damage": 7,
+      "Startup": 0.07,
+      "Active": 0.06,
+      "Recovery": 0.13,
+      "Reach": 130,
+      "DepthTolerance": 80,
+      "Knockback": 168,
+      "StaminaCost": 5,
+      "bHeavy": false,
+      "bMultiHit": false
+    },
+    {
+      "Name": "Cross",
+      "Family": "Box",
+      "Damage": 11,
+      "Startup": 0.1,
+      "Active": 0.07,
+      "Recovery": 0.19,
+      "Reach": 144,
+      "DepthTolerance": 80,
+      "Knockback": 288,
+      "StaminaCost": 8,
+      "bHeavy": false,
+      "bMultiHit": false
+    },
+    {
+      "Name": "Hook",
+      "Family": "Box",
+      "Damage": 17,
+      "Startup": 0.14,
+      "Active": 0.08,
+      "Recovery": 0.26,
+      "Reach": 134,
+      "DepthTolerance": 80,
+      "Knockback": 504,
+      "StaminaCost": 12,
+      "bHeavy": true,
+      "bMultiHit": false
+    },
+    {
+      "Name": "Kick",
+      "Family": "Kick",
+      "Damage": 19,
+      "Startup": 0.16,
+      "Active": 0.09,
+      "Recovery": 0.28,
+      "Reach": 178,
+      "DepthTolerance": 80,
+      "Knockback": 648,
+      "StaminaCost": 14,
+      "bHeavy": true,
+      "bMultiHit": false
+    },
+    {
+      "Name": "Knee",
+      "Family": "Kick",
+      "Damage": 23,
+      "Startup": 0.13,
+      "Active": 0.08,
+      "Recovery": 0.26,
+      "Reach": 101,
+      "DepthTolerance": 80,
+      "Knockback": 384,
+      "StaminaCost": 16,
+      "bHeavy": true,
+      "bMultiHit": false
+    },
+    {
+      "Name": "Special",
+      "Family": "Kick",
+      "Damage": 46,
+      "Startup": 0.18,
+      "Active": 0.26,
+      "Recovery": 0.34,
+      "Reach": 211,
+      "DepthTolerance": 80,
+      "Knockback": 1032,
+      "StaminaCost": 0,
+      "bHeavy": true,
+      "bMultiHit": true
+    }
+  ],
+  "Fighters": [
+    {
+      "Name": "Ahmed",
+      "DisplayName": "AHMED",
+      "DisplayNameArabic": "أحمد",
+      "MaxHealth": 100,
+      "PowerMultiplier": 1,
+      "MoveSpeed": 341,
+      "PreferredRange": 139,
+      "AttackInterval": 0,
+      "GuardChance": 0,
+      "bHitAndRun": false,
+      "bIsBoss": false,
+      "ExperienceValue": 0,
+      "Moves": [
+        "Jab",
+        "Cross",
+        "Hook",
+        "Kick",
+        "Knee"
+      ]
+    },
+    {
+      "Name": "Thug",
+      "DisplayName": "Souq Thug",
+      "DisplayNameArabic": "بلطجي",
+      "MaxHealth": 46,
+      "PowerMultiplier": 0.8,
+      "MoveSpeed": 288,
+      "PreferredRange": 130,
+      "AttackInterval": 1.55,
+      "GuardChance": 0.2,
+      "bHitAndRun": false,
+      "bIsBoss": false,
+      "ExperienceValue": 14,
+      "Moves": [
+        "Jab",
+        "Cross"
+      ]
+    },
+    {
+      "Name": "Brawler",
+      "DisplayName": "Brawler",
+      "DisplayNameArabic": "مشاكس",
+      "MaxHealth": 68,
+      "PowerMultiplier": 1,
+      "MoveSpeed": 317,
+      "PreferredRange": 139,
+      "AttackInterval": 1.25,
+      "GuardChance": 0.19,
+      "bHitAndRun": false,
+      "bIsBoss": false,
+      "ExperienceValue": 21,
+      "Moves": [
+        "Jab",
+        "Cross",
+        "Hook"
+      ]
+    },
+    {
+      "Name": "Kicker",
+      "DisplayName": "Kickboxer",
+      "DisplayNameArabic": "ملاكم",
+      "MaxHealth": 60,
+      "PowerMultiplier": 1.15,
+      "MoveSpeed": 389,
+      "PreferredRange": 178,
+      "AttackInterval": 1.1,
+      "GuardChance": 0.17,
+      "bHitAndRun": false,
+      "bIsBoss": false,
+      "ExperienceValue": 26,
+      "Moves": [
+        "Kick",
+        "Jab",
+        "Kick",
+        "Cross"
+      ]
+    },
+    {
+      "Name": "Grappler",
+      "DisplayName": "Grappler",
+      "DisplayNameArabic": "مصارع",
+      "MaxHealth": 110,
+      "PowerMultiplier": 1.35,
+      "MoveSpeed": 235,
+      "PreferredRange": 110,
+      "AttackInterval": 1.75,
+      "GuardChance": 0.29,
+      "bHitAndRun": false,
+      "bIsBoss": false,
+      "ExperienceValue": 34,
+      "Moves": [
+        "Knee",
+        "Hook",
+        "Knee"
+      ]
+    },
+    {
+      "Name": "Champ",
+      "DisplayName": "Contender",
+      "DisplayNameArabic": "منافس",
+      "MaxHealth": 160,
+      "PowerMultiplier": 1.35,
+      "MoveSpeed": 365,
+      "PreferredRange": 163,
+      "AttackInterval": 0.95,
+      "GuardChance": 0.26,
+      "bHitAndRun": false,
+      "bIsBoss": false,
+      "ExperienceValue": 52,
+      "Moves": [
+        "Jab",
+        "Cross",
+        "Kick",
+        "Hook",
+        "Knee"
+      ]
+    },
+    {
+      "Name": "Runner",
+      "DisplayName": "Runner",
+      "DisplayNameArabic": "خطّاف",
+      "MaxHealth": 42,
+      "PowerMultiplier": 0.85,
+      "MoveSpeed": 504,
+      "PreferredRange": 134,
+      "AttackInterval": 0.85,
+      "GuardChance": 0.13,
+      "bHitAndRun": true,
+      "bIsBoss": false,
+      "ExperienceValue": 22,
+      "Moves": [
+        "Jab",
+        "Jab",
+        "Cross"
+      ]
+    },
+    {
+      "Name": "Bouncer",
+      "DisplayName": "Bouncer",
+      "DisplayNameArabic": "حارس",
+      "MaxHealth": 150,
+      "PowerMultiplier": 1.3,
+      "MoveSpeed": 250,
+      "PreferredRange": 125,
+      "AttackInterval": 1.9,
+      "GuardChance": 0.34,
+      "bHitAndRun": false,
+      "bIsBoss": false,
+      "ExperienceValue": 40,
+      "Moves": [
+        "Hook",
+        "Knee",
+        "Hook"
+      ]
+    },
+    {
+      "Name": "Capo",
+      "DisplayName": "Enforcer",
+      "DisplayNameArabic": "مُنفّذ",
+      "MaxHealth": 118,
+      "PowerMultiplier": 1.2,
+      "MoveSpeed": 403,
+      "PreferredRange": 154,
+      "AttackInterval": 0.78,
+      "GuardChance": 0.2,
+      "bHitAndRun": false,
+      "bIsBoss": false,
+      "ExperienceValue": 44,
+      "Moves": [
+        "Jab",
+        "Cross",
+        "Hook",
+        "Jab",
+        "Kick"
+      ]
+    },
+    {
+      "Name": "Boss",
+      "DisplayName": "AL-WAHSH",
+      "DisplayNameArabic": "الوحش",
+      "MaxHealth": 430,
+      "PowerMultiplier": 1.45,
+      "MoveSpeed": 350,
+      "PreferredRange": 173,
+      "AttackInterval": 0.88,
+      "GuardChance": 0.52,
+      "bHitAndRun": false,
+      "bIsBoss": true,
+      "ExperienceValue": 220,
+      "Moves": [
+        "Jab",
+        "Cross",
+        "Hook",
+        "Kick",
+        "Knee"
+      ]
+    },
+    {
+      "Name": "Saqr",
+      "DisplayName": "AL-SAQR",
+      "DisplayNameArabic": "الصقر",
+      "MaxHealth": 290,
+      "PowerMultiplier": 1.3,
+      "MoveSpeed": 446,
+      "PreferredRange": 182,
+      "AttackInterval": 0.8,
+      "GuardChance": 0.37,
+      "bHitAndRun": false,
+      "bIsBoss": true,
+      "ExperienceValue": 150,
+      "Moves": [
+        "Kick",
+        "Jab",
+        "Kick",
+        "Cross",
+        "Knee"
+      ]
+    }
+  ],
+  "Talents": [
+    {
+      "Name": "Vault",
+      "Ability": "Vault",
+      "DisplayName": "VAULT",
+      "DisplayNameArabic": "وثبة",
+      "Icon": "⤴",
+      "ManaCost": 0,
+      "Description": "Climb low ledges. Hold toward one and Ahmed pulls himself up."
+    },
+    {
+      "Name": "DashLeap",
+      "Ability": "DashLeap",
+      "DisplayName": "DASH LEAP",
+      "DisplayNameArabic": "قفزة",
+      "Icon": "⇥",
+      "ManaCost": 0,
+      "Description": "Your dodge dash carries you across broken ground."
+    },
+    {
+      "Name": "PowerKick",
+      "Ability": "PowerKick",
+      "DisplayName": "POWER KICK",
+      "DisplayNameArabic": "ركلة قوية",
+      "Icon": "⚡",
+      "ManaCost": 0,
+      "Description": "Kicks tear steel shutters off their rails."
+    },
+    {
+      "Name": "Haymaker",
+      "Ability": "Haymaker",
+      "DisplayName": "HAYMAKER",
+      "DisplayNameArabic": "قاضية",
+      "Icon": "✊",
+      "ManaCost": 0,
+      "Description": "A loaded hook that punches through cracked masonry."
+    },
+    {
+      "Name": "HawkFist",
+      "Ability": "HawkFist",
+      "DisplayName": "HAWK FIST",
+      "DisplayNameArabic": "قبضة الباز",
+      "Icon": "✷",
+      "ManaCost": 14,
+      "Description": "Your punches carry fire. Burns MP, and only punches — kicks stay cold."
+    }
+  ],
+  "GateKinds": [
+    {
+      "Name": "Ledge",
+      "GateType": "Ledge",
+      "RequiredAbility": "Vault",
+      "DisplayName": "LEDGE",
+      "DisplayNameArabic": "حافة",
+      "Hint": "Needs VAULT",
+      "BreakFamily": "None"
+    },
+    {
+      "Name": "Gap",
+      "GateType": "Gap",
+      "RequiredAbility": "DashLeap",
+      "DisplayName": "BROKEN GROUND",
+      "DisplayNameArabic": "هوّة",
+      "Hint": "Needs DASH LEAP",
+      "BreakFamily": "None"
+    },
+    {
+      "Name": "Shutter",
+      "GateType": "Shutter",
+      "RequiredAbility": "PowerKick",
+      "DisplayName": "STEEL SHUTTER",
+      "DisplayNameArabic": "باب حديد",
+      "Hint": "Needs POWER KICK",
+      "BreakFamily": "Kick"
+    },
+    {
+      "Name": "Wall",
+      "GateType": "Wall",
+      "RequiredAbility": "Haymaker",
+      "DisplayName": "CRACKED WALL",
+      "DisplayNameArabic": "جدار متصدع",
+      "Hint": "Needs HAYMAKER",
+      "BreakFamily": "Box"
+    },
+    {
+      "Name": "Stash",
+      "GateType": "Stash",
+      "RequiredAbility": "None",
+      "DisplayName": "LOCKER",
+      "DisplayNameArabic": "خزانة",
+      "Hint": "Walk up to it",
+      "BreakFamily": "None"
+    }
+  ],
+  "Upgrades": [
+    {
+      "Name": "Box_1",
+      "Track": "Box",
+      "DisplayName": "BOXING",
+      "DisplayNameArabic": "ملاكمة",
+      "Description": "+10% jab, cross and hook damage",
+      "Level": 1,
+      "Cost": 120,
+      "CumulativeCost": 120
+    },
+    {
+      "Name": "Box_2",
+      "Track": "Box",
+      "DisplayName": "BOXING",
+      "DisplayNameArabic": "ملاكمة",
+      "Description": "+10% jab, cross and hook damage",
+      "Level": 2,
+      "Cost": 250,
+      "CumulativeCost": 370
+    },
+    {
+      "Name": "Box_3",
+      "Track": "Box",
+      "DisplayName": "BOXING",
+      "DisplayNameArabic": "ملاكمة",
+      "Description": "+10% jab, cross and hook damage",
+      "Level": 3,
+      "Cost": 380,
+      "CumulativeCost": 750
+    },
+    {
+      "Name": "Box_4",
+      "Track": "Box",
+      "DisplayName": "BOXING",
+      "DisplayNameArabic": "ملاكمة",
+      "Description": "+10% jab, cross and hook damage",
+      "Level": 4,
+      "Cost": 510,
+      "CumulativeCost": 1260
+    },
+    {
+      "Name": "Box_5",
+      "Track": "Box",
+      "DisplayName": "BOXING",
+      "DisplayNameArabic": "ملاكمة",
+      "Description": "+10% jab, cross and hook damage",
+      "Level": 5,
+      "Cost": 640,
+      "CumulativeCost": 1900
+    },
+    {
+      "Name": "Kick_1",
+      "Track": "Kick",
+      "DisplayName": "KICKING",
+      "DisplayNameArabic": "ركل",
+      "Description": "+10% kick, knee and rage damage",
+      "Level": 1,
+      "Cost": 120,
+      "CumulativeCost": 120
+    },
+    {
+      "Name": "Kick_2",
+      "Track": "Kick",
+      "DisplayName": "KICKING",
+      "DisplayNameArabic": "ركل",
+      "Description": "+10% kick, knee and rage damage",
+      "Level": 2,
+      "Cost": 250,
+      "CumulativeCost": 370
+    },
+    {
+      "Name": "Kick_3",
+      "Track": "Kick",
+      "DisplayName": "KICKING",
+      "DisplayNameArabic": "ركل",
+      "Description": "+10% kick, knee and rage damage",
+      "Level": 3,
+      "Cost": 380,
+      "CumulativeCost": 750
+    },
+    {
+      "Name": "Kick_4",
+      "Track": "Kick",
+      "DisplayName": "KICKING",
+      "DisplayNameArabic": "ركل",
+      "Description": "+10% kick, knee and rage damage",
+      "Level": 4,
+      "Cost": 510,
+      "CumulativeCost": 1260
+    },
+    {
+      "Name": "Kick_5",
+      "Track": "Kick",
+      "DisplayName": "KICKING",
+      "DisplayNameArabic": "ركل",
+      "Description": "+10% kick, knee and rage damage",
+      "Level": 5,
+      "Cost": 640,
+      "CumulativeCost": 1900
+    },
+    {
+      "Name": "Vit_1",
+      "Track": "Vit",
+      "DisplayName": "VITALITY",
+      "DisplayNameArabic": "صحة",
+      "Description": "+18 max health per level",
+      "Level": 1,
+      "Cost": 120,
+      "CumulativeCost": 120
+    },
+    {
+      "Name": "Vit_2",
+      "Track": "Vit",
+      "DisplayName": "VITALITY",
+      "DisplayNameArabic": "صحة",
+      "Description": "+18 max health per level",
+      "Level": 2,
+      "Cost": 250,
+      "CumulativeCost": 370
+    },
+    {
+      "Name": "Vit_3",
+      "Track": "Vit",
+      "DisplayName": "VITALITY",
+      "DisplayNameArabic": "صحة",
+      "Description": "+18 max health per level",
+      "Level": 3,
+      "Cost": 380,
+      "CumulativeCost": 750
+    },
+    {
+      "Name": "Vit_4",
+      "Track": "Vit",
+      "DisplayName": "VITALITY",
+      "DisplayNameArabic": "صحة",
+      "Description": "+18 max health per level",
+      "Level": 4,
+      "Cost": 510,
+      "CumulativeCost": 1260
+    },
+    {
+      "Name": "Vit_5",
+      "Track": "Vit",
+      "DisplayName": "VITALITY",
+      "DisplayNameArabic": "صحة",
+      "Description": "+18 max health per level",
+      "Level": 5,
+      "Cost": 640,
+      "CumulativeCost": 1900
+    },
+    {
+      "Name": "Spd_1",
+      "Track": "Spd",
+      "DisplayName": "SPEED",
+      "DisplayNameArabic": "سرعة",
+      "Description": "+9 movement speed per level",
+      "Level": 1,
+      "Cost": 120,
+      "CumulativeCost": 120
+    },
+    {
+      "Name": "Spd_2",
+      "Track": "Spd",
+      "DisplayName": "SPEED",
+      "DisplayNameArabic": "سرعة",
+      "Description": "+9 movement speed per level",
+      "Level": 2,
+      "Cost": 250,
+      "CumulativeCost": 370
+    },
+    {
+      "Name": "Spd_3",
+      "Track": "Spd",
+      "DisplayName": "SPEED",
+      "DisplayNameArabic": "سرعة",
+      "Description": "+9 movement speed per level",
+      "Level": 3,
+      "Cost": 380,
+      "CumulativeCost": 750
+    },
+    {
+      "Name": "Spd_4",
+      "Track": "Spd",
+      "DisplayName": "SPEED",
+      "DisplayNameArabic": "سرعة",
+      "Description": "+9 movement speed per level",
+      "Level": 4,
+      "Cost": 510,
+      "CumulativeCost": 1260
+    },
+    {
+      "Name": "Spd_5",
+      "Track": "Spd",
+      "DisplayName": "SPEED",
+      "DisplayNameArabic": "سرعة",
+      "Description": "+9 movement speed per level",
+      "Level": 5,
+      "Cost": 640,
+      "CumulativeCost": 1900
+    },
+    {
+      "Name": "Stam_1",
+      "Track": "Stam",
+      "DisplayName": "STAMINA",
+      "DisplayNameArabic": "لياقة",
+      "Description": "+12 stamina, faster recovery",
+      "Level": 1,
+      "Cost": 120,
+      "CumulativeCost": 120
+    },
+    {
+      "Name": "Stam_2",
+      "Track": "Stam",
+      "DisplayName": "STAMINA",
+      "DisplayNameArabic": "لياقة",
+      "Description": "+12 stamina, faster recovery",
+      "Level": 2,
+      "Cost": 250,
+      "CumulativeCost": 370
+    },
+    {
+      "Name": "Stam_3",
+      "Track": "Stam",
+      "DisplayName": "STAMINA",
+      "DisplayNameArabic": "لياقة",
+      "Description": "+12 stamina, faster recovery",
+      "Level": 3,
+      "Cost": 380,
+      "CumulativeCost": 750
+    },
+    {
+      "Name": "Stam_4",
+      "Track": "Stam",
+      "DisplayName": "STAMINA",
+      "DisplayNameArabic": "لياقة",
+      "Description": "+12 stamina, faster recovery",
+      "Level": 4,
+      "Cost": 510,
+      "CumulativeCost": 1260
+    },
+    {
+      "Name": "Stam_5",
+      "Track": "Stam",
+      "DisplayName": "STAMINA",
+      "DisplayNameArabic": "لياقة",
+      "Description": "+12 stamina, faster recovery",
+      "Level": 5,
+      "Cost": 640,
+      "CumulativeCost": 1900
+    }
+  ],
+  "Levels": [
+    {
+      "Name": "Level_01",
+      "Level": 1,
+      "ExperienceRequired": 0,
+      "StepFromPrevious": 0,
+      "Title": "ROOKIE",
+      "BonusHealth": 0,
+      "BonusMana": 0
+    },
+    {
+      "Name": "Level_02",
+      "Level": 2,
+      "ExperienceRequired": 166,
+      "StepFromPrevious": 166,
+      "Title": "ROOKIE",
+      "BonusHealth": 6,
+      "BonusMana": 4
+    },
+    {
+      "Name": "Level_03",
+      "Level": 3,
+      "ExperienceRequired": 384,
+      "StepFromPrevious": 218,
+      "Title": "AMATEUR",
+      "BonusHealth": 12,
+      "BonusMana": 8
+    },
+    {
+      "Name": "Level_04",
+      "Level": 4,
+      "ExperienceRequired": 654,
+      "StepFromPrevious": 270,
+      "Title": "AMATEUR",
+      "BonusHealth": 18,
+      "BonusMana": 12
+    },
+    {
+      "Name": "Level_05",
+      "Level": 5,
+      "ExperienceRequired": 976,
+      "StepFromPrevious": 322,
+      "Title": "AMATEUR",
+      "BonusHealth": 24,
+      "BonusMana": 16
+    },
+    {
+      "Name": "Level_06",
+      "Level": 6,
+      "ExperienceRequired": 1350,
+      "StepFromPrevious": 374,
+      "Title": "PROSPECT",
+      "BonusHealth": 30,
+      "BonusMana": 20
+    },
+    {
+      "Name": "Level_07",
+      "Level": 7,
+      "ExperienceRequired": 1776,
+      "StepFromPrevious": 426,
+      "Title": "PROSPECT",
+      "BonusHealth": 36,
+      "BonusMana": 24
+    },
+    {
+      "Name": "Level_08",
+      "Level": 8,
+      "ExperienceRequired": 2254,
+      "StepFromPrevious": 478,
+      "Title": "PROSPECT",
+      "BonusHealth": 42,
+      "BonusMana": 28
+    },
+    {
+      "Name": "Level_09",
+      "Level": 9,
+      "ExperienceRequired": 2784,
+      "StepFromPrevious": 530,
+      "Title": "PROSPECT",
+      "BonusHealth": 48,
+      "BonusMana": 32
+    },
+    {
+      "Name": "Level_10",
+      "Level": 10,
+      "ExperienceRequired": 3366,
+      "StepFromPrevious": 582,
+      "Title": "RANKED",
+      "BonusHealth": 54,
+      "BonusMana": 36
+    },
+    {
+      "Name": "Level_11",
+      "Level": 11,
+      "ExperienceRequired": 4000,
+      "StepFromPrevious": 634,
+      "Title": "RANKED",
+      "BonusHealth": 60,
+      "BonusMana": 40
+    },
+    {
+      "Name": "Level_12",
+      "Level": 12,
+      "ExperienceRequired": 4686,
+      "StepFromPrevious": 686,
+      "Title": "RANKED",
+      "BonusHealth": 66,
+      "BonusMana": 44
+    },
+    {
+      "Name": "Level_13",
+      "Level": 13,
+      "ExperienceRequired": 5424,
+      "StepFromPrevious": 738,
+      "Title": "RANKED",
+      "BonusHealth": 72,
+      "BonusMana": 48
+    },
+    {
+      "Name": "Level_14",
+      "Level": 14,
+      "ExperienceRequired": 6214,
+      "StepFromPrevious": 790,
+      "Title": "CONTENDER",
+      "BonusHealth": 78,
+      "BonusMana": 52
+    },
+    {
+      "Name": "Level_15",
+      "Level": 15,
+      "ExperienceRequired": 7056,
+      "StepFromPrevious": 842,
+      "Title": "CONTENDER",
+      "BonusHealth": 84,
+      "BonusMana": 56
+    },
+    {
+      "Name": "Level_16",
+      "Level": 16,
+      "ExperienceRequired": 7950,
+      "StepFromPrevious": 894,
+      "Title": "CONTENDER",
+      "BonusHealth": 90,
+      "BonusMana": 60
+    },
+    {
+      "Name": "Level_17",
+      "Level": 17,
+      "ExperienceRequired": 8896,
+      "StepFromPrevious": 946,
+      "Title": "CONTENDER",
+      "BonusHealth": 96,
+      "BonusMana": 64
+    },
+    {
+      "Name": "Level_18",
+      "Level": 18,
+      "ExperienceRequired": 9894,
+      "StepFromPrevious": 998,
+      "Title": "CHAMPION",
+      "BonusHealth": 102,
+      "BonusMana": 68
+    },
+    {
+      "Name": "Level_19",
+      "Level": 19,
+      "ExperienceRequired": 10944,
+      "StepFromPrevious": 1050,
+      "Title": "CHAMPION",
+      "BonusHealth": 108,
+      "BonusMana": 72
+    },
+    {
+      "Name": "Level_20",
+      "Level": 20,
+      "ExperienceRequired": 12046,
+      "StepFromPrevious": 1102,
+      "Title": "CHAMPION",
+      "BonusHealth": 114,
+      "BonusMana": 76
+    }
+  ],
+  "Weapons": [
+    {
+      "Name": "Pipe",
+      "DisplayName": "STEEL PIPE",
+      "DisplayNameArabic": "ماسورة",
+      "DamageMultiplier": 1.9,
+      "BonusReach": 62,
+      "BonusKnockback": 360,
+      "Uses": 12,
+      "Length": 86.4,
+      "Thickness": 10.8
+    },
+    {
+      "Name": "Plank",
+      "DisplayName": "PLANK",
+      "DisplayNameArabic": "لوح خشب",
+      "DamageMultiplier": 1.6,
+      "BonusReach": 53,
+      "BonusKnockback": 480,
+      "Uses": 8,
+      "Length": 100.8,
+      "Thickness": 19.2
+    },
+    {
+      "Name": "Crowbar",
+      "DisplayName": "CROWBAR",
+      "DisplayNameArabic": "عتلة",
+      "DamageMultiplier": 2.2,
+      "BonusReach": 48,
+      "BonusKnockback": 312,
+      "Uses": 9,
+      "Length": 76.8,
+      "Thickness": 10.8
+    }
+  ],
+  "Stages": [
+    {
+      "Name": "SOUQMUBARAKIYA",
+      "Index": 0,
+      "DisplayName": "SOUQ MUBARAKIYA",
+      "DisplayNameArabic": "سوق المباركية",
+      "Theme": "Souq",
+      "Briefing": "A crew has been leaning on the traders in the old souq for months. Ahmed grew up in these alleys. Tonight he stops being a bystander.",
+      "BriefingArabic": "بدأت الحكاية في سوق المباركية",
+      "Hint": "Trouble in the old market.",
+      "Length": 6960,
+      "Tier": 0,
+      "bIsBossStage": false,
+      "bSurvival": false,
+      "Waves": [
+        {
+          "TriggerDistance": 1344,
+          "Fighters": [
+            "Thug",
+            "Thug"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 3648,
+          "Fighters": [
+            "Thug",
+            "Thug",
+            "Brawler"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 5880,
+          "Fighters": [
+            "Brawler",
+            "Brawler",
+            "Thug"
+          ],
+          "TierOverride": -1
+        }
+      ],
+      "Gates": [
+        {
+          "Distance": 2760,
+          "Type": "Wall",
+          "RewardAbility": "None",
+          "RewardExperience": 450
+        }
+      ]
+    },
+    {
+      "Name": "SALMIYAGYM",
+      "Index": 1,
+      "DisplayName": "SALMIYA GYM",
+      "DisplayNameArabic": "نادي السالمية",
+      "Theme": "Gym",
+      "Briefing": "Word travels. The Salmiya club wants to see what the souq kid can do. Six rounds, no headgear, and nobody is holding back.",
+      "BriefingArabic": "الاختبار الأول في نادي السالمية",
+      "Hint": "Spar your way through the club.",
+      "Length": 6960,
+      "Tier": 0,
+      "bIsBossStage": false,
+      "bSurvival": false,
+      "Waves": [
+        {
+          "TriggerDistance": 1296,
+          "Fighters": [
+            "Brawler",
+            "Brawler"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 3552,
+          "Fighters": [
+            "Kicker",
+            "Kicker",
+            "Thug"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 5808,
+          "Fighters": [
+            "Kicker",
+            "Kicker",
+            "Brawler",
+            "Brawler"
+          ],
+          "TierOverride": -1
+        }
+      ],
+      "Gates": [
+        {
+          "Distance": 4800,
+          "Type": "Stash",
+          "RewardAbility": "Vault",
+          "RewardExperience": 0
+        }
+      ]
+    },
+    {
+      "Name": "SHARQFISHMARKET",
+      "Index": 2,
+      "DisplayName": "SHARQ FISH MARKET",
+      "DisplayNameArabic": "سوق شرق للسمك",
+      "Theme": "Fishmarket",
+      "Briefing": "The crew moved their business to the harbour before sunrise. Wet stone, cold air, and runners who will not stand still.",
+      "BriefingArabic": "الفجر على الميناء",
+      "Hint": "Dawn on the harbour. They came early.",
+      "Length": 7200,
+      "Tier": 1,
+      "bIsBossStage": false,
+      "bSurvival": false,
+      "Waves": [
+        {
+          "TriggerDistance": 1344,
+          "Fighters": [
+            "Runner",
+            "Runner",
+            "Thug"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 3648,
+          "Fighters": [
+            "Runner",
+            "Runner",
+            "Brawler",
+            "Brawler"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 6000,
+          "Fighters": [
+            "Bouncer",
+            "Runner",
+            "Runner"
+          ],
+          "TierOverride": -1
+        }
+      ],
+      "Gates": [
+        {
+          "Distance": 2520,
+          "Type": "Ledge",
+          "RewardAbility": "DashLeap",
+          "RewardExperience": 0
+        }
+      ]
+    },
+    {
+      "Name": "KUWAITTOWERS",
+      "Index": 3,
+      "DisplayName": "KUWAIT TOWERS",
+      "DisplayNameArabic": "أبراج الكويت",
+      "Theme": "Towers",
+      "Briefing": "They want the waterfront cleared before the season opens. Ahmed gets there first.",
+      "BriefingArabic": "ليلة على الواجهة البحرية",
+      "Hint": "Night raid on the waterfront.",
+      "Length": 7440,
+      "Tier": 1,
+      "bIsBossStage": false,
+      "bSurvival": false,
+      "Waves": [
+        {
+          "TriggerDistance": 1440,
+          "Fighters": [
+            "Kicker",
+            "Kicker",
+            "Thug"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 3840,
+          "Fighters": [
+            "Brawler",
+            "Brawler",
+            "Kicker"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 6240,
+          "Fighters": [
+            "Grappler",
+            "Kicker",
+            "Kicker"
+          ],
+          "TierOverride": -1
+        }
+      ],
+      "Gates": [
+        {
+          "Distance": 2760,
+          "Type": "Wall",
+          "RewardAbility": "None",
+          "RewardExperience": 500
+        }
+      ]
+    },
+    {
+      "Name": "MARINACRESCENT",
+      "Index": 4,
+      "DisplayName": "MARINA CRESCENT",
+      "DisplayNameArabic": "مارينا كريسنت",
+      "Theme": "Marina",
+      "Briefing": "The neon strip belongs to AL-SAQR — the Falcon. All legs, no patience. Beat him and the crew loses its enforcer.",
+      "BriefingArabic": "الصقر يحرس المارينا",
+      "Hint": "AL-SAQR runs this strip.",
+      "Length": 6240,
+      "Tier": 2,
+      "bIsBossStage": true,
+      "bSurvival": false,
+      "Waves": [
+        {
+          "TriggerDistance": 1344,
+          "Fighters": [
+            "Capo",
+            "Runner",
+            "Runner"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 3360,
+          "Fighters": [
+            "Bouncer",
+            "Capo"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 5040,
+          "Fighters": [
+            "Saqr"
+          ],
+          "TierOverride": -1
+        }
+      ],
+      "Gates": [
+        {
+          "Distance": 2280,
+          "Type": "Gap",
+          "RewardAbility": "PowerKick",
+          "RewardExperience": 0
+        }
+      ]
+    },
+    {
+      "Name": "FAILAKAISLAND",
+      "Index": 5,
+      "DisplayName": "FAILAKA ISLAND",
+      "DisplayNameArabic": "جزيرة فيلكا",
+      "Theme": "Failaka",
+      "Briefing": "They regrouped on the island, among the old stone. Nowhere to run out here — which cuts both ways.",
+      "BriefingArabic": "بين آثار فيلكا",
+      "Hint": "Grapplers hold the ruins.",
+      "Length": 7440,
+      "Tier": 2,
+      "bIsBossStage": false,
+      "bSurvival": false,
+      "Waves": [
+        {
+          "TriggerDistance": 1440,
+          "Fighters": [
+            "Grappler",
+            "Brawler"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 3840,
+          "Fighters": [
+            "Grappler",
+            "Grappler",
+            "Kicker"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 6240,
+          "Fighters": [
+            "Grappler",
+            "Grappler",
+            "Capo"
+          ],
+          "TierOverride": -1
+        }
+      ],
+      "Gates": [
+        {
+          "Distance": 5160,
+          "Type": "Shutter",
+          "RewardAbility": "None",
+          "RewardExperience": 600
+        }
+      ]
+    },
+    {
+      "Name": "JAHRAROAD",
+      "Index": 6,
+      "DisplayName": "JAHRA ROAD",
+      "DisplayNameArabic": "طريق الجهراء",
+      "Theme": "Highway",
+      "Briefing": "Trucks across both lanes, sun going down behind the pylons. The road to the camp runs straight through them.",
+      "BriefingArabic": "الطريق مقطوع عند الجهراء",
+      "Hint": "They blocked the road out.",
+      "Length": 7680,
+      "Tier": 3,
+      "bIsBossStage": false,
+      "bSurvival": false,
+      "Waves": [
+        {
+          "TriggerDistance": 1488,
+          "Fighters": [
+            "Bouncer",
+            "Runner",
+            "Runner"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 3888,
+          "Fighters": [
+            "Capo",
+            "Kicker",
+            "Kicker"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 6288,
+          "Fighters": [
+            "Bouncer",
+            "Bouncer",
+            "Capo"
+          ],
+          "TierOverride": -1
+        }
+      ],
+      "Gates": [
+        {
+          "Distance": 2640,
+          "Type": "Shutter",
+          "RewardAbility": "Haymaker",
+          "RewardExperience": 0
+        }
+      ]
+    },
+    {
+      "Name": "DESERTCAMP",
+      "Index": 7,
+      "DisplayName": "DESERT CAMP",
+      "DisplayNameArabic": "مخيم البر",
+      "Theme": "Desert",
+      "Briefing": "The camp is where they pick who fights for the belt. Ahmed was never on the list. He is now.",
+      "BriefingArabic": "المخيم يختار من ينافس على الحزام",
+      "Hint": "The contenders wait by the fire.",
+      "Length": 7680,
+      "Tier": 3,
+      "bIsBossStage": false,
+      "bSurvival": false,
+      "Waves": [
+        {
+          "TriggerDistance": 1488,
+          "Fighters": [
+            "Kicker",
+            "Kicker",
+            "Brawler",
+            "Brawler"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 3960,
+          "Fighters": [
+            "Champ",
+            "Capo"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 6360,
+          "Fighters": [
+            "Champ",
+            "Grappler",
+            "Bouncer"
+          ],
+          "TierOverride": -1
+        }
+      ],
+      "Gates": [
+        {
+          "Distance": 2760,
+          "Type": "Wall",
+          "RewardAbility": "HawkFist",
+          "RewardExperience": 250
+        }
+      ]
+    },
+    {
+      "Name": "KUWAITARENA",
+      "Index": 8,
+      "DisplayName": "KUWAIT ARENA",
+      "DisplayNameArabic": "بطولة الكويت",
+      "Theme": "Arena",
+      "Briefing": "A full house, and AL-WAHSH waiting in the far corner. One fight between the souq kid and the belt.",
+      "BriefingArabic": "المواجهة الأخيرة مع الوحش",
+      "Hint": "Title fight. No way out.",
+      "Length": 3840,
+      "Tier": 4,
+      "bIsBossStage": true,
+      "bSurvival": false,
+      "Waves": [
+        {
+          "TriggerDistance": 1008,
+          "Fighters": [
+            "Champ",
+            "Champ"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 2160,
+          "Fighters": [
+            "Boss"
+          ],
+          "TierOverride": -1
+        }
+      ],
+      "Gates": []
+    },
+    {
+      "Name": "SURVIVAL",
+      "Index": 9,
+      "DisplayName": "SURVIVAL",
+      "DisplayNameArabic": "البقاء",
+      "Theme": "Arena",
+      "Briefing": "No belt, no crowd, no end. Just the next wave.",
+      "BriefingArabic": "موجات لا تنتهي",
+      "Hint": "Endless waves. How far can Ahmed go?",
+      "Length": 3360,
+      "Tier": 0,
+      "bIsBossStage": false,
+      "bSurvival": true,
+      "Waves": [
+        {
+          "TriggerDistance": -1,
+          "Fighters": [
+            "Thug",
+            "Thug"
+          ],
+          "TierOverride": 0
+        }
+      ],
+      "Gates": []
+    }
+  ],
+  "World": {
+    "StartArea": 0,
+    "Areas": [
+      {
+        "Index": 0,
+        "Name": "SOUQ",
+        "MapX": 300,
+        "MapY": 250,
+        "West": {
+          "To": 7,
+          "RequiredAbility": "Vault",
+          "AfterCleared": 7,
+          "Distance": -1
+        },
+        "East": {
+          "To": 1,
+          "RequiredAbility": "None",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "Door": {
+          "To": 8,
+          "RequiredAbility": "HawkFist",
+          "AfterCleared": -1,
+          "Distance": 4560
+        }
+      },
+      {
+        "Index": 1,
+        "Name": "GYM",
+        "MapX": 470,
+        "MapY": 250,
+        "West": {
+          "To": 0,
+          "RequiredAbility": "None",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "East": {
+          "To": 2,
+          "RequiredAbility": "None",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "Door": null
+      },
+      {
+        "Index": 2,
+        "Name": "SHARQ",
+        "MapX": 640,
+        "MapY": 250,
+        "West": {
+          "To": 1,
+          "RequiredAbility": "None",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "East": {
+          "To": 3,
+          "RequiredAbility": "None",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "Door": null
+      },
+      {
+        "Index": 3,
+        "Name": "TOWERS",
+        "MapX": 810,
+        "MapY": 250,
+        "West": {
+          "To": 2,
+          "RequiredAbility": "None",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "East": {
+          "To": 4,
+          "RequiredAbility": "DashLeap",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "Door": null
+      },
+      {
+        "Index": 4,
+        "Name": "MARINA",
+        "MapX": 980,
+        "MapY": 250,
+        "West": {
+          "To": 3,
+          "RequiredAbility": "DashLeap",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "East": {
+          "To": 5,
+          "RequiredAbility": "None",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "Door": null
+      },
+      {
+        "Index": 5,
+        "Name": "FAILAKA",
+        "MapX": 980,
+        "MapY": 410,
+        "West": {
+          "To": 4,
+          "RequiredAbility": "None",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "East": {
+          "To": 6,
+          "RequiredAbility": "PowerKick",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "Door": null
+      },
+      {
+        "Index": 6,
+        "Name": "JAHRA",
+        "MapX": 810,
+        "MapY": 410,
+        "West": {
+          "To": 5,
+          "RequiredAbility": "PowerKick",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "East": {
+          "To": 7,
+          "RequiredAbility": "Haymaker",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "Door": null
+      },
+      {
+        "Index": 7,
+        "Name": "DESERT",
+        "MapX": 470,
+        "MapY": 410,
+        "West": {
+          "To": 6,
+          "RequiredAbility": "Haymaker",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "East": {
+          "To": 0,
+          "RequiredAbility": "Vault",
+          "AfterCleared": 7,
+          "Distance": -1
+        },
+        "Door": null
+      },
+      {
+        "Index": 8,
+        "Name": "ARENA",
+        "MapX": 130,
+        "MapY": 250,
+        "West": {
+          "To": 0,
+          "RequiredAbility": "HawkFist",
+          "AfterCleared": -1,
+          "Distance": -1
+        },
+        "East": null,
+        "Door": null
+      }
+    ]
+  },
+  "Player": {
+    "DisplayName": "AHMED",
+    "DisplayNameArabic": "أحمد",
+    "BaseHealth": 100,
+    "BaseStamina": 100,
+    "BaseMana": 40,
+    "BasePower": 1,
+    "BaseMoveSpeed": 341,
+    "BaseReach": 139,
+    "PerUpgradeLevel": {
+      "Vitality": 18,
+      "Stamina": 12,
+      "MoveSpeed": 22
+    },
+    "ManaRegenPerSecond": 5,
+    "ManaPerLandedHit": 4,
+    "UpgradeMaxLevel": 5,
+    "LevelMax": 20
+  },
+  "Revision": "fe8895c056f86225",
+  "GeneratedAt": "2026-09-06T21:20:06.898Z"
+}

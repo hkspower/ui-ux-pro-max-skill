@@ -1,0 +1,6 @@
+Name,GateType,RequiredAbility,DisplayName,DisplayNameArabic,Hint,BreakFamily
+Ledge,Ledge,Vault,LEDGE,حافة,Needs VAULT,None
+Gap,Gap,DashLeap,BROKEN GROUND,هوّة,Needs DASH LEAP,None
+Shutter,Shutter,PowerKick,STEEL SHUTTER,باب حديد,Needs POWER KICK,Kick
+Wall,Wall,Haymaker,CRACKED WALL,جدار متصدع,Needs HAYMAKER,Box
+Stash,Stash,None,LOCKER,خزانة,Walk up to it,None

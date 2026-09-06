@@ -1,0 +1,176 @@
+{
+  "StartArea": 0,
+  "Areas": [
+    {
+      "Index": 0,
+      "Name": "SOUQ",
+      "MapX": 300,
+      "MapY": 250,
+      "West": {
+        "To": 7,
+        "RequiredAbility": "Vault",
+        "AfterCleared": 7,
+        "Distance": -1
+      },
+      "East": {
+        "To": 1,
+        "RequiredAbility": "None",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "Door": {
+        "To": 8,
+        "RequiredAbility": "HawkFist",
+        "AfterCleared": -1,
+        "Distance": 4560
+      }
+    },
+    {
+      "Index": 1,
+      "Name": "GYM",
+      "MapX": 470,
+      "MapY": 250,
+      "West": {
+        "To": 0,
+        "RequiredAbility": "None",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "East": {
+        "To": 2,
+        "RequiredAbility": "None",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "Door": null
+    },
+    {
+      "Index": 2,
+      "Name": "SHARQ",
+      "MapX": 640,
+      "MapY": 250,
+      "West": {
+        "To": 1,
+        "RequiredAbility": "None",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "East": {
+        "To": 3,
+        "RequiredAbility": "None",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "Door": null
+    },
+    {
+      "Index": 3,
+      "Name": "TOWERS",
+      "MapX": 810,
+      "MapY": 250,
+      "West": {
+        "To": 2,
+        "RequiredAbility": "None",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "East": {
+        "To": 4,
+        "RequiredAbility": "DashLeap",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "Door": null
+    },
+    {
+      "Index": 4,
+      "Name": "MARINA",
+      "MapX": 980,
+      "MapY": 250,
+      "West": {
+        "To": 3,
+        "RequiredAbility": "DashLeap",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "East": {
+        "To": 5,
+        "RequiredAbility": "None",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "Door": null
+    },
+    {
+      "Index": 5,
+      "Name": "FAILAKA",
+      "MapX": 980,
+      "MapY": 410,
+      "West": {
+        "To": 4,
+        "RequiredAbility": "None",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "East": {
+        "To": 6,
+        "RequiredAbility": "PowerKick",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "Door": null
+    },
+    {
+      "Index": 6,
+      "Name": "JAHRA",
+      "MapX": 810,
+      "MapY": 410,
+      "West": {
+        "To": 5,
+        "RequiredAbility": "PowerKick",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "East": {
+        "To": 7,
+        "RequiredAbility": "Haymaker",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "Door": null
+    },
+    {
+      "Index": 7,
+      "Name": "DESERT",
+      "MapX": 470,
+      "MapY": 410,
+      "West": {
+        "To": 6,
+        "RequiredAbility": "Haymaker",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "East": {
+        "To": 0,
+        "RequiredAbility": "Vault",
+        "AfterCleared": 7,
+        "Distance": -1
+      },
+      "Door": null
+    },
+    {
+      "Index": 8,
+      "Name": "ARENA",
+      "MapX": 130,
+      "MapY": 250,
+      "West": {
+        "To": 0,
+        "RequiredAbility": "HawkFist",
+        "AfterCleared": -1,
+        "Distance": -1
+      },
+      "East": null,
+      "Door": null
+    }
+  ]
+}

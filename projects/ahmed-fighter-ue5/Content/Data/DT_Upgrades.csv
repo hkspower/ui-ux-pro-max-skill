@@ -1,0 +1,26 @@
+Name,Track,DisplayName,DisplayNameArabic,Description,Level,Cost,CumulativeCost
+Box_1,Box,BOXING,ملاكمة,"+10% jab, cross and hook damage",1,120,120
+Box_2,Box,BOXING,ملاكمة,"+10% jab, cross and hook damage",2,250,370
+Box_3,Box,BOXING,ملاكمة,"+10% jab, cross and hook damage",3,380,750
+Box_4,Box,BOXING,ملاكمة,"+10% jab, cross and hook damage",4,510,1260
+Box_5,Box,BOXING,ملاكمة,"+10% jab, cross and hook damage",5,640,1900
+Kick_1,Kick,KICKING,ركل,"+10% kick, knee and rage damage",1,120,120
+Kick_2,Kick,KICKING,ركل,"+10% kick, knee and rage damage",2,250,370
+Kick_3,Kick,KICKING,ركل,"+10% kick, knee and rage damage",3,380,750
+Kick_4,Kick,KICKING,ركل,"+10% kick, knee and rage damage",4,510,1260
+Kick_5,Kick,KICKING,ركل,"+10% kick, knee and rage damage",5,640,1900
+Vit_1,Vit,VITALITY,صحة,+18 max health per level,1,120,120
+Vit_2,Vit,VITALITY,صحة,+18 max health per level,2,250,370
+Vit_3,Vit,VITALITY,صحة,+18 max health per level,3,380,750
+Vit_4,Vit,VITALITY,صحة,+18 max health per level,4,510,1260
+Vit_5,Vit,VITALITY,صحة,+18 max health per level,5,640,1900
+Spd_1,Spd,SPEED,سرعة,+9 movement speed per level,1,120,120
+Spd_2,Spd,SPEED,سرعة,+9 movement speed per level,2,250,370
+Spd_3,Spd,SPEED,سرعة,+9 movement speed per level,3,380,750
+Spd_4,Spd,SPEED,سرعة,+9 movement speed per level,4,510,1260
+Spd_5,Spd,SPEED,سرعة,+9 movement speed per level,5,640,1900
+Stam_1,Stam,STAMINA,لياقة,"+12 stamina, faster recovery",1,120,120
+Stam_2,Stam,STAMINA,لياقة,"+12 stamina, faster recovery",2,250,370
+Stam_3,Stam,STAMINA,لياقة,"+12 stamina, faster recovery",3,380,750
+Stam_4,Stam,STAMINA,لياقة,"+12 stamina, faster recovery",4,510,1260
+Stam_5,Stam,STAMINA,لياقة,"+12 stamina, faster recovery",5,640,1900

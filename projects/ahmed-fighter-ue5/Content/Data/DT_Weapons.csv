@@ -1,0 +1,4 @@
+Name,DisplayName,DisplayNameArabic,DamageMultiplier,BonusReach,BonusKnockback,Uses,Length,Thickness
+Pipe,STEEL PIPE,ماسورة,1.9,62,360,12,86.4,10.8
+Plank,PLANK,لوح خشب,1.6,53,480,8,100.8,19.2
+Crowbar,CROWBAR,عتلة,2.2,48,312,9,76.8,10.8
