@@ -144,6 +144,27 @@ confirmation.
 
 ---
 
+## Graphics
+
+Everything is still drawn in code — there are no image files — but the fighters
+are rendered as lit volumes rather than flat shapes:
+
+- **One key light** from the upper left drives every gradient in the scene.
+- **Limbs** are shaded as cylinders, tapering along their length, with a muscle
+  belly on the upper bone and ambient occlusion at every joint.
+- **Heads** are built from a skull path with a brow ridge, eye, nose, mouth, ear,
+  cheekbone and jaw shading, hair drawn as a lit mass, and jaw stubble.
+- **Gloves** have a thumb, seam, specular highlight and wrist cuff; **shoes** have
+  a sole and laces; **cloth** has folds and a hem.
+- **Post-processing**: a split-tone colour grade (cool sky, warm ground) and
+  animated film grain.
+
+**GRAPHICS: REALISTIC / FAST** in Settings (or pause) switches the whole shading
+pipeline for flat fills. Realistic costs roughly twice the draw calls, so the
+game samples real frame times once per session during a fight and drops itself to
+FAST if the device can't hold ~45fps — unless you've picked a mode yourself, in
+which case your choice always wins.
+
 ## Key art
 
 `press/` holds promotional art rendered straight out of the game engine at
@@ -162,6 +183,8 @@ press/screenshot-souq.png          in-game action shot
 These are renders, not hand-drawn assets — the game itself still ships with zero
 image files. To re-render after changing the art code, drive the same drawing
 functions with a scaled-up fighter and screenshot the canvas at a large viewport.
+Set `f.sil = true` on a fighter to draw it as a featureless silhouette, which is
+how the opposition in the key art is rendered.
 
 ## Files
 
@@ -188,9 +211,11 @@ The numbers worth touching live near the top of the script in `index.html`:
 - `ACHIEVEMENTS` — each award's unlock predicate.
 - `MUSIC_ROOT` — the tonal centre of the music loop per stage theme.
 - `THEME` — per-stage parallax background painters.
-- `seg` / `shapeFill` / `OUTLINE_W` — the two-pass fighter renderer: an outline
-  pass fattens every shape in near-black, then the colour pass paints on top with
-  cylindrical limb shading. Raise `OUTLINE_W` for a heavier comic line.
+- `LIGHT` — the key-light direction every gradient is derived from.
+- `tube` / `litShape` / `ao` — the shading primitives: lit cylinder, lit volume,
+  contact occlusion. `GFX_HIGH` swaps them all for flat fills.
+- `postProcess` — colour grade and film grain.
+- `samplePerf` — the automatic quality fallback and its fps threshold.
 - `STRIKE_LIMB` — which limb leaves a motion trail for each attack.
 - `UPS` / `upCost` — upgrade effects and pricing.
 
