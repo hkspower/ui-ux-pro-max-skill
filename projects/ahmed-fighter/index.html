@@ -106,7 +106,8 @@ function circle(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,6.2832); ctx.closePath(
 
 /* --------------------------------------------------------------- save state */
 var SAVE_KEY = 'ahmed_kuwait_fighter_v1';
-var save = { unlocked:1, xp:0, best:0, up:{pow:0,vit:0,spd:0,stam:0}, sound:true,
+var save = { unlocked:1, xp:0, best:0, up:{box:0,kick:0,vit:0,spd:0,stam:0}, sound:true,
+             abilities:[], gates:{},
              cleared:[], diff:1, ranks:{}, survBest:0, haptics:true, music:true,
              gfx:true, gfxUser:false, achieved:[], stats:{kills:0, crates:0, parries:0, champClears:0,
                                  fights:0, clears:0, time:0} };
@@ -130,7 +131,14 @@ function loadSave(){
         save.gfxUser = !!d.gfxUser;
         save.achieved = Array.isArray(d.achieved) ? d.achieved : [];
         if(d.stats) for(var sk in save.stats) save.stats[sk] = Math.max(0, d.stats[sk]|0);
-        if(d.up) for(var k in save.up) save.up[k] = clamp(d.up[k]|0, 0, 5);
+        save.abilities = Array.isArray(d.abilities) ? d.abilities : [];
+        save.gates = (d.gates && typeof d.gates === 'object') ? d.gates : {};
+        if(d.up){
+          for(var k in save.up) save.up[k] = clamp(d.up[k]|0, 0, 5);
+          // older saves had one POWER track — split it across box and kick
+          if(d.up.pow !== undefined && !d.up.box && !d.up.kick)
+            save.up.box = save.up.kick = clamp(d.up.pow|0, 0, 5);
+        }
       }
     }
   }catch(e){ /* private mode / disabled storage — play unsaved */ }
@@ -154,6 +162,39 @@ function haptic(ms){
   try{ navigator.vibrate(ms); }catch(e){}
 }
 
+/* ---------------------------------------------------------------- abilities
+   Found in the world, never bought. Each one is the key to a kind of gate, so
+   picking one up opens routes back in stages you have already cleared. */
+var ABILITIES = {
+  vault:    {n:'VAULT',      ar:'وثبة',      icon:'⤴',
+             d:'Climb low ledges. Hold toward one and Ahmed pulls himself up.'},
+  dashleap: {n:'DASH LEAP',  ar:'قفزة',      icon:'⇥',
+             d:'Your dodge dash carries you across broken ground.'},
+  powerkick:{n:'POWER KICK', ar:'ركلة قوية', icon:'⚡',
+             d:'Kicks tear steel shutters off their rails.'},
+  haymaker: {n:'HAYMAKER',   ar:'قاضية',     icon:'✊',
+             d:'A loaded hook that punches through cracked masonry.'}
+};
+function hasAbility(k){ return save.abilities.indexOf(k) >= 0; }
+function grantAbility(k){
+  if(hasAbility(k)) return false;
+  save.abilities.push(k);
+  writeSave();
+  return true;
+}
+
+/* Gates: what opens them, and what they look like. */
+var GATES = {
+  ledge:   {need:'vault',     n:'LEDGE',          ar:'حافة',   how:'Needs VAULT'},
+  gap:     {need:'dashleap',  n:'BROKEN GROUND',  ar:'هوّة',   how:'Needs DASH LEAP'},
+  shutter: {need:'powerkick', n:'STEEL SHUTTER',  ar:'باب حديد', how:'Needs POWER KICK', breakBy:'kick'},
+  wall:    {need:'haymaker',  n:'CRACKED WALL',   ar:'جدار متصدع', how:'Needs HAYMAKER',  breakBy:'box'},
+  stash:   {need:null,        n:'LOCKER',         ar:'خزانة',   how:'Walk up to it'}
+};
+var GATE_Z = 0.13;                       // gates sit against the back wall
+function gateKey(idx, at){ return idx + ':' + at; }
+function gateOpen(idx, at){ return !!save.gates[gateKey(idx, at)]; }
+
 /* ------------------------------------------------------------- achievements */
 var ACHIEVEMENTS = [
   {k:'first',    n:'FIRST BLOOD',    ar:'أول ضربة',    d:'Down your first opponent.',
@@ -176,6 +217,8 @@ var ACHIEVEMENTS = [
    test:function(){ return save.stats.champClears >= 1; }},
   {k:'maxed',    n:'PEAK CONDITION', ar:'قمة اللياقة', d:'Max out any training track.',
    test:function(){ for(var u in save.up) if(save.up[u] >= 5) return true; return false; }},
+  {k:'explorer', n:'NO WAY BARRED', ar:'لا حواجز', d:'Find all four abilities.',
+   test:function(){ return save.abilities.length >= 4; }},
   {k:'surv10',   n:'LAST MAN UP',    ar:'آخر الواقفين', d:'Reach wave 10 in Survival.',
    test:function(){ return save.survBest >= 10; }},
   {k:'allstage', n:'ALL OF KUWAIT',  ar:'كل الكويت',   d:'Clear all nine stages.',
@@ -532,12 +575,12 @@ function drawFx(camX){
    ========================================================================== */
 
 var ATK = {
-  jab    :{dmg:7,  su:.07, ac:.06, rc:.13, reach:54, push:70,  stam:5,  sfx:'punch', arm:'lead'},
-  cross  :{dmg:11, su:.10, ac:.07, rc:.19, reach:60, push:120, stam:8,  sfx:'punch', arm:'rear'},
-  hook   :{dmg:17, su:.14, ac:.08, rc:.26, reach:56, push:210, stam:12, sfx:'punch', arm:'rear', heavy:true},
-  kick   :{dmg:19, su:.16, ac:.09, rc:.28, reach:74, push:270, stam:14, sfx:'kick',  leg:true, heavy:true},
-  knee   :{dmg:23, su:.13, ac:.08, rc:.26, reach:42, push:160, stam:16, sfx:'kick',  leg:true, heavy:true},
-  special:{dmg:46, su:.18, ac:.26, rc:.34, reach:88, push:430, stam:0,  sfx:'kick',  leg:true, heavy:true, multi:true}
+  jab    :{fam:'box',  dmg:7,  su:.07, ac:.06, rc:.13, reach:54, push:70,  stam:5,  sfx:'punch', arm:'lead'},
+  cross  :{fam:'box',  dmg:11, su:.10, ac:.07, rc:.19, reach:60, push:120, stam:8,  sfx:'punch', arm:'rear'},
+  hook   :{fam:'box',  dmg:17, su:.14, ac:.08, rc:.26, reach:56, push:210, stam:12, sfx:'punch', arm:'rear', heavy:true},
+  kick   :{fam:'kick', dmg:19, su:.16, ac:.09, rc:.28, reach:74, push:270, stam:14, sfx:'kick',  leg:true, heavy:true},
+  knee   :{fam:'kick', dmg:23, su:.13, ac:.08, rc:.26, reach:42, push:160, stam:16, sfx:'kick',  leg:true, heavy:true},
+  special:{fam:'kick', dmg:46, su:.18, ac:.26, rc:.34, reach:88, push:430, stam:0,  sfx:'kick',  leg:true, heavy:true, multi:true}
 };
 
 var TYPES = {
@@ -1204,6 +1247,7 @@ function shadeCalc(hex, amt){
 var STAGES = [
   { name:'SOUQ MUBARAKIYA', ar:'سوق المباركية', theme:'souq', len:2900, tier:0,
     hint:'Trouble in the old market.',
+    gates:[{at:1150, type:'wall', reward:{xp:450}}],
     story:['A crew has been leaning on the traders in the old souq for months.',
            'Ahmed grew up in these alleys. Tonight he stops being a bystander.'],
     storyAr:'بدأت الحكاية في سوق المباركية',
@@ -1213,6 +1257,7 @@ var STAGES = [
 
   { name:'SALMIYA GYM', ar:'نادي السالمية', theme:'gym', len:2900, tier:0,
     hint:'Spar your way through the club.',
+    gates:[{at:2000, type:'stash', reward:{ability:'vault'}}],
     story:['Word travels. The Salmiya club wants to see what the souq kid can do.',
            'Six rounds, no headgear, and nobody is holding back.'],
     storyAr:'الاختبار الأول في نادي السالمية',
@@ -1222,6 +1267,7 @@ var STAGES = [
 
   { name:'SHARQ FISH MARKET', ar:'سوق شرق للسمك', theme:'fishmarket', len:3000, tier:1,
     hint:'Dawn on the harbour. They came early.',
+    gates:[{at:1050, type:'ledge', reward:{ability:'dashleap'}}],
     story:['The crew moved their business to the harbour before sunrise.',
            'Wet stone, cold air, and runners who will not stand still.'],
     storyAr:'الفجر على الميناء',
@@ -1231,6 +1277,7 @@ var STAGES = [
 
   { name:'KUWAIT TOWERS', ar:'أبراج الكويت', theme:'towers', len:3100, tier:1,
     hint:'Night raid on the waterfront.',
+    gates:[{at:1150, type:'wall', reward:{xp:500}}],
     story:['They want the waterfront cleared before the season opens.',
            'Ahmed gets there first.'],
     storyAr:'ليلة على الواجهة البحرية',
@@ -1240,6 +1287,7 @@ var STAGES = [
 
   { name:'MARINA CRESCENT', ar:'مارينا كريسنت', theme:'marina', len:2600, tier:2,
     hint:'AL-SAQR runs this strip.',
+    gates:[{at:950, type:'gap', reward:{ability:'powerkick'}}],
     story:['The neon strip belongs to AL-SAQR — the Falcon. All legs, no patience.',
            'Beat him and the crew loses its enforcer.'],
     storyAr:'الصقر يحرس المارينا',
@@ -1250,6 +1298,7 @@ var STAGES = [
 
   { name:'FAILAKA ISLAND', ar:'جزيرة فيلكا', theme:'failaka', len:3100, tier:2,
     hint:'Grapplers hold the ruins.',
+    gates:[{at:2150, type:'shutter', reward:{xp:600}}],
     story:['They regrouped on the island, among the old stone.',
            'Nowhere to run out here — which cuts both ways.'],
     storyAr:'بين آثار فيلكا',
@@ -1259,6 +1308,7 @@ var STAGES = [
 
   { name:'JAHRA ROAD', ar:'طريق الجهراء', theme:'highway', len:3200, tier:3,
     hint:'They blocked the road out.',
+    gates:[{at:1100, type:'shutter', reward:{ability:'haymaker'}}],
     story:['Trucks across both lanes, sun going down behind the pylons.',
            'The road to the camp runs straight through them.'],
     storyAr:'الطريق مقطوع عند الجهراء',
@@ -1268,6 +1318,7 @@ var STAGES = [
 
   { name:'DESERT CAMP', ar:'مخيم البر', theme:'desert', len:3200, tier:3,
     hint:'The contenders wait by the fire.',
+    gates:[{at:1150, type:'wall', reward:{xp:700}}],
     story:['The camp is where they pick who fights for the belt.',
            'Ahmed was never on the list. He is now.'],
     storyAr:'المخيم يختار من ينافس على الحزام',
@@ -1807,6 +1858,10 @@ function startStage(idx){
     idx:idx, st:st, player:p, enemies:[], camX:0, lockX:null,
     waves:st.waves.map(function(w){ return w; }),
     props:buildProps(st, idx), items:[],
+    gates:(st.gates || []).map(function(g){
+      return { at:g.at, type:g.type, reward:g.reward,
+               open:gateOpen(idx, g.at), t:0, hp:0, flash:0, near:false, can:false };
+    }),
     waveIdx:0, survWave:1, time:0, kills:0, xp:0,
     bestCombo:0, done:false, hint:'', hintT:0
   };
@@ -1827,7 +1882,7 @@ function startAttack(f, key){
   if(f.isPlayer && key !== 'special' && f.stam < a.stam) return false;
   if(f.isPlayer && key !== 'special') f.stam -= a.stam;
   f.atk = a; f.atkKey = key; f.atkT = 0; f.state = 'attack';
-  f.hitDone = false; f.hitTargets = []; f.hitProps = []; f.blocking = false;
+  f.hitDone = false; f.hitTargets = []; f.hitProps = []; f.hitGates = []; f.blocking = false;
   if(!f.isPlayer && a.heavy) f.tele = a.su;
   Sfx.whoosh();
   return true;
@@ -1840,6 +1895,7 @@ function advanceAttack(f, dt, targets){
     f.vx = approach(f.vx, f.facing * (a.heavy ? 165 : 120), 1400 * dt);
     checkHit(f, a, targets);
     checkPropHit(f, a);
+    checkGateHit(f, a);
   } else {
     f.vx *= Math.pow(0.02, dt);
   }
@@ -1884,7 +1940,7 @@ function applyHit(att, def, a){
     return;
   }
 
-  var mult = att.isPlayer ? (1 + save.up.pow * 0.09) : 1;
+  var mult = att.isPlayer ? (1 + (save.up[a.fam || 'box'] || 0) * 0.10) : 1;
   var dmg = a.dmg * att.pow * mult * rand(0.92, 1.10);
   if(blocked) dmg *= 0.20;
   dmg = Math.max(1, Math.round(dmg));
@@ -2020,8 +2076,12 @@ function updatePlayer(p, dt, enemies, F){
 
     var mag = Math.abs(In.ax) + Math.abs(In.az);
     if(In.tap.block && mag > 0.35 && p.stam >= 14){
-      p.stam -= 14; p.state = 'dash'; p.dashT = 0.24; p.invuln = 0.26;
-      p.vx = In.ax * p.spd * 2.6; p.vz = In.az * p.spd * 0.011;
+      var leap = hasAbility('dashleap');
+      p.stam -= 14; p.state = 'dash';
+      p.dashT = leap ? 0.32 : 0.24; p.invuln = leap ? 0.34 : 0.26;
+      p.vx = In.ax * p.spd * (leap ? 3.4 : 2.6);
+      p.vz = In.az * p.spd * 0.011;
+      if(leap) burst(p.x, FLOOR_TOP + p.z*FLOOR_H, 6, 'rgba(255,233,168,.7)', 120);
       Sfx.whoosh();
     } else if(In.tap.special && p.rage >= 100){
       faceNearest(p, enemies);
@@ -2248,6 +2308,155 @@ function drawItem(it, camX){
   ctx.globalAlpha = 1;
 }
 
+/* ==========================================================================
+   GATES
+   Each stage hides one route behind an ability. Nothing here blocks the way
+   forward — the gate is set into the back wall — so a stage is always
+   completable, and finding an ability sends you back through old stages.
+   ========================================================================== */
+function openGate(F, g){
+  g.open = true; g.flash = 0.6;
+  save.gates[gateKey(F.idx, g.at)] = 1;
+  var y = FLOOR_TOP + GATE_Z*FLOOR_H;
+  burst(g.at, y - 44, 26, C.gold, 340);
+  ring(g.at, y - 44, '#ffe9a8', 12, 118, 0.45);
+  shake = Math.max(shake, 18); flashScreen = 0.55;
+  Sfx.power(); haptic(60);
+  if(g.reward && g.reward.ability){
+    var A = ABILITIES[g.reward.ability];
+    if(grantAbility(g.reward.ability)) toast(A.n, A.ar, 'ABILITY FOUND');
+  } else if(g.reward && g.reward.xp){
+    save.xp += g.reward.xp;
+    popNum(g.at, y - 130, '+' + g.reward.xp, 'heal');
+  }
+  writeSave();
+  checkAchievements();
+}
+function updateGates(F, dt){
+  var p = F.player;
+  for(var i=0;i<F.gates.length;i++){
+    var g = F.gates[i];
+    if(g.flash > 0) g.flash -= dt;
+    if(g.open){ g.near = false; continue; }
+    var spec = GATES[g.type];
+    g.near = Math.abs(p.x - g.at) < 74 && Math.abs(p.z - GATE_Z) < 0.26;
+    g.can = !spec.need || hasAbility(spec.need);
+    if(g.near && g.can && !spec.breakBy){
+      g.t += dt;
+      if(g.t > 0.45) openGate(F, g);
+    } else if(!g.near) g.t = 0;
+  }
+}
+/* Shutters and walls come down to the right kind of strike. */
+function checkGateHit(f, a){
+  var F = G.fight;
+  if(!F || !f.isPlayer || !F.gates) return;
+  for(var i=0;i<F.gates.length;i++){
+    var g = F.gates[i];
+    if(g.open) continue;
+    var spec = GATES[g.type];
+    if(!spec.breakBy || spec.breakBy !== a.fam) continue;
+    if(!hasAbility(spec.need)) continue;
+    if(f.hitGates.indexOf(g) >= 0) continue;
+    var dx = (g.at - f.x) * f.facing, dz = Math.abs(GATE_Z - f.z);
+    if(dx > -46 && dx < a.reach + 54 && dz < 0.30){
+      f.hitGates.push(g);
+      g.hp = (g.hp || 0) + 1;
+      g.flash = 0.18;
+      var y = FLOOR_TOP + GATE_Z*FLOOR_H;
+      burst(g.at, y - 40, 10, g.type === 'shutter' ? '#c9d3e0' : '#c2a882', 260);
+      shake = Math.max(shake, 9);
+      Sfx.thud(g.type === 'shutter' ? 520 : 300, 0.15, 1.1, 0.34);
+      if(g.hp >= 3) openGate(F, g);
+    }
+  }
+}
+
+function drawGate(g, camX){
+  var X = g.at - camX, Y = FLOOR_TOP + GATE_Z*FLOOR_H;
+  var s = 0.94 + GATE_Z*0.40;
+  var spec = GATES[g.type];
+  ctx.save();
+  ctx.translate(X, Y); ctx.scale(s, s);
+  if(g.flash > 0) ctx.translate(rand(-3,3), 0);
+
+  if(g.type === 'stash' || g.type === 'shutter'){
+    litShape(function(){ roundRect(-32, -78, 64, 78, 4); }, '#2b3038', 0, -40, 44);
+    if(!g.open){
+      var body = g.type === 'shutter' ? '#7d8794' : '#8a6236';
+      litShape(function(){ roundRect(-27, -72, 54, 72, 3); }, body, 0, -36, 38);
+      ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = 1.6;
+      for(var r=0;r<6;r++){
+        ctx.beginPath(); ctx.moveTo(-26, -66 + r*11); ctx.lineTo(26, -66 + r*11); ctx.stroke();
+      }
+      ctx.fillStyle = g.type === 'shutter' ? '#c8102e' : '#e0b34a';
+      roundRect(-8, -40, 16, 8, 2); ctx.fill();
+      if(g.hp) {                                    // damage shows the strikes landing
+        ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 2;
+        for(var d=0; d<g.hp; d++){
+          ctx.beginPath();
+          ctx.moveTo(-20 + d*16, -58); ctx.lineTo(-10 + d*16, -20); ctx.stroke();
+        }
+      }
+    } else {
+      ctx.fillStyle = 'rgba(4,6,10,.9)';
+      roundRect(-27, -72, 54, 72, 3); ctx.fill();
+    }
+  } else if(g.type === 'wall'){
+    litShape(function(){ roundRect(-30, -76, 60, 76, 3); }, '#9b8460', 0, -38, 42);
+    {
+      ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 1.6;
+      for(var bk=0;bk<5;bk++){
+        ctx.beginPath(); ctx.moveTo(-29, -70 + bk*14); ctx.lineTo(29, -70 + bk*14); ctx.stroke();
+      }
+      if(!g.open){
+        ctx.strokeStyle = 'rgba(20,14,10,.75)'; ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(-4, -74); ctx.lineTo(3, -54); ctx.lineTo(-6, -34);
+        ctx.lineTo(4, -14); ctx.lineTo(-2, 0); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(3, -54); ctx.lineTo(16, -46); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-6, -34); ctx.lineTo(-19, -28); ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(4,6,10,.92)';
+        ctx.beginPath();
+        ctx.moveTo(-18, 0); ctx.lineTo(-14, -52); ctx.lineTo(2, -66);
+        ctx.lineTo(18, -50); ctx.lineTo(16, 0); ctx.closePath(); ctx.fill();
+      }
+    }
+  } else if(g.type === 'ledge'){
+    litShape(function(){ roundRect(-40, -44, 80, 44, 4); }, '#6d5f4a', 0, -22, 44);
+    ctx.fillStyle = 'rgba(255,255,255,.12)';
+    roundRect(-38, -44, 76, 5, 2); ctx.fill();
+  } else if(g.type === 'gap'){
+    ctx.fillStyle = 'rgba(4,6,10,.92)';
+    ctx.beginPath(); ctx.ellipse(0, -4, 46, 13, 0, 0, 6.2832); ctx.fill();
+    litShape(function(){ roundRect(28, -30, 44, 30, 3); }, '#5d5648', 50, -15, 30);
+  }
+
+  if(!g.open && g.reward){
+    var bobY = (g.type === 'gap') ? -44 : (g.type === 'ledge' ? -60 : -56);
+    bobY += Math.sin(gameTime*3)*3;
+    var px = (g.type === 'gap') ? 50 : 0;
+    ctx.globalAlpha = 0.45 + Math.sin(gameTime*4)*0.2;
+    ctx.fillStyle = g.reward.ability ? '#e05cf0' : C.gold;
+    circle(px, bobY, 15); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = g.reward.ability ? '#f4c4ff' : '#ffe9a8';
+    circle(px, bobY, 7); ctx.fill();
+  }
+  ctx.restore();
+
+  if(g.near && !g.open){
+    var label = g.can
+      ? (spec.breakBy ? (spec.breakBy === 'kick' ? 'KICK IT DOWN' : 'PUNCH THROUGH') : 'CLIMBING…')
+      : spec.how;
+    ctx.fillStyle = 'rgba(6,8,14,.85)';
+    roundRect(X - 130, Y - 134, 260, 44, 8); ctx.fill();
+    txt(label, X, Y - 121, 17, g.can ? C.gold : C.bad, 'center', 900);
+    txt(spec.n + '  ·  ' + spec.ar, X, Y - 101, 13, 'rgba(255,255,255,.65)', 'center', 700);
+  }
+}
+
 /* ------------------------------------------------------------- wave handling */
 function spawnWave(F, wave){
   var camX = F.camX;
@@ -2346,6 +2555,7 @@ function updateFight(dt){
   // --- props, pickups, footfall dust ---------------------------------------
   for(i=0;i<F.props.length;i++) if(F.props[i].shakeT > 0) F.props[i].shakeT -= dt;
   updateItems(F, dt);
+  updateGates(F, dt);
   if(p.moving && p.state !== 'down' && chance(dt * 9))
     burst(p.x, FLOOR_TOP + p.z*FLOOR_H, 1, 'rgba(255,255,255,.45)', 40);
 
@@ -2622,6 +2832,9 @@ function drawFight(){
   for(i=0;i<F.items.length;i++){
     (function(q){ draws.push({ z:q.z, run:function(){ drawItem(q, F.camX); } }); })(F.items[i]);
   }
+  for(i=0;i<F.gates.length;i++){
+    (function(q){ draws.push({ z:GATE_Z - 0.01, run:function(){ drawGate(q, F.camX); } }); })(F.gates[i]);
+  }
   draws.sort(function(a,b){ return a.z - b.z; });
   for(i=0;i<draws.length;i++) draws[i].run();
 
@@ -2788,8 +3001,19 @@ function drawMap(){
   screenBg('#131b2a');
   txt('CHOOSE YOUR FIGHT', W/2, 52, 34, C.gold, 'center', 900);
   txt('اختر المعركة', W/2, 86, 18, C.white, 'center', 700);
-  txt('XP ' + save.xp, 40, 44, 22, C.gold, 'left', 900);
-  txt('BEST COMBO ' + save.best, 40, 70, 14, C.dim, 'left', 700);
+  txt('XP ' + save.xp, 40, 40, 22, C.gold, 'left', 900);
+  txt('BEST COMBO ' + save.best, 40, 64, 14, C.dim, 'left', 700);
+  // abilities carried
+  var order = ['vault','dashleap','powerkick','haymaker'];
+  for(var ai=0; ai<order.length; ai++){
+    var A = ABILITIES[order[ai]], got = hasAbility(order[ai]);
+    var ax = 42 + ai*46, ay = 92;
+    ctx.fillStyle = got ? 'rgba(224,179,74,.20)' : 'rgba(255,255,255,.05)';
+    roundRect(ax, ay, 38, 38, 8); ctx.fill();
+    ctx.strokeStyle = got ? C.gold : 'rgba(255,255,255,.10)';
+    ctx.lineWidth = 2; roundRect(ax, ay, 38, 38, 8); ctx.stroke();
+    txt(got ? A.icon : '·', ax+19, ay+19, got ? 21 : 18, got ? C.gold : C.dim, 'center', 900);
+  }
 
   // difficulty selector — tap to cycle
   var D = diff();
@@ -2819,6 +3043,20 @@ function drawMap(){
     ctx.strokeStyle = locked ? 'rgba(255,255,255,.16)' : C.gold;
     ctx.lineWidth = 3; circle(px, py, 40); ctx.stroke();
     txt(locked ? '🔒' : String(i+1), px, py, locked ? 24 : 32, locked ? C.dim : C.white, 'center', 900);
+
+    // sealed route marker — gold when you now carry the key, dim when you don't
+    var gs = st.gates || [];
+    for(var gi=0; gi<gs.length; gi++){
+      if(gateOpen(i, gs[gi].at)) continue;
+      var spec = GATES[gs[gi].type];
+      var can = !spec.need || hasAbility(spec.need);
+      if(locked) continue;
+      ctx.fillStyle = can ? 'rgba(224,179,74,.92)' : 'rgba(30,33,42,.92)';
+      circle(px-32, py-30, 15); ctx.fill();
+      ctx.strokeStyle = can ? '#fff3c4' : 'rgba(255,255,255,.18)';
+      ctx.lineWidth = 2; circle(px-32, py-30, 15); ctx.stroke();
+      txt(can ? '!' : '🔒', px-32, py-29, can ? 20 : 13, can ? '#1a1408' : C.dim, 'center', 900);
+    }
 
     if(rank){                                    // best rank earned on this stage
       ctx.fillStyle = 'rgba(8,10,16,.92)';
@@ -2907,10 +3145,25 @@ function drawBrief(dt){
     txt(T.ar, bx+16, 528, 13, C.gold, 'left', 700);
   }
 
+  // sealed route
+  var bg = (st.gates || [])[0];
+  if(bg && !gateOpen(briefIdx, bg.at)){
+    var spec = GATES[bg.type];
+    var can = !spec.need || hasAbility(spec.need);
+    ctx.fillStyle = can ? 'rgba(224,179,74,.14)' : 'rgba(255,255,255,.05)';
+    roundRect(W-500, 452, 340, 88, 10); ctx.fill();
+    ctx.fillStyle = can ? C.gold : 'rgba(255,255,255,.16)';
+    roundRect(W-500, 452, 5, 88, 3); ctx.fill();
+    txt('SEALED ROUTE', W-478, 474, 14, can ? C.gold : C.dim, 'left', 900);
+    txt(spec.n + ' · ' + spec.ar, W-478, 498, 15, C.white, 'left', 700);
+    txt(can ? 'You carry the key — go open it.' : spec.how,
+        W-478, 522, 14, can ? C.hp : C.bad, 'left', 600);
+  }
+
   var rank = save.ranks[briefIdx];
   if(rank){
-    txt('BEST RANK', W-160, 478, 14, C.dim, 'center', 800);
-    txt(rank, W-160, 516, 44, rankColor(rank), 'center', 900);
+    txt('BEST RANK', W-100, 478, 14, C.dim, 'center', 800);
+    txt(rank, W-100, 516, 40, rankColor(rank), 'center', 900);
   }
 
   uiButton(W/2-320, H-84, 300, 64, 'FIGHT', 'ابدأ', function(){ startStage(briefIdx); }, 'primary');
@@ -3025,10 +3278,11 @@ function drawAchievements(){
 
 /* ----------------------------------------------------------------- upgrades */
 var UPS = [
-  {k:'pow',  n:'POWER',   ar:'قوة',   d:'+9% damage per level'},
-  {k:'vit',  n:'VITALITY',ar:'صحة',   d:'+18 max health per level'},
-  {k:'spd',  n:'SPEED',   ar:'سرعة',  d:'+9 movement speed per level'},
-  {k:'stam', n:'STAMINA', ar:'لياقة', d:'+12 stamina, faster recovery'}
+  {k:'box',  n:'BOXING',  ar:'ملاكمة', d:'+10% jab, cross and hook damage'},
+  {k:'kick', n:'KICKING', ar:'ركل',    d:'+10% kick, knee and rage damage'},
+  {k:'vit',  n:'VITALITY',ar:'صحة',    d:'+18 max health per level'},
+  {k:'spd',  n:'SPEED',   ar:'سرعة',   d:'+9 movement speed per level'},
+  {k:'stam', n:'STAMINA', ar:'لياقة',  d:'+12 stamina, faster recovery'}
 ];
 function upCost(lvl){ return 120 + lvl * 130; }
 
@@ -3039,24 +3293,24 @@ function drawUpgrade(){
   txt('XP ' + save.xp, W/2, 118, 24, C.hp, 'center', 900);
 
   for(var i=0;i<UPS.length;i++){
-    var u = UPS[i], lvl = save.up[u.k], y = 158 + i*98;
+    var u = UPS[i], lvl = save.up[u.k], y = 148 + i*84;
     ctx.fillStyle = 'rgba(255,255,255,.05)';
-    roundRect(150, y, W-300, 82, 12); ctx.fill();
-    txt(u.n, 180, y+28, 22, C.gold, 'left', 900);
-    txt(u.ar, 180, y+56, 16, 'rgba(255,255,255,.6)', 'left', 700);
-    txt(u.d, 330, y+30, 15, C.dim, 'left', 600);
+    roundRect(150, y, W-300, 72, 12); ctx.fill();
+    txt(u.n, 180, y+26, 21, C.gold, 'left', 900);
+    txt(u.ar, 180, y+50, 15, 'rgba(255,255,255,.6)', 'left', 700);
+    txt(u.d, 330, y+28, 15, C.dim, 'left', 600);
 
     for(var s=0;s<5;s++){
       ctx.fillStyle = s < lvl ? C.gold : 'rgba(255,255,255,.14)';
-      roundRect(330 + s*34, y+48, 28, 12, 4); ctx.fill();
+      roundRect(330 + s*34, y+44, 28, 11, 4); ctx.fill();
     }
     var cost = upCost(lvl);
     if(lvl >= 5){
-      txt('MAX', W-220, y+41, 22, C.hp, 'center', 900);
+      txt('MAX', W-220, y+36, 21, C.hp, 'center', 900);
     } else {
       var afford = save.xp >= cost;
       (function(key, c, ok){
-        uiButton(W-300, y+16, 130, 50, ok ? ('▲ ' + c) : ('' + c), null, function(){
+        uiButton(W-300, y+13, 130, 46, ok ? ('▲ ' + c) : ('' + c), null, function(){
           if(save.xp >= c && save.up[key] < 5){
             save.xp -= c; save.up[key]++; writeSave(); Sfx.power(); checkAchievements();
           } else { Sfx.hurt(); }
@@ -3064,10 +3318,25 @@ function drawUpgrade(){
       })(u.k, cost, afford);
     }
   }
-  uiButton(40, H-76, 180, 54, 'BACK', 'رجوع', function(){
+  // abilities are found, not bought — shown here so the two are never confused
+  txt('ABILITIES — تُكتسب في الميدان', 150, 578, 14, C.dim, 'left', 800);
+  var ord = ['vault','dashleap','powerkick','haymaker'];
+  for(var ai=0; ai<ord.length; ai++){
+    var A = ABILITIES[ord[ai]], got = hasAbility(ord[ai]);
+    var ax = 150 + ai*245;
+    ctx.fillStyle = got ? 'rgba(224,179,74,.14)' : 'rgba(255,255,255,.04)';
+    roundRect(ax, 592, 230, 52, 9); ctx.fill();
+    ctx.strokeStyle = got ? 'rgba(224,179,74,.5)' : 'rgba(255,255,255,.08)';
+    ctx.lineWidth = 2; roundRect(ax, 592, 230, 52, 9); ctx.stroke();
+    txt(got ? A.icon : '?', ax+26, 618, 20, got ? C.gold : C.dim, 'center', 900);
+    txt(got ? A.n : 'UNDISCOVERED', ax+52, 610, 14, got ? C.white : C.dim, 'left', 800);
+    txt(got ? A.ar : '—', ax+52, 630, 13, got ? C.gold : 'rgba(255,255,255,.2)', 'left', 700);
+  }
+
+  uiButton(40, H-62, 180, 48, 'BACK', 'رجوع', function(){
     G.state = save.unlocked > 0 ? 'map' : 'menu';
   });
-  uiButton(W-260, H-76, 220, 54, 'MENU', 'القائمة', function(){ G.state = 'menu'; });
+  uiButton(W-260, H-62, 220, 48, 'MENU', 'القائمة', function(){ G.state = 'menu'; });
 }
 
 /* -------------------------------------------------------------- pause/end */

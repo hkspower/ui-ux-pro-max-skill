@@ -107,6 +107,26 @@ so you cannot stunlock them the way you can the smaller fighters.
 tier, a boss every sixth wave, and your furthest wave is recorded. It ends only
 when Ahmed goes down.
 
+## Abilities and sealed routes
+
+Every campaign stage hides one route behind an ability. Nothing sealed ever
+blocks the way forward — gates sit in the back wall, so a stage is always
+completable — but finding an ability sends you back through stages you have
+already cleared. The map marks it: a gold **!** on a stage means you now carry
+the key to something still sealed there.
+
+| Ability | Found | Opens |
+| --- | --- | --- |
+| **VAULT** ⤴ / وثبة | Salmiya Gym, in a locker | ledges |
+| **DASH LEAP** ⇥ / قفزة | Sharq Fish Market, up a ledge | broken ground, and lengthens your dodge |
+| **POWER KICK** ⚡ / ركلة قوية | Marina Crescent, across a gap | steel shutters |
+| **HAYMAKER** ✊ / قاضية | Jahra Road, behind a shutter | cracked walls |
+
+Ledges and gaps open by reaching them. **Shutters take three kicks; cracked
+walls take three punches** — the right family of strike, not just any hit. Once
+HAYMAKER is yours, cracked walls in Souq Mubarakiya, Kuwait Towers and Desert
+Camp pay out XP caches.
+
 ## Difficulty
 
 Set on the map screen; it applies immediately to every fight.
@@ -132,8 +152,10 @@ shows on the map — chasing S is the reason to replay a stage you have already 
 
 ## Progression
 
-Kills and clear bonuses pay XP. Spend it in **TRAIN** on four tracks (5 levels each):
-Power, Vitality, Speed, Stamina. Progress, XP, ranks, difficulty, the survival
+Kills and clear bonuses pay XP. Spend it in **TRAIN** on five tracks (5 levels each):
+**Boxing** (+10% jab/cross/hook), **Kicking** (+10% kick/knee/rage), Vitality,
+Speed and Stamina. Abilities are never bought — they are found in the world, and
+TRAIN shows which ones you are still missing. Progress, XP, ranks, difficulty, the survival
 record, achievements, lifetime stats and settings are saved in `localStorage`
 under `ahmed_kuwait_fighter_v1` — the game runs fine without storage (private
 mode), it just won't remember anything.
@@ -225,6 +247,9 @@ The numbers worth touching live near the top of the script in `index.html`:
 - `buildProps` / `dropItem` — crate density, placement and drop odds.
 - `genSurvivalWave` — how survival scales its enemy pool and wave size.
 - `rankFor` — the S/A/B/C score thresholds.
+- `ABILITIES` / `GATES` — the ability table and what each kind of gate wants.
+  A stage's `gates:[{at, type, reward}]` places one; `reward` is either
+  `{ability:'…'}` or `{xp:n}`. `GATE_Z` is how far back they sit.
 - `ACHIEVEMENTS` — each award's unlock predicate.
 - `MUSIC_ROOT` — the tonal centre of the music loop per stage theme.
 - `THEME` — per-stage parallax background painters.
