@@ -40,6 +40,20 @@ installable and fully playable offline.
 **Rage** (purple bar) fills as you land and absorb hits; at 100% it unleashes a
 spinning finisher that hits everyone around Ahmed.
 
+Phones vibrate on impact — toggle it in the pause menu alongside sound.
+
+---
+
+## Loot
+
+Crates and barrels line every stage and each one takes two hits. Smashing them
+drops pickups you collect by walking over them:
+
+- **Skewer (green)** — heals 28% of max health.
+- **Rage orb (purple)** — adds 45% rage.
+
+Beaten enemies drop loot too, about one in six. A downed boss always does.
+
 ---
 
 ## Stages
@@ -56,12 +70,36 @@ spinning finisher that hits everyone around Ahmed.
 Each stage scrolls through three locked waves. Clear a wave to move on, reach the
 gold **EXIT** gate to finish the stage.
 
+**AL-WAHSH fights in two phases.** Below half health he goes berserk — faster,
+harder, and he gains the spinning finisher. He also shrugs off most knockdowns,
+so you cannot stunlock him the way you can the smaller fighters.
+
+**SURVIVAL** unlocks once you take the title. Endless waves that grow in size and
+tier, a boss every sixth wave, and your furthest wave is recorded. It ends only
+when Ahmed goes down.
+
+## Difficulty
+
+Set on the map screen; it applies immediately to every fight.
+
+| | Enemy damage | Enemy health |
+| --- | --- | --- |
+| ROOKIE / مبتدئ | ×0.62 | ×0.78 |
+| PRO / محترف | ×1.00 | ×1.00 |
+| CHAMPION / بطل | ×1.45 | ×1.38 |
+
+## Ranks
+
+Clearing a campaign stage scores you **S / A / B / C** from kills, best combo,
+health remaining and time taken, adjusted for difficulty. Your best rank per stage
+shows on the map — chasing S is the reason to replay a stage you have already won.
+
 ## Progression
 
 Kills and clear bonuses pay XP. Spend it in **TRAIN** on four tracks (5 levels each):
-Power, Vitality, Speed, Stamina. Progress, XP and settings are saved in
-`localStorage` under `ahmed_kuwait_fighter_v1` — the game runs fine without storage
-(private mode), it just won't remember anything.
+Power, Vitality, Speed, Stamina. Progress, XP, ranks, difficulty, the survival
+record and settings are saved in `localStorage` under `ahmed_kuwait_fighter_v1` —
+the game runs fine without storage (private mode), it just won't remember anything.
 
 ---
 
@@ -82,6 +120,11 @@ The numbers worth touching live near the top of the script in `index.html`:
   of every strike.
 - `TYPES` — enemy HP, power, speed, reach, attack rate, XP and colours.
 - `STAGES` — stage length, theme, wave composition and where each wave triggers.
+  A wave with `at: -1` spawns the moment the previous one clears (survival uses this).
+- `DIFF` — the three difficulty multipliers.
+- `buildProps` / `dropItem` — crate density, placement and drop odds.
+- `genSurvivalWave` — how survival scales its enemy pool and wave size.
+- `rankFor` — the S/A/B/C score thresholds.
 - `THEME` — per-stage parallax background painters.
 - `UPS` / `upCost` — upgrade effects and pricing.
 
