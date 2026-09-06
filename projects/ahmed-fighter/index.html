@@ -1464,6 +1464,16 @@ function hashv(i, seed){
 var THEME = {
   souq: {
     sky:['#f2c98a','#e79a5c','#d97b4e'], ground:['#a5713f','#7c5230'], fog:'rgba(240,190,130,.28)',
+    clouds:{ n:5, y:70, spread:70, w:170, col:'#ffe6c0', alpha:0.30, par:0.03, speed:2.5 },
+    floor:function(camX){
+      groundGrid(camX, 132, 'rgba(46,22,6,.40)', 1.6, 5);        // worn flagstones
+      groundPatches(camX, '#e0b077', 16, 130, 52, 1.0);          // sun-bleached stones
+      groundPatches(camX, '#4a2c10', 11, 150, 44, 1.0);          // trodden dark patches
+    },
+    air:function(camX){
+      airDrift(camX, { n:26, col:'#ffe3b4', alpha:0.30, r:2.2, y0:150, y1:FLOOR_TOP+90,
+                       par:0.5, driftX:90, sway:7, seed:160 });
+    },
     far:function(camX){
       ctx.fillStyle = 'rgba(255,238,190,.85)';
       circle(980 - camX*0.04, 150, 62); ctx.fill();
@@ -1502,6 +1512,28 @@ var THEME = {
   },
   gym: {
     sky:['#2a3240','#1d2430','#161b25'], ground:['#4a3b2c','#332a20'], fog:'rgba(120,150,190,.10)',
+    floor:function(camX){
+      // Training mat: a taped square you fight inside, plus the mat seams.
+      var g = ctx.createLinearGradient(0, gy(0.05), 0, gy(1));
+      g.addColorStop(0, 'rgba(38,44,54,.55)'); g.addColorStop(1, 'rgba(26,31,38,.75)');
+      ctx.fillStyle = g; ctx.fillRect(0, gy(0.05), W, gy(1) - gy(0.05));
+      groundPlanks(camX, 6, 'rgba(0,0,0,.22)', 2);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(200,16,46,.55)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, gy(0.22)); ctx.lineTo(W, gy(0.22)); ctx.stroke();
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(0, gy(0.88)); ctx.lineTo(W, gy(0.88)); ctx.stroke();
+      ctx.strokeStyle = 'rgba(224,179,74,.35)'; ctx.lineWidth = 2.5;
+      groundRow(camX, 0.55, 560, 1.0, function(x, i, y, sc){
+        ctx.beginPath(); ctx.moveTo(x, gy(0.22)); ctx.lineTo(x, gy(0.88)); ctx.stroke();
+      });
+      ctx.restore();
+      groundPatches(camX, '#6a5741', 10, 170, 46, 1.0);          // scuffed mat
+    },
+    air:function(camX){
+      airDrift(camX, { n:20, col:'#cfe0ff', alpha:0.16, r:1.8, y0:60, y1:FLOOR_TOP+60,
+                       par:0.45, driftX:40, sway:9, seed:180 });
+    },
     far:function(camX){
       ctx.fillStyle = '#232b38';
       ctx.fillRect(0, 0, W, FLOOR_TOP-30);
@@ -1533,6 +1565,25 @@ var THEME = {
   },
   towers: {
     sky:['#0b1430','#152244','#26365e'], ground:['#2a3552','#1a2136'], fog:'rgba(90,140,220,.14)',
+    floor:function(camX){
+      // Waterfront promenade: big slabs, damp near the sea wall, lamp pools.
+      groundGrid(camX, 176, 'rgba(10,16,34,.42)', 1.6, 4);
+      var g = ctx.createLinearGradient(0, gy(0), 0, gy(0.30));
+      g.addColorStop(0, 'rgba(60,110,190,.28)'); g.addColorStop(1, 'rgba(60,110,190,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, gy(0), W, gy(0.30) - gy(0));
+      ctx.save();                                                 // lamplight on stone
+      groundRow(camX, 0.34, 380, 0.5, function(x, i, y, sc){
+        var lg = ctx.createRadialGradient(x, y, 4, x, y, 120 * sc);
+        lg.addColorStop(0, 'rgba(255,225,150,.20)');
+        lg.addColorStop(1, 'rgba(255,225,150,0)');
+        ctx.fillStyle = lg;
+        ctx.beginPath(); ctx.ellipse(x, y, 120 * sc, 44 * sc, 0, 0, 6.2832); ctx.fill();
+      });
+      ctx.restore();
+    },
+    air:function(camX){
+      airBirds(camX, 4, 'rgba(190,210,255,.7)', 120, 18);
+    },
     far:function(camX){
       for(var i=0;i<70;i++){
         var sx = (hashv(i,3)*W*2 - camX*0.02) % (W*2);
@@ -1581,6 +1632,28 @@ var THEME = {
   },
   failaka: {
     sky:['#ffb36b','#f07a5e','#8e4a6d'], ground:['#c3a173','#8e7350'], fog:'rgba(255,170,120,.24)',
+    clouds:{ n:6, y:110, spread:80, w:190, col:'#ffd2a8', alpha:0.32, par:0.03, speed:2 },
+    floor:function(camX){
+      // Beach: damp sand darkens toward the tide line at the back.
+      var g = ctx.createLinearGradient(0, gy(0), 0, gy(0.34));
+      g.addColorStop(0, 'rgba(96,72,58,.50)'); g.addColorStop(1, 'rgba(96,72,58,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, gy(0), W, gy(0.34) - gy(0));
+      ctx.save();                                                 // foam at the waterline
+      ctx.strokeStyle = 'rgba(255,246,232,.45)'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+      ctx.beginPath();
+      for(var x = -40; x <= W + 40; x += 22){
+        var yy = gy(0.06) + Math.sin((x + camX * 0.5) * 0.013 + gameTime * 1.1) * 5;
+        if(x === -40) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+      }
+      ctx.stroke(); ctx.restore();
+      groundRipples(camX, '#fff0d2', 9, 5, 1.9);
+      groundPatches(camX, '#5e4526', 16, 200, 32, 1.0);           // shells and stones
+    },
+    air:function(camX){
+      airBirds(camX, 5, 'rgba(70,44,50,.55)', 100, 22);
+      airDrift(camX, { n:16, col:'#ffe0bd', alpha:0.22, r:2, y0:200, y1:FLOOR_TOP+70,
+                       par:0.55, driftX:110, sway:6, seed:210 });
+    },
     far:function(camX){
       ctx.fillStyle = 'rgba(255,240,200,.95)';
       circle(760 - camX*0.03, 210, 78); ctx.fill();
@@ -1619,6 +1692,25 @@ var THEME = {
   },
   desert: {
     sky:['#101a3a','#20264d','#3d3155'], ground:['#c2a274','#8b7047'], fog:'rgba(120,110,180,.16)',
+    floor:function(camX){
+      groundRipples(camX, '#f6e2b6', 12, 7, 2.1);                  // dune sand
+      groundPatches(camX, '#57431f', 14, 230, 44, 1.0);           // scrub and stones
+      ctx.save();                                                 // firelight pooling
+      groundRow(camX, 0.30, 420, 0.46, function(x, i, y, sc){
+        var fg2 = ctx.createRadialGradient(x + 280, y, 6, x + 280, y, 150 * sc);
+        fg2.addColorStop(0, 'rgba(255,150,50,.26)');
+        fg2.addColorStop(1, 'rgba(255,150,50,0)');
+        ctx.fillStyle = fg2;
+        ctx.beginPath(); ctx.ellipse(x + 280, y, 150 * sc, 50 * sc, 0, 0, 6.2832); ctx.fill();
+      });
+      ctx.restore();
+    },
+    air:function(camX){
+      airDrift(camX, { n:24, col:'#e6d3a8', alpha:0.26, r:1.6, streak:7, y0:180,
+                       y1:FLOOR_TOP+80, par:0.6, driftX:180, sway:4, seed:240 });
+      airDrift(camX, { n:10, col:'#ffb055', alpha:0.40, r:1.6, y0:FLOOR_TOP-70,
+                       y1:FLOOR_TOP-200, par:0.46, driftX:40, sway:8, fall:-1, seed:250 });
+    },
     far:function(camX){
       for(var i=0;i<90;i++){
         var sx = (hashv(i,21)*W*2 - camX*0.02) % (W*2);
@@ -1671,6 +1763,22 @@ var THEME = {
   },
   fishmarket: {
     sky:['#8fbfd8','#c9d9dc','#e6d9bd'], ground:['#9aa6a4','#6e7877'], fog:'rgba(200,225,235,.20)',
+    clouds:{ n:7, y:60, spread:80, w:200, col:'#ffffff', alpha:0.34, par:0.04, speed:3 },
+    floor:function(camX){
+      // Wet market concrete: hosed down, so it holds the sky in puddles.
+      groundGrid(camX, 150, 'rgba(40,52,56,.28)', 1.3, 4);
+      groundPatches(camX, '#cfe4ec', 18, 260, 56, 1.0);           // puddles
+      groundPatches(camX, '#4c565a', 10, 280, 42, 1.0);           // wet dark concrete
+      ctx.save();                                                 // drainage channel
+      ctx.strokeStyle = 'rgba(30,40,44,.40)'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(0, gy(0.40)); ctx.lineTo(W, gy(0.40)); ctx.stroke();
+      ctx.strokeStyle = 'rgba(200,220,228,.22)'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(0, gy(0.40) - 4); ctx.lineTo(W, gy(0.40) - 4); ctx.stroke();
+      ctx.restore();
+    },
+    air:function(camX){
+      airBirds(camX, 6, 'rgba(60,70,74,.6)', 90, 24);
+    },
     far:function(camX){
       ctx.fillStyle = 'rgba(255,252,235,.85)';
       circle(240 - camX*0.03, 120, 46); ctx.fill();
@@ -1724,6 +1832,24 @@ var THEME = {
   },
   marina: {
     sky:['#120b26','#231245','#3a1c4e'], ground:['#3b3350','#241f33'], fog:'rgba(160,90,220,.14)',
+    floor:function(camX){
+      groundPlanks(camX, 14, 'rgba(12,8,22,.42)', 2.4);           // boardwalk decking
+      ctx.save();                                                 // neon spill on the boards
+      var cols = ['rgba(255,60,140,.16)','rgba(70,220,255,.16)','rgba(180,90,255,.14)'];
+      groundRow(camX, 0.26, 300, 0.55, function(x, i, y, sc){
+        var lg = ctx.createRadialGradient(x, y, 4, x, y, 170 * sc);
+        lg.addColorStop(0, cols[((i % 3) + 3) % 3]);
+        lg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = lg;
+        ctx.beginPath(); ctx.ellipse(x, y, 170 * sc, 58 * sc, 0, 0, 6.2832); ctx.fill();
+      });
+      ctx.restore();
+      groundPatches(camX, '#7a6a95', 8, 300, 40, 1.0);
+    },
+    air:function(camX){
+      airDrift(camX, { n:22, col:'#e8c2ff', alpha:0.32, r:1.9, y0:120, y1:FLOOR_TOP+60,
+                       par:0.5, driftX:70, sway:10, seed:320 });
+    },
     far:function(camX){
       for(var i=0;i<60;i++){
         var sx = (hashv(i,51)*W*2 - camX*0.02) % (W*2);
@@ -1776,6 +1902,22 @@ var THEME = {
   },
   highway: {
     sky:['#f0a15e','#c9683f','#6d3b4a'], ground:['#4a4a52','#2c2c33'], fog:'rgba(255,160,110,.20)',
+    clouds:{ n:5, y:80, spread:60, w:210, col:'#ffcda0', alpha:0.26, par:0.03, speed:2 },
+    floor:function(camX){
+      groundLanes(camX, '#e8e2d4');                               // asphalt markings
+      groundPatches(camX, '#1e1e24', 14, 340, 60, 1.0);           // tar repairs
+      groundPatches(camX, '#5e5e68', 9, 360, 44, 1.0);            // worn tyre polish
+      ctx.save();                                                 // headlight wash
+      var hg = ctx.createLinearGradient(0, gy(0.6), 0, gy(1));
+      hg.addColorStop(0, 'rgba(255,190,120,0)');
+      hg.addColorStop(1, 'rgba(255,190,120,.10)');
+      ctx.fillStyle = hg; ctx.fillRect(0, gy(0.6), W, gy(1) - gy(0.6));
+      ctx.restore();
+    },
+    air:function(camX){
+      airDrift(camX, { n:20, col:'#ffd9ae', alpha:0.24, r:1.5, streak:9, y0:260,
+                       y1:FLOOR_TOP+90, par:0.85, driftX:240, sway:3, seed:360 });
+    },
     far:function(camX){
       ctx.fillStyle = 'rgba(255,225,170,.95)';
       circle(880 - camX*0.03, 190, 66); ctx.fill();
@@ -1822,6 +1964,50 @@ var THEME = {
   },
   arena: {
     sky:['#161020','#241633','#120c1c'], ground:['#5b4a63','#38293f'], fog:'rgba(180,108,224,.12)',
+    floor:function(camX){
+      // Championship canvas: bordered mat, centre circle, corner marks.
+      var g = ctx.createLinearGradient(0, gy(0.06), 0, gy(1));
+      g.addColorStop(0, 'rgba(84,64,96,.60)'); g.addColorStop(1, 'rgba(48,34,58,.75)');
+      ctx.fillStyle = g; ctx.fillRect(0, gy(0.06), W, gy(1) - gy(0.06));
+      ctx.save();
+      ctx.strokeStyle = 'rgba(224,179,74,.50)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, gy(0.16)); ctx.lineTo(W, gy(0.16)); ctx.stroke();
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(0, gy(0.94)); ctx.lineTo(W, gy(0.94)); ctx.stroke();
+      ctx.strokeStyle = 'rgba(200,16,46,.34)'; ctx.lineWidth = 3;
+      groundRow(camX, 0.55, 900, 1.0, function(x, i, y, sc){     // centre circle
+        ctx.beginPath();
+        ctx.ellipse(x, gy(0.55), 190 * sc, 62 * sc, 0, 0, 6.2832); ctx.stroke();
+      });
+      ctx.restore();
+      // Spotlight pools, tracking the same rig the mid layer hangs.
+      ctx.save();
+      groundRow(camX, 0.48, 340, 0.5, function(x, i, y, sc){
+        var lg = ctx.createRadialGradient(x, y, 6, x, y, 200 * sc);
+        lg.addColorStop(0, 'rgba(240,220,255,.16)');
+        lg.addColorStop(1, 'rgba(240,220,255,0)');
+        ctx.fillStyle = lg;
+        ctx.beginPath(); ctx.ellipse(x, y, 200 * sc, 66 * sc, 0, 0, 6.2832); ctx.fill();
+      });
+      ctx.restore();
+    },
+    air:function(camX){
+      airDrift(camX, { n:18, col:'#ffd8f0', alpha:0.30, r:2.4, y0:40, y1:FLOOR_TOP+120,
+                       par:0.5, driftX:30, sway:14, seed:380 });
+      if(!GFX_HIGH) return;
+      ctx.save();                                                 // camera flashes in the crowd
+      for(var i = 0; i < 14; i++){
+        var ph = (gameTime * 0.9 + hashv(i, 400)) % 1;
+        if(ph > 0.10) continue;
+        var span = W * 1.8;
+        var x = (hashv(i, 401) * span - camX * 0.16) % span;
+        if(x < 0) x += span;
+        ctx.globalAlpha = (1 - ph / 0.10) * 0.75;
+        ctx.fillStyle = '#fff8e8';
+        circle(x, 150 + hashv(i, 402) * 170, 3.4); ctx.fill();
+      }
+      ctx.restore();
+    },
     far:function(camX){
       // crowd
       for(var r=0;r<5;r++){
@@ -1875,19 +2061,234 @@ function drawTower(x, baseY, h, r, spheres){
   if(spheres > 0){ circle(x-r*0.3, baseY-h*0.66, r*0.4); ctx.fill(); }
 }
 
+
+/* ==========================================================================
+   GROUND + ATMOSPHERE
+   The playfield is a depth band: t = 0 at the back wall, t = 1 at the front
+   rail. Every helper below works in t and borrows the same perspective the
+   fighters use (screenOf), so a lane marking and a fighter standing on it
+   agree about where the floor is.
+   ========================================================================== */
+function gy(t){ return FLOOR_TOP + t * FLOOR_H; }
+function gsc(t){ return 0.98 + t * 0.40; }
+
+/* Places a marking every `cell` world units along one depth line. The camera
+   is side-on -- x never scales with depth, only sprite size does -- so the
+   spacing stays constant and `sc` is handed over for sizing only. */
+function groundRow(camX, t, cell, par, fn){
+  var sc = gsc(t), off = camX * par;
+  var i0 = Math.floor(off / cell) - 1, n = Math.ceil(W / cell) + 3;
+  for(var i = i0; i < i0 + n; i++) fn(i * cell - off, i, gy(t), sc);
+}
+
+/* Slabs and tiles. The joints running away from camera stay parallel -- this
+   view is side-on, so converging them would fight the way fighters move. The
+   depth cue comes from the cross rows instead: they crowd toward the back and
+   fade out with distance. */
+function groundGrid(camX, cell, col, lw, rows){
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = lw || 1;
+  rows = rows || 5;
+  var k, t;
+  for(k = 0; k <= rows; k++){
+    t = Math.pow(k / rows, 0.78);
+    ctx.globalAlpha = 0.30 + t * 0.60;
+    ctx.beginPath(); ctx.moveTo(0, gy(t)); ctx.lineTo(W, gy(t)); ctx.stroke();
+  }
+  ctx.globalAlpha = 0.50;
+  repeatX(cell, 1.0, camX, function(x){
+    ctx.beginPath(); ctx.moveTo(x, gy(0)); ctx.lineTo(x, gy(1)); ctx.stroke();
+  });
+  ctx.restore();
+}
+
+/* Boardwalk: planks laid across the walk, so only the converging rows show. */
+function groundPlanks(camX, count, col, gap){
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = gap || 2;
+  for(var k = 0; k <= count; k++){
+    var t = Math.pow(k / count, 0.80);
+    ctx.globalAlpha = 0.25 + t * 0.55;
+    ctx.beginPath(); ctx.moveTo(0, gy(t)); ctx.lineTo(W, gy(t)); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* Wind-blown sand. Ripples crowd together toward the horizon and stretch as
+   they come forward, which is most of what sells a flat plane as ground. */
+function groundRipples(camX, col, rows, amp, strength){
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+  rows = rows || 9;
+  for(var k = 0; k < rows; k++){
+    var t = Math.pow(k / rows, 0.72);
+    var y = gy(t), sc = gsc(t);
+    ctx.globalAlpha = (0.10 + t * 0.28) * (strength || 1);
+    ctx.lineWidth = 1.2 + t * 2.2;
+    ctx.beginPath();
+    var off = camX * (0.55 + t * 0.45);
+    for(var x = -40; x <= W + 40; x += 26){
+      var wob = Math.sin((x + off) * 0.011 + k * 1.7) * (amp || 5) * sc;
+      if(x === -40) ctx.moveTo(x, y + wob); else ctx.lineTo(x, y + wob);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* Scattered flat patches: puddles, oil, worn paving, ice on a market floor. */
+function groundPatches(camX, col, n, seed, rx, par){
+  ctx.save();
+  ctx.fillStyle = col;
+  for(var i = 0; i < n; i++){
+    var t = 0.12 + hashv(i, seed) * 0.84;
+    var span = W * 2.4;
+    var x = (hashv(i, seed + 1) * span - camX * (par || 1)) % span;
+    if(x < -120) x += span;
+    var sc = gsc(t);
+    ctx.globalAlpha = 0.10 + hashv(i, seed + 2) * 0.20;
+    ctx.beginPath();
+    ctx.ellipse(x, gy(t), (rx || 44) * sc * (0.5 + hashv(i, seed + 3)),
+                (rx || 44) * 0.26 * sc, 0, 0, 6.2832);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* Lane dashes down the middle of a road, plus a solid edge line each side. */
+function groundLanes(camX, col){
+  ctx.save();
+  ctx.strokeStyle = col;
+  var edges = [0.16, 0.92];
+  for(var e = 0; e < edges.length; e++){
+    ctx.globalAlpha = 0.30; ctx.lineWidth = 2 + edges[e] * 3;
+    ctx.beginPath(); ctx.moveTo(0, gy(edges[e])); ctx.lineTo(W, gy(edges[e])); ctx.stroke();
+  }
+  ctx.globalAlpha = 0.55;
+  groundRow(camX, 0.54, 210, 1.0, function(x, i, y, sc){
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y - 2 * sc, 96 * sc, 4.5 * sc);
+  });
+  ctx.restore();
+}
+
+/* The backdrop has to sit down into the floor or the horizon reads as a cut
+   edge. A short haze band either side of FLOOR_TOP does it. */
+function horizonBand(col){
+  var g = ctx.createLinearGradient(0, FLOOR_TOP - 54, 0, FLOOR_TOP + 34);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(0.55, col);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.save(); ctx.globalAlpha = 0.7;
+  ctx.fillStyle = g;
+  ctx.fillRect(0, FLOOR_TOP - 54, W, 88);
+  ctx.restore();
+}
+
+/* Anything drifting through the air: dust, spray, embers, confetti. One
+   system, because they only differ by colour, drift and how much they sway. */
+function airDrift(camX, o){
+  if(!GFX_HIGH) return;
+  var n = o.n || 22, sp = o.span || W * 1.6;
+  ctx.save();
+  ctx.fillStyle = o.col;
+  for(var i = 0; i < n; i++){
+    var seed = (o.seed || 60) + i;
+    var life = hashv(i, seed) * 6 + 3;
+    var ph = (gameTime / life + hashv(i, seed + 1)) % 1;
+    var x = (hashv(i, seed + 2) * sp - camX * (o.par || 0.5)
+             + ph * (o.driftX || 60)) % sp;
+    if(x < -20) x += sp;
+    var y0 = (o.y0 || 60), y1 = (o.y1 || FLOOR_TOP);
+    var y = y0 + ((hashv(i, seed + 3) + ph * (o.fall || 1)) % 1) * (y1 - y0);
+    y += Math.sin(gameTime * 1.6 + i) * (o.sway || 5);
+    ctx.globalAlpha = (o.alpha || 0.35) * Math.sin(ph * Math.PI);
+    var r = (o.r || 2) * (0.5 + hashv(i, seed + 4));
+    if(o.streak){
+      ctx.fillRect(x, y, r * (o.streak || 6), r * 0.7);
+    } else {
+      ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/* Gulls: two strokes each, which at this size is all a bird needs. */
+function airBirds(camX, n, col, y0, speed){
+  if(!GFX_HIGH) return;
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  var span = W * 2;
+  for(var i = 0; i < n; i++){
+    var x = (hashv(i, 90) * span + gameTime * (speed || 26) * (0.6 + hashv(i, 91))
+             - camX * 0.18) % span;
+    if(x < -30) x += span;
+    var y = y0 + hashv(i, 92) * 120 + Math.sin(gameTime * 1.1 + i * 2) * 9;
+    var w = 6 + hashv(i, 93) * 5;
+    var flap = Math.sin(gameTime * 6 + i * 1.7) * 0.45;
+    ctx.globalAlpha = 0.45 + hashv(i, 94) * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(x - w, y + Math.sin(flap) * w * 0.5);
+    ctx.quadraticCurveTo(x, y - w * 0.35, x + w, y + Math.sin(flap) * w * 0.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* A slow cloud band. Themes hand over a config rather than a function since
+   they all want the same thing in a different colour. */
+function skyClouds(camX, c){
+  ctx.save();
+  ctx.fillStyle = c.col;
+  var span = W * 2.2;
+  for(var i = 0; i < (c.n || 6); i++){
+    var x = (hashv(i, c.seed || 70) * span - camX * (c.par || 0.05)
+             - gameTime * (c.speed || 3)) % span;
+    if(x < -300) x += span;
+    var y = (c.y || 70) + hashv(i, (c.seed || 70) + 1) * (c.spread || 90);
+    var w = (c.w || 150) * (0.6 + hashv(i, (c.seed || 70) + 2) * 0.9);
+    var h = w * (0.16 + hashv(i, (c.seed || 70) + 3) * 0.10);
+    ctx.globalAlpha = (c.alpha || 0.28) * (0.5 + hashv(i, (c.seed || 70) + 4) * 0.5);
+    ctx.beginPath();
+    ctx.ellipse(x, y, w, h, 0, 0, 6.2832); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(x + w * 0.32, y - h * 0.55, w * 0.52, h * 0.85, 0, 0, 6.2832); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(x - w * 0.40, y - h * 0.22, w * 0.40, h * 0.70, 0, 0, 6.2832); ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawStageBg(theme, camX){
   var T = THEME[theme] || THEME.souq;
   var g = ctx.createLinearGradient(0, 0, 0, FLOOR_TOP + 30);
   g.addColorStop(0, T.sky[0]); g.addColorStop(0.55, T.sky[1]); g.addColorStop(1, T.sky[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, FLOOR_TOP + 30);
+  if(T.clouds && GFX_HIGH) skyClouds(camX, T.clouds);
   T.far(camX);
   ctx.fillStyle = T.fog; ctx.fillRect(0, 0, W, FLOOR_TOP);
   T.mid(camX);
+  // A second, weaker pass of the same haze so the mid layer sits between the
+  // backdrop and the fighters instead of reading as hard as the foreground.
+  ctx.save(); ctx.globalAlpha = 0.26;
+  ctx.fillStyle = T.fog; ctx.fillRect(0, 0, W, FLOOR_TOP);
+  ctx.restore();
+  horizonBand(T.fog);
+
   // floor
   var fg = ctx.createLinearGradient(0, FLOOR_TOP - 20, 0, H);
   fg.addColorStop(0, T.ground[0]); fg.addColorStop(1, T.ground[1]);
   ctx.fillStyle = fg; ctx.fillRect(0, FLOOR_TOP - 20, W, H - FLOOR_TOP + 20);
-  ctx.globalAlpha = 0.085;
+
+  // Distance darkens the floor toward the back wall, so the band reads as a
+  // plane going away rather than a flat slab.
+  var dg = ctx.createLinearGradient(0, FLOOR_TOP - 20, 0, gy(0.62));
+  dg.addColorStop(0, 'rgba(0,0,0,.30)'); dg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = dg; ctx.fillRect(0, FLOOR_TOP - 20, W, gy(0.62) - FLOOR_TOP + 20);
+
+  if(T.floor) T.floor(camX);
+
+  ctx.globalAlpha = 0.06;
   repeatX(120, 1.0, camX, function(x){
     ctx.fillStyle = '#000';
     ctx.beginPath();
@@ -1896,6 +2297,7 @@ function drawStageBg(theme, camX){
     ctx.closePath(); ctx.fill();
   });
   ctx.globalAlpha = 1;
+  if(T.air) T.air(camX);
 }
 
 /* ==========================================================================

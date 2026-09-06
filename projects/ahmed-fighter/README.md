@@ -203,6 +203,40 @@ are rendered as lit volumes rather than flat shapes:
 - **Post-processing**: a split-tone colour grade (cool sky, warm ground) and
   animated film grain.
 
+## Stages
+
+Each location is a `THEME` entry with five layers, drawn back to front:
+
+| Hook | What it draws |
+| --- | --- |
+| `clouds` | a slow cloud band, config not code — every theme wants the same drift in a different colour |
+| `far` | skyline, sea, dunes; barely parallaxed |
+| `mid` | the layer that names the place — arches, heavy bags, dhows, tents |
+| `floor` | the ground the fight happens on |
+| `air` | whatever drifts through frame: dust, gulls, embers, confetti |
+
+Three rules keep the nine stages reading as one game:
+
+**The floor is the stage.** Souq is worn flagstone, the gym is a taped mat,
+Sharq is hosed-down concrete holding puddles, Marina is boardwalk under neon,
+Jahra is asphalt with lane dashes, the desert is dune ripples, the arena is
+championship canvas under spotlights. Before this each stage had the same
+gradient slab, and nine locations looked like one.
+
+**Ground joints run parallel, not converging.** The camera is side-on: `f.x`
+is drawn at `f.x - camX` with no scaling by depth, so a vanishing point would
+fight the way fighters actually move. Depth comes from the cross rows instead —
+they crowd toward the back wall and fade with distance. `groundRow()` hands
+callers `sc` for sizing only, never for spacing.
+
+**Haze is applied twice.** Once over `far`, then again at a quarter strength
+over `mid`, so the middle distance sits between the backdrop and the fighters
+instead of reading as hard as the foreground. A short band across `FLOOR_TOP`
+settles the backdrop into the floor; without it the horizon is a cut edge.
+
+Everything in `air` and `clouds` is behind `GFX_HIGH`, so fast mode keeps the
+floors and drops the atmosphere.
+
 **GRAPHICS: REALISTIC / FAST** in Settings (or pause) switches the whole shading
 pipeline for flat fills. Realistic costs roughly twice the draw calls, so the
 game samples real frame times once per session during a fight and drops itself to
