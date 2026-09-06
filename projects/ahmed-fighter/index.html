@@ -43,13 +43,15 @@
 <script src="assets/hits.js"></script>
 <script src="assets/talents.js"></script>
 <script src="assets/upgrades.js"></script>
+<script src="assets/weapons.js"></script>
 <script>
 (function(){
 'use strict';
 
 /* Every table the game runs on is loaded from assets/. Fail loudly rather
    than half-starting with an undefined table. */
-var ASSETS = ['ASSET_AHMED','ASSET_ENEMIES','ASSET_HITS','ASSET_TALENTS','ASSET_UPGRADES'];
+var ASSETS = ['ASSET_AHMED','ASSET_ENEMIES','ASSET_HITS','ASSET_TALENTS',
+              'ASSET_UPGRADES','ASSET_WEAPONS'];
 for(var ai=0; ai<ASSETS.length; ai++){
   if(!window[ASSETS[ai]]) throw new Error('Missing asset: assets/' +
     ASSETS[ai].replace('ASSET_','').toLowerCase() + '.js');
@@ -788,6 +790,27 @@ function jacketShape(top){
   ctx.moveTo(-6, -45); ctx.quadraticCurveTo(-12, -39, -12, -31); ctx.stroke();
 }
 
+/* Whatever Ahmed picked up, held in the lead hand and pointing the way the
+   forearm does, so it swings with the punch rather than floating beside it. */
+function weaponInHand(x, y, ang, key){
+  var W = ASSET_WEAPONS[key];
+  if(!W) return;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(ang);
+  var l = W.len, t = W.thick;
+  tube(-l*0.28, 0, l*0.72, 0, t, t * 0.92, W.col);
+  ctx.fillStyle = W.tip;                                  // business end
+  roundRect(l*0.50, -t*0.75, l*0.24, t*1.5, t*0.5); ctx.fill();
+  if(GFX_HIGH){
+    ctx.fillStyle = 'rgba(255,255,255,.22)';              // length highlight
+    roundRect(-l*0.24, -t*0.55, l*0.86, t*0.32, t*0.16); ctx.fill();
+    ctx.fillStyle = 'rgba(20,16,12,.75)';                 // grip
+    roundRect(-l*0.30, -t*0.72, l*0.24, t*1.44, t*0.4); ctx.fill();
+  }
+  ctx.restore();
+}
+
 /* Muay-Thai shin wraps: cloth over the lower leg with the binding showing.
    Drawn between the leg and the shoe so the shoe still covers the ankle. */
 function shinWrap(x,y,a1,l1,a2,l2,r1,r2,col){
@@ -1455,6 +1478,7 @@ function drawFighter(f, camX){
   }
   if(f.hands) hand(la.x, la.y, p.armLead[0] + p.armLead[1], f.hands, 9.2, skin, band);
   else glove(la.x, la.y, p.armLead[0] + p.armLead[1], gloveCol, 9.2);
+  if(f.weapon) weaponInHand(la.x, la.y, p.armLead[0] + p.armLead[1], f.weapon.key);
 
   ctx.restore();
 
@@ -2542,8 +2566,10 @@ function startAttack(f, key){
   if(f.state === 'attack' || f.state === 'hit' || f.state === 'down' || f.state === 'dash') return false;
   if(f.isPlayer && key !== 'special' && f.stam < a.stam) return false;
   if(f.isPlayer && key !== 'special') f.stam -= a.stam;
-  f.atk = a; f.atkKey = key; f.atkT = 0; f.state = 'attack';
+  f.atk = f.isPlayer ? armedAttack(f, a) : a;
+  f.atkKey = key; f.atkT = 0; f.state = 'attack';
   f.hitDone = false; f.hitTargets = []; f.hitProps = []; f.hitGates = []; f.blocking = false;
+  f.wepSwing = false;
   if(!f.isPlayer && a.heavy) f.tele = a.su;
   Sfx.whoosh();
   return true;
@@ -2581,6 +2607,11 @@ function checkHit(f, a, targets){
   }
 }
 function applyHit(att, def, a){
+  // Whiffing costs nothing but time; only a swing that lands wears it out.
+  if(att.weapon && a.wep && !att.wepSwing){
+    att.wepSwing = true;
+    if(--att.weapon.uses <= 0) breakWeapon(att);
+  }
   var awayFacing = ((att.x - def.x) * def.facing) < 0;      // attacker behind def
   var blocked = def.blocking && !awayFacing && def.state !== 'attack';
 
@@ -2851,11 +2882,33 @@ function buildProps(st, idx){
   }
   return out;
 }
+var WEAPON_KEYS = Object.keys(ASSET_WEAPONS);
 function dropItem(F, x, z, forced){
   var roll = Math.random();
-  var kind = forced || (roll < 0.50 ? 'food' : (roll < 0.80 ? 'rage' : null));
+  var kind = forced || (roll < 0.42 ? 'food'
+                      : roll < 0.68 ? 'rage'
+                      : roll < 0.84 ? 'weapon' : null);
   if(!kind) return;
-  F.items.push({ x:x, z:z, h:46, vh:150, kind:kind, life:16, t:0 });
+  var it = { x:x, z:z, h:46, vh:150, kind:kind, life:16, t:0 };
+  if(kind === 'weapon') it.wep = pick(WEAPON_KEYS);
+  F.items.push(it);
+}
+
+/* Armed punches. The ATK entries are shared, so a swing gets its own copy
+   rather than the weapon quietly rewriting the table for everyone. */
+function armedAttack(f, a){
+  if(!f.weapon || a.fam !== 'box' || a.multi) return a;
+  var W = ASSET_WEAPONS[f.weapon.key];
+  return { fam:a.fam, dmg:a.dmg * W.dmg, su:a.su, ac:a.ac, rc:a.rc + 0.03,
+           reach:a.reach + W.reach, push:a.push + W.push, stam:a.stam,
+           sfx:a.sfx, arm:a.arm, heavy:true, wep:true };
+}
+function breakWeapon(f){
+  var sp = screenOf(f);
+  burst(sp.x, sp.y - 80, 16, '#c9d2de', 300);
+  popNum(sp.x, sp.y - 130, 'BROKE', 'crit');
+  Sfx.hurt(); haptic(25);
+  f.weapon = null;
 }
 function checkPropHit(f, a){
   var F = G.fight;
@@ -2894,7 +2947,12 @@ function updateItems(F, dt){
                p.state !== 'down' && !p.dead;
     if(near){
       var sp = screenOf(p);
-      if(it.kind === 'food'){
+      if(it.kind === 'weapon'){
+        var W = ASSET_WEAPONS[it.wep];
+        p.weapon = { key:it.wep, uses:W.uses, max:W.uses };
+        popNum(sp.x, sp.y - 130, W.n, 'crit');
+        toast(W.n, W.ar, 'PICKED UP');
+      } else if(it.kind === 'food'){
         var heal = Math.round(p.maxHp * 0.28);
         p.hp = Math.min(p.maxHp, p.hp + heal);
         popNum(sp.x, sp.y - 130, heal, 'heal');
@@ -2903,7 +2961,7 @@ function updateItems(F, dt){
         popNum(sp.x, sp.y - 130, 'RAGE', 'crit');
       }
       burst(it.x, FLOOR_TOP + it.z*FLOOR_H - 20, 12,
-            it.kind === 'food' ? C.hp : '#e05cf0', 220);
+            it.kind === 'food' ? C.hp : it.kind === 'weapon' ? '#c9d2de' : '#e05cf0', 220);
       Sfx.ok();
       F.items.splice(i, 1);
       continue;
@@ -2943,15 +3001,20 @@ function drawItem(it, camX){
   ctx.globalAlpha = fade;
   ctx.save(); ctx.translate(X, Y + bob); ctx.scale(s, s);
   ctx.globalAlpha = fade * 0.30;
-  ctx.fillStyle = it.kind === 'food' ? C.hp : '#e05cf0';
+  var glow = it.kind === 'food' ? C.hp : it.kind === 'weapon' ? '#c9d2de' : '#e05cf0';
+  ctx.fillStyle = glow;
   circle(0, 0, 26 + Math.sin(it.t*6)*4); ctx.fill();
   ctx.globalAlpha = fade;
   ctx.fillStyle = 'rgba(8,10,16,.78)';
   circle(0, 0, 19); ctx.fill();
-  ctx.strokeStyle = it.kind === 'food' ? C.hp : '#e05cf0';
+  ctx.strokeStyle = glow;
   ctx.lineWidth = 3;
   circle(0, 0, 19); ctx.stroke();
-  if(it.kind === 'food'){
+  if(it.kind === 'weapon'){
+    ctx.save(); ctx.scale(0.78, 0.78);          // sit inside the pickup badge
+    weaponInHand(0, 0, -0.62, it.wep);
+    ctx.restore();
+  } else if(it.kind === 'food'){
     // grilled skewer
     ctx.fillStyle = '#e6d9b8'; roundRect(-2.5, -15, 5, 30, 3); ctx.fill();
     ctx.fillStyle = '#b85f30';
@@ -3311,6 +3374,23 @@ function drawHUD(){
   bar(96, 82, 200, 9,  p.rage, 100, p.rage >= 100 ? '#e05cf0' : '#7a4a90');
   if(p.rage >= 100) txt('READY!', 302, 87, 14, '#e9a7ff', 'left', 900,
                         0.6 + Math.sin(gameTime*8)*0.4);
+
+  // Armed: the swings left matter more than the name, so they get the size.
+  if(p.weapon){
+    var WD = ASSET_WEAPONS[p.weapon.key];
+    var wx = 16, wy = 118;
+    ctx.fillStyle = 'rgba(8,10,16,.62)';
+    roundRect(wx, wy, 214, 44, 10); ctx.fill();
+    ctx.strokeStyle = 'rgba(201,210,222,.45)'; ctx.lineWidth = 2;
+    roundRect(wx, wy, 214, 44, 10); ctx.stroke();
+    ctx.save(); ctx.translate(wx + 32, wy + 22); ctx.scale(0.78, 0.78);
+    weaponInHand(0, 0, -0.42, p.weapon.key);
+    ctx.restore();
+    txt(WD.n, wx + 62, wy + 16, 14, '#dfe6f0', 'left', 900);
+    var left = p.weapon.uses;
+    txt(left + (left === 1 ? ' SWING LEFT' : ' SWINGS LEFT'), wx + 62, wy + 33, 13,
+        left <= 2 ? C.bad : 'rgba(223,230,240,.62)', 'left', 700);
+  }
 
   // stage progress
   var st = F.st;
@@ -3798,15 +3878,16 @@ function drawHelp(){
     ['RAGE',    'Fills as you fight. At 100% unleash the Gulf Storm.',                'الضربة القاضية'],
     ['STAMINA', 'Blue bar. Attacks and dashes cost stamina — it refills fast.',       'اللياقة'],
     ['PARRY',   'Tap BLOCK the instant a blow lands: no damage, they stagger, +rage.', 'صد مثالي'],
-    ['LOOT',    'Smash crates and barrels: food heals you, purple orbs fill rage.',   'حطّم الصناديق']
+    ['LOOT',    'Smash crates and barrels: food heals you, purple orbs fill rage.',   'حطّم الصناديق'],
+    ['WEAPONS', 'Crates also drop a pipe, plank or crowbar. They boost punches only — never kicks — and last a few landed swings.', 'سلاح مؤقت']
   ];
   for(var i=0;i<rows.length;i++){
-    var y = 128 + i*58;
-    ctx.fillStyle = 'rgba(255,255,255,.05)';
-    roundRect(120, y, W-240, 50, 10); ctx.fill();
-    txt(rows[i][0], 148, y+25, 19, C.gold, 'left', 900);
-    txt(rows[i][1], 300, y+25, 15.5, C.white, 'left', 600);
-    txt(rows[i][2], W-160, y+25, 15, 'rgba(255,255,255,.6)', 'right', 700);
+    // Nine rows have to clear the nav row, so they run tighter than eight did.
+    var y = 126 + i*50;
+    panel(UI.pad, y, W - UI.pad*2, 44, { r:10 });
+    txtLS(rows[i][0], UI.pad + UI.sp[4], y+22, UI.t.label + 2, UI.gold, 'left', 900, 1.4);
+    txt(rows[i][1], UI.pad + 132, y+22, UI.t.body - 1, UI.fg, 'left', 600);
+    txt(rows[i][2], W - UI.pad - UI.sp[4], y+22, UI.t.label + 1, UI.fgMut, 'right', 700);
   }
   txtLS('KEYBOARD:  WASD MOVE  ·  J PUNCH  ·  K KICK  ·  L BLOCK  ·  SPACE RAGE  ·  ESC PAUSE',
         W/2, UI.navY - 30, UI.t.micro, UI.fgFaint, 'center', 700, 1.4);
