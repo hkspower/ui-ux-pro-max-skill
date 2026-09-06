@@ -144,6 +144,23 @@ confirmation.
 
 ---
 
+## Key art
+
+`press/` holds promotional art rendered straight out of the game engine at
+3200×1800, so the artwork and the game can never drift apart:
+
+```
+press/keyart-poster.png            16:9 key art — wordmark, hero, silhouetted opposition
+press/ahmed-hero-kick.png          Ahmed mid-roundhouse on a dark plate (clean cutout source)
+press/boss-al-wahsh.png            the final boss
+press/cast-lineup.png              the roster, front to back
+press/screenshot-kuwait-towers.png in-game action shot
+```
+
+These are renders, not hand-drawn assets — the game itself still ships with zero
+image files. To re-render after changing the art code, drive the same drawing
+functions with a scaled-up fighter and screenshot the canvas at a large viewport.
+
 ## Files
 
 ```
