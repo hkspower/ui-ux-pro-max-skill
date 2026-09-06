@@ -1,0 +1,414 @@
+[
+  {
+    "Name": "SouqMubarakiya",
+    "DisplayName": "SOUQ MUBARAKIYA",
+    "DisplayNameArabic": "سوق المباركية",
+    "Briefing": "A crew has been leaning on the traders in the old souq for months. Ahmed grew up in these alleys.",
+    "Length": 6960,
+    "Tier": 0,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "Waves": [
+      {
+        "TriggerDistance": 1344,
+        "Fighters": [
+          "Thug",
+          "Thug"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 3648,
+        "Fighters": [
+          "Thug",
+          "Thug",
+          "Brawler"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 5880,
+        "Fighters": [
+          "Brawler",
+          "Brawler",
+          "Thug"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": [
+      {
+        "Distance": 2760,
+        "Type": "Wall",
+        "RewardAbility": "None",
+        "RewardExperience": 450
+      }
+    ]
+  },
+  {
+    "Name": "SalmiyaGym",
+    "DisplayName": "SALMIYA GYM",
+    "DisplayNameArabic": "نادي السالمية",
+    "Briefing": "Word travels. The Salmiya club wants to see what the souq kid can do.",
+    "Length": 6960,
+    "Tier": 0,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "Waves": [
+      {
+        "TriggerDistance": 1296,
+        "Fighters": [
+          "Brawler",
+          "Brawler"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 3552,
+        "Fighters": [
+          "Kickboxer",
+          "Kickboxer",
+          "Thug"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 5808,
+        "Fighters": [
+          "Kickboxer",
+          "Kickboxer",
+          "Brawler",
+          "Brawler"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": [
+      {
+        "Distance": 4800,
+        "Type": "Stash",
+        "RewardAbility": "Vault",
+        "RewardExperience": 0
+      }
+    ]
+  },
+  {
+    "Name": "SharqFishMarket",
+    "DisplayName": "SHARQ FISH MARKET",
+    "DisplayNameArabic": "سوق شرق للسمك",
+    "Briefing": "The crew moved their business to the harbour before sunrise.",
+    "Length": 7200,
+    "Tier": 1,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "Waves": [
+      {
+        "TriggerDistance": 1344,
+        "Fighters": [
+          "Runner",
+          "Runner",
+          "Thug"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 3648,
+        "Fighters": [
+          "Runner",
+          "Runner",
+          "Brawler",
+          "Brawler"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 6000,
+        "Fighters": [
+          "Bouncer",
+          "Runner",
+          "Runner"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": [
+      {
+        "Distance": 2520,
+        "Type": "Ledge",
+        "RewardAbility": "DashLeap",
+        "RewardExperience": 0
+      }
+    ]
+  },
+  {
+    "Name": "KuwaitTowers",
+    "DisplayName": "KUWAIT TOWERS",
+    "DisplayNameArabic": "أبراج الكويت",
+    "Briefing": "They want the waterfront cleared before the season opens. Ahmed gets there first.",
+    "Length": 7440,
+    "Tier": 1,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "Waves": [
+      {
+        "TriggerDistance": 1440,
+        "Fighters": [
+          "Kickboxer",
+          "Kickboxer",
+          "Thug"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 3840,
+        "Fighters": [
+          "Brawler",
+          "Brawler",
+          "Kickboxer"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 6240,
+        "Fighters": [
+          "Grappler",
+          "Kickboxer",
+          "Kickboxer"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": [
+      {
+        "Distance": 2760,
+        "Type": "Wall",
+        "RewardAbility": "None",
+        "RewardExperience": 500
+      }
+    ]
+  },
+  {
+    "Name": "MarinaCrescent",
+    "DisplayName": "MARINA CRESCENT",
+    "DisplayNameArabic": "مارينا كريسنت",
+    "Briefing": "The neon strip belongs to AL-SAQR. All legs, no patience.",
+    "Length": 6240,
+    "Tier": 2,
+    "bIsBossStage": true,
+    "bSurvival": false,
+    "Waves": [
+      {
+        "TriggerDistance": 1344,
+        "Fighters": [
+          "Enforcer",
+          "Runner",
+          "Runner"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 3360,
+        "Fighters": [
+          "Bouncer",
+          "Enforcer"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 5040,
+        "Fighters": [
+          "AlSaqr"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": [
+      {
+        "Distance": 2280,
+        "Type": "Gap",
+        "RewardAbility": "PowerKick",
+        "RewardExperience": 0
+      }
+    ]
+  },
+  {
+    "Name": "FailakaIsland",
+    "DisplayName": "FAILAKA ISLAND",
+    "DisplayNameArabic": "جزيرة فيلكا",
+    "Briefing": "They regrouped on the island, among the old stone. Nowhere to run out here.",
+    "Length": 7440,
+    "Tier": 2,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "Waves": [
+      {
+        "TriggerDistance": 1440,
+        "Fighters": [
+          "Grappler",
+          "Brawler"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 3840,
+        "Fighters": [
+          "Grappler",
+          "Grappler",
+          "Kickboxer"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 6240,
+        "Fighters": [
+          "Grappler",
+          "Grappler",
+          "Enforcer"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": [
+      {
+        "Distance": 5160,
+        "Type": "Shutter",
+        "RewardAbility": "None",
+        "RewardExperience": 600
+      }
+    ]
+  },
+  {
+    "Name": "JahraRoad",
+    "DisplayName": "JAHRA ROAD",
+    "DisplayNameArabic": "طريق الجهراء",
+    "Briefing": "Trucks across both lanes, sun going down behind the pylons.",
+    "Length": 7680,
+    "Tier": 3,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "Waves": [
+      {
+        "TriggerDistance": 1488,
+        "Fighters": [
+          "Bouncer",
+          "Runner",
+          "Runner"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 3888,
+        "Fighters": [
+          "Enforcer",
+          "Kickboxer",
+          "Kickboxer"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 6288,
+        "Fighters": [
+          "Bouncer",
+          "Bouncer",
+          "Enforcer"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": [
+      {
+        "Distance": 2640,
+        "Type": "Shutter",
+        "RewardAbility": "Haymaker",
+        "RewardExperience": 0
+      }
+    ]
+  },
+  {
+    "Name": "DesertCamp",
+    "DisplayName": "DESERT CAMP",
+    "DisplayNameArabic": "مخيم البر",
+    "Briefing": "The camp is where they pick who fights for the belt. Ahmed was never on the list.",
+    "Length": 7680,
+    "Tier": 3,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "Waves": [
+      {
+        "TriggerDistance": 1488,
+        "Fighters": [
+          "Kickboxer",
+          "Kickboxer",
+          "Brawler",
+          "Brawler"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 3960,
+        "Fighters": [
+          "Contender",
+          "Enforcer"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 6360,
+        "Fighters": [
+          "Contender",
+          "Grappler",
+          "Bouncer"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": [
+      {
+        "Distance": 2760,
+        "Type": "Wall",
+        "RewardAbility": "None",
+        "RewardExperience": 700
+      }
+    ]
+  },
+  {
+    "Name": "KuwaitArena",
+    "DisplayName": "KUWAIT ARENA",
+    "DisplayNameArabic": "بطولة الكويت",
+    "Briefing": "A full house, and AL-WAHSH waiting in the far corner.",
+    "Length": 3840,
+    "Tier": 4,
+    "bIsBossStage": true,
+    "bSurvival": false,
+    "Waves": [
+      {
+        "TriggerDistance": 1008,
+        "Fighters": [
+          "Contender",
+          "Contender"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 2160,
+        "Fighters": [
+          "AlWahsh"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": []
+  },
+  {
+    "Name": "Survival",
+    "DisplayName": "SURVIVAL",
+    "DisplayNameArabic": "البقاء",
+    "Briefing": "No belt, no crowd, no end. Just the next wave.",
+    "Length": 3360,
+    "Tier": 0,
+    "bIsBossStage": false,
+    "bSurvival": true,
+    "Waves": [],
+    "Gates": []
+  }
+]

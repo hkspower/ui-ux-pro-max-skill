@@ -1,0 +1,117 @@
+# AHMED — Kuwait Fighter (Unreal Engine 5)
+
+A UE5 C++ port of the game's systems: the combat state machine, the flanking
+enemy AI, wave gating, the Metroidvania ability gates, the five upgrade tracks
+and the save profile.
+
+> **Read this first.** This project was written without a copy of Unreal Engine
+> to build against, so **it has never been compiled or run**. The code is
+> idiomatic UE 5.4 C++ and the data is complete, but expect to fix a compile
+> error or two on first build — that is normal for code written this way, and
+> the fixes will be small. Everything below tells you exactly what to wire up.
+
+The original browser build lives in `../ahmed-fighter` and is fully playable
+today. This is the engine port, not a replacement for it.
+
+---
+
+## What is implemented in C++
+
+| System | Class | Notes |
+| --- | --- | --- |
+| Shared combat | `AFighterBase` | startup/active/recovery attacks, health, stamina, blocking, knockdown, hit resolution |
+| Player | `AAhmedCharacter` | jab→cross→hook chain, dodge dash, perfect parry, rage meter and finisher, upgrade scaling |
+| Enemy AI | `AEnemyFighter` | flanking lanes, attack tokens, hit-and-run, boss phase two |
+| Stage flow | `AWaveDirector` | wave triggers, arena lock, spawning, survival wave generation |
+| Sealed routes | `AAbilityGate` | ledge/gap/shutter/wall, strike-family matching, persistence |
+| Profile | `UAhmedGameInstance` + `UAhmedSaveGame` | XP, upgrades, abilities, opened gates, ranks, difficulty, stats |
+| Scoring | `AAhmedGameMode` | S/A/B/C rank, clear bonus, progress writeback |
+
+Data lives in `Content/Data` and drives everything:
+
+```
+DT_Attacks.csv    every strike: damage, frame timings, reach, knockback, cost
+DT_Fighters.csv   the ten archetypes including both bosses
+DT_Stages.json    nine stages plus survival — waves, triggers, gates, rewards
+```
+
+Distances are in centimetres. The browser build worked in canvas pixels, so
+every position was multiplied by **2.4** on the way across; that single factor
+is what keeps the pacing identical.
+
+---
+
+## Setup
+
+1. **Generate project files.** Right-click `AhmedFighter.uproject` →
+   *Generate Visual Studio project files* (or run
+   `UnrealBuildTool -projectfiles -project=... -game -engine`).
+2. **Build** the `AhmedFighterEditor` target, then open the project.
+3. **Import the data tables** into `/Game/Data`:
+   - `DT_Attacks.csv` → row struct `FAttackDef`
+   - `DT_Fighters.csv` → row struct `FFighterDef`
+   - `DT_Stages.json` → row struct `FStageDef`
+4. **Create the input assets** in `/Game/Input` and assign them on `BP_Ahmed`:
+
+   | Asset | Type | Suggested binding |
+   | --- | --- | --- |
+   | `IMC_Default` | Input Mapping Context | — |
+   | `IA_Move` | Axis2D | WASD, left stick, left-half touch stick |
+   | `IA_Punch` | Digital | `J`, Face Button West |
+   | `IA_Kick` | Digital | `K`, Face Button North |
+   | `IA_Block` | Digital | `L`, Right Shoulder |
+   | `IA_Rage` | Digital | `Space`, Face Button East |
+
+5. **Make the Blueprints:**
+   - `BP_Ahmed` from `AAhmedCharacter` — mesh, animation, input assets,
+     `AttackTable = DT_Attacks`.
+   - `BP_Enemy` from `AEnemyFighter` — mesh and animation only; every stat comes
+     from `DT_Fighters` at spawn.
+   - `BP_Gate_Shutter` / `BP_Gate_Wall` / `BP_Gate_Ledge` / `BP_Gate_Gap` /
+     `BP_Gate_Stash` from `AAbilityGate`, each with its `GateType` set.
+6. **Build a level.** Drop in a `AWaveDirector`, set its `StageRow` (e.g.
+   `SouqMubarakiya`), assign the three tables and `DefaultEnemyClass = BP_Enemy`.
+   Place the gates and give each a unique `GateId`.
+7. Set **Project Settings → Maps & Modes** to `AhmedGameMode` and
+   `AhmedGameInstance` (already written into `Config/DefaultEngine.ini`).
+
+---
+
+## Design rules the port keeps
+
+**Hits are resolved by an explicit facing/reach/depth test, not physics
+overlaps.** `AFighterBase::ResolveAttackHits` walks the opposing fighters and
+checks whether each is in front, within reach, and on roughly the same depth
+line. That is deliberate: it is frame-deterministic, easy to tune from a
+spreadsheet, and a beat-'em-up wants forgiving hitboxes rather than exact ones.
+
+**Crowds are throttled by attack tokens.** At most two enemies
+(`AhmedGameplay::MaxSimultaneousAttackers`) may be swinging at once; the rest
+circle. Each enemy also holds its own `FlankSide`, `LaneOffset` and
+`DepthOffset`, so a wave surrounds the player instead of stacking on one spot.
+Without both rules a five-enemy wave is unplayable.
+
+**Gates never block the critical path.** Place them off to the side, set into
+the back wall. A stage has to stay completable whatever the player is carrying —
+otherwise finding an ability late can soft-lock a run. Shutters take three kicks
+and cracked walls three punches, matched on `EAttackFamily`, so the two upgrade
+tracks are also the two keys.
+
+**Parry is on the press, never the hold.** `ParryWindowRemaining` opens for
+0.2 s when block goes down. Holding block guards at 20% damage but never
+parries.
+
+---
+
+## Not yet ported
+
+Faithfully carried across: all gameplay systems, data and progression. Still to
+do in the editor, because they are content rather than code:
+
+- Meshes, animation blueprints and montages (attacks currently drive no montage;
+  `FAttackDef::Montage` is there to hook them up).
+- The nine stage environments and the map/briefing/settings UI (the browser
+  build renders these on a canvas; in UE they belong in UMG).
+- Audio. The browser build synthesises everything at runtime; UE wants real cues.
+- Touch controls. The desktop and gamepad paths are bound; a mobile on-screen
+  stick and four buttons still need a UMG layer feeding the same Input Actions.

@@ -1,0 +1,11 @@
+Name,DisplayName,DisplayNameArabic,MaxHealth,PowerMultiplier,MoveSpeed,PreferredRange,AttackInterval,GuardChance,bHitAndRun,bIsBoss,ExperienceValue,Moves
+Thug,Souq Thug,بلطجي,46,0.80,288,130,1.55,0.12,False,False,14,"(""Jab"",""Cross"")"
+Brawler,Brawler,مشاكس,68,1.00,317,139,1.25,0.24,False,False,21,"(""Jab"",""Cross"",""Hook"")"
+Runner,Runner,خطّاف,42,0.85,504,134,0.85,0.20,True,False,22,"(""Jab"",""Jab"",""Cross"")"
+Kickboxer,Kickboxer,ملاكم,60,1.15,389,178,1.10,0.24,False,False,26,"(""Kick"",""Jab"",""Kick"",""Cross"")"
+Bouncer,Bouncer,حارس,150,1.30,250,125,1.90,0.62,False,False,40,"(""Hook"",""Knee"",""Hook"")"
+Grappler,Grappler,مصارع,110,1.35,235,110,1.75,0.24,False,False,34,"(""Knee"",""Hook"",""Knee"")"
+Enforcer,Enforcer,مُنفّذ,118,1.20,403,154,0.78,0.24,False,False,44,"(""Jab"",""Cross"",""Hook"",""Jab"",""Kick"")"
+Contender,Contender,منافس,160,1.35,365,163,0.95,0.24,False,False,52,"(""Jab"",""Cross"",""Kick"",""Hook"",""Knee"")"
+AlSaqr,AL-SAQR,الصقر,290,1.30,446,182,0.80,0.40,False,True,150,"(""Kick"",""Jab"",""Kick"",""Cross"",""Knee"")"
+AlWahsh,AL-WAHSH,الوحش,430,1.45,350,173,0.88,0.40,False,True,220,"(""Jab"",""Cross"",""Hook"",""Kick"",""Knee"")"
