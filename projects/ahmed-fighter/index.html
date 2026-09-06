@@ -36,9 +36,24 @@
   <b>ROTATE YOUR DEVICE</b>
   <span>Play in landscape for the full arena<br>أدر جهازك أفقياً للعب</span>
 </div>
+<!-- Game data lives in assets/ so each table can be edited on its own.
+     Plain scripts, in dependency order, so the game still opens from disk. -->
+<script src="assets/ahmed.js"></script>
+<script src="assets/enemies.js"></script>
+<script src="assets/hits.js"></script>
+<script src="assets/talents.js"></script>
+<script src="assets/upgrades.js"></script>
 <script>
 (function(){
 'use strict';
+
+/* Every table the game runs on is loaded from assets/. Fail loudly rather
+   than half-starting with an undefined table. */
+var ASSETS = ['ASSET_AHMED','ASSET_ENEMIES','ASSET_HITS','ASSET_TALENTS','ASSET_UPGRADES'];
+for(var ai=0; ai<ASSETS.length; ai++){
+  if(!window[ASSETS[ai]]) throw new Error('Missing asset: assets/' +
+    ASSETS[ai].replace('ASSET_','').toLowerCase() + '.js');
+}
 
 /* ==========================================================================
    AHMED — Kuwait Fighter
@@ -162,19 +177,8 @@ function haptic(ms){
   try{ navigator.vibrate(ms); }catch(e){}
 }
 
-/* ---------------------------------------------------------------- abilities
-   Found in the world, never bought. Each one is the key to a kind of gate, so
-   picking one up opens routes back in stages you have already cleared. */
-var ABILITIES = {
-  vault:    {n:'VAULT',      ar:'وثبة',      icon:'⤴',
-             d:'Climb low ledges. Hold toward one and Ahmed pulls himself up.'},
-  dashleap: {n:'DASH LEAP',  ar:'قفزة',      icon:'⇥',
-             d:'Your dodge dash carries you across broken ground.'},
-  powerkick:{n:'POWER KICK', ar:'ركلة قوية', icon:'⚡',
-             d:'Kicks tear steel shutters off their rails.'},
-  haymaker: {n:'HAYMAKER',   ar:'قاضية',     icon:'✊',
-             d:'A loaded hook that punches through cracked masonry.'}
-};
+/* Abilities are found in the world, never bought — see assets/talents.js. */
+var ABILITIES = ASSET_TALENTS.abilities;
 function hasAbility(k){ return save.abilities.indexOf(k) >= 0; }
 function grantAbility(k){
   if(hasAbility(k)) return false;
@@ -184,14 +188,8 @@ function grantAbility(k){
 }
 
 /* Gates: what opens them, and what they look like. */
-var GATES = {
-  ledge:   {need:'vault',     n:'LEDGE',          ar:'حافة',   how:'Needs VAULT'},
-  gap:     {need:'dashleap',  n:'BROKEN GROUND',  ar:'هوّة',   how:'Needs DASH LEAP'},
-  shutter: {need:'powerkick', n:'STEEL SHUTTER',  ar:'باب حديد', how:'Needs POWER KICK', breakBy:'kick'},
-  wall:    {need:'haymaker',  n:'CRACKED WALL',   ar:'جدار متصدع', how:'Needs HAYMAKER',  breakBy:'box'},
-  stash:   {need:null,        n:'LOCKER',         ar:'خزانة',   how:'Walk up to it'}
-};
-var GATE_Z = 0.13;                       // gates sit against the back wall
+var GATES = ASSET_TALENTS.gates;
+var GATE_Z = ASSET_TALENTS.gateZ;        // gates sit against the back wall
 function gateKey(idx, at){ return idx + ':' + at; }
 function gateOpen(idx, at){ return !!save.gates[gateKey(idx, at)]; }
 
@@ -574,57 +572,9 @@ function drawFx(camX){
    FIGHTERS — data, animation poses and procedural rendering
    ========================================================================== */
 
-var ATK = {
-  jab    :{fam:'box',  dmg:7,  su:.07, ac:.06, rc:.13, reach:54, push:70,  stam:5,  sfx:'punch', arm:'lead'},
-  cross  :{fam:'box',  dmg:11, su:.10, ac:.07, rc:.19, reach:60, push:120, stam:8,  sfx:'punch', arm:'rear'},
-  hook   :{fam:'box',  dmg:17, su:.14, ac:.08, rc:.26, reach:56, push:210, stam:12, sfx:'punch', arm:'rear', heavy:true},
-  kick   :{fam:'kick', dmg:19, su:.16, ac:.09, rc:.28, reach:74, push:270, stam:14, sfx:'kick',  leg:true, heavy:true},
-  knee   :{fam:'kick', dmg:23, su:.13, ac:.08, rc:.26, reach:42, push:160, stam:16, sfx:'kick',  leg:true, heavy:true},
-  special:{fam:'kick', dmg:46, su:.18, ac:.26, rc:.34, reach:88, push:430, stam:0,  sfx:'kick',  leg:true, heavy:true, multi:true}
-};
+var ATK = ASSET_HITS;
 
-var TYPES = {
-  thug:    {hp:46,  pow:.80, spd:120, reach:54, rate:1.55, xp:14, sc:1.00,
-            moves:['jab','cross'], name:'Souq Thug', ar:'بلطجي',
-            col:{skin:'#b8794c', top:'#8a9099', bottom:'#2f3a4d', band:'#8d99ab'},
-            look:{ build:0.90, tee:true, pants:true, hands:'bare', hair:'#26221c' }},
-  brawler: {hp:68,  pow:1.00, spd:132, reach:58, rate:1.25, xp:21, sc:1.05,
-            moves:['jab','cross','hook'], name:'Brawler', ar:'مشاكس',
-            col:{skin:'#a86c42', top:'#8c4a34', bottom:'#3a2f28', band:'#c8102e'},
-            look:{ build:1.12, tee:true, pants:true, hands:'bare', beard:'rgba(34,24,16,.85)', hair:'#2a1d13' }},
-  kicker:  {hp:60,  pow:1.15, spd:162, reach:74, rate:1.10, xp:26, sc:1.02,
-            moves:['kick','jab','kick','cross'], name:'Kickboxer', ar:'ملاكم',
-            col:{skin:'#c08a58', top:'#1f8a63', bottom:'#232a36', band:'#e0b34a'},
-            look:{ build:0.98, tee:true, pants:true, hoodie:true, stripe:true, hands:'wraps', hair:'#1d1a15' }},
-  grappler:{hp:110, pow:1.35, spd:98,  reach:46, rate:1.75, xp:34, sc:1.18,
-            moves:['knee','hook','knee'], name:'Grappler', ar:'مصارع',
-            col:{skin:'#9c6236', top:'#6b7280', bottom:'#26292f', band:'#7d8794'},
-            look:{ build:1.30, tee:true, pants:true, hands:'bare', bald:true, scar:true }},
-  champ:   {hp:160, pow:1.35, spd:152, reach:68, rate:0.95, xp:52, sc:1.10,
-            moves:['jab','cross','kick','hook','knee'], name:'Contender', ar:'منافس',
-            col:{skin:'#b5794a', top:'#6b3bb0', bottom:'#22243a', band:'#e0b34a'},
-            look:{ build:1.14, tee:true, pants:true, jacket:true, hands:'wraps', hair:'#1a1410', beard:'rgba(26,18,12,.7)' }},
-  runner:  {hp:42,  pow:0.85, spd:210, reach:56, rate:0.85, xp:22, sc:0.94,
-            moves:['jab','jab','cross'], name:'Runner', ar:'خطّاف', hitRun:true,
-            col:{skin:'#c2905f', top:'#e07b2c', bottom:'#2c3550', band:'#ffd166'},
-            look:{ build:0.88, tee:true, pants:true, hoodie:true, hands:'bare', cap:'#d4762b', hair:'#231a12' }},
-  bouncer: {hp:150, pow:1.30, spd:104, reach:52, rate:1.90, xp:40, sc:1.24,
-            moves:['hook','knee','hook'], name:'Bouncer', ar:'حارس', wall:true,
-            col:{skin:'#8a5730', top:'#191d24', bottom:'#12151a', band:'#5aa9e6'},
-            look:{ build:1.32, tee:true, pants:true, hands:'bare', bald:true, shades:true }},
-  capo:    {hp:118, pow:1.20, spd:168, reach:64, rate:0.78, xp:44, sc:1.06,
-            moves:['jab','cross','hook','jab','kick'], name:'Enforcer', ar:'مُنفّذ',
-            col:{skin:'#a86c42', top:'#1f6a80', bottom:'#1a2230', band:'#8fd3ff'},
-            look:{ build:1.08, tee:true, pants:true, jacket:true, hands:'bare', hair:'#141922', shades:true }},
-  boss:    {hp:430, pow:1.45, spd:146, reach:72, rate:0.88, xp:220, sc:1.26,
-            moves:['jab','cross','hook','kick','knee'], name:'AL-WAHSH', ar:'الوحش',
-            col:{skin:'#8f5a30', top:'#1b1f26', bottom:'#101318', band:'#c8102e'},
-            look:{ build:1.36, tee:true, pants:true, hands:'wraps', bald:true, beard:'rgba(20,14,10,.92)', scar:true }},
-  saqr:    {hp:290, pow:1.30, spd:186, reach:76, rate:0.80, xp:150, sc:1.14,
-            moves:['kick','jab','kick','cross','knee'], name:'AL-SAQR', ar:'الصقر',
-            col:{skin:'#c08a58', top:'#2c4a8a', bottom:'#20242e', band:'#e8e2d4'},
-            look:{ build:1.12, tee:true, pants:true, hoodie:true, stripe:true, hands:'wraps', hair:'#1b1712' }}
-};
+var TYPES = ASSET_ENEMIES;
 
 function makeFighter(o){
   var f = {
@@ -2547,23 +2497,18 @@ var gameTime = 0;
 var G = { state:'menu', paused:false, fight:null, t:0, intro:0, endT:0, result:null };
 
 function makePlayer(){
-  var maxHp   = 100 + save.up.vit  * 18;
-  var maxStam = 100 + save.up.stam * 12;
+  var A = ASSET_AHMED, per = A.perLevel;
+  var maxHp   = A.base.hp   + save.up.vit  * per.vit;
+  var maxStam = A.base.stam + save.up.stam * per.stam;
   var p = makeFighter({
-    isPlayer:true, x:140, z:0.62,
+    isPlayer:true, x:A.spawn.x, z:A.spawn.z, sc:A.spawn.sc,
     hp:maxHp, maxHp:maxHp, stam:maxStam, maxStam:maxStam,
-    pow:1, spd:142 + save.up.spd * 9, reach:58, sc:1.05,
-    name:'AHMED', ar:'أحمد', kind:'player',
-    col:{ skin:'#f0d8c4', top:'#15171c', bottom:'#0e1014', band:'#c8102e' }
+    pow:A.base.pow, spd:A.base.spd + save.up.spd * per.spd, reach:A.base.reach,
+    name:A.name, ar:A.ar, kind:'player',
+    col:A.col
   });
   p.chainStep = 0; p.chainT = 0; p.dashT = 0; p.rage = 0;
-  p.tee = true; p.quiff = true; p.watch = true;
-  p.pants = true;          // long trousers rather than fight shorts
-  p.patch = true;          // Kuwait flag on the chest
-  p.hands = 'wraps';       // street clothes, so taped fists rather than gloves
-  p.stripe = true;         // his are track pants, not jeans
-  p.build = 1.12;          // thicker limbs: the shirt is a muscle fit
-  p.hair = '#1e150f'; p.beard = 'rgba(24,17,12,.94)';
+  for(var k in A.look) p[k] = A.look[k];
   return p;
 }
 
@@ -4149,14 +4094,9 @@ function drawAchievements(){
 }
 
 /* ----------------------------------------------------------------- upgrades */
-var UPS = [
-  {k:'box',  n:'BOXING',  ar:'ملاكمة', d:'+10% jab, cross and hook damage'},
-  {k:'kick', n:'KICKING', ar:'ركل',    d:'+10% kick, knee and rage damage'},
-  {k:'vit',  n:'VITALITY',ar:'صحة',    d:'+18 max health per level'},
-  {k:'spd',  n:'SPEED',   ar:'سرعة',   d:'+9 movement speed per level'},
-  {k:'stam', n:'STAMINA', ar:'لياقة',  d:'+12 stamina, faster recovery'}
-];
-function upCost(lvl){ return 120 + lvl * 130; }
+var UPS = ASSET_UPGRADES.tracks;
+function upCost(lvl){ return ASSET_UPGRADES.cost(lvl); }
+var UP_MAX = ASSET_UPGRADES.maxLevel;
 
 function drawUpgrade(){
   screenBg('#1b1526');
@@ -4171,19 +4111,19 @@ function drawUpgrade(){
     txt(u.ar, rowX + UI.sp[5], y+46, UI.t.label + 1, UI.fgMut, 'left', 700);
     txt(u.d, rowX + 190, y+26, UI.t.body - 1, UI.fgMut, 'left', 600);
 
-    for(var s=0;s<5;s++){                                   // level pips
+    for(var s=0;s<UP_MAX;s++){                              // level pips
       ctx.fillStyle = s < lvl ? UI.gold : 'rgba(255,255,255,.12)';
       roundRect(rowX + 190 + s*34, y+42, 28, 9, 4); ctx.fill();
     }
     var cost = upCost(lvl);
-    if(lvl >= 5){
+    if(lvl >= UP_MAX){
       txtLS('MAX', rowX + rowW - 96, y+34, UI.t.sub, C.hp, 'center', 900, 2);
     } else {
       var afford = save.xp >= cost;
       (function(key, c, ok){
         // A price, not a stat -- the unit says what the number is for.
         uiButton(rowX + rowW - 170, y+9, 150, 46, (ok ? '▲ ' : '') + c + ' XP', null, function(){
-          if(save.xp >= c && save.up[key] < 5){
+          if(save.xp >= c && save.up[key] < UP_MAX){
             save.xp -= c; save.up[key]++; writeSave(); Sfx.power(); checkAchievements();
           } else { Sfx.hurt(); }
         }, ok ? 'primary' : 'off');

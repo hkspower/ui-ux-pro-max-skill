@@ -213,6 +213,32 @@ wear the same kit:
 | `watch` | wristwatch on the lead arm |
 | `sil` | featureless silhouette, used for the key art's opposition |
 
+## Assets
+
+The game's data lives in `assets/`, one file per thing, so a table can be
+edited without opening the 4,000-line renderer:
+
+| File | Holds |
+| --- | --- |
+| `assets/ahmed.js` | the player: base stats, what each upgrade level adds, palette and kit |
+| `assets/enemies.js` | the ten archetypes — stats, palette, `look` |
+| `assets/hits.js` | every strike: damage, startup/active/recovery, reach, cost |
+| `assets/talents.js` | abilities found in the world, and the gates they open |
+| `assets/upgrades.js` | the five stat tracks XP is spent on, and the price curve |
+
+They are **plain scripts, not modules**, loaded in order before the game.
+That is deliberate: ES modules do not load over `file://`, and this game has
+to keep working opened straight off disk with no server and no build step.
+
+The game reads these and never keeps its own copy — `ATK`, `TYPES`, `UPS`,
+`ABILITIES` and `GATES` are now bindings, not literals. On start it checks all
+five are present and throws naming the missing file, because a game running
+with an empty enemy table is worse than one that refuses to start. `sw.js`
+caches them with the same weight as `index.html`, so offline play still works.
+
+Extracting them turned up one thing worth keeping: the upgrade ceiling was a
+bare `5` copied into four places. It is `ASSET_UPGRADES.maxLevel` now.
+
 ## Interface
 
 The screens grew one control at a time, and it showed: BACK was 170x58 on the
