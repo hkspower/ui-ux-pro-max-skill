@@ -245,6 +245,53 @@ Simulators* window.
 
 ---
 
+## The stage maps
+
+The nine levels (ten with survival) are **generated**, the same way the data
+is. `Tools/levels/build_levels.py` reads `DT_Stages.json` and `DT_World.json`
+and puts down every actor a level needs to be playable — the ground, the back
+wall, the player start, the wave director wired to its stage row, every sealed
+route as an `AAbilityGate`, every way out as an `AAreaExit`, and a lighting rig
+per theme carried across from the browser build's. Regenerate after a balance
+change and the gates and exits move with it.
+
+It has to run inside the editor, because only the editor can make a map:
+
+1. Edit ▸ Plugins: enable **Python Editor Script Plugin** and **Editor
+   Scripting Utilities** (the `.uproject` already asks for both), restart.
+2. Import the tables once (right-click in `Content/Data` ▸ Import, pick the
+   row struct) so the director can be wired to them. The script warns and
+   carries on if they are missing.
+3. Window ▸ Output Log, switch the prompt to *Python*, and:
+   ```python
+   exec(open(r"/path/to/ahmed-fighter-ue5/Tools/levels/build_levels.py").read())
+   ```
+   Or from a Mac terminal with the editor closed:
+   ```bash
+   "/Users/Shared/Epic Games/UE_5.4/Engine/Binaries/Mac/UnrealEditor-Cmd" \
+     AhmedFighter.uproject -run=pythonscript -script="Tools/levels/build_levels.py"
+   ```
+
+Run outside the editor it prints the plan — every level, every actor, every
+position — and stops. That is how it was checked here, and it is the quickest
+way to see what a data change does to a map before opening anything.
+
+What it makes is a **blockout**: engine cubes for ground, wall and gates, one
+thin marker across the strip where each ambush fires. The distances, gates,
+exits and their requirements are exact; the art that replaces the cubes is
+described in `CLAUDE.md`.
+
+**Walking between areas** is `AAreaExit`, new in this pass. Step into one and,
+if you carry what it wants, the next level opens with you at its matching
+edge, carrying health, stamina and rage across — a step through a doorway,
+not a fresh run. A refused exit pushes you back and broadcasts why
+(`OnExitRefused`), so the HUD can say *SEALED — NEEDS VAULT* the way the
+browser does. The arriving half is `AAhmedGameMode::PlaceArrivingPlayer`,
+which reads the `?ArriveAt` option. `FAhmedProgress` gained `CurrentStage` and
+`VisitedStages` for the map screen.
+
+---
+
 ## Art direction
 
 Not cartoonish. See `CLAUDE.md` in this directory — realistic proportions,
@@ -289,8 +336,9 @@ do in the editor, because they are content rather than code:
   `FAttackDef::Montage` is there to hook them up. The mesh itself now exists
   (see **The character mesh** above), but it is a blockout — enemies still
   reuse it, and a real art pass is outstanding.
-- The nine stage environments and the map/briefing/settings UI (the browser
-  build renders these on a canvas; in UE they belong in UMG).
+- The stage environments' art. The maps themselves now exist as blockouts —
+  see **The stage maps** — and the map/briefing/settings UI (canvas in the
+  browser build; UMG here).
 - Audio. The browser build synthesises everything at runtime; UE wants real cues.
 - Touch controls. The desktop and gamepad paths are bound; a mobile on-screen
   stick and four buttons still need a UMG layer feeding the same Input Actions.

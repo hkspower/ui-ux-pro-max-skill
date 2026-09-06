@@ -872,7 +872,7 @@
   ],
   "Stages": [
     {
-      "Name": "SOUQMUBARAKIYA",
+      "Name": "SouqMubarakiya",
       "Index": 0,
       "DisplayName": "SOUQ MUBARAKIYA",
       "DisplayNameArabic": "سوق المباركية",
@@ -922,7 +922,7 @@
       ]
     },
     {
-      "Name": "SALMIYAGYM",
+      "Name": "SalmiyaGym",
       "Index": 1,
       "DisplayName": "SALMIYA GYM",
       "DisplayNameArabic": "نادي السالمية",
@@ -973,7 +973,7 @@
       ]
     },
     {
-      "Name": "SHARQFISHMARKET",
+      "Name": "SharqFishMarket",
       "Index": 2,
       "DisplayName": "SHARQ FISH MARKET",
       "DisplayNameArabic": "سوق شرق للسمك",
@@ -1025,7 +1025,7 @@
       ]
     },
     {
-      "Name": "KUWAITTOWERS",
+      "Name": "KuwaitTowers",
       "Index": 3,
       "DisplayName": "KUWAIT TOWERS",
       "DisplayNameArabic": "أبراج الكويت",
@@ -1076,7 +1076,7 @@
       ]
     },
     {
-      "Name": "MARINACRESCENT",
+      "Name": "MarinaCrescent",
       "Index": 4,
       "DisplayName": "MARINA CRESCENT",
       "DisplayNameArabic": "مارينا كريسنت",
@@ -1124,7 +1124,7 @@
       ]
     },
     {
-      "Name": "FAILAKAISLAND",
+      "Name": "FailakaIsland",
       "Index": 5,
       "DisplayName": "FAILAKA ISLAND",
       "DisplayNameArabic": "جزيرة فيلكا",
@@ -1174,7 +1174,7 @@
       ]
     },
     {
-      "Name": "JAHRAROAD",
+      "Name": "JahraRoad",
       "Index": 6,
       "DisplayName": "JAHRA ROAD",
       "DisplayNameArabic": "طريق الجهراء",
@@ -1225,7 +1225,7 @@
       ]
     },
     {
-      "Name": "DESERTCAMP",
+      "Name": "DesertCamp",
       "Index": 7,
       "DisplayName": "DESERT CAMP",
       "DisplayNameArabic": "مخيم البر",
@@ -1276,7 +1276,7 @@
       ]
     },
     {
-      "Name": "KUWAITARENA",
+      "Name": "KuwaitArena",
       "Index": 8,
       "DisplayName": "KUWAIT ARENA",
       "DisplayNameArabic": "بطولة الكويت",
@@ -1308,7 +1308,7 @@
       "Gates": []
     },
     {
-      "Name": "SURVIVAL",
+      "Name": "Survival",
       "Index": 9,
       "DisplayName": "SURVIVAL",
       "DisplayNameArabic": "البقاء",
@@ -1528,6 +1528,6 @@
     "UpgradeMaxLevel": 5,
     "LevelMax": 20
   },
-  "Revision": "fe8895c056f86225",
-  "GeneratedAt": "2026-09-06T21:20:06.898Z"
+  "Revision": "93b55e1776a3b6bc",
+  "GeneratedAt": "2026-09-06T21:31:19.924Z"
 }

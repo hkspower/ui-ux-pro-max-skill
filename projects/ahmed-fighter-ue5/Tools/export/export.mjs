@@ -78,6 +78,10 @@ function die(msg){ console.error('export: ' + msg); process.exit(1); }
 /* ----------------------------------------------------------------- names */
 const pascal = s => String(s).replace(/(^|[^a-z0-9])([a-z0-9])/gi,
                       (_, __, c) => c.toUpperCase()).replace(/[^A-Za-z0-9]/g, '');
+/* Stage names are shouted in the browser ("SOUQ MUBARAKIYA"), and shouting
+   survives pascal() as SOUQMUBARAKIYA. The map is L_SouqMubarakiya, so the row
+   name has to be too: lower the words first, then case them. */
+const pascalWords = s => pascal(String(s).toLowerCase());
 
 /* The browser's ability keys against Unreal's EAbility. Anything absent here
    is a talent Unreal does not know about yet, and the export says so rather
@@ -215,7 +219,7 @@ function weapons(A){
 
 function stages(A){
   return JSON.stringify(A.stages.map((st, i) => ({
-    Name: pascal(st.name),
+    Name: pascalWords(st.name),
     Index: i,
     DisplayName: st.name,
     DisplayNameArabic: st.ar,

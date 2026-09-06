@@ -38,6 +38,9 @@ public:
 	void BP_OnStageFailed();
 
 protected:
+	/** Reads the ?ArriveAt / ?Health options an AAreaExit passes across. */
+	void PlaceArrivingPlayer();
+
 	UFUNCTION()
 	void HandleStageCleared();
 

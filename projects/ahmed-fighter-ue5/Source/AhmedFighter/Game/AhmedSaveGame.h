@@ -44,6 +44,11 @@ struct FAhmedProgress
 	/** 0 rookie, 1 pro, 2 champion. */
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") int32 DifficultyIndex = 1;
 
+	/** The area the player is standing in, and every area they have reached.
+	    The map screen draws '?' for anything not in VisitedStages and lets you
+	    fast-travel to anything that is. */
+	UPROPERTY(BlueprintReadWrite, Category = "Progress") FName CurrentStage;
+	UPROPERTY(BlueprintReadWrite, Category = "Progress") TArray<FName> VisitedStages;
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") TArray<FName> ClearedStages;
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") TMap<FName, FName> StageRanks;
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") TArray<EAbility> Abilities;

@@ -49,6 +49,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	float GetHealthFraction() const { return MaxHealth > 0.f ? Health / MaxHealth : 0.f; }
 
+	UFUNCTION(BlueprintPure, Category = "Fighter")
+	float GetHealth() const { return Health; }
+
+	UFUNCTION(BlueprintPure, Category = "Fighter")
+	float GetStamina() const { return Stamina; }
+
+	/** Used on arrival from another area: travel carries condition across. */
+	UFUNCTION(BlueprintCallable, Category = "Fighter")
+	void SetCondition(float NewHealth, float NewStamina)
+	{
+		Health  = FMath::Clamp(NewHealth,  1.f, MaxHealth);
+		Stamina = FMath::Clamp(NewStamina, 0.f, MaxStamina);
+	}
+
 	/** +1 facing right along +X, -1 facing left. */
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	float GetFacingSign() const { return FacingSign; }

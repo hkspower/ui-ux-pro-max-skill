@@ -4,6 +4,7 @@
 #include "Game/AhmedGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "World/WaveDirector.h"
+#include "Engine/DataTable.h"
 
 AAhmedGameMode::AAhmedGameMode()
 {
@@ -22,9 +23,72 @@ void AAhmedGameMode::BeginPlay()
 		Director->OnStageFailed.AddDynamic(this, &AAhmedGameMode::HandleStageFailed);
 	}
 
-	if (UAhmedGameInstance* GI = GetGameInstance<UAhmedGameInstance>())
+	UAhmedGameInstance* GI = GetGameInstance<UAhmedGameInstance>();
+	if (GI)
 	{
 		++GI->GetMutableProgress().Stats.FightsStarted;
+		if (Director)
+		{
+			FAhmedProgress& P = GI->GetMutableProgress();
+			P.CurrentStage = Director->StageRow;
+			P.VisitedStages.AddUnique(Director->StageRow);
+		}
+	}
+
+	PlaceArrivingPlayer();
+}
+
+/**
+ * The other half of AAreaExit. An exit opens the next level with options that
+ * say which edge to appear at and what condition to arrive in, so walking
+ * between areas is a step through a doorway rather than a fresh run.
+ */
+void AAhmedGameMode::PlaceArrivingPlayer()
+{
+	AAhmedCharacter* Player = Cast<AAhmedCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
+	if (!Player)
+	{
+		return;
+	}
+	const FString Arrive = UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt"));
+	if (Arrive.IsEmpty())
+	{
+		return;		// a normal start: PlayerStart already placed him
+	}
+
+	if (Arrive == TEXT("East") && Director)
+	{
+		// Arriving from the east means the far end, facing back the way the
+		// world runs. The director knows the stage length; the level does not.
+		if (const UDataTable* Table = Director->StageTable)
+		{
+			static const FString Context(TEXT("AAhmedGameMode::PlaceArrivingPlayer"));
+			if (const FStageDef* Stage = Table->FindRow<FStageDef>(Director->StageRow, Context, false))
+			{
+				FVector Loc = Player->GetActorLocation();
+				Loc.X = FMath::Max(300.f, Stage->Length - 360.f);
+				Player->SetActorLocation(Loc);
+				Player->SetActorRotation(FRotator(0.f, 180.f, 0.f));
+			}
+		}
+	}
+	else
+	{
+		FVector Loc = Player->GetActorLocation();
+		Loc.X = 300.f;
+		Player->SetActorLocation(Loc);
+	}
+
+	const FString H = UGameplayStatics::ParseOption(OptionsString, TEXT("Health"));
+	const FString S = UGameplayStatics::ParseOption(OptionsString, TEXT("Stamina"));
+	const FString R = UGameplayStatics::ParseOption(OptionsString, TEXT("Rage"));
+	if (!H.IsEmpty())
+	{
+		Player->SetCondition(FCString::Atof(*H), S.IsEmpty() ? Player->GetStamina() : FCString::Atof(*S));
+	}
+	if (!R.IsEmpty())
+	{
+		Player->Rage = FMath::Clamp(FCString::Atof(*R), 0.f, AhmedGameplay::RageMax);
 	}
 }
 
