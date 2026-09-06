@@ -55,12 +55,16 @@ python3 Tools/blender/build_ahmed.py
 
 It writes both model files plus three reference renders into `Docs/renders`.
 
-**What it is:** a clean, correctly proportioned blockout — 6.1k triangles, 24
-bones, seven material slots carrying the game's palette. **What it is not:** a
-finished hero character. There is no face beyond eyes, no hands beyond mitts,
-no cloth and no normal maps. It exists so the gameplay code has something to
-drive today, and so an artist has a rig and a silhouette to build onto rather
-than a blank project.
+**What it is:** a clean, correctly proportioned blockout — 6.2k triangles, 24
+bones, eight material slots carrying the game's palette. He wears what the 2D
+Ahmed wears: fair skin, a fitted black tee with short sleeves, black long
+trousers over a red waistband, dark trainers, and hair grown as real geometry
+off the skull rather than painted onto it. **What it is not:** a finished hero
+character. There is no face beyond eyes, no hands beyond mitts, no cloth
+simulation and no normal maps — and the head will not read as a face at this
+vertex count. It exists so the gameplay code has something to drive today, and
+so an artist has a rig and a silhouette to build onto rather than a blank
+project.
 
 Two things make it drop straight into UE5:
 

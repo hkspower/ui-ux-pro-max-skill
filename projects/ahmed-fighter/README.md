@@ -168,15 +168,18 @@ confirmation.
 
 ## Ahmed's look
 
-Ahmed is styled as a gym-built Kuwaiti fighter: broad-shouldered V-taper, black
-fitted training tee with short sleeves, black mid-thigh shorts with a red
-waistband, a dark swept-up quiff with faded sides, a full trimmed beard, a black
-wristwatch and red gloves. The character flags that drive it live on the fighter
-object, so any fighter can wear the same kit:
+Ahmed is styled as a gym-built Kuwaiti fighter: fair skin, a broad-shouldered
+V-taper on a heavier build, a black fitted training tee with short sleeves,
+black long trousers over a red waistband, dark trainers, a swept-up quiff with
+faded sides, a full trimmed beard, a black wristwatch and red gloves. The
+character flags that drive it live on the fighter object, so any fighter can
+wear the same kit:
 
 | Flag | Effect |
 | --- | --- |
 | `tee` | draws shirt sleeves over the upper arms |
+| `pants` | legs are drawn in the trouser colour, not skin, and the shorts hem is dropped |
+| `build` | multiplies limb thickness and chest width; 1 is lean, Ahmed is 1.12 |
 | `quiff` | swept-up hair with faded sides instead of a rounded cap, no headband |
 | `beard` | full beard and moustache (a colour string) |
 | `hair` | overrides the hair colour |

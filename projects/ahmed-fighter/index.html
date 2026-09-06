@@ -965,6 +965,11 @@ function drawFighter(f, camX){
   var band = f.flash > 0 ? '#ffffff' : mixc(col.band, haze, hz);
   var skinDark = shade(skin, -0.16);
   var gloveCol = f.isPlayer ? C.red : band;
+  // Trousers mean the legs are cloth, not skin; everyone else stays in shorts.
+  var legCol     = f.pants ? bot : skin;
+  var legColDark = f.pants ? shade(bot, -0.10) : skinDark;
+  var shoeCol    = f.pants ? shade(bot, 0.34) : shade(bot, -0.34);
+  var bd = f.build || 1;                    // limb thickness: 1 is lean
 
   ctx.save();
   ctx.translate(X, Y);
@@ -977,11 +982,13 @@ function drawFighter(f, camX){
   if(p.spin) ctx.rotate(Math.sin(p.spin)*0.14);
 
   // ---- rear leg -----------------------------------------------------------
-  var rf = bone(-6, hipY, legRear[0], 34, legRear[1], 32, 12.0, 8.6, 6.0, skinDark, true);
-  shoe(rf, legRear[0] + legRear[1], shade(bot, -0.5));
+  var rf = bone(-6, hipY, legRear[0], 34, legRear[1], 32,
+                12.0*bd, 8.6*bd, 6.0*bd, legColDark, true);
+  shoe(rf, legRear[0] + legRear[1], f.pants ? shade(shoeCol, -0.30) : shade(bot, -0.5));
 
   // ---- rear arm (behind the torso) ---------------------------------------
-  var ra = bone(shX-6, shY, p.armRear[0], 26, p.armRear[1], 25, 9.6, 7.4, 5.8,
+  var ra = bone(shX-6, shY, p.armRear[0], 26, p.armRear[1], 25,
+                9.6*bd, 7.4*bd, 5.8*bd,
                 skinDark, true, f.tee ? shade(top, -0.12) : null);
   glove(ra.x, ra.y, p.armRear[0] + p.armRear[1], shade(gloveCol, -0.22), 8.6);
 
@@ -989,6 +996,7 @@ function drawFighter(f, camX){
   ctx.save();
   ctx.translate(0, hipY);
   ctx.rotate(-lean);
+  if(bd !== 1) ctx.scale(1 + (bd - 1) * 0.7, 1);   // widen chest, keep height
   var torsoPath = function(){
     ctx.beginPath();
     ctx.moveTo(-10, 4);
@@ -1041,14 +1049,17 @@ function drawFighter(f, camX){
     roundRect(-13, hipY-8.4, 10, 1.6, 0.8); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,.30)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(1, hipY-2); ctx.lineTo(1, hipY+26); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(-16, hipY+28); ctx.quadraticCurveTo(-9, hipY+31, -2, hipY+26); ctx.stroke();
+    if(!f.pants){                                  // shorts have a hem; trousers do not
+      ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-16, hipY+28); ctx.quadraticCurveTo(-9, hipY+31, -2, hipY+26); ctx.stroke();
+    }
     ao(0, hipY-6, 20, 0.20);
   }
 
   // ---- lead leg -----------------------------------------------------------
-  var lf = bone(6, hipY+4, legLead[0], 34, legLead[1], 32, 12.8, 9.2, 6.4, skin, true);
-  shoe(lf, legLead[0] + legLead[1], shade(bot, -0.34));
+  var lf = bone(6, hipY+4, legLead[0], 34, legLead[1], 32,
+                12.8*bd, 9.2*bd, 6.4*bd, legCol, true);
+  shoe(lf, legLead[0] + legLead[1], shoeCol);
 
   // ---- head ---------------------------------------------------------------
   var hx = shX + lean*10, hy = shY - 24;
@@ -1180,7 +1191,8 @@ function drawFighter(f, camX){
   }
 
   // ---- lead arm -----------------------------------------------------------
-  var la = bone(shX+4, shY+2, p.armLead[0], 26, p.armLead[1], 25, 10.2, 7.9, 6.2,
+  var la = bone(shX+4, shY+2, p.armLead[0], 26, p.armLead[1], 25,
+                10.2*bd, 7.9*bd, 6.2*bd,
                 skin, true, f.tee ? top : null);
   ao(shX+4, shY+2, 12, 0.24);
   if(f.watch && GFX_HIGH){
@@ -1843,11 +1855,13 @@ function makePlayer(){
     hp:maxHp, maxHp:maxHp, stam:maxStam, maxStam:maxStam,
     pow:1, spd:142 + save.up.spd * 9, reach:58, sc:1.05,
     name:'AHMED', ar:'أحمد', kind:'player',
-    col:{ skin:'#d9a274', top:'#17191e', bottom:'#101216', band:'#c8102e' }
+    col:{ skin:'#f0d8c4', top:'#15171c', bottom:'#0e1014', band:'#c8102e' }
   });
   p.chainStep = 0; p.chainT = 0; p.dashT = 0; p.rage = 0;
   p.tee = true; p.quiff = true; p.watch = true;
-  p.hair = '#241a12'; p.beard = 'rgba(30,21,15,.92)';
+  p.pants = true;          // long trousers rather than fight shorts
+  p.build = 1.12;          // thicker limbs: the shirt is a muscle fit
+  p.hair = '#1e150f'; p.beard = 'rgba(24,17,12,.94)';
   return p;
 }
 

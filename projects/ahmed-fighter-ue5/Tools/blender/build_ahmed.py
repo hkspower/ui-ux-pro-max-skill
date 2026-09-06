@@ -21,6 +21,7 @@ import os
 import sys
 
 import bpy
+import bmesh
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -33,13 +34,15 @@ HEIGHT = 1.80
 
 # --------------------------------------------------------------- palette
 # Straight from the browser build's `col` table so the two Ahmeds match.
+# Linear values, matching the browser build's `col` table for Ahmed.
 PALETTE = {
-    "skin":   (0.729, 0.412, 0.208, 1.0),   # #d9a274
-    "tee":    (0.031, 0.035, 0.047, 1.0),   # #17191e
-    "shorts": (0.016, 0.019, 0.027, 1.0),   # #101216
+    "skin":   (0.888, 0.716, 0.597, 1.0),   # #f0d8c4  fair
+    "tee":    (0.029, 0.031, 0.039, 1.0),   # #15171c  fitted black tee
+    "pants":  (0.020, 0.021, 0.027, 1.0),   # #0e1014  black trousers
+    "shoe":   (0.032, 0.034, 0.040, 1.0),   # trainers, a touch off the trousers
     "band":   (0.608, 0.008, 0.043, 1.0),   # #c8102e  Kuwait red
-    "hair":   (0.020, 0.013, 0.007, 1.0),   # #241a12
-    "beard":  (0.026, 0.017, 0.010, 1.0),   # a shade off the hair
+    "hair":   (0.020, 0.014, 0.009, 1.0),   # #1e150f
+    "beard":  (0.026, 0.018, 0.012, 1.0),   # a shade off the hair
     "eye":    (0.012, 0.010, 0.009, 1.0),
 }
 
@@ -51,20 +54,20 @@ J = {
     "spine_01":   (Vector((0.00,  0.00, 1.14)), "pelvis",    0.106),
     "spine_02":   (Vector((0.00,  0.00, 1.29)), "spine_01",  0.124),
     "spine_03":   (Vector((0.00,  0.00, 1.44)), "spine_02",  0.146),
-    "neck_01":    (Vector((0.00,  0.00, 1.55)), "spine_03",  0.064),
+    "neck_01":    (Vector((0.00,  0.00, 1.55)), "spine_03",  0.078),
     "head":       (Vector((0.00,  0.012, 1.66)), "neck_01",  0.092),
     "head_end":   (Vector((0.00,  0.00, 1.755)), "head",     0.040),
 }
 
 _LIMB = [
     # (base name, position, parent, radius)
-    ("clavicle", Vector((0.050, 0.00, 1.455)), "spine_03", 0.098),
-    ("upperarm", Vector((0.200, 0.00, 1.450)), "clavicle", 0.070),
-    ("lowerarm", Vector((0.420, 0.00, 1.235)), "upperarm", 0.054),
+    ("clavicle", Vector((0.050, 0.00, 1.455)), "spine_03", 0.112),
+    ("upperarm", Vector((0.200, 0.00, 1.450)), "clavicle", 0.082),
+    ("lowerarm", Vector((0.420, 0.00, 1.235)), "upperarm", 0.061),
     ("hand",     Vector((0.610, 0.00, 1.030)), "lowerarm", 0.044),
     ("hand_end", Vector((0.665, 0.00, 0.975)), "hand",     0.036),
-    ("thigh",    Vector((0.100, 0.00, 0.950)), "pelvis",   0.094),
-    ("calf",     Vector((0.112, 0.00, 0.500)), "thigh",    0.070),
+    ("thigh",    Vector((0.100, 0.00, 0.950)), "pelvis",   0.108),
+    ("calf",     Vector((0.112, 0.00, 0.500)), "thigh",    0.080),
     ("foot",     Vector((0.112, 0.00, 0.085)), "calf",     0.050),
     ("ball",     Vector((0.112, -0.155, 0.045)), "foot",   0.040),
 ]
@@ -133,11 +136,11 @@ def build_body():
     # The torso reads as a slab unless it is wider than it is deep, and the
     # head wants to be an egg rather than a ball.
     for name, (rx, ry) in {
-        "spine_01": (0.142, 0.100),   # waist: narrower than both ends
-        "spine_02": (0.176, 0.106),   # ribcage
-        "spine_03": (0.205, 0.112),   # the shoulder shelf
-        "clavicle": (0.108, 0.100),   # deltoid, not a coat hanger
-        "pelvis":   (0.145, 0.112),
+        "spine_01": (0.154, 0.104),   # waist: the narrow of the V-taper
+        "spine_02": (0.198, 0.114),   # ribcage
+        "spine_03": (0.232, 0.120),   # the shoulder shelf
+        "clavicle": (0.126, 0.112),   # deltoid, not a coat hanger
+        "pelvis":   (0.150, 0.114),
         "head":     (0.090, 0.100),
     }.items():
         # A bare limb name means both sides.
@@ -163,8 +166,9 @@ def add_material_slots(obj):
     """Five slots plus a beard, in a fixed order the two passes index into."""
     mats = [
         ("skin",   make_material("Ahmed_Skin", PALETTE["skin"], 0.58)),
-        ("tee",    make_material("Ahmed_Tee", PALETTE["tee"], 0.78, sheen=0.25)),
-        ("shorts", make_material("Ahmed_Shorts", PALETTE["shorts"], 0.74, sheen=0.2)),
+        ("tee",    make_material("Ahmed_Tee", PALETTE["tee"], 0.72, sheen=0.30)),
+        ("pants",  make_material("Ahmed_Pants", PALETTE["pants"], 0.78, sheen=0.18)),
+        ("shoe",   make_material("Ahmed_Shoe", PALETTE["shoe"], 0.46)),
         ("band",   make_material("Ahmed_Band", PALETTE["band"], 0.66)),
         ("hair",   make_material("Ahmed_Hair", PALETTE["hair"], 0.42)),
         ("beard",  make_material("Ahmed_Beard", PALETTE["beard"], 0.50)),
@@ -176,18 +180,24 @@ def add_material_slots(obj):
 
 
 def assign_kit(obj, idx):
-    """Kit, painted before subdivision so every seam lands on an edge loop."""
+    """Kit, painted before subdivision so every seam lands on an edge loop.
+
+    The `ax` guards matter: in the A-pose the hands hang to roughly hip
+    height, so a trouser test on z alone would put the forearms in trousers.
+    """
     shoulder_z = J["upperarm_l"][0].z
     for poly in obj.data.polygons:
         c = poly.center
         z, ax = c.z, abs(c.x)
 
-        if 1.02 < z <= 1.50 and ax < 0.26:             # tee body
+        if ax < 0.22 and z < 0.115:                    # trainers
+            poly.material_index = idx["shoe"]
+        elif ax < 0.22 and z <= 1.02:                  # long trousers
+            poly.material_index = idx["pants"]
+        elif 1.02 < z <= 1.50 and ax < 0.28:           # tee body
             poly.material_index = idx["tee"]
-        elif 0.24 <= ax < 0.34 and z > shoulder_z - 0.14:
-            poly.material_index = idx["tee"]           # short sleeves
-        elif 0.58 <= z <= 1.02:                        # fight shorts
-            poly.material_index = idx["shorts"]
+        elif 0.22 <= ax < 0.33 and z > shoulder_z - 0.10:
+            poly.material_index = idx["tee"]           # fitted short sleeve
         else:
             poly.material_index = idx["skin"]
 
@@ -207,8 +217,70 @@ def assign_detail(obj, idx):
         d = c - head
         if c.z > head.z + 0.048 or d.y < -0.050:       # crown and back
             poly.material_index = idx["hair"]
-        elif c.z < head.z - 0.004 and d.y > 0.030:     # jaw and chin
+        elif c.z < head.z - 0.030 and d.y > 0.045:     # jaw and chin
             poly.material_index = idx["beard"]
+
+
+def _join_into(obj, part, material):
+    """Give a part the body's own material datablock, then merge it in."""
+    part.data.materials.append(material)
+    for poly in part.data.polygons:
+        poly.material_index = 0
+    bpy.ops.object.select_all(action="DESELECT")
+    part.select_set(True)
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.join()
+
+
+def add_hair(obj, idx):
+    """Grows hair off the skull's own faces rather than dropping a ball on it.
+
+    A separate sphere has to be guessed into place and, guessed slightly wrong,
+    swallows the face. Duplicating the scalp polygons and pushing them out
+    along their normals cannot: the hair covers exactly the faces selected and
+    hugs the head by construction. The extra push toward the front-top gives
+    the swept quiff the 2D Ahmed wears.
+    """
+    head = J["head"][0]
+    thickness, quiff_lift = 0.008, 0.024
+
+    mesh = bmesh.new()
+    mesh.from_mesh(obj.data)
+    mesh.faces.ensure_lookup_table()
+
+    scalp = []
+    for face in mesh.faces:
+        d = face.calc_center_median() - head
+        if d.z < -0.075:                       # below the jaw is not head at all
+            continue
+        # A hairline, not a helmet: high across the brow, low around the back.
+        front = d.y > -0.015
+        if d.z > (0.044 if front else -0.030):
+            scalp.append(face)
+
+    if not scalp:
+        mesh.free()
+        return
+
+    dup = bmesh.ops.duplicate(mesh, geom=scalp)
+    new_faces = [g for g in dup["geom"] if isinstance(g, bmesh.types.BMFace)]
+    new_verts = [g for g in dup["geom"] if isinstance(g, bmesh.types.BMVert)]
+
+    for vert in new_verts:
+        d = vert.co - head
+        lift = 0.0
+        if d.y > 0.0 and d.z > 0.030:          # front of the crown: the quiff
+            lift = quiff_lift * min(1.0, d.y / 0.055) * min(1.0, (d.z - 0.030) / 0.045)
+        vert.co += vert.normal * (thickness + lift)
+
+    for face in new_faces:
+        face.material_index = idx["hair"]
+        face.smooth = True
+
+    mesh.to_mesh(obj.data)
+    mesh.free()
+    obj.data.update()
 
 
 def add_eyes(obj, idx):
@@ -225,15 +297,7 @@ def add_eyes(obj, idx):
         bpy.ops.object.shade_smooth()
         # Share the body's material datablock so the join merges the slots
         # instead of leaving an empty one behind.
-        eye.data.materials.append(obj.data.materials[idx["eye"]])
-        for poly in eye.data.polygons:
-            poly.material_index = 0
-
-        bpy.ops.object.select_all(action="DESELECT")
-        eye.select_set(True)
-        obj.select_set(True)
-        bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.join()
+        _join_into(obj, eye, obj.data.materials[idx["eye"]])
 
 
 # ==================================================================== rigging
@@ -451,9 +515,9 @@ def build_studio():
         return obj
 
     # The browser build's LIGHT vector is up and to the left; so is this key.
-    lamp("Key",  (-2.8,  -2.6, 3.5), 130, 2.6, (1.00, 0.86, 0.66))
-    lamp("Rim",  ( 3.1,   2.1, 2.5), 170, 1.6, (0.96, 0.28, 0.34))
-    lamp("Fill", ( 1.9,  -3.4, 1.6),  26, 4.0, (0.62, 0.72, 1.00))
+    lamp("Key",  (-2.2,  -3.4, 2.9), 150, 2.6, (1.00, 0.86, 0.66))
+    lamp("Rim",  ( 3.1,   2.1, 2.5), 320, 1.6, (0.96, 0.28, 0.34))
+    lamp("Fill", ( 1.9,  -3.4, 1.6),  70, 4.0, (0.62, 0.72, 1.00))
 
 
 def add_camera(location, look_at=Vector((0, 0, 0.98)), lens=70):
@@ -530,6 +594,7 @@ def main():
     subdivide(body)
     assign_detail(body, slots)       # fine mesh: waistband, hair, beard
     add_eyes(body, slots)
+    add_hair(body, slots)
     rig = build_armature()
     bind(body, rig)
 
