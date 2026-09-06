@@ -2031,13 +2031,26 @@ var THEME = {
                        par:0.5, driftX:90, sway:7, seed:160 });
     },
     far:function(camX){
+      // Late sun low over the market, and the skyline that names the place:
+      // a minaret and two domes above the flat mud-brick roofs.
       ctx.fillStyle = 'rgba(255,238,190,.85)';
       circle(980 - camX*0.04, 150, 62); ctx.fill();
+      skyline(camX, { y:FLOOR_TOP-40, par:0.055, span:210, gap:60, h0:70, h1:150,
+                      col:'#c98a5c', seed:31, foot:40 });
       ctx.fillStyle = '#b9784a';
-      repeatX(260, 0.12, camX, function(x,i){
-        var h = 90 + hashv(i,1)*80;
+      repeatX(300, 0.12, camX, function(x, i){
+        var h = 84 + hashv(i,1)*74;
         ctx.fillRect(x, FLOOR_TOP-40-h, 190, h+40);
-        if(hashv(i,2) > 0.55){ circle(x+95, FLOOR_TOP-40-h, 34); ctx.fill(); }
+        var k = hashv(i,2);
+        if(k > 0.55) domeRoof(x+95, FLOOR_TOP-40-h, 38, '#b9784a');
+        else for(var c=0;c<5;c++)                // parapet crenellations
+          ctx.fillRect(x+14+c*36, FLOOR_TOP-52-h, 18, 12);
+      });
+      // The minaret is the one thing in the old city taller than the arcade,
+      // so it is placed rather than sprinkled: sparse, and tall enough to
+      // clear the roofline it is meant to stand above.
+      repeatX(900, 0.10, camX, function(x, i){
+        minaret(x + 210, FLOOR_TOP-120, 250 + hashv(i,6)*60, '#a96a3f');
       });
     },
     mid:function(camX){
@@ -2097,13 +2110,17 @@ var THEME = {
                        par:0.45, driftX:40, sway:9, seed:180 });
     },
     far:function(camX){
-      ctx.fillStyle = '#232b38';
-      ctx.fillRect(0, 0, W, FLOOR_TOP-30);
-      repeatX(200, 0.10, camX, function(x,i){
-        ctx.fillStyle = '#2b3442';
-        ctx.fillRect(x, 40, 160, FLOOR_TOP-110);
-        ctx.fillStyle = 'rgba(224,179,74,.16)';
-        ctx.fillRect(x+20, 70, 120, 30);
+      // Seen from inside: the club's high windows, and the block across the
+      // street coming through them.
+      skyline(camX, { y:FLOOR_TOP-150, par:0.05, span:150, gap:50, h0:60, h1:140,
+                      col:'#182231', seed:61, lit:'#cfe0ff', litA:0.20, foot:150 });
+      ctx.fillStyle = 'rgba(150,190,240,.10)';
+      repeatX(230, 0.09, camX, function(x){
+        ctx.fillRect(x, 40, 130, 210);
+      });
+      ctx.fillStyle = 'rgba(120,160,210,.16)';
+      repeatX(230, 0.09, camX, function(x){
+        ctx.fillRect(x, 40, 130, 5); ctx.fillRect(x+62, 40, 5, 210);
       });
     },
     mid:function(camX){
@@ -2163,16 +2180,16 @@ var THEME = {
       ctx.globalAlpha = 1;
       ctx.fillStyle = 'rgba(240,244,255,.9)';
       circle(1050 - camX*0.03, 110, 34); ctx.fill();
-      // Kuwait Towers silhouette
+      // The city stacked in three bands: a hazy far wall, the towers
+      // themselves, then a lit block in front of them.
+      skyline(camX, { y:FLOOR_TOP-40, par:0.045, span:180, gap:30, h0:110, h1:250,
+                      col:'#101a34', seed:71, foot:40 });
       var bx = 250 - camX*0.10;
       drawTower(bx,       FLOOR_TOP-40, 300, 46, 2);
       drawTower(bx+150,   FLOOR_TOP-40, 210, 34, 1);
       drawTower(bx+250,   FLOOR_TOP-40, 150, 22, 0);
-      ctx.fillStyle = '#101a34';
-      repeatX(220, 0.14, camX, function(x,i){
-        var h = 60 + hashv(i,9)*130;
-        ctx.fillRect(x, FLOOR_TOP-40-h, 150, h+40);
-      });
+      skyline(camX, { y:FLOOR_TOP-40, par:0.14, span:150, gap:70, h0:60, h1:190,
+                      col:'#0c1428', seed:9, lit:'#7fb6ff', litA:0.42, foot:40 });
     },
     mid:function(camX){
       // sea band
@@ -2229,8 +2246,27 @@ var THEME = {
                        par:0.55, driftX:110, sway:6, seed:210 });
     },
     far:function(camX){
+      // The sun going down behind the island. Everything here is backlit, so
+      // the layer is nothing but silhouette: ruins, palms, a boat offshore.
       ctx.fillStyle = 'rgba(255,240,200,.95)';
       circle(760 - camX*0.03, 210, 78); ctx.fill();
+      ridgeBand(camX, { y:FLOOR_TOP-92, par:0.04, amp:44, step:86,
+                        col:'rgba(140,74,96,.55)', seed:81 });
+      // the old settlement: low walls with the roofs gone
+      ctx.fillStyle = 'rgba(96,50,70,.8)';
+      repeatX(260, 0.11, camX, function(x, i){
+        var h = 34 + hashv(i,82)*44;
+        ctx.fillRect(x, FLOOR_TOP-56-h, 96, h+16);
+        if(hashv(i,83) > 0.5){
+          for(var c=0;c<3;c++)                       // broken parapet
+            ctx.fillRect(x+8+c*32, FLOOR_TOP-56-h-11, 15, 11);
+        } else domeRoof(x+48, FLOOR_TOP-56-h, 28, 'rgba(96,50,70,.8)');
+      });
+      repeatX(190, 0.19, camX, function(x, i){
+        if(hashv(i,84) < 0.42) return;
+        palmFar(x + 40, FLOOR_TOP-52, 0.68 + hashv(i,85)*0.5, 'rgba(64,30,50,.88)', i);
+      });
+      dhow(300 - camX*0.06, FLOOR_TOP-74, 0.7, 'rgba(70,32,52,.9)');
       ctx.fillStyle = 'rgba(120,60,80,.55)';
       ctx.fillRect(0, FLOOR_TOP-60, W, 60);
     },
@@ -2242,18 +2278,14 @@ var THEME = {
         ctx.fillRect(x, FLOOR_TOP-h-30, 120, h+30);
         ctx.fillStyle = 'rgba(0,0,0,.16)';
         for(var r=0;r<4;r++) ctx.fillRect(x, FLOOR_TOP-h-30+r*22, 120, 3);
-        // palm
+        // Palms. Six ellipses at even angles read as a starburst rather than
+        // a tree; the shared palm draws fronds that droop and disagree, which
+        // is the whole difference. Two per cluster, at different heights, so
+        // they group the way palms actually stand.
         var px = x + 200;
-        ctx.strokeStyle = '#6b5233'; ctx.lineWidth = 9; ctx.lineCap='round';
-        ctx.beginPath(); ctx.moveTo(px, FLOOR_TOP-30);
-        ctx.quadraticCurveTo(px+10, FLOOR_TOP-140, px+26, FLOOR_TOP-206); ctx.stroke();
-        ctx.fillStyle = '#2f6b3d';
-        for(var l=0;l<6;l++){
-          var a = -2.6 + l*0.52;
-          ctx.save(); ctx.translate(px+26, FLOOR_TOP-206); ctx.rotate(a);
-          ctx.beginPath(); ctx.ellipse(38, 0, 40, 9, 0, 0, 6.2832); ctx.fill();
-          ctx.restore();
-        }
+        ctx.fillStyle = '#6b5233';
+        palmTrunk(px, FLOOR_TOP-30, 1.7 + hashv(i,12)*0.35, i, '#6b5233', '#2f6b3d');
+        palmTrunk(px + 62, FLOOR_TOP-26, 1.25 + hashv(i,13)*0.3, i+90, '#5d472c', '#275c34');
       });
     },
     fore:function(camX){
@@ -2302,14 +2334,15 @@ var THEME = {
       ctx.globalAlpha = 1;
       ctx.fillStyle = 'rgba(255,250,225,.92)';
       circle(300 - camX*0.02, 120, 40); ctx.fill();
-      ctx.fillStyle = '#5c4d69';
-      ctx.beginPath();
-      ctx.moveTo(-100, FLOOR_TOP-20);
-      for(var x=-100;x<=W+100;x+=60){
-        ctx.lineTo(x, FLOOR_TOP-40 - Math.sin((x + camX*0.06)*0.004)*46);
-      }
-      ctx.lineTo(W+100, FLOOR_TOP+20); ctx.lineTo(-100, FLOOR_TOP+20);
-      ctx.closePath(); ctx.fill();
+      // Three dune lines going away, then the camp itself on the near one.
+      duneBand(camX, { y:FLOOR_TOP-96, par:0.03, freq:0.0031, amp:38, col:'#3b3457' });
+      duneBand(camX, { y:FLOOR_TOP-58, par:0.045, freq:0.0044, amp:44, col:'#4a4160' });
+      ctx.fillStyle = 'rgba(28,22,48,.9)';
+      repeatX(420, 0.10, camX, function(x, i){
+        if(hashv(i,25) < 0.35) return;
+        tentFar(x + 120, FLOOR_TOP-62, 0.9 + hashv(i,26)*0.5, 'rgba(28,22,48,.9)');
+      });
+      duneBand(camX, { y:FLOOR_TOP-20, par:0.06, freq:0.004, amp:46, col:'#5c4d69' });
     },
     mid:function(camX){
       repeatX(420, 0.46, camX, function(x,i){
@@ -2366,19 +2399,23 @@ var THEME = {
       airBirds(camX, 6, 'rgba(60,70,74,.6)', 90, 24);
     },
     far:function(camX){
+      // Dawn on the harbour. Two shore bands going away, and the dhows tied
+      // up at the far quay — the one silhouette that says which harbour.
       ctx.fillStyle = 'rgba(255,252,235,.85)';
       circle(240 - camX*0.03, 120, 46); ctx.fill();
-      ctx.fillStyle = '#5c7b8a';                      // far shore
+      skyline(camX, { y:FLOOR_TOP-118, par:0.05, span:170, gap:60, h0:44, h1:104,
+                      col:'#7d99a8', seed:41, foot:26 });
+      ctx.fillStyle = '#5c7b8a';                      // near shore
       ctx.fillRect(0, FLOOR_TOP-96, W, 56);
       ctx.fillStyle = '#46626f';
-      repeatX(240, 0.12, camX, function(x,i){
+      repeatX(240, 0.12, camX, function(x, i){
         var h = 40 + hashv(i,41)*70;
         ctx.fillRect(x, FLOOR_TOP-96-h, 120, h);
       });
       ctx.fillStyle = '#7fa3b3';                      // water
       ctx.fillRect(0, FLOOR_TOP-40, W, 40);
       ctx.globalAlpha = 0.45;
-      repeatX(70, 0.26, camX, function(x,i){
+      repeatX(70, 0.26, camX, function(x, i){
         ctx.fillStyle = '#cfe4ec';
         ctx.fillRect(x, FLOOR_TOP-34 + (i%3)*11, 34, 2);
       });
@@ -2386,18 +2423,32 @@ var THEME = {
     },
     mid:function(camX){
       repeatX(330, 0.46, camX, function(x,i){
-        // dhow hull + mast
+        // A dhow, rigged the way a dhow is: a hull that lifts to a high
+        // stern, a mast raked forward, and a lateen yard the sail hangs from.
+        // A box hull with a vertical mast is a dinghy, and this is the shape
+        // the whole harbour is recognised by.
         ctx.fillStyle = '#7d5a34';
         ctx.beginPath();
-        ctx.moveTo(x, FLOOR_TOP-46); ctx.lineTo(x+150, FLOOR_TOP-46);
-        ctx.lineTo(x+124, FLOOR_TOP-16); ctx.lineTo(x+22, FLOOR_TOP-16);
+        ctx.moveTo(x + 4, FLOOR_TOP-44);
+        ctx.quadraticCurveTo(x + 60, FLOOR_TOP-28, x + 128, FLOOR_TOP-40);
+        ctx.lineTo(x + 158, FLOOR_TOP-74);                    // raised stern
+        ctx.lineTo(x + 146, FLOOR_TOP-72);
+        ctx.quadraticCurveTo(x + 96, FLOOR_TOP-48, x + 22, FLOOR_TOP-52);
         ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,.18)';
+        ctx.fillRect(x + 14, FLOOR_TOP-50, 120, 4);           // sheer line
         ctx.strokeStyle = '#5d4326'; ctx.lineWidth = 5;
-        ctx.beginPath(); ctx.moveTo(x+76, FLOOR_TOP-46); ctx.lineTo(x+66, FLOOR_TOP-186); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x+72, FLOOR_TOP-44); ctx.lineTo(x+88, FLOOR_TOP-176); ctx.stroke();
+        ctx.lineWidth = 3;                                    // the lateen yard
+        ctx.beginPath();
+        ctx.moveTo(x+30, FLOOR_TOP-58); ctx.lineTo(x+112, FLOOR_TOP-190); ctx.stroke();
         ctx.fillStyle = 'rgba(245,240,225,.9)';
         ctx.beginPath();
-        ctx.moveTo(x+66, FLOOR_TOP-184); ctx.lineTo(x+150, FLOOR_TOP-64);
-        ctx.lineTo(x+70, FLOOR_TOP-64); ctx.closePath(); ctx.fill();
+        ctx.moveTo(x+110, FLOOR_TOP-188);
+        ctx.lineTo(x+32,  FLOOR_TOP-60);
+        ctx.quadraticCurveTo(x+96, FLOOR_TOP-62, x+86, FLOOR_TOP-140);
+        ctx.closePath(); ctx.fill();
         // market awning
         ctx.fillStyle = i%2 ? '#c8102e' : '#1f6f57';
         ctx.fillRect(x+190, FLOOR_TOP-150, 120, 16);
@@ -2451,8 +2502,10 @@ var THEME = {
         ctx.fillRect(sx, hashv(i,53)*220, 2, 2);
       }
       ctx.globalAlpha = 1;
+      skyline(camX, { y:FLOOR_TOP-60, par:0.06, span:150, gap:44, h0:90, h1:220,
+                      col:'#160f2a', seed:57, foot:60 });
       // neon skyline
-      repeatX(190, 0.13, camX, function(x,i){
+      repeatX(190, 0.13, camX, function(x, i){
         var h = 80 + hashv(i,54)*170;
         ctx.fillStyle = '#1b1233';
         ctx.fillRect(x, FLOOR_TOP-60-h, 130, h+60);
@@ -2463,6 +2516,9 @@ var THEME = {
         for(var w=0;w<5;w++) ctx.fillRect(x+20+w*20, FLOOR_TOP-30-h+w*14, 10, 8);
         ctx.globalAlpha = 1;
       });
+      // it is a marina, so there are boats in it
+      mastField(camX, { y:FLOOR_TOP-58, par:0.20, span:38, h0:34, h1:96,
+                        col:'rgba(190,170,235,.55)', seed:58 });
       ctx.fillStyle = '#1a1030';
       ctx.fillRect(0, FLOOR_TOP-60, W, 60);
     },
@@ -2517,15 +2573,13 @@ var THEME = {
                        y1:FLOOR_TOP+90, par:0.85, driftX:240, sway:3, seed:360 });
     },
     far:function(camX){
+      // Dusk on the Jahra road: the sun going down ahead, the town it runs to
+      // sitting low on the horizon, dunes crowding the verge.
       ctx.fillStyle = 'rgba(255,225,170,.95)';
       circle(880 - camX*0.03, 190, 66); ctx.fill();
-      ctx.fillStyle = '#7a4a4e';
-      ctx.beginPath();
-      ctx.moveTo(-60, FLOOR_TOP-30);
-      for(var x=-60;x<=W+60;x+=70)
-        ctx.lineTo(x, FLOOR_TOP-56 - Math.sin((x + camX*0.05)*0.0035)*34);
-      ctx.lineTo(W+60, FLOOR_TOP+20); ctx.lineTo(-60, FLOOR_TOP+20);
-      ctx.closePath(); ctx.fill();
+      skyline(camX, { y:FLOOR_TOP-74, par:0.035, span:130, gap:70, h0:36, h1:96,
+                      col:'rgba(108,62,74,.7)', seed:91, foot:20 });
+      duneBand(camX, { y:FLOOR_TOP-40, par:0.05, freq:0.0035, amp:34, col:'#7a4a4e' });
       // pylons
       ctx.strokeStyle = '#42323c'; ctx.lineWidth = 4;
       repeatX(300, 0.16, camX, function(px){
@@ -2533,6 +2587,14 @@ var THEME = {
         ctx.moveTo(px, FLOOR_TOP-40); ctx.lineTo(px, FLOOR_TOP-190);
         ctx.moveTo(px-34, FLOOR_TOP-170); ctx.lineTo(px+34, FLOOR_TOP-170);
         ctx.moveTo(px-24, FLOOR_TOP-140); ctx.lineTo(px+24, FLOOR_TOP-140);
+        ctx.stroke();
+      });
+      // the cable actually strung between them
+      ctx.strokeStyle = 'rgba(66,50,60,.75)'; ctx.lineWidth = 1.6;
+      repeatX(300, 0.16, camX, function(px){
+        ctx.beginPath();
+        ctx.moveTo(px, FLOOR_TOP-168);
+        ctx.quadraticCurveTo(px+150, FLOOR_TOP-140, px+300, FLOOR_TOP-168);
         ctx.stroke();
       });
     },
@@ -2613,20 +2675,34 @@ var THEME = {
       ctx.restore();
     },
     far:function(camX){
-      // crowd
-      for(var r=0;r<5;r++){
-        for(var i=0;i<48;i++){
-          var cx = ((i*30 + r*15) - camX*0.05) % (W+60);
+      // Two tiers of crowd going up into the dark, then the spots. The upper
+      // tier is smaller and dimmer, which is the only thing that makes the
+      // room read as tall rather than as a wall of dots.
+      for(var r=0;r<3;r++){
+        for(var i=0;i<56;i++){
+          var ux = ((i*24 + r*12) - camX*0.03) % (W+48);
+          if(ux < -24) ux += W+48;
+          ctx.globalAlpha = 0.10 + r*0.045;
+          ctx.fillStyle = ['#2a2035','#352a44','#241b2e'][i%3];
+          circle(ux, 34 + r*30, 7); ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 0.5; ctx.fillStyle = '#0e0a16';
+      ctx.fillRect(0, 128, W, 16);                   // the tier divide
+      ctx.globalAlpha = 1;
+      for(r=0;r<5;r++){
+        for(var i2=0;i2<48;i2++){
+          var cx = ((i2*30 + r*15) - camX*0.05) % (W+60);
           if(cx < -30) cx += W+60;
           ctx.globalAlpha = 0.25 + r*0.1;
-          ctx.fillStyle = ['#3a2c46','#4a3757','#2f2439'][i%3];
-          circle(cx, 120 + r*46, 11); ctx.fill();
+          ctx.fillStyle = ['#3a2c46','#4a3757','#2f2439'][i2%3];
+          circle(cx, 160 + r*40, 11); ctx.fill();
         }
       }
       ctx.globalAlpha = 1;
       // spotlights
-      for(var s=0;s<3;s++){
-        var lx = 250 + s*390;
+      for(var sp=0;sp<3;sp++){
+        var lx = 250 + sp*390;
         var grd = ctx.createLinearGradient(lx, 0, lx, FLOOR_TOP);
         grd.addColorStop(0, 'rgba(255,240,200,.22)');
         grd.addColorStop(1, 'rgba(255,240,200,0)');
@@ -2665,6 +2741,212 @@ function drawTower(x, baseY, h, r, spheres){
   if(spheres > 0){ circle(x-r*0.3, baseY-h*0.66, r*0.4); ctx.fill(); }
 }
 
+
+/* ==========================================================================
+   THE BACKDROP VOCABULARY
+   The far layer was nine hand-rolled loops of fillRect, which is why every
+   place had the same skyline in a different colour. It is also the layer the
+   depth-of-field pass softens, so detail there is thrown away and only
+   SILHOUETTE survives -- which is the argument for building shapes rather
+   than rectangles, and for stacking two or three bands at different parallax
+   instead of one.
+
+   Everything here draws a silhouette in one flat colour. The rig's fog and
+   haze do the atmospheric perspective; these only have to get the shape
+   right, and the shape is what tells you where you are standing.
+   ========================================================================== */
+
+/* A band of buildings with crowns that differ. A skyline of plain boxes reads
+   as a bar chart; what makes it a city is that the tops disagree. */
+function skyline(camX, o){
+  var base = o.y, span = o.span || 150, gap = o.gap || 40;
+  ctx.fillStyle = o.col;
+  repeatX(span + gap, o.par, camX, function(x, i){
+    var h = o.h0 + hashv(i, o.seed) * (o.h1 - o.h0);
+    var w = span * (0.55 + hashv(i, o.seed + 7) * 0.55);
+    var top = base - h;
+    ctx.fillRect(x, top, w, h + (o.foot || 30));
+    var kind = (hashv(i, o.seed + 3) * 4) | 0;
+    if(kind === 0){                                   // stepped crown
+      ctx.fillRect(x + w*0.16, top - h*0.13, w*0.68, h*0.13);
+      ctx.fillRect(x + w*0.34, top - h*0.21, w*0.32, h*0.09);
+    } else if(kind === 1){                            // mast
+      var mx = x + w*0.5, mh = h*0.30;
+      ctx.fillRect(mx - w*0.035, top - mh, w*0.07, mh);
+      ctx.fillRect(mx - w*0.13, top - mh*0.62, w*0.26, w*0.05);
+    } else if(kind === 2){                            // roof tank on legs
+      ctx.fillRect(x + w*0.22, top - h*0.14, w*0.10, h*0.14);
+      ctx.fillRect(x + w*0.60, top - h*0.14, w*0.10, h*0.14);
+      ctx.fillRect(x + w*0.16, top - h*0.20, w*0.60, h*0.07);
+    }                                                 // kind 3 stays flat
+    if(o.lit && hashv(i, o.seed + 11) > 0.45){        // a few lit windows
+      ctx.save(); ctx.globalAlpha = o.litA || 0.5; ctx.fillStyle = o.lit;
+      for(var r=0;r<4;r++) for(var c=0;c<3;c++){
+        if(hashv(i*13 + r*3 + c, o.seed + 19) < 0.55) continue;
+        ctx.fillRect(x + w*0.16 + c*w*0.26, top + h*0.14 + r*h*0.19, w*0.13, h*0.075);
+      }
+      ctx.restore();
+    }
+  });
+}
+
+/* A dune line: one sine ridge filled down to the floor. Two of these at
+   different parallax and tone is the whole desert. */
+function duneBand(camX, o){
+  ctx.fillStyle = o.col;
+  ctx.beginPath();
+  ctx.moveTo(-120, o.y + 30);
+  for(var x = -120; x <= W + 120; x += 44){
+    var t = (x + camX * o.par) * o.freq;
+    ctx.lineTo(x, o.y - Math.sin(t) * o.amp - Math.sin(t * 2.3 + 1.7) * o.amp * 0.34);
+  }
+  ctx.lineTo(W + 120, o.y + 40); ctx.lineTo(-120, o.y + 40);
+  ctx.closePath(); ctx.fill();
+}
+
+/* A jagged ridge — sharper than a dune, for rock rather than sand. */
+function ridgeBand(camX, o){
+  ctx.fillStyle = o.col;
+  ctx.beginPath();
+  ctx.moveTo(-100, o.y + 40);
+  var step = o.step || 58;
+  for(var x = -100, i = 0; x <= W + 100; x += step, i++){
+    var k = hashv(i + Math.floor(camX * o.par / step), o.seed);
+    ctx.lineTo(x, o.y - k * o.amp);
+  }
+  ctx.lineTo(W + 100, o.y + 40); ctx.lineTo(-100, o.y + 40);
+  ctx.closePath(); ctx.fill();
+}
+
+/* A dhow. Kuwait's boat, and the one silhouette that says which harbour this
+   is: a hull that rises to a high stern, one raked mast, one lateen sail. */
+function dhow(x, y, s, col, sail){
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(x - 46*s, y);
+  ctx.quadraticCurveTo(x - 20*s, y + 11*s, x + 30*s, y + 7*s);
+  ctx.lineTo(x + 52*s, y - 17*s);
+  ctx.lineTo(x + 40*s, y - 15*s);
+  ctx.quadraticCurveTo(x + 6*s, y - 3*s, x - 46*s, y - 4*s);
+  ctx.closePath(); ctx.fill();
+  ctx.fillRect(x - 4*s, y - 60*s, 3*s, 58*s);           // mast, raked forward
+  ctx.fillStyle = sail || col;
+  ctx.beginPath();                                       // lateen sail
+  ctx.moveTo(x - 2*s, y - 58*s);
+  ctx.lineTo(x + 34*s, y - 8*s);
+  ctx.lineTo(x - 26*s, y - 8*s);
+  ctx.closePath(); ctx.fill();
+}
+
+/* A palm. Fronds as tapering quads off one point, so it reads at any size. */
+function palmFar(x, y, s, col, seed){
+  ctx.fillStyle = col;
+  ctx.beginPath();                                       // trunk, leaning
+  var lean = (hashv(seed||0, 3) - 0.5) * 26 * s;
+  ctx.moveTo(x - 3.4*s, y);
+  ctx.quadraticCurveTo(x - 1*s + lean*0.5, y - 42*s, x + lean, y - 78*s);
+  ctx.lineTo(x + lean + 4.4*s, y - 78*s);
+  ctx.quadraticCurveTo(x + 4*s + lean*0.5, y - 42*s, x + 3.4*s, y);
+  ctx.closePath(); ctx.fill();
+  var hx = x + lean + 2*s, hy = y - 78*s;
+  for(var i=0;i<7;i++){
+    var a = -Math.PI + i * (Math.PI/6) + (hashv(i, (seed||0)+5) - 0.5) * 0.24;
+    var len = 30*s * (0.68 + hashv(i, (seed||0)+9) * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(hx, hy);
+    ctx.quadraticCurveTo(hx + Math.cos(a)*len*0.6, hy + Math.sin(a)*len*0.6 - 5*s,
+                         hx + Math.cos(a)*len,     hy + Math.sin(a)*len + 7*s);
+    ctx.quadraticCurveTo(hx + Math.cos(a)*len*0.6, hy + Math.sin(a)*len*0.6 + 4*s,
+                         hx, hy);
+    ctx.closePath(); ctx.fill();
+  }
+}
+
+/* The same palm, but near enough that the trunk and the crown want different
+   colours. Coconuts because at this distance you would see them. */
+function palmTrunk(x, y, s, seed, trunkCol, frondCol){
+  ctx.fillStyle = trunkCol;
+  var lean = (hashv(seed, 3) - 0.5) * 30 * s;
+  ctx.beginPath();
+  ctx.moveTo(x - 4.6*s, y);
+  ctx.quadraticCurveTo(x - 1*s + lean*0.5, y - 52*s, x + lean, y - 96*s);
+  ctx.lineTo(x + lean + 5.6*s, y - 96*s);
+  ctx.quadraticCurveTo(x + 5.4*s + lean*0.5, y - 52*s, x + 4.6*s, y);
+  ctx.closePath(); ctx.fill();
+  for(var r=0;r<5;r++){                                  // trunk rings
+    ctx.globalAlpha = 0.18; ctx.fillStyle = '#000';
+    ctx.fillRect(x - 4*s + lean*(r/6), y - 16*s - r*15*s, 8*s, 2*s);
+    ctx.globalAlpha = 1; ctx.fillStyle = trunkCol;
+  }
+  var hx = x + lean + 2.6*s, hy = y - 96*s;
+  ctx.fillStyle = frondCol;
+  for(var i=0;i<8;i++){
+    var a = -Math.PI - 0.2 + i * (Math.PI + 0.4)/7 + (hashv(i, seed+5) - 0.5) * 0.30;
+    var len = 40*s * (0.62 + hashv(i, seed+9) * 0.55);
+    var droop = 13*s + hashv(i, seed+13) * 12*s;
+    ctx.beginPath();
+    ctx.moveTo(hx, hy);
+    ctx.quadraticCurveTo(hx + Math.cos(a)*len*0.55, hy + Math.sin(a)*len*0.55 - 6*s,
+                         hx + Math.cos(a)*len,     hy + Math.sin(a)*len + droop);
+    ctx.quadraticCurveTo(hx + Math.cos(a)*len*0.5,  hy + Math.sin(a)*len*0.5 + 5*s,
+                         hx, hy);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(120,86,40,.9)';                  // coconuts
+  for(var c=0;c<3;c++){
+    ctx.beginPath();
+    ctx.arc(hx + (c-1)*5.5*s, hy + 5*s, 3.4*s, 0, 6.2832); ctx.fill();
+  }
+}
+
+/* A minaret and its dome — the shape that says souq rather than high street. */
+function minaret(x, y, h, col){
+  ctx.fillStyle = col;
+  ctx.fillRect(x - h*0.048, y - h, h*0.096, h);
+  ctx.fillRect(x - h*0.082, y - h*0.72, h*0.164, h*0.045);   // balcony
+  ctx.beginPath();                                           // cap
+  ctx.moveTo(x - h*0.075, y - h);
+  ctx.quadraticCurveTo(x, y - h*1.16, x + h*0.075, y - h);
+  ctx.closePath(); ctx.fill();
+  ctx.fillRect(x - h*0.012, y - h*1.22, h*0.024, h*0.08);     // finial
+}
+function domeRoof(x, y, r, col){
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(x - r, y);
+  ctx.quadraticCurveTo(x - r, y - r*1.28, x, y - r*1.34);
+  ctx.quadraticCurveTo(x + r, y - r*1.28, x + r, y);
+  ctx.closePath(); ctx.fill();
+  ctx.fillRect(x - r*0.05, y - r*1.62, r*0.10, r*0.30);
+}
+
+/* A bedouin tent: a low black ridge with guy lines. */
+function tentFar(x, y, s, col){
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(x - 54*s, y);
+  ctx.lineTo(x - 30*s, y - 26*s);
+  ctx.lineTo(x, y - 20*s);
+  ctx.lineTo(x + 30*s, y - 27*s);
+  ctx.lineTo(x + 54*s, y);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = 1.4*s;
+  ctx.beginPath();
+  ctx.moveTo(x - 30*s, y - 26*s); ctx.lineTo(x - 68*s, y);
+  ctx.moveTo(x + 30*s, y - 27*s); ctx.lineTo(x + 68*s, y);
+  ctx.stroke();
+}
+
+/* Masts in a marina — verticals of different heights over the water line. */
+function mastField(camX, o){
+  ctx.strokeStyle = o.col; ctx.lineWidth = 1.6;
+  repeatX(o.span || 46, o.par, camX, function(x, i){
+    var h = o.h0 + hashv(i, o.seed) * (o.h1 - o.h0);
+    ctx.beginPath(); ctx.moveTo(x, o.y); ctx.lineTo(x, o.y - h); ctx.stroke();
+    ctx.fillStyle = o.col;
+    ctx.fillRect(x - 5, o.y - h*0.72, 10, 1.6);
+  });
+}
 
 /* ==========================================================================
    GROUND + ATMOSPHERE

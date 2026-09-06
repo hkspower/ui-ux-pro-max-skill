@@ -499,10 +499,31 @@ Each location is a `THEME` entry with five layers, drawn back to front:
 | Hook | What it draws |
 | --- | --- |
 | `clouds` | a slow cloud band, config not code — every theme wants the same drift in a different colour |
-| `far` | skyline, sea, dunes; barely parallaxed |
+| `far` | skyline, sea, dunes; barely parallaxed, and softened by depth of field |
 | `mid` | the layer that names the place — arches, heavy bags, dhows, tents |
 | `floor` | the ground the fight happens on |
 | `air` | whatever drifts through frame: dust, gulls, embers, confetti |
+
+### The backdrop vocabulary
+
+`far` used to be nine hand-rolled loops of `fillRect`, which is why every
+place had the same skyline in a different colour. It is also the layer the
+depth-of-field pass softens — detail there is thrown away and only
+**silhouette** survives. So it is built from shapes now, and stacked two or
+three deep at different parallax rather than one band:
+
+| Helper | The thing it is for |
+| --- | --- |
+| `skyline` | a band of buildings whose crowns disagree — stepped, masted, roof-tanked, flat. A skyline of plain boxes reads as a bar chart; what makes it a city is that the tops differ. |
+| `dhow` / the harbour rig | a hull that lifts to a high stern, a mast raked forward, a lateen yard the sail hangs from. A box hull with a vertical mast is a dinghy — this is the shape Sharq is recognised by. |
+| `palmFar` / `palmTrunk` | fronds that droop and disagree, on a trunk that leans. Six ellipses at even angles read as a starburst, not a tree. |
+| `minaret` / `domeRoof` | the two shapes that say *old city* rather than *high street*. The minaret is placed rather than sprinkled — it is the one thing taller than the arcade, so it has to clear it. |
+| `duneBand` / `ridgeBand` | sand and rock. Three dune lines at different parallax is the whole desert. |
+| `tentFar`, `mastField` | the camp, and the boats a marina has in it. |
+
+Everything here draws one flat silhouette. The rig's fog and haze do the
+atmospheric perspective; these only have to get the shape right, and the shape
+is what tells you where you are standing.
 
 Three rules keep the nine stages reading as one game:
 
