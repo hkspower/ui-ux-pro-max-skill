@@ -213,6 +213,43 @@ wear the same kit:
 | `watch` | wristwatch on the lead arm |
 | `sil` | featureless silhouette, used for the key art's opposition |
 
+## Interface
+
+The screens grew one control at a time, and it showed: BACK was 170x58 on the
+map, 220x48 in settings, 140x64 on the briefing and 210x66 on the results
+screen — the same button, four sizes, four positions. `UI` exists so that
+cannot happen again.
+
+| Token | Holds |
+| --- | --- |
+| `UI.sp` | the 8pt spacing scale — gaps and offsets come from here |
+| `UI.t` | one type size per role: display, title, head, sub, body, label, micro |
+| `UI.btn` | `lg` / `md` / `sm`; the same control is the same size everywhere |
+| `UI.navY` | the single y every screen's nav row sits on |
+| colour roles | `ink0..3`, `fg`/`fgMut`/`fgFaint`, `gold`, `red`, `green`, `line` |
+
+Four components carry almost every screen: `screenHead(en, ar)` opens with the
+flag mark, name and Arabic; `panel()` is the one panel treatment; `navRow()`
+places the footer buttons; `flagBar()` is the Kuwait hoist bar reused as the
+identity mark. A screen picks a role, never a number.
+
+Three rules behind the look:
+
+**One red thing per screen.** Red is the action you came to press — FIGHT on
+the menu and the briefing, RESUME on pause. Everything else is a dark panel
+with a gold hairline, so the eye lands without hunting. Gold went from being
+on everything (headings, subtitles, borders, values, Arabic) to marking values
+and headings only.
+
+**The nav row is in the same place on every screen.** That is a usability
+change, not a cosmetic one: BACK stops moving between screens.
+
+**The background is the key art.** Same warm off-centre pool falling to near
+black, so the poster, the store page and the title screen read as one design.
+The sadu weaving — the Kuwaiti motif — is two crisp bands aligned to the
+header and nav rows, replacing ten faint lines that floated mid-screen and
+read as noise.
+
 ## Graphics
 
 Everything is still drawn in code — there are no image files — but the fighters

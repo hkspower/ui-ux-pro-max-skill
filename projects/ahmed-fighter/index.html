@@ -3589,21 +3589,128 @@ function drawFight(){
    ========================================================================== */
 
 var uiBtns = [];
+/* ==========================================================================
+   UI DESIGN SYSTEM
+   The screens grew one control at a time, and it showed: BACK was 170x58 on
+   the map, 220x48 in settings, 140x64 on the briefing and 210x66 on the
+   results screen -- the same button, four sizes, four positions. Everything
+   below exists so that cannot happen again. Sizes come from `UI.btn`,
+   positions from `UI.navY`, type from `UI.t`, colour from a role rather than
+   a hex. Nothing in a screen should invent its own number.
+
+   The look follows the key art: a dark cinematic ground, gold reserved for
+   values and headings, Kuwait red for the one action that matters on a
+   screen, and the flag hoist bar as the recurring mark.
+   ========================================================================== */
+var UI = {
+  // 8pt spacing scale. Positions and gaps come from here.
+  sp:  [0, 4, 8, 12, 16, 24, 32, 48, 64, 96],
+  // One size per role. A screen picks a role, never a number.
+  t:   { display:112, title:40, head:26, sub:19, body:16, label:13, micro:11 },
+  // Colour by role, so intent is visible at the call site.
+  ink0:'#05070b', ink1:'#0b101a', ink2:'#151b28', ink3:'#1e2534',
+  fg:'#f4f1e8', fgMut:'rgba(244,241,232,.62)', fgFaint:'rgba(244,241,232,.32)',
+  gold:'#edbe57', red:'#c8102e', green:'#1a8f52',
+  line:'rgba(237,190,87,.20)', lineSoft:'rgba(255,255,255,.07)',
+  // Fixed metrics: the same control is the same size on every screen.
+  btn: { lg:{w:300,h:76}, md:{w:190,h:58}, sm:{w:150,h:46} },
+  pad: 96,
+  headY: 78,
+  navY:  0            // set from H below
+};
+UI.navY = H - 104;
+
+/* Text with letter-spacing. Uppercase labels need it or they read as a blur
+   at small sizes; ctx.letterSpacing is ignored on engines that lack it, which
+   degrades to exactly what we had before. */
+function txtLS(s, x, y, size, color, align, weight, ls, alpha){
+  ctx.save();
+  ctx.letterSpacing = (ls || 0) + 'px';
+  txt(s, x, y, size, color, align, weight, alpha);
+  ctx.restore();
+}
+
+/* The Kuwait hoist bar -- black, green, white, red. The mark from the key
+   art, reused at every size as the thing that says which game this is. */
+function flagBar(x, y, h, w){
+  var cols = ['#101216', '#007a3d', '#f3f5f8', UI.red];
+  var bh = h / 4;
+  for(var i = 0; i < 4; i++){
+    ctx.fillStyle = cols[i];
+    ctx.fillRect(x, y + i * bh, w || 6, bh);
+  }
+}
+
+/* One panel treatment. `flag` puts the hoist bar down the left edge, which is
+   how a panel says "this is the important one" without shouting in red. */
+function panel(x, y, w, h, o){
+  o = o || {};
+  ctx.fillStyle = o.raised ? UI.ink3 : UI.ink2;
+  roundRect(x, y, w, h, o.r === undefined ? 14 : o.r); ctx.fill();
+  ctx.strokeStyle = o.accent ? UI.line : UI.lineSoft;
+  ctx.lineWidth = 1.5;
+  roundRect(x, y, w, h, o.r === undefined ? 14 : o.r); ctx.stroke();
+  if(o.flag){
+    ctx.save();
+    roundRect(x, y, w, h, o.r === undefined ? 14 : o.r); ctx.clip();
+    flagBar(x, y, h, 6);
+    ctx.restore();
+  }
+}
+
+/* Every screen opens the same way: the mark, the name, the Arabic under it. */
+function screenHead(en, ar){
+  var y = UI.headY;
+  flagBar(UI.pad - 26, y - 26, 52, 6);
+  txtLS(en, UI.pad, y - 8, UI.t.title, UI.gold, 'left', 900, 2.5);
+  if(ar) txt(ar, UI.pad, y + 24, UI.t.sub, UI.fgMut, 'left', 700);
+}
+
+/* The nav row. Buttons are md, evenly spaced, and always land on UI.navY --
+   so BACK is in the same place on every screen in the game. */
+function navRow(items){
+  var m = UI.btn.md, gap = UI.sp[5];
+  var total = items.length * m.w + (items.length - 1) * gap;
+  var x = (W - total) / 2;
+  for(var i = 0; i < items.length; i++){
+    var it = items[i];
+    uiButton(x + i * (m.w + gap), UI.navY, m.w, m.h, it[0], it[1], it[2], it[3]);
+  }
+}
+
+/* A label/value pair, the shape most of the stat readouts in this game want. */
+function statLine(x, y, label, value, col, align){
+  txtLS(label, x, y, UI.t.micro, UI.fgFaint, align || 'right', 800, 1.6);
+  txtLS(value, x, y + 20, UI.t.sub, col || UI.gold, align || 'right', 900, 0.5);
+}
+
 function uiButton(x, y, w, h, label, sub, fn, style){
   uiBtns.push({ x:x, y:y, w:w, h:h, fn:fn });
   var primary = style === 'primary', danger = style === 'danger', off = style === 'off';
-  ctx.fillStyle = off ? 'rgba(20,22,28,.7)'
-                : primary ? 'rgba(200,16,46,.92)'
-                : danger ? 'rgba(70,20,26,.85)' : 'rgba(18,21,28,.86)';
-  roundRect(x, y, w, h, 12); ctx.fill();
-  ctx.strokeStyle = primary ? 'rgba(255,220,150,.9)' : 'rgba(224,179,74,.45)';
-  ctx.lineWidth = 2;
-  roundRect(x, y, w, h, 12); ctx.stroke();
-  var base = primary ? 24 : 21;
-  var fit = Math.min(base, (w - 22) / (label.length * 0.62));
-  txt(label, x + w/2, y + (sub ? h/2 - 10 : h/2), Math.max(11, fit),
-      off ? C.dim : C.white, 'center', 900);
-  if(sub) txt(sub, x + w/2, y + h/2 + 15, 15, primary ? 'rgba(255,235,200,.9)' : C.gold, 'center', 700);
+  var r = 12;
+  // Only one control on a screen is red. Everything else is a dark panel with
+  // a hairline, so the eye lands on the action without hunting for it.
+  ctx.fillStyle = off ? 'rgba(14,18,26,.72)'
+                : primary ? UI.red
+                : danger ? 'rgba(74,18,26,.9)' : UI.ink2;
+  roundRect(x, y, w, h, r); ctx.fill();
+  if(primary){
+    var pg = ctx.createLinearGradient(0, y, 0, y + h);      // a little depth
+    pg.addColorStop(0, 'rgba(255,255,255,.16)');
+    pg.addColorStop(1, 'rgba(0,0,0,.18)');
+    ctx.fillStyle = pg; roundRect(x, y, w, h, r); ctx.fill();
+  }
+  ctx.strokeStyle = primary ? 'rgba(255,224,160,.85)'
+                  : off ? 'rgba(255,255,255,.06)' : UI.line;
+  ctx.lineWidth = 1.5;
+  roundRect(x, y, w, h, r); ctx.stroke();
+
+  var base = primary ? UI.t.head - 2 : UI.t.sub + 1;
+  var fit = Math.min(base, (w - UI.sp[5]) / (label.length * 0.66));
+  txtLS(label, x + w/2, y + (sub ? h/2 - 10 : h/2), Math.max(11, fit),
+        off ? UI.fgFaint : UI.fg, 'center', 900, 1.8);
+  if(sub) txt(sub, x + w/2, y + h/2 + 15, UI.t.body - 1,
+              off ? UI.fgFaint : primary ? 'rgba(255,236,206,.92)' : UI.gold, 'center', 700);
 }
 function flushUI(){
   if(!In.uiTap){ uiBtns = []; return; }
@@ -3619,25 +3726,55 @@ function flushUI(){
 }
 
 function screenBg(tint){
+  // The key art's ground, so the store page and the menu look like one thing:
+  // a warm pool off-centre, falling away to near-black at the corners.
   var g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, tint || '#141a26');
-  g.addColorStop(1, '#06080d');
+  g.addColorStop(0, tint || UI.ink2);
+  g.addColorStop(1, UI.ink0);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  // subtle sadu-style stripe
-  ctx.globalAlpha = 0.10;
-  for(var i=0;i<10;i++){
-    ctx.fillStyle = [C.red, C.green, C.gold, C.sand][i%4];
-    ctx.fillRect(0, 96 + i*3, W, 2);
-    ctx.fillRect(0, H-120 + i*3, W, 2);
+
+  var warm = ctx.createRadialGradient(W*0.68, H*0.42, 0, W*0.68, H*0.42, W*0.62);
+  warm.addColorStop(0, 'rgba(232,184,73,.10)');
+  warm.addColorStop(0.45, 'rgba(200,16,46,.05)');
+  warm.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = warm; ctx.fillRect(0, 0, W, H);
+
+  // Sadu weaving, the Kuwaiti motif -- but as two crisp bands aligned to the
+  // header and nav rows rather than ten faint lines floating mid-screen.
+  saduBand(0, UI.headY + 62, W, 0.5);
+  saduBand(0, UI.navY - 30, W, 0.5);
+
+  var vg = ctx.createRadialGradient(W/2, H/2, H*0.30, W/2, H/2, H*0.95);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,.55)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+}
+
+/* A woven sadu band: the running triangle pattern, in flag colours. */
+function saduBand(x, y, w, alpha){
+  ctx.save();
+  ctx.globalAlpha = alpha === undefined ? 0.6 : alpha;
+  ctx.fillStyle = UI.line;
+  ctx.fillRect(x, y, w, 1);
+  ctx.fillRect(x, y + 13, w, 1);
+  var cols = [UI.red, '#007a3d', UI.gold];
+  for(var i = 0; i * 22 < w; i++){
+    ctx.fillStyle = cols[i % 3];
+    ctx.globalAlpha = (alpha === undefined ? 0.6 : alpha) * 0.55;
+    ctx.beginPath();
+    ctx.moveTo(x + i * 22, y + 12);
+    ctx.lineTo(x + i * 22 + 11, y + 2);
+    ctx.lineTo(x + i * 22 + 22, y + 12);
+    ctx.closePath(); ctx.fill();
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 var demo = null;
 function drawDemoAhmed(dt){
   if(!demo){
     demo = makePlayer();
-    demo.x = 1010; demo.z = 0.72; demo.facing = -1;
+    demo.x = 726; demo.z = 0.86; demo.facing = -1;
     demo.cycle = 0.9;
   }
   demo.anim += dt;
@@ -3659,33 +3796,54 @@ function drawMenu(dt){
   screenBg('#1a2233');
   drawDemoAhmed(dt);
 
-  txt('AHMED', 92, 190, 118, C.gold, 'left', 900);
-  ctx.fillStyle = C.red; ctx.fillRect(96, 240, 320, 8);
-  ctx.fillStyle = C.green; ctx.fillRect(96, 252, 210, 8);
-  txt('KUWAIT FIGHTER', 98, 292, 30, C.white, 'left', 800);
-  txt('مقاتل الكويت — قتال حر وكيك بوكسينغ', 98, 328, 20, 'rgba(255,255,255,.66)', 'left', 700);
+  var x = UI.pad, lg = UI.btn.lg, md = UI.btn.md;
 
-  uiButton(92, 380, 300, 74, 'FIGHT', 'ابدأ القتال', function(){
+  // Identity block: the mark, the name, the line under it. Same furniture as
+  // the key art, so the poster and the title screen read as one design.
+  flagBar(x - 30, 128, 116, 8);
+  txtLS('AHMED', x, 176, UI.t.display, UI.gold, 'left', 900, 4);
+  ctx.fillStyle = UI.red;   ctx.fillRect(x, 232, 300, 7);
+  ctx.fillStyle = '#007a3d'; ctx.fillRect(x, 243, 196, 7);
+  txtLS('KUWAIT FIGHTER', x, 282, UI.t.head + 4, UI.fg, 'left', 800, 5);
+  txt('مقاتل الكويت — قتال حر وكيك بوكسينغ', x, 318, UI.t.sub, UI.fgMut, 'left', 700);
+
+  // One red control on the screen, and it is the one you came here to press.
+  uiButton(x, 366, lg.w, lg.h, 'FIGHT', 'ابدأ القتال', function(){
     G.state = 'map';
   }, 'primary');
-  uiButton(92, 468, 143, 60, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
-  uiButton(249, 468, 143, 60, 'HELP', 'شرح', function(){ G.state = 'help'; });
-  uiButton(92, 542, 143, 52, 'SETTINGS', 'الإعدادات', function(){ G.state = 'settings'; });
-  uiButton(249, 542, 143, 52, 'AWARDS', 'الإنجازات', function(){ G.state = 'achievements'; });
 
-  txt('XP ' + save.xp, W-40, 40, 22, C.gold, 'right', 900);
-  txt('BEST COMBO ' + save.best, W-40, 68, 15, C.dim, 'right', 700);
-  txt(diff().n, W-40, 92, 15, diff().col, 'right', 800);
-  if(save.survBest > 0) txt('SURVIVAL WAVE ' + save.survBest, W-40, 114, 15, C.hp, 'right', 700);
-  txt(save.achieved.length + '/' + ACHIEVEMENTS.length + ' AWARDS', W-40, 136, 15, C.dim, 'right', 700);
-  txt('Almuhallab Code — Kuwait', W/2, H-28, 14, 'rgba(255,255,255,.35)', 'center', 700);
+  var by = 366 + lg.h + UI.sp[5], bh = UI.btn.sm.h, bw = (lg.w - UI.sp[3]) / 2;
+  uiButton(x,                  by, bw, bh, 'TRAIN', 'تدريب',      function(){ G.state = 'upgrade'; });
+  uiButton(x + bw + UI.sp[3],  by, bw, bh, 'HELP',  'شرح',        function(){ G.state = 'help'; });
+  by += bh + UI.sp[3];
+  uiButton(x,                  by, bw, bh, 'SETTINGS', 'الإعدادات', function(){ G.state = 'settings'; });
+  uiButton(x + bw + UI.sp[3],  by, bw, bh, 'AWARDS',   'الإنجازات', function(){ G.state = 'achievements'; });
+
+  // Career panel, top right: the numbers had been loose text over artwork.
+  var pw = 260, px = W - UI.pad - pw + 30, py = 56;
+  var rows = [['CAREER XP', String(save.xp), UI.gold],
+              ['BEST COMBO', String(save.best), UI.fg],
+              ['DIFFICULTY', diff().n, diff().col],
+              ['AWARDS', save.achieved.length + ' / ' + ACHIEVEMENTS.length, UI.fg]];
+  if(save.survBest > 0) rows.push(['SURVIVAL WAVE', String(save.survBest), C.hp]);
+  var ph = UI.sp[5] + rows.length * 46;
+  panel(px, py, pw, ph, { flag:true, accent:true });
+  for(var i = 0; i < rows.length; i++){
+    var ry = py + UI.sp[4] + 14 + i * 46;
+    txtLS(rows[i][0], px + UI.sp[5], ry, UI.t.micro, UI.fgFaint, 'left', 800, 1.6);
+    txtLS(rows[i][1], px + pw - UI.sp[5], ry + 1, UI.t.sub, rows[i][2], 'right', 900, 0.5);
+    if(i < rows.length - 1){
+      ctx.fillStyle = UI.lineSoft;
+      ctx.fillRect(px + UI.sp[5], ry + 22, pw - UI.sp[6], 1);
+    }
+  }
+  txtLS('ALMUHALLAB CODE — KUWAIT', W/2, H - 34, UI.t.micro, UI.fgFaint, 'center', 700, 3);
 }
 
 /* -------------------------------------------------------------------- help */
 function drawHelp(){
   screenBg('#16202e');
-  txt('HOW TO PLAY', W/2, 62, 40, C.gold, 'center', 900);
-  txt('كيفية اللعب', W/2, 100, 20, C.white, 'center', 700);
+  screenHead('HOW TO PLAY', 'كيفية اللعب');
 
   var rows = [
     ['MOVE',    'Left half of the screen is a virtual stick. Up/down changes depth.', 'حرّك أحمد'],
@@ -3705,9 +3863,9 @@ function drawHelp(){
     txt(rows[i][1], 300, y+25, 15.5, C.white, 'left', 600);
     txt(rows[i][2], W-160, y+25, 15, 'rgba(255,255,255,.6)', 'right', 700);
   }
-  txt('Keyboard: WASD move · J punch · K kick · L block · Space rage · Esc pause',
-      W/2, H-88, 14, C.dim, 'center', 700);
-  uiButton(W/2-110, H-66, 220, 48, 'BACK', 'رجوع', function(){ G.state = 'menu'; });
+  txtLS('KEYBOARD:  WASD MOVE  ·  J PUNCH  ·  K KICK  ·  L BLOCK  ·  SPACE RAGE  ·  ESC PAUSE',
+        W/2, UI.navY - 30, UI.t.micro, UI.fgFaint, 'center', 700, 1.4);
+  navRow([['BACK', 'رجوع', function(){ G.state = 'menu'; }]]);
 }
 
 /* --------------------------------------------------------------------- map */
@@ -3715,15 +3873,14 @@ var MAP_POS = [[140,230],[380,230],[620,230],[860,230],[1100,230],
                [1100,430],[860,430],[620,430],[380,430]];
 function drawMap(){
   screenBg('#131b2a');
-  txt('CHOOSE YOUR FIGHT', W/2, 52, 34, C.gold, 'center', 900);
-  txt('اختر المعركة', W/2, 86, 18, C.white, 'center', 700);
-  txt('XP ' + save.xp, 40, 40, 22, C.gold, 'left', 900);
-  txt('BEST COMBO ' + save.best, 40, 64, 14, C.dim, 'left', 700);
+  screenHead('CHOOSE YOUR FIGHT', 'اختر المعركة');
+  statLine(W - UI.pad, UI.headY - 12, 'CAREER XP', String(save.xp), UI.gold);
   // abilities carried
+  txtLS('CARRYING', UI.pad, 138, UI.t.micro, UI.fgFaint, 'left', 800, 2);
   var order = ['vault','dashleap','powerkick','haymaker'];
   for(var ai=0; ai<order.length; ai++){
     var A = ABILITIES[order[ai]], got = hasAbility(order[ai]);
-    var ax = 42 + ai*46, ay = 92;
+    var ax = UI.pad + 84 + ai*46, ay = 122;
     ctx.fillStyle = got ? 'rgba(224,179,74,.20)' : 'rgba(255,255,255,.05)';
     roundRect(ax, ay, 38, 38, 8); ctx.fill();
     ctx.strokeStyle = got ? C.gold : 'rgba(255,255,255,.10)';
@@ -3733,7 +3890,7 @@ function drawMap(){
 
   // difficulty selector — tap to cycle
   var D = diff();
-  uiButton(W-286, 26, 246, 54, D.n, 'الصعوبة · ' + D.ar, function(){
+  uiButton(W - UI.pad - 246, 40, 246, 54, D.n, 'الصعوبة · ' + D.ar, function(){
     save.diff = (save.diff + 1) % 3; writeSave();
   });
   ctx.fillStyle = D.col;
@@ -3799,15 +3956,15 @@ function drawMap(){
   var survIdx = STAGES.length - 1;
   var survOpen = save.cleared.indexOf(MAP_POS.length - 1) >= 0;
   if(survOpen){
-    uiButton(W/2-190, H-78, 380, 58, 'SURVIVAL  ·  BEST WAVE ' + save.survBest,
+    uiButton(W/2-190, UI.navY - 76, 380, 58, 'SURVIVAL  ·  BEST WAVE ' + save.survBest,
              'البقاء — موجات لا تنتهي', function(){ openBrief(survIdx); }, 'primary');
   } else {
-    uiButton(W/2-190, H-78, 380, 58, 'SURVIVAL LOCKED', 'اهزم الوحش لفتحه',
+    uiButton(W/2-190, UI.navY - 76, 380, 58, 'SURVIVAL LOCKED', 'اهزم الوحش لفتحه',
              function(){ Sfx.hurt(); }, 'off');
   }
 
-  uiButton(40, H-78, 170, 58, 'BACK', 'رجوع', function(){ G.state = 'menu'; });
-  uiButton(W-210, H-78, 170, 58, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
+  navRow([['BACK', 'رجوع', function(){ G.state = 'menu'; }],
+          ['TRAIN', 'تدريب', function(){ G.state = 'upgrade'; }]]);
 }
 
 /* ------------------------------------------------------------------ briefing */
@@ -3882,35 +4039,34 @@ function drawBrief(dt){
     txt(rank, W-100, 516, 40, rankColor(rank), 'center', 900);
   }
 
-  uiButton(W/2-320, H-84, 300, 64, 'FIGHT', 'ابدأ', function(){ startStage(briefIdx); }, 'primary');
-  uiButton(W/2+20,  H-84, 140, 64, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
-  uiButton(W/2+180, H-84, 140, 64, 'BACK', 'رجوع', function(){ G.state = 'map'; });
+  navRow([['FIGHT', 'ابدأ',  function(){ startStage(briefIdx); }, 'primary'],
+          ['TRAIN', 'تدريب', function(){ G.state = 'upgrade'; }],
+          ['BACK',  'رجوع',  function(){ G.state = 'map'; }]]);
 }
 
 /* ------------------------------------------------------------------ settings */
 function drawSettings(){
   screenBg('#121a24');
-  txt('SETTINGS', W/2, 56, 36, C.gold, 'center', 900);
-  txt('الإعدادات', W/2, 90, 18, C.white, 'center', 700);
+  screenHead('SETTINGS', 'الإعدادات');
 
   var D = diff();
-  uiButton(W/2-300, 132, 600, 62, 'DIFFICULTY:  ' + D.n, 'الصعوبة · ' + D.ar, function(){
+  uiButton(W/2-304, 132, 608, 62, 'DIFFICULTY:  ' + D.n, 'الصعوبة · ' + D.ar, function(){
     save.diff = (save.diff + 1) % 3; writeSave();
   });
   ctx.fillStyle = D.col; roundRect(W/2-292, 142, 8, 42, 4); ctx.fill();
 
-  uiButton(W/2-300, 208, 292, 58, save.sound ? 'SOUND: ON' : 'SOUND: OFF', 'الصوت',
+  uiButton(W/2-304, 206, 292, 58, save.sound ? 'SOUND: ON' : 'SOUND: OFF', 'الصوت',
            function(){ Sfx.init(); Sfx.setOn(!save.sound); }, save.sound ? null : 'off');
-  uiButton(W/2+8, 208, 292, 58, save.music ? 'MUSIC: ON' : 'MUSIC: OFF', 'الموسيقى',
+  uiButton(W/2+12, 206, 292, 58, save.music ? 'MUSIC: ON' : 'MUSIC: OFF', 'الموسيقى',
            function(){ save.music = !save.music; writeSave(); if(!save.music) Music.stop(); },
            save.music ? null : 'off');
 
-  uiButton(W/2-300, 280, 292, 58, save.haptics ? 'VIBRATION: ON' : 'VIBRATION: OFF', 'الاهتزاز',
+  uiButton(W/2-304, 288, 292, 58, save.haptics ? 'VIBRATION: ON' : 'VIBRATION: OFF', 'الاهتزاز',
            function(){ save.haptics = !save.haptics; writeSave(); haptic(30); },
            save.haptics ? null : 'off');
-  uiButton(W/2+8, 280, 292, 58, isFullscreen() ? 'EXIT FULLSCREEN' : 'FULLSCREEN', 'ملء الشاشة',
+  uiButton(W/2+12, 288, 292, 58, isFullscreen() ? 'EXIT FULLSCREEN' : 'FULLSCREEN', 'ملء الشاشة',
            function(){ toggleFullscreen(); });
-  uiButton(W/2-300, 348, 600, 54, save.gfx ? 'GRAPHICS: REALISTIC' : 'GRAPHICS: FAST',
+  uiButton(W/2-304, 370, 608, 58, save.gfx ? 'GRAPHICS: REALISTIC' : 'GRAPHICS: FAST',
            save.gfx ? 'رسوم واقعية — أبطأ على الأجهزة القديمة' : 'رسوم سريعة',
            function(){ save.gfx = !save.gfx; save.gfxUser = true; writeSave(); },
            save.gfx ? null : 'off');
@@ -3930,21 +4086,21 @@ function drawSettings(){
 
   if(confirmWipe){
     txt('Erase all progress? This cannot be undone.', W/2, 540, 17, C.bad, 'center', 800);
-    uiButton(W/2-300, 556, 292, 48, 'YES, ERASE', 'نعم', function(){
+    uiButton(W/2-304, 556, 292, 52, 'YES, ERASE', 'نعم', function(){
       try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
       save.unlocked = 1; save.xp = 0; save.best = 0; save.cleared = []; save.ranks = {};
       save.survBest = 0; save.achieved = []; save.up = {pow:0,vit:0,spd:0,stam:0};
       for(var k in save.stats) save.stats[k] = 0;
       writeSave(); confirmWipe = false; G.state = 'menu';
     }, 'danger');
-    uiButton(W/2+8, 556, 292, 48, 'CANCEL', 'إلغاء', function(){ confirmWipe = false; });
+    uiButton(W/2+12, 556, 292, 52, 'CANCEL', 'إلغاء', function(){ confirmWipe = false; });
   } else {
-    uiButton(W/2-300, 540, 292, 48, 'RESET PROGRESS', 'مسح التقدم',
+    uiButton(W/2-304, 540, 292, 52, 'RESET PROGRESS', 'مسح التقدم',
              function(){ confirmWipe = true; }, 'danger');
-    uiButton(W/2+8, 540, 292, 48, 'ACHIEVEMENTS', 'الإنجازات',
+    uiButton(W/2+12, 540, 292, 52, 'ACHIEVEMENTS', 'الإنجازات',
              function(){ G.state = 'achievements'; });
   }
-  uiButton(W/2-110, H-62, 220, 48, 'BACK', 'رجوع', function(){ confirmWipe = false; G.state = 'menu'; });
+  navRow([['BACK', 'رجوع', function(){ confirmWipe = false; G.state = 'menu'; }]]);
 }
 var confirmWipe = false;
 
@@ -3966,11 +4122,11 @@ function drawAchievements(){
   checkAchievements();
   screenBg('#191426');
   var got = save.achieved.length;
-  txt('ACHIEVEMENTS', W/2, 50, 34, C.gold, 'center', 900);
+  screenHead('ACHIEVEMENTS', 'الإنجازات');
   // keep the count in its own LTR run — mixed into the Arabic string the bidi
   // algorithm swaps the two numbers round.
-  txt(got + ' / ' + ACHIEVEMENTS.length + ' UNLOCKED', W/2, 84, 17, C.white, 'center', 800);
-  txt('الإنجازات', W/2, 106, 15, 'rgba(255,255,255,.55)', 'center', 700);
+  statLine(W - UI.pad, UI.headY - 12, 'UNLOCKED',
+           got + ' / ' + ACHIEVEMENTS.length, UI.gold);
 
   for(var i=0;i<ACHIEVEMENTS.length;i++){
     var a = ACHIEVEMENTS[i];
@@ -3989,7 +4145,7 @@ function drawAchievements(){
     txt(a.ar, cx+330, cy+26, 14, have ? 'rgba(255,255,255,.65)' : 'rgba(255,255,255,.2)', 'right', 700);
     txt(a.d, cx+64, cy+56, 14, have ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.28)', 'left', 600);
   }
-  uiButton(W/2-110, H-64, 220, 50, 'BACK', 'رجوع', function(){ G.state = 'settings'; });
+  navRow([['BACK', 'رجوع', function(){ G.state = 'settings'; }]]);
 }
 
 /* ----------------------------------------------------------------- upgrades */
@@ -4004,29 +4160,29 @@ function upCost(lvl){ return 120 + lvl * 130; }
 
 function drawUpgrade(){
   screenBg('#1b1526');
-  txt('TRAINING CAMP', W/2, 54, 36, C.gold, 'center', 900);
-  txt('معسكر التدريب', W/2, 88, 18, C.white, 'center', 700);
-  txt('XP ' + save.xp, W/2, 118, 24, C.hp, 'center', 900);
+  screenHead('TRAINING CAMP', 'معسكر التدريب');
+  statLine(W - UI.pad, UI.headY - 12, 'SPENDABLE XP', String(save.xp), C.hp);
 
+  var rowX = UI.pad, rowW = W - UI.pad * 2;
   for(var i=0;i<UPS.length;i++){
-    var u = UPS[i], lvl = save.up[u.k], y = 148 + i*84;
-    ctx.fillStyle = 'rgba(255,255,255,.05)';
-    roundRect(150, y, W-300, 72, 12); ctx.fill();
-    txt(u.n, 180, y+26, 21, C.gold, 'left', 900);
-    txt(u.ar, 180, y+50, 15, 'rgba(255,255,255,.6)', 'left', 700);
-    txt(u.d, 330, y+28, 15, C.dim, 'left', 600);
+    var u = UPS[i], lvl = save.up[u.k], y = 156 + i*76;
+    panel(rowX, y, rowW, 64, { r:12 });
+    txtLS(u.n, rowX + UI.sp[5], y+24, UI.t.sub, UI.gold, 'left', 900, 1.8);
+    txt(u.ar, rowX + UI.sp[5], y+46, UI.t.label + 1, UI.fgMut, 'left', 700);
+    txt(u.d, rowX + 190, y+26, UI.t.body - 1, UI.fgMut, 'left', 600);
 
-    for(var s=0;s<5;s++){
-      ctx.fillStyle = s < lvl ? C.gold : 'rgba(255,255,255,.14)';
-      roundRect(330 + s*34, y+44, 28, 11, 4); ctx.fill();
+    for(var s=0;s<5;s++){                                   // level pips
+      ctx.fillStyle = s < lvl ? UI.gold : 'rgba(255,255,255,.12)';
+      roundRect(rowX + 190 + s*34, y+42, 28, 9, 4); ctx.fill();
     }
     var cost = upCost(lvl);
     if(lvl >= 5){
-      txt('MAX', W-220, y+36, 21, C.hp, 'center', 900);
+      txtLS('MAX', rowX + rowW - 96, y+34, UI.t.sub, C.hp, 'center', 900, 2);
     } else {
       var afford = save.xp >= cost;
       (function(key, c, ok){
-        uiButton(W-300, y+13, 130, 46, ok ? ('▲ ' + c) : ('' + c), null, function(){
+        // A price, not a stat -- the unit says what the number is for.
+        uiButton(rowX + rowW - 170, y+9, 150, 46, (ok ? '▲ ' : '') + c + ' XP', null, function(){
           if(save.xp >= c && save.up[key] < 5){
             save.xp -= c; save.up[key]++; writeSave(); Sfx.power(); checkAchievements();
           } else { Sfx.hurt(); }
@@ -4035,31 +4191,27 @@ function drawUpgrade(){
     }
   }
   // abilities are found, not bought — shown here so the two are never confused
-  txt('ABILITIES — تُكتسب في الميدان', 150, 578, 14, C.dim, 'left', 800);
+  txtLS('ABILITIES — FOUND, NEVER BOUGHT', rowX, 542, UI.t.micro, UI.fgFaint, 'left', 800, 2);
   var ord = ['vault','dashleap','powerkick','haymaker'];
+  var aw = (rowW - UI.sp[3]*3) / 4;
   for(var ai=0; ai<ord.length; ai++){
     var A = ABILITIES[ord[ai]], got = hasAbility(ord[ai]);
-    var ax = 150 + ai*245;
-    ctx.fillStyle = got ? 'rgba(224,179,74,.14)' : 'rgba(255,255,255,.04)';
-    roundRect(ax, 592, 230, 52, 9); ctx.fill();
-    ctx.strokeStyle = got ? 'rgba(224,179,74,.5)' : 'rgba(255,255,255,.08)';
-    ctx.lineWidth = 2; roundRect(ax, 592, 230, 52, 9); ctx.stroke();
-    txt(got ? A.icon : '?', ax+26, 618, 20, got ? C.gold : C.dim, 'center', 900);
-    txt(got ? A.n : 'UNDISCOVERED', ax+52, 610, 14, got ? C.white : C.dim, 'left', 800);
-    txt(got ? A.ar : '—', ax+52, 630, 13, got ? C.gold : 'rgba(255,255,255,.2)', 'left', 700);
+    var ax = rowX + ai*(aw + UI.sp[3]);
+    panel(ax, 554, aw, 46, { r:10, accent:got, raised:got });
+    txt(got ? A.icon : '?', ax+24, 577, 20, got ? UI.gold : UI.fgFaint, 'center', 900);
+    txtLS(got ? A.n : 'UNDISCOVERED', ax+46, 570, UI.t.label, got ? UI.fg : UI.fgFaint, 'left', 800, 1.2);
+    txt(got ? A.ar : '—', ax+46, 589, UI.t.label, got ? UI.gold : UI.fgFaint, 'left', 700);
   }
 
-  uiButton(40, H-62, 180, 48, 'BACK', 'رجوع', function(){
-    G.state = save.unlocked > 0 ? 'map' : 'menu';
-  });
-  uiButton(W-260, H-62, 220, 48, 'MENU', 'القائمة', function(){ G.state = 'menu'; });
+  navRow([['BACK', 'رجوع', function(){ G.state = save.unlocked > 0 ? 'map' : 'menu'; }],
+          ['MENU', 'القائمة', function(){ G.state = 'menu'; }]]);
 }
 
 /* -------------------------------------------------------------- pause/end */
 function drawPause(){
   ctx.fillStyle = 'rgba(4,6,11,.82)';
   ctx.fillRect(0, 0, W, H);
-  txt('PAUSED', W/2, 190, 56, C.gold, 'center', 900);
+  txtLS('PAUSED', W/2, 190, UI.t.title + 14, UI.gold, 'center', 900, 8);
   txt('إيقاف مؤقت', W/2, 236, 22, C.white, 'center', 700);
   uiButton(W/2-150, 286, 300, 62, 'RESUME', 'متابعة', function(){ G.paused = false; }, 'primary');
   uiButton(W/2-150, 360, 300, 52, 'RESTART STAGE', 'إعادة المرحلة', function(){
@@ -4088,7 +4240,7 @@ function drawClear(dt){
   G.endT += dt;
   screenBg('#132318');
   var F = G.fight;
-  txt('STAGE CLEAR', W/2, 120, 56, C.gold, 'center', 900);
+  txtLS('STAGE CLEAR', W/2, 120, UI.t.title + 14, UI.gold, 'center', 900, 8);
   txt('تم اجتياز المرحلة', W/2, 168, 22, C.white, 'center', 700);
   txt(F.st.name, W/2, 208, 22, C.hp, 'center', 800);
 
@@ -4140,7 +4292,7 @@ function drawClear(dt){
 function drawGameOver(dt){
   G.endT += dt;
   screenBg('#251016');
-  txt('KNOCKED OUT', W/2, 180, 60, C.bad, 'center', 900);
+  txtLS('KNOCKED OUT', W/2, 180, UI.t.title + 18, C.bad, 'center', 900, 8);
   txt('خسرت الجولة', W/2, 232, 24, C.white, 'center', 700);
   var F = G.fight;
   if(F.st.survival){
