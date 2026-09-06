@@ -212,6 +212,12 @@ def assign_detail(obj, idx):
         if band_lo <= c.z <= band_hi and abs(c.x) < 0.20 and abs(c.y) < 0.16:
             poly.material_index = idx["band"]
             continue
+        # Sportswear stripe down the outer seam of each trouser leg: only the
+        # faces that look straight out to the side, so it stays a narrow line.
+        if (poly.material_index == idx["pants"] and 0.13 < c.z < 0.985
+                and abs(poly.normal.x) > 0.965 and abs(c.x) > 0.16):
+            poly.material_index = idx["band"]
+            continue
         if c.z < head.z - 0.09:
             continue
         d = c - head

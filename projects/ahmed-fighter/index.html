@@ -744,11 +744,67 @@ function bone(x,y,a1,l1,a2,l2,r0,r1,r2,col,muscle,sleeve){
       ctx.lineTo(sx - Math.cos(n2)*(sr+1.4), sy - Math.sin(n2)*(sr+1.4));
       ctx.stroke();
     }
+    if(GFX_HIGH){
+      ctx.fillStyle = 'rgba(255,255,255,.09)';        // deltoid under the sleeve
+      ctx.beginPath();
+      ctx.ellipse(x + (ex-x)*0.22, y + (ey-y)*0.22, r0*0.42, r0*0.72, a1, 0, 6.2832);
+      ctx.fill();
+    }
     ao(sx, sy, sr*2.0, 0.20);
   }
   if(r1 > 6) ao(ex, ey, r1*2.1, 0.26);
   tube(ex, ey, hx, hy, r1, r2, col);
+  if(muscle && GFX_HIGH && r1 > 6){
+    // forearm: a tendon line and a brachioradialis swell under the elbow
+    var fa = a1 + a2, fn = fa - Math.PI/2;
+    var fx = ex + Math.cos(fa)*l2*0.34, fy = ey + Math.sin(fa)*l2*0.34;
+    ctx.save();
+    ctx.globalAlpha = 0.20;
+    tube(ex + Math.cos(fa)*l2*0.06, ey + Math.sin(fa)*l2*0.06, fx, fy, r1*0.36, r1*0.62, shade(col, 0.16));
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(0,0,0,.16)'; ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(ex + Math.cos(fn)*r1*0.25 + Math.cos(fa)*l2*0.30, ey + Math.sin(fn)*r1*0.25 + Math.sin(fa)*l2*0.30);
+    ctx.lineTo(hx + Math.cos(fn)*r2*0.35 - Math.cos(fa)*l2*0.12, hy + Math.sin(fn)*r2*0.35 - Math.sin(fa)*l2*0.12);
+    ctx.stroke();
+  }
   return { x:hx, y:hy, ex:ex, ey:ey };
+}
+
+/* Sportswear detail for a trouser leg: a stripe down the outer seam, a crease
+   at the knee and a cuff at the ankle. Called after bone() and before shoe(),
+   so the shoe covers the stripe's end and the waistband covers its start. */
+function trouserStripe(x,y,a1,l1,a2,l2,r0,r1,r2,col){
+  var kx = x + Math.cos(a1)*l1, ky = y + Math.sin(a1)*l1;
+  var ex = kx + Math.cos(a1+a2)*l2, ey = ky + Math.sin(a1+a2)*l2;
+  var n1 = a1 - Math.PI/2, n2 = a1 + a2 - Math.PI/2;       // toward the front of the leg
+  var o1 = r0*0.26, o2 = r1*0.26, o3 = r2*0.30;
+  var sx = x + Math.cos(a1)*l1*0.16, sy = y + Math.sin(a1)*l1*0.16;
+  var fx = kx + Math.cos(a1+a2)*l2*0.86, fy = ky + Math.sin(a1+a2)*l2*0.86;
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = col; ctx.lineWidth = 2.1; ctx.globalAlpha = 0.86;
+  ctx.beginPath();
+  ctx.moveTo(sx + Math.cos(n1)*o1, sy + Math.sin(n1)*o1);
+  ctx.lineTo(kx + Math.cos(n1)*o2*0.7 + Math.cos(n2)*o2*0.3, ky + Math.sin(n1)*o2*0.7 + Math.sin(n2)*o2*0.3);
+  ctx.lineTo(fx + Math.cos(n2)*o3, fy + Math.sin(n2)*o3);
+  ctx.stroke();
+  if(GFX_HIGH){
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,.26)'; ctx.lineWidth = 1.3;      // knee crease
+    ctx.beginPath();
+    ctx.moveTo(kx + Math.cos(n1)*r1*0.55, ky + Math.sin(n1)*r1*0.55);
+    ctx.quadraticCurveTo(kx + Math.cos(a1)*3, ky + Math.sin(a1)*3,
+                         kx - Math.cos(n1)*r1*0.55, ky - Math.sin(n1)*r1*0.55);
+    ctx.stroke();
+    var cx = kx + Math.cos(a1+a2)*l2*0.80, cy = ky + Math.sin(a1+a2)*l2*0.80;
+    ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1.4;  // ankle cuff
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(n2)*r2*0.95, cy + Math.sin(n2)*r2*0.95);
+    ctx.lineTo(cx - Math.cos(n2)*r2*0.95, cy - Math.sin(n2)*r2*0.95);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function shoe(end, ang, colr){
@@ -984,6 +1040,8 @@ function drawFighter(f, camX){
   // ---- rear leg -----------------------------------------------------------
   var rf = bone(-6, hipY, legRear[0], 34, legRear[1], 32,
                 12.0*bd, 8.6*bd, 6.0*bd, legColDark, true);
+  if(f.pants) trouserStripe(-6, hipY, legRear[0], 34, legRear[1], 32,
+                            12.0*bd, 8.6*bd, 6.0*bd, shade(band, -0.28));
   shoe(rf, legRear[0] + legRear[1], f.pants ? shade(shoeCol, -0.30) : shade(bot, -0.5));
 
   // ---- rear arm (behind the torso) ---------------------------------------
@@ -1020,6 +1078,17 @@ function drawFighter(f, camX){
     ctx.beginPath(); ctx.moveTo(-9, -3); ctx.quadraticCurveTo(3, 1, 12, -2); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,.07)';                                 // sheen
     ctx.beginPath(); ctx.ellipse(12, -34, 7, 14, -0.25, 0, 6.2832); ctx.fill();
+    if(f.patch){                                                              // flag patch on the pec
+      var px = 7.5, py = -40.5;
+      ctx.fillStyle = '#007a3d'; ctx.fillRect(px, py,       7.5, 1.6);
+      ctx.fillStyle = '#f3f5f8'; ctx.fillRect(px, py + 1.6, 7.5, 1.6);
+      ctx.fillStyle = '#c8102e'; ctx.fillRect(px, py + 3.2, 7.5, 1.6);
+      ctx.fillStyle = '#101216';
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px+2.4, py+1.6); ctx.lineTo(px+2.4, py+3.2);
+      ctx.lineTo(px, py+4.8); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 0.6;
+      ctx.strokeRect(px, py, 7.5, 4.8);
+    }
     ctx.fillStyle = 'rgba(0,0,0,.26)';                                       // armhole
     ctx.beginPath(); ctx.ellipse(20, -40, 5, 10, -0.3, 0, 6.2832); ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1.6;          // hem
@@ -1059,6 +1128,8 @@ function drawFighter(f, camX){
   // ---- lead leg -----------------------------------------------------------
   var lf = bone(6, hipY+4, legLead[0], 34, legLead[1], 32,
                 12.8*bd, 9.2*bd, 6.4*bd, legCol, true);
+  if(f.pants) trouserStripe(6, hipY+4, legLead[0], 34, legLead[1], 32,
+                            12.8*bd, 9.2*bd, 6.4*bd, band);
   shoe(lf, legLead[0] + legLead[1], shoeCol);
 
   // ---- head ---------------------------------------------------------------
@@ -1134,6 +1205,12 @@ function drawFighter(f, camX){
       ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1.3;
       ctx.beginPath();                                        // quiff sweep
       ctx.moveTo(hx-4, hy-18); ctx.quadraticCurveTo(hx+6, hy-21, hx+14, hy-14); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.09)'; ctx.lineWidth = 1.1;
+      ctx.beginPath();                                        // a second, lower strand
+      ctx.moveTo(hx-7, hy-14); ctx.quadraticCurveTo(hx+3, hy-17.5, hx+11, hy-12); ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 1.2;
+      ctx.beginPath();                                        // roots along the hairline
+      ctx.moveTo(hx+13.5, hy-9.5); ctx.quadraticCurveTo(hx+11, hy-13.2, hx+3, hy-13.2); ctx.stroke();
       ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(hx-6, hy-14); ctx.quadraticCurveTo(hx+3, hy-18, hx+11, hy-13); ctx.stroke();
@@ -1860,6 +1937,7 @@ function makePlayer(){
   p.chainStep = 0; p.chainT = 0; p.dashT = 0; p.rage = 0;
   p.tee = true; p.quiff = true; p.watch = true;
   p.pants = true;          // long trousers rather than fight shorts
+  p.patch = true;          // Kuwait flag on the chest
   p.build = 1.12;          // thicker limbs: the shirt is a muscle fit
   p.hair = '#1e150f'; p.beard = 'rgba(24,17,12,.94)';
   return p;
