@@ -128,7 +128,7 @@ var SAVE_KEY = 'ahmed_kuwait_fighter_v1';
 var save = { unlocked:1, xp:0, xpTotal:0, best:0, visited:[0], at:0, up:{box:0,kick:0,vit:0,spd:0,stam:0}, sound:true,
              abilities:[], gates:{},
              cleared:[], diff:1, ranks:{}, survBest:0, haptics:true, music:true,
-             gfx:true, gfxUser:false, achieved:[], stats:{kills:0, crates:0, parries:0, champClears:0,
+             gfx:2, gfxUser:false, achieved:[], stats:{kills:0, crates:0, parries:0, champClears:0,
                                  fights:0, clears:0, time:0} };
 function loadSave(){
   try{
@@ -150,7 +150,9 @@ function loadSave(){
         save.survBest = Math.max(0, d.survBest|0);
         save.haptics = d.haptics !== false;
         save.music = d.music !== false;
-        save.gfx = d.gfx !== false;
+        // booleans from older saves: true -> cinema, false -> fast
+        save.gfx = (d.gfx === true || d.gfx === undefined) ? 2
+                 : (d.gfx === false ? 0 : clamp(d.gfx|0, 0, 2));
         save.gfxUser = !!d.gfxUser;
         save.achieved = Array.isArray(d.achieved) ? d.achieved : [];
         if(d.stats) for(var sk in save.stats) save.stats[sk] = Math.max(0, d.stats[sk]|0);
@@ -519,7 +521,7 @@ function clearTaps(){ In.tap.punch = In.tap.kick = In.tap.block = In.tap.special
 /* ------------------------------------------------------------ post-processing
    A tiled noise pattern and a split-tone gradient, both cheap: the noise is
    generated once and painted as a single fillRect. */
-var noisePat = null, gradeGrad = null;
+var noisePat = null, gradeGrad = null, vignGrad = null, vignH = 0;
 function grainPattern(){
   if(noisePat) return noisePat;
   var c = document.createElement('canvas');
@@ -536,18 +538,179 @@ function grainPattern(){
   noisePat = ctx.createPattern(c, 'repeat');
   return noisePat;
 }
+/* ==========================================================================
+   THE POST CHAIN
+   What an engine does after the scene is drawn and before you see it. The
+   order matters and is the same order Unreal runs: bloom is gathered from the
+   rendered frame, the film curve is applied, the grade sits on top of that,
+   and grain goes last because grain is the lens, not the scene.
+
+     1  bloom       bright things bleed into what is next to them
+     2  tone map    exposure, the S-curve, and the film stock's saturation
+     3  toe         black stops being black
+     4  shoulder    white stops clipping
+     5  grade       the stage's colour identity
+     6  vignette    the lens, so it sits on top of the grade
+     7  grain       the film the whole thing was shot on
+
+   Bloom is the expensive one, so it is gathered at quarter resolution -- the
+   downsample IS the first blur, which is why every engine does it that way --
+   and the bright-pass and blur are handed to the GPU as one canvas filter.
+   ========================================================================== */
+var CAN_FILTER = (function(){
+  try {
+    var c = document.createElement('canvas').getContext('2d');
+    c.filter = 'blur(2px)';
+    return c.filter === 'blur(2px)';
+  } catch(e){ return false; }
+})();
+
+/* The scale baked into the main context by resize(): logical units -> device
+   pixels. Offscreen buffers have to match it or they are the wrong size on
+   every display but the one they were written on. */
+function canvasScale(){ return cv.width / W; }
+
+/* The far-layer buffer, at half resolution -- the downsample is free blur, so
+   the filter only has to add the rest. */
+var farCv = null, farCtx = null, farW = 0, farH = 0;
+function farBlurred(T, camX){
+  // Half the canvas's REAL resolution, not half of 1280 -- the context carries
+  // a devicePixelRatio scale, so a fixed logical size would render this layer
+  // at a quarter resolution on a retina phone and at double on a small one.
+  var k = canvasScale() * 0.5;
+  var w = Math.max(64, Math.round(W * k)), h = Math.max(48, Math.round((FLOOR_TOP + 30) * k));
+  if(!farCv){ farCv = document.createElement('canvas'); farCtx = farCv.getContext('2d'); }
+  if(w !== farW || h !== farH){ farCv.width = farW = w; farCv.height = farH = h; }
+  var g = farCtx, saveCtx = ctx;
+  g.setTransform(k, 0, 0, k, 0, 0);
+  g.clearRect(0, 0, W, FLOOR_TOP + 30);
+  ctx = g;                       // the backdrop draws through the same name
+  try { T.far(camX); } finally { ctx = saveCtx; }
+  // Blur inside the buffer rather than on the composite: a filter's radius is
+  // in the destination's own pixels, and the buffer's are the ones whose size
+  // we know. haze is in logical units, and one buffer pixel is 1/k of those.
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.filter = 'blur(' + (RIG.haze * k).toFixed(2) + 'px)';
+  g.globalCompositeOperation = 'copy';
+  g.drawImage(farCv, 0, 0);
+  g.filter = 'none';
+  g.globalCompositeOperation = 'source-over';
+  ctx.drawImage(farCv, 0, 0, W, FLOOR_TOP + 30);
+}
+
+var bloomCv = null, bloomCtx = null, bloomW = 0, bloomH = 0, bloomTick = 0, bloomWarm = false;
+function bloomBuffer(){
+  var k = canvasScale() / 6;
+  var w = Math.max(48, Math.round(W * k)), h = Math.max(28, Math.round(H * k));
+  if(!bloomCv){ bloomCv = document.createElement('canvas'); bloomCtx = bloomCv.getContext('2d'); }
+  if(w !== bloomW || h !== bloomH){
+    bloomCv.width = bloomW = w; bloomCv.height = bloomH = h; bloomWarm = false;
+  }
+  return bloomCtx;
+}
+
+/* Gather the bright end of the frame and add it back over itself.
+   `brightness(b) contrast(c)` is an affine ramp: x -> (x*b - 0.5)*c + 0.5.
+   Solving it so that BLOOM_T maps to 0 and full white maps to 1 gives an
+   exact highlight threshold -- everything below the knee is driven to black
+   and drops out, everything above keeps its relative brightness. Getting this
+   wrong is how bloom turns into fog: a threshold that lets mid-tones through
+   adds a white veil to the whole frame instead of a glow around the lights. */
+//   want:  (x*b - .5)*c + .5  =  0 at x = T,  and  1 at x = 1
+//   slope: (1-T)*b*c = 1          =>  b*c = 1/(1-T)
+//   knee:  (T*b - .5)*c = -.5     =>  c = 1 + 2T/(1-T)
+var BLOOM_T = 0.84;                                   // highlight threshold
+var BLOOM_C = 1 + 2*BLOOM_T/(1 - BLOOM_T);            // contrast  ~8.1
+var BLOOM_B = 1/((1 - BLOOM_T) * BLOOM_C);            // brightness ~0.56
+
+function bloomPass(amount){
+  if(!GFX_CINE || amount <= 0.02) return;
+  var b = bloomBuffer();
+  // Gathering is the expensive half -- it reads the frame back. Bloom is the
+  // lowest-frequency thing on screen, so it is gathered on alternate frames
+  // and the buffer reused in between. Nobody has ever seen bloom update at
+  // half rate; everybody notices the frames it costs.
+  bloomTick++;
+  if(bloomTick & 1 || !bloomWarm){
+    bloomWarm = true;
+    b.setTransform(1,0,0,1,0,0);
+    b.filter = 'none';
+    b.globalCompositeOperation = 'copy';
+    b.drawImage(cv, 0, 0, bloomW, bloomH);    // the downsample is the first blur
+    // threshold + spread, in one pass over a thirty-sixth of the pixels
+    b.filter = 'brightness(' + BLOOM_B.toFixed(3) + ') contrast(' + BLOOM_C.toFixed(2) +
+               ') saturate(1.3) blur(1.8px)';
+    b.drawImage(bloomCv, 0, 0);
+    b.filter = 'none';
+    b.globalCompositeOperation = 'source-over';
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = clamp(amount, 0, 1);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(bloomCv, 0, 0, W, H);
+  ctx.restore();
+}
+
+/* The tone map proper. One full-frame pass through the GPU's own colour
+   pipeline: exposure sets where mid grey lands, contrast is the S-curve
+   pivoting on it, and saturation is the film stock. Drawing the canvas onto
+   itself with `copy` is a legal self-blit -- the source is snapshotted first
+   -- and it is the only way to get a real per-pixel curve at this price. */
+function toneMap(R){
+  if(!GFX_CINE) return;
+  var e = R.exposure || 1, c = R.contrast || 1, sat = R.saturate || 1;
+  if(Math.abs(e-1) < 0.01 && Math.abs(c-1) < 0.01 && Math.abs(sat-1) < 0.01) return;
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.filter = 'brightness(' + e + ') contrast(' + c + ') saturate(' + sat + ')';
+  ctx.globalCompositeOperation = 'copy';
+  ctx.drawImage(cv, 0, 0);
+  ctx.restore();
+}
+
 function postProcess(){
   if(!GFX_HIGH) return;
-  // split-tone grade — plain source-over is far cheaper than soft-light and
-  // reads nearly the same at these alphas
-  if(!gradeGrad){
-    gradeGrad = ctx.createLinearGradient(0, 0, 0, H);
-    gradeGrad.addColorStop(0,   'rgba(84,132,235,.13)');
-    gradeGrad.addColorStop(0.5, 'rgba(150,150,175,.02)');
-    gradeGrad.addColorStop(1,   'rgba(255,150,66,.12)');
+  var R = RIG;
+
+  // 1 — bloom, gathered from the frame as it stands
+  bloomPass(R.bloom);
+
+  // 2 — the curve: exposure, contrast, saturation
+  toneMap(R);
+
+  // 3 — the toe. `lighten` only ever raises a pixel, so a dark tinted fill
+  // lifts the blacks to that tint and leaves everything above it untouched.
+  // That is the bottom of the film curve, and it is one fill.
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighten';
+  ctx.fillStyle = R.toe; ctx.fillRect(0, 0, W, H);
+  // 4 — the shoulder. `darken` only ever lowers a pixel, so a near-white
+  // tinted fill stops highlights at that colour instead of clipping to paper.
+  ctx.globalCompositeOperation = 'darken';
+  ctx.fillStyle = R.shoulder; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
+  // 5 — the stage's grade, cached per rig
+  if(R._grad === undefined || R._gradH !== H){
+    var gg = ctx.createLinearGradient(0, 0, 0, H);
+    for(var i=0;i<R.grade.length;i++) gg.addColorStop(R.grade[i][0], R.grade[i][1]);
+    R._grad = gg; R._gradH = H;
   }
-  ctx.fillStyle = gradeGrad; ctx.fillRect(0, 0, W, H);
-  // film grain
+  ctx.fillStyle = R._grad; ctx.fillRect(0, 0, W, H);
+
+  // 6 — vignette. A lens effect, so it goes after the grade rather than
+  // being graded itself.
+  if(!vignGrad || vignH !== H){
+    vignGrad = ctx.createRadialGradient(W/2, H/2, H*0.34, W/2, H/2, H*0.92);
+    vignGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vignGrad.addColorStop(1, 'rgba(0,0,0,.42)');
+    vignH = H;
+  }
+  ctx.fillStyle = vignGrad; ctx.fillRect(0, 0, W, H);
+
+  // 7 — film grain
   ctx.save();
   ctx.globalAlpha = 0.10;
   ctx.translate((gameTime*37) % 128 - 128, (gameTime*23) % 128 - 128);
@@ -558,6 +721,37 @@ function postProcess(){
 
 /* ----------------------------------------------------------------- fx pools */
 var parts = [], nums = [], rings = [], shake = 0, hitstop = 0, flashScreen = 0;
+
+/* ==========================================================================
+   THE CAMERA
+   Engines do not hold a fight at a fixed distance. A heavy landing punches the
+   lens in toward the impact and eases back out, and between hits the frame
+   never sits perfectly still -- a slow, low-frequency drift, the operator
+   breathing. Both are tiny. Both are the difference between watching a fight
+   and watching a diagram of one.
+   ========================================================================== */
+var camPunch = 0, camPunchX = 0, camPunchY = 0, camSway = 0;
+function punchIn(amount, x, y){
+  if(amount <= camPunch) return;
+  camPunch = amount; camPunchX = x; camPunchY = y;
+}
+function updateCam(dt){
+  camPunch = Math.max(0, camPunch - dt * 3.4);
+  camSway += dt;
+}
+/* Applied around the impact point so the push reads as moving toward the hit
+   rather than as the whole scene growing. */
+function applyCam(){
+  // A hair of overscan so the sway never drags an empty edge into frame.
+  ctx.translate(W/2, H/2); ctx.scale(1.008, 1.008); ctx.translate(-W/2, -H/2);
+  var sw = Math.sin(camSway * 0.63) * 1.5, sw2 = Math.cos(camSway * 0.41) * 1.1;
+  ctx.translate(sw, sw2);
+  if(camPunch > 0.001){
+    var k = ease(clamp(camPunch, 0, 1)), z = 1 + k * 0.045;
+    var px = clamp(camPunchX, W*0.2, W*0.8), py = clamp(camPunchY, H*0.2, H*0.8);
+    ctx.translate(px, py); ctx.scale(z, z); ctx.translate(-px, -py);
+  }
+}
 
 function ring(x, y, col, r0, r1, life){
   rings.push({ x:x, y:y, col:col, r0:r0, r1:r1, life:life || 0.30, max:life || 0.30 });
@@ -598,6 +792,7 @@ function updateFx(dt){
   }
   shake = Math.max(0, shake - dt*46);
   flashScreen = Math.max(0, flashScreen - dt*3.2);
+  updateCam(dt);
 }
 function drawFx(camX){
   var i;
@@ -687,8 +882,96 @@ function makeEnemy(type, x, z, tier){
    thing for flat fills on slower devices.
    ========================================================================== */
 var LIGHT = { x:-0.48, y:-0.88 };      // key light direction (normalised)
-var GFX_HIGH = true;                   // mirrors save.gfx, refreshed per frame
+/* Three tiers, the way an engine ships scalability settings rather than one
+   on/off switch.
+
+     CINEMA  the full post chain -- bloom, the tone curve, depth of field.
+             These read the rendered frame back per-pixel, which is cheap on a
+             GPU and ruinous without one, so the tier can be taken away without
+             taking the lighting with it.
+     HIGH    the lighting rig: rim lights, lit volumes, lit props, directional
+             contact shadows, the grade, the camera. All ordinary 2D drawing.
+     FAST    flat fills.
+
+   `save.gfx` is 2 / 1 / 0. Old saves stored a boolean, so `true` migrates to
+   CINEMA and `false` to FAST. */
+function gfxTier(){
+  var g = save.gfx;
+  if(g === true) return 2;
+  if(g === false) return 0;
+  return clamp(g|0, 0, 2);
+}
+var GFX_HIGH = true;                   // tiers 1 and 2, refreshed per frame
+var GFX_CINE = true;                   // tier 2 only
 var EDGE = 'rgba(6,9,15,.55)', EDGE_W = 1.7;
+
+/* ==========================================================================
+   THE LIGHTING RIG
+   A game engine does not shade a character with one hardcoded gradient; it
+   lights a scene, and every surface answers to that scene's lights. This is
+   the same idea in 2D. Each stage owns a rig -- a key, a fill, a rim, an
+   exposure and a film response -- and every fighter, prop and post pass reads
+   from it. Change the rig and the whole stage changes with it, which is why
+   Marina at sunset and Failaka at night cannot look like the same fight in a
+   different wallpaper.
+
+     key    the sun, or the strip light overhead. Direction + colour.
+     fill   the sky bouncing back into the shadow side. Always cooler, always
+            weaker; this is what stops shadows going dead black.
+     rim    a light behind the fighter catching the silhouette edge. This is
+            the single biggest reason engine characters read as solid rather
+            than as stickers, so every stage has one.
+     toe    where black actually sits. Film never reaches 0,0,0 -- it lands on
+            a tinted near-black, and lifting the toe is most of what makes an
+            image look photographed instead of drawn.
+     shoulder  where white rolls off. Highlights bend toward the key's colour
+            instead of clipping to paper white.
+     bloom  how much the bright end bleeds.
+     haze   distance blur on the far layer -- depth of field, cheaply.
+   ========================================================================== */
+var RIG_DEFAULT = {
+  key:  { x:-0.48, y:-0.88, col:'#fff4de', power:1.00 },
+  fill: { col:'#7d93c8', power:0.34 },
+  rim:  { col:'#ffe3ad', power:0.55 },
+  toe:      'rgba(14,18,30,.34)',
+  shoulder: 'rgba(255,247,232,.90)',
+  grade: [[0,'rgba(84,132,235,.13)'], [0.5,'rgba(150,150,175,.02)'], [1,'rgba(255,150,66,.12)']],
+  bloom: 0.40, exposure: 1.03, contrast: 1.12, saturate: 1.10, haze: 2.0
+};
+var RIG = RIG_DEFAULT;
+
+/* Set once per frame from the stage's theme, so nothing downstream has to
+   know which stage it is drawing -- it just asks the rig. */
+function useRig(r){
+  RIG = r || RIG_DEFAULT;
+  LIGHT.x = RIG.key.x; LIGHT.y = RIG.key.y;
+  if(!RIG._lit) RIG._lit = {};
+}
+
+/* How one base colour answers this rig: the five stops a lit surface needs,
+   worked out once per colour per stage rather than per limb per frame. The
+   rig does not change during a fight, so neither do these, and a fight draws
+   the same two dozen colours a few hundred times a second. */
+function litOf(col){
+  if(!RIG._lit) RIG._lit = {};
+  var c = RIG._lit[col];
+  if(c) return c;
+  var K = RIG.key, FL = RIG.fill, RM = RIG.rim;
+  c = {
+    key:   mix(shade(col, 0.30 * K.power), K.col, 0.24),
+    keyR:  mix(shade(col, 0.34 * K.power), K.col, 0.26),
+    core:  shade(col, -0.36),
+    coreR: shade(col, -0.46),
+    fill:  mix(shade(col, -0.22), FL.col, 0.34 * FL.power),
+    rim1:  mix(col, RM.col, 0.66 * RM.power),
+    rim2:  mix(col, RM.col, 0.38 * RM.power),
+    rimS1: mix(col, RM.col, 0.26 * RM.power),
+    rimS2: mix(col, RM.col, 0.13 * RM.power),
+    mid:   shade(col, -0.02)
+  };
+  RIG._lit[col] = c;
+  return c;
+}
 
 function capsule(x1,y1,x2,y2,r1,r2){
   var n = Math.atan2(y2-y1, x2-x1) + Math.PI/2;
@@ -708,10 +991,19 @@ function tube(x1,y1,x2,y2,r1,r2,col,bounce){
     if(nx*LIGHT.x + ny*LIGHT.y < 0){ nx = -nx; ny = -ny; }      // face the light
     var mx = (x1+x2)/2, my = (y1+y2)/2, r = Math.max(r1,r2) * 1.05;
     var g = ctx.createLinearGradient(mx + nx*r, my + ny*r, mx - nx*r, my - ny*r);
-    g.addColorStop(0,    shade(col,  0.30));
-    g.addColorStop(0.52, col);
-    g.addColorStop(0.88, shade(col, -0.32));
-    g.addColorStop(1,    shade(col, bounce === undefined ? -0.14 : bounce));
+    // Stop 0 faces the key, stop 1 is the silhouette edge in shadow. Between
+    // them the surface turns away from one light and into the next.
+    var L = litOf(col);
+    g.addColorStop(0,    L.key);
+    g.addColorStop(0.50, col);
+    g.addColorStop(0.78, L.core);                                // core shadow
+    g.addColorStop(0.88, bounce === undefined ? L.fill
+                       : mix(shade(col, bounce), RIG.fill.col, 0.34 * RIG.fill.power));
+    // The rim is a band, not a stop. A single stop at 1.0 lands entirely under
+    // the edge stroke and vanishes -- which is exactly what happened the first
+    // time. Peaking at 0.95 leaves the bright edge visible either side of it.
+    g.addColorStop(0.95, L.rim1);
+    g.addColorStop(1,    L.rim2);
     ctx.fillStyle = g; ctx.fill();
   }
   ctx.strokeStyle = EDGE; ctx.lineWidth = EDGE_W; ctx.stroke();
@@ -724,22 +1016,41 @@ function litShape(path, col, cx, cy, r){
   else {
     var g = ctx.createRadialGradient(cx + LIGHT.x*r*0.5, cy + LIGHT.y*r*0.5, r*0.10,
                                      cx, cy, r*1.18);
-    g.addColorStop(0,    shade(col,  0.34));
-    g.addColorStop(0.55, shade(col, -0.02));
-    g.addColorStop(1,    shade(col, -0.42));
+    var LS = litOf(col);
+    g.addColorStop(0,    LS.keyR);
+    g.addColorStop(0.55, LS.mid);
+    g.addColorStop(0.82, LS.coreR);
+    g.addColorStop(0.94, LS.rimS1);
+    g.addColorStop(1,    LS.rimS2);
     ctx.fillStyle = g; ctx.fill();
   }
   ctx.strokeStyle = EDGE; ctx.lineWidth = EDGE_W; ctx.stroke();
 }
 
 /* Contact darkening where two forms meet. */
+/* Occlusion is light that did not arrive, so it is the colour of the light
+   that would have -- the ambient fill, minus itself. Pure black occlusion is
+   the tell that a scene was drawn rather than lit, and it is why the joints
+   used to read as holes rather than as creases. The offset puts the crease
+   on the side the key cannot reach. */
 function ao(x, y, r, amt){
   if(!GFX_HIGH) return;
-  var g = ctx.createRadialGradient(x, y, r*0.15, x, y, r);
-  g.addColorStop(0, 'rgba(0,0,0,' + (amt || 0.32) + ')');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
+  var a = amt || 0.32;
+  var ox = -LIGHT.x * r * 0.18, oy = -LIGHT.y * r * 0.18;
+  var c = aoCol();
+  var g = ctx.createRadialGradient(x + ox, y + oy, r*0.15, x + ox, y + oy, r);
+  g.addColorStop(0, 'rgba(' + c + ',' + a + ')');
+  g.addColorStop(1, 'rgba(' + c + ',0)');
   ctx.fillStyle = g;
-  circle(x, y, r); ctx.fill();
+  circle(x + ox, y + oy, r); ctx.fill();
+}
+function aoCol(){
+  if(RIG._ao) return RIG._ao;
+  var c = rgbOf(RIG.fill.col) || [0,0,0];
+  // a fifth of the fill: dark enough to read as contact, coloured enough to
+  // belong to the same scene as everything else
+  RIG._ao = ((c[0]*0.2)|0) + ',' + ((c[1]*0.2)|0) + ',' + ((c[2]*0.2)|0);
+  return RIG._ao;
 }
 function softLine(x1,y1,x2,y2,w,col){
   ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
@@ -1146,13 +1457,22 @@ function drawFighter(f, camX){
   var X = sp.x - camX, Y = sp.y, S = sp.s;
   var groundY = FLOOR_TOP + f.z*FLOOR_H;
 
-  // ---- soft contact shadow ------------------------------------------------
-  var lift = clamp(1 - f.h/260, 0.35, 1);
+  // ---- contact shadow -----------------------------------------------------
+  // Cast away from the key, tight and dark at the feet, wide and weak in the
+  // air. Two ellipses: the hard contact patch and the soft penumbra. A shadow
+  // is never black -- it is the fill light minus the key, so it takes the
+  // rig's fill colour and only the contact patch approaches neutral.
+  var lift = clamp(1 - f.h/260, 0.30, 1);
   if(GFX_HIGH){
-    ctx.globalAlpha = 0.34 * lift; ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.ellipse(X, groundY + 4, 30*S, 9*S, 0, 0, 6.2832); ctx.fill();
-    ctx.globalAlpha = 0.20 * lift;
-    ctx.beginPath(); ctx.ellipse(X, groundY + 5, 42*S, 13*S, 0, 0, 6.2832); ctx.fill();
+    var off = -LIGHT.x * 26 * S * (1.25 - lift*0.55);   // longer when airborne
+    var soft = 1 + (1 - lift) * 1.35;
+    ctx.globalAlpha = 0.30 * lift;
+    ctx.fillStyle = shade(RIG.fill.col, -0.72);
+    ctx.beginPath(); ctx.ellipse(X + off*0.6, groundY + 4, 36*S*soft, 11*S*soft, 0, 0, 6.2832); ctx.fill();
+    // the contact patch itself: only where the foot actually meets the ground
+    ctx.globalAlpha = 0.34 * lift * lift;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(X, groundY + 3, 17*S, 5.2*S, 0, 0, 6.2832); ctx.fill();
     ctx.globalAlpha = 1;
   } else {
     ctx.globalAlpha = 0.30 * lift; ctx.fillStyle = '#000';
@@ -1612,6 +1932,33 @@ function shade(hex, amt){
   _shadeCache[key] = out; _shadeN++;
   return out;
 }
+/* Blend two colours. Lights have colour, so shading has to be able to push a
+   surface toward a light rather than only lighter or darker. */
+var _mixCache = {}, _mixN = 0;
+function mix(a, b, t){
+  var key = a + '~' + b + '~' + t;
+  var hit = _mixCache[key];
+  if(hit !== undefined) return hit;
+  var A = rgbOf(a), B = rgbOf(b);
+  if(!A || !B) return a;
+  var out = 'rgb(' + ((A[0] + (B[0]-A[0])*t)|0) + ',' +
+                     ((A[1] + (B[1]-A[1])*t)|0) + ',' +
+                     ((A[2] + (B[2]-A[2])*t)|0) + ')';
+  if(_mixN > 3000){ _mixCache = {}; _mixN = 0; }
+  _mixCache[key] = out; _mixN++;
+  return out;
+}
+function rgbOf(hex){
+  if(hex[0] === '#'){
+    var h = hex.slice(1);
+    if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    var n = parseInt(h, 16);
+    return [(n>>16)&255, (n>>8)&255, n&255];
+  }
+  var m = hex.match(/-?\d+/g);
+  return (m && m.length >= 3) ? [+m[0], +m[1], +m[2]] : null;
+}
+
 function shadeCalc(hex, amt){
   var r, g, b;
   if(hex[0] === '#'){
@@ -1762,6 +2109,12 @@ function hashv(i, seed){
 var THEME = {
   souq: {
     sky:['#f2c98a','#e79a5c','#d97b4e'], ground:['#a5713f','#7c5230'], fog:'rgba(240,190,130,.28)',
+    // Late afternoon. The sun is low and to the left, coming down the length of
+    // the market; the open sky above fills the shadow side cold.
+    rig:{ key:{x:-0.62,y:-0.72,col:'#ffd9a0',power:1.05}, fill:{col:'#7c9ad2',power:0.40},
+          rim:{col:'#ffd28a',power:0.62}, toe:'rgba(26,16,10,.20)', shoulder:'rgba(255,246,226,.92)',
+          grade:[[0,'rgba(96,150,235,0.094)'],[0.5,'rgba(180,170,170,0.014)'],[1,'rgba(255,146,52,0.108)']],
+          bloom:0.22, exposure:1.05, contrast:1.10, saturate:1.14, haze:2.4 },
     clouds:{ n:5, y:70, spread:70, w:170, col:'#ffe6c0', alpha:0.30, par:0.03, speed:2.5 },
     floor:function(camX){
       groundGrid(camX, 132, 'rgba(46,22,6,.40)', 1.6, 5);        // worn flagstones
@@ -1810,6 +2163,12 @@ var THEME = {
   },
   gym: {
     sky:['#2a3240','#1d2430','#161b25'], ground:['#4a3b2c','#332a20'], fog:'rgba(120,150,190,.10)',
+    // Strip lights in the ceiling: hard, straight down, colourless. Indoors the
+    // shadow side gets almost nothing back, so the rim does the separating.
+    rig:{ key:{x:-0.18,y:-0.98,col:'#e8f0ff',power:1.12}, fill:{col:'#546070',power:0.24},
+          rim:{col:'#bcd6ff',power:0.72}, toe:'rgba(13,16,23,.22)', shoulder:'rgba(240,246,255,.88)',
+          grade:[[0,'rgba(120,175,235,0.101)'],[0.55,'rgba(150,155,170,0.014)'],[1,'rgba(255,168,88,0.079)']],
+          bloom:0.16, exposure:1.02, contrast:1.14, saturate:1.06, haze:1.2 },
     floor:function(camX){
       // Training mat: a taped square you fight inside, plus the mat seams.
       var g = ctx.createLinearGradient(0, gy(0.05), 0, gy(1));
@@ -1863,6 +2222,12 @@ var THEME = {
   },
   towers: {
     sky:['#0b1430','#152244','#26365e'], ground:['#2a3552','#1a2136'], fog:'rgba(90,140,220,.14)',
+    // Night over the bay. Moonlight is weak; the towers behind throw the real
+    // light, which is why the rim is the brightest thing on a fighter here.
+    rig:{ key:{x:-0.44,y:-0.90,col:'#b8cfff',power:0.78}, fill:{col:'#3a5590',power:0.46},
+          rim:{col:'#7fb6ff',power:0.86}, toe:'rgba(8,14,32,.26)', shoulder:'rgba(226,238,255,.86)',
+          grade:[[0,'rgba(70,130,245,0.122)'],[0.5,'rgba(110,120,165,0.022)'],[1,'rgba(255,150,70,0.086)']],
+          bloom:0.3, exposure:1.00, contrast:1.16, saturate:1.18, haze:2.0 },
     floor:function(camX){
       // Waterfront promenade: big slabs, damp near the sea wall, lamp pools.
       groundGrid(camX, 176, 'rgba(10,16,34,.42)', 1.6, 4);
@@ -1930,6 +2295,12 @@ var THEME = {
   },
   failaka: {
     sky:['#ffb36b','#f07a5e','#8e4a6d'], ground:['#c3a173','#8e7350'], fog:'rgba(255,170,120,.24)',
+    // The sun going down over the water, behind and to the right. Everything is
+    // backlit, so this is the strongest rim in the game and the deepest colour.
+    rig:{ key:{x:0.55,y:-0.74,col:'#ffb877',power:1.00}, fill:{col:'#9a5f8e',power:0.50},
+          rim:{col:'#ff9a5c',power:0.95}, toe:'rgba(32,13,29,.22)', shoulder:'rgba(255,236,214,.90)',
+          grade:[[0,'rgba(90,140,225,0.086)'],[0.45,'rgba(200,140,140,0.022)'],[1,'rgba(255,120,60,0.122)']],
+          bloom:0.32, exposure:1.06, contrast:1.12, saturate:1.20, haze:2.8 },
     clouds:{ n:6, y:110, spread:80, w:190, col:'#ffd2a8', alpha:0.32, par:0.03, speed:2 },
     floor:function(camX){
       // Beach: damp sand darkens toward the tide line at the back.
@@ -1990,6 +2361,12 @@ var THEME = {
   },
   desert: {
     sky:['#101a3a','#20264d','#3d3155'], ground:['#c2a274','#8b7047'], fog:'rgba(120,110,180,.16)',
+    // Moon overhead, fire at ground level. Two lights of opposite temperature,
+    // which is the oldest trick there is for making a night scene readable.
+    rig:{ key:{x:-0.30,y:-0.94,col:'#c8d4ff',power:0.70}, fill:{col:'#4a4470',power:0.44},
+          rim:{col:'#ff9d4a',power:0.80}, toe:'rgba(14,13,35,.26)', shoulder:'rgba(240,236,255,.84)',
+          grade:[[0,'rgba(96,104,215,0.130)'],[0.5,'rgba(130,120,170,0.022)'],[1,'rgba(255,136,54,0.062)']],
+          bloom:0.26, exposure:0.96, contrast:1.14, saturate:1.06, haze:2.2 },
     floor:function(camX){
       groundRipples(camX, '#f6e2b6', 12, 7, 2.1);                  // dune sand
       groundPatches(camX, '#57431f', 14, 230, 44, 1.0);           // scrub and stones
@@ -2061,6 +2438,12 @@ var THEME = {
   },
   fishmarket: {
     sky:['#8fbfd8','#c9d9dc','#e6d9bd'], ground:['#9aa6a4','#6e7877'], fog:'rgba(200,225,235,.20)',
+    // Overcast morning. The whole sky is the light source: soft key, enormous
+    // fill, barely any rim, and shadows that never reach black.
+    rig:{ key:{x:-0.34,y:-0.94,col:'#f2f8fb',power:0.72}, fill:{col:'#b6cdd8',power:0.78},
+          rim:{col:'#dceaf0',power:0.34}, toe:'rgba(48,58,66,.20)', shoulder:'rgba(250,253,255,.94)',
+          grade:[[0,'rgba(140,195,230,0.094)'],[0.55,'rgba(180,190,190,0.022)'],[1,'rgba(230,180,120,0.079)']],
+          bloom:0.14, exposure:1.03, contrast:1.11, saturate:1.02, haze:2.0 },
     clouds:{ n:7, y:60, spread:80, w:200, col:'#ffffff', alpha:0.34, par:0.04, speed:3 },
     floor:function(camX){
       // Wet market concrete: hosed down, so it holds the sky in puddles.
@@ -2130,10 +2513,16 @@ var THEME = {
   },
   marina: {
     sky:['#120b26','#231245','#3a1c4e'], ground:['#3b3350','#241f33'], fog:'rgba(160,90,220,.14)',
+    // Neon. Nothing here is white -- the signs behind the promenade are the
+    // brightest source, so the silhouette edge burns magenta.
+    rig:{ key:{x:-0.40,y:-0.90,col:'#9d7fd4',power:0.74}, fill:{col:'#4a2f6e',power:0.46},
+          rim:{col:'#e46cff',power:0.92}, toe:'rgba(20,8,34,.26)', shoulder:'rgba(246,230,255,.86)',
+          grade:[[0,'rgba(120,80,240,0.115)'],[0.5,'rgba(140,110,170,0.022)'],[1,'rgba(60,215,200,0.086)']],
+          bloom:0.34, exposure:1.00, contrast:1.16, saturate:1.22, haze:2.2 },
     floor:function(camX){
       groundPlanks(camX, 14, 'rgba(12,8,22,.42)', 2.4);           // boardwalk decking
       ctx.save();                                                 // neon spill on the boards
-      var cols = ['rgba(255,60,140,.16)','rgba(70,220,255,.16)','rgba(180,90,255,.14)'];
+      var cols = ['rgba(255,60,140,.16)','rgba(70,220,255,.16)','rgba(180,90,255,.16)'];
       groundRow(camX, 0.26, 300, 0.55, function(x, i, y, sc){
         var lg = ctx.createRadialGradient(x, y, 4, x, y, 170 * sc);
         lg.addColorStop(0, cols[((i % 3) + 3) % 3]);
@@ -2200,6 +2589,12 @@ var THEME = {
   },
   highway: {
     sky:['#f0a15e','#c9683f','#6d3b4a'], ground:['#4a4a52','#2c2c33'], fog:'rgba(255,160,110,.20)',
+    // Dusk on the Jahra road: an orange sky ahead, headlights behind, and grey
+    // asphalt underneath giving almost nothing back.
+    rig:{ key:{x:-0.58,y:-0.78,col:'#ffb070',power:0.96}, fill:{col:'#6b7a92',power:0.40},
+          rim:{col:'#fff2d8',power:0.84}, toe:'rgba(20,17,26,.24)', shoulder:'rgba(255,244,226,.90)',
+          grade:[[0,'rgba(88,142,235,0.101)'],[0.5,'rgba(170,150,140,0.022)'],[1,'rgba(255,140,64,0.115)']],
+          bloom:0.28, exposure:1.03, contrast:1.13, saturate:1.14, haze:2.6 },
     clouds:{ n:5, y:80, spread:60, w:210, col:'#ffcda0', alpha:0.26, par:0.03, speed:2 },
     floor:function(camX){
       groundLanes(camX, '#e8e2d4');                               // asphalt markings
@@ -2262,6 +2657,12 @@ var THEME = {
   },
   arena: {
     sky:['#161020','#241633','#120c1c'], ground:['#5b4a63','#38293f'], fog:'rgba(180,108,224,.12)',
+    // The title fight, lit like one: hard spots straight down, two more behind,
+    // a crowd that returns almost nothing, and blacks allowed to go black.
+    rig:{ key:{x:-0.10,y:-0.99,col:'#ffffff',power:1.08}, fill:{col:'#5b3a72',power:0.26},
+          rim:{col:'#ffffff',power:1.00}, toe:'rgba(7,5,12,.26)', shoulder:'rgba(255,255,255,.94)',
+          grade:[[0,'rgba(150,88,240,0.108)'],[0.5,'rgba(140,120,150,0.022)'],[1,'rgba(255,150,80,0.094)']],
+          bloom:0.36, exposure:1.04, contrast:1.20, saturate:1.10, haze:1.4 },
     floor:function(camX){
       // Championship canvas: bordered mat, centre circle, corner marks.
       var g = ctx.createLinearGradient(0, gy(0.06), 0, gy(1));
@@ -2559,11 +2960,19 @@ function skyClouds(camX, c){
 
 function drawStageBg(theme, camX){
   var T = THEME[theme] || THEME.souq;
+  useRig(T.rig);
   var g = ctx.createLinearGradient(0, 0, 0, FLOOR_TOP + 30);
   g.addColorStop(0, T.sky[0]); g.addColorStop(0.55, T.sky[1]); g.addColorStop(1, T.sky[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, FLOOR_TOP + 30);
   if(T.clouds && GFX_HIGH) skyClouds(camX, T.clouds);
-  T.far(camX);
+  // Depth of field. The far layer sits past the focal plane, so it goes soft.
+  // The trap here is that a canvas filter applies to every draw call, not to
+  // the layer -- setting it and then running T.far() blurs the whole frame
+  // once per rectangle the backdrop draws, which measured at 1fps. So the
+  // layer is rendered once into a half-size buffer and blurred on the way
+  // back: one filtered composite regardless of how much the backdrop draws.
+  if(GFX_CINE && RIG.haze > 0.5) farBlurred(T, camX);
+  else T.far(camX);
   ctx.fillStyle = T.fog; ctx.fillRect(0, 0, W, FLOOR_TOP);
   T.mid(camX);
   // A second, weaker pass of the same haze so the mid layer sits between the
@@ -2605,20 +3014,29 @@ function drawStageBg(theme, camX){
 // Each location gets its own tonal centre so the loop does not wear thin.
 var MUSIC_ROOT = { souq:73.42, gym:82.41, fishmarket:69.30, towers:65.41,
                    marina:77.78, failaka:87.31, highway:61.74, desert:73.42, arena:98.00 };
-/* Realistic shading is many more paths per frame. Sample real frame times once
-   per session during a fight and drop to fast mode if the device can't hold up
-   — unless the player has chosen a mode themselves. */
+/* Scalability, measured rather than guessed. The game starts on the top tier
+   and walks down one step at a time until the device holds frame rate: first
+   the post chain goes (it reads the frame back per-pixel, which is nearly free
+   with a GPU and ruinous without one), then the lighting rig. Each step gets
+   its own fresh sample, because dropping a tier changes what there is to
+   measure. A player who has set the tier themselves is never overridden. */
 var perfN = 0, perfSum = 0, perfDone = false;
+var GFX_NAMES = ['FAST', 'REALISTIC', 'CINEMATIC'];
+var GFX_AR    = ['رسوم سريعة', 'رسوم واقعية', 'رسوم سينمائية'];
 function samplePerf(rdt){
-  if(perfDone || !GFX_HIGH || save.gfxUser) return;
+  if(perfDone || save.gfxUser || gfxTier() === 0) return;
   if(G.state !== 'fight' || G.paused || G.intro > 0) return;
   perfN++; perfSum += rdt;
-  if(perfN < 150) return;
-  perfDone = true;
-  if(perfN / perfSum < 45){
-    save.gfx = false; writeSave();
-    toast('GRAPHICS: FAST', 'رسوم سريعة — يمكن تغييرها', 'ADJUSTED FOR THIS DEVICE');
-  }
+  if(perfN < 110) return;
+  var fps = perfN / perfSum;
+  perfN = 0; perfSum = 0;
+  // 46 is the knee: above it the fight reads smooth, below it the hit frames
+  // start to land late, which matters more than any amount of lighting.
+  if(fps >= 46){ perfDone = true; return; }
+  var t = gfxTier() - 1;
+  save.gfx = t; writeSave();
+  if(t === 0) perfDone = true;
+  toast('GRAPHICS: ' + GFX_NAMES[t], GFX_AR[t] + ' — يمكن تغييرها', 'ADJUSTED FOR THIS DEVICE');
 }
 
 var gameTime = 0;
@@ -2675,7 +3093,7 @@ function startStage(idx, entry, keep){
     bestCombo:0, done:false, hint:'', hintT:0
   };
   parts.length = 0; nums.length = 0; rings.length = 0;
-  shake = 0; hitstop = 0; flashScreen = 0;
+  shake = 0; hitstop = 0; flashScreen = 0; camPunch = 0; bloomWarm = false;
   G.state = 'fight'; G.paused = false; G.intro = keep ? 1.1 : 2.2; G.slow = 0;
   if(!keep) bump('fights');
   writeSave();
@@ -2801,6 +3219,7 @@ function applyHit(att, def, a){
     haptic(def.isPlayer ? (a.heavy ? 48 : 24) : (a.heavy ? 20 : 10));
     shake = Math.max(shake, a.heavy ? 13 : 7);
     hitstop = Math.max(hitstop, a.heavy ? 0.075 : 0.04);
+    punchIn(a.heavy ? 1 : 0.45, hx - (G.fight ? G.fight.camX : 0), hy);
 
     if(att.isPlayer){
       att.rage = clamp(att.rage + dmg * 0.85, 0, 100);
@@ -3122,22 +3541,50 @@ function updateItems(F, dt){
     if(it.life <= 0) F.items.splice(i, 1);
   }
 }
+/* A box lit by the rig: key down one side, fill on the other, rim on the
+   shadow edge. Props shaded by a different rule than the fighters standing
+   next to them is the fastest way to make a scene look assembled rather than
+   lit, so they answer to the same lights. */
+function litBox(x, y, w, h, r, col, gloss){
+  var lx = LIGHT.x >= 0 ? x + w : x, rx = LIGHT.x >= 0 ? x : x + w;
+  var L = litOf(col);
+  var g = ctx.createLinearGradient(lx, y, rx, y + h*0.35);
+  g.addColorStop(0,    L.key);
+  g.addColorStop(0.45, col);
+  g.addColorStop(0.84, L.core);
+  g.addColorStop(1,    L.rimS1);
+  roundRect(x, y, w, h, r); ctx.fillStyle = g; ctx.fill();
+  if(gloss && GFX_HIGH){
+    // one tight specular band along the lit edge
+    ctx.save(); roundRect(x, y, w, h, r); ctx.clip();
+    ctx.globalAlpha = 0.30 * RIG.key.power;
+    ctx.fillStyle = RIG.key.col;
+    ctx.fillRect(LIGHT.x >= 0 ? x + w - w*0.16 : x, y + h*0.06, w*0.16, h*0.72);
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+}
+
 function drawProp(pr, camX){
   var s = 0.94 + pr.z*0.40;
   var X = pr.x - camX, Y = FLOOR_TOP + pr.z*FLOOR_H;
   if(pr.shakeT > 0) X += rand(-3, 3);
+  var off = GFX_HIGH ? -LIGHT.x * 20 * s : 0;
+  ctx.globalAlpha = 0.15; ctx.fillStyle = GFX_HIGH ? shade(RIG.fill.col, -0.72) : '#000';
+  ctx.beginPath(); ctx.ellipse(X + off, Y+4, 32*s, 10*s, 0, 0, 6.2832); ctx.fill();
   ctx.globalAlpha = 0.28; ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.ellipse(X, Y+3, 26*s, 8*s, 0, 0, 6.2832); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(X, Y+3, 20*s, 6*s, 0, 0, 6.2832); ctx.fill();
   ctx.globalAlpha = 1;
   ctx.save(); ctx.translate(X, Y); ctx.scale(s, s);
   if(pr.kind === 'crate'){
-    ctx.fillStyle = '#8a6236'; roundRect(-26, -50, 52, 50, 5); ctx.fill();
+    if(GFX_HIGH) litBox(-26, -50, 52, 50, 5, '#8a6236');
+    else { ctx.fillStyle = '#8a6236'; roundRect(-26, -50, 52, 50, 5); ctx.fill(); }
     ctx.strokeStyle = '#5e4224'; ctx.lineWidth = 4;
     roundRect(-26, -50, 52, 50, 5); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-24,-48); ctx.lineTo(24,-2);
     ctx.moveTo(24,-48); ctx.lineTo(-24,-2); ctx.stroke();
   } else {
-    ctx.fillStyle = '#5d6874'; roundRect(-22, -56, 44, 56, 12); ctx.fill();
+    if(GFX_HIGH) litBox(-22, -56, 44, 56, 12, '#5d6874', true);
+    else { ctx.fillStyle = '#5d6874'; roundRect(-22, -56, 44, 56, 12); ctx.fill(); }
     ctx.fillStyle = 'rgba(0,0,0,.25)'; roundRect(-22, -56, 12, 56, 12); ctx.fill();
     ctx.fillStyle = C.red; ctx.fillRect(-22, -40, 44, 8);
     ctx.fillStyle = C.green; ctx.fillRect(-22, -22, 44, 8);
@@ -3197,7 +3644,7 @@ function openGate(F, g){
   var y = FLOOR_TOP + GATE_Z*FLOOR_H;
   burst(g.at, y - 44, 26, C.gold, 340);
   ring(g.at, y - 44, '#ffe9a8', 12, 118, 0.45);
-  shake = Math.max(shake, 18); flashScreen = 0.55;
+  shake = Math.max(shake, 18); flashScreen = 0.55; punchIn(1.25, W/2, H*0.5);
   Sfx.power(); haptic(60);
   if(g.reward && g.reward.ability){
     var A = ABILITIES[g.reward.ability];
@@ -3783,6 +4230,7 @@ function drawFight(){
   var F = G.fight;
   ctx.save();
   if(shake > 0.4) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+  applyCam();
 
   drawStageBg(F.st.theme, F.camX);
 
@@ -3837,13 +4285,12 @@ function drawFight(){
   (THEME[F.st.theme] || THEME.souq).fore(F.camX);
   ctx.restore();
 
-  // vignette
-  var vg = ctx.createRadialGradient(W/2, H/2, H*0.34, W/2, H/2, H*0.92);
-  vg.addColorStop(0, 'rgba(0,0,0,0)');
-  vg.addColorStop(1, 'rgba(0,0,0,.42)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  // The scene is finished. Everything from here is lens and film, in the
+  // order a camera would apply it.
+  postProcess();
 
-  // low health: the edges pulse red
+  // low health: the edges pulse red. After the grade, because it is a warning
+  // the player must read, not a colour the stage gets a vote on.
   var hpR = F.player.hp / F.player.maxHp;
   if(hpR < 0.3 && !F.player.dead){
     var lg = ctx.createRadialGradient(W/2, H/2, H*0.30, W/2, H/2, H*0.85);
@@ -3851,8 +4298,6 @@ function drawFight(){
     lg.addColorStop(1, 'rgba(200,16,46,' + (0.22 + Math.sin(gameTime*7)*0.14).toFixed(3) + ')');
     ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
   }
-
-  postProcess();
 
   if(flashScreen > 0){
     ctx.globalAlpha = clamp(flashScreen, 0, 1) * 0.5;
@@ -4377,10 +4822,12 @@ function drawSettings(){
            save.haptics);
   toggleBtnS(W/2+12, 288, 292, isFullscreen() ? 'EXIT FULLSCREEN' : 'FULLSCREEN', 'ملء الشاشة',
            function(){ toggleFullscreen(); }, true);
-  toggleBtnS(W/2-304, 370, 608, save.gfx ? 'GRAPHICS: REALISTIC' : 'GRAPHICS: FAST',
-           save.gfx ? 'رسوم واقعية — أبطأ على الأجهزة القديمة' : 'رسوم سريعة',
-           function(){ save.gfx = !save.gfx; save.gfxUser = true; writeSave(); },
-           save.gfx);
+  // Three tiers, so it cycles rather than toggles.
+  var gt = gfxTier();
+  toggleBtnS(W/2-304, 370, 608, 'GRAPHICS: ' + GFX_NAMES[gt],
+           GFX_AR[gt] + (gt === 2 ? ' — أبطأ على الأجهزة القديمة' : ''),
+           function(){ save.gfx = (gfxTier() + 1) % 3; save.gfxUser = true; writeSave(); },
+           gt > 0);
 
   // lifetime stats
   panel(W/2-300, 440, 600, 96, { r:12 });
@@ -4532,8 +4979,9 @@ function drawPause(){
   toggleBtn(bx + hw + UI.sp[3], ty, hw, isFullscreen() ? 'WINDOWED' : 'FULLSCREEN', null,
             function(){ toggleFullscreen(); }, true);
   ty += bh + UI.sp[3];
-  toggleBtn(bx, ty, bw, save.gfx ? 'GRAPHICS: REALISTIC' : 'GRAPHICS: FAST', null,
-            function(){ save.gfx = !save.gfx; save.gfxUser = true; writeSave(); }, save.gfx);
+  toggleBtn(bx, ty, bw, 'GRAPHICS: ' + GFX_NAMES[gfxTier()], null,
+            function(){ save.gfx = (gfxTier() + 1) % 3; save.gfxUser = true; writeSave(); },
+            gfxTier() > 0);
   uiButton(bx, ty + bh + UI.sp[5], bw, bh, 'QUIT TO MAP', 'خروج', function(){
     Music.stop(); G.state = 'map'; G.paused = false; G.fight = null;
   }, 'danger');
@@ -4687,7 +5135,8 @@ function frame(now){
   if(G.slow > 0){ G.slow -= rdt; dt = rdt * 0.34; }
   gameTime += dt;
   G.t += dt;
-  GFX_HIGH = save.gfx !== false;
+  GFX_HIGH = gfxTier() >= 1;
+  GFX_CINE = gfxTier() >= 2 && CAN_FILTER;
   samplePerf(rdt);
 
   readInput();

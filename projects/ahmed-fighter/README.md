@@ -416,18 +416,81 @@ read as noise.
 
 ## Graphics
 
-Everything is still drawn in code — there are no image files — but the fighters
-are rendered as lit volumes rather than flat shapes:
+Everything is still drawn in code — there are no image files — but the game is
+**lit** rather than coloured in. The approach is the one a 3D engine takes,
+carried over to a 2D canvas: a scene owns lights, every surface answers to
+them, and the finished frame goes through a post chain before you see it.
 
-- **One key light** from the upper left drives every gradient in the scene.
-- **Limbs** are shaded as cylinders, tapering along their length, with a muscle
-  belly on the upper bone and ambient occlusion at every joint.
-- **Heads** are built from a skull path with a brow ridge, eye, nose, mouth, ear,
-  cheekbone and jaw shading, hair drawn as a lit mass, and jaw stubble.
-- **Gloves** have a thumb, seam, specular highlight and wrist cuff; **shoes** have
-  a sole and laces; **cloth** has folds and a hem.
-- **Post-processing**: a split-tone colour grade (cool sky, warm ground) and
-  animated film grain.
+### The lighting rig
+
+Each of the nine places owns a rig, in its `THEME` entry. Nothing downstream
+knows which stage it is drawing — it asks the rig.
+
+| | What it is | Why it matters |
+| --- | --- | --- |
+| `key` | the sun, or the strip light overhead — direction and colour | sets the whole mood |
+| `fill` | the sky bouncing into the shadow side; always cooler, always weaker | stops shadows going dead black |
+| `rim` | a light behind the fighter catching the silhouette edge | the single biggest reason a figure reads as solid rather than as a sticker |
+| `toe` | where black actually sits | film never reaches 0,0,0 |
+| `shoulder` | where white rolls off | highlights bend toward the key instead of clipping |
+| `grade` | the split-tone that gives the stage its colour identity | |
+| `bloom` `haze` `exposure` `contrast` `saturate` | the post chain's dials | |
+
+So the Souq is a low warm sun down the length of the market with a cold sky
+filling the shadows; Salmiya Gym is hard strip lights straight down and almost
+no bounce; Marina Crescent is neon, where nothing is white and the silhouette
+edge burns magenta; and the Arena is lit like a title fight — hard spots
+overhead, two more behind, and blacks allowed to go black.
+
+Limbs are shaded as lit cylinders with the key on one side, the sky bounce on
+the other and the rim as a **band** at the silhouette edge — a single stop at
+the very edge lands under the outline stroke and vanishes, which is what
+happened the first time. Ambient occlusion at the joints takes the fill
+colour rather than black, because occlusion is light that did not arrive, and
+it offsets away from the key so a joint reads as a crease. Contact shadows
+cast away from the key, tightening as a fighter lands and spreading as they
+rise. Props are lit by the same rig — a crate shaded by a different rule than
+the fighter standing next to it is the fastest way to make a scene look
+assembled rather than lit.
+
+### The post chain
+
+Run in the order a camera would, after the scene is drawn and before the HUD:
+
+1. **Bloom** — the frame's highlights, gathered at a sixth resolution and added
+   back. The threshold is solved exactly (`brightness(b) contrast(c)` is an
+   affine ramp, so `b` and `c` are chosen to put the knee at 0.84): a threshold
+   that lets mid-tones through turns bloom into fog, which is the failure mode.
+   Gathered on alternate frames — bloom is the lowest-frequency thing on screen.
+2. **Tone map** — exposure, the S-curve and the film stock's saturation, in one
+   pass through the GPU's own colour pipeline.
+3. **Toe** — `lighten` with a dark tinted fill only ever raises a pixel, so it
+   lifts the blacks and leaves everything above them alone.
+4. **Shoulder** — `darken` with a near-white does the mirror at the top end.
+5. **Grade** — the stage's split-tone.
+6. **Vignette** — a lens effect, so it sits on top of the grade.
+7. **Grain** — the film the whole thing was shot on.
+
+Depth of field blurs the far layer only. The trap: a canvas filter applies to
+every *draw call*, so setting one and running the backdrop blurs the whole
+frame once per rectangle — that measured at **1fps**. The layer is rendered
+into a half-size buffer instead and blurred once on the way back.
+
+### The camera
+
+A heavy landing punches the lens in toward the impact and eases out. Between
+hits the frame never sits perfectly still — a slow, low-frequency drift, with
+a hair of overscan so the sway never drags an empty edge into view.
+
+### Three tiers
+
+Scalability, measured rather than guessed. **CINEMATIC** is the full post
+chain; **REALISTIC** is the lighting rig without it; **FAST** is flat fills.
+The game starts at the top and walks down one step at a time until the device
+holds frame rate, taking a fresh sample after each step — the post chain reads
+the frame back per-pixel, which is nearly free with a GPU and ruinous without
+one, so that tier can be dropped without dropping the lighting with it. A
+player who sets the tier themselves is never overridden.
 
 ## How a stage is drawn
 
@@ -463,11 +526,12 @@ settles the backdrop into the floor; without it the horizon is a cut edge.
 Everything in `air` and `clouds` is behind `GFX_HIGH`, so fast mode keeps the
 floors and drops the atmosphere.
 
-**GRAPHICS: REALISTIC / FAST** in Settings (or pause) switches the whole shading
-pipeline for flat fills. Realistic costs roughly twice the draw calls, so the
-game samples real frame times once per session during a fight and drops itself to
-FAST if the device can't hold ~45fps — unless you've picked a mode yourself, in
-which case your choice always wins.
+**GRAPHICS: CINEMATIC / REALISTIC / FAST** in Settings (or pause) cycles the
+three tiers described under *Graphics*. The game samples real frame times
+during a fight and steps down one tier at a time until it can hold ~46fps,
+re-sampling after each step — unless you've picked a tier yourself, in which
+case your choice always wins. Saves made before the tiers existed migrate:
+the old realistic mode becomes CINEMATIC, the old fast mode stays FAST.
 
 ## Key art
 
@@ -522,6 +586,9 @@ The numbers worth touching live near the top of the script in `index.html`:
   `{ability:'…'}` or `{xp:n}`. `GATE_Z` is how far back they sit.
 - `ACHIEVEMENTS` — each award's unlock predicate.
 - `MUSIC_ROOT` — the tonal centre of the music loop per stage theme.
+- `THEME[x].rig` — the stage's lights and post-chain dials. `RIG_DEFAULT` at the
+  top of the render section documents every field; `BLOOM_T` is the bloom
+  threshold, and the brightness/contrast pair is solved from it.
 - `THEME` — per-stage parallax background painters.
 - `LIGHT` — the key-light direction every gradient is derived from.
 - `tube` / `litShape` / `ao` — the shading primitives: lit cylinder, lit volume,
