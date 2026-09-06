@@ -4233,13 +4233,11 @@ function drawHUD(){
   var px = 16, py = 14, pw = 404, ph = 122;
   ctx.fillStyle = 'rgba(8,10,16,.62)';
   roundRect(px, py, pw, ph, 12); ctx.fill();
-  ctx.strokeStyle = 'rgba(237,190,87,.45)'; ctx.lineWidth = 2;
-  roundRect(px, py, pw, ph, 12); ctx.stroke();
+  edge(px, py, pw, ph, UI.r.md, 'line', UI.bw.line, true);
 
   var lv = playerLevel();
   ctx.fillStyle = C.red;   circle(px + 42, py + 46, 26); ctx.fill();
-  ctx.strokeStyle = UI.gold; ctx.lineWidth = 2.5;
-  circle(px + 42, py + 46, 26); ctx.stroke();
+  edgeCircle(px + 42, py + 46, 26, 'gold', UI.bw.line);
   txt(String(lv), px + 42, py + 44, UI.t.head, UI.fg, 'center', 900);
   txtLS('LV', px + 42, py + 62, UI.t.micro - 2, 'rgba(255,255,255,.72)', 'center', 800, 1.2);
 
@@ -4270,8 +4268,7 @@ function drawHUD(){
     var wx = 16, wy = 148;
     ctx.fillStyle = 'rgba(8,10,16,.62)';
     roundRect(wx, wy, 214, 44, 10); ctx.fill();
-    ctx.strokeStyle = 'rgba(237,190,87,.45)'; ctx.lineWidth = 2;
-    roundRect(wx, wy, 214, 44, 10); ctx.stroke();
+    edge(wx, wy, 214, 44, UI.r.md, 'line', UI.bw.line);
     ctx.save(); ctx.translate(wx + 32, wy + 22); ctx.scale(0.78, 0.78);
     weaponInHand(0, 0, -0.42, p.weapon.key);
     ctx.restore();
@@ -4381,7 +4378,7 @@ function drawTouch(){
   // joystick
   if(In.joy.active){
     ctx.globalAlpha = 0.30;
-    ctx.strokeStyle = C.sand; ctx.lineWidth = 4;
+    ctx.strokeStyle = C.sand; ctx.lineWidth = UI.bw.bold;
     circle(In.joy.ox, In.joy.oy, 78); ctx.stroke();
     var dx = In.joy.x - In.joy.ox, dy = In.joy.y - In.joy.oy;
     var d = Math.sqrt(dx*dx + dy*dy) || 1, m = Math.min(d, 78);
@@ -4390,7 +4387,7 @@ function drawTouch(){
     circle(In.joy.ox + dx/d*m, In.joy.oy + dy/d*m, 30); ctx.fill();
   } else {
     ctx.globalAlpha = 0.13;
-    ctx.strokeStyle = C.sand; ctx.lineWidth = 3;
+    ctx.strokeStyle = C.sand; ctx.lineWidth = UI.bw.bold;
     circle(190, H-150, 78); ctx.stroke();
     ctx.globalAlpha = 0.22;
     txt('MOVE', 190, H-150, 16, C.sand, 'center', 800);
@@ -4404,8 +4401,7 @@ function drawTouch(){
     ctx.fillStyle = b.col;
     circle(b.x, b.y, b.r); ctx.fill();
     ctx.globalAlpha = held ? 1 : 0.65;
-    ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 3;
-    circle(b.x, b.y, b.r); ctx.stroke();
+    edgeCircle(b.x, b.y, b.r, 'touch', UI.bw.bold);
     ctx.globalAlpha = 1;
     txt(b.label, b.x, b.y - 8, b.r > 46 ? 16 : 14, '#fff', 'center', 900, held?1:0.9);
     txt(b.ar,    b.x, b.y + 12, b.r > 46 ? 15 : 13, '#fff', 'center', 700, held?1:0.75);
@@ -4429,8 +4425,7 @@ function drawFight(){
     ctx.globalAlpha = sa;
     ctx.fillStyle = 'rgba(8,10,16,.88)';
     roundRect(W/2-230, H-238, 460, 60, 12); ctx.fill();
-    ctx.strokeStyle = 'rgba(198,206,220,.6)'; ctx.lineWidth = 2;
-    roundRect(W/2-230, H-238, 460, 60, 12); ctx.stroke();
+    edge(W/2-230, H-238, 460, 60, UI.r.md, 'cool', UI.bw.line);
     txtLS(F.sealMsg, W/2, H-215, UI.t.body, UI.fg, 'center', 900, 2, sa);
     txt(F.sealAr, W/2, H-193, UI.t.label, UI.fgMut, 'center', 700, sa);
     ctx.globalAlpha = 1;
@@ -4525,11 +4520,83 @@ var UI = {
   line:'rgba(237,190,87,.20)', lineSoft:'rgba(255,255,255,.07)',
   // Fixed metrics: the same control is the same size on every screen.
   btn: { lg:{w:300,h:76}, md:{w:190,h:58}, sm:{w:150,h:46} },
+  // Border weight and corner by role. Every edge in the game came from a
+  // number typed at the call site -- 1.5, 2, 2.5, 3, 3.5, 4 and 5 were all in
+  // use, on shapes doing the same job -- and radii were 8, 10, 12 and 14 with
+  // no rule behind which. Three weights and three corners is the whole set.
+  bw:  { hair:1.5, line:2, bold:3 },
+  r:   { sm:8, md:12, lg:16 },
   pad: 96,
   headY: 78,
   navY:  0            // set from H below
 };
 UI.navY = H - 104;
+
+/* ==========================================================================
+   EDGES
+   Every border was a flat single-colour stroke, which is the one surface in
+   the game still ignoring the light. A real edge catches the key on its upper
+   side and loses it underneath, and that is the whole difference between a
+   panel that sits on the screen and one that is stuck to it.
+
+   So an edge is a gradient down its own height, not a colour: brighter along
+   the top, the role's colour through the middle, darker along the bottom. The
+   light comes from above, the same direction it comes from in the fight.
+   ========================================================================== */
+/* The middle stop is the one that has to carry the shape. A stage can be a
+   bright sunset or a dark harbour, so a highlight that only exists at the top
+   and a shadow that only exists at the bottom will each vanish against half
+   the game. The mid stop is the floor of contrast the whole edge sits on; the
+   other two only modulate around it. */
+var EDGE_ROLE = {
+  // top highlight, mid (carries the shape), bottom shadow
+  soft:  ['rgba(255,255,255,.22)', 'rgba(255,255,255,.12)', 'rgba(0,0,0,.40)'],
+  line:  ['rgba(255,234,186,.62)', 'rgba(237,190,87,.36)',  'rgba(24,14,4,.52)'],
+  gold:  ['rgba(255,240,204,.98)', 'rgba(237,190,87,.80)',  'rgba(96,66,16,.70)'],
+  warm:  ['rgba(255,240,208,.95)', 'rgba(255,224,160,.78)', 'rgba(92,24,32,.62)'],
+  cool:  ['rgba(232,240,252,.74)', 'rgba(198,206,220,.52)', 'rgba(0,0,0,.44)'],
+  off:   ['rgba(255,255,255,.16)', 'rgba(255,255,255,.09)', 'rgba(0,0,0,.34)'],
+  bad:   ['rgba(255,172,188,.90)', 'rgba(200,16,46,.70)',   'rgba(52,6,14,.66)'],
+  // The thumb controls sit over the fight, so their edge has to stay bright
+  // enough to find without looking. Brightest role in the set.
+  touch: ['rgba(255,255,255,.95)', 'rgba(255,255,255,.72)',  'rgba(0,0,0,.42)']
+};
+var _edgeGrad = {};
+function edgeStroke(y, h, role){
+  var k = role + '|' + Math.round(y) + '|' + Math.round(h);
+  var g = _edgeGrad[k];
+  if(!g){
+    var c = EDGE_ROLE[role] || EDGE_ROLE.soft;
+    g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0,    c[0]);
+    g.addColorStop(0.42, c[1]);
+    g.addColorStop(1,    c[2]);
+    if(Object.keys(_edgeGrad).length > 400) _edgeGrad = {};
+    _edgeGrad[k] = g;
+  }
+  return g;
+}
+
+/* A rounded rect's edge. `inset` adds the thin light line just inside the top
+   that makes a large panel read as raised rather than as an outline. */
+function edge(x, y, w, h, r, role, width, inset){
+  ctx.strokeStyle = edgeStroke(y, h, role);
+  ctx.lineWidth = width || UI.bw.hair;
+  roundRect(x, y, w, h, r); ctx.stroke();
+  if(inset && GFX_HIGH){
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.055)';
+    ctx.lineWidth = 1;
+    roundRect(x + 2, y + 2, w - 4, h - 4, Math.max(1, r - 2)); ctx.stroke();
+    ctx.restore();
+  }
+}
+/* The same edge on a circle. */
+function edgeCircle(x, y, rad, role, width){
+  ctx.strokeStyle = edgeStroke(y - rad, rad * 2, role);
+  ctx.lineWidth = width || UI.bw.line;
+  circle(x, y, rad); ctx.stroke();
+}
 
 /* Text with letter-spacing. Uppercase labels need it or they read as a blur
    at small sizes; ctx.letterSpacing is ignored on engines that lack it, which
@@ -4558,9 +4625,8 @@ function panel(x, y, w, h, o){
   o = o || {};
   ctx.fillStyle = o.raised ? UI.ink3 : UI.ink2;
   roundRect(x, y, w, h, o.r === undefined ? 14 : o.r); ctx.fill();
-  ctx.strokeStyle = o.accent ? UI.line : UI.lineSoft;
-  ctx.lineWidth = 1.5;
-  roundRect(x, y, w, h, o.r === undefined ? 14 : o.r); ctx.stroke();
+  var pr = o.r === undefined ? UI.r.lg : o.r;
+  edge(x, y, w, h, pr, o.accent ? 'line' : 'soft', UI.bw.hair, h > 90);
   if(o.flag){
     ctx.save();
     roundRect(x, y, w, h, o.r === undefined ? 14 : o.r); ctx.clip();
@@ -4598,7 +4664,7 @@ function statLine(x, y, label, value, col, align){
 function uiButton(x, y, w, h, label, sub, fn, style){
   uiBtns.push({ x:x, y:y, w:w, h:h, fn:fn });
   var primary = style === 'primary', danger = style === 'danger', off = style === 'off';
-  var r = 12;
+  var r = UI.r.md;
   // Only one control on a screen is red. Everything else is a dark panel with
   // a hairline, so the eye lands on the action without hunting for it.
   ctx.fillStyle = off ? 'rgba(14,18,26,.72)'
@@ -4611,10 +4677,10 @@ function uiButton(x, y, w, h, label, sub, fn, style){
     pg.addColorStop(1, 'rgba(0,0,0,.18)');
     ctx.fillStyle = pg; roundRect(x, y, w, h, r); ctx.fill();
   }
-  ctx.strokeStyle = primary ? 'rgba(255,224,160,.85)'
-                  : off ? 'rgba(255,255,255,.06)' : UI.line;
-  ctx.lineWidth = 1.5;
-  roundRect(x, y, w, h, r); ctx.stroke();
+  // The one action on the screen gets a warm lit edge; everything else a
+  // hairline that only shows where the light hits it.
+  edge(x, y, w, h, r, primary ? 'warm' : danger ? 'bad' : off ? 'off' : 'line',
+       primary ? UI.bw.line : UI.bw.hair, primary && h > 60);
 
   var base = primary ? UI.t.head - 2 : UI.t.sub + 1;
   var fit = Math.min(base, (w - UI.sp[5]) / (label.length * 0.66));
@@ -4809,8 +4875,7 @@ function drawMap(){
     var ax = UI.pad + 84 + ai*46, ay = 122;
     ctx.fillStyle = got ? 'rgba(237,190,87,.20)' : 'rgba(255,255,255,.05)';
     roundRect(ax, ay, 38, 38, 8); ctx.fill();
-    ctx.strokeStyle = got ? UI.gold : 'rgba(255,255,255,.10)';
-    ctx.lineWidth = 2; roundRect(ax, ay, 38, 38, 8); ctx.stroke();
+    edge(ax, ay, 38, 38, UI.r.sm, got ? 'gold' : 'off', UI.bw.line);
     txt(got ? A.icon : '·', ax+19, ay+19, got ? 21 : 18, got ? UI.gold : UI.fgFaint, 'center', 900);
   }
 
@@ -4846,8 +4911,7 @@ function drawMap(){
         var tal = ABILITIES[link.needs];
         ctx.fillStyle = 'rgba(10,13,20,.92)';
         roundRect(mx-15, my-15, 30, 30, 8); ctx.fill();
-        ctx.strokeStyle = 'rgba(150,158,172,.5)'; ctx.lineWidth = 1.5;
-        roundRect(mx-15, my-15, 30, 30, 8); ctx.stroke();
+        edge(mx-15, my-15, 30, 30, UI.r.sm, 'cool', UI.bw.hair);
         txt(tal ? tal.icon : '?', mx, my, 16, 'rgba(198,206,220,.85)', 'center', 900);
       }
     }
@@ -4861,13 +4925,12 @@ function drawMap(){
 
     if(here){
       ctx.strokeStyle = 'rgba(237,190,87,' + (0.35 + Math.sin(gameTime*3)*0.22) + ')';
-      ctx.lineWidth = 3; circle(px, py, 50); ctx.stroke();
+      ctx.lineWidth = UI.bw.bold; circle(px, py, 50); ctx.stroke();
     }
     ctx.fillStyle = !seenIt ? 'rgba(24,28,38,.92)'
                   : done ? 'rgba(0,122,61,.85)' : 'rgba(200,16,46,.9)';
     circle(px, py, 38); ctx.fill();
-    ctx.strokeStyle = seenIt ? UI.gold : 'rgba(255,255,255,.14)';
-    ctx.lineWidth = 3; circle(px, py, 38); ctx.stroke();
+    edgeCircle(px, py, 38, seenIt ? 'gold' : 'off', UI.bw.bold);
     txt(seenIt ? String(i+1) : '?', px, py, seenIt ? 30 : 24,
         seenIt ? UI.fg : UI.fgFaint, 'center', 900);
 
@@ -4924,8 +4987,7 @@ function drawBrief(dt){
   // stage number plate
   ctx.fillStyle = st.boss ? 'rgba(200,16,46,.9)' : 'rgba(0,122,61,.85)';
   circle(150, 200, 54); ctx.fill();
-  ctx.strokeStyle = C.gold; ctx.lineWidth = 3.5;
-  circle(150, 200, 54); ctx.stroke();
+  edgeCircle(150, 200, 54, 'gold', UI.bw.bold);
   txt(st.survival ? '∞' : String(briefIdx + 1), 150, 200, 44, C.white, 'center', 900);
 
   txt(st.name, 236, 176, 40, C.gold, 'left', 900);
@@ -5211,8 +5273,9 @@ function drawClear(dt){
     ctx.globalAlpha = grow;
     ctx.fillStyle = 'rgba(8,10,16,.9)';
     circle(0, 0, 62); ctx.fill();
-    ctx.strokeStyle = rc; ctx.lineWidth = 5;
+    ctx.strokeStyle = rc; ctx.lineWidth = UI.bw.bold;
     circle(0, 0, 62); ctx.stroke();
+    edgeCircle(0, 0, 62, 'gold', 1);
     txt(rk, 0, -4, 66, rc, 'center', 900);
     txt('RANK', 0, 36, 14, C.dim, 'center', 800);
     ctx.restore();
@@ -5287,8 +5350,7 @@ function drawAchToast(){
   ctx.globalAlpha = a;
   ctx.fillStyle = 'rgba(8,10,16,.93)';
   roundRect(W/2-240, y, 480, 66, 12); ctx.fill();
-  ctx.strokeStyle = UI.gold; ctx.lineWidth = 2.5;
-  roundRect(W/2-240, y, 480, 66, 12); ctx.stroke();
+  edge(W/2-240, y, 480, 66, UI.r.md, 'gold', UI.bw.line);
   txtLS(achToast.head || 'ACHIEVEMENT UNLOCKED', W/2, y+16, UI.t.micro, UI.fgFaint,
         'center', 800, 2, a);
   txt(achToast.n, W/2, y+38, UI.t.head - 4, UI.gold, 'center', 900, a);

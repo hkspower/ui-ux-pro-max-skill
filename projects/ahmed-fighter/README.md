@@ -372,7 +372,31 @@ cannot happen again.
 | `UI.t` | one type size per role: display, title, head, sub, body, label, micro |
 | `UI.btn` | `lg` / `md` / `sm`; the same control is the same size everywhere |
 | `UI.navY` | the single y every screen's nav row sits on |
+| `UI.bw` | border weight: `hair` / `line` / `bold` |
+| `UI.r` | corner radius: `sm` / `md` / `lg` |
 | colour roles | `ink0..3`, `fg`/`fgMut`/`fgFaint`, `gold`, `red`, `green`, `line` |
+
+### Edges
+
+Every border in the game was a flat single-colour stroke — the one surface
+still ignoring the light everything else is now lit by. A real edge catches
+the key on its upper side and loses it underneath, and that is the whole
+difference between a panel that sits on the screen and one that is stuck to
+it. So an edge is a **gradient down its own height**, not a colour: brighter
+along the top, the role's colour through the middle, darker along the bottom,
+with the light coming from above the same way it does in the fight. `edge()`
+does rounded rects, `edgeCircle()` does discs, and larger panels also get the
+thin inset line just inside the top that makes a surface read as raised.
+
+The middle stop is the one that carries the shape. A stage can be a bright
+sunset or a dark harbour, so a highlight that only exists at the top and a
+shadow that only exists at the bottom would each vanish against half the game
+— the mid stop is the floor of contrast the whole edge sits on, and the other
+two only modulate around it.
+
+Weights and corners went the same way as the sizes did. Seven stroke widths
+were in use — 1.5, 2, 2.5, 3, 3.5, 4 and 5 — on shapes doing the same job, and
+four radii with no rule behind which. Three of each is the whole set now.
 
 Four components carry almost every screen: `screenHead(en, ar)` opens with the
 flag mark, name and Arabic; `panel()` is the one panel treatment; `navRow()`
