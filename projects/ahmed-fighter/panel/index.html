@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AHMED — Control Panel</title>
+<meta name="description" content="Balance and content panel for AHMED — Kuwait Fighter.">
+<link rel="stylesheet" href="panel.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230b101a'/><text y='23' x='16' text-anchor='middle' font-size='18' fill='%23edbe57'>✦</text></svg>">
+</head>
+<body>
+
+<div class="bg"></div>
+<div class="grain"></div>
+
+<div class="app">
+  <header>
+    <span class="flag"></span>
+    <h1>AHMED<small>CONTROL PANEL · لوحة التحكم</small></h1>
+    <span class="spacer"></span>
+    <span class="dirty" id="dirty">NO CHANGES</span>
+    <button class="ghost" id="revert" disabled>REVERT ALL</button>
+    <button class="ghost" onclick="window.open('../index.html','_blank','noopener')">PLAY ▸</button>
+    <button class="primary" id="export">EXPORT FILES</button>
+  </header>
+  <div class="sadu"></div>
+
+  <div class="body">
+    <nav id="rail"></nav>
+    <main></main>
+    <aside></aside>
+  </div>
+</div>
+
+<!-- the game's own tables, loaded exactly as the game loads them -->
+<script src="../assets/ahmed.js"></script>
+<script src="../assets/enemies.js"></script>
+<script src="../assets/hits.js"></script>
+<script src="../assets/talents.js"></script>
+<script src="../assets/upgrades.js"></script>
+<script src="../assets/weapons.js"></script>
+<script src="../assets/levels.js"></script>
+<script src="../assets/world.js"></script>
+<script src="../assets/stages.js"></script>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <header>
+      <span class="flag"></span>
+      <h1>EXPORT<small id="exlist"></small></h1>
+      <span class="spacer"></span>
+      <button class="ghost" id="close">CLOSE</button>
+    </header>
+    <div class="files" id="exfiles"></div>
+    <pre id="excode"></pre>
+    <div class="foot">
+      <button class="primary" id="dl">DOWNLOAD THIS FILE</button>
+      <button id="cp">COPY</button>
+      <span class="spacer"></span>
+      <span style="color:var(--faint);font-size:11.5px;max-width:44ch">
+        Save into <code>assets/</code>, overwriting the file of the same name.
+        Reload the game to see it.
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="panel.js"></script>
+</body>
+</html>

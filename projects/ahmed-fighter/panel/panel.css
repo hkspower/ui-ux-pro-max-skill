@@ -1,0 +1,319 @@
+/* AHMED — Kuwait Fighter :: control panel
+   The look follows the game and the key art rather than inventing a third
+   design: a dark cinematic ground with an off-centre warm pool, gold reserved
+   for values and headings, Kuwait red for the one action that destroys work,
+   and the sadu weaving as the recurring mark. */
+
+:root{
+  --ink0:#05070b; --ink1:#0b101a; --ink2:#151b28; --ink3:#1e2534; --ink4:#2a3446;
+  --fg:#f4f1e8; --mut:rgba(244,241,232,.62); --faint:rgba(244,241,232,.30);
+  --gold:#edbe57; --red:#c8102e; --green:#007a3d; --blue:#5aa9e6;
+  --line:rgba(237,190,87,.20); --soft:rgba(255,255,255,.07);
+  --rail:238px; --insight:340px;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  --sans:'Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+}
+
+*{ box-sizing:border-box }
+html,body{ height:100% }
+body{
+  margin:0; font:14px/1.5 var(--sans); color:var(--fg);
+  background:var(--ink0); overflow:hidden;
+}
+
+/* ---------------------------------------------------------------- background
+   Three layers, all painted rather than loaded, same as the game:
+   a warm key pool off to the left, a cold counter-glow bottom right, and a
+   fine grid that gives the dark ground a surface to sit on. */
+.bg{ position:fixed; inset:0; z-index:0; pointer-events:none }
+.bg::before{
+  content:''; position:absolute; inset:0;
+  background:
+    radial-gradient(58% 74% at 22% 12%, rgba(237,190,87,.16), transparent 62%),
+    radial-gradient(48% 62% at 88% 96%, rgba(90,169,230,.11), transparent 66%),
+    radial-gradient(120% 120% at 50% 0%, #101827 0%, #070a11 58%, #04060a 100%);
+}
+.bg::after{                       /* the surface grid, fading out with depth */
+  content:''; position:absolute; inset:0; opacity:.5;
+  background:
+    linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px) 0 0/100% 44px,
+    linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px) 0 0/44px 100%;
+  -webkit-mask-image:radial-gradient(90% 80% at 40% 30%, #000 25%, transparent 78%);
+          mask-image:radial-gradient(90% 80% at 40% 30%, #000 25%, transparent 78%);
+}
+/* film grain, so the flat panels do not read as plastic */
+.grain{
+  position:fixed; inset:-50%; z-index:1; pointer-events:none; opacity:.045;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:180px 180px;
+  animation:grain 1.1s steps(4) infinite;
+}
+@keyframes grain{
+  0%{transform:translate(0,0)} 25%{transform:translate(-3%,2%)}
+  50%{transform:translate(2%,-3%)} 75%{transform:translate(-2%,-2%)}
+  100%{transform:translate(0,0)}
+}
+/* the sadu band — the Kuwaiti motif, as one crisp rule under the header */
+.sadu{
+  height:8px; flex:none;
+  background:
+    repeating-linear-gradient(90deg,
+      var(--red)   0 9px, transparent 9px 18px),
+    repeating-linear-gradient(90deg,
+      transparent 0 9px, var(--green) 9px 18px);
+  -webkit-mask-image:repeating-linear-gradient(90deg,#000 0 3px,transparent 3px 6px);
+          mask-image:repeating-linear-gradient(90deg,#000 0 3px,transparent 3px 6px);
+  opacity:.5;
+}
+
+/* ------------------------------------------------------------------- shell */
+.app{ position:relative; z-index:2; height:100%; display:flex; flex-direction:column }
+
+header{
+  flex:none; display:flex; align-items:center; gap:18px;
+  padding:16px 22px 14px; border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(11,16,26,.92), rgba(11,16,26,.62));
+  backdrop-filter:blur(8px);
+}
+.flag{ width:7px; height:38px; border-radius:2px; flex:none;
+  background:linear-gradient(180deg,var(--green) 0 33%, var(--fg) 33% 66%, var(--red) 66% 100%);
+  box-shadow:0 0 0 1px rgba(0,0,0,.5) }
+h1{ margin:0; font-size:19px; letter-spacing:.16em; font-weight:800 }
+h1 small{ display:block; font-size:11px; letter-spacing:.22em; color:var(--mut);
+  font-weight:600; margin-top:3px }
+.spacer{ flex:1 }
+
+.dirty{ font:600 11px/1 var(--sans); letter-spacing:.16em; color:var(--faint);
+  padding:8px 12px; border:1px solid var(--soft); border-radius:999px }
+.dirty.on{ color:var(--gold); border-color:var(--line);
+  background:rgba(237,190,87,.09) }
+
+button{
+  font:700 12px/1 var(--sans); letter-spacing:.11em; color:var(--fg);
+  background:var(--ink2); border:1px solid var(--ink4); border-radius:9px;
+  padding:11px 15px; cursor:pointer; transition:.13s background,.13s border-color;
+}
+button:hover{ background:var(--ink3); border-color:var(--gold) }
+button.primary{ background:rgba(237,190,87,.15); border-color:var(--gold); color:var(--gold) }
+button.primary:hover{ background:rgba(237,190,87,.25) }
+button.danger{ border-color:rgba(200,16,46,.6); color:#ff8298 }
+button.danger:hover{ background:rgba(200,16,46,.18); border-color:var(--red) }
+button.ghost{ background:transparent; border-color:var(--soft); color:var(--mut) }
+button.ghost:hover{ color:var(--fg) }
+button:disabled{ opacity:.35; cursor:default; background:var(--ink2);
+  border-color:var(--ink4) }
+
+.body{ flex:1; display:flex; min-height:0 }
+
+/* -------------------------------------------------------------------- rail */
+nav{
+  width:var(--rail); flex:none; overflow-y:auto; padding:14px 12px 24px;
+  border-right:1px solid var(--soft);
+  background:linear-gradient(180deg, rgba(8,11,18,.72), rgba(8,11,18,.34));
+}
+.railhead{ font:700 10px/1 var(--sans); letter-spacing:.24em; color:var(--faint);
+  padding:14px 10px 8px }
+.tab{
+  display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+  padding:11px 12px; margin-bottom:3px; border-radius:9px; cursor:pointer;
+  border:1px solid transparent; background:transparent; color:var(--mut);
+  font:600 13px/1.2 var(--sans); letter-spacing:.03em; transition:.13s;
+}
+.tab:hover{ background:var(--soft); color:var(--fg) }
+.tab.sel{ background:rgba(237,190,87,.12); border-color:var(--line); color:var(--fg) }
+.tab .ico{ width:22px; text-align:center; font-size:15px; color:var(--gold); flex:none }
+.tab .n{ flex:1 }
+.tab .ct{ font:700 10px/1 var(--mono); color:var(--faint) }
+.tab.sel .ct{ color:var(--gold) }
+.tab.warn .ct{ color:#ff8298 }
+
+/* -------------------------------------------------------------------- main */
+main{ flex:1; overflow-y:auto; padding:22px 26px 90px; min-width:0 }
+.pagehead{ display:flex; align-items:flex-end; gap:16px; margin-bottom:6px }
+h2{ margin:0; font-size:25px; letter-spacing:.05em; font-weight:800 }
+.blurb{ color:var(--mut); font-size:13px; max-width:74ch; margin:8px 0 22px }
+.file{ font:600 11px/1 var(--mono); color:var(--gold); background:rgba(237,190,87,.10);
+  border:1px solid var(--line); border-radius:6px; padding:6px 9px }
+
+/* -------------------------------------------------------------------- card */
+.card{
+  background:linear-gradient(180deg, rgba(21,27,40,.86), rgba(15,20,31,.86));
+  border:1px solid var(--soft); border-radius:13px; margin-bottom:14px;
+  overflow:hidden;
+}
+.card > summary{
+  display:flex; align-items:center; gap:12px; padding:13px 16px; cursor:pointer;
+  list-style:none; font-weight:700; letter-spacing:.05em;
+}
+.card > summary::-webkit-details-marker{ display:none }
+.card > summary::before{
+  content:'▸'; color:var(--gold); font-size:12px; transition:.15s transform;
+}
+.card[open] > summary::before{ transform:rotate(90deg) }
+.card > summary .sub{ color:var(--faint); font-weight:600; font-size:11px;
+  letter-spacing:.14em }
+.card > summary .tag{ margin-left:auto; font:700 10px/1 var(--mono);
+  letter-spacing:.1em; color:var(--mut); background:var(--soft);
+  border-radius:999px; padding:5px 9px }
+.card .inner{ padding:4px 16px 16px; border-top:1px solid var(--soft) }
+.swatchdot{ width:12px; height:12px; border-radius:3px; flex:none;
+  box-shadow:0 0 0 1px rgba(0,0,0,.55) }
+
+/* ------------------------------------------------------------------ fields */
+.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(188px,1fr));
+  gap:10px 14px; margin-top:14px }
+.f{ display:flex; flex-direction:column; gap:5px; min-width:0 }
+.f > label{ font:700 10px/1 var(--sans); letter-spacing:.16em; color:var(--faint) }
+.f > label .hint{ color:rgba(244,241,232,.22); letter-spacing:.04em;
+  font-weight:600; text-transform:none }
+input[type=text], input[type=number], textarea, select{
+  font:13px/1.4 var(--mono); color:var(--fg); background:var(--ink0);
+  border:1px solid var(--ink4); border-radius:7px; padding:8px 10px; width:100%;
+  transition:.12s border-color;
+}
+input:focus, textarea:focus, select:focus{ outline:none; border-color:var(--gold) }
+input.changed, textarea.changed, select.changed{
+  border-color:var(--gold); background:rgba(237,190,87,.06) }
+input.bad{ border-color:var(--red); background:rgba(200,16,46,.10) }
+textarea{ resize:vertical; min-height:74px; font-size:12px }
+.colrow{ display:flex; gap:8px; align-items:center }
+.colrow input[type=color]{ width:38px; height:36px; flex:none; padding:2px;
+  background:var(--ink0); border:1px solid var(--ink4); border-radius:7px;
+  cursor:pointer }
+.chk{ display:flex; align-items:center; gap:9px; padding:9px 10px;
+  background:var(--ink0); border:1px solid var(--ink4); border-radius:7px;
+  cursor:pointer; user-select:none; font-size:12px; letter-spacing:.04em }
+.chk input{ accent-color:var(--gold); width:15px; height:15px; cursor:pointer }
+.chk.on{ border-color:var(--line); background:rgba(237,190,87,.07) }
+.sub-obj{ grid-column:1/-1; border:1px dashed var(--soft); border-radius:10px;
+  padding:8px 12px 12px; margin-top:2px }
+.sub-obj > .lg{ font:700 10px/1 var(--sans); letter-spacing:.18em;
+  color:var(--gold); padding:6px 0 2px }
+
+/* ----------------------------------------------------------------- preview */
+.kit{ display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;
+  margin-top:14px }
+.kit canvas{ background:linear-gradient(180deg,#0d1420,#080b12);
+  border:1px solid var(--soft); border-radius:11px; flex:none }
+.kitcol{ display:flex; flex-direction:column; gap:7px; min-width:150px }
+.sw{ display:flex; align-items:center; gap:9px; font:600 11px/1 var(--mono);
+  color:var(--mut) }
+.sw b{ width:20px; height:20px; border-radius:5px; flex:none;
+  box-shadow:0 0 0 1px rgba(0,0,0,.6) }
+
+/* ----------------------------------------------------------------- insight */
+aside{
+  width:var(--insight); flex:none; overflow-y:auto; padding:20px 18px 80px;
+  border-left:1px solid var(--soft);
+  background:linear-gradient(180deg, rgba(8,11,18,.74), rgba(8,11,18,.4));
+}
+aside h3{ margin:0 0 4px; font:700 11px/1 var(--sans); letter-spacing:.22em;
+  color:var(--gold) }
+aside .note{ color:var(--faint); font-size:11.5px; line-height:1.55;
+  margin:0 0 18px }
+.metric{ display:flex; justify-content:space-between; align-items:baseline;
+  gap:10px; padding:8px 0; border-bottom:1px solid var(--soft) }
+.metric span{ color:var(--mut); font-size:12px }
+.metric b{ font:700 14px/1 var(--mono); color:var(--fg) }
+.metric b.good{ color:#4fd18b } .metric b.bad{ color:#ff8298 }
+.metric b.warn{ color:var(--gold) }
+
+table.t{ width:100%; border-collapse:collapse; margin:10px 0 4px }
+table.t th{ text-align:left; font:700 9.5px/1 var(--sans); letter-spacing:.15em;
+  color:var(--faint); padding:0 6px 7px; border-bottom:1px solid var(--soft);
+  white-space:nowrap }
+table.t th.r, table.t td.r{ text-align:right }
+table.t td{ padding:6px; font:12px/1.3 var(--mono); color:var(--mut);
+  border-bottom:1px solid rgba(255,255,255,.035) }
+table.t td.k{ color:var(--fg); font-family:var(--sans); font-weight:600;
+  font-size:12px }
+table.t tr:hover td{ background:rgba(255,255,255,.03) }
+
+.bar{ height:6px; border-radius:3px; background:var(--soft); overflow:hidden;
+  min-width:52px }
+.bar i{ display:block; height:100%; background:var(--gold) }
+.bar i.hot{ background:var(--red) } .bar i.cool{ background:var(--blue) }
+.bar i.ok{ background:var(--green) }
+
+.chart{ width:100%; height:132px; display:block; margin:10px 0 6px;
+  background:rgba(0,0,0,.28); border:1px solid var(--soft); border-radius:9px }
+
+.verdict{ border-radius:10px; padding:11px 13px; margin:4px 0 16px;
+  font-size:12px; line-height:1.55; border:1px solid }
+.verdict.ok{ background:rgba(0,122,61,.14); border-color:rgba(0,122,61,.5) }
+.verdict.warn{ background:rgba(237,190,87,.11); border-color:var(--line) }
+.verdict.bad{ background:rgba(200,16,46,.14); border-color:rgba(200,16,46,.5) }
+.verdict b{ display:block; letter-spacing:.14em; font-size:10px; margin-bottom:5px }
+
+/* ------------------------------------------------------------------- modal */
+.modal{ position:fixed; inset:0; z-index:40; display:none;
+  background:rgba(4,6,10,.82); backdrop-filter:blur(5px) }
+.modal.on{ display:flex; align-items:center; justify-content:center; padding:34px }
+.sheet{ width:min(960px,100%); max-height:100%; display:flex; flex-direction:column;
+  background:var(--ink1); border:1px solid var(--line); border-radius:15px;
+  overflow:hidden; box-shadow:0 26px 70px rgba(0,0,0,.6) }
+.sheet header{ background:transparent; backdrop-filter:none }
+.sheet .files{ display:flex; gap:6px; padding:12px 18px 0; flex-wrap:wrap }
+.sheet .files button{ padding:7px 11px; font-size:11px }
+.sheet .files button.sel{ border-color:var(--gold); color:var(--gold) }
+.sheet pre{ flex:1; overflow:auto; margin:12px 18px 0; padding:15px;
+  background:var(--ink0); border:1px solid var(--soft); border-radius:10px;
+  font:12px/1.6 var(--mono); color:#cfe0d4; white-space:pre; tab-size:2 }
+.sheet .foot{ display:flex; gap:9px; padding:14px 18px; align-items:center }
+
+.toast{ position:fixed; left:50%; bottom:26px; transform:translate(-50%,26px);
+  z-index:60; background:var(--ink2); border:1px solid var(--line);
+  border-radius:11px; padding:12px 20px; font:700 12px/1 var(--sans);
+  letter-spacing:.11em; color:var(--gold); opacity:0; pointer-events:none;
+  transition:.22s }
+.toast.on{ opacity:1; transform:translate(-50%,0) }
+
+@media (max-width:1180px){ aside{ display:none } }
+@media (max-width:760px){
+  nav{ width:60px; padding:10px 6px }
+  .tab .n, .tab .ct, .railhead{ display:none }
+  .tab{ justify-content:center; padding:12px 0 }
+  main{ padding:16px 14px 80px }
+}
+
+/* --------------------------------------------------- world & wave editors */
+canvas.worldmap{
+  width:100%; height:auto; aspect-ratio:1120/500; display:block; margin:12px 0 4px;
+  background:radial-gradient(70% 90% at 40% 20%, rgba(237,190,87,.05), transparent 70%), rgba(0,0,0,.3);
+  border:1px solid var(--soft); border-radius:11px;
+}
+
+.linkrow{ border:1px solid var(--soft); border-left:3px solid var(--gold);
+  border-radius:10px; padding:11px 14px 13px; margin-top:11px;
+  background:rgba(0,0,0,.20) }
+.linkrow.off{ border-left-color:var(--ink4); opacity:.62 }
+.lh{ display:flex; align-items:center; gap:14px }
+.lh b{ font:700 10px/1 var(--sans); letter-spacing:.2em; color:var(--gold);
+  min-width:88px }
+.linkrow.off .lh b{ color:var(--faint) }
+.lh .chk{ padding:6px 10px; font-size:11px }
+.lnote{ font-size:11.5px; line-height:1.5; margin-top:9px; padding-left:2px }
+.lnote.ok{ color:rgba(79,209,139,.8) }
+.lnote.bad{ color:#ff8298 }
+
+.waves{ margin-top:16px; border-top:1px solid var(--soft); padding-top:6px }
+.wh{ display:flex; align-items:center; gap:12px; padding:10px 0 4px }
+.wh b{ font:700 10px/1 var(--sans); letter-spacing:.2em; color:var(--gold) }
+.wh span{ color:var(--faint); font-size:11.5px; flex:1 }
+button.tiny{ padding:6px 9px; font-size:10px; letter-spacing:.1em }
+
+.wave{ display:grid; grid-template-columns:110px 1fr 158px; gap:14px;
+  align-items:start; padding:11px; margin-bottom:8px; border-radius:10px;
+  background:rgba(0,0,0,.22); border:1px solid var(--soft) }
+.wpos{ display:flex; flex-direction:column; gap:8px }
+.wlist{ display:flex; flex-direction:column; gap:6px; min-width:0 }
+.erow{ display:flex; align-items:center; gap:8px }
+.erow select{ flex:1; min-width:0; padding:6px 8px; font-size:12px }
+.erow input.ct{ width:62px; flex:none; padding:6px 8px; text-align:center }
+.wsum{ display:flex; flex-direction:column; gap:4px; align-items:flex-end }
+.wsum div{ font:11px/1.4 var(--mono); color:var(--faint) }
+.wsum b{ color:var(--fg); font-size:13px; margin-right:5px }
+.wwarn{ grid-column:1/-1; font-size:11.5px; color:#ff8298;
+  background:rgba(200,16,46,.12); border-radius:7px; padding:7px 10px }
+
+@media (max-width:900px){ .wave{ grid-template-columns:1fr } }

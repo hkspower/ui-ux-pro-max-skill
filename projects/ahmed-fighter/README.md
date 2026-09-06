@@ -554,10 +554,41 @@ functions with a scaled-up fighter and screenshot the canvas at a large viewport
 Set `f.sil = true` on a fighter to draw it as a featureless silhouette, which is
 how the opposition in the key art is rendered.
 
+## The control panel
+
+`panel/index.html` — open it the same way you open the game. It loads the same
+`assets/*.js` the game loads, so what it shows is what the game is running.
+
+Editing the numbers by hand works. What it cannot show you is what a change
+costs: raise the hook by two damage and you have moved the time to kill on ten
+enemies, the XP rate of the whole campaign, and whether the training camp is
+still affordable. The panel edits the tables and works out that second half
+beside them.
+
+| Tab | What it tells you that the file cannot |
+| --- | --- |
+| **Hits** | Damage per second over the whole window a move commits you for — startup, active and recovery — which is a different ranking from raw damage. Plus recovery as a share of the window: over about half, a whiff hands the other fighter a free hit. |
+| **Enemies** | Threat: how much health an archetype takes off you before it goes down, one on one. That is damage output × survival time, and it is not the same order as HP. Also flags anything that would kill a level-1 Ahmed alone. |
+| **Stages** | The difficulty ramp as enemy health per area, and a warning when it dips. A wave editor: trigger position, who arrives, and the fight it adds up to. |
+| **World** | The graph drawn as the map screen draws it, and two checks — every link two-way with matching requirements, and every area reachable from a cold start. Routes are three dropdowns, and **changing one side updates the other**, so the asymmetry the audit looks for cannot be typed in by hand. |
+| **Levels & XP** | The curve, and what one clean campaign actually pays out against what the level cap costs. |
+| **Upgrades** | The bill: what maxing every track costs against what the campaign earns. If it comes to under 100%, spending is a decision; over, the training camp stops being a choice. |
+| **Talents** | Where each one is found and what it opens — and a hard error if one is not the reward of any gate, because then it can never be picked up. |
+| **Weapons** | Everything a weapon deals before it gives out, against the kick DPS you give up to carry it. |
+
+Nothing is written to disk on its own. **EXPORT FILES** regenerates the tables
+you have edited and hands you each file to download or copy; you save it into
+`assets/` yourself. An untouched export round-trips byte-identical in content —
+it is checked against the originals field by field, functions included — so
+opening the panel and exporting without touching anything cannot lose you
+content. The formatting is the panel's rather than byte-for-byte what you had.
+
 ## Files
 
 ```
 index.html            the entire game (canvas engine, combat, art, audio, UI)
+panel/index.html      the control panel — edit the tables, see what a change costs
+assets/stages.js      what is inside each area: length, waves, gates, story
 assets/world.js       the world graph — which area connects to which, and what each route wants
 manifest.webmanifest  PWA metadata — installable, landscape, fullscreen
 sw.js                 offline cache (bump CACHE when index.html changes)

@@ -1,13 +1,13 @@
 /* AHMED — Kuwait Fighter: offline cache.
    Bump CACHE when index.html changes so players get the new build. */
-var CACHE = 'ahmed-kuwait-fighter-v19';
+var CACHE = 'ahmed-kuwait-fighter-v20';
 var FILES = ['./', './index.html', './manifest.webmanifest', './icon.svg',
              // Game data. Miss one of these and the game throws on start
              // rather than running with an empty table, so they are cached
              // with the same weight as index.html itself.
              './assets/ahmed.js', './assets/enemies.js', './assets/hits.js',
              './assets/talents.js', './assets/upgrades.js', './assets/weapons.js', './assets/levels.js',
-             './assets/world.js'];
+             './assets/world.js', './assets/stages.js'];
 
 self.addEventListener('install', function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(FILES); }).then(function(){
