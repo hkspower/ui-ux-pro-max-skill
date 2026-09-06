@@ -399,8 +399,18 @@ function readInput(){
 function clearTaps(){ In.tap.punch = In.tap.kick = In.tap.block = In.tap.special = false; }
 
 /* ----------------------------------------------------------------- fx pools */
-var parts = [], nums = [], shake = 0, hitstop = 0, flashScreen = 0;
+var parts = [], nums = [], rings = [], shake = 0, hitstop = 0, flashScreen = 0;
 
+function ring(x, y, col, r0, r1, life){
+  rings.push({ x:x, y:y, col:col, r0:r0, r1:r1, life:life || 0.30, max:life || 0.30 });
+}
+function streak(x, y, n, col, spd, dir){
+  for(var i=0;i<n;i++){
+    var a = dir + rand(-0.7, 0.7), s = rand(spd*0.5, spd*1.3);
+    parts.push({ x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s - 30,
+                 life:rand(.18,.34), max:.34, col:col, r:rand(1.6,3.4), line:true });
+  }
+}
 function burst(x, y, n, col, spd){
   for(var i=0;i<n;i++){
     var a = rand(0, 6.2832), s = rand(spd*0.3, spd);
@@ -424,14 +434,38 @@ function updateFx(dt){
     n.life -= dt; n.y -= 42*dt;
     if(n.life <= 0) nums.splice(i,1);
   }
+  for(i=rings.length-1;i>=0;i--){
+    rings[i].life -= dt;
+    if(rings[i].life <= 0) rings.splice(i,1);
+  }
   shake = Math.max(0, shake - dt*46);
   flashScreen = Math.max(0, flashScreen - dt*3.2);
 }
 function drawFx(camX){
   var i;
+  for(i=0;i<rings.length;i++){
+    var rg = rings[i];
+    var k = 1 - rg.life / rg.max;
+    ctx.globalAlpha = (1 - k) * 0.85;
+    ctx.strokeStyle = rg.col;
+    ctx.lineWidth = 6 * (1 - k) + 1;
+    ctx.beginPath();
+    ctx.ellipse(rg.x - camX, rg.y, lerp(rg.r0, rg.r1, k), lerp(rg.r0, rg.r1, k) * 0.62,
+                0, 0, 6.2832);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
   for(i=0;i<parts.length;i++){
     var p = parts[i];
     ctx.globalAlpha = clamp(p.life/p.max, 0, 1);
+    if(p.line){
+      ctx.strokeStyle = p.col; ctx.lineWidth = p.r; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(p.x - camX, p.y);
+      ctx.lineTo(p.x - camX - p.vx*0.035, p.y - p.vy*0.035);
+      ctx.stroke();
+      continue;
+    }
     ctx.fillStyle = p.col;
     circle(p.x - camX, p.y, p.r); ctx.fill();
   }
@@ -522,9 +556,46 @@ function makeEnemy(type, x, z, tier){
 }
 
 /* ------------------------------------------------------------ pose helpers */
+/* Two-pass rendering: an outline pass fattens every shape in near-black so the
+   fighters read against busy backgrounds, then the colour pass paints on top. */
+var PASS = 'color';
+var OUTLINE = '#0a0d14', OUTLINE_W = 4.2;
+
 function seg(x1,y1,x2,y2,w,col){
-  ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
+  ctx.lineCap = 'round';
+  if(PASS === 'outline'){
+    ctx.strokeStyle = OUTLINE; ctx.lineWidth = w + OUTLINE_W;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    return;
+  }
+  ctx.strokeStyle = col; ctx.lineWidth = w;
   ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+
+  // cylindrical shading: a highlight down the lit edge, shadow down the other
+  var dx = x2-x1, dy = y2-y1, len = Math.sqrt(dx*dx + dy*dy);
+  if(len < 0.5 || w < 8) return;
+  var nx = -dy/len, ny = dx/len;
+  if(ny > 0 || (ny === 0 && nx > 0)){ nx = -nx; ny = -ny; }   // keep it on the upper side
+  var off = w * 0.24;
+  ctx.lineWidth = w * 0.30;
+  ctx.strokeStyle = shade(col, 0.26);
+  ctx.beginPath();
+  ctx.moveTo(x1 + nx*off, y1 + ny*off); ctx.lineTo(x2 + nx*off, y2 + ny*off); ctx.stroke();
+  ctx.strokeStyle = shade(col, -0.24);
+  ctx.beginPath();
+  ctx.moveTo(x1 - nx*off, y1 - ny*off); ctx.lineTo(x2 - nx*off, y2 - ny*off); ctx.stroke();
+}
+
+/* Fill a path, fattened to an outline on the outline pass. */
+function shapeFill(path, col){
+  path();
+  if(PASS === 'outline'){
+    ctx.strokeStyle = OUTLINE; ctx.lineWidth = OUTLINE_W * 1.35;
+    ctx.lineJoin = 'round'; ctx.fillStyle = OUTLINE;
+    ctx.stroke(); ctx.fill();
+  } else {
+    ctx.fillStyle = col; ctx.fill();
+  }
 }
 function limb(x,y,a1,l1,w1,a2,l2,w2,col){
   var ex = x + Math.cos(a1)*l1, ey = y + Math.sin(a1)*l1;
@@ -532,6 +603,37 @@ function limb(x,y,a1,l1,w1,a2,l2,w2,col){
   seg(x,y,ex,ey,w1,col);
   seg(ex,ey,hx,hy,w2,col);
   return {x:hx, y:hy, ex:ex, ey:ey};
+}
+function limbEnd(x,y,a1,l1,a2,l2){
+  var ex = x + Math.cos(a1)*l1, ey = y + Math.sin(a1)*l1;
+  return { x:ex + Math.cos(a1+a2)*l2, y:ey + Math.sin(a1+a2)*l2 };
+}
+function foot(end, ang, colr){
+  ctx.save();
+  ctx.translate(end.x, end.y);
+  ctx.rotate(ang - Math.PI/2);
+  shapeFill(function(){ roundRect(-7, -7, 22, 12, 6); }, colr);
+  if(PASS === 'color'){
+    ctx.fillStyle = 'rgba(255,255,255,.16)';
+    roundRect(-6, -6, 20, 4, 3); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* Blend a colour toward the stage haze so distant fighters sit back. */
+function mixc(hex, other, amt){
+  function rgb(c){
+    if(c[0] === '#'){
+      var n = parseInt(c.slice(1), 16);
+      return [(n>>16)&255, (n>>8)&255, n&255];
+    }
+    var m = c.match(/-?\d+/g);
+    return m ? [+m[0], +m[1], +m[2]] : [128,128,128];
+  }
+  var A = rgb(hex), B = rgb(other);
+  return 'rgb(' + Math.round(A[0]+(B[0]-A[0])*amt) + ',' +
+                  Math.round(A[1]+(B[1]-A[1])*amt) + ',' +
+                  Math.round(A[2]+(B[2]-A[2])*amt) + ')';
 }
 
 /* Poses are authored facing right. Each returns joint angles in radians. */
@@ -574,28 +676,35 @@ function screenOf(f){
   return { x:f.x, y:FLOOR_TOP + f.z * FLOOR_H - f.h, s:s };
 }
 
+/* Which limb is doing the hitting — drives the motion trail. */
+var STRIKE_LIMB = { jab:'lead', cross:'rear', hook:'rear',
+                    kick:'foot', knee:'foot', special:'foot' };
+
 function drawFighter(f, camX){
   var sp = screenOf(f);
   var X = sp.x - camX, Y = sp.y, S = sp.s;
+  var groundY = FLOOR_TOP + f.z*FLOOR_H;
 
-  // ground shadow
-  ctx.globalAlpha = clamp(0.34 - f.h/900, 0.06, 0.34);
+  // ---- layered contact shadow -------------------------------------------
+  var lift = clamp(1 - f.h/260, 0.35, 1);
+  ctx.globalAlpha = 0.16 * lift;
   ctx.fillStyle = '#000';
-  ctx.beginPath();
-  ctx.ellipse(X, FLOOR_TOP + f.z*FLOOR_H + 4, 30*S, 9*S, 0, 0, 6.2832);
-  ctx.fill();
+  ctx.beginPath(); ctx.ellipse(X, groundY + 4, 38*S, 12*S, 0, 0, 6.2832); ctx.fill();
+  ctx.globalAlpha = 0.30 * lift;
+  ctx.beginPath(); ctx.ellipse(X, groundY + 4, 24*S, 7.5*S, 0, 0, 6.2832); ctx.fill();
   ctx.globalAlpha = 1;
 
   var down = (f.state === 'down');
   var t = f.anim;
-  var p;
+  var p, k = 0, striking = false;
 
   if(f.state === 'attack' && f.atk){
-    var total = f.atk.su + f.atk.ac + f.atk.rc, k;
-    if(f.atkT < f.atk.su)              k = ease(f.atkT / f.atk.su);
-    else if(f.atkT < f.atk.su+f.atk.ac) k = 1;
-    else                                k = 1 - ease(clamp((f.atkT - f.atk.su - f.atk.ac)/f.atk.rc,0,1));
+    var total = f.atk.su + f.atk.ac + f.atk.rc;
+    if(f.atkT < f.atk.su)                 k = ease(f.atkT / f.atk.su);
+    else if(f.atkT < f.atk.su + f.atk.ac) k = 1;
+    else                                  k = 1 - ease(clamp((f.atkT - f.atk.su - f.atk.ac)/f.atk.rc,0,1));
     p = attackPose(f.atkKey, k, clamp(f.atkT/total,0,1));
+    striking = f.atkT > f.atk.su * 0.45 && f.atkT < f.atk.su + f.atk.ac + f.atk.rc * 0.35;
   } else {
     p = { armLead:P_GUARD.armLead.slice(), armRear:P_GUARD.armRear.slice(),
           legLead:null, legRear:null, lean:P_GUARD.lean, hipY:0, shift:0, spin:0 };
@@ -608,6 +717,55 @@ function drawFighter(f, camX){
     }
   }
 
+  var bob = (f.moving && !down) ? Math.sin(t*11)*2.2 : Math.sin(t*2.4)*1.1;
+  var hipY = -62 + p.hipY + bob;
+  var shY  = -106 + p.hipY*0.6 + bob;
+  var lean = p.lean;
+  var shX  = p.shift + lean*22;
+  var swing = f.moving ? Math.sin(t*11)*0.42 : 0;
+  var legRear = p.legRear || [2.05 - swing, -0.42];
+  var legLead = p.legLead || [1.10 + swing,  0.45];
+
+  // ---- motion trail on the striking limb ---------------------------------
+  var lim = STRIKE_LIMB[f.atkKey];
+  if(striking && lim){
+    var e = (lim === 'foot') ? limbEnd(-6, hipY, legRear[0], 34, legRear[1], 32)
+          : (lim === 'lead') ? limbEnd(shX+4, shY+2, p.armLead[0], 26, p.armLead[1], 25)
+                             : limbEnd(shX-6, shY, p.armRear[0], 26, p.armRear[1], 25);
+    if(!f.trail) f.trail = [];
+    f.trail.push({ x:sp.x + e.x*S*f.facing, y:Y + e.y*S, t:gameTime, s:S });
+    if(f.trail.length > 16) f.trail.shift();
+  }
+  if(f.trail && f.trail.length){
+    while(f.trail.length && gameTime - f.trail[0].t > 0.19) f.trail.shift();
+    if(f.trail.length > 2){
+      var tc = f.isPlayer ? '#ffe9a8' : shade(f.col.band, 0.35);
+      for(var i=1;i<f.trail.length;i++){
+        var a0 = f.trail[i-1], a1 = f.trail[i];
+        var frac = i / f.trail.length;
+        ctx.globalAlpha = frac * 0.55 * clamp(1 - (gameTime - a1.t)/0.19, 0, 1);
+        ctx.strokeStyle = tc;
+        ctx.lineWidth = 3 + frac * 13 * a1.s;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(a0.x - camX, a0.y); ctx.lineTo(a1.x - camX, a1.y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ---- palette, hazed by depth -------------------------------------------
+  var col = f.col;
+  var haze = (G.fight && THEME[G.fight.st.theme]) ? THEME[G.fight.st.theme].sky[1] : '#20283a';
+  var hz = (1 - f.z) * 0.12;
+  var skin = f.flash > 0 ? '#ffffff' : mixc(col.skin, haze, hz);
+  var top  = f.flash > 0 ? '#ffe9e9' : mixc(col.top,  haze, hz);
+  var bot  = f.flash > 0 ? '#ffe9e9' : mixc(col.bottom, haze, hz);
+  var band = f.flash > 0 ? '#ffffff' : mixc(col.band, haze, hz);
+  var legDark = shade(skin, -0.22);
+  var gloveCol = f.isPlayer ? C.red : band;
+
   ctx.save();
   ctx.translate(X, Y);
   ctx.scale(S * f.facing, S);
@@ -617,84 +775,106 @@ function drawFighter(f, camX){
     ctx.rotate(-1.30 * dk);
   }
   if(p.spin) ctx.rotate(Math.sin(p.spin)*0.14);
-  if(f.flash > 0){ ctx.globalAlpha = 1; }
 
-  var col = f.col;
-  var skin = f.flash > 0 ? '#ffffff' : col.skin;
-  var top  = f.flash > 0 ? '#ffe9e9' : col.top;
-  var bot  = f.flash > 0 ? '#ffe9e9' : col.bottom;
-  var dark = 'rgba(0,0,0,.30)';
+  function body(){
+    // rear leg
+    var rf = limb(-6, hipY, legRear[0], 34, 18, legRear[1], 32, 13.5, legDark);
+    foot(rf, legRear[0] + legRear[1], shade(bot, -0.45));
 
-  var bob = (f.moving && !down) ? Math.sin(t*11)*2.2 : Math.sin(t*2.4)*1.1;
-  var hipY = -62 + p.hipY + bob;
-  var shY  = -106 + p.hipY*0.6 + bob;
-  var lean = p.lean;
-  var shX  = p.shift + lean*22;
+    // rear arm, behind the torso
+    var ra = limb(shX-6, shY, p.armRear[0], 26, 14.5, p.armRear[1], 25, 12, shade(skin,-0.18));
+    shapeFill(function(){ circle(ra.x, ra.y, 8.5); }, shade(gloveCol, -0.20));
 
-  // ---- legs -------------------------------------------------------------
-  var swing = f.moving ? Math.sin(t*11)*0.42 : 0;
-  var legRear = p.legRear || [2.05 - swing, -0.42];
-  var legLead = p.legLead || [1.10 + swing,  0.45];
-  var legDark = shade(skin, -0.26);
+    // torso — tapered, not a plain box
+    ctx.save();
+    ctx.translate(0, hipY);
+    ctx.rotate(-lean);
+    var torsoPath = function(){
+      ctx.beginPath();
+      ctx.moveTo(-15, 2);
+      ctx.lineTo(-17, -34);
+      ctx.quadraticCurveTo(-17, -46, -5, -47);
+      ctx.lineTo(8, -47);
+      ctx.quadraticCurveTo(19, -46, 19, -34);
+      ctx.lineTo(17, 2);
+      ctx.closePath();
+    };
+    shapeFill(torsoPath, top);
+    if(PASS === 'color'){
+      // round the chest with a gradient rather than a flat two-tone split
+      ctx.save();
+      torsoPath(); ctx.clip();
+      var tg = ctx.createLinearGradient(-17, 0, 19, 0);
+      tg.addColorStop(0,    'rgba(0,0,0,.34)');
+      tg.addColorStop(0.42, 'rgba(0,0,0,0)');
+      tg.addColorStop(0.78, 'rgba(255,255,255,.10)');
+      tg.addColorStop(1,    'rgba(255,255,255,.02)');
+      ctx.fillStyle = tg; ctx.fillRect(-20, -50, 42, 56);
+      ctx.fillStyle = 'rgba(0,0,0,.14)';                 // collarbone line
+      roundRect(-14, -44, 32, 3, 1.5); ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = band;
+      roundRect(-16, -4, 34, 9, 4); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.16)';
+      roundRect(-15, -3, 12, 2.5, 1.2); ctx.fill();
+    }
+    ctx.restore();
 
-  var rf = limb(-6, hipY, legRear[0], 34, 16, legRear[1], 32, 12, legDark);
-  foot(rf, legRear[0] + legRear[1], shade(col.bottom, -0.45));
+    // shorts
+    shapeFill(function(){ roundRect(-19, hipY-6, 39, 30, 11); }, bot);
+    if(PASS === 'color'){
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      roundRect(-19, hipY-6, 13, 30, 11); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.20)';
+      roundRect(-1, hipY+2, 4, 21, 2); ctx.fill();
+    }
 
-  // ---- rear arm (behind torso) -----------------------------------------
-  limb(shX-6, shY, p.armRear[0], 26, 13, p.armRear[1], 25, 11, shade(skin,-0.20));
+    // lead leg
+    var lf = limb(6, hipY+4, legLead[0], 34, 19, legLead[1], 32, 14.5, skin);
+    foot(lf, legLead[0] + legLead[1], shade(bot, -0.30));
 
-  // ---- torso ------------------------------------------------------------
-  ctx.save();
-  ctx.translate(0, hipY);
-  ctx.rotate(-lean);
-  ctx.fillStyle = top;
-  roundRect(-16, -46, 34, 50, 12); ctx.fill();
-  ctx.fillStyle = dark;
-  roundRect(-16, -46, 10, 50, 10); ctx.fill();
-  // waistband in Kuwait flag colours
-  ctx.fillStyle = col.band;
-  roundRect(-17, -4, 36, 9, 4); ctx.fill();
-  ctx.restore();
+    // ---- head ----------------------------------------------------------
+    var hx = shX + lean*10, hy = shY - 24;
+    seg(shX, shY - 4, hx + 1, hy + 11, 13, shade(skin, -0.16));
+    shapeFill(function(){ circle(hx - 9, hy + 2, 4.6); }, shade(skin, -0.18));
+    shapeFill(function(){
+      ctx.beginPath(); ctx.ellipse(hx+3, hy+1, 15, 15.6, 0, 0, 6.2832); ctx.closePath();
+    }, skin);
 
-  // shorts / hips
-  ctx.fillStyle = bot;
-  roundRect(-19, hipY-6, 39, 30, 10); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.18)';
-  roundRect(-1, hipY+2, 4, 22, 2); ctx.fill();
+    if(PASS === 'color'){
+      var hair = f.isPlayer ? '#1c1712' : shade(col.band, -0.45);
+      ctx.fillStyle = hair;
+      ctx.beginPath(); ctx.arc(hx+3, hy-1, 15.6, Math.PI*1.03, Math.PI*2.05); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(hx+3, hy-14); ctx.lineTo(hx+18, hy-6);
+      ctx.quadraticCurveTo(hx+13, hy-12, hx+3, hy-15);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.10)';                       // soft jaw shadow
+      ctx.beginPath(); ctx.arc(hx+3, hy+5, 14, 0.5, Math.PI - 0.6); ctx.fill();
+      ctx.fillStyle = 'rgba(30,21,15,.62)';                    // trimmed beard, chin only
+      ctx.beginPath(); ctx.arc(hx+3, hy+6, 11.5, 0.34, Math.PI - 0.5); ctx.fill();
+      ctx.fillStyle = band;
+      roundRect(hx-12, hy-10, 31, 6.5, 3); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.22)';
+      roundRect(hx-10, hy-9, 12, 2, 1); ctx.fill();
+      ctx.fillStyle = '#20160f';
+      roundRect(hx+7, hy-4.5, 9, 2.4, 1.2); ctx.fill();
+      circle(hx+11, hy+0.5, 2.1); ctx.fill();
+    }
 
-  // ---- lead leg (in front) ---------------------------------------------
-  var lf = limb(6, hipY+4, legLead[0], 34, 17, legLead[1], 32, 13, skin);
-  foot(lf, legLead[0] + legLead[1], shade(col.bottom, -0.30));
+    // lead arm, in front
+    var la = limb(shX+4, shY+2, p.armLead[0], 26, 15.5, p.armLead[1], 25, 13, skin);
+    shapeFill(function(){ circle(la.x, la.y, 9.2); }, gloveCol);
+    if(PASS === 'color'){
+      ctx.fillStyle = 'rgba(255,255,255,.28)';
+      circle(la.x + 2, la.y - 3, 3.4); ctx.fill();
+      ctx.fillStyle = shade(gloveCol, -0.35);
+      circle(la.ex + (la.x-la.ex)*0.55, la.ey + (la.y-la.ey)*0.55, 5); ctx.fill();
+    }
+  }
 
-  // ---- head -------------------------------------------------------------
-  var hx = shX + lean*10, hy = shY - 24;
-  ctx.fillStyle = skin;
-  circle(hx+3, hy, 15); ctx.fill();
-  // hair / headband
-  ctx.fillStyle = f.isPlayer ? '#1b1712' : shade(col.band,-0.1);
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(hx+3, hy, 15.5, Math.PI*1.05, Math.PI*2.05); ctx.fill();
-  ctx.restore();
-  ctx.fillStyle = col.band;
-  roundRect(hx-12, hy-9, 30, 6, 3); ctx.fill();
-  // short beard + eye
-  ctx.fillStyle = 'rgba(28,20,14,.72)';
-  ctx.beginPath();
-  ctx.arc(hx+3, hy+2, 14, 0.15, Math.PI - 0.35); ctx.fill();
-  ctx.fillStyle = '#20160f';
-  circle(hx+10, hy-1, 2.2); ctx.fill();
-
-  // ---- lead arm (in front) ---------------------------------------------
-  limb(shX+4, shY+2, p.armLead[0], 26, 14, p.armLead[1], 25, 12, skin);
-  // glove
-  var lh = limbEnd(shX+4, shY+2, p.armLead[0], 26, p.armLead[1], 25);
-  ctx.fillStyle = f.isPlayer ? C.red : col.band;
-  circle(lh.x, lh.y, 9); ctx.fill();
-  var rh = limbEnd(shX-6, shY, p.armRear[0], 26, p.armRear[1], 25);
-  ctx.fillStyle = shade(f.isPlayer ? C.red : col.band, -0.18);
-  circle(rh.x, rh.y, 8.5); ctx.fill();
-
+  PASS = 'outline'; body();
+  PASS = 'color';   body();
   ctx.restore();
 
   // charge telegraph
@@ -704,7 +884,7 @@ function drawFighter(f, camX){
     circle(X, Y - 60*S, 52*S); ctx.stroke();
     ctx.globalAlpha = 1;
   }
-  // rage aura for player special
+  // rage aura during the player's finisher
   if(f.isPlayer && f.state === 'attack' && f.atkKey === 'special'){
     ctx.globalAlpha = 0.5;
     ctx.strokeStyle = '#b46ce0'; ctx.lineWidth = 4;
@@ -712,22 +892,17 @@ function drawFighter(f, camX){
     ctx.globalAlpha = 1;
   }
 }
-function foot(end, ang, colr){
-  ctx.save();
-  ctx.translate(end.x, end.y);
-  ctx.rotate(ang - Math.PI/2);
-  ctx.fillStyle = colr;
-  roundRect(-6, -6, 20, 11, 5); ctx.fill();
-  ctx.restore();
-}
-function limbEnd(x,y,a1,l1,a2,l2){
-  var ex = x + Math.cos(a1)*l1, ey = y + Math.sin(a1)*l1;
-  return { x:ex + Math.cos(a1+a2)*l2, y:ey + Math.sin(a1+a2)*l2 };
-}
+
 function shade(hex, amt){
-  if(hex[0] !== '#') return hex;
-  var n = parseInt(hex.slice(1), 16);
-  var r = (n>>16)&255, g = (n>>8)&255, b = n&255;
+  var r, g, b;
+  if(hex[0] === '#'){
+    var n = parseInt(hex.slice(1), 16);
+    r = (n>>16)&255; g = (n>>8)&255; b = n&255;
+  } else {
+    var m = hex.match(/-?\d+/g);
+    if(!m || m.length < 3) return hex;
+    r = +m[0]; g = +m[1]; b = +m[2];
+  }
   if(amt < 0){ r*= (1+amt); g*= (1+amt); b*= (1+amt); }
   else { r += (255-r)*amt; g += (255-g)*amt; b += (255-b)*amt; }
   return 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';
@@ -1328,7 +1503,7 @@ function startStage(idx){
     waveIdx:0, survWave:1, time:0, kills:0, xp:0,
     bestCombo:0, done:false, hint:'', hintT:0
   };
-  parts.length = 0; nums.length = 0;
+  parts.length = 0; nums.length = 0; rings.length = 0;
   shake = 0; hitstop = 0; flashScreen = 0;
   G.state = 'fight'; G.paused = false; G.intro = 2.2; G.slow = 0;
   bump('fights');
@@ -1394,7 +1569,8 @@ function applyHit(att, def, a){
     att.vx += def.facing * 260;
     var ps = screenOf(att);
     popNum(ps.x, ps.y - 120, 'PARRY!', 'crit');
-    burst(ps.x, ps.y - 80, 18, '#8fd3ff', 340);
+    burst(ps.x, ps.y - 80, 14, '#8fd3ff', 340);
+    ring(ps.x, ps.y - 80, '#bfe8ff', 12, 96, 0.40);
     Sfx.block(); Sfx.ok(); haptic(30);
     shake = Math.max(shake, 12); hitstop = Math.max(hitstop, 0.09);
     bump('parries');
@@ -1412,6 +1588,7 @@ function applyHit(att, def, a){
   if(blocked){
     Sfx.block();
     burst(hx, hy, 6, '#8fd3ff', 190);
+    ring(hx, hy, '#8fd3ff', 8, 40, 0.22);
     popNum(hx, hy - 14, 'BLOCK', 'dmg');
     def.stam -= 14;
     def.vx += (att.facing) * a.push * 0.30;
@@ -1423,7 +1600,11 @@ function applyHit(att, def, a){
     def.state = 'hit';
     def.hitT = a.heavy ? 0.34 : 0.22;
     def.atk = null;
-    burst(hx, hy, a.heavy ? 14 : 8, a.heavy ? C.gold : '#ffd9a0', a.heavy ? 320 : 220);
+    var dir = att.facing > 0 ? 0 : Math.PI;
+    burst(hx, hy, a.heavy ? 10 : 6, a.heavy ? C.gold : '#ffd9a0', a.heavy ? 300 : 210);
+    streak(hx, hy, a.heavy ? 12 : 7, a.heavy ? '#fff3c4' : '#ffe6bb', a.heavy ? 620 : 420, dir);
+    ring(hx, hy, a.heavy ? '#fff0b8' : 'rgba(255,235,190,.9)',
+         a.heavy ? 10 : 7, a.heavy ? 74 : 46, a.heavy ? 0.34 : 0.24);
     popNum(hx, hy - 18, dmg, a.heavy ? 'crit' : 'dmg');
     Sfx[a.sfx === 'kick' ? 'kick' : 'punch']();
     Sfx.hurt();

@@ -151,10 +151,12 @@ confirmation.
 
 ```
 press/keyart-poster.png            16:9 key art — wordmark, hero, silhouetted opposition
-press/ahmed-hero-kick.png          Ahmed mid-roundhouse on a dark plate (clean cutout source)
+press/ahmed-hero-kick.png          Ahmed mid-roundhouse on a dark plate
+press/ahmed-guard.png              Ahmed in his fighting stance
 press/boss-al-wahsh.png            the final boss
 press/cast-lineup.png              the roster, front to back
 press/screenshot-kuwait-towers.png in-game action shot
+press/screenshot-souq.png          in-game action shot
 ```
 
 These are renders, not hand-drawn assets — the game itself still ships with zero
@@ -186,6 +188,10 @@ The numbers worth touching live near the top of the script in `index.html`:
 - `ACHIEVEMENTS` — each award's unlock predicate.
 - `MUSIC_ROOT` — the tonal centre of the music loop per stage theme.
 - `THEME` — per-stage parallax background painters.
+- `seg` / `shapeFill` / `OUTLINE_W` — the two-pass fighter renderer: an outline
+  pass fattens every shape in near-black, then the colour pass paints on top with
+  cylindrical limb shading. Raise `OUTLINE_W` for a heavier comic line.
+- `STRIKE_LIMB` — which limb leaves a motion trail for each attack.
 - `UPS` / `upCost` — upgrade effects and pricing.
 
 Enemy stats scale with the stage's `tier`, so raising a stage's tier makes every
