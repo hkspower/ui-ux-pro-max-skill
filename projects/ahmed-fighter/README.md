@@ -81,6 +81,28 @@ your best rank there.
 | 8 | Desert Camp | مخيم البر |
 | 9 | Kuwait Arena — boss: **AL-WAHSH / الوحش** | بطولة الكويت |
 
+## Weapons
+
+Crates and barrels drop a **steel pipe**, **plank** or **crowbar** as well as
+food and rage orbs. Walk over one to pick it up.
+
+Every weapon boosts punches **only, never kicks**. That is the whole design: an
+armed Ahmed hits harder and reaches further but gives up the kick game, so
+picking one up is a choice about how to open a crowd rather than a free
+upgrade. Uses are spent on swings that **connect**, so whiffing costs nothing
+but time, and the HUD counts down the swings left.
+
+| | Punch damage | Reach | Swings |
+| --- | --- | --- | --- |
+| Steel pipe | x1.9 | +26 | 12 |
+| Plank | x1.6 | +22, heaviest knockback | 8 |
+| Crowbar | x2.2 | +20 | 9 |
+
+The `ATK` entries are shared between every fighter, so an armed swing builds
+its own copy rather than letting the weapon rewrite the table in place — which
+would have had every enemy hitting like a crowbar the moment Ahmed picked one
+up.
+
 ## Who you fight
 
 Every archetype is built to be recognised across the arena, before it swings.
@@ -225,6 +247,7 @@ edited without opening the 4,000-line renderer:
 | `assets/hits.js` | every strike: damage, startup/active/recovery, reach, cost |
 | `assets/talents.js` | abilities found in the world, and the gates they open |
 | `assets/upgrades.js` | the five stat tracks XP is spent on, and the price curve |
+| `assets/weapons.js` | what a smashed crate can put in your hands |
 
 They are **plain scripts, not modules**, loaded in order before the game.
 That is deliberate: ES modules do not load over `file://`, and this game has
@@ -291,7 +314,7 @@ are rendered as lit volumes rather than flat shapes:
 - **Post-processing**: a split-tone colour grade (cool sky, warm ground) and
   animated film grain.
 
-## Stages
+## How a stage is drawn
 
 Each location is a `THEME` entry with five layers, drawn back to front:
 
