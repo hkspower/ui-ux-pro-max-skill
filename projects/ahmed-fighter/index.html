@@ -673,8 +673,9 @@ function limbEnd(x,y,a1,l1,a2,l2){
   var ex = x + Math.cos(a1)*l1, ey = y + Math.sin(a1)*l1;
   return { x:ex + Math.cos(a1+a2)*l2, y:ey + Math.sin(a1+a2)*l2 };
 }
-/* Two-bone limb with tapering thickness and a muscle belly on the upper bone. */
-function bone(x,y,a1,l1,a2,l2,r0,r1,r2,col,muscle){
+/* Two-bone limb with tapering thickness and a muscle belly on the upper bone.
+   `sleeve` draws a short shirt sleeve over the top of the upper bone. */
+function bone(x,y,a1,l1,a2,l2,r0,r1,r2,col,muscle,sleeve){
   var ex = x + Math.cos(a1)*l1, ey = y + Math.sin(a1)*l1;
   var hx = ex + Math.cos(a1+a2)*l2, hy = ey + Math.sin(a1+a2)*l2;
   tube(x, y, ex, ey, r0, r1, col);
@@ -686,6 +687,21 @@ function bone(x,y,a1,l1,a2,l2,r0,r1,r2,col,muscle){
     ctx.globalAlpha = 0.22;
     tube(x + (ex-x)*0.20, y + (ey-y)*0.20, bx, by, r0*0.40, r0*0.80, shade(col, 0.14));
     ctx.restore();
+  }
+  if(sleeve){
+    var st = 0.46;                                    // sleeve ends high on the bicep
+    var sx = x + (ex-x)*st, sy = y + (ey-y)*st;
+    var sr = lerp(r0, r1, st);
+    tube(x - Math.cos(a1)*2, y - Math.sin(a1)*2, sx, sy, r0 + 2.2, sr + 1.4, sleeve);
+    if(GFX_HIGH){
+      ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1.6;
+      var n2 = a1 + Math.PI/2;
+      ctx.beginPath();
+      ctx.moveTo(sx + Math.cos(n2)*(sr+1.4), sy + Math.sin(n2)*(sr+1.4));
+      ctx.lineTo(sx - Math.cos(n2)*(sr+1.4), sy - Math.sin(n2)*(sr+1.4));
+      ctx.stroke();
+    }
+    ao(sx, sy, sr*2.0, 0.20);
   }
   if(r1 > 6) ao(ex, ey, r1*2.1, 0.26);
   tube(ex, ey, hx, hy, r1, r2, col);
@@ -918,11 +934,12 @@ function drawFighter(f, camX){
   if(p.spin) ctx.rotate(Math.sin(p.spin)*0.14);
 
   // ---- rear leg -----------------------------------------------------------
-  var rf = bone(-6, hipY, legRear[0], 34, legRear[1], 32, 10.5, 7.4, 5.2, skinDark, true);
+  var rf = bone(-6, hipY, legRear[0], 34, legRear[1], 32, 12.0, 8.6, 6.0, skinDark, true);
   shoe(rf, legRear[0] + legRear[1], shade(bot, -0.5));
 
   // ---- rear arm (behind the torso) ---------------------------------------
-  var ra = bone(shX-6, shY, p.armRear[0], 26, p.armRear[1], 25, 7.8, 6.2, 5.0, skinDark, true);
+  var ra = bone(shX-6, shY, p.armRear[0], 26, p.armRear[1], 25, 9.6, 7.4, 5.8,
+                skinDark, true, f.tee ? shade(top, -0.12) : null);
   glove(ra.x, ra.y, p.armRear[0] + p.armRear[1], shade(gloveCol, -0.22), 8.6);
 
   // ---- torso --------------------------------------------------------------
@@ -931,52 +948,63 @@ function drawFighter(f, camX){
   ctx.rotate(-lean);
   var torsoPath = function(){
     ctx.beginPath();
-    ctx.moveTo(-14, 3);
-    ctx.bezierCurveTo(-17, -14, -18, -32, -13, -42);       // lat line
-    ctx.quadraticCurveTo(-8, -48, 2, -48);                 // shoulder
-    ctx.bezierCurveTo(13, -48, 19, -42, 19, -32);          // deltoid
-    ctx.bezierCurveTo(19, -20, 17, -8, 16, 3);             // oblique
+    ctx.moveTo(-10, 4);
+    ctx.bezierCurveTo(-15, -12, -19, -33, -14, -44);       // lat sweep
+    ctx.quadraticCurveTo(-8, -51, 2, -51);                 // trap / shoulder
+    ctx.bezierCurveTo(14, -51, 22, -44, 22, -33);          // deltoid cap
+    ctx.bezierCurveTo(21, -22, 15, -9, 13, 4);             // hard taper to the waist
     ctx.closePath();
   };
-  litShape(torsoPath, top, 2, -24, 26);
+  litShape(torsoPath, top, 2, -26, 29);
   if(GFX_HIGH){
     ctx.save(); torsoPath(); ctx.clip();
-    ctx.strokeStyle = 'rgba(0,0,0,.16)'; ctx.lineWidth = 1.6;   // cloth folds
-    ctx.beginPath(); ctx.moveTo(-12, -30); ctx.quadraticCurveTo(0, -22, 14, -26); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-11, -14); ctx.quadraticCurveTo(2, -7, 15, -12); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,.14)';
-    ctx.beginPath(); ctx.moveTo(-10, -33); ctx.quadraticCurveTo(1, -26, 13, -30); ctx.stroke();
-    ctx.fillStyle = 'rgba(0,0,0,.20)';                          // armhole shadow
-    ctx.beginPath(); ctx.ellipse(17, -38, 5, 9, -0.3, 0, 6.2832); ctx.fill();
+    // chest fills the shirt — pec shelf and the split between them
+    ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(-9, -30); ctx.quadraticCurveTo(3, -25, 19, -31); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,.30)'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(-8, -28); ctx.quadraticCurveTo(3, -23, 19, -29); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(4, -46); ctx.lineTo(4, -28); ctx.stroke();   // sternum
+    ctx.strokeStyle = 'rgba(0,0,0,.20)'; ctx.lineWidth = 1.5;                // fabric folds
+    ctx.beginPath(); ctx.moveTo(-11, -12); ctx.quadraticCurveTo(2, -6, 14, -11); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-9, -3); ctx.quadraticCurveTo(3, 1, 12, -2); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.07)';                                 // sheen
+    ctx.beginPath(); ctx.ellipse(12, -34, 7, 14, -0.25, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.26)';                                       // armhole
+    ctx.beginPath(); ctx.ellipse(20, -40, 5, 10, -0.3, 0, 6.2832); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1.6;          // hem
+    ctx.beginPath(); ctx.moveTo(-10, 2); ctx.quadraticCurveTo(2, 6, 13, 2); ctx.stroke();
+    // crew neckline
+    ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-4, -49); ctx.quadraticCurveTo(4, -43, 12, -48); ctx.stroke();
     ctx.restore();
-    ctx.fillStyle = band;                                        // waistband
-    roundRect(-15, -5, 32, 8.5, 3); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.18)';
-    roundRect(-14, -4, 11, 2.2, 1); ctx.fill();
   }
   ctx.restore();
 
   // ---- shorts -------------------------------------------------------------
   litShape(function(){
     ctx.beginPath();
-    ctx.moveTo(-18, hipY-7);
-    ctx.lineTo(18, hipY-7);
-    ctx.quadraticCurveTo(21, hipY+10, 17, hipY+22);
-    ctx.quadraticCurveTo(8, hipY+26, 1, hipY+20);
-    ctx.quadraticCurveTo(-7, hipY+26, -16, hipY+22);
-    ctx.quadraticCurveTo(-21, hipY+10, -18, hipY-7);
+    ctx.moveTo(-14, hipY-8);
+    ctx.lineTo(15, hipY-8);
+    ctx.quadraticCurveTo(20, hipY+10, 18, hipY+29);        // longer, mid-thigh cut
+    ctx.quadraticCurveTo(9, hipY+33, 1, hipY+25);
+    ctx.quadraticCurveTo(-7, hipY+33, -16, hipY+29);
+    ctx.quadraticCurveTo(-19, hipY+10, -14, hipY-8);
     ctx.closePath();
   }, bot, 0, hipY+6, 24);
   if(GFX_HIGH){
-    ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(1, hipY-4); ctx.lineTo(1, hipY+19); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,.20)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(-15, hipY+20); ctx.quadraticCurveTo(-8, hipY+23, -2, hipY+19); ctx.stroke();
+    ctx.fillStyle = band;                                    // waistband accent
+    roundRect(-14, hipY-9, 29, 5, 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.20)';
+    roundRect(-13, hipY-8.4, 10, 1.6, 0.8); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.30)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(1, hipY-2); ctx.lineTo(1, hipY+26); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-16, hipY+28); ctx.quadraticCurveTo(-9, hipY+31, -2, hipY+26); ctx.stroke();
     ao(0, hipY-6, 20, 0.20);
   }
 
   // ---- lead leg -----------------------------------------------------------
-  var lf = bone(6, hipY+4, legLead[0], 34, legLead[1], 32, 11.2, 7.9, 5.5, skin, true);
+  var lf = bone(6, hipY+4, legLead[0], 34, legLead[1], 32, 12.8, 9.2, 6.4, skin, true);
   shoe(lf, legLead[0] + legLead[1], shade(bot, -0.34));
 
   // ---- head ---------------------------------------------------------------
@@ -1024,43 +1052,106 @@ function drawFighter(f, camX){
     ctx.beginPath();
     ctx.moveTo(hx+12.5, hy+0.5); ctx.quadraticCurveTo(hx+15.4, hy+4, hx+11.8, hy+5.6);
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(70,35,28,.5)'; ctx.lineWidth = 1.3;  // mouth
+    ctx.strokeStyle = f.beard ? 'rgba(0,0,0,.45)' : 'rgba(70,35,28,.5)';
+    ctx.lineWidth = 1.3;                                        // mouth
     ctx.beginPath();
-    ctx.moveTo(hx+6.5, hy+9.4); ctx.quadraticCurveTo(hx+10, hy+10.2, hx+12.2, hy+8.8);
+    ctx.moveTo(hx+6.5, hy+10.2); ctx.quadraticCurveTo(hx+10, hy+11, hx+12.4, hy+9.6);
     ctx.stroke();
 
-    var hair = f.isPlayer ? '#171310' : shade(col.band, -0.5);
-    litShape(function(){                                      // hair mass
+    var hair = f.hair || (f.isPlayer ? '#241a12' : shade(col.band, -0.5));
+    if(f.quiff){
+      // swept-up quiff with faded sides
+      ctx.fillStyle = 'rgba(0,0,0,.30)';                      // fade at the temple
       ctx.beginPath();
-      ctx.moveTo(hx-12.5, hy-3);
-      ctx.bezierCurveTo(hx-14, hy-16, hx-5, hy-20, hx+3, hy-19);
-      ctx.bezierCurveTo(hx+12, hy-19, hx+15.6, hy-13, hx+15, hy-9);
-      ctx.quadraticCurveTo(hx+11, hy-13.5, hx+3, hy-13);
-      ctx.quadraticCurveTo(hx-6, hy-12.5, hx-9.5, hy-4);
-      ctx.closePath();
-    }, hair, hx, hy-13, 16);
-    ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 1;
-    for(var hs=0; hs<3; hs++){
+      ctx.moveTo(hx-11, hy-3);
+      ctx.quadraticCurveTo(hx-10, hy-11, hx-2, hy-12.5);
+      ctx.quadraticCurveTo(hx-7, hy-8, hx-8, hy-2);
+      ctx.closePath(); ctx.fill();
+      litShape(function(){
+        ctx.beginPath();
+        ctx.moveTo(hx-12, hy-4);
+        ctx.bezierCurveTo(hx-14, hy-15, hx-7, hy-22, hx+2, hy-22);
+        ctx.bezierCurveTo(hx+11, hy-23, hx+17, hy-19, hx+16.5, hy-11);   // quiff peak
+        ctx.lineTo(hx+14.5, hy-9);
+        ctx.quadraticCurveTo(hx+12, hy-14, hx+3, hy-14);                 // hairline
+        ctx.quadraticCurveTo(hx-6, hy-13.5, hx-9, hy-5);
+        ctx.closePath();
+      }, hair, hx+2, hy-17, 17);
+      ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1.3;
+      ctx.beginPath();                                        // quiff sweep
+      ctx.moveTo(hx-4, hy-18); ctx.quadraticCurveTo(hx+6, hy-21, hx+14, hy-14); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(hx-8+hs*5, hy-17); ctx.quadraticCurveTo(hx-4+hs*5, hy-14, hx-1+hs*5, hy-12.5);
-      ctx.stroke();
+      ctx.moveTo(hx-6, hy-14); ctx.quadraticCurveTo(hx+3, hy-18, hx+11, hy-13); ctx.stroke();
+    } else {
+      litShape(function(){
+        ctx.beginPath();
+        ctx.moveTo(hx-12.5, hy-3);
+        ctx.bezierCurveTo(hx-14, hy-16, hx-5, hy-20, hx+3, hy-19);
+        ctx.bezierCurveTo(hx+12, hy-19, hx+15.6, hy-13, hx+15, hy-9);
+        ctx.quadraticCurveTo(hx+11, hy-13.5, hx+3, hy-13);
+        ctx.quadraticCurveTo(hx-6, hy-12.5, hx-9.5, hy-4);
+        ctx.closePath();
+      }, hair, hx, hy-13, 16);
+      ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 1;
+      for(var hs=0; hs<3; hs++){
+        ctx.beginPath();
+        ctx.moveTo(hx-8+hs*5, hy-17); ctx.quadraticCurveTo(hx-4+hs*5, hy-14, hx-1+hs*5, hy-12.5);
+        ctx.stroke();
+      }
     }
 
-    ctx.fillStyle = 'rgba(34,24,17,.42)';                     // stubble along the jaw
-    ctx.beginPath();
-    ctx.moveTo(hx-9, hy+5);
-    ctx.quadraticCurveTo(hx-4, hy+15, hx+4, hy+15);
-    ctx.quadraticCurveTo(hx+11, hy+13.5, hx+13.5, hy+6.5);
-    ctx.quadraticCurveTo(hx+9, hy+11, hx+3, hy+11.5);
-    ctx.quadraticCurveTo(hx-3, hy+11.5, hx-9, hy+5);
-    ctx.closePath(); ctx.fill();
+    if(f.beard){
+      // full trimmed beard: sideburns down the jaw, chin, and a moustache
+      ctx.fillStyle = f.beard;
+      ctx.beginPath();
+      ctx.moveTo(hx-10, hy-3);
+      ctx.quadraticCurveTo(hx-9, hy+9, hx-1, hy+15);
+      ctx.quadraticCurveTo(hx+8, hy+17, hx+13, hy+8);
+      ctx.quadraticCurveTo(hx+15, hy+3, hx+14, hy-1);
+      ctx.quadraticCurveTo(hx+12, hy+5, hx+9, hy+5.5);       // cheek line
+      ctx.quadraticCurveTo(hx+2, hy+6, hx-4, hy+3);
+      ctx.quadraticCurveTo(hx-8, hy+1, hx-10, hy-3);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();                                        // moustache
+      ctx.moveTo(hx+4, hy+7);
+      ctx.quadraticCurveTo(hx+9, hy+6, hx+13.5, hy+7);
+      ctx.quadraticCurveTo(hx+9, hy+9.5, hx+4, hy+9);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.07)';                // sheen on the jaw
+      ctx.beginPath();
+      ctx.ellipse(hx+4, hy+12, 6, 2.6, 0.15, 0, 6.2832); ctx.fill();
+    } else {
+      ctx.fillStyle = 'rgba(34,24,17,.42)';
+      ctx.beginPath();
+      ctx.moveTo(hx-9, hy+5);
+      ctx.quadraticCurveTo(hx-4, hy+15, hx+4, hy+15);
+      ctx.quadraticCurveTo(hx+11, hy+13.5, hx+13.5, hy+6.5);
+      ctx.quadraticCurveTo(hx+9, hy+11, hx+3, hy+11.5);
+      ctx.quadraticCurveTo(hx-3, hy+11.5, hx-9, hy+5);
+      ctx.closePath(); ctx.fill();
+    }
 
-    litShape(function(){ roundRect(hx-12.5, hy-15, 29, 6, 2.5); }, band, hx, hy-12, 16);
+    if(!f.quiff)
+      litShape(function(){ roundRect(hx-12.5, hy-15, 29, 6, 2.5); }, band, hx, hy-12, 16);
   }
 
   // ---- lead arm -----------------------------------------------------------
-  var la = bone(shX+4, shY+2, p.armLead[0], 26, p.armLead[1], 25, 8.4, 6.7, 5.4, skin, true);
+  var la = bone(shX+4, shY+2, p.armLead[0], 26, p.armLead[1], 25, 10.2, 7.9, 6.2,
+                skin, true, f.tee ? top : null);
   ao(shX+4, shY+2, 12, 0.24);
+  if(f.watch && GFX_HIGH){
+    var wt = 0.74;                                   // sit it on the wrist
+    var wx = la.ex + (la.x - la.ex)*wt, wy = la.ey + (la.y - la.ey)*wt;
+    var wa = p.armLead[0] + p.armLead[1];
+    ctx.save();
+    ctx.translate(wx, wy); ctx.rotate(wa);
+    ctx.fillStyle = '#14161b'; roundRect(-3.4, -7.2, 6.8, 14.4, 2.4); ctx.fill();
+    ctx.fillStyle = '#2b3038'; roundRect(-4.6, -4.4, 9.2, 8.8, 2.6); ctx.fill();
+    ctx.fillStyle = 'rgba(220,235,255,.55)';
+    circle(0, 0, 2.4); ctx.fill();
+    ctx.restore();
+  }
   glove(la.x, la.y, p.armLead[0] + p.armLead[1], gloveCol, 9.2);
 
   ctx.restore();
@@ -1701,9 +1792,11 @@ function makePlayer(){
     hp:maxHp, maxHp:maxHp, stam:maxStam, maxStam:maxStam,
     pow:1, spd:142 + save.up.spd * 9, reach:58, sc:1.05,
     name:'AHMED', ar:'أحمد', kind:'player',
-    col:{ skin:'#c9884f', top:'#f4f1e6', bottom:'#c8102e', band:'#007a3d' }
+    col:{ skin:'#d9a274', top:'#17191e', bottom:'#101216', band:'#c8102e' }
   });
   p.chainStep = 0; p.chainT = 0; p.dashT = 0; p.rage = 0;
+  p.tee = true; p.quiff = true; p.watch = true;
+  p.hair = '#241a12'; p.beard = 'rgba(30,21,15,.92)';
   return p;
 }
 

@@ -144,6 +144,23 @@ confirmation.
 
 ---
 
+## Ahmed's look
+
+Ahmed is styled as a gym-built Kuwaiti fighter: broad-shouldered V-taper, black
+fitted training tee with short sleeves, black mid-thigh shorts with a red
+waistband, a dark swept-up quiff with faded sides, a full trimmed beard, a black
+wristwatch and red gloves. The character flags that drive it live on the fighter
+object, so any fighter can wear the same kit:
+
+| Flag | Effect |
+| --- | --- |
+| `tee` | draws shirt sleeves over the upper arms |
+| `quiff` | swept-up hair with faded sides instead of a rounded cap, no headband |
+| `beard` | full beard and moustache (a colour string) |
+| `hair` | overrides the hair colour |
+| `watch` | wristwatch on the lead arm |
+| `sil` | featureless silhouette, used for the key art's opposition |
+
 ## Graphics
 
 Everything is still drawn in code — there are no image files — but the fighters
