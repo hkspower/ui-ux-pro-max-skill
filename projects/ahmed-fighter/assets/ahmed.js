@@ -18,9 +18,12 @@ window.ASSET_AHMED = {
   // Where he starts a stage, and how big he draws.
   spawn: { x: 140, z: 0.62, sc: 1.05 },
 
-  base:     { hp: 100, stam: 100, pow: 1, spd: 142, reach: 58 },
+  base:     { hp: 100, stam: 100, mp: 40, pow: 1, spd: 142, reach: 58 },
   // What one bought level of each upgrade track is worth.
   perLevel: { vit: 18, stam: 12, spd: 9 },
+  // MP powers the talents. It refills on its own and on landed hits, so it
+  // rewards staying in the fight rather than hoarding.
+  mpRegen:  { idle: 5, onHit: 4 },
 
   // Street clothes: black fitted tee, black track pants, trainers.
   col: { skin:'#f0d8c4', top:'#15171c', bottom:'#0e1014', band:'#c8102e' },

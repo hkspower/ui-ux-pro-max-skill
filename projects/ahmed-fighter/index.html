@@ -44,6 +44,7 @@
 <script src="assets/talents.js"></script>
 <script src="assets/upgrades.js"></script>
 <script src="assets/weapons.js"></script>
+<script src="assets/levels.js"></script>
 <script>
 (function(){
 'use strict';
@@ -51,7 +52,7 @@
 /* Every table the game runs on is loaded from assets/. Fail loudly rather
    than half-starting with an undefined table. */
 var ASSETS = ['ASSET_AHMED','ASSET_ENEMIES','ASSET_HITS','ASSET_TALENTS',
-              'ASSET_UPGRADES','ASSET_WEAPONS'];
+              'ASSET_UPGRADES','ASSET_WEAPONS','ASSET_LEVELS'];
 for(var ai=0; ai<ASSETS.length; ai++){
   if(!window[ASSETS[ai]]) throw new Error('Missing asset: assets/' +
     ASSETS[ai].replace('ASSET_','').toLowerCase() + '.js');
@@ -123,7 +124,7 @@ function circle(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,6.2832); ctx.closePath(
 
 /* --------------------------------------------------------------- save state */
 var SAVE_KEY = 'ahmed_kuwait_fighter_v1';
-var save = { unlocked:1, xp:0, best:0, up:{box:0,kick:0,vit:0,spd:0,stam:0}, sound:true,
+var save = { unlocked:1, xp:0, xpTotal:0, best:0, up:{box:0,kick:0,vit:0,spd:0,stam:0}, sound:true,
              abilities:[], gates:{},
              cleared:[], diff:1, ranks:{}, survBest:0, haptics:true, music:true,
              gfx:true, gfxUser:false, achieved:[], stats:{kills:0, crates:0, parries:0, champClears:0,
@@ -136,6 +137,10 @@ function loadSave(){
       if(d && typeof d === 'object'){
         save.unlocked = clamp(d.unlocked|0, 1, CAMPAIGN);
         save.xp = Math.max(0, d.xp|0);
+        // Saves from before levels existed carry no xpTotal. Seeding it from
+        // the spendable balance under-counts anything already spent, which is
+        // the safe direction: a returning player gains levels, never loses one.
+        save.xpTotal = Math.max(save.xp, d.xpTotal|0);
         save.best = Math.max(0, d.best|0);
         save.sound = d.sound !== false;
         save.cleared = Array.isArray(d.cleared) ? d.cleared : [];
@@ -179,6 +184,36 @@ function haptic(ms){
   try{ navigator.vibrate(ms); }catch(e){}
 }
 
+/* ------------------------------------------------------------------ levels
+   Earned XP never goes down, so spending in the training camp cannot cost a
+   level. The curve lives in assets/levels.js. */
+function levelFor(total){
+  var L = ASSET_LEVELS, n = 1;
+  while(n < L.max && total >= L.need(n + 1)) n++;
+  return n;
+}
+function playerLevel(){ return levelFor(save.xpTotal); }
+/* 0..1 through the current level; 1 once the cap is reached. */
+function levelProgress(){
+  var L = ASSET_LEVELS, n = playerLevel();
+  if(n >= L.max) return 1;
+  var lo = L.need(n), hi = L.need(n + 1);
+  return clamp((save.xpTotal - lo) / Math.max(1, hi - lo), 0, 1);
+}
+/* Every XP award goes through here, so the earned total can never drift from
+   the spendable balance. */
+function grantXp(n){
+  n = Math.max(0, Math.round(n));
+  if(!n) return;
+  var before = playerLevel();
+  save.xp += n; save.xpTotal += n;
+  if(playerLevel() > before){
+    var lv = playerLevel();
+    toast('LEVEL ' + lv, ASSET_LEVELS.title(lv), 'RANK UP');
+    Sfx.power(); haptic(60);
+  }
+}
+
 /* Abilities are found in the world, never bought — see assets/talents.js. */
 var ABILITIES = ASSET_TALENTS.abilities;
 function hasAbility(k){ return save.abilities.indexOf(k) >= 0; }
@@ -217,8 +252,8 @@ var ACHIEVEMENTS = [
    test:function(){ return save.stats.champClears >= 1; }},
   {k:'maxed',    n:'PEAK CONDITION', ar:'قمة اللياقة', d:'Max out any training track.',
    test:function(){ for(var u in save.up) if(save.up[u] >= 5) return true; return false; }},
-  {k:'explorer', n:'NO WAY BARRED', ar:'لا حواجز', d:'Find all four abilities.',
-   test:function(){ return save.abilities.length >= 4; }},
+  {k:'explorer', n:'NO WAY BARRED', ar:'لا حواجز', d:'Find all five talents.',
+   test:function(){ return save.abilities.length >= 5; }},
   {k:'surv10',   n:'LAST MAN UP',    ar:'آخر الواقفين', d:'Reach wave 10 in Survival.',
    test:function(){ return save.survBest >= 10; }},
   {k:'allstage', n:'ALL OF KUWAIT',  ar:'كل الكويت',   d:'Clear all nine stages.',
@@ -807,6 +842,34 @@ function weaponInHand(x, y, ang, key){
     roundRect(-l*0.24, -t*0.55, l*0.86, t*0.32, t*0.16); ctx.fill();
     ctx.fillStyle = 'rgba(20,16,12,.75)';                 // grip
     roundRect(-l*0.30, -t*0.72, l*0.24, t*1.44, t*0.4); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* The Hawk Fist burning. Three tongues on a shared wobble, brightest at the
+   core, so it reads as fire rather than an orange blob — and it sits behind
+   the hand so the knuckles stay legible through it. */
+function handFlame(x, y, ang, heat){
+  var t = gameTime * 11;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(ang);
+  var g = ctx.createRadialGradient(2, 0, 1, 2, 0, 26 * heat);
+  g.addColorStop(0, 'rgba(255,238,190,.85)');
+  g.addColorStop(0.45, 'rgba(255,150,44,.42)');
+  g.addColorStop(1, 'rgba(200,40,10,0)');
+  ctx.fillStyle = g;
+  circle(2, 0, 26 * heat); ctx.fill();
+  var cols = ['rgba(255,196,72,.92)', 'rgba(255,124,32,.86)', 'rgba(255,238,196,.95)'];
+  for(var i = 0; i < 3; i++){
+    var w = 5.2 - i * 1.1, len = (20 - i * 4.5) * heat;
+    var sway = Math.sin(t + i * 2.1) * 3.2;
+    ctx.fillStyle = cols[i];
+    ctx.beginPath();
+    ctx.moveTo(-3, -w);
+    ctx.quadraticCurveTo(len * 0.55, -w * 0.8 + sway, len, sway * 0.5);
+    ctx.quadraticCurveTo(len * 0.55, w * 0.8 + sway, -3, w);
+    ctx.closePath(); ctx.fill();
   }
   ctx.restore();
 }
@@ -1479,6 +1542,13 @@ function drawFighter(f, camX){
   if(f.hands) hand(la.x, la.y, p.armLead[0] + p.armLead[1], f.hands, 9.2, skin, band);
   else glove(la.x, la.y, p.armLead[0] + p.armLead[1], gloveCol, 9.2);
   if(f.weapon) weaponInHand(la.x, la.y, p.armLead[0] + p.armLead[1], f.weapon.key);
+  // Lit while the talent is carried and there is MP to burn; brightest at the
+  // moment of the swing so the punch reads as the thing that is on fire.
+  if(f.isPlayer && f.hawkLit > 0){
+    var swinging = f.state === 'attack' && f.atk && f.atk.fam === 'box';
+    handFlame(la.x, la.y, p.armLead[0] + p.armLead[1],
+              f.hawkLit * (swinging ? 1.25 : 0.78));
+  }
 
   ctx.restore();
 
@@ -1601,7 +1671,7 @@ var STAGES = [
 
   { name:'DESERT CAMP', ar:'مخيم البر', theme:'desert', len:3200, tier:3,
     hint:'The contenders wait by the fire.',
-    gates:[{at:1150, type:'wall', reward:{xp:700}}],
+    gates:[{at:1150, type:'wall', reward:{ability:'hawk', xp:250}}],
     story:['The camp is where they pick who fights for the belt.',
            'Ahmed was never on the list. He is now.'],
     storyAr:'المخيم يختار من ينافس على الحزام',
@@ -2522,8 +2592,10 @@ var G = { state:'menu', paused:false, fight:null, t:0, intro:0, endT:0, result:n
 
 function makePlayer(){
   var A = ASSET_AHMED, per = A.perLevel;
-  var maxHp   = A.base.hp   + save.up.vit  * per.vit;
+  var lv = playerLevel(), gain = ASSET_LEVELS.perLevel;
+  var maxHp   = A.base.hp   + save.up.vit  * per.vit  + (lv - 1) * gain.hp;
   var maxStam = A.base.stam + save.up.stam * per.stam;
+  var maxMp   = A.base.mp   + (lv - 1) * gain.mp;
   var p = makeFighter({
     isPlayer:true, x:A.spawn.x, z:A.spawn.z, sc:A.spawn.sc,
     hp:maxHp, maxHp:maxHp, stam:maxStam, maxStam:maxStam,
@@ -2532,6 +2604,8 @@ function makePlayer(){
     col:A.col
   });
   p.chainStep = 0; p.chainT = 0; p.dashT = 0; p.rage = 0;
+  p.mp = p.maxMp = maxMp;
+  p.level = lv;
   for(var k in A.look) p[k] = A.look[k];
   return p;
 }
@@ -2566,10 +2640,10 @@ function startAttack(f, key){
   if(f.state === 'attack' || f.state === 'hit' || f.state === 'down' || f.state === 'dash') return false;
   if(f.isPlayer && key !== 'special' && f.stam < a.stam) return false;
   if(f.isPlayer && key !== 'special') f.stam -= a.stam;
-  f.atk = f.isPlayer ? armedAttack(f, a) : a;
+  f.atk = f.isPlayer ? hawkAttack(f, armedAttack(f, a)) : a;
   f.atkKey = key; f.atkT = 0; f.state = 'attack';
   f.hitDone = false; f.hitTargets = []; f.hitProps = []; f.hitGates = []; f.blocking = false;
-  f.wepSwing = false;
+  f.wepSwing = false; f.hawkSwing = false;
   if(!f.isPlayer && a.heavy) f.tele = a.su;
   Sfx.whoosh();
   return true;
@@ -2611,6 +2685,16 @@ function applyHit(att, def, a){
   if(att.weapon && a.wep && !att.wepSwing){
     att.wepSwing = true;
     if(--att.weapon.uses <= 0) breakWeapon(att);
+  }
+  if(a.hawk && !att.hawkSwing){
+    att.hawkSwing = true;
+    att.mp = Math.max(0, att.mp - ABILITIES.hawk.mp);
+    var hs = screenOf(def);
+    burst(hs.x, hs.y - 74, 14, 'rgba(255,168,52,.95)', 300);
+    burst(hs.x, hs.y - 74, 8, 'rgba(255,238,190,.95)', 190);
+    ring(hs.x, hs.y - 74, '#ffb04a', 8, 74, 0.28);
+  } else if(att.isPlayer && att.maxMp){
+    att.mp = Math.min(att.maxMp, att.mp + ASSET_AHMED.mpRegen.onHit);
   }
   var awayFacing = ((att.x - def.x) * def.facing) < 0;      // attacker behind def
   var blocked = def.blocking && !awayFacing && def.state !== 'attack';
@@ -2790,6 +2874,10 @@ function updatePlayer(p, dt, enemies, F){
   }
 
   p.stam = clamp(p.stam + (p.blocking ? 3 : 24 + save.up.stam * 2.4) * dt, 0, p.maxStam);
+  p.mp = clamp(p.mp + ASSET_AHMED.mpRegen.idle * dt, 0, p.maxMp);
+  // Ease the flame rather than snapping it the frame MP crosses the cost.
+  var want = hawkReady(p) ? 1 : 0;
+  p.hawkLit = approach(p.hawkLit || 0, want, dt * 4.5);
   p.x += p.vx * dt;
   p.z = clamp(p.z + p.vz * dt, 0, 1);
 }
@@ -2903,6 +2991,20 @@ function armedAttack(f, a){
            reach:a.reach + W.reach, push:a.push + W.push, stam:a.stam,
            sfx:a.sfx, arm:a.arm, heavy:true, wep:true };
 }
+/* HAWK FIST. Punches only — kicks stay cold — and every lit swing burns MP,
+   so it is a resource you spend rather than a permanent damage upgrade. */
+function hawkReady(f){
+  if(!f.isPlayer || !hasAbility('hawk')) return false;
+  return f.mp >= ABILITIES.hawk.mp;
+}
+function hawkAttack(f, a){
+  if(a.fam !== 'box' || !hawkReady(f)) return a;
+  return { fam:a.fam, dmg:a.dmg * 1.55, su:a.su, ac:a.ac, rc:a.rc,
+           reach:a.reach + 10, push:a.push + 90, stam:a.stam,
+           sfx:a.sfx, arm:a.arm, heavy:a.heavy, multi:a.multi,
+           wep:a.wep, hawk:true };
+}
+
 function breakWeapon(f){
   var sp = screenOf(f);
   burst(sp.x, sp.y - 80, 16, '#c9d2de', 300);
@@ -3048,9 +3150,10 @@ function openGate(F, g){
   Sfx.power(); haptic(60);
   if(g.reward && g.reward.ability){
     var A = ABILITIES[g.reward.ability];
-    if(grantAbility(g.reward.ability)) toast(A.n, A.ar, 'ABILITY FOUND');
+    if(grantAbility(g.reward.ability)) toast(A.n, A.ar, 'TALENT FOUND');
+    if(g.reward.xp) grantXp(g.reward.xp);
   } else if(g.reward && g.reward.xp){
-    save.xp += g.reward.xp;
+    grantXp(g.reward.xp);
     popNum(g.at, y - 130, '+' + g.reward.xp, 'heal');
   }
   writeSave();
@@ -3308,7 +3411,7 @@ function updateFight(dt){
     F.done = true;
     if(st.survival){
       F.reached = F.survWave;
-      save.xp += F.xp;
+      grantXp(F.xp);
       if(F.survWave - 1 > save.survBest) save.survBest = F.survWave - 1;
       writeSave();
     }
@@ -3320,7 +3423,7 @@ function updateFight(dt){
     F.done = true;
     var bonus = 60 + F.bestCombo * 8 + Math.round(p.hp / p.maxHp * 90);
     F.bonus = bonus;
-    save.xp += F.xp + bonus;
+    grantXp(F.xp + bonus);
     if(save.cleared.indexOf(F.idx) < 0) save.cleared.push(F.idx);
     if(F.idx + 1 > save.unlocked - 1) save.unlocked = Math.min(CAMPAIGN, F.idx + 2);
     if(F.bestCombo > save.best) save.best = F.bestCombo;
@@ -3351,34 +3454,53 @@ function bar(x, y, w, h, v, max, col, label){
     ctx.fillStyle = col;
     roundRect(x, y, Math.max(h, w*f), h, h/2); ctx.fill();
   }
-  if(label) txt(label, x + 6, y + h/2, h - 3, 'rgba(0,0,0,.65)', 'left', 800);
+  if(label) txtLS(label, x - 8, y + h/2, UI.t.micro, UI.fgFaint, 'right', 800, 1.4);
 }
 
 function drawHUD(){
   var F = G.fight, p = F.player;
 
-  // player panel
+  // Player panel. Four resources and a rank have to be readable at a glance
+  // mid-fight, so the bars are labelled in the gutter rather than inside, and
+  // the level sits in the badge where a portrait would go.
+  var px = 16, py = 14, pw = 404, ph = 122;
   ctx.fillStyle = 'rgba(8,10,16,.62)';
-  roundRect(16, 14, 380, 96, 12); ctx.fill();
+  roundRect(px, py, pw, ph, 12); ctx.fill();
   ctx.strokeStyle = 'rgba(237,190,87,.45)'; ctx.lineWidth = 2;
-  roundRect(16, 14, 380, 96, 12); ctx.stroke();
+  roundRect(px, py, pw, ph, 12); ctx.stroke();
 
-  ctx.fillStyle = C.red;
-  circle(58, 62, 28); ctx.fill();
-  ctx.fillStyle = C.sand;
-  circle(58, 56, 15); ctx.fill();
-  txt('AHMED', 96, 34, 19, C.white, 'left', 900);
-  txt('أحمد', 380, 34, 17, C.gold, 'right', 700);
-  bar(96, 48, 280, 15, p.hp, p.maxHp, C.hp);
-  bar(96, 68, 200, 9,  p.stam, p.maxStam, '#59b6ff');
-  bar(96, 82, 200, 9,  p.rage, 100, p.rage >= 100 ? '#e05cf0' : '#7a4a90');
-  if(p.rage >= 100) txt('READY!', 302, 87, 14, '#e9a7ff', 'left', 900,
-                        0.6 + Math.sin(gameTime*8)*0.4);
+  var lv = playerLevel();
+  ctx.fillStyle = C.red;   circle(px + 42, py + 46, 26); ctx.fill();
+  ctx.strokeStyle = UI.gold; ctx.lineWidth = 2.5;
+  circle(px + 42, py + 46, 26); ctx.stroke();
+  txt(String(lv), px + 42, py + 44, UI.t.head, UI.fg, 'center', 900);
+  txtLS('LV', px + 42, py + 62, UI.t.micro - 2, 'rgba(255,255,255,.72)', 'center', 800, 1.2);
+
+  txtLS('AHMED', px + 80, py + 22, UI.t.sub, UI.fg, 'left', 900, 2);
+  txt('أحمد', px + pw - 16, py + 22, UI.t.body, UI.gold, 'right', 700);
+  txtLS(ASSET_LEVELS.title(lv), px + 80, py + 40, UI.t.micro, UI.fgFaint, 'left', 800, 2);
+
+  var bx = px + 96, bw = pw - 112;
+  bar(bx, py + 52, bw, 13, p.hp, p.maxHp, C.hp, 'HP');
+  bar(bx, py + 71, bw, 9,  p.mp, p.maxMp, '#ff9a3c', 'MP');
+  bar(bx, py + 86, bw*0.62, 7, p.stam, p.maxStam, '#59b6ff', 'ST');
+  bar(bx, py + 99, bw*0.62, 7, p.rage, 100, p.rage >= 100 ? '#e05cf0' : '#7a4a90', 'RG');
+  if(p.rage >= 100) txtLS('READY', bx + bw*0.62 + 10, py + 99, UI.t.micro, '#e9a7ff',
+                          'left', 900, 1.6, 0.6 + Math.sin(gameTime*8)*0.4);
+
+  // Career progress, hairline along the panel's own bottom edge.
+  var xf = levelProgress();
+  ctx.fillStyle = 'rgba(255,255,255,.08)';
+  roundRect(px + 12, py + ph - 8, pw - 24, 3, 1.5); ctx.fill();
+  if(xf > 0){
+    ctx.fillStyle = UI.gold;
+    roundRect(px + 12, py + ph - 8, Math.max(3, (pw - 24) * xf), 3, 1.5); ctx.fill();
+  }
 
   // Armed: the swings left matter more than the name, so they get the size.
   if(p.weapon){
     var WD = ASSET_WEAPONS[p.weapon.key];
-    var wx = 16, wy = 118;
+    var wx = 16, wy = 148;
     ctx.fillStyle = 'rgba(8,10,16,.62)';
     roundRect(wx, wy, 214, 44, 10); ctx.fill();
     ctx.strokeStyle = 'rgba(237,190,87,.45)'; ctx.lineWidth = 2;
@@ -3889,15 +4011,20 @@ function drawHelp(){
     ['STAMINA', 'Blue bar. Attacks and dashes cost stamina — it refills fast.',       'اللياقة'],
     ['PARRY',   'Tap BLOCK the instant a blow lands: no damage, they stagger, +rage.', 'صد مثالي'],
     ['LOOT',    'Smash crates and barrels: food heals you, purple orbs fill rage.',   'حطّم الصناديق'],
-    ['WEAPONS', 'Crates also drop a pipe, plank or crowbar. They boost punches only — never kicks — and last a few landed swings.', 'سلاح مؤقت']
+    ['WEAPONS', 'Crates also drop a pipe, plank or crowbar. They boost punches only — never kicks — and last a few landed swings.', 'سلاح مؤقت'],
+    ['MP',      'Orange bar. Talents burn it; it refills over time and on every landed hit.', 'طاقة المهارات'],
+    ['LEVEL',   'Every fight earns XP. Spending it in training never costs you a level.', 'المستوى']
   ];
   for(var i=0;i<rows.length;i++){
-    // Nine rows have to clear the nav row, so they run tighter than eight did.
-    var y = 126 + i*50;
-    panel(UI.pad, y, W - UI.pad*2, 44, { r:10 });
-    txtLS(rows[i][0], UI.pad + UI.sp[4], y+22, UI.t.label + 2, UI.gold, 'left', 900, 1.4);
-    txt(rows[i][1], UI.pad + 132, y+22, UI.t.body - 1, UI.fg, 'left', 600);
-    txt(rows[i][2], W - UI.pad - UI.sp[4], y+22, UI.t.label + 1, UI.fgMut, 'right', 700);
+    // The list has to end clear of the nav row, so the step is derived from
+    // how many rows there are rather than typed in.
+    var top = 124, avail = UI.navY - 44 - top;
+    var step = Math.min(50, avail / rows.length);
+    var y = top + i*step;
+    panel(UI.pad, y, W - UI.pad*2, step - 6, { r:10 });
+    txtLS(rows[i][0], UI.pad + UI.sp[4], y+(step-6)/2, UI.t.label + 1, UI.gold, 'left', 900, 1.4);
+    txt(rows[i][1], UI.pad + 132, y+(step-6)/2, UI.t.body - 2, UI.fg, 'left', 600);
+    txt(rows[i][2], W - UI.pad - UI.sp[4], y+(step-6)/2, UI.t.label, UI.fgMut, 'right', 700);
   }
   txtLS('KEYBOARD:  WASD MOVE  ·  J PUNCH  ·  K KICK  ·  L BLOCK  ·  SPACE RAGE  ·  ESC PAUSE',
         W/2, UI.navY - 30, UI.t.micro, UI.fgFaint, 'center', 700, 1.4);
@@ -3913,7 +4040,7 @@ function drawMap(){
   statLine(W - UI.pad, UI.headY - 12, 'CAREER XP', String(save.xp), UI.gold);
   // abilities carried
   txtLS('CARRYING', UI.pad, 138, UI.t.micro, UI.fgFaint, 'left', 800, 2);
-  var order = ['vault','dashleap','powerkick','haymaker'];
+  var order = ['vault','dashleap','powerkick','haymaker','hawk'];
   for(var ai=0; ai<order.length; ai++){
     var A = ABILITIES[order[ai]], got = hasAbility(order[ai]);
     var ax = UI.pad + 84 + ai*46, ay = 122;
@@ -4216,8 +4343,8 @@ function drawUpgrade(){
   }
   // abilities are found, not bought — shown here so the two are never confused
   txtLS('ABILITIES — FOUND, NEVER BOUGHT', rowX, 542, UI.t.micro, UI.fgFaint, 'left', 800, 2);
-  var ord = ['vault','dashleap','powerkick','haymaker'];
-  var aw = (rowW - UI.sp[3]*3) / 4;
+  var ord = ['vault','dashleap','powerkick','haymaker','hawk'];
+  var aw = (rowW - UI.sp[3] * (ord.length - 1)) / ord.length;
   for(var ai=0; ai<ord.length; ai++){
     var A = ABILITIES[ord[ai]], got = hasAbility(ord[ai]);
     var ax = rowX + ai*(aw + UI.sp[3]);

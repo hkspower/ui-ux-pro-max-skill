@@ -81,6 +81,43 @@ your best rank there.
 | 8 | Desert Camp | مخيم البر |
 | 9 | Kuwait Arena — boss: **AL-WAHSH / الوحش** | بطولة الكويت |
 
+## Levels, XP and MP
+
+Two currencies that are easy to confuse, so the code keeps them apart:
+
+- `save.xp` is **spendable** — the training camp draws it down.
+- `save.xpTotal` is **earned** — it only goes up, and it is what sets the level.
+
+Spending everything in training therefore never costs you a level. Every award
+routes through one `grantXp()` so the two can't drift, and it is what fires the
+rank-up toast. Twenty levels, each worth +6 max HP and +4 max MP, with a rank
+title (ROOKIE → CHAMPION) shown under Ahmed's name.
+
+**MP** is the fourth bar, and it exists so talents have a cost. It refills
+slowly on its own and by 4 on every landed hit, so it rewards staying in the
+fight rather than backing off — and a lit punch that lands spends it while a
+cold one earns it back.
+
+Saves from before levels existed have no `xpTotal`; it is seeded from the
+spendable balance, which under-counts anything already spent. That is the safe
+direction — a returning player gains levels, never loses one.
+
+## Talents
+
+Five now, all found in the world rather than bought (see `assets/talents.js`).
+The fifth is **HAWK FIST / قبضة الباز**, behind the cracked wall at the Desert
+Camp — the stage that already had a fire burning in it.
+
+It sets Ahmed's punches alight: ×1.55 damage, a little more reach and
+knockback, and fire on the fist that flares on the swing. **Punches only —
+kicks stay cold.** Each lit punch that lands burns 14 MP, so the loop is spend
+it down, throw cold jabs to earn it back, and pick your moment. It is a
+resource you manage, not a permanent damage upgrade.
+
+Like the weapon swing, a lit attack builds its own copy of the `ATK` entry
+rather than editing the shared table — otherwise every enemy's punches would
+catch fire the moment Ahmed found it.
+
 ## Weapons
 
 Crates and barrels drop a **steel pipe**, **plank** or **crowbar** as well as
@@ -248,6 +285,7 @@ edited without opening the 4,000-line renderer:
 | `assets/talents.js` | abilities found in the world, and the gates they open |
 | `assets/upgrades.js` | the five stat tracks XP is spent on, and the price curve |
 | `assets/weapons.js` | what a smashed crate can put in your hands |
+| `assets/levels.js` | the XP curve, what a level is worth, and the rank titles |
 
 They are **plain scripts, not modules**, loaded in order before the game.
 That is deliberate: ES modules do not load over `file://`, and this game has

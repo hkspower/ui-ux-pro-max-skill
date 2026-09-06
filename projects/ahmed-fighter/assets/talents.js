@@ -19,7 +19,9 @@ window.ASSET_TALENTS = {
   powerkick:{n:'POWER KICK', ar:'ركلة قوية', icon:'⚡',
              d:'Kicks tear steel shutters off their rails.'},
   haymaker: {n:'HAYMAKER',   ar:'قاضية',     icon:'✊',
-             d:'A loaded hook that punches through cracked masonry.'}
+             d:'A loaded hook that punches through cracked masonry.'},
+  hawk:     {n:'HAWK FIST',  ar:'قبضة الباز', icon:'✷', mp:14,
+             d:'Your punches carry fire. Burns MP, and only punches — kicks stay cold.'}
 },
 
   gates: {
