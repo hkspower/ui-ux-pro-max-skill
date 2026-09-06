@@ -282,6 +282,24 @@ flag mark, name and Arabic; `panel()` is the one panel treatment; `navRow()`
 places the footer buttons; `flagBar()` is the Kuwait hoist bar reused as the
 identity mark. A screen picks a role, never a number.
 
+The system reaches the fight HUD, the toasts and the results screens too — the
+first pass only migrated the menus. Two things that unification turned up:
+
+**There were two golds and two greens.** `C.gold` was `#e0b34a` across 36 call
+sites while `UI.gold` was `#edbe57` across 15, and the key art uses `#edbe57`.
+`C` is defined before `UI`, so it cannot reference the token by name — the
+brand value is written into `C` as a literal and both names now agree, which
+fixed all 36 sites in one edit. `UI.green` held an invented `#1a8f52` with zero
+call sites; a dead token carrying the wrong value is a trap, so it is the flag
+green `#007a3d` now.
+
+**The achievement toast never faded.** `txt()` *assigns* `ctx.globalAlpha`
+rather than multiplying it, so the plate faded in and out while the type
+snapped to full opacity — about 0.9s of mismatch ending in a hard cut. Every
+other animated text site in the file passes its alpha explicitly; this one was
+the outlier. It also sat exactly on the stage banner mid-fight (plate y 10-76,
+banner y 12-74), so it now drops below it during a fight.
+
 Three rules behind the look:
 
 **One red thing per screen.** Red is the action you came to press — FIGHT on

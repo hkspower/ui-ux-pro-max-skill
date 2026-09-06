@@ -21,9 +21,9 @@
   #rotate{position:fixed;inset:0;display:none;flex-direction:column;gap:18px;
     align-items:center;justify-content:center;background:#05070b;color:#e8e2d4;
     text-align:center;padding:30px;z-index:50}
-  #rotate b{font-size:22px;letter-spacing:2px;color:#e0b34a}
+  #rotate b{font-size:22px;letter-spacing:2px;color:#edbe57}
   #rotate span{font-size:15px;opacity:.7;line-height:1.7}
-  #rotate .ph{width:64px;height:104px;border:3px solid #e0b34a;border-radius:10px;
+  #rotate .ph{width:64px;height:104px;border:3px solid #edbe57;border-radius:10px;
     animation:tilt 1.6s ease-in-out infinite}
   @keyframes tilt{0%,40%{transform:rotate(0)}70%,100%{transform:rotate(-90deg)}}
   @media (orientation:portrait) and (max-width:900px){#rotate{display:flex}#wrap{opacity:.06}}
@@ -69,7 +69,7 @@ var CAMPAIGN = 9;                   // campaign stages; anything after is a side
 var FLOOR_TOP = 452, FLOOR_H = 196; // playfield depth band (z = 0..1)
 
 var C = {
-  red:'#c8102e', green:'#007a3d', gold:'#e0b34a', sand:'#e8dcc0',
+  red:'#c8102e', green:'#007a3d', gold:'#edbe57', sand:'#e8dcc0',
   ink:'#0a0c11', dim:'#8a8574', white:'#fdfaf2', hp:'#37c26b', bad:'#e2413f'
 };
 
@@ -168,7 +168,7 @@ loadSave();
 /* --------------------------------------------------------------- difficulty */
 var DIFF = [
   {n:'ROOKIE',   ar:'مبتدئ',  dmg:0.62, hp:0.78, col:'#37c26b'},
-  {n:'PRO',      ar:'محترف',  dmg:1.00, hp:1.00, col:'#e0b34a'},
+  {n:'PRO',      ar:'محترف',  dmg:1.00, hp:1.00, col:'#edbe57'},
   {n:'CHAMPION', ar:'بطل',    dmg:1.45, hp:1.38, col:'#e2413f'}
 ];
 function diff(){ return DIFF[clamp(save.diff, 0, 2)]; }
@@ -349,7 +349,7 @@ var In = {
 
 var BTN = {
   punch  :{x:W-96,  y:H-92,  r:52, label:'PUNCH', ar:'لكمة',  col:'#e2413f', key:'punch'},
-  kick   :{x:W-96,  y:H-212, r:50, label:'KICK',  ar:'ركلة',  col:'#e0b34a', key:'kick'},
+  kick   :{x:W-96,  y:H-212, r:50, label:'KICK',  ar:'ركلة',  col:'#edbe57', key:'kick'},
   block  :{x:W-216, y:H-108, r:44, label:'BLOCK', ar:'صد',    col:'#5aa9e6', key:'block'},
   special:{x:W-208, y:H-224, r:44, label:'RAGE',  ar:'غضب',   col:'#b46ce0', key:'special'}
 };
@@ -3360,7 +3360,7 @@ function drawHUD(){
   // player panel
   ctx.fillStyle = 'rgba(8,10,16,.62)';
   roundRect(16, 14, 380, 96, 12); ctx.fill();
-  ctx.strokeStyle = 'rgba(224,179,74,.45)'; ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(237,190,87,.45)'; ctx.lineWidth = 2;
   roundRect(16, 14, 380, 96, 12); ctx.stroke();
 
   ctx.fillStyle = C.red;
@@ -3381,15 +3381,15 @@ function drawHUD(){
     var wx = 16, wy = 118;
     ctx.fillStyle = 'rgba(8,10,16,.62)';
     roundRect(wx, wy, 214, 44, 10); ctx.fill();
-    ctx.strokeStyle = 'rgba(201,210,222,.45)'; ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(237,190,87,.45)'; ctx.lineWidth = 2;
     roundRect(wx, wy, 214, 44, 10); ctx.stroke();
     ctx.save(); ctx.translate(wx + 32, wy + 22); ctx.scale(0.78, 0.78);
     weaponInHand(0, 0, -0.42, p.weapon.key);
     ctx.restore();
-    txt(WD.n, wx + 62, wy + 16, 14, '#dfe6f0', 'left', 900);
+    txt(WD.n, wx + 62, wy + 16, UI.t.label + 1, UI.fg, 'left', 900);
     var left = p.weapon.uses;
-    txt(left + (left === 1 ? ' SWING LEFT' : ' SWINGS LEFT'), wx + 62, wy + 33, 13,
-        left <= 2 ? C.bad : 'rgba(223,230,240,.62)', 'left', 700);
+    txt(left + (left === 1 ? ' SWING LEFT' : ' SWINGS LEFT'), wx + 62, wy + 33, UI.t.label,
+        left <= 2 ? C.bad : UI.fgMut, 'left', 700);
   }
 
   // stage progress
@@ -3631,11 +3631,11 @@ var UI = {
   // 8pt spacing scale. Positions and gaps come from here.
   sp:  [0, 4, 8, 12, 16, 24, 32, 48, 64, 96],
   // One size per role. A screen picks a role, never a number.
-  t:   { display:112, title:40, head:26, sub:19, body:16, label:13, micro:11 },
+  t:   { display:112, screen:56, title:40, head:26, sub:19, body:16, label:13, micro:11 },
   // Colour by role, so intent is visible at the call site.
   ink0:'#05070b', ink1:'#0b101a', ink2:'#151b28', ink3:'#1e2534',
   fg:'#f4f1e8', fgMut:'rgba(244,241,232,.62)', fgFaint:'rgba(244,241,232,.32)',
-  gold:'#edbe57', red:'#c8102e', green:'#1a8f52',
+  gold:'#edbe57', red:'#c8102e', green:'#007a3d',
   line:'rgba(237,190,87,.20)', lineSoft:'rgba(255,255,255,.07)',
   // Fixed metrics: the same control is the same size on every screen.
   btn: { lg:{w:300,h:76}, md:{w:190,h:58}, sm:{w:150,h:46} },
@@ -3736,6 +3736,16 @@ function uiButton(x, y, w, h, label, sub, fn, style){
         off ? UI.fgFaint : UI.fg, 'center', 900, 1.8);
   if(sub) txt(sub, x + w/2, y + h/2 + 15, UI.t.body - 1,
               off ? UI.fgFaint : primary ? 'rgba(255,236,206,.92)' : UI.gold, 'center', 700);
+}
+/* A setting you flip. Both pause and settings had hand-rolled these at two
+   different sizes; the metric comes from UI.btn now. */
+function toggleBtn(x, y, w, label, sub, fn, on){
+  uiButton(x, y, w, UI.btn.sm.h, label, sub, fn, on ? null : 'off');
+}
+/* The settings screen's toggles carry an Arabic sub-label, so they use the
+   taller md height — still one metric rather than four typed numbers. */
+function toggleBtnS(x, y, w, label, sub, fn, on){
+  uiButton(x, y, w, UI.btn.md.h, label, sub, fn, on ? null : 'off');
 }
 function flushUI(){
   if(!In.uiTap){ uiBtns = []; return; }
@@ -3907,7 +3917,7 @@ function drawMap(){
   for(var ai=0; ai<order.length; ai++){
     var A = ABILITIES[order[ai]], got = hasAbility(order[ai]);
     var ax = UI.pad + 84 + ai*46, ay = 122;
-    ctx.fillStyle = got ? 'rgba(224,179,74,.20)' : 'rgba(255,255,255,.05)';
+    ctx.fillStyle = got ? 'rgba(237,190,87,.20)' : 'rgba(255,255,255,.05)';
     roundRect(ax, ay, 38, 38, 8); ctx.fill();
     ctx.strokeStyle = got ? C.gold : 'rgba(255,255,255,.10)';
     ctx.lineWidth = 2; roundRect(ax, ay, 38, 38, 8); ctx.stroke();
@@ -3922,7 +3932,7 @@ function drawMap(){
   ctx.fillStyle = D.col;
   roundRect(W-278, 34, 8, 38, 4); ctx.fill();
 
-  ctx.strokeStyle = 'rgba(224,179,74,.30)';
+  ctx.strokeStyle = 'rgba(237,190,87,.30)';
   ctx.lineWidth = 5; ctx.setLineDash([12, 10]);
   ctx.beginPath();
   for(var i=0;i<MAP_POS.length;i++){
@@ -3950,7 +3960,7 @@ function drawMap(){
       var spec = GATES[gs[gi].type];
       var can = !spec.need || hasAbility(spec.need);
       if(locked) continue;
-      ctx.fillStyle = can ? 'rgba(224,179,74,.92)' : 'rgba(30,33,42,.92)';
+      ctx.fillStyle = can ? 'rgba(237,190,87,.92)' : 'rgba(30,33,42,.92)';
       circle(px-32, py-30, 15); ctx.fill();
       ctx.strokeStyle = can ? '#fff3c4' : 'rgba(255,255,255,.18)';
       ctx.lineWidth = 2; circle(px-32, py-30, 15); ctx.stroke();
@@ -4013,16 +4023,13 @@ function drawBrief(dt){
   txt(st.ar, 236, 216, 22, C.white, 'left', 700);
   if(st.boss) txt('BOSS FIGHT', 236, 248, 15, C.bad, 'left', 900);
 
-  ctx.fillStyle = 'rgba(255,255,255,.05)';
-  roundRect(120, 292, W-240, 150, 12); ctx.fill();
-  ctx.fillStyle = C.gold;
-  roundRect(120, 292, 5, 150, 3); ctx.fill();
+  panel(UI.pad, 292, W - UI.pad*2, 150, { flag:true, r:12 });
   var lines = st.story || [st.hint];
   for(var i=0;i<lines.length;i++){
     var a = clamp((G.endT - i*0.25) * 3, 0, 1);
-    txt(lines[i], 156, 332 + i*34, 19, C.sand, 'left', 600, a);
+    txt(lines[i], UI.pad + UI.sp[5], 332 + i*34, UI.t.sub, C.sand, 'left', 600, a);
   }
-  txt(st.storyAr || '', 156, 412, 17, 'rgba(255,255,255,.55)', 'left', 700,
+  txt(st.storyAr || '', UI.pad + UI.sp[5], 412, UI.t.body + 1, UI.fgMut, 'left', 700,
       clamp((G.endT - 0.6) * 3, 0, 1));
 
   // what is waiting
@@ -4033,15 +4040,14 @@ function drawBrief(dt){
       var k = st.waves[w].e[e][0];
       if(!seen[k]){ seen[k] = 1; order.push(k); }
     }
-  txt('EXPECT', 156, 478, 14, C.dim, 'left', 800);
+  txtLS('EXPECT', UI.pad, 478, UI.t.micro, UI.fgFaint, 'left', 800, 2);
   for(i=0;i<order.length && i<6;i++){
-    var T = TYPES[order[i]], bx = 156 + i*168;
-    ctx.fillStyle = 'rgba(255,255,255,.06)';
-    roundRect(bx, 494, 156, 46, 8); ctx.fill();
-    ctx.fillStyle = T.col.band;
+    var T = TYPES[order[i]], bx = UI.pad + i*168;
+    panel(bx, 494, 156, 46, { r:8 });
+    ctx.fillStyle = T.col.band;                    // the archetype's own colour
     roundRect(bx, 494, 5, 46, 3); ctx.fill();
-    txt(T.name, bx+16, 510, 14, C.white, 'left', 800);
-    txt(T.ar, bx+16, 528, 13, C.gold, 'left', 700);
+    txt(T.name, bx+16, 510, UI.t.label + 1, UI.fg, 'left', 800);
+    txt(T.ar, bx+16, 528, UI.t.label, UI.gold, 'left', 700);
   }
 
   // sealed route
@@ -4049,14 +4055,16 @@ function drawBrief(dt){
   if(bg && !gateOpen(briefIdx, bg.at)){
     var spec = GATES[bg.type];
     var can = !spec.need || hasAbility(spec.need);
-    ctx.fillStyle = can ? 'rgba(224,179,74,.14)' : 'rgba(255,255,255,.05)';
-    roundRect(W-500, 452, 340, 88, 10); ctx.fill();
-    ctx.fillStyle = can ? C.gold : 'rgba(255,255,255,.16)';
-    roundRect(W-500, 452, 5, 88, 3); ctx.fill();
-    txt('SEALED ROUTE', W-478, 474, 14, can ? C.gold : C.dim, 'left', 900);
-    txt(spec.n + ' · ' + spec.ar, W-478, 498, 15, C.white, 'left', 700);
+    // The fifth hand-rolled panel on this screen; the component knows how to
+    // say "this one matters" via `accent`.
+    panel(W - UI.pad - 340, 452, 340, 88, { r:10, accent:can, raised:can });
+    ctx.fillStyle = can ? UI.gold : 'rgba(255,255,255,.16)';
+    roundRect(W - UI.pad - 340, 452, 5, 88, 3); ctx.fill();
+    txtLS('SEALED ROUTE', W - UI.pad - 318, 474, UI.t.micro,
+          can ? UI.gold : UI.fgFaint, 'left', 900, 2);
+    txt(spec.n + ' · ' + spec.ar, W - UI.pad - 318, 498, UI.t.body, UI.fg, 'left', 700);
     txt(can ? 'You carry the key — go open it.' : spec.how,
-        W-478, 522, 14, can ? C.hp : C.bad, 'left', 600);
+        W - UI.pad - 318, 522, UI.t.label + 1, can ? C.hp : C.bad, 'left', 600);
   }
 
   var rank = save.ranks[briefIdx];
@@ -4081,49 +4089,47 @@ function drawSettings(){
   });
   ctx.fillStyle = D.col; roundRect(W/2-292, 142, 8, 42, 4); ctx.fill();
 
-  uiButton(W/2-304, 206, 292, 58, save.sound ? 'SOUND: ON' : 'SOUND: OFF', 'الصوت',
-           function(){ Sfx.init(); Sfx.setOn(!save.sound); }, save.sound ? null : 'off');
-  uiButton(W/2+12, 206, 292, 58, save.music ? 'MUSIC: ON' : 'MUSIC: OFF', 'الموسيقى',
+  toggleBtnS(W/2-304, 206, 292, save.sound ? 'SOUND: ON' : 'SOUND: OFF', 'الصوت',
+           function(){ Sfx.init(); Sfx.setOn(!save.sound); }, save.sound);
+  toggleBtnS(W/2+12, 206, 292, save.music ? 'MUSIC: ON' : 'MUSIC: OFF', 'الموسيقى',
            function(){ save.music = !save.music; writeSave(); if(!save.music) Music.stop(); },
-           save.music ? null : 'off');
+           save.music);
 
-  uiButton(W/2-304, 288, 292, 58, save.haptics ? 'VIBRATION: ON' : 'VIBRATION: OFF', 'الاهتزاز',
+  toggleBtnS(W/2-304, 288, 292, save.haptics ? 'VIBRATION: ON' : 'VIBRATION: OFF', 'الاهتزاز',
            function(){ save.haptics = !save.haptics; writeSave(); haptic(30); },
-           save.haptics ? null : 'off');
-  uiButton(W/2+12, 288, 292, 58, isFullscreen() ? 'EXIT FULLSCREEN' : 'FULLSCREEN', 'ملء الشاشة',
-           function(){ toggleFullscreen(); });
-  uiButton(W/2-304, 370, 608, 58, save.gfx ? 'GRAPHICS: REALISTIC' : 'GRAPHICS: FAST',
+           save.haptics);
+  toggleBtnS(W/2+12, 288, 292, isFullscreen() ? 'EXIT FULLSCREEN' : 'FULLSCREEN', 'ملء الشاشة',
+           function(){ toggleFullscreen(); }, true);
+  toggleBtnS(W/2-304, 370, 608, save.gfx ? 'GRAPHICS: REALISTIC' : 'GRAPHICS: FAST',
            save.gfx ? 'رسوم واقعية — أبطأ على الأجهزة القديمة' : 'رسوم سريعة',
            function(){ save.gfx = !save.gfx; save.gfxUser = true; writeSave(); },
-           save.gfx ? null : 'off');
+           save.gfx);
 
   // lifetime stats
-  ctx.fillStyle = 'rgba(255,255,255,.05)';
-  roundRect(W/2-300, 414, 600, 104, 12); ctx.fill();
+  panel(W/2-300, 440, 600, 96, { r:12 });
   var st = save.stats;
   var rows = [['ENEMIES DOWNED', st.kills], ['CRATES SMASHED', st.crates],
               ['PERFECT PARRIES', st.parries], ['STAGES CLEARED', st.clears],
               ['FIGHTS STARTED', st.fights], ['TIME IN THE RING', Math.round(st.time/60) + 'm']];
   for(var i=0;i<rows.length;i++){
-    var cx = W/2 - 290 + (i % 3) * 197, cy = 440 + Math.floor(i / 3) * 50;
-    txt(rows[i][0], cx, cy, 12, C.dim, 'left', 800);
-    txt(String(rows[i][1]), cx, cy + 24, 24, C.gold, 'left', 900);
+    var cx = W/2 - 290 + (i % 3) * 197, cy = 466 + Math.floor(i / 3) * 44;
+    statLine(cx, cy, rows[i][0], String(rows[i][1]), UI.gold, 'left');
   }
 
   if(confirmWipe){
     txt('Erase all progress? This cannot be undone.', W/2, 540, 17, C.bad, 'center', 800);
-    uiButton(W/2-304, 556, 292, 52, 'YES, ERASE', 'نعم', function(){
+    uiButton(W/2-304, 552, 292, 52, 'YES, ERASE', 'نعم', function(){
       try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
       save.unlocked = 1; save.xp = 0; save.best = 0; save.cleared = []; save.ranks = {};
       save.survBest = 0; save.achieved = []; save.up = {pow:0,vit:0,spd:0,stam:0};
       for(var k in save.stats) save.stats[k] = 0;
       writeSave(); confirmWipe = false; G.state = 'menu';
     }, 'danger');
-    uiButton(W/2+12, 556, 292, 52, 'CANCEL', 'إلغاء', function(){ confirmWipe = false; });
+    uiButton(W/2+12, 552, 292, 52, 'CANCEL', 'إلغاء', function(){ confirmWipe = false; });
   } else {
-    uiButton(W/2-304, 540, 292, 52, 'RESET PROGRESS', 'مسح التقدم',
+    uiButton(W/2-304, 552, 292, 52, 'RESET PROGRESS', 'مسح التقدم',
              function(){ confirmWipe = true; }, 'danger');
-    uiButton(W/2+12, 540, 292, 52, 'ACHIEVEMENTS', 'الإنجازات',
+    uiButton(W/2+12, 552, 292, 52, 'ACHIEVEMENTS', 'الإنجازات',
              function(){ G.state = 'achievements'; });
   }
   navRow([['BACK', 'رجوع', function(){ confirmWipe = false; G.state = 'menu'; }]]);
@@ -4158,10 +4164,7 @@ function drawAchievements(){
     var a = ACHIEVEMENTS[i];
     var have = save.achieved.indexOf(a.k) >= 0;
     var cx = 90 + (i % 3) * 372, cy = 132 + Math.floor(i / 3) * 104;
-    ctx.fillStyle = have ? 'rgba(224,179,74,.12)' : 'rgba(255,255,255,.04)';
-    roundRect(cx, cy, 348, 92, 10); ctx.fill();
-    ctx.strokeStyle = have ? 'rgba(224,179,74,.55)' : 'rgba(255,255,255,.08)';
-    ctx.lineWidth = 2; roundRect(cx, cy, 348, 92, 10); ctx.stroke();
+    panel(cx, cy, 348, 92, { r:10, accent:have, raised:have });
 
     ctx.fillStyle = have ? C.gold : 'rgba(255,255,255,.10)';
     circle(cx+34, cy+34, 18); ctx.fill();
@@ -4182,7 +4185,7 @@ var UP_MAX = ASSET_UPGRADES.maxLevel;
 function drawUpgrade(){
   screenBg('#1b1526');
   screenHead('TRAINING CAMP', 'معسكر التدريب');
-  statLine(W - UI.pad, UI.headY - 12, 'SPENDABLE XP', String(save.xp), C.hp);
+  statLine(W - UI.pad, UI.headY - 12, 'SPENDABLE XP', String(save.xp), UI.gold);
 
   var rowX = UI.pad, rowW = W - UI.pad * 2;
   for(var i=0;i<UPS.length;i++){
@@ -4232,27 +4235,29 @@ function drawUpgrade(){
 function drawPause(){
   ctx.fillStyle = 'rgba(4,6,11,.82)';
   ctx.fillRect(0, 0, W, H);
-  txtLS('PAUSED', W/2, 190, UI.t.title + 14, UI.gold, 'center', 900, 8);
+  txtLS('PAUSED', W/2, 190, UI.t.screen, UI.gold, 'center', 900, 8);
   txt('إيقاف مؤقت', W/2, 236, 22, C.white, 'center', 700);
-  uiButton(W/2-150, 286, 300, 62, 'RESUME', 'متابعة', function(){ G.paused = false; }, 'primary');
-  uiButton(W/2-150, 360, 300, 52, 'RESTART STAGE', 'إعادة المرحلة', function(){
+  var bw = UI.btn.lg.w, bx = W/2 - bw/2, hw = (bw - UI.sp[3])/2, bh = UI.btn.sm.h;
+  uiButton(bx, 286, bw, UI.btn.lg.h, 'RESUME', 'متابعة', function(){ G.paused = false; }, 'primary');
+  uiButton(bx, 286 + UI.btn.lg.h + UI.sp[4], bw, bh, 'RESTART STAGE', 'إعادة المرحلة', function(){
     var idx = G.fight ? G.fight.idx : 0;
     G.paused = false; startStage(idx);
   });
-  uiButton(W/2-150, 424, 145, 48, save.sound ? 'SOUND: ON' : 'SOUND: OFF', null,
-           function(){ Sfx.setOn(!save.sound); }, save.sound ? null : 'off');
-  uiButton(W/2+5, 424, 145, 48, save.music ? 'MUSIC: ON' : 'MUSIC: OFF', null,
-           function(){ save.music = !save.music; writeSave(); if(!save.music) Music.stop(); },
-           save.music ? null : 'off');
-  uiButton(W/2-150, 484, 145, 48, save.haptics ? 'VIBRATE: ON' : 'VIBRATE: OFF', null,
-           function(){ save.haptics = !save.haptics; writeSave(); haptic(30); },
-           save.haptics ? null : 'off');
-  uiButton(W/2+5, 484, 145, 48, isFullscreen() ? 'WINDOWED' : 'FULLSCREEN', null,
-           function(){ toggleFullscreen(); });
-  uiButton(W/2-150, 542, 300, 44, save.gfx ? 'GRAPHICS: REALISTIC' : 'GRAPHICS: FAST', null,
-           function(){ save.gfx = !save.gfx; save.gfxUser = true; writeSave(); },
-           save.gfx ? null : 'off');
-  uiButton(W/2-150, 598, 300, 50, 'QUIT TO MAP', 'خروج', function(){
+  var ty = 286 + UI.btn.lg.h + UI.sp[4] + bh + UI.sp[5];
+  toggleBtn(bx, ty, hw, save.sound ? 'SOUND: ON' : 'SOUND: OFF', null,
+            function(){ Sfx.setOn(!save.sound); }, save.sound);
+  toggleBtn(bx + hw + UI.sp[3], ty, hw, save.music ? 'MUSIC: ON' : 'MUSIC: OFF', null,
+            function(){ save.music = !save.music; writeSave(); if(!save.music) Music.stop(); },
+            save.music);
+  ty += bh + UI.sp[3];
+  toggleBtn(bx, ty, hw, save.haptics ? 'VIBRATE: ON' : 'VIBRATE: OFF', null,
+            function(){ save.haptics = !save.haptics; writeSave(); haptic(30); }, save.haptics);
+  toggleBtn(bx + hw + UI.sp[3], ty, hw, isFullscreen() ? 'WINDOWED' : 'FULLSCREEN', null,
+            function(){ toggleFullscreen(); }, true);
+  ty += bh + UI.sp[3];
+  toggleBtn(bx, ty, bw, save.gfx ? 'GRAPHICS: REALISTIC' : 'GRAPHICS: FAST', null,
+            function(){ save.gfx = !save.gfx; save.gfxUser = true; writeSave(); }, save.gfx);
+  uiButton(bx, ty + bh + UI.sp[5], bw, bh, 'QUIT TO MAP', 'خروج', function(){
     Music.stop(); G.state = 'map'; G.paused = false; G.fight = null;
   }, 'danger');
 }
@@ -4261,7 +4266,7 @@ function drawClear(dt){
   G.endT += dt;
   screenBg('#132318');
   var F = G.fight;
-  txtLS('STAGE CLEAR', W/2, 120, UI.t.title + 14, UI.gold, 'center', 900, 8);
+  txtLS('STAGE CLEAR', W/2, 120, UI.t.screen, UI.gold, 'center', 900, 8);
   txt('تم اجتياز المرحلة', W/2, 168, 22, C.white, 'center', 700);
   txt(F.st.name, W/2, 208, 22, C.hp, 'center', 800);
 
@@ -4303,17 +4308,17 @@ function drawClear(dt){
   }
 
   var next = G.fight.idx + 1;
-  uiButton(W/2-320, 546, 200, 60, 'NEXT', 'التالي', function(){
-    if(next < CAMPAIGN) openBrief(next); else G.state = 'map';
-  }, 'primary');
-  uiButton(W/2-100, 546, 200, 60, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
-  uiButton(W/2+120, 546, 200, 60, 'MAP', 'الخريطة', function(){ G.state = 'map'; });
+  navRow([['NEXT', 'التالي', function(){
+             if(next < CAMPAIGN) openBrief(next); else G.state = 'map';
+           }, 'primary'],
+          ['TRAIN', 'تدريب', function(){ G.state = 'upgrade'; }],
+          ['MAP', 'الخريطة', function(){ G.state = 'map'; }]]);
 }
 
 function drawGameOver(dt){
   G.endT += dt;
   screenBg('#251016');
-  txtLS('KNOCKED OUT', W/2, 180, UI.t.title + 18, C.bad, 'center', 900, 8);
+  txtLS('KNOCKED OUT', W/2, 180, UI.t.screen + 4, C.bad, 'center', 900, 8);
   txt('خسرت الجولة', W/2, 232, 24, C.white, 'center', 700);
   var F = G.fight;
   if(F.st.survival){
@@ -4325,16 +4330,16 @@ function drawGameOver(dt){
     txt('Ahmed gets back up. Train, then run it again.', W/2, 330, 17, 'rgba(255,255,255,.55)', 'center', 600);
   }
 
-  uiButton(W/2-330, 400, 210, 66, 'RETRY', 'إعادة', function(){ startStage(F.idx); }, 'primary');
-  uiButton(W/2-105, 400, 210, 66, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
-  uiButton(W/2+120, 400, 210, 66, 'MAP', 'الخريطة', function(){ G.state = 'map'; });
+  navRow([['RETRY', 'إعادة', function(){ startStage(F.idx); }, 'primary'],
+          ['TRAIN', 'تدريب', function(){ G.state = 'upgrade'; }],
+          ['MAP', 'الخريطة', function(){ G.state = 'map'; }]]);
 }
 
 function drawVictory(dt){
   G.endT += dt;
   screenBg('#1d1730');
   var pulse = 1 + Math.sin(gameTime*3)*0.02;
-  txt('CHAMPION', W/2, 150, 74*pulse, C.gold, 'center', 900);
+  txtLS('CHAMPION', W/2, 150, UI.t.screen*pulse, UI.gold, 'center', 900, 8);
   txt('بطل الكويت', W/2, 210, 30, C.white, 'center', 700);
   var F = G.fight;
   var ep = [
@@ -4352,9 +4357,9 @@ function drawVictory(dt){
       '   ·   Total XP: ' + save.xp, W/2, 414, 18, C.hp, 'center', 800);
   txt('SURVIVAL is now open on the map. Replay any stage to chase an S rank.',
       W/2, 446, 16, C.dim, 'center', 600);
-  uiButton(W/2-345, 494, 220, 62, 'MAP', 'الخريطة', function(){ G.state = 'map'; }, 'primary');
-  uiButton(W/2-105, 494, 220, 62, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
-  uiButton(W/2+135, 494, 220, 62, 'AWARDS', 'الإنجازات', function(){ G.state = 'achievements'; });
+  navRow([['MAP', 'الخريطة', function(){ G.state = 'map'; }, 'primary'],
+          ['TRAIN', 'تدريب', function(){ G.state = 'upgrade'; }],
+          ['AWARDS', 'الإنجازات', function(){ G.state = 'achievements'; }]]);
 }
 
 /* ==========================================================================
@@ -4363,15 +4368,19 @@ function drawVictory(dt){
 function drawAchToast(){
   if(achToastT <= 0 || !achToast) return;
   var a = clamp(achToastT > 3.0 ? (3.4 - achToastT) / 0.4 : Math.min(1, achToastT / 0.5), 0, 1);
-  var y = 10 - (1 - a) * 26;
+  // Mid-fight the stage banner already owns y 12-74 at centre, and the toast
+  // plate is 10-76 — they landed on top of each other. Drop below it.
+  var top = (G.state === 'fight') ? 92 : 10;
+  var y = top - (1 - a) * 26;
   ctx.globalAlpha = a;
   ctx.fillStyle = 'rgba(8,10,16,.93)';
   roundRect(W/2-240, y, 480, 66, 12); ctx.fill();
-  ctx.strokeStyle = C.gold; ctx.lineWidth = 2.5;
+  ctx.strokeStyle = UI.gold; ctx.lineWidth = 2.5;
   roundRect(W/2-240, y, 480, 66, 12); ctx.stroke();
-  txt(achToast.head || 'ACHIEVEMENT UNLOCKED', W/2, y+16, 12, C.dim, 'center', 800);
-  txt(achToast.n, W/2, y+38, 22, C.gold, 'center', 900);
-  txt(achToast.ar, W/2, y+56, 13, 'rgba(255,255,255,.7)', 'center', 700);
+  txtLS(achToast.head || 'ACHIEVEMENT UNLOCKED', W/2, y+16, UI.t.micro, UI.fgFaint,
+        'center', 800, 2, a);
+  txt(achToast.n, W/2, y+38, UI.t.head - 4, UI.gold, 'center', 900, a);
+  txt(achToast.ar, W/2, y+56, UI.t.label, UI.fgMut, 'center', 700, a);
   ctx.globalAlpha = 1;
 }
 
