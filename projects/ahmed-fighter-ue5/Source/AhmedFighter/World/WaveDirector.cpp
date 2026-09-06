@@ -1,4 +1,5 @@
 #include "World/WaveDirector.h"
+#include "Game/AhmedAudioSubsystem.h"
 
 #include "Combat/AhmedCharacter.h"
 #include "Combat/EnemyFighter.h"
@@ -79,6 +80,7 @@ void AWaveDirector::Tick(float DeltaSeconds)
 	if (!Player->IsAlive())
 	{
 		bFinished = true;
+		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Stage_Fail")); }
 		OnStageFailed.Broadcast();
 		return;
 	}
@@ -98,6 +100,7 @@ void AWaveDirector::Tick(float DeltaSeconds)
 	{
 		bArenaLocked = false;
 		AttackTokenHolders.Reset();
+		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Wave_Clear")); }
 		OnWaveCleared.Broadcast(WaveIndex);
 		++WaveIndex;
 
@@ -119,6 +122,7 @@ void AWaveDirector::Tick(float DeltaSeconds)
 		&& Player->GetActorLocation().X >= Stage->Length - 360.f)
 	{
 		bFinished = true;
+		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Stage_Clear")); }
 		OnStageCleared.Broadcast();
 	}
 }
@@ -141,6 +145,7 @@ void AWaveDirector::BeginWave(const FWaveDef& Wave)
 		SpawnFighter(Wave.Fighters[i], Tier, i, Wave.Fighters.Num());
 	}
 
+	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Wave_Start")); }
 	OnWaveStarted.Broadcast(WaveIndex);
 }
 

@@ -292,6 +292,52 @@ which reads the `?ArriveAt` option. `FAhmedProgress` gained `CurrentStage` and
 
 ---
 
+## Sound
+
+Two pieces: the **storage**, and the **effects** wired into it.
+
+**Storage** is `Content/Data/DT_Sounds.csv` and the `Content/Audio/` folder.
+The game plays sound by **cue name** and nothing else — `Audio->Play("Hit_Heavy",
+this)` — and the table decides what that is: the asset, the bus it sits on,
+volume, pitch drift, whether it plays in the world or flat in both ears, and a
+cooldown so a five-hit combo does not stack five copies of one crack into a
+distorted one. Recasting a sound is a table edit; the cue names are the
+contract and do not change. `Content/Audio/README.md` lists every file the
+table expects, by folder, with what each should sound like — the table's
+`Description` column, read before recording or buying.
+
+No `.wav` files are in the repository; that is yours to record or source. A
+cue whose file is not there **logs once and stays silent** — the game never
+fails to start over a missing sound. Play a stage and `LogAhmedAudio` tells
+you what is still missing.
+
+`UAhmedAudioSubsystem` is the player. Three buses (effects, interface, music)
+carry the volumes the settings screen moves; the profile's `bSound` and
+`bMusic` gate them. Assets resolve once per cue, not per hit.
+
+**Effects wired in this pass**, at the moment each thing happens in C++:
+
+| Where | Cues |
+| --- | --- |
+| a swing starts | `Whoosh_Light` / `Whoosh_Heavy` by the attack's weight |
+| a blow lands | `Hit_Light` / `Hit_Heavy` / `Hit_Knockdown` — the one that puts a fighter down is its own, so the player can hear the difference |
+| a guard | `Block`; the perfect one is `Parry`, deliberately unmistakable from it, because it is the reward |
+| a fighter dies | `KO` |
+| the finisher | `Rage` |
+| dodge | `Dash`, or `Dash_Leap` once the talent is held |
+| walk cycle | `Footstep`, from `AFighterBase::PlayFootstep()` — call it from the animation's notify, one per contact |
+| a boss turns | `Boss_Enrage` |
+| gates | `Gate_Strike` while it holds, `Gate_Break` on the strike that opens a shutter or wall, `Gate_Open` for the quiet ones; `Talent_Found` from `GrantAbility`, `Exp_Cache` for an XP reward |
+| exits | `Exit_Sealed` with the refusal, `Exit_Travel` on the way through |
+| waves | `Wave_Start`, `Wave_Clear`, `Stage_Clear`, `Stage_Fail` |
+
+Rows with no caller yet — weapons, crates, pickups, HAWK FIST, level-up, the
+UI taps, the three music tracks — are for systems the port does not have
+(see **Not yet ported**). The names are reserved so the browser build's
+vocabulary carries over unchanged when they arrive.
+
+---
+
 ## Art direction
 
 Not cartoonish. See `CLAUDE.md` in this directory — realistic proportions,
@@ -339,7 +385,8 @@ do in the editor, because they are content rather than code:
 - The stage environments' art. The maps themselves now exist as blockouts —
   see **The stage maps** — and the map/briefing/settings UI (canvas in the
   browser build; UMG here).
-- Audio. The browser build synthesises everything at runtime; UE wants real cues.
+- Audio files. The cue table, the player and the wiring exist now (see
+  **Sound**); the `.wav` files do not.
 - Touch controls. The desktop and gamepad paths are bound; a mobile on-screen
   stick and four buttons still need a UMG layer feeding the same Input Actions.
 

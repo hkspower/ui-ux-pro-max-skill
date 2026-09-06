@@ -1,4 +1,5 @@
 #include "Combat/AhmedCharacter.h"
+#include "Game/AhmedAudioSubsystem.h"
 
 #include "Camera/CameraComponent.h"
 #include "Combat/EnemyFighter.h"
@@ -324,6 +325,10 @@ void AAhmedCharacter::Input_BlockStarted()
 
 		const FVector Dir = FVector(MoveInput.X, MoveInput.Y, 0.f).GetSafeNormal();
 		LaunchCharacter(Dir * (bLeap ? 1500.f : 1150.f), true, false);
+		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this))
+		{
+			Audio->Play(bLeap ? TEXT("Dash_Leap") : TEXT("Dash"), this);
+		}
 		return;
 	}
 
@@ -348,6 +353,7 @@ void AAhmedCharacter::Input_Rage()
 	{
 		Rage = 0.f;
 		InvulnerableRemaining = 0.55f;
+		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->Play(TEXT("Rage"), this); }
 		OnRageChanged.Broadcast(GetRageFraction());
 		BP_OnRageReleased();
 	}

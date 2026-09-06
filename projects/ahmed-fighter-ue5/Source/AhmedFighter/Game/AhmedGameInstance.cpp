@@ -1,4 +1,5 @@
 #include "Game/AhmedGameInstance.h"
+#include "Game/AhmedAudioSubsystem.h"
 
 #include "Kismet/GameplayStatics.h"
 
@@ -85,6 +86,7 @@ bool UAhmedGameInstance::GrantAbility(EAbility Ability)
 		return false;
 	}
 	Progress.Abilities.Add(Ability);
+	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Talent_Found")); }
 	OnAbilityGranted.Broadcast(Ability);
 	return true;
 }

@@ -1,4 +1,5 @@
 #include "Combat/FighterBase.h"
+#include "Game/AhmedAudioSubsystem.h"
 
 #include "Engine/DataTable.h"
 #include "EngineUtils.h"
@@ -122,6 +123,11 @@ bool AFighterBase::StartAttack(FName AttackRow)
 	HitThisSwing.Reset();
 	State = EFighterState::Attack;
 
+	// The swing is heard before it lands; whether it lands is the next sound.
+	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this))
+	{
+		Audio->Play(Attack->bHeavy ? TEXT("Whoosh_Heavy") : TEXT("Whoosh_Light"), this);
+	}
 	BP_OnAttackStarted(AttackRow);
 	return true;
 }
@@ -257,6 +263,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 		Attacker->LaunchCharacter(FVector(FacingSign * 260.f, 0.f, 0.f), true, false);
 
 		Result.bParried = true;
+		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->Play(TEXT("Parry"), this); }
 		BP_OnHitReceived(Result);
 		return Result;
 	}
@@ -276,6 +283,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 	{
 		Stamina = FMath::Max(0.f, Stamina - 14.f);
 		LaunchCharacter(FVector(Attacker->GetFacingSign() * Attack.Knockback * 0.30f, 0.f, 0.f), true, false);
+		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->Play(TEXT("Block"), this); }
 		OnDamaged.Broadcast(Health, Result);
 		BP_OnHitReceived(Result);
 		return Result;
@@ -302,9 +310,25 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 		OnKnockedDown();
 	}
 
+	// Knockdown, heavy or light -- one sound per blow, and the one that puts a
+	// fighter down is its own so the player can hear the difference.
+	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this))
+	{
+		Audio->Play(bKnockdown ? TEXT("Hit_Knockdown")
+			: Attack.bHeavy ? TEXT("Hit_Heavy") : TEXT("Hit_Light"), this);
+	}
 	OnDamaged.Broadcast(Health, Result);
 	BP_OnHitReceived(Result);
 	return Result;
+}
+
+void AFighterBase::PlayFootstep()
+{
+	if (!IsAlive())
+	{
+		return;
+	}
+	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->Play(TEXT("Footstep"), this); }
 }
 
 void AFighterBase::FaceTowards(const FVector& WorldLocation)
@@ -321,6 +345,7 @@ void AFighterBase::OnDeath()
 {
 	State = EFighterState::Dead;
 	SetActorEnableCollision(false);
+	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->Play(TEXT("KO"), this); }
 	OnDefeated.Broadcast(this);
 	BP_OnDefeated();
 }

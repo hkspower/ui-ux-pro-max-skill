@@ -1,4 +1,5 @@
 #include "Combat/EnemyFighter.h"
+#include "Game/AhmedAudioSubsystem.h"
 
 #include "Combat/AhmedCharacter.h"
 #include "EngineUtils.h"
@@ -93,6 +94,7 @@ void AEnemyFighter::EnterPhaseTwo()
 	}
 	// Phase two earns the finisher.
 	Moves.AddUnique(TEXT("Rage"));
+	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->Play(TEXT("Boss_Enrage"), this); }
 	BP_OnEnraged();
 }
 

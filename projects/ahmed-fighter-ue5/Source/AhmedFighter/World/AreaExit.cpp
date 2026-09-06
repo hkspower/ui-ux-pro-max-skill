@@ -1,4 +1,5 @@
 #include "World/AreaExit.h"
+#include "Game/AhmedAudioSubsystem.h"
 
 #include "Combat/AhmedCharacter.h"
 #include "Components/BoxComponent.h"
@@ -80,6 +81,7 @@ void AAreaExit::HandleOverlap(UPrimitiveComponent*, AActor* Other, UPrimitiveCom
 		if (Now >= RefuseCooldown)
 		{
 			RefuseCooldown = static_cast<float>(Now) + 1.2f;
+			if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->Play(TEXT("Exit_Sealed"), this); }
 			const bool bHasAbility = RequiredAbility == EAbility::None
 				|| (GI && GI->HasAbility(RequiredAbility));
 			// "Needs VAULT" if the key is missing; "no way through yet" if the
@@ -97,6 +99,7 @@ void AAreaExit::HandleOverlap(UPrimitiveComponent*, AActor* Other, UPrimitiveCom
 	}
 
 	bTravelling = true;
+	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Exit_Travel")); }
 
 	// The far side reads these on load: where to stand, and what to carry
 	// across. Travel is a step through a doorway, not a fresh run.

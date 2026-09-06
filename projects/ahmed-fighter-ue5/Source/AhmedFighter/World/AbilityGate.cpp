@@ -1,4 +1,5 @@
 #include "World/AbilityGate.h"
+#include "Game/AhmedAudioSubsystem.h"
 
 #include "Combat/AhmedCharacter.h"
 #include "Components/BoxComponent.h"
@@ -122,6 +123,11 @@ bool AAbilityGate::ReceiveStrike(EAttackFamily Family)
 	}
 
 	++StrikesLanded;
+	// The strike that breaks it has its own sound; Open() plays it.
+	if (StrikesLanded < StrikesToBreak)
+	{
+		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->Play(TEXT("Gate_Strike"), this); }
+	}
 	BP_OnStruck(StrikesLanded);
 	if (StrikesLanded >= StrikesToBreak)
 	{
@@ -138,16 +144,24 @@ void AAbilityGate::Open()
 	}
 	bOpen = true;
 
+	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this))
+	{
+		// Shutters and walls come down; ledges, gaps and lockers just open.
+		const bool bBroken = GateType == EGateType::Shutter || GateType == EGateType::Wall;
+		Audio->Play(bBroken ? TEXT("Gate_Break") : TEXT("Gate_Open"), this);
+	}
+
 	if (UAhmedGameInstance* GI = GetWorld()->GetGameInstance<UAhmedGameInstance>())
 	{
 		GI->MarkGateOpen(GateId);
 		if (RewardAbility != EAbility::None)
 		{
-			GI->GrantAbility(RewardAbility);
+			GI->GrantAbility(RewardAbility);		// Talent_Found plays there
 		}
 		else if (RewardExperience > 0)
 		{
 			GI->AddExperience(RewardExperience);
+			if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Exp_Cache")); }
 		}
 		GI->SaveProgress();
 	}

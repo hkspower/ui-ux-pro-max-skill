@@ -70,6 +70,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void FaceTowards(const FVector& WorldLocation);
 
+	/** Fire from the walk cycle's anim notify, one per contact. The cue's
+	    pitch drift keeps a loop from sounding like one. */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void PlayFootstep();
+
 	/** Damage this fighter deals, before the victim's defences. */
 	virtual float GetOutgoingDamageMultiplier(const FAttackDef& Attack) const;
 
