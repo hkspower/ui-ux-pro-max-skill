@@ -48,6 +48,7 @@
 
 /* ---------------------------------------------------------------- constants */
 var W = 1280, H = 720;              // logical canvas resolution
+var CAMPAIGN = 9;                   // campaign stages; anything after is a side mode
 var FLOOR_TOP = 452, FLOOR_H = 196; // playfield depth band (z = 0..1)
 
 var C = {
@@ -106,14 +107,16 @@ function circle(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,6.2832); ctx.closePath(
 /* --------------------------------------------------------------- save state */
 var SAVE_KEY = 'ahmed_kuwait_fighter_v1';
 var save = { unlocked:1, xp:0, best:0, up:{pow:0,vit:0,spd:0,stam:0}, sound:true,
-             cleared:[], diff:1, ranks:{}, survBest:0, haptics:true };
+             cleared:[], diff:1, ranks:{}, survBest:0, haptics:true, music:true,
+             achieved:[], stats:{kills:0, crates:0, parries:0, champClears:0,
+                                 fights:0, clears:0, time:0} };
 function loadSave(){
   try{
     var raw = localStorage.getItem(SAVE_KEY);
     if(raw){
       var d = JSON.parse(raw);
       if(d && typeof d === 'object'){
-        save.unlocked = clamp(d.unlocked|0, 1, 6);
+        save.unlocked = clamp(d.unlocked|0, 1, CAMPAIGN);
         save.xp = Math.max(0, d.xp|0);
         save.best = Math.max(0, d.best|0);
         save.sound = d.sound !== false;
@@ -122,6 +125,9 @@ function loadSave(){
         save.ranks = (d.ranks && typeof d.ranks === 'object') ? d.ranks : {};
         save.survBest = Math.max(0, d.survBest|0);
         save.haptics = d.haptics !== false;
+        save.music = d.music !== false;
+        save.achieved = Array.isArray(d.achieved) ? d.achieved : [];
+        if(d.stats) for(var sk in save.stats) save.stats[sk] = Math.max(0, d.stats[sk]|0);
         if(d.up) for(var k in save.up) save.up[k] = clamp(d.up[k]|0, 0, 5);
       }
     }
@@ -144,6 +150,51 @@ function diff(){ return DIFF[clamp(save.diff, 0, 2)]; }
 function haptic(ms){
   if(!save.haptics || !navigator.vibrate) return;
   try{ navigator.vibrate(ms); }catch(e){}
+}
+
+/* ------------------------------------------------------------- achievements */
+var ACHIEVEMENTS = [
+  {k:'first',    n:'FIRST BLOOD',    ar:'أول ضربة',    d:'Down your first opponent.',
+   test:function(){ return save.stats.kills >= 1; }},
+  {k:'combo10',  n:'TEN STRAIGHT',   ar:'عشر ضربات',   d:'Land a 10-hit combo.',
+   test:function(){ return save.best >= 10; }},
+  {k:'combo25',  n:'UNTOUCHABLE',    ar:'لا يُمسّ',     d:'Land a 25-hit combo.',
+   test:function(){ return save.best >= 25; }},
+  {k:'crates',   n:'DEMOLITION',     ar:'تحطيم',       d:'Smash 50 crates.',
+   test:function(){ return save.stats.crates >= 50; }},
+  {k:'parry',    n:'READ THE PUNCH', ar:'قراءة اللكمة', d:'Land 25 perfect parries.',
+   test:function(){ return save.stats.parries >= 25; }},
+  {k:'saqr',     n:'FALCON DOWN',    ar:'سقط الصقر',   d:'Beat AL-SAQR at Marina Crescent.',
+   test:function(){ return save.cleared.indexOf(4) >= 0; }},
+  {k:'belt',     n:'THE BELT',       ar:'الحزام',      d:'Beat AL-WAHSH and take the title.',
+   test:function(){ return save.cleared.indexOf(8) >= 0; }},
+  {k:'srank',    n:'FLAWLESS',       ar:'بلا أخطاء',   d:'Earn an S rank on any stage.',
+   test:function(){ for(var k in save.ranks) if(save.ranks[k] === 'S') return true; return false; }},
+  {k:'champion', n:'NO MERCY',       ar:'بلا رحمة',    d:'Clear a stage on CHAMPION.',
+   test:function(){ return save.stats.champClears >= 1; }},
+  {k:'maxed',    n:'PEAK CONDITION', ar:'قمة اللياقة', d:'Max out any training track.',
+   test:function(){ for(var u in save.up) if(save.up[u] >= 5) return true; return false; }},
+  {k:'surv10',   n:'LAST MAN UP',    ar:'آخر الواقفين', d:'Reach wave 10 in Survival.',
+   test:function(){ return save.survBest >= 10; }},
+  {k:'allstage', n:'ALL OF KUWAIT',  ar:'كل الكويت',   d:'Clear all nine stages.',
+   test:function(){ return save.cleared.length >= CAMPAIGN; }}
+];
+var achToast = null, achToastT = 0;
+
+function bump(stat, by){
+  save.stats[stat] = (save.stats[stat] || 0) + (by === undefined ? 1 : by);
+}
+function checkAchievements(){
+  for(var i=0;i<ACHIEVEMENTS.length;i++){
+    var a = ACHIEVEMENTS[i];
+    if(save.achieved.indexOf(a.k) >= 0) continue;
+    if(a.test()){
+      save.achieved.push(a.k);
+      achToast = a; achToastT = 3.4;
+      writeSave();
+      if(Sfx.ac) Sfx.power();
+    }
+  }
 }
 
 /* -------------------------------------------------------------------- audio */
@@ -211,9 +262,10 @@ var Music = {
   timer:null, step:0, tempo:104, on:false,
   scale:[0,1,4,5,7,8,10],      // Hijaz
   root:73.42,                   // D2
-  start:function(intense){
-    if(!Sfx.ac || this.on) return;
+  start:function(intense, root){
+    if(!Sfx.ac || this.on || !save.music) return;
     this.on = true; this.step = 0; this.tempo = intense ? 118 : 100;
+    this.root = root || 73.42;
     var self = this;
     this.timer = setInterval(function(){ self.tick(); }, (60000/this.tempo)/4);
   },
@@ -223,7 +275,7 @@ var Music = {
     Sfx.tone(f, f, dur, vol, type||'sawtooth');
   },
   tick:function(){
-    if(!save.sound || !Sfx.ac) return;
+    if(!save.sound || !save.music || !Sfx.ac) return;
     var s = this.step % 16;
     if(s===0||s===6||s===10) Sfx.thud(90, 0.16, 0.6, 0.30, 'lowpass');           // dum
     if(s===4||s===12||s===14) Sfx.thud(1500, 0.05, 1.2, 0.10, 'highpass');       // tak
@@ -424,9 +476,21 @@ var TYPES = {
   champ:   {hp:160, pow:1.35, spd:152, reach:68, rate:0.95, xp:52, sc:1.10,
             moves:['jab','cross','kick','hook','knee'], name:'Contender', ar:'منافس',
             col:{skin:'#b5794a', top:'#5b2a8c', bottom:'#2c1449', band:'#e0b34a'}},
+  runner:  {hp:42,  pow:0.85, spd:210, reach:56, rate:0.85, xp:22, sc:0.94,
+            moves:['jab','jab','cross'], name:'Runner', ar:'خطّاف', hitRun:true,
+            col:{skin:'#c2905f', top:'#d4762b', bottom:'#5a3417', band:'#ffd166'}},
+  bouncer: {hp:150, pow:1.30, spd:104, reach:52, rate:1.90, xp:40, sc:1.24,
+            moves:['hook','knee','hook'], name:'Bouncer', ar:'حارس', wall:true,
+            col:{skin:'#8a5730', top:'#161a21', bottom:'#0d1015', band:'#5aa9e6'}},
+  capo:    {hp:118, pow:1.20, spd:168, reach:64, rate:0.78, xp:44, sc:1.06,
+            moves:['jab','cross','hook','jab','kick'], name:'Enforcer', ar:'مُنفّذ',
+            col:{skin:'#a86c42', top:'#1c4f63', bottom:'#0e2833', band:'#8fd3ff'}},
   boss:    {hp:430, pow:1.45, spd:146, reach:72, rate:0.88, xp:220, sc:1.26,
             moves:['jab','cross','hook','kick','knee'], name:'AL-WAHSH', ar:'الوحش',
-            col:{skin:'#8f5a30', top:'#12151b', bottom:'#0a0c11', band:'#c8102e'}}
+            col:{skin:'#8f5a30', top:'#12151b', bottom:'#0a0c11', band:'#c8102e'}},
+  saqr:    {hp:290, pow:1.30, spd:186, reach:76, rate:0.80, xp:150, sc:1.14,
+            moves:['kick','jab','kick','cross','knee'], name:'AL-SAQR', ar:'الصقر',
+            col:{skin:'#c08a58', top:'#243b6b', bottom:'#101a33', band:'#e8e2d4'}}
 };
 
 function makeFighter(o){
@@ -673,40 +737,85 @@ function shade(hex, amt){
    STAGES — Kuwait locations, drawn procedurally with parallax layers
    ========================================================================== */
 
-var CAMPAIGN = 6;      // campaign stages; anything after is a side mode
 var STAGES = [
   { name:'SOUQ MUBARAKIYA', ar:'سوق المباركية', theme:'souq', len:2900, tier:0,
     hint:'Trouble in the old market.',
+    story:['A crew has been leaning on the traders in the old souq for months.',
+           'Ahmed grew up in these alleys. Tonight he stops being a bystander.'],
+    storyAr:'بدأت الحكاية في سوق المباركية',
     waves:[ {at:560,  e:[['thug',2]]},
             {at:1520, e:[['thug',2],['brawler',1]]},
             {at:2450, e:[['brawler',2],['thug',1]]} ] },
 
   { name:'SALMIYA GYM', ar:'نادي السالمية', theme:'gym', len:2900, tier:0,
     hint:'Spar your way through the club.',
+    story:['Word travels. The Salmiya club wants to see what the souq kid can do.',
+           'Six rounds, no headgear, and nobody is holding back.'],
+    storyAr:'الاختبار الأول في نادي السالمية',
     waves:[ {at:540,  e:[['brawler',2]]},
             {at:1480, e:[['kicker',2],['thug',1]]},
             {at:2420, e:[['kicker',2],['brawler',2]]} ] },
 
+  { name:'SHARQ FISH MARKET', ar:'سوق شرق للسمك', theme:'fishmarket', len:3000, tier:1,
+    hint:'Dawn on the harbour. They came early.',
+    story:['The crew moved their business to the harbour before sunrise.',
+           'Wet stone, cold air, and runners who will not stand still.'],
+    storyAr:'الفجر على الميناء',
+    waves:[ {at:560,  e:[['runner',2],['thug',1]]},
+            {at:1520, e:[['runner',2],['brawler',2]]},
+            {at:2500, e:[['bouncer',1],['runner',2]]} ] },
+
   { name:'KUWAIT TOWERS', ar:'أبراج الكويت', theme:'towers', len:3100, tier:1,
     hint:'Night raid on the waterfront.',
+    story:['They want the waterfront cleared before the season opens.',
+           'Ahmed gets there first.'],
+    storyAr:'ليلة على الواجهة البحرية',
     waves:[ {at:600,  e:[['kicker',2],['thug',1]]},
             {at:1600, e:[['brawler',2],['kicker',1]]},
             {at:2600, e:[['grappler',1],['kicker',2]]} ] },
 
+  { name:'MARINA CRESCENT', ar:'مارينا كريسنت', theme:'marina', len:2600, tier:2,
+    hint:'AL-SAQR runs this strip.',
+    story:['The neon strip belongs to AL-SAQR — the Falcon. All legs, no patience.',
+           'Beat him and the crew loses its enforcer.'],
+    storyAr:'الصقر يحرس المارينا',
+    boss:true,
+    waves:[ {at:560,  e:[['capo',1],['runner',2]]},
+            {at:1400, e:[['bouncer',1],['capo',1]]},
+            {at:2100, e:[['saqr',1]]} ] },
+
   { name:'FAILAKA ISLAND', ar:'جزيرة فيلكا', theme:'failaka', len:3100, tier:2,
     hint:'Grapplers hold the ruins.',
+    story:['They regrouped on the island, among the old stone.',
+           'Nowhere to run out here — which cuts both ways.'],
+    storyAr:'بين آثار فيلكا',
     waves:[ {at:600,  e:[['grappler',1],['brawler',1]]},
             {at:1600, e:[['grappler',2],['kicker',1]]},
-            {at:2600, e:[['grappler',2],['brawler',2]]} ] },
+            {at:2600, e:[['grappler',2],['capo',1]]} ] },
+
+  { name:'JAHRA ROAD', ar:'طريق الجهراء', theme:'highway', len:3200, tier:3,
+    hint:'They blocked the road out.',
+    story:['Trucks across both lanes, sun going down behind the pylons.',
+           'The road to the camp runs straight through them.'],
+    storyAr:'الطريق مقطوع عند الجهراء',
+    waves:[ {at:620,  e:[['bouncer',1],['runner',2]]},
+            {at:1620, e:[['capo',1],['kicker',2]]},
+            {at:2620, e:[['bouncer',2],['capo',1]]} ] },
 
   { name:'DESERT CAMP', ar:'مخيم البر', theme:'desert', len:3200, tier:3,
     hint:'The contenders wait by the fire.',
+    story:['The camp is where they pick who fights for the belt.',
+           'Ahmed was never on the list. He is now.'],
+    storyAr:'المخيم يختار من ينافس على الحزام',
     waves:[ {at:620,  e:[['kicker',2],['brawler',2]]},
-            {at:1650, e:[['champ',1],['kicker',1]]},
-            {at:2650, e:[['champ',1],['grappler',1],['brawler',1]]} ] },
+            {at:1650, e:[['champ',1],['capo',1]]},
+            {at:2650, e:[['champ',1],['grappler',1],['bouncer',1]]} ] },
 
   { name:'KUWAIT ARENA', ar:'بطولة الكويت', theme:'arena', len:1600, tier:4,
     hint:'Title fight. No way out.',
+    story:['A full house, and AL-WAHSH waiting in the far corner.',
+           'One fight between the souq kid and the belt.'],
+    storyAr:'المواجهة الأخيرة مع الوحش',
     boss:true,
     waves:[ {at:420,  e:[['champ',2]]},
             {at:900,  e:[['boss',1]]} ] },
@@ -714,19 +823,25 @@ var STAGES = [
   // Unlocked after the title fight. Endless, so it has no exit and no length.
   { name:'SURVIVAL', ar:'البقاء', theme:'arena', len:1400, tier:0, survival:true,
     hint:'Endless waves. How far can Ahmed go?',
+    story:['No belt, no crowd, no end. Just the next wave.'],
+    storyAr:'موجات لا تنتهي',
     waves:[ {at:-1, e:[['thug',2]], tier:0} ] }
 ];
 
 function genSurvivalWave(n){
   var pool = ['thug','brawler'];
+  if(n >= 2) pool.push('runner');
   if(n >= 3) pool.push('kicker');
   if(n >= 5) pool.push('grappler');
-  if(n >= 8) pool.push('champ');
-  if(n >= 12) pool.push('champ');
+  if(n >= 6) pool.push('bouncer');
+  if(n >= 7) pool.push('capo');
+  if(n >= 9) pool.push('champ');
+  if(n >= 13) pool.push('champ');
   var count = Math.min(6, 2 + Math.floor(n / 2));
   var e = [];
   for(var i=0;i<count;i++) e.push([pick(pool), 1]);
-  if(n % 6 === 0) e.push(['boss', 1]);
+  if(n % 10 === 0) e.push(['boss', 1]);
+  else if(n % 5 === 0) e.push(['saqr', 1]);
   return { at:-1, e:e, tier: Math.floor(n / 2) };
 }
 
@@ -950,6 +1065,157 @@ var THEME = {
       });
     }
   },
+  fishmarket: {
+    sky:['#8fbfd8','#c9d9dc','#e6d9bd'], ground:['#9aa6a4','#6e7877'], fog:'rgba(200,225,235,.20)',
+    far:function(camX){
+      ctx.fillStyle = 'rgba(255,252,235,.85)';
+      circle(240 - camX*0.03, 120, 46); ctx.fill();
+      ctx.fillStyle = '#5c7b8a';                      // far shore
+      ctx.fillRect(0, FLOOR_TOP-96, W, 56);
+      ctx.fillStyle = '#46626f';
+      repeatX(240, 0.12, camX, function(x,i){
+        var h = 40 + hashv(i,41)*70;
+        ctx.fillRect(x, FLOOR_TOP-96-h, 120, h);
+      });
+      ctx.fillStyle = '#7fa3b3';                      // water
+      ctx.fillRect(0, FLOOR_TOP-40, W, 40);
+      ctx.globalAlpha = 0.45;
+      repeatX(70, 0.26, camX, function(x,i){
+        ctx.fillStyle = '#cfe4ec';
+        ctx.fillRect(x, FLOOR_TOP-34 + (i%3)*11, 34, 2);
+      });
+      ctx.globalAlpha = 1;
+    },
+    mid:function(camX){
+      repeatX(330, 0.46, camX, function(x,i){
+        // dhow hull + mast
+        ctx.fillStyle = '#7d5a34';
+        ctx.beginPath();
+        ctx.moveTo(x, FLOOR_TOP-46); ctx.lineTo(x+150, FLOOR_TOP-46);
+        ctx.lineTo(x+124, FLOOR_TOP-16); ctx.lineTo(x+22, FLOOR_TOP-16);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#5d4326'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(x+76, FLOOR_TOP-46); ctx.lineTo(x+66, FLOOR_TOP-186); ctx.stroke();
+        ctx.fillStyle = 'rgba(245,240,225,.9)';
+        ctx.beginPath();
+        ctx.moveTo(x+66, FLOOR_TOP-184); ctx.lineTo(x+150, FLOOR_TOP-64);
+        ctx.lineTo(x+70, FLOOR_TOP-64); ctx.closePath(); ctx.fill();
+        // market awning
+        ctx.fillStyle = i%2 ? '#c8102e' : '#1f6f57';
+        ctx.fillRect(x+190, FLOOR_TOP-150, 120, 16);
+        ctx.fillStyle = '#8d99ab';
+        ctx.fillRect(x+196, FLOOR_TOP-134, 8, 134);
+        ctx.fillRect(x+296, FLOOR_TOP-134, 8, 134);
+        ctx.fillStyle = 'rgba(210,225,232,.75)';
+        ctx.fillRect(x+206, FLOOR_TOP-70, 90, 22);
+      });
+    },
+    fore:function(camX){
+      repeatX(360, 1.0, camX, function(x,i){
+        if(hashv(i,43) < 0.5) return;
+        ctx.fillStyle = 'rgba(60,70,74,.85)';
+        roundRect(x, H-50, 96, 50, 6); ctx.fill();
+      });
+    }
+  },
+  marina: {
+    sky:['#120b26','#231245','#3a1c4e'], ground:['#3b3350','#241f33'], fog:'rgba(160,90,220,.14)',
+    far:function(camX){
+      for(var i=0;i<60;i++){
+        var sx = (hashv(i,51)*W*2 - camX*0.02) % (W*2);
+        if(sx < -10) sx += W*2;
+        ctx.globalAlpha = 0.25 + hashv(i,52)*0.6;
+        ctx.fillStyle = '#e8ddff';
+        ctx.fillRect(sx, hashv(i,53)*220, 2, 2);
+      }
+      ctx.globalAlpha = 1;
+      // neon skyline
+      repeatX(190, 0.13, camX, function(x,i){
+        var h = 80 + hashv(i,54)*170;
+        ctx.fillStyle = '#1b1233';
+        ctx.fillRect(x, FLOOR_TOP-60-h, 130, h+60);
+        ctx.fillStyle = ['#ff4d7d','#4dd7ff','#ffd166'][i%3];
+        ctx.globalAlpha = 0.75;
+        ctx.fillRect(x+16, FLOOR_TOP-52-h, 98, 5);
+        ctx.globalAlpha = 0.30;
+        for(var w=0;w<5;w++) ctx.fillRect(x+20+w*20, FLOOR_TOP-30-h+w*14, 10, 8);
+        ctx.globalAlpha = 1;
+      });
+      ctx.fillStyle = '#1a1030';
+      ctx.fillRect(0, FLOOR_TOP-60, W, 60);
+    },
+    mid:function(camX){
+      repeatX(300, 0.48, camX, function(x,i){
+        // moored boats + neon palms
+        ctx.fillStyle = '#2b2447';
+        roundRect(x, FLOOR_TOP-64, 130, 26, 10); ctx.fill();
+        ctx.strokeStyle = '#4dd7ff'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x+206, FLOOR_TOP-30);
+        ctx.quadraticCurveTo(x+214, FLOOR_TOP-120, x+226, FLOOR_TOP-176); ctx.stroke();
+        ctx.strokeStyle = 'rgba(77,215,255,.55)'; ctx.lineWidth = 4;
+        for(var l=0;l<5;l++){
+          var a = -2.5 + l*0.6;
+          ctx.save(); ctx.translate(x+226, FLOOR_TOP-176); ctx.rotate(a);
+          ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(42, 6); ctx.stroke();
+          ctx.restore();
+        }
+      });
+    },
+    fore:function(camX){
+      repeatX(440, 1.0, camX, function(x,i){
+        ctx.fillStyle = 'rgba(10,7,20,.9)';
+        roundRect(x, H-46, 130, 46, 8); ctx.fill();
+        ctx.fillStyle = 'rgba(255,77,125,.35)';
+        ctx.fillRect(x+10, H-42, 110, 3);
+      });
+    }
+  },
+  highway: {
+    sky:['#f0a15e','#c9683f','#6d3b4a'], ground:['#4a4a52','#2c2c33'], fog:'rgba(255,160,110,.20)',
+    far:function(camX){
+      ctx.fillStyle = 'rgba(255,225,170,.95)';
+      circle(880 - camX*0.03, 190, 66); ctx.fill();
+      ctx.fillStyle = '#7a4a4e';
+      ctx.beginPath();
+      ctx.moveTo(-60, FLOOR_TOP-30);
+      for(var x=-60;x<=W+60;x+=70)
+        ctx.lineTo(x, FLOOR_TOP-56 - Math.sin((x + camX*0.05)*0.0035)*34);
+      ctx.lineTo(W+60, FLOOR_TOP+20); ctx.lineTo(-60, FLOOR_TOP+20);
+      ctx.closePath(); ctx.fill();
+      // pylons
+      ctx.strokeStyle = '#42323c'; ctx.lineWidth = 4;
+      repeatX(300, 0.16, camX, function(px){
+        ctx.beginPath();
+        ctx.moveTo(px, FLOOR_TOP-40); ctx.lineTo(px, FLOOR_TOP-190);
+        ctx.moveTo(px-34, FLOOR_TOP-170); ctx.lineTo(px+34, FLOOR_TOP-170);
+        ctx.moveTo(px-24, FLOOR_TOP-140); ctx.lineTo(px+24, FLOOR_TOP-140);
+        ctx.stroke();
+      });
+    },
+    mid:function(camX){
+      // crash barrier
+      ctx.fillStyle = '#5a5f68';
+      ctx.fillRect(0, FLOOR_TOP-52, W, 16);
+      ctx.fillStyle = '#3d424a';
+      repeatX(120, 0.5, camX, function(x){ ctx.fillRect(x, FLOOR_TOP-36, 10, 36); });
+      repeatX(420, 0.5, camX, function(x,i){
+        // parked truck
+        ctx.fillStyle = i%2 ? '#2f5f8a' : '#7a2f2f';
+        roundRect(x, FLOOR_TOP-150, 150, 100, 8); ctx.fill();
+        ctx.fillStyle = '#20242b';
+        roundRect(x+150, FLOOR_TOP-124, 68, 74, 8); ctx.fill();
+        ctx.fillStyle = 'rgba(200,225,240,.5)';
+        roundRect(x+160, FLOOR_TOP-116, 46, 30, 4); ctx.fill();
+        ctx.fillStyle = '#14161b';
+        circle(x+36, FLOOR_TOP-48, 15); ctx.fill();
+        circle(x+180, FLOOR_TOP-48, 15); ctx.fill();
+      });
+    },
+    fore:function(camX){
+      ctx.fillStyle = 'rgba(240,236,220,.55)';       // lane dashes
+      repeatX(180, 1.0, camX, function(x){ ctx.fillRect(x, H-40, 90, 8); });
+    }
+  },
   arena: {
     sky:['#161020','#241633','#120c1c'], ground:['#5b4a63','#38293f'], fog:'rgba(180,108,224,.12)',
     far:function(camX){
@@ -1032,6 +1298,9 @@ function drawStageBg(theme, camX){
    GAME STATE + COMBAT
    ========================================================================== */
 
+// Each location gets its own tonal centre so the loop does not wear thin.
+var MUSIC_ROOT = { souq:73.42, gym:82.41, fishmarket:69.30, towers:65.41,
+                   marina:77.78, failaka:87.31, highway:61.74, desert:73.42, arena:98.00 };
 var gameTime = 0;
 var G = { state:'menu', paused:false, fight:null, t:0, intro:0, endT:0, result:null };
 
@@ -1062,8 +1331,10 @@ function startStage(idx){
   parts.length = 0; nums.length = 0;
   shake = 0; hitstop = 0; flashScreen = 0;
   G.state = 'fight'; G.paused = false; G.intro = 2.2; G.slow = 0;
+  bump('fights');
   Sfx.init(); Sfx.resume();
-  Music.stop(); Music.start(!!st.boss);
+  Music.stop();
+  Music.start(!!st.boss || !!st.survival, MUSIC_ROOT[st.theme] || 73.42);
 }
 
 /* ------------------------------------------------------------- attack logic */
@@ -1114,6 +1385,22 @@ function applyHit(att, def, a){
   var awayFacing = ((att.x - def.x) * def.facing) < 0;      // attacker behind def
   var blocked = def.blocking && !awayFacing && def.state !== 'attack';
 
+  // Perfect parry: guard raised in the last fifth of a second before impact.
+  if(blocked && def.isPlayer && def.parryT > 0 && att.state === 'attack'){
+    def.parryT = 0; def.invuln = 0.30;
+    def.rage = clamp(def.rage + 26, 0, 100);
+    def.stam = clamp(def.stam + 18, 0, def.maxStam);
+    att.state = 'hit'; att.hitT = 0.46; att.atk = null;
+    att.vx += def.facing * 260;
+    var ps = screenOf(att);
+    popNum(ps.x, ps.y - 120, 'PARRY!', 'crit');
+    burst(ps.x, ps.y - 80, 18, '#8fd3ff', 340);
+    Sfx.block(); Sfx.ok(); haptic(30);
+    shake = Math.max(shake, 12); hitstop = Math.max(hitstop, 0.09);
+    bump('parries');
+    return;
+  }
+
   var mult = att.isPlayer ? (1 + save.up.pow * 0.09) : 1;
   var dmg = a.dmg * att.pow * mult * rand(0.92, 1.10);
   if(blocked) dmg *= 0.20;
@@ -1154,7 +1441,7 @@ function applyHit(att, def, a){
       def.combo = 0;
     }
 
-    var kdChance = def.kind === 'boss' ? 0.12 : 0.45;
+    var kdChance = (def.kind === 'boss' || def.kind === 'saqr') ? 0.12 : 0.45;
     if(def.hp <= 0 || (a.heavy && chance(kdChance)) || a.multi){
       def.state = 'down';
       def.downT = def.hp <= 0 ? 1.05 : 0.85;
@@ -1230,7 +1517,10 @@ function updatePlayer(p, dt, enemies, F){
   } else if(p.state === 'attack'){
     advanceAttack(p, dt, enemies);
   } else {
+    var wasBlocking = p.blocking;
     p.blocking = In.hold.block > 0 && p.stam > 3;
+    if(p.blocking && !wasBlocking) p.parryT = 0.20;   // parry window opens on press
+    if(p.parryT > 0) p.parryT -= dt;
     if(p.blocking) p.stam -= 13 * dt;
 
     var speed = p.spd * (p.blocking ? 0.38 : 1);
@@ -1267,7 +1557,8 @@ function updatePlayer(p, dt, enemies, F){
 /* ---------------------------------------------------------------- enemy step */
 function updateEnemy(e, dt, p, tokens){
   e.anim += dt;
-  if(e.kind === 'boss' && e.phase !== 2 && e.hp <= e.maxHp * 0.5){
+  var isBoss = (e.kind === 'boss' || e.kind === 'saqr');
+  if(isBoss && e.phase !== 2 && e.hp <= e.maxHp * 0.5){
     e.phase = 2;
     e.pow *= 1.28; e.spd *= 1.20; e.rate *= 0.70;
     e.moves = ['jab','cross','hook','kick','knee','special'];
@@ -1306,10 +1597,13 @@ function updateEnemy(e, dt, p, tokens){
     if(inRange && e.cd <= 0 && tokens > 0 && p.state !== 'down'){
       startAttack(e, pick(e.moves));
       e.cd = e.rate * rand(0.75, 1.45);
+      if(e.hitRun) e.retreat = rand(0.7, 1.2);
       e.moving = false;
       return true;
     }
+    if(e.retreat > 0) e.retreat -= dt;
     var wantX = p.x + e.side * (e.reach * 0.70 + e.lane);
+    if(e.retreat > 0) wantX = p.x + e.side * 330;      // hit-and-run: back off
     var F = G.fight;
     if(F && F.lockX !== null && (wantX < F.minX + 24 || wantX > F.maxX - 24)){
       e.side = -e.side;
@@ -1369,6 +1663,7 @@ function checkPropHit(f, a){
       shake = Math.max(shake, 6);
       if(pr.hp <= 0){
         pr.broken = true;
+        bump('crates');
         burst(pr.x, sp - 30, 16, pr.kind === 'crate' ? '#b0834a' : '#7d8794', 300);
         dropItem(F, pr.x, pr.z);
       } else {
@@ -1478,15 +1773,18 @@ function spawnWave(F, wave){
     var x = fromRight ? camX + W + 50 + j*54 : camX - 70 - j*40;
     var tier = (wave.tier !== undefined) ? wave.tier : F.st.tier;
     var e = makeEnemy(list[j], x, rand(0.24, 0.94), tier);
+    e.hitRun = !!TYPES[list[j]].hitRun;
     e.side = (j % 2 === 0) ? 1 : -1;
     e.lane = (j >> 1) * 30;
     e.orbit = rand(-0.26, 0.26);
-    e.guard = (list[j] === 'thug') ? 0.12 : (list[j] === 'boss' ? 0.40 : 0.24);
+    e.guard = TYPES[list[j]].wall ? 0.62
+            : (list[j] === 'thug') ? 0.12
+            : (list[j] === 'boss' || list[j] === 'saqr') ? 0.40 : 0.24;
     e.guardT = rand(0, 1); e.guardRoll = 1;
     e.cd = rand(0.4, 1.4);
     F.enemies.push(e);
   }
-  if(list.indexOf('boss') >= 0) Sfx.ko();
+  if(list.indexOf('boss') >= 0 || list.indexOf('saqr') >= 0) Sfx.ko();
 }
 
 var RANK_ORDER = ['S','A','B','C'];
@@ -1568,12 +1866,12 @@ function updateFight(dt){
     var d = F.enemies[i];
     if(d.dead && !d.counted){
       d.counted = true;
-      F.kills++; F.xp += d.xp;
+      F.kills++; F.xp += d.xp; bump('kills');
       var s = screenOf(d);
       burst(s.x, s.y - 50, 18, C.gold, 300);
       popNum(s.x, s.y - 110, '+' + d.xp, 'heal');
       Sfx.ok();
-      if(chance(d.kind === 'boss' ? 1 : 0.16)) dropItem(F, d.x, d.z);
+      if(chance((d.kind === 'boss' || d.kind === 'saqr') ? 1 : 0.16)) dropItem(F, d.x, d.z);
     }
   }
   F.enemies = F.enemies.filter(function(q){ return !(q.dead && q.downT <= -1.4); });
@@ -1594,6 +1892,7 @@ function updateFight(dt){
     }
     G.state = 'gameover'; G.endT = 0;
     Music.stop(); Sfx.ko();
+    checkAchievements();
   }
   if(!F.done && !st.survival && F.waveIdx >= F.waves.length && p.x >= st.len - 90){
     F.done = true;
@@ -1601,8 +1900,10 @@ function updateFight(dt){
     F.bonus = bonus;
     save.xp += F.xp + bonus;
     if(save.cleared.indexOf(F.idx) < 0) save.cleared.push(F.idx);
-    if(F.idx + 1 > save.unlocked - 1) save.unlocked = Math.min(6, F.idx + 2);
+    if(F.idx + 1 > save.unlocked - 1) save.unlocked = Math.min(CAMPAIGN, F.idx + 2);
     if(F.bestCombo > save.best) save.best = F.bestCombo;
+    bump('clears'); bump('time', Math.round(F.time));
+    if(save.diff === 2) bump('champClears');
     F.rank = rankFor(F);
     var prev = save.ranks[F.idx];
     if(!prev || RANK_ORDER.indexOf(F.rank) < RANK_ORDER.indexOf(prev)) save.ranks[F.idx] = F.rank;
@@ -1610,6 +1911,7 @@ function updateFight(dt){
     G.state = (F.idx === CAMPAIGN - 1) ? 'victory' : 'clear';
     G.endT = 0;
     Music.stop(); Sfx.power();
+    checkAchievements();
   }
 }
 
@@ -1670,7 +1972,7 @@ function drawHUD(){
     var e = F.enemies[i];
     if(e.dead) continue;
     alive++;
-    if(e.kind === 'boss') boss = e;
+    if(e.kind === 'boss' || e.kind === 'saqr') boss = e;
   }
   if(boss){
     ctx.fillStyle = 'rgba(8,10,16,.62)';
@@ -1878,7 +2180,9 @@ function uiButton(x, y, w, h, label, sub, fn, style){
   ctx.strokeStyle = primary ? 'rgba(255,220,150,.9)' : 'rgba(224,179,74,.45)';
   ctx.lineWidth = 2;
   roundRect(x, y, w, h, 12); ctx.stroke();
-  txt(label, x + w/2, y + (sub ? h/2 - 10 : h/2), primary ? 24 : 21,
+  var base = primary ? 24 : 21;
+  var fit = Math.min(base, (w - 22) / (label.length * 0.62));
+  txt(label, x + w/2, y + (sub ? h/2 - 10 : h/2), Math.max(11, fit),
       off ? C.dim : C.white, 'center', 900);
   if(sub) txt(sub, x + w/2, y + h/2 + 15, 15, primary ? 'rgba(255,235,200,.9)' : C.gold, 'center', 700);
 }
@@ -1932,6 +2236,7 @@ function drawDemoAhmed(dt){
 
 /* ------------------------------------------------------------------- title */
 function drawMenu(dt){
+  checkAchievements();
   screenBg('#1a2233');
   drawDemoAhmed(dt);
 
@@ -1946,14 +2251,14 @@ function drawMenu(dt){
   }, 'primary');
   uiButton(92, 468, 143, 60, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
   uiButton(249, 468, 143, 60, 'HELP', 'شرح', function(){ G.state = 'help'; });
-  uiButton(92, 542, 300, 52, save.sound ? 'SOUND: ON' : 'SOUND: OFF', null, function(){
-    Sfx.init(); Sfx.setOn(!save.sound);
-  }, save.sound ? null : 'off');
+  uiButton(92, 542, 143, 52, 'SETTINGS', 'الإعدادات', function(){ G.state = 'settings'; });
+  uiButton(249, 542, 143, 52, 'AWARDS', 'الإنجازات', function(){ G.state = 'achievements'; });
 
   txt('XP ' + save.xp, W-40, 40, 22, C.gold, 'right', 900);
   txt('BEST COMBO ' + save.best, W-40, 68, 15, C.dim, 'right', 700);
   txt(diff().n, W-40, 92, 15, diff().col, 'right', 800);
   if(save.survBest > 0) txt('SURVIVAL WAVE ' + save.survBest, W-40, 114, 15, C.hp, 'right', 700);
+  txt(save.achieved.length + '/' + ACHIEVEMENTS.length + ' AWARDS', W-40, 136, 15, C.dim, 'right', 700);
   txt('Almuhallab Code — Kuwait', W/2, H-28, 14, 'rgba(255,255,255,.35)', 'center', 700);
 }
 
@@ -1970,23 +2275,25 @@ function drawHelp(){
     ['BLOCK',   'Hold to guard (80% less damage). Tap while moving = dodge dash.',    'صد ومراوغة'],
     ['RAGE',    'Fills as you fight. At 100% unleash the Gulf Storm.',                'الضربة القاضية'],
     ['STAMINA', 'Blue bar. Attacks and dashes cost stamina — it refills fast.',       'اللياقة'],
+    ['PARRY',   'Tap BLOCK the instant a blow lands: no damage, they stagger, +rage.', 'صد مثالي'],
     ['LOOT',    'Smash crates and barrels: food heals you, purple orbs fill rage.',   'حطّم الصناديق']
   ];
   for(var i=0;i<rows.length;i++){
-    var y = 142 + i*64;
+    var y = 128 + i*58;
     ctx.fillStyle = 'rgba(255,255,255,.05)';
-    roundRect(120, y, W-240, 54, 10); ctx.fill();
-    txt(rows[i][0], 148, y+27, 20, C.gold, 'left', 900);
-    txt(rows[i][1], 300, y+27, 16, C.white, 'left', 600);
-    txt(rows[i][2], W-160, y+27, 16, 'rgba(255,255,255,.6)', 'right', 700);
+    roundRect(120, y, W-240, 50, 10); ctx.fill();
+    txt(rows[i][0], 148, y+25, 19, C.gold, 'left', 900);
+    txt(rows[i][1], 300, y+25, 15.5, C.white, 'left', 600);
+    txt(rows[i][2], W-160, y+25, 15, 'rgba(255,255,255,.6)', 'right', 700);
   }
   txt('Keyboard: WASD move · J punch · K kick · L block · Space rage · Esc pause',
-      W/2, H-92, 15, C.dim, 'center', 700);
-  uiButton(W/2-110, H-72, 220, 52, 'BACK', 'رجوع', function(){ G.state = 'menu'; });
+      W/2, H-88, 14, C.dim, 'center', 700);
+  uiButton(W/2-110, H-66, 220, 48, 'BACK', 'رجوع', function(){ G.state = 'menu'; });
 }
 
 /* --------------------------------------------------------------------- map */
-var MAP_POS = [[170,470],[350,352],[545,438],[742,318],[930,404],[1120,282]];
+var MAP_POS = [[140,230],[380,230],[620,230],[860,230],[1100,230],
+               [1100,430],[860,430],[620,430],[380,430]];
 function drawMap(){
   screenBg('#131b2a');
   txt('CHOOSE YOUR FIGHT', W/2, 52, 34, C.gold, 'center', 900);
@@ -2039,7 +2346,7 @@ function drawMap(){
 
     if(!locked){
       (function(idx){
-        uiBtns.push({ x:px-52, y:py-52, w:104, h:104, fn:function(){ startStage(idx); } });
+        uiBtns.push({ x:px-52, y:py-52, w:104, h:104, fn:function(){ openBrief(idx); } });
       })(i);
     }
   }
@@ -2049,7 +2356,7 @@ function drawMap(){
   var survOpen = save.cleared.indexOf(MAP_POS.length - 1) >= 0;
   if(survOpen){
     uiButton(W/2-190, H-78, 380, 58, 'SURVIVAL  ·  BEST WAVE ' + save.survBest,
-             'البقاء — موجات لا تنتهي', function(){ startStage(survIdx); }, 'primary');
+             'البقاء — موجات لا تنتهي', function(){ openBrief(survIdx); }, 'primary');
   } else {
     uiButton(W/2-190, H-78, 380, 58, 'SURVIVAL LOCKED', 'اهزم الوحش لفتحه',
              function(){ Sfx.hurt(); }, 'off');
@@ -2057,6 +2364,169 @@ function drawMap(){
 
   uiButton(40, H-78, 170, 58, 'BACK', 'رجوع', function(){ G.state = 'menu'; });
   uiButton(W-210, H-78, 170, 58, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
+}
+
+/* ------------------------------------------------------------------ briefing */
+var briefIdx = 0;
+function openBrief(idx){ briefIdx = idx; G.state = 'brief'; G.endT = 0; }
+
+function drawBrief(dt){
+  G.endT += dt;
+  var st = STAGES[briefIdx];
+  screenBg('#0f1522');
+
+  // stage number plate
+  ctx.fillStyle = st.boss ? 'rgba(200,16,46,.9)' : 'rgba(0,122,61,.85)';
+  circle(150, 200, 54); ctx.fill();
+  ctx.strokeStyle = C.gold; ctx.lineWidth = 3.5;
+  circle(150, 200, 54); ctx.stroke();
+  txt(st.survival ? '∞' : String(briefIdx + 1), 150, 200, 44, C.white, 'center', 900);
+
+  txt(st.name, 236, 176, 40, C.gold, 'left', 900);
+  txt(st.ar, 236, 216, 22, C.white, 'left', 700);
+  if(st.boss) txt('BOSS FIGHT', 236, 248, 15, C.bad, 'left', 900);
+
+  ctx.fillStyle = 'rgba(255,255,255,.05)';
+  roundRect(120, 292, W-240, 150, 12); ctx.fill();
+  ctx.fillStyle = C.gold;
+  roundRect(120, 292, 5, 150, 3); ctx.fill();
+  var lines = st.story || [st.hint];
+  for(var i=0;i<lines.length;i++){
+    var a = clamp((G.endT - i*0.25) * 3, 0, 1);
+    txt(lines[i], 156, 332 + i*34, 19, C.sand, 'left', 600, a);
+  }
+  txt(st.storyAr || '', 156, 412, 17, 'rgba(255,255,255,.55)', 'left', 700,
+      clamp((G.endT - 0.6) * 3, 0, 1));
+
+  // what is waiting
+  var seen = {};
+  var order = [];
+  for(var w=0;w<st.waves.length;w++)
+    for(var e=0;e<st.waves[w].e.length;e++){
+      var k = st.waves[w].e[e][0];
+      if(!seen[k]){ seen[k] = 1; order.push(k); }
+    }
+  txt('EXPECT', 156, 478, 14, C.dim, 'left', 800);
+  for(i=0;i<order.length && i<6;i++){
+    var T = TYPES[order[i]], bx = 156 + i*168;
+    ctx.fillStyle = 'rgba(255,255,255,.06)';
+    roundRect(bx, 494, 156, 46, 8); ctx.fill();
+    ctx.fillStyle = T.col.band;
+    roundRect(bx, 494, 5, 46, 3); ctx.fill();
+    txt(T.name, bx+16, 510, 14, C.white, 'left', 800);
+    txt(T.ar, bx+16, 528, 13, C.gold, 'left', 700);
+  }
+
+  var rank = save.ranks[briefIdx];
+  if(rank){
+    txt('BEST RANK', W-160, 478, 14, C.dim, 'center', 800);
+    txt(rank, W-160, 516, 44, rankColor(rank), 'center', 900);
+  }
+
+  uiButton(W/2-320, H-84, 300, 64, 'FIGHT', 'ابدأ', function(){ startStage(briefIdx); }, 'primary');
+  uiButton(W/2+20,  H-84, 140, 64, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
+  uiButton(W/2+180, H-84, 140, 64, 'BACK', 'رجوع', function(){ G.state = 'map'; });
+}
+
+/* ------------------------------------------------------------------ settings */
+function drawSettings(){
+  screenBg('#121a24');
+  txt('SETTINGS', W/2, 56, 36, C.gold, 'center', 900);
+  txt('الإعدادات', W/2, 90, 18, C.white, 'center', 700);
+
+  var D = diff();
+  uiButton(W/2-300, 132, 600, 62, 'DIFFICULTY:  ' + D.n, 'الصعوبة · ' + D.ar, function(){
+    save.diff = (save.diff + 1) % 3; writeSave();
+  });
+  ctx.fillStyle = D.col; roundRect(W/2-292, 142, 8, 42, 4); ctx.fill();
+
+  uiButton(W/2-300, 208, 292, 58, save.sound ? 'SOUND: ON' : 'SOUND: OFF', 'الصوت',
+           function(){ Sfx.init(); Sfx.setOn(!save.sound); }, save.sound ? null : 'off');
+  uiButton(W/2+8, 208, 292, 58, save.music ? 'MUSIC: ON' : 'MUSIC: OFF', 'الموسيقى',
+           function(){ save.music = !save.music; writeSave(); if(!save.music) Music.stop(); },
+           save.music ? null : 'off');
+
+  uiButton(W/2-300, 280, 292, 58, save.haptics ? 'VIBRATION: ON' : 'VIBRATION: OFF', 'الاهتزاز',
+           function(){ save.haptics = !save.haptics; writeSave(); haptic(30); },
+           save.haptics ? null : 'off');
+  uiButton(W/2+8, 280, 292, 58, isFullscreen() ? 'EXIT FULLSCREEN' : 'FULLSCREEN', 'ملء الشاشة',
+           function(){ toggleFullscreen(); });
+
+  // lifetime stats
+  ctx.fillStyle = 'rgba(255,255,255,.05)';
+  roundRect(W/2-300, 358, 600, 118, 12); ctx.fill();
+  var st = save.stats;
+  var rows = [['ENEMIES DOWNED', st.kills], ['CRATES SMASHED', st.crates],
+              ['PERFECT PARRIES', st.parries], ['STAGES CLEARED', st.clears],
+              ['FIGHTS STARTED', st.fights], ['TIME IN THE RING', Math.round(st.time/60) + 'm']];
+  for(var i=0;i<rows.length;i++){
+    var cx = W/2 - 290 + (i % 3) * 197, cy = 388 + Math.floor(i / 3) * 54;
+    txt(rows[i][0], cx, cy, 12, C.dim, 'left', 800);
+    txt(String(rows[i][1]), cx, cy + 24, 24, C.gold, 'left', 900);
+  }
+
+  if(confirmWipe){
+    txt('Erase all progress? This cannot be undone.', W/2, 506, 17, C.bad, 'center', 800);
+    uiButton(W/2-300, 524, 292, 54, 'YES, ERASE', 'نعم', function(){
+      try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+      save.unlocked = 1; save.xp = 0; save.best = 0; save.cleared = []; save.ranks = {};
+      save.survBest = 0; save.achieved = []; save.up = {pow:0,vit:0,spd:0,stam:0};
+      for(var k in save.stats) save.stats[k] = 0;
+      writeSave(); confirmWipe = false; G.state = 'menu';
+    }, 'danger');
+    uiButton(W/2+8, 524, 292, 54, 'CANCEL', 'إلغاء', function(){ confirmWipe = false; });
+  } else {
+    uiButton(W/2-300, 506, 292, 54, 'RESET PROGRESS', 'مسح التقدم',
+             function(){ confirmWipe = true; }, 'danger');
+    uiButton(W/2+8, 506, 292, 54, 'ACHIEVEMENTS', 'الإنجازات',
+             function(){ G.state = 'achievements'; });
+  }
+  uiButton(W/2-110, H-70, 220, 54, 'BACK', 'رجوع', function(){ confirmWipe = false; G.state = 'menu'; });
+}
+var confirmWipe = false;
+
+function isFullscreen(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function toggleFullscreen(){
+  try{
+    if(isFullscreen()){
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      var el = document.documentElement;
+      (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    }
+  }catch(e){}
+  setTimeout(resize, 250);
+}
+
+/* -------------------------------------------------------------- achievements */
+function drawAchievements(){
+  checkAchievements();
+  screenBg('#191426');
+  var got = save.achieved.length;
+  txt('ACHIEVEMENTS', W/2, 50, 34, C.gold, 'center', 900);
+  // keep the count in its own LTR run — mixed into the Arabic string the bidi
+  // algorithm swaps the two numbers round.
+  txt(got + ' / ' + ACHIEVEMENTS.length + ' UNLOCKED', W/2, 84, 17, C.white, 'center', 800);
+  txt('الإنجازات', W/2, 106, 15, 'rgba(255,255,255,.55)', 'center', 700);
+
+  for(var i=0;i<ACHIEVEMENTS.length;i++){
+    var a = ACHIEVEMENTS[i];
+    var have = save.achieved.indexOf(a.k) >= 0;
+    var cx = 90 + (i % 3) * 372, cy = 132 + Math.floor(i / 3) * 104;
+    ctx.fillStyle = have ? 'rgba(224,179,74,.12)' : 'rgba(255,255,255,.04)';
+    roundRect(cx, cy, 348, 92, 10); ctx.fill();
+    ctx.strokeStyle = have ? 'rgba(224,179,74,.55)' : 'rgba(255,255,255,.08)';
+    ctx.lineWidth = 2; roundRect(cx, cy, 348, 92, 10); ctx.stroke();
+
+    ctx.fillStyle = have ? C.gold : 'rgba(255,255,255,.10)';
+    circle(cx+34, cy+34, 18); ctx.fill();
+    txt(have ? '★' : '?', cx+34, cy+34, have ? 20 : 18, have ? '#1a1408' : C.dim, 'center', 900);
+
+    txt(a.n, cx+64, cy+26, 17, have ? C.gold : C.dim, 'left', 900);
+    txt(a.ar, cx+330, cy+26, 14, have ? 'rgba(255,255,255,.65)' : 'rgba(255,255,255,.2)', 'right', 700);
+    txt(a.d, cx+64, cy+56, 14, have ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.28)', 'left', 600);
+  }
+  uiButton(W/2-110, H-64, 220, 50, 'BACK', 'رجوع', function(){ G.state = 'settings'; });
 }
 
 /* ----------------------------------------------------------------- upgrades */
@@ -2094,7 +2564,7 @@ function drawUpgrade(){
       (function(key, c, ok){
         uiButton(W-300, y+16, 130, 50, ok ? ('▲ ' + c) : ('' + c), null, function(){
           if(save.xp >= c && save.up[key] < 5){
-            save.xp -= c; save.up[key]++; writeSave(); Sfx.power();
+            save.xp -= c; save.up[key]++; writeSave(); Sfx.power(); checkAchievements();
           } else { Sfx.hurt(); }
         }, ok ? 'primary' : 'off');
       })(u.k, cost, afford);
@@ -2112,13 +2582,22 @@ function drawPause(){
   ctx.fillRect(0, 0, W, H);
   txt('PAUSED', W/2, 190, 56, C.gold, 'center', 900);
   txt('إيقاف مؤقت', W/2, 236, 22, C.white, 'center', 700);
-  uiButton(W/2-150, 300, 300, 66, 'RESUME', 'متابعة', function(){ G.paused = false; }, 'primary');
-  uiButton(W/2-150, 382, 300, 56, save.sound ? 'SOUND: ON' : 'SOUND: OFF', null,
+  uiButton(W/2-150, 286, 300, 62, 'RESUME', 'متابعة', function(){ G.paused = false; }, 'primary');
+  uiButton(W/2-150, 360, 300, 52, 'RESTART STAGE', 'إعادة المرحلة', function(){
+    var idx = G.fight ? G.fight.idx : 0;
+    G.paused = false; startStage(idx);
+  });
+  uiButton(W/2-150, 424, 145, 48, save.sound ? 'SOUND: ON' : 'SOUND: OFF', null,
            function(){ Sfx.setOn(!save.sound); }, save.sound ? null : 'off');
-  uiButton(W/2-150, 452, 300, 48, save.haptics ? 'VIBRATION: ON' : 'VIBRATION: OFF', null,
+  uiButton(W/2+5, 424, 145, 48, save.music ? 'MUSIC: ON' : 'MUSIC: OFF', null,
+           function(){ save.music = !save.music; writeSave(); if(!save.music) Music.stop(); },
+           save.music ? null : 'off');
+  uiButton(W/2-150, 484, 145, 48, save.haptics ? 'VIBRATE: ON' : 'VIBRATE: OFF', null,
            function(){ save.haptics = !save.haptics; writeSave(); haptic(30); },
            save.haptics ? null : 'off');
-  uiButton(W/2-150, 512, 300, 56, 'QUIT TO MAP', 'خروج', function(){
+  uiButton(W/2+5, 484, 145, 48, isFullscreen() ? 'WINDOWED' : 'FULLSCREEN', null,
+           function(){ toggleFullscreen(); });
+  uiButton(W/2-150, 546, 300, 54, 'QUIT TO MAP', 'خروج', function(){
     Music.stop(); G.state = 'map'; G.paused = false; G.fight = null;
   }, 'danger');
 }
@@ -2170,7 +2649,7 @@ function drawClear(dt){
 
   var next = G.fight.idx + 1;
   uiButton(W/2-320, 546, 200, 60, 'NEXT', 'التالي', function(){
-    if(next < CAMPAIGN) startStage(next); else G.state = 'map';
+    if(next < CAMPAIGN) openBrief(next); else G.state = 'map';
   }, 'primary');
   uiButton(W/2-100, 546, 200, 60, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
   uiButton(W/2+120, 546, 200, 60, 'MAP', 'الخريطة', function(){ G.state = 'map'; });
@@ -2202,24 +2681,53 @@ function drawVictory(dt){
   var pulse = 1 + Math.sin(gameTime*3)*0.02;
   txt('CHAMPION', W/2, 150, 74*pulse, C.gold, 'center', 900);
   txt('بطل الكويت', W/2, 210, 30, C.white, 'center', 700);
-  txt('Ahmed takes the belt in front of a packed Kuwait Arena.', W/2, 270, 20, C.sand, 'center', 600);
-  txt('أحمد يرفع الحزام في بطولة الكويت', W/2, 302, 18, 'rgba(255,255,255,.6)', 'center', 700);
   var F = G.fight;
-  txt('Best combo this run: ' + F.bestCombo + '   ·   Total XP: ' + save.xp,
-      W/2, 352, 19, C.hp, 'center', 800);
-  txt('Replay any stage to farm XP and max out Ahmed.', W/2, 388, 16, C.dim, 'center', 600);
-  uiButton(W/2-230, 440, 220, 64, 'MAP', 'الخريطة', function(){ G.state = 'map'; }, 'primary');
-  uiButton(W/2+10, 440, 220, 64, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
+  var ep = [
+    'AL-WAHSH stays down. The arena is on its feet.',
+    'The souq traders came out for this one — they are the loudest row in the house.',
+    'Ahmed takes the belt back to Mubarakiya in the morning, and opens the shop.'
+  ];
+  for(var i=0;i<ep.length;i++){
+    var a = clamp((G.endT - 0.3 - i*0.5) * 2.2, 0, 1);
+    txt(ep[i], W/2, 262 + i*32, 18, i === 2 ? C.gold : C.sand, 'center', 600, a);
+  }
+  txt('أحمد يرفع الحزام في بطولة الكويت', W/2, 372, 18, 'rgba(255,255,255,.6)', 'center', 700,
+      clamp((G.endT - 1.6) * 2, 0, 1));
+  txt('Best combo this run: ' + F.bestCombo + '   ·   Rank: ' + (F.rank || '-') +
+      '   ·   Total XP: ' + save.xp, W/2, 414, 18, C.hp, 'center', 800);
+  txt('SURVIVAL is now open on the map. Replay any stage to chase an S rank.',
+      W/2, 446, 16, C.dim, 'center', 600);
+  uiButton(W/2-345, 494, 220, 62, 'MAP', 'الخريطة', function(){ G.state = 'map'; }, 'primary');
+  uiButton(W/2-105, 494, 220, 62, 'TRAIN', 'تدريب', function(){ G.state = 'upgrade'; });
+  uiButton(W/2+135, 494, 220, 62, 'AWARDS', 'الإنجازات', function(){ G.state = 'achievements'; });
 }
 
 /* ==========================================================================
    MAIN LOOP
    ========================================================================== */
+function drawAchToast(){
+  if(achToastT <= 0 || !achToast) return;
+  var a = clamp(achToastT > 3.0 ? (3.4 - achToastT) / 0.4 : Math.min(1, achToastT / 0.5), 0, 1);
+  var y = 10 - (1 - a) * 26;
+  ctx.globalAlpha = a;
+  ctx.fillStyle = 'rgba(8,10,16,.93)';
+  roundRect(W/2-240, y, 480, 66, 12); ctx.fill();
+  ctx.strokeStyle = C.gold; ctx.lineWidth = 2.5;
+  roundRect(W/2-240, y, 480, 66, 12); ctx.stroke();
+  txt('ACHIEVEMENT UNLOCKED', W/2, y+16, 12, C.dim, 'center', 800);
+  txt(achToast.n, W/2, y+38, 22, C.gold, 'center', 900);
+  txt(achToast.ar, W/2, y+56, 13, 'rgba(255,255,255,.7)', 'center', 700);
+  ctx.globalAlpha = 1;
+}
+
 function render(dt){
   switch(G.state){
     case 'menu':     drawMenu(dt); break;
     case 'help':     drawHelp(); break;
     case 'map':      drawMap(); break;
+    case 'brief':    drawBrief(dt); break;
+    case 'settings': drawSettings(); break;
+    case 'achievements': drawAchievements(); break;
     case 'upgrade':  drawUpgrade(); break;
     case 'fight':    drawFight(); if(G.paused) drawPause(); break;
     case 'clear':    drawClear(dt); break;
@@ -2250,7 +2758,9 @@ function frame(now){
     updateFx(dt * 0.7);
   }
 
+  if(achToastT > 0) achToastT -= rdt;
   render(dt);
+  drawAchToast();
   clearTaps();
   requestAnimationFrame(frame);
 }

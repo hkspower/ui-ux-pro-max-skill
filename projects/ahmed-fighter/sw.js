@@ -1,6 +1,6 @@
 /* AHMED — Kuwait Fighter: offline cache.
    Bump CACHE when index.html changes so players get the new build. */
-var CACHE = 'ahmed-kuwait-fighter-v2';
+var CACHE = 'ahmed-kuwait-fighter-v3';
 var FILES = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', function(e){
