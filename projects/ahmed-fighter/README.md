@@ -89,21 +89,37 @@ colour swap does not, especially in a five-enemy wave.
 
 | | Trait | Reads as |
 | --- | --- | --- |
-| Thug / بلطجي | Basic punches, barely guards. | smallest man on screen, grey vest |
-| Brawler / مشاكس | Three-punch pressure. | stocky, bearded, sleeved tee |
-| Runner / خطّاف | Very fast, low health, strikes and retreats. | slight, orange peaked cap |
-| Kickboxer / ملاكم | Long range, kick-heavy. | gold headband, white shin wraps |
-| Bouncer / حارس | Slow wall of a man, guards 62% of the time. | bald, sunglasses, black kit |
-| Grappler / مصارع | Knees and hooks, hard to knock down. | bald, scarred, no shirt, huge |
-| Enforcer / مُنفّذ | Fast technical combos. | sunglasses but hair, teal kit |
-| Contender / منافس | Uses the full moveset. | fully dressed, purple and gold |
-| **AL-SAQR / الصقر** | Mid-campaign boss. All legs, no patience. | navy headband, shin wraps |
-| **AL-WAHSH / الوحش** | Final boss. Two phases. | biggest, bald, full beard |
+| Thug / بلطجي | Basic punches, barely guards. | smallest man on screen, grey tee |
+| Brawler / مشاكس | Three-punch pressure. | stocky, bearded, rust tee |
+| Runner / خطّاف | Very fast, low health, strikes and retreats. | slight, orange hoodie, peaked cap |
+| Kickboxer / ملاكم | Long range, kick-heavy. | green hoodie, track pants, taped fists |
+| Bouncer / حارس | Slow wall of a man, guards 62% of the time. | bald, sunglasses, black on black |
+| Grappler / مصارع | Knees and hooks, hard to knock down. | bald, scarred, grey tee, huge |
+| Enforcer / مُنفّذ | Fast technical combos. | sunglasses but hair, teal jacket |
+| Contender / منافس | Uses the full moveset. | purple jacket over indigo jeans |
+| **AL-SAQR / الصقر** | Mid-campaign boss. All legs, no patience. | navy hoodie, track pants |
+| **AL-WAHSH / الوحش** | Final boss. Two phases. | biggest, bald, full beard, black |
 
-The kit is a `look` object on each `TYPES` entry, applied in `makeEnemy`, and it
-uses the same flags Ahmed does — plus `bald`, `cap`, `headband`, `shades`,
-`shin` and `scar`. Adding an archetype means adding a look, not new drawing
-code.
+Everyone fights in street clothes, not gym kit: a shirt or hoodie or jacket
+over separate trousers, and trainers. Two rules make that read.
+
+**The top and the trousers have to be different tones.** Matching them turns
+the whole figure into one silhouette that scans as a tracksuit, not as someone
+who got dressed. Every archetype pairs a coloured top against dark denim — the
+Bouncer is the deliberate exception, black on black, because a doorman is
+supposed to look like that.
+
+**A stripe down the seam is track pants, so it is its own flag.** `stripe` is
+opt-in rather than riding along with `pants`; Ahmed, the Kickboxer and AL-SAQR
+have it, everyone else is in jeans.
+
+Nobody wears boxing gloves with jeans, so `hands` picks `bare` knuckles or
+taped `wraps` instead. Ahmed keeps red, now as tape.
+
+The kit is a `look` object on each `TYPES` entry, applied in `makeEnemy`, and
+it uses the same flags Ahmed does — plus `hoodie`, `jacket`, `hands`, `stripe`,
+`bald`, `cap`, `headband`, `shades` and `scar`. Adding an archetype means
+adding a look, not new drawing code.
 
 Each stage scrolls through three locked waves. Clear a wave to move on, reach the
 gold **EXIT** gate to finish the stage.

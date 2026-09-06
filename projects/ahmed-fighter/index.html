@@ -586,44 +586,44 @@ var ATK = {
 var TYPES = {
   thug:    {hp:46,  pow:.80, spd:120, reach:54, rate:1.55, xp:14, sc:1.00,
             moves:['jab','cross'], name:'Souq Thug', ar:'بلطجي',
-            col:{skin:'#b8794c', top:'#4e5a6b', bottom:'#2b3240', band:'#8d99ab'},
-            look:{ build:0.90, hair:'#26221c' }},
+            col:{skin:'#b8794c', top:'#8a9099', bottom:'#2f3a4d', band:'#8d99ab'},
+            look:{ build:0.90, tee:true, pants:true, hands:'bare', hair:'#26221c' }},
   brawler: {hp:68,  pow:1.00, spd:132, reach:58, rate:1.25, xp:21, sc:1.05,
             moves:['jab','cross','hook'], name:'Brawler', ar:'مشاكس',
-            col:{skin:'#a86c42', top:'#6b3f2e', bottom:'#33241d', band:'#c8102e'},
-            look:{ build:1.12, tee:true, beard:'rgba(34,24,16,.85)', hair:'#2a1d13' }},
+            col:{skin:'#a86c42', top:'#8c4a34', bottom:'#3a2f28', band:'#c8102e'},
+            look:{ build:1.12, tee:true, pants:true, hands:'bare', beard:'rgba(34,24,16,.85)', hair:'#2a1d13' }},
   kicker:  {hp:60,  pow:1.15, spd:162, reach:74, rate:1.10, xp:26, sc:1.02,
             moves:['kick','jab','kick','cross'], name:'Kickboxer', ar:'ملاكم',
-            col:{skin:'#c08a58', top:'#1f6f57', bottom:'#0d3f31', band:'#e0b34a'},
-            look:{ build:0.98, shin:'#e8e2d4', headband:'#e0b34a', hair:'#1d1a15' }},
+            col:{skin:'#c08a58', top:'#1f8a63', bottom:'#232a36', band:'#e0b34a'},
+            look:{ build:0.98, tee:true, pants:true, hoodie:true, stripe:true, hands:'wraps', hair:'#1d1a15' }},
   grappler:{hp:110, pow:1.35, spd:98,  reach:46, rate:1.75, xp:34, sc:1.18,
             moves:['knee','hook','knee'], name:'Grappler', ar:'مصارع',
-            col:{skin:'#9c6236', top:'#3b3f46', bottom:'#22252b', band:'#7d8794'},
-            look:{ build:1.30, bald:true, scar:true }},
+            col:{skin:'#9c6236', top:'#6b7280', bottom:'#26292f', band:'#7d8794'},
+            look:{ build:1.30, tee:true, pants:true, hands:'bare', bald:true, scar:true }},
   champ:   {hp:160, pow:1.35, spd:152, reach:68, rate:0.95, xp:52, sc:1.10,
             moves:['jab','cross','kick','hook','knee'], name:'Contender', ar:'منافس',
-            col:{skin:'#b5794a', top:'#5b2a8c', bottom:'#2c1449', band:'#e0b34a'},
-            look:{ build:1.14, tee:true, pants:true, hair:'#1a1410', beard:'rgba(26,18,12,.7)' }},
+            col:{skin:'#b5794a', top:'#6b3bb0', bottom:'#22243a', band:'#e0b34a'},
+            look:{ build:1.14, tee:true, pants:true, jacket:true, hands:'wraps', hair:'#1a1410', beard:'rgba(26,18,12,.7)' }},
   runner:  {hp:42,  pow:0.85, spd:210, reach:56, rate:0.85, xp:22, sc:0.94,
             moves:['jab','jab','cross'], name:'Runner', ar:'خطّاف', hitRun:true,
-            col:{skin:'#c2905f', top:'#d4762b', bottom:'#5a3417', band:'#ffd166'},
-            look:{ build:0.88, cap:'#d4762b', hair:'#231a12' }},
+            col:{skin:'#c2905f', top:'#e07b2c', bottom:'#2c3550', band:'#ffd166'},
+            look:{ build:0.88, tee:true, pants:true, hoodie:true, hands:'bare', cap:'#d4762b', hair:'#231a12' }},
   bouncer: {hp:150, pow:1.30, spd:104, reach:52, rate:1.90, xp:40, sc:1.24,
             moves:['hook','knee','hook'], name:'Bouncer', ar:'حارس', wall:true,
-            col:{skin:'#8a5730', top:'#161a21', bottom:'#0d1015', band:'#5aa9e6'},
-            look:{ build:1.32, tee:true, pants:true, bald:true, shades:true }},
+            col:{skin:'#8a5730', top:'#191d24', bottom:'#12151a', band:'#5aa9e6'},
+            look:{ build:1.32, tee:true, pants:true, hands:'bare', bald:true, shades:true }},
   capo:    {hp:118, pow:1.20, spd:168, reach:64, rate:0.78, xp:44, sc:1.06,
             moves:['jab','cross','hook','jab','kick'], name:'Enforcer', ar:'مُنفّذ',
-            col:{skin:'#a86c42', top:'#1c4f63', bottom:'#0e2833', band:'#8fd3ff'},
-            look:{ build:1.08, tee:true, pants:true, hair:'#141922', shades:true }},
+            col:{skin:'#a86c42', top:'#1f6a80', bottom:'#1a2230', band:'#8fd3ff'},
+            look:{ build:1.08, tee:true, pants:true, jacket:true, hands:'bare', hair:'#141922', shades:true }},
   boss:    {hp:430, pow:1.45, spd:146, reach:72, rate:0.88, xp:220, sc:1.26,
             moves:['jab','cross','hook','kick','knee'], name:'AL-WAHSH', ar:'الوحش',
-            col:{skin:'#8f5a30', top:'#12151b', bottom:'#0a0c11', band:'#c8102e'},
-            look:{ build:1.36, pants:true, bald:true, beard:'rgba(20,14,10,.92)', scar:true }},
+            col:{skin:'#8f5a30', top:'#1b1f26', bottom:'#101318', band:'#c8102e'},
+            look:{ build:1.36, tee:true, pants:true, hands:'wraps', bald:true, beard:'rgba(20,14,10,.92)', scar:true }},
   saqr:    {hp:290, pow:1.30, spd:186, reach:76, rate:0.80, xp:150, sc:1.14,
             moves:['kick','jab','kick','cross','knee'], name:'AL-SAQR', ar:'الصقر',
-            col:{skin:'#c08a58', top:'#243b6b', bottom:'#101a33', band:'#e8e2d4'},
-            look:{ build:1.12, tee:true, shin:'#e8e2d4', headband:'#243b6b', hair:'#1b1712' }}
+            col:{skin:'#c08a58', top:'#2c4a8a', bottom:'#20242e', band:'#e8e2d4'},
+            look:{ build:1.12, tee:true, pants:true, hoodie:true, stripe:true, hands:'wraps', hair:'#1b1712' }}
 };
 
 function makeFighter(o){
@@ -784,6 +784,60 @@ function bone(x,y,a1,l1,a2,l2,r0,r1,r2,col,muscle,sleeve){
   return { x:hx, y:hy, ex:ex, ey:ey };
 }
 
+/* A hood bunched behind the neck, plus the drawstrings down the chest. Drawn
+   after the torso so it sits over the shoulders the way a real hood does. */
+function hoodShape(top, band){
+  litShape(function(){
+    ctx.beginPath();
+    ctx.moveTo(-13, -56);
+    ctx.bezierCurveTo(-28, -58, -32, -36, -23, -22);
+    ctx.bezierCurveTo(-15, -16, -2, -22, 1, -38);
+    ctx.bezierCurveTo(2, -52, -5, -57, -13, -56);
+    ctx.closePath();
+  }, shade(top, -0.24), -15, -40, 20);
+  if(!GFX_HIGH) return;
+  ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1.5;   // hood opening
+  ctx.beginPath();
+  ctx.moveTo(-12, -56); ctx.quadraticCurveTo(-2, -48, 0, -34); ctx.stroke();
+  ctx.strokeStyle = band; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+  ctx.beginPath();                                                  // drawstrings
+  ctx.moveTo(-2, -42); ctx.quadraticCurveTo(1, -32, 0, -22); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(4, -43); ctx.quadraticCurveTo(7, -33, 6, -25); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,.24)'; ctx.lineWidth = 1.4;         // kangaroo pocket
+  ctx.beginPath();
+  ctx.moveTo(-9, -8); ctx.quadraticCurveTo(2, -3, 12, -8); ctx.stroke();
+}
+
+/* An open jacket: a panel down the front edge with a turned collar, so the
+   shirt underneath still shows as a strip. */
+function jacketShape(top){
+  var dark = shade(top, -0.30);
+  litShape(function(){
+    ctx.beginPath();
+    ctx.moveTo(14, -48);
+    ctx.bezierCurveTo(20, -46, 23, -38, 22, -30);
+    ctx.bezierCurveTo(21, -20, 16, -8, 14, 3);
+    ctx.lineTo(4, 3);
+    ctx.bezierCurveTo(7, -10, 10, -26, 9, -44);
+    ctx.closePath();
+  }, dark, 16, -24, 26);
+  litShape(function(){                                              // far lapel
+    ctx.beginPath();
+    ctx.moveTo(-13, -44);
+    ctx.bezierCurveTo(-17, -32, -16, -14, -12, 3);
+    ctx.lineTo(-5, 3);
+    ctx.bezierCurveTo(-8, -14, -9, -32, -6, -45);
+    ctx.closePath();
+  }, shade(top, -0.40), -11, -22, 26);
+  if(!GFX_HIGH) return;
+  ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1.5;   // collar
+  ctx.beginPath();
+  ctx.moveTo(9, -46); ctx.quadraticCurveTo(15, -40, 14, -32); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-6, -45); ctx.quadraticCurveTo(-12, -39, -12, -31); ctx.stroke();
+}
+
 /* Muay-Thai shin wraps: cloth over the lower leg with the binding showing.
    Drawn between the leg and the shoe so the shoe still covers the ankle. */
 function shinWrap(x,y,a1,l1,a2,l2,r1,r2,col){
@@ -940,6 +994,53 @@ var STRIKE_LIMB = { jab:'lead', cross:'rear', hook:'rear',
                     kick:'foot', knee:'foot', special:'foot' };
 
 /* ---- boxing glove: pad, thumb, cuff, specular ---------------------------- */
+/* The hand. `hand` picks the style: a bare fist for street clothes, a taped
+   fist for someone who still wraps up, or the boxing glove for a gym fight. */
+function hand(x, y, ang, style, r, skinCol, tapeCol){
+  if(!style || style === 'glove') return;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(ang);
+  litShape(function(){
+    ctx.beginPath();
+    ctx.moveTo(-r*0.85, -r*0.46);
+    ctx.quadraticCurveTo(r*0.30, -r*0.92, r*0.86, -r*0.30);
+    ctx.quadraticCurveTo(r*1.02, r*0.36, r*0.28, r*0.74);
+    ctx.quadraticCurveTo(-r*0.55, r*0.84, -r*0.85, r*0.16);
+    ctx.closePath();
+  }, skinCol, 0, 0, r*1.25);
+  if(GFX_HIGH){
+    ctx.strokeStyle = 'rgba(0,0,0,.24)'; ctx.lineWidth = 1.1;   // knuckles
+    for(var k=0;k<3;k++){
+      var ky = -r*0.30 + k*r*0.34;
+      ctx.beginPath();
+      ctx.moveTo(r*0.30, ky); ctx.quadraticCurveTo(r*0.68, ky+r*0.06, r*0.80, ky+r*0.02);
+      ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(0,0,0,.20)';                          // thumb across
+    ctx.beginPath();
+    ctx.ellipse(-r*0.10, r*0.50, r*0.40, r*0.22, 0.42, 0, 6.2832); ctx.fill();
+  }
+  if(style === 'wraps'){
+    ctx.save();
+    ctx.strokeStyle = tapeCol || '#e8e2d4'; ctx.lineCap = 'round';
+    ctx.lineWidth = r*0.22;
+    for(var w=0;w<3;w++){                                        // tape over the knuckles
+      var wx = -r*0.58 + w*r*0.36;
+      ctx.beginPath();
+      ctx.moveTo(wx, -r*0.52); ctx.lineTo(wx + r*0.14, r*0.62);
+      ctx.stroke();
+    }
+    if(GFX_HIGH){
+      ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-r*0.70, -r*0.10); ctx.lineTo(r*0.10, r*0.02); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function glove(x, y, ang, col, r){
   ctx.save();
   ctx.translate(x, y);
@@ -1079,7 +1180,7 @@ function drawFighter(f, camX){
   // ---- rear leg -----------------------------------------------------------
   var rf = bone(-6, hipY, legRear[0], 34, legRear[1], 32,
                 12.0*bd, 8.6*bd, 6.0*bd, legColDark, true);
-  if(f.pants) trouserStripe(-6, hipY, legRear[0], 34, legRear[1], 32,
+  if(f.stripe) trouserStripe(-6, hipY, legRear[0], 34, legRear[1], 32,
                             12.0*bd, 8.6*bd, 6.0*bd, shade(band, -0.28));
   if(f.shin) shinWrap(-6, hipY, legRear[0], 34, legRear[1], 32,
                       8.6*bd, 6.0*bd, shade(f.shin, -0.12));
@@ -1089,7 +1190,9 @@ function drawFighter(f, camX){
   var ra = bone(shX-6, shY, p.armRear[0], 26, p.armRear[1], 25,
                 9.6*bd, 7.4*bd, 5.8*bd,
                 skinDark, true, f.tee ? shade(top, -0.12) : null);
-  glove(ra.x, ra.y, p.armRear[0] + p.armRear[1], shade(gloveCol, -0.22), 8.6);
+  if(f.hands) hand(ra.x, ra.y, p.armRear[0] + p.armRear[1], f.hands, 8.6,
+                   shade(skinDark, -0.06), shade(band, -0.10));
+  else glove(ra.x, ra.y, p.armRear[0] + p.armRear[1], shade(gloveCol, -0.22), 8.6);
 
   // ---- torso --------------------------------------------------------------
   ctx.save();
@@ -1105,6 +1208,7 @@ function drawFighter(f, camX){
     ctx.bezierCurveTo(21, -22, 15, -9, 13, 4);             // hard taper to the waist
     ctx.closePath();
   };
+  if(f.hoodie) hoodShape(top, band);
   litShape(torsoPath, top, 2, -26, 29);
   if(GFX_HIGH){
     ctx.save(); torsoPath(); ctx.clip();
@@ -1139,6 +1243,7 @@ function drawFighter(f, camX){
     ctx.beginPath(); ctx.moveTo(-4, -49); ctx.quadraticCurveTo(4, -43, 12, -48); ctx.stroke();
     ctx.restore();
   }
+  if(f.jacket) jacketShape(top);
   ctx.restore();
 
   // ---- shorts -------------------------------------------------------------
@@ -1169,7 +1274,7 @@ function drawFighter(f, camX){
   // ---- lead leg -----------------------------------------------------------
   var lf = bone(6, hipY+4, legLead[0], 34, legLead[1], 32,
                 12.8*bd, 9.2*bd, 6.4*bd, legCol, true);
-  if(f.pants) trouserStripe(6, hipY+4, legLead[0], 34, legLead[1], 32,
+  if(f.stripe) trouserStripe(6, hipY+4, legLead[0], 34, legLead[1], 32,
                             12.8*bd, 9.2*bd, 6.4*bd, band);
   if(f.shin) shinWrap(6, hipY+4, legLead[0], 34, legLead[1], 32,
                       9.2*bd, 6.4*bd, f.shin);
@@ -1398,7 +1503,8 @@ function drawFighter(f, camX){
     circle(0, 0, 2.4); ctx.fill();
     ctx.restore();
   }
-  glove(la.x, la.y, p.armLead[0] + p.armLead[1], gloveCol, 9.2);
+  if(f.hands) hand(la.x, la.y, p.armLead[0] + p.armLead[1], f.hands, 9.2, skin, band);
+  else glove(la.x, la.y, p.armLead[0] + p.armLead[1], gloveCol, 9.2);
 
   ctx.restore();
 
@@ -2454,6 +2560,8 @@ function makePlayer(){
   p.tee = true; p.quiff = true; p.watch = true;
   p.pants = true;          // long trousers rather than fight shorts
   p.patch = true;          // Kuwait flag on the chest
+  p.hands = 'wraps';       // street clothes, so taped fists rather than gloves
+  p.stripe = true;         // his are track pants, not jeans
   p.build = 1.12;          // thicker limbs: the shirt is a muscle fit
   p.hair = '#1e150f'; p.beard = 'rgba(24,17,12,.94)';
   return p;
