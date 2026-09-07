@@ -19,6 +19,40 @@ one clean take rather than variations. Loop points on Music only.
 The Description column in `DT_Sounds.csv` says what each one should sound
 like — read it before recording or buying a replacement.
 
+## What is here now
+
+**All 39 effects are present and were generated with ElevenLabs**
+(`eleven_text_to_sound_v2`), prompted from the Description column in the
+tables below — which is why those descriptions were worth writing. Two takes
+of each were rendered and the first is the one shipped; both live on the flow:
+
+    https://elevenlabs.io/app/flows/Nh0sYMtTulfFbKLPvSrZ
+
+They are a **first pass, and nobody has listened to them.** They were made and
+processed in an environment with no audio output, so they are correct in
+format and unheard in content. Play a stage before trusting any of them.
+
+Each was converted to the spec above: head and tail trimmed to the transient,
+levelled so the Volume column in `DT_Sounds.csv` is the thing setting the
+level rather than whatever the model happened to render, 48 kHz, mono where
+the cue is spatial and stereo where it is not.
+
+**To recast one**, open the flow, re-roll that node with a different prompt,
+and drop the new take in over the file. Nothing in code names a file, so
+nothing else has to change.
+
+**Known suspect:**
+
+- `S_Block.wav` and `S_Dash_Leap.wav` came back at 12 and 14 seconds against
+  the one-shot everything else rendered as. That is the model looping rather
+  than answering the prompt, so both were cut to their first transient — they
+  are the two most likely to want re-rolling.
+- `S_UI_Tap.wav` was quiet enough that the silence trim removed the entire
+  file on the first pass and had to be re-cut with the gate 30 dB lower.
+  Check it is audible at all in the mix.
+- The three `Music_*` cues have **no file**. They are loops, not effects, and
+  a text-to-sound model is the wrong tool for them.
+
 ## `Content/Audio/Combat/`
 
 | File | Cue | What it is |
