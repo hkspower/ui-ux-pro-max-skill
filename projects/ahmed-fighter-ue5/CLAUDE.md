@@ -38,6 +38,23 @@ This applies to models, materials, animation, VFX, lighting and UI in this
 directory. It does **not** apply to `../ahmed-fighter`, the browser build,
 which keeps its own stylised look deliberately.
 
+## Gameplay architecture
+
+Combat and traversal run on the **Gameplay Ability System**. Before adding
+anything to this project:
+
+- **A new move is an ability and a Data Asset, not a branch.** If you find
+  yourself adding a case to a tick function, the thing you are adding is an
+  ability.
+- **A new fact about a fighter is a tag or an attribute.** Not a bool on the
+  character. If two systems need to know it, it is a tag.
+- **Tags are declared in `Gameplay/AhmedGameplayTags.h`**, natively, so a typo
+  fails to compile. Never spell one as a string at a call site.
+- **Damage goes through `IncomingDamage`**, never straight into Health. The
+  attribute set is the one place that decides what a damage number means.
+- **A talent added to `EAbility` must be added to the tag bridge** in
+  `AhmedTypes.cpp`, and vice versa. They are the same fact in two languages.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

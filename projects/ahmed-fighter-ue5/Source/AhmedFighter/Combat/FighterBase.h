@@ -2,10 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "AbilitySystemInterface.h"
 #include "Combat/AhmedTypes.h"
 #include "FighterBase.generated.h"
 
 class UDataTable;
+class UAhmedAbilitySystemComponent;
+class UAhmedAttributeSet;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnFighterDamaged, float, NewHealth, const FHitResultData&, Hit);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFighterDefeated, AFighterBase*, Fighter);
@@ -20,7 +23,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFighterDefeated, AFighterBase*, F
  * wants forgiving, readable hitboxes rather than physically exact ones.
  */
 UCLASS(Abstract)
-class AHMEDFIGHTER_API AFighterBase : public ACharacter
+class AHMEDFIGHTER_API AFighterBase : public ACharacter, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 
@@ -74,6 +77,71 @@ public:
 	    pitch drift keeps a loop from sounding like one. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	void PlayFootstep();
+
+	// ------------------------------------------------------- ability system
+	/*
+	 * The gameplay layer. Everything a fighter can DO is an ability now, and
+	 * everything a fighter IS is an attribute; what remains here is the body
+	 * -- where it stands, which way it faces, and what it looks like doing
+	 * something. The hooks below are the whole surface the abilities need, so
+	 * an ability never reaches into the character for anything else.
+	 */
+
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	UFUNCTION(BlueprintPure, Category = "Abilities")
+	UAhmedAbilitySystemComponent* GetAhmedASC() const { return AbilitySystem; }
+
+	UFUNCTION(BlueprintPure, Category = "Abilities")
+	const UAhmedAttributeSet* GetAttributes() const { return Attributes; }
+
+	/** Turn to whichever opponent is nearest, before committing to a strike. */
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void FaceNearestOpponent();
+
+	/** Everyone this fighter is allowed to hit. Subclasses narrow it. */
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void GatherOpponents(TArray<AFighterBase*>& OutTargets) const;
+
+	/** Take the blow's push, and go down if it was heavy enough. Called by
+	    the attacking ability; the damage itself went through attributes. */
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void ReceiveKnockback(const FVector& Impulse, bool bKnockdown);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void SpendStamina(float Amount);
+
+	/** Which way the player is asking to go. Enemies override with their AI
+	    heading, so a dash works the same for both. */
+	UFUNCTION(BlueprintPure, Category = "Movement")
+	virtual FVector GetIntendedMoveDirection() const;
+
+	/** Start and finish a ledge climb. The ability owns the timing; the
+	    character owns the body, which is the only thing that should be
+	    interpolating a position. */
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void BeginLedgeClimb(const FVector& Ledge, float Duration);
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void EndLedgeClimb(const FVector& Ledge);
+
+	/** Advances a climb in progress. Called from Tick; does nothing otherwise. */
+	void Tick_Climb(float DeltaSeconds);
+
+protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities")
+	TObjectPtr<UAhmedAbilitySystemComponent> AbilitySystem = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UAhmedAttributeSet> Attributes = nullptr;
+
+	/** Ledge climb in progress: where from, where to, and how far through. */
+	FVector ClimbFrom = FVector::ZeroVector;
+	FVector ClimbTo = FVector::ZeroVector;
+	float ClimbElapsed = -1.f;
+	float ClimbDuration = 0.f;
+
+public:
 
 	/** Damage this fighter deals, before the victim's defences. */
 	virtual float GetOutgoingDamageMultiplier(const FAttackDef& Attack) const;

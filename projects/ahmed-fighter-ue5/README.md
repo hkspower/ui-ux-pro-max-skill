@@ -292,6 +292,93 @@ which reads the `?ArriveAt` option. `FAhmedProgress` gained `CurrentStage` and
 
 ---
 
+## The gameplay layer
+
+Combat, traversal and progression run on **Unreal's Gameplay Ability System**.
+The port started with a hand-rolled attack state machine on `AFighterBase` —
+an elapsed time compared against three floats — which works for one fighter
+with five moves and stops working the moment a strike needs to cost mana, or
+scale with a talent, or be cancelled into by another strike. Each of those was
+another branch in the same tick function.
+
+### Tags, not enums
+
+`Gameplay/AhmedGameplayTags.h` is the whole vocabulary, declared natively so a
+typo is a compile error. The reason tags rather than enums: **an enum can only
+answer "which one", a tag answers "is this any kind of X"**. `Ahmed.Attack.Box`
+matches a jab, a cross and a hook without naming them, so a cracked wall asks
+for a punch rather than for a list of punches — and adding a fourth punch does
+not mean editing the wall.
+
+| Branch | What lives there |
+| --- | --- |
+| `Ahmed.Attack.*` | what a strike **is**; its family is its parent tag |
+| `Ahmed.State.*` | what a fighter is doing. Abilities block on these |
+| `Ahmed.Talent.*` | what has been granted — the tag **is** the record |
+| `Ahmed.Event.*` | a moment, dispatched rather than called |
+| `Ahmed.Cue.*` | a moment made visible and audible |
+| `Ahmed.Data.*` | a number carried on an effect (SetByCaller) |
+
+### Attributes
+
+`UAhmedAttributeSet` holds everything another system may change: health,
+stamina, mana, rage, the power and per-family multipliers, move speed, jump
+power. The port kept these as floats on the character, which is fine until two
+things want to change one at once — a rage buff, a difficulty multiplier and a
+level bonus all raising max health, each having to know about the others.
+
+`IncomingDamage` is a **meta attribute**: nothing stores it. An attack writes a
+number into it and `PostGameplayEffectExecute` decides what that number means —
+guard, parry, knockdown, death — and zeroes it again. Damage is a message, not
+a stat, and keeping that in one place is why a new attack cannot introduce a
+new way of dying.
+
+### Abilities
+
+| Ability | Notes |
+| --- | --- |
+| `UAhmedAttackAbility` | every strike, driven by a `UAhmedAttackData`. Startup → active → recovery are a timeline the system owns. `NextInChain` plus a press during recovery is what makes a jab become a cross become a hook — **there is no combo counter anywhere** |
+| `UAhmedDashAbility` | block-while-moving. DASH LEAP does not add a second dash, it makes this one longer and safer: one button, one move, more of it |
+| `UAhmedGuardAbility` | the parry window opens on the press and shuts 0.2s later whether or not the button is still down. Holding guards at a fifth damage but never parries — that asymmetry is why blocking is a decision |
+| `UAhmedJumpAbility` | **new talent.** Until JUMP is found `JumpPower` is zero and the button does nothing, which is what makes finding it change every area behind you, not just the one ahead. No air jumps: a second one would be a different talent |
+| `UAhmedClimbAbility` | **new talent.** Traces forward at chest height for a wall, then down from above it for a surface. If the drop lands in the climbable band with headroom, the fighter goes up. VAULT opens the ledges a designer placed; CLIMB is the general case, and it comes later because a general answer devalues the specific one if it arrives first |
+
+### Effects, and one damage asset
+
+`UGE_AhmedDamage` carries its number by SetByCaller, so **one damage effect
+serves every strike in the game** — the strike sets the number. Same for the
+cost effect, which takes stamina and mana together as negatives so a free move
+needs no branch.
+
+### Data Assets, without losing the bridge
+
+The abilities read `UAhmedAttackData` and `UAhmedTalentData`, because an asset
+can hold a gameplay tag, an ability class and a montage reference and a table
+row cannot. The **numbers still come from the browser project**:
+
+```
+assets/*.js ──(export.mjs)──> Content/Data/*.csv ──(build_data_assets.py)──> /Game/Data/Generated
+```
+
+`Tools/levels/build_data_assets.py` runs in the editor like `build_levels.py`,
+and prints its plan outside it. An attack with no tag mapping is a **hard stop**
+rather than an untagged asset, because an untagged attack is one no gate will
+ever accept and that failure is invisible until someone cannot break a wall.
+
+### Two names for a talent
+
+The gameplay layer works in tags; the world — gates, routes, the save file —
+still works in `EAbility`, because that is what is written to disk. Rather than
+pick one and rewrite everything, `AhmedTalents::TagFor` / `AbilityFor` keep
+them in step in one place each direction.
+
+> **JUMP and CLIMB are engine-only so far.** They are not in the browser
+> project's `talents.js`, so no route or gate requires them yet and the export
+> is unaffected. Adding them to the 2D build means implementing jumping and
+> climbing there too — a separate job.
+
+---
+
 ## Sound
 
 Two pieces: the **storage**, and the **effects** wired into it.

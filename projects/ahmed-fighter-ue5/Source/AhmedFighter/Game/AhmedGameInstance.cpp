@@ -1,4 +1,6 @@
 #include "Game/AhmedGameInstance.h"
+#include "Gameplay/AhmedAbilitySystemComponent.h"
+#include "Combat/FighterBase.h"
 #include "Game/AhmedAudioSubsystem.h"
 
 #include "Kismet/GameplayStatics.h"
@@ -86,6 +88,22 @@ bool UAhmedGameInstance::GrantAbility(EAbility Ability)
 		return false;
 	}
 	Progress.Abilities.Add(Ability);
+
+	// The save records it; the ability system is what makes it a move. The
+	// tag is the same fact in the language the gameplay layer speaks.
+	if (const UWorld* World = GetWorld())
+	{
+		if (APawn* Player = UGameplayStatics::GetPlayerPawn(World, 0))
+		{
+			if (AFighterBase* Fighter = Cast<AFighterBase>(Player))
+			{
+				if (UAhmedAbilitySystemComponent* ASC = Fighter->GetAhmedASC())
+				{
+					ASC->GrantTalent(AhmedTalents::TagFor(Ability));
+				}
+			}
+		}
+	}
 	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Talent_Found")); }
 	OnAbilityGranted.Broadcast(Ability);
 	return true;

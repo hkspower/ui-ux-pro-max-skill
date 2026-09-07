@@ -13,7 +13,15 @@ public class AhmedFighter : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
-			"UMG"
+			"UMG",
+			// The gameplay layer. GAS is three modules and all three are
+			// required together: the system, the tags it dispatches on, and the
+			// task framework abilities run their timing on.
+			"GameplayAbilities",
+			"GameplayTags",
+			"GameplayTasks",
+			"MotionWarping",
+			"Niagara"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

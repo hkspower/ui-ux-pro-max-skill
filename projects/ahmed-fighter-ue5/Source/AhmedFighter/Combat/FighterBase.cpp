@@ -4,6 +4,9 @@
 #include "Engine/DataTable.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Gameplay/AhmedAbilitySystemComponent.h"
+#include "Gameplay/AhmedAttributeSet.h"
+#include "Gameplay/AhmedGameplayTags.h"
 
 AFighterBase::AFighterBase()
 {
@@ -21,6 +24,11 @@ AFighterBase::AFighterBase()
 		Move->RotationRate = FRotator(0.f, 1080.f, 0.f);
 	}
 	bUseControllerRotationYaw = false;
+
+	// One component, one attribute set, made here rather than in Blueprint so
+	// that every fighter in the game has them whatever it was spawned from.
+	AbilitySystem = CreateDefaultSubobject<UAhmedAbilitySystemComponent>(TEXT("AbilitySystem"));
+	Attributes = CreateDefaultSubobject<UAhmedAttributeSet>(TEXT("Attributes"));
 }
 
 void AFighterBase::BeginPlay()
@@ -28,6 +36,145 @@ void AFighterBase::BeginPlay()
 	Super::BeginPlay();
 	Health = MaxHealth;
 	Stamina = MaxStamina;
+
+	if (AbilitySystem)
+	{
+		AbilitySystem->InitAbilityActorInfo(this, this);
+		AbilitySystem->InitialiseFighter();
+	}
+}
+
+UAbilitySystemComponent* AFighterBase::GetAbilitySystemComponent() const
+{
+	return AbilitySystem;
+}
+
+void AFighterBase::Tick_Climb(float DeltaSeconds)
+{
+	if (ClimbElapsed < 0.f)
+	{
+		return;
+	}
+	ClimbElapsed += DeltaSeconds;
+	const float T = FMath::Clamp(ClimbElapsed / FMath::Max(0.01f, ClimbDuration), 0.f, 1.f);
+
+	// Up first, then forward. Going diagonally would read as floating; a climb
+	// is a pull followed by a step, and the curve is what sells the weight.
+	const float Up = FMath::Clamp(T * 1.6f, 0.f, 1.f);
+	const float Fwd = FMath::Clamp((T - 0.35f) / 0.65f, 0.f, 1.f);
+
+	FVector Pos = ClimbFrom;
+	Pos.Z = FMath::Lerp(ClimbFrom.Z, ClimbTo.Z, FMath::InterpEaseOut(0.f, 1.f, Up, 2.f));
+	Pos.X = FMath::Lerp(ClimbFrom.X, ClimbTo.X, FMath::InterpEaseInOut(0.f, 1.f, Fwd, 2.f));
+	Pos.Y = FMath::Lerp(ClimbFrom.Y, ClimbTo.Y, Fwd);
+	SetActorLocation(Pos, false);
+
+	if (T >= 1.f)
+	{
+		ClimbElapsed = -1.f;
+	}
+}
+
+void AFighterBase::BeginLedgeClimb(const FVector& Ledge, float Duration)
+{
+	ClimbFrom = GetActorLocation();
+	ClimbTo = Ledge;
+	ClimbDuration = FMath::Max(0.05f, Duration);
+	ClimbElapsed = 0.f;
+}
+
+void AFighterBase::EndLedgeClimb(const FVector& Ledge)
+{
+	ClimbElapsed = -1.f;
+	SetActorLocation(Ledge, false);
+}
+
+void AFighterBase::FaceNearestOpponent()
+{
+	TArray<AFighterBase*> Targets;
+	GatherOpponents(Targets);
+
+	const FVector Origin = GetActorLocation();
+	float Best = TNumericLimits<float>::Max();
+	const AFighterBase* Nearest = nullptr;
+	for (const AFighterBase* T : Targets)
+	{
+		if (!IsValid(T) || !T->IsAlive())
+		{
+			continue;
+		}
+		// Depth counts double: the fighter two metres away in front is a
+		// better guess at the intended target than one beside you in Y.
+		const FVector D = T->GetActorLocation() - Origin;
+		const float Score = FMath::Abs(D.X) + FMath::Abs(D.Y) * 2.f;
+		if (Score < Best)
+		{
+			Best = Score;
+			Nearest = T;
+		}
+	}
+	if (Nearest)
+	{
+		FaceTowards(Nearest->GetActorLocation());
+	}
+}
+
+void AFighterBase::GatherOpponents(TArray<AFighterBase*>& OutTargets) const
+{
+	GatherTargets(OutTargets);
+}
+
+void AFighterBase::SpendStamina(float Amount)
+{
+	if (Attributes)
+	{
+		Attributes->SetStamina(FMath::Max(0.f, Attributes->GetStamina() - Amount));
+	}
+	Stamina = FMath::Max(0.f, Stamina - Amount);
+}
+
+FVector AFighterBase::GetIntendedMoveDirection() const
+{
+	// Whatever the body is already doing. The player overrides this with the
+	// stick, which is what makes a dash go where the player is pointing
+	// rather than where the character happens to be drifting.
+	const FVector Vel = GetVelocity();
+	const FVector Flat(Vel.X, Vel.Y, 0.f);
+	return Flat.IsNearlyZero()
+		? FVector(GetFacingSign(), 0.f, 0.f)
+		: Flat.GetSafeNormal();
+}
+
+void AFighterBase::ReceiveKnockback(const FVector& Impulse, bool bKnockdown)
+{
+	if (!IsAlive())
+	{
+		return;
+	}
+	LaunchCharacter(Impulse, true, false);
+
+	if (bKnockdown && !bResistsKnockdown)
+	{
+		State = EFighterState::Down;
+		DownRemaining = 0.85f;
+		if (AbilitySystem)
+		{
+			// The tag is what stops everything else: no ability activates
+			// through State.Downed, so being on the floor needs no other code.
+			AbilitySystem->AddLooseGameplayTag(AhmedTags::State_Downed);
+			AbilitySystem->SendCombatEvent(AhmedTags::Event_Knockdown, nullptr, 0.f);
+		}
+		OnKnockedDown();
+	}
+	else
+	{
+		State = EFighterState::Hit;
+		HitStunRemaining = 0.22f;
+		if (AbilitySystem)
+		{
+			AbilitySystem->AddLooseGameplayTag(AhmedTags::State_HitStun);
+		}
+	}
 }
 
 void AFighterBase::Tick(float DeltaSeconds)
@@ -35,6 +182,15 @@ void AFighterBase::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 
 	TickTimers(DeltaSeconds);
+	Tick_Climb(DeltaSeconds);
+
+	// The tags mirror the timers: whatever put one on, running out takes it
+	// off, so nothing can be left permanently stunned by a cancelled hit.
+	if (AbilitySystem)
+	{
+		if (HitStunRemaining <= 0.f) { AbilitySystem->RemoveLooseGameplayTag(AhmedTags::State_HitStun); }
+		if (DownRemaining <= 0.f)    { AbilitySystem->RemoveLooseGameplayTag(AhmedTags::State_Downed); }
+	}
 
 	if (State == EFighterState::Attack)
 	{

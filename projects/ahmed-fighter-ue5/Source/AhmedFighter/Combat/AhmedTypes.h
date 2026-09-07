@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "GameplayTagContainer.h"
 #include "AhmedTypes.generated.h"
 
 class UAnimMontage;
@@ -48,8 +49,30 @@ enum class EAbility : uint8
 	/** Punches carry fire. Spends mana, and only punches -- kicks stay cold.
 	    Unlike the other four this one is not a traversal key: it opens the
 	    door to the arena rather than a gate inside a stage. */
-	HawkFist
+	HawkFist,
+	/** A real jump. Until it is found JumpPower is zero and the button does
+	    nothing, which is what makes finding it change every area behind you. */
+	Jump,
+	/** Pull up onto any ledge, not only the ones VAULT was placed for. The
+	    general answer, deliberately later than the specific one. */
+	Climb
 };
+
+/**
+ * The bridge between the two ways the game names a talent.
+ *
+ * The gameplay layer works in tags, because a tag can be asked "is this any
+ * kind of punch" and an enum cannot. The world -- gates, routes, the save --
+ * still works in EAbility, because that is what is written to disk and what
+ * the data tables carry. Rather than pick one and rewrite everything, the
+ * two are kept in step here, in the one function each direction, so a talent
+ * added to either is a compile error until it is added to both.
+ */
+namespace AhmedTalents
+{
+	AHMEDFIGHTER_API FGameplayTag TagFor(EAbility Ability);
+	AHMEDFIGHTER_API EAbility AbilityFor(const FGameplayTag& Tag);
+}
 
 /** What a sealed route wants from the player. */
 UENUM(BlueprintType)
