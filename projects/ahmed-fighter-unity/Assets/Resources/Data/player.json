@@ -1,0 +1,16 @@
+{
+  "displayName": "AHMED",
+  "displayNameArabic": "أحمد",
+  "baseHealth": 100,
+  "baseStamina": 100,
+  "baseMana": 40,
+  "basePower": 1,
+  "baseMoveSpeed": 3.408,
+  "baseReach": 1.392,
+  "healthPerVitality": 18,
+  "staminaPerStamina": 12,
+  "speedPerSpeed": 0.216,
+  "manaRegenPerSecond": 5,
+  "manaPerLandedHit": 4,
+  "upgradeMaxLevel": 5
+}

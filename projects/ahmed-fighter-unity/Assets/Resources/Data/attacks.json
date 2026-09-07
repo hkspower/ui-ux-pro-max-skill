@@ -1,0 +1,88 @@
+{
+  "items": [
+    {
+      "name": "Jab",
+      "family": "Box",
+      "damage": 7,
+      "startup": 0.07,
+      "active": 0.06,
+      "recovery": 0.13,
+      "reach": 1.296,
+      "depthTolerance": 0.8,
+      "knockback": 1.68,
+      "staminaCost": 5,
+      "heavy": false,
+      "multiHit": false
+    },
+    {
+      "name": "Cross",
+      "family": "Box",
+      "damage": 11,
+      "startup": 0.1,
+      "active": 0.07,
+      "recovery": 0.19,
+      "reach": 1.44,
+      "depthTolerance": 0.8,
+      "knockback": 2.88,
+      "staminaCost": 8,
+      "heavy": false,
+      "multiHit": false
+    },
+    {
+      "name": "Hook",
+      "family": "Box",
+      "damage": 17,
+      "startup": 0.14,
+      "active": 0.08,
+      "recovery": 0.26,
+      "reach": 1.344,
+      "depthTolerance": 0.8,
+      "knockback": 5.04,
+      "staminaCost": 12,
+      "heavy": true,
+      "multiHit": false
+    },
+    {
+      "name": "Kick",
+      "family": "Kick",
+      "damage": 19,
+      "startup": 0.16,
+      "active": 0.09,
+      "recovery": 0.28,
+      "reach": 1.776,
+      "depthTolerance": 0.8,
+      "knockback": 6.48,
+      "staminaCost": 14,
+      "heavy": true,
+      "multiHit": false
+    },
+    {
+      "name": "Knee",
+      "family": "Kick",
+      "damage": 23,
+      "startup": 0.13,
+      "active": 0.08,
+      "recovery": 0.26,
+      "reach": 1.008,
+      "depthTolerance": 0.8,
+      "knockback": 3.84,
+      "staminaCost": 16,
+      "heavy": true,
+      "multiHit": false
+    },
+    {
+      "name": "Special",
+      "family": "Kick",
+      "damage": 46,
+      "startup": 0.18,
+      "active": 0.26,
+      "recovery": 0.34,
+      "reach": 2.112,
+      "depthTolerance": 0.8,
+      "knockback": 10.32,
+      "staminaCost": 0,
+      "heavy": true,
+      "multiHit": true
+    }
+  ]
+}

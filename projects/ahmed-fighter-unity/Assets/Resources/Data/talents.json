@@ -1,0 +1,49 @@
+{
+  "items": [
+    {
+      "name": "Vault",
+      "ability": "Vault",
+      "displayName": "VAULT",
+      "displayNameArabic": "وثبة",
+      "icon": "⤴",
+      "manaCost": 0,
+      "description": "Climb low ledges. Hold toward one and Ahmed pulls himself up."
+    },
+    {
+      "name": "DashLeap",
+      "ability": "DashLeap",
+      "displayName": "DASH LEAP",
+      "displayNameArabic": "قفزة",
+      "icon": "⇥",
+      "manaCost": 0,
+      "description": "Your dodge dash carries you across broken ground."
+    },
+    {
+      "name": "PowerKick",
+      "ability": "PowerKick",
+      "displayName": "POWER KICK",
+      "displayNameArabic": "ركلة قوية",
+      "icon": "⚡",
+      "manaCost": 0,
+      "description": "Kicks tear steel shutters off their rails."
+    },
+    {
+      "name": "Haymaker",
+      "ability": "Haymaker",
+      "displayName": "HAYMAKER",
+      "displayNameArabic": "قاضية",
+      "icon": "✊",
+      "manaCost": 0,
+      "description": "A loaded hook that punches through cracked masonry."
+    },
+    {
+      "name": "HawkFist",
+      "ability": "HawkFist",
+      "displayName": "HAWK FIST",
+      "displayNameArabic": "قبضة الباز",
+      "icon": "✷",
+      "manaCost": 14,
+      "description": "Your punches carry fire. Burns MP, and only punches — kicks stay cold."
+    }
+  ]
+}

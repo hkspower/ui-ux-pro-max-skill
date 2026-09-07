@@ -1,0 +1,469 @@
+{
+  "items": [
+    {
+      "name": "Thug",
+      "displayName": "Souq Thug",
+      "preferredRange": 1.2312,
+      "rangeDiscipline": 0.85,
+      "resetDistance": 0,
+      "bounceRate": 1.11,
+      "bounceAmplitude": 0.2851,
+      "circleTendency": 0.34,
+      "circleSwitchTime": 1.78,
+      "strikes": [
+        {
+          "attackRow": "Jab",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 1.6,
+          "opensCombination": 0.75
+        },
+        {
+          "attackRow": "Cross",
+          "bands": [
+            "Mid"
+          ],
+          "weight": 1.1,
+          "opensCombination": 0.35
+        }
+      ],
+      "attackInterval": 1.55,
+      "rhythmJitter": 0.36,
+      "maxComboLength": 1,
+      "guardChance": 0.2,
+      "guardsWhileAdvancing": false,
+      "counterChance": 0.3
+    },
+    {
+      "name": "Brawler",
+      "displayName": "Brawler",
+      "preferredRange": 1.3224,
+      "rangeDiscipline": 0.77,
+      "resetDistance": 0,
+      "bounceRate": 1.22,
+      "bounceAmplitude": 0.3062,
+      "circleTendency": 0.45,
+      "circleSwitchTime": 1.56,
+      "strikes": [
+        {
+          "attackRow": "Jab",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 1.6,
+          "opensCombination": 0.75
+        },
+        {
+          "attackRow": "Cross",
+          "bands": [
+            "Mid"
+          ],
+          "weight": 1.1,
+          "opensCombination": 0.35
+        },
+        {
+          "attackRow": "Hook",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 0.9,
+          "opensCombination": 0.2
+        }
+      ],
+      "attackInterval": 1.25,
+      "rhythmJitter": 0.4,
+      "maxComboLength": 2,
+      "guardChance": 0.19,
+      "guardsWhileAdvancing": false,
+      "counterChance": 0.31
+    },
+    {
+      "name": "Kicker",
+      "displayName": "Kickboxer",
+      "preferredRange": 1.9891,
+      "rangeDiscipline": 0.8,
+      "resetDistance": 0,
+      "bounceRate": 1.5,
+      "bounceAmplitude": 0.3907,
+      "circleTendency": 0.73,
+      "circleSwitchTime": 1.01,
+      "strikes": [
+        {
+          "attackRow": "Kick",
+          "bands": [
+            "Long",
+            "Mid"
+          ],
+          "weight": 2,
+          "opensCombination": 0.15
+        },
+        {
+          "attackRow": "Jab",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 1.6,
+          "opensCombination": 0.75
+        },
+        {
+          "attackRow": "Cross",
+          "bands": [
+            "Mid"
+          ],
+          "weight": 1.1,
+          "opensCombination": 0.35
+        }
+      ],
+      "attackInterval": 1.1,
+      "rhythmJitter": 0.42,
+      "maxComboLength": 2,
+      "guardChance": 0.17,
+      "guardsWhileAdvancing": false,
+      "counterChance": 0.32
+    },
+    {
+      "name": "Grappler",
+      "displayName": "Grappler",
+      "preferredRange": 1.0488,
+      "rangeDiscipline": 0.63,
+      "resetDistance": 0,
+      "bounceRate": 0,
+      "bounceAmplitude": 0,
+      "circleTendency": 0.14,
+      "circleSwitchTime": 2.19,
+      "strikes": [
+        {
+          "attackRow": "Knee",
+          "bands": [
+            "Close"
+          ],
+          "weight": 2.4,
+          "opensCombination": 0.3
+        },
+        {
+          "attackRow": "Hook",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 0.9,
+          "opensCombination": 0.2
+        }
+      ],
+      "attackInterval": 1.75,
+      "rhythmJitter": 0.34,
+      "maxComboLength": 1,
+      "guardChance": 0.29,
+      "guardsWhileAdvancing": true,
+      "counterChance": 0.26
+    },
+    {
+      "name": "Champ",
+      "displayName": "Contender",
+      "preferredRange": 1.8278,
+      "rangeDiscipline": 0.47,
+      "resetDistance": 0,
+      "bounceRate": 1.4,
+      "bounceAmplitude": 0.359,
+      "circleTendency": 0.63,
+      "circleSwitchTime": 1.19,
+      "strikes": [
+        {
+          "attackRow": "Jab",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 1.6,
+          "opensCombination": 0.75
+        },
+        {
+          "attackRow": "Cross",
+          "bands": [
+            "Mid"
+          ],
+          "weight": 1.1,
+          "opensCombination": 0.35
+        },
+        {
+          "attackRow": "Kick",
+          "bands": [
+            "Long",
+            "Mid"
+          ],
+          "weight": 1,
+          "opensCombination": 0.15
+        },
+        {
+          "attackRow": "Hook",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 0.9,
+          "opensCombination": 0.2
+        },
+        {
+          "attackRow": "Knee",
+          "bands": [
+            "Close"
+          ],
+          "weight": 1.2,
+          "opensCombination": 0.3
+        }
+      ],
+      "attackInterval": 0.95,
+      "rhythmJitter": 0.44,
+      "maxComboLength": 2,
+      "guardChance": 0.26,
+      "guardsWhileAdvancing": true,
+      "counterChance": 0.27
+    },
+    {
+      "name": "Runner",
+      "displayName": "Runner",
+      "preferredRange": 1.2768,
+      "rangeDiscipline": 0.9,
+      "resetDistance": 3.4944,
+      "bounceRate": 1.94,
+      "bounceAmplitude": 0.2957,
+      "circleTendency": 0.8,
+      "circleSwitchTime": 0.8,
+      "strikes": [
+        {
+          "attackRow": "Jab",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 3.2,
+          "opensCombination": 0.75
+        },
+        {
+          "attackRow": "Cross",
+          "bands": [
+            "Mid"
+          ],
+          "weight": 1.1,
+          "opensCombination": 0.35
+        }
+      ],
+      "attackInterval": 0.85,
+      "rhythmJitter": 0.45,
+      "maxComboLength": 1,
+      "guardChance": 0.13,
+      "guardsWhileAdvancing": false,
+      "counterChance": 0.34
+    },
+    {
+      "name": "Bouncer",
+      "displayName": "Bouncer",
+      "preferredRange": 1.1856,
+      "rangeDiscipline": 0.5,
+      "resetDistance": 0,
+      "bounceRate": 0,
+      "bounceAmplitude": 0,
+      "circleTendency": 0.19,
+      "circleSwitchTime": 2.08,
+      "strikes": [
+        {
+          "attackRow": "Hook",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 1.8,
+          "opensCombination": 0.2
+        },
+        {
+          "attackRow": "Knee",
+          "bands": [
+            "Close"
+          ],
+          "weight": 1.2,
+          "opensCombination": 0.3
+        }
+      ],
+      "attackInterval": 1.9,
+      "rhythmJitter": 0.32,
+      "maxComboLength": 1,
+      "guardChance": 0.34,
+      "guardsWhileAdvancing": true,
+      "counterChance": 0.23
+    },
+    {
+      "name": "Capo",
+      "displayName": "Enforcer",
+      "preferredRange": 1.7203,
+      "rangeDiscipline": 0.61,
+      "resetDistance": 0,
+      "bounceRate": 1.55,
+      "bounceAmplitude": 0.3379,
+      "circleTendency": 0.78,
+      "circleSwitchTime": 0.9,
+      "strikes": [
+        {
+          "attackRow": "Jab",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 3.2,
+          "opensCombination": 0.75
+        },
+        {
+          "attackRow": "Cross",
+          "bands": [
+            "Mid"
+          ],
+          "weight": 1.1,
+          "opensCombination": 0.35
+        },
+        {
+          "attackRow": "Hook",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 0.9,
+          "opensCombination": 0.2
+        },
+        {
+          "attackRow": "Kick",
+          "bands": [
+            "Long",
+            "Mid"
+          ],
+          "weight": 1,
+          "opensCombination": 0.15
+        }
+      ],
+      "attackInterval": 0.78,
+      "rhythmJitter": 0.45,
+      "maxComboLength": 2,
+      "guardChance": 0.2,
+      "guardsWhileAdvancing": true,
+      "counterChance": 0.3
+    },
+    {
+      "name": "Boss",
+      "displayName": "AL-WAHSH",
+      "preferredRange": 1.9354,
+      "rangeDiscipline": 0.15,
+      "resetDistance": 0,
+      "bounceRate": 1.35,
+      "bounceAmplitude": 0.3802,
+      "circleTendency": 0.58,
+      "circleSwitchTime": 1.3,
+      "strikes": [
+        {
+          "attackRow": "Jab",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 1.6,
+          "opensCombination": 0.75
+        },
+        {
+          "attackRow": "Cross",
+          "bands": [
+            "Mid"
+          ],
+          "weight": 1.1,
+          "opensCombination": 0.35
+        },
+        {
+          "attackRow": "Hook",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 0.9,
+          "opensCombination": 0.2
+        },
+        {
+          "attackRow": "Kick",
+          "bands": [
+            "Long",
+            "Mid"
+          ],
+          "weight": 1,
+          "opensCombination": 0.15
+        },
+        {
+          "attackRow": "Knee",
+          "bands": [
+            "Close"
+          ],
+          "weight": 1.2,
+          "opensCombination": 0.3
+        }
+      ],
+      "attackInterval": 0.88,
+      "rhythmJitter": 0.44,
+      "maxComboLength": 3,
+      "guardChance": 0.52,
+      "guardsWhileAdvancing": true,
+      "counterChance": 0.14
+    },
+    {
+      "name": "Saqr",
+      "displayName": "AL-SAQR",
+      "preferredRange": 2.0429,
+      "rangeDiscipline": 0.15,
+      "resetDistance": 0,
+      "bounceRate": 1.72,
+      "bounceAmplitude": 0.4013,
+      "circleTendency": 0.8,
+      "circleSwitchTime": 0.8,
+      "strikes": [
+        {
+          "attackRow": "Kick",
+          "bands": [
+            "Long",
+            "Mid"
+          ],
+          "weight": 2,
+          "opensCombination": 0.15
+        },
+        {
+          "attackRow": "Jab",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 1.6,
+          "opensCombination": 0.75
+        },
+        {
+          "attackRow": "Cross",
+          "bands": [
+            "Mid"
+          ],
+          "weight": 1.1,
+          "opensCombination": 0.35
+        },
+        {
+          "attackRow": "Knee",
+          "bands": [
+            "Close"
+          ],
+          "weight": 1.2,
+          "opensCombination": 0.3
+        }
+      ],
+      "attackInterval": 0.8,
+      "rhythmJitter": 0.45,
+      "maxComboLength": 3,
+      "guardChance": 0.37,
+      "guardsWhileAdvancing": true,
+      "counterChance": 0.22
+    }
+  ]
+}

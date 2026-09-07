@@ -40,19 +40,28 @@ These are standing instructions, not preferences for one task.
 
 ---
 
-## The two builds
+## The three builds
 
-| | `ahmed-fighter/` | `ahmed-fighter-ue5/` |
-| --- | --- | --- |
-| What it is | The playable game. One HTML file, canvas 2D, no external assets, PWA with a versioned service worker. | The Unreal Engine 5 port. |
-| Art direction | Stylised **on purpose** — it draws every pixel in code, and stylisation is what makes that possible. | **Not cartoonish.** Adult action game, highest graphics the hardware carries. See its own CLAUDE.md. |
-| State | Runs. Verified in headless Chromium across phone/tablet/desktop, all ten stages, all three graphics tiers. | **Has never been compiled.** No engine has ever been run against it. |
-| Balance data | `assets/*.js` — **the source of truth for every number in both builds.** | Generated. Never hand-edit `Content/Data`. |
+| | `ahmed-fighter/` | `ahmed-fighter-ue5/` | `ahmed-fighter-unity/` |
+| --- | --- | --- | --- |
+| What it is | The playable game. One HTML file, canvas 2D, no external assets, PWA with a versioned service worker. | The Unreal Engine 5 port. | The Unity port, in C#. |
+| Art direction | Stylised **on purpose** — it draws every pixel in code, and stylisation is what makes that possible. | **Not cartoonish.** Adult action game, highest graphics the hardware carries. See its own CLAUDE.md. | Not decided. Everyone is a capsule. |
+| State | Runs. Verified in headless Chromium across phone/tablet/desktop, all ten stages, all three graphics tiers. | **Has never been compiled.** No engine has ever been run against it. | **Has never run.** Type-checks only. The fight is ported; the world is not. |
+| Units | Canvas pixels. | Centimetres. X along, **Y depth**, Z up. | Metres. X along, **Z depth**, Y up. |
+| Balance data | `assets/*.js` — **the source of truth for every number in all three builds.** | Generated. Never hand-edit `Content/Data`. | Generated. Never hand-edit `Assets/Resources/Data`. |
 
 **The browser project owns the numbers.** Change them in `assets/*.js` — the
-control panel at `ahmed-fighter/panel/` is the comfortable way — then run
-`node Tools/export/export.mjs --api` in the Unreal project. `--check` fails if
-the two have drifted.
+control panel at `ahmed-fighter/panel/` is the comfortable way — then re-export
+into whichever ports you care about:
+
+```
+ahmed-fighter-ue5    node Tools/export/export.mjs --api
+ahmed-fighter-unity  node Tools/export/export.mjs
+```
+
+`--check` on either fails if that port has drifted from the assets. One pixel
+is 2.4 cm and 0.024 m; the two exporters must agree about that or the ports
+quietly become different games.
 
 ---
 
