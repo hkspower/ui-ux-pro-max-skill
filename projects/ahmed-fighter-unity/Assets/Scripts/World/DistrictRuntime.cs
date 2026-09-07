@@ -172,6 +172,7 @@ namespace Ahmed.World
             {
                 WorldState.MarkCleared(District.AreaIndex, s.Id);
                 _awake.Remove(s.Id);
+                Game.AudioLibrary.PlayUI("Wave_Clear");
                 CheckAreaCleared();
                 return;
             }
@@ -193,6 +194,7 @@ namespace Ahmed.World
         private void Wake(Site s)
         {
             _awake.Add(s.Id);
+            Game.AudioLibrary.PlayUI("Wave_Start");
             List<EnemyFighter> live = new List<EnemyFighter>();
             _liveBySite[s.Id] = live;
 
@@ -272,8 +274,15 @@ namespace Ahmed.World
             if (s.Gate.RewardAbility != Ability.None)
             {
                 WorldState.GrantTalent(s.Gate.RewardAbility);
+                // The biggest sound in the game, and only ever this: a cache
+                // of XP behind the same kind of gate gets the smaller one.
+                Game.AudioLibrary.PlayUI("Talent_Found");
                 Debug.Log("[Ahmed] found " + s.Gate.RewardAbility
                     + " — routes that wanted it are open now.");
+            }
+            else if (s.Gate.rewardExperience > 0)
+            {
+                Game.AudioLibrary.PlayUI("Exp_Cache");
             }
         }
 
@@ -284,7 +293,11 @@ namespace Ahmed.World
             WorldLink link = LinkFor(s);
             if (!WorldState.CanUse(link))
             {
-                return;         // sealed. The HUD will say why; there is no HUD yet.
+                // Sealed. There is no HUD yet, so this is the only thing that
+                // tells the player the route refused them rather than that
+                // they missed the door.
+                Game.AudioLibrary.Play("Exit_Sealed", s.Position);
+                return;
             }
 
             // Arrive at the far side of the district you came from, so walking
@@ -297,6 +310,7 @@ namespace Ahmed.World
             else { arrive = new Vector3(0f, 0f, -next.Extent + 6f); }
 
             int to = s.ToArea;
+            Game.AudioLibrary.PlayUI("Exit_Travel");
             Enter(to, arrive);
             if (AreaChanged != null) { AreaChanged(to, District.DisplayName); }
         }

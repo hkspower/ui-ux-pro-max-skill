@@ -7,9 +7,10 @@ is the Unreal port of the same thing.
 **Status: it is an open world you can walk around and fight in.** Nine
 districts, 131 to 260 metres a side, joined by the world graph's own eighteen
 links — ten of which want a talent you have to find. Combat, the fight styles,
-the encounters, the gates and the whole data pipeline are ported. Saving,
-audio, the HUD and any actual art are not. See **What is not here yet** at the
-bottom — that list is the honest one.
+the encounters, the gates, the whole data pipeline, Ahmed's own mesh and the
+game's thirty-nine sound effects are ported. Saving, the HUD and the districts'
+art are not. See **What is not here yet** at the bottom — that list is the
+honest one.
 
 ---
 
@@ -25,8 +26,9 @@ GameObject and put `Ahmed.Game.Bootstrap` on it. Press play. Tick
 first — without it the world is correctly mostly shut, and four of the nine
 districts are all you can reach.
 
-`Bootstrap` builds Ahmed, a camera that follows him and an enemy template out
-of primitives, then hands the world to `DistrictRuntime`. It exists because
+`Bootstrap` builds Ahmed, a camera that follows him and an enemy template —
+each of them the real mesh over a character controller, or a capsule if the
+mesh is missing — then hands the world to `DistrictRuntime`. It exists because
 there are no authored scenes yet and a project you cannot press play on is not
 a port. Nothing else refers to it, so deleting it later costs nothing.
 
@@ -59,6 +61,7 @@ project opens and plays in a bare Unity install:
 | Crowd control | `CrowdControl` | at most two enemies swinging at once, everywhere in the world |
 | Camera | `FollowCamera` | trails the player at a yaw you can swing |
 | Data | `GameData` | every table, loaded from `Assets/Resources/Data` |
+| Sound | `AudioLibrary` | plays a cue by name off `sounds.json`: which clip, how loud, how far the pitch may drift, how often it may retrigger |
 | Bring-up | `Bootstrap` | a playable world with no authored scene |
 | Corridor mode | `WaveDirector` | the old stage-at-a-time flow. **Nothing uses it now** — kept because survival waves live there and the open world has no replacement for them yet |
 
@@ -133,6 +136,11 @@ else.**
 ../ahmed-fighter/assets/*.js ──(Tools/export/export.mjs)──> Assets/Resources/Data/*.json
 ```
 
+`sounds.json` is the one table that does not come from the browser build — it
+has no audio at all. Its rows come from `../ahmed-fighter-ue5/Content/Data/
+DT_Sounds.csv`, and the clips under `Assets/Resources/Audio` are the same
+recordings the Unreal build plays, so a punch sounds the same in both.
+
 Never hand-edit the JSON. Change the assets — the control panel at
 `../ahmed-fighter/panel/` is the comfortable way — and re-run the export.
 `node Tools/export/export.mjs --check` fails if the two have drifted.
@@ -186,13 +194,20 @@ worse than one that says where it stops:
   Writing it out is a serialiser over three sets, not a redesign.
 - **No levels or upgrades.** XP accumulates in `WorldState` and buys nothing;
   the tables are exported and unread.
-- **No audio and no HUD.** Health, stamina, rage and mana are tracked and
-  never drawn.
-- **No character mesh.** `../ahmed-fighter-ue5/Content/Models/Ahmed.fbx` is
-  exported with Unreal's conventions (Y bone axis, metres baked to
-  centimetres). Unity needs its own export from
-  `../ahmed-fighter-ue5/Tools/blender/build_ahmed.py`, and its Humanoid avatar
-  needs a rig it can map. Until then everyone is a capsule.
+- **No HUD.** Health, stamina, rage and mana are tracked and never drawn.
+- **No materials.** The mesh arrives with its eight material slots named and
+  nothing in them, because a material is a Unity asset and there is no editor
+  here to author one. The same goes for the render pipeline and the quality
+  settings: this port has never had either set.
+- **The mesh has no avatar and no animation.** `Assets/Resources/Models/Ahmed.fbx`
+  is the real body — 4,260 verts, 24 bones, 1.802 m — and it is a static pose.
+  Mapping it to a Humanoid avatar, and everything that follows from that, is an
+  editor job. Fighters move and turn; the mesh does not yet move with them.
+- **Twenty of the thirty-nine sounds are never fired.** Every cue resolves to a
+  real clip, and the nineteen the port can actually reach are wired. The rest
+  belong to systems that are not ported: weapons, pickups, breakable crates and
+  gates, the interface, the level-up, and the footstep, which wants an
+  animation event this build has no animation for.
 - **None of this has run in Unity.** There is no editor in the environment it
   was written in. What *is* earned: every file compiles clean against a stub of
   the UnityEngine API; the data is verified against the browser assets and

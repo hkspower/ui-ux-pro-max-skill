@@ -154,6 +154,7 @@ namespace Ahmed.Combat
             _attackInterval *= 0.70f;
             MoveSpeed *= 1.20f;
             InvulnerableRemaining = 0.7f;
+            Game.AudioLibrary.Play("Boss_Enrage", transform.position);
 
             // Phase two earns the finisher, and hurries whichever brain is
             // driving. The row is "Special": there has never been a "Rage" row

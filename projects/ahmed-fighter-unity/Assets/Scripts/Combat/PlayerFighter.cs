@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Ahmed.Data;
+using Ahmed.World;
 
 namespace Ahmed.Combat
 {
@@ -184,6 +185,11 @@ namespace Ahmed.Combat
             InvulnerableRemaining = 0.18f;   // the dodge is the point of it
             SpendStamina(12f);
             FaceTowards(transform.position + wish);
+            // DASH LEAP is the same dash carrying further, so it is the same
+            // scrape with a beat of air after it rather than a new sound.
+            Game.AudioLibrary.Play(
+                WorldState.HasTalent(Ability.DashLeap) ? "Dash_Leap" : "Dash",
+                transform.position);
         }
 
         private void ReleaseRage()
@@ -193,6 +199,7 @@ namespace Ahmed.Combat
             {
                 Rage = 0f;
                 InvulnerableRemaining = 0.55f;
+                Game.AudioLibrary.PlayUI("Rage");
             }
         }
 

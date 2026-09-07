@@ -298,6 +298,60 @@ function upgrades(A){
   return table(rows);
 }
 
+/* ------------------------------------------------------------- the sounds */
+/* The one table that does not come from the browser project.
+
+   The sound catalogue -- cue name, level, pitch drift, whether it is
+   positioned, how often it may retrigger -- was written in the Unreal project
+   because that is where the audio subsystem was built, and it is authored by
+   hand rather than derived from anything. Rather than keep a second copy here
+   and let the two drift, this reads that one and reshapes it.
+
+   If the catalogue ever moves into ../ahmed-fighter/assets where the rest of
+   the game's data lives, this function is the only thing that has to change. */
+function sounds(){
+  const csv = resolve(UNITY, '../ahmed-fighter-ue5/Content/Data/DT_Sounds.csv');
+  if(!existsSync(csv)) die(`missing ${csv} -- the sound catalogue lives in the Unreal project`);
+  const lines = readFileSync(csv, 'utf8').trim().split('\n');
+  const head = splitCsv(lines[0]);
+  const rows = lines.slice(1).map(l => {
+    const c = splitCsv(l), r = {};
+    head.forEach((h, i) => { r[h] = c[i]; });
+    return r;
+  }).filter(r => r.Name && !r.Name.startsWith('Music_'));
+
+  return table(rows.map(r => ({
+    name: r.Name,
+    // /Game/Audio/Combat/S_Hit_Heavy.S_Hit_Heavy -> Audio/Combat/S_Hit_Heavy,
+    // which is what Resources.Load wants.
+    clip: 'Audio/' + r.Sound.split('.')[0].split('/').slice(-2).join('/'),
+    volume: +r.Volume || 1,
+    pitchMin: +r.PitchMin || 1,
+    pitchMax: +r.PitchMax || 1,
+    spatial: String(r.bSpatial).trim().toLowerCase() === 'true',
+    cooldown: +r.Cooldown || 0,
+    description: r.Description || ''
+  })));
+}
+
+/* A CSV line, respecting quotes -- the Description column is prose and has
+   commas in it, so splitting on ',' alone shifts every field after it. */
+function splitCsv(line){
+  const out = []; let cur = '', q = false;
+  for(let i = 0; i < line.length; i++){
+    const ch = line[i];
+    if(q){
+      if(ch === '"' && line[i+1] === '"'){ cur += '"'; i++; }
+      else if(ch === '"') q = false;
+      else cur += ch;
+    } else if(ch === '"') q = true;
+    else if(ch === ',') { out.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
 function player(A){
   const P = A.ahmed;
   return JSON.stringify({
@@ -326,7 +380,8 @@ const files = {
   'talents.json':  talents(A),
   'levels.json':   levels(A),
   'upgrades.json': upgrades(A),
-  'player.json':   player(A)
+  'player.json':   player(A),
+  'sounds.json':   sounds()
 };
 
 const check = process.argv.includes('--check');

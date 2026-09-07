@@ -1,0 +1,394 @@
+{
+  "items": [
+    {
+      "name": "Whoosh_Light",
+      "clip": "Audio/Combat/S_Whoosh_Light",
+      "volume": 0.55,
+      "pitchMin": 0.94,
+      "pitchMax": 1.08,
+      "spatial": true,
+      "cooldown": 0.03,
+      "description": "Air moved by a jab or cross. Short, dry, no tail. The sound of missing."
+    },
+    {
+      "name": "Whoosh_Heavy",
+      "clip": "Audio/Combat/S_Whoosh_Heavy",
+      "volume": 0.7,
+      "pitchMin": 0.9,
+      "pitchMax": 1.04,
+      "spatial": true,
+      "cooldown": 0.05,
+      "description": "A hook, kick or knee cutting air. Lower and longer than the light one; the wind-up should be audible."
+    },
+    {
+      "name": "Hit_Light",
+      "clip": "Audio/Combat/S_Hit_Light",
+      "volume": 0.85,
+      "pitchMin": 0.95,
+      "pitchMax": 1.07,
+      "spatial": true,
+      "cooldown": 0.04,
+      "description": "Fist on body, jab or cross. A slap with weight behind it, not a movie punch. Dry."
+    },
+    {
+      "name": "Hit_Heavy",
+      "clip": "Audio/Combat/S_Hit_Heavy",
+      "volume": 1,
+      "pitchMin": 0.92,
+      "pitchMax": 1.03,
+      "spatial": true,
+      "cooldown": 0.06,
+      "description": "Hook, kick or knee landing. Deep, with a crack on top. This is the one the player waits for."
+    },
+    {
+      "name": "Hit_Knockdown",
+      "clip": "Audio/Combat/S_Hit_Knockdown",
+      "volume": 1,
+      "pitchMin": 0.94,
+      "pitchMax": 1.02,
+      "spatial": true,
+      "cooldown": 0.1,
+      "description": "The blow that puts someone down. Heavier than Hit_Heavy and followed by the body hitting the ground."
+    },
+    {
+      "name": "Block",
+      "clip": "Audio/Combat/S_Block",
+      "volume": 0.7,
+      "pitchMin": 0.96,
+      "pitchMax": 1.05,
+      "spatial": true,
+      "cooldown": 0.05,
+      "description": "A strike caught on the forearms. Dull thud, muffled, no crack."
+    },
+    {
+      "name": "Parry",
+      "clip": "Audio/Combat/S_Parry",
+      "volume": 0.95,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": true,
+      "cooldown": 0.15,
+      "description": "The perfect guard. Sharp and bright with a short ring -- it has to be unmistakable from Block, because it is the reward."
+    },
+    {
+      "name": "Rage",
+      "clip": "Audio/Combat/S_Rage",
+      "volume": 1,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 0.5,
+      "description": "The finisher going off. Big, low, room-filling; the one sound allowed to be cinematic."
+    },
+    {
+      "name": "Hawk_Ignite",
+      "clip": "Audio/Combat/S_Hawk_Ignite",
+      "volume": 0.8,
+      "pitchMin": 0.97,
+      "pitchMax": 1.03,
+      "spatial": true,
+      "cooldown": 0.2,
+      "description": "HAWK FIST lighting up: a whump of flame catching on a fist."
+    },
+    {
+      "name": "Hawk_Hit",
+      "clip": "Audio/Combat/S_Hawk_Hit",
+      "volume": 1,
+      "pitchMin": 0.95,
+      "pitchMax": 1.05,
+      "spatial": true,
+      "cooldown": 0.06,
+      "description": "A flaming punch landing. Hit_Heavy with a burst of fire over it."
+    },
+    {
+      "name": "KO",
+      "clip": "Audio/Combat/S_KO",
+      "volume": 1,
+      "pitchMin": 0.96,
+      "pitchMax": 1.02,
+      "spatial": true,
+      "cooldown": 0.2,
+      "description": "A fighter going down for good. Body on ground, then nothing. Not a crowd sound."
+    },
+    {
+      "name": "Boss_Enrage",
+      "clip": "Audio/Combat/S_Boss_Enrage",
+      "volume": 1,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 1,
+      "description": "A boss crossing into phase two. A roar, or a breath drawn -- it should make the player step back."
+    },
+    {
+      "name": "Dash",
+      "clip": "Audio/Movement/S_Dash",
+      "volume": 0.6,
+      "pitchMin": 0.95,
+      "pitchMax": 1.08,
+      "spatial": true,
+      "cooldown": 0.1,
+      "description": "A dodge dash. Feet scraping and a short rush of cloth."
+    },
+    {
+      "name": "Dash_Leap",
+      "clip": "Audio/Movement/S_Dash_Leap",
+      "volume": 0.7,
+      "pitchMin": 0.96,
+      "pitchMax": 1.06,
+      "spatial": true,
+      "cooldown": 0.12,
+      "description": "The dash once DASH LEAP is held: the same scrape, then a beat of nothing before the landing."
+    },
+    {
+      "name": "Footstep",
+      "clip": "Audio/Movement/S_Footstep",
+      "volume": 0.35,
+      "pitchMin": 0.9,
+      "pitchMax": 1.1,
+      "spatial": true,
+      "cooldown": 0.08,
+      "description": "One step on the stage floor. Fired from the walk animation's notify. Wide pitch range so a walk cycle never sounds looped."
+    },
+    {
+      "name": "Land",
+      "clip": "Audio/Movement/S_Land",
+      "volume": 0.55,
+      "pitchMin": 0.94,
+      "pitchMax": 1.04,
+      "spatial": true,
+      "cooldown": 0.15,
+      "description": "Feet hitting the ground after a leap or a knockback."
+    },
+    {
+      "name": "Gate_Strike",
+      "clip": "Audio/World/S_Gate_Strike",
+      "volume": 0.85,
+      "pitchMin": 0.93,
+      "pitchMax": 1.05,
+      "spatial": true,
+      "cooldown": 0.08,
+      "description": "A strike landing on a shutter or a cracked wall that has not given yet. Metal or stone taking a hit and holding."
+    },
+    {
+      "name": "Gate_Break",
+      "clip": "Audio/World/S_Gate_Break",
+      "volume": 1,
+      "pitchMin": 0.97,
+      "pitchMax": 1.03,
+      "spatial": true,
+      "cooldown": 0.5,
+      "description": "The third strike: a shutter tearing off its rails, or masonry coming down. Debris after."
+    },
+    {
+      "name": "Gate_Open",
+      "clip": "Audio/World/S_Gate_Open",
+      "volume": 0.75,
+      "pitchMin": 0.98,
+      "pitchMax": 1.02,
+      "spatial": true,
+      "cooldown": 0.5,
+      "description": "A ledge climbed, a gap crossed, a locker opened -- the quiet gates. A latch, a scrape, a hand on stone."
+    },
+    {
+      "name": "Talent_Found",
+      "clip": "Audio/World/S_Talent_Found",
+      "volume": 1,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 1,
+      "description": "A talent picked up. The biggest UI sound in the game; the world just opened."
+    },
+    {
+      "name": "Exp_Cache",
+      "clip": "Audio/World/S_Exp_Cache",
+      "volume": 0.8,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 0.5,
+      "description": "XP found behind a gate. Smaller than Talent_Found; a reward, not a milestone."
+    },
+    {
+      "name": "Exit_Travel",
+      "clip": "Audio/World/S_Exit_Travel",
+      "volume": 0.8,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 1,
+      "description": "Walking out of an area into the next. A door, a step through, a breath of the new place."
+    },
+    {
+      "name": "Exit_Sealed",
+      "clip": "Audio/World/S_Exit_Sealed",
+      "volume": 0.85,
+      "pitchMin": 0.98,
+      "pitchMax": 1.02,
+      "spatial": false,
+      "cooldown": 0.6,
+      "description": "A route refusing you. Solid and final -- a bolt, a hand on a locked door. Pairs with the SEALED banner."
+    },
+    {
+      "name": "Wave_Start",
+      "clip": "Audio/World/S_Wave_Start",
+      "volume": 0.9,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 1,
+      "description": "An ambush closing in. Low, rising, short. The arena just locked."
+    },
+    {
+      "name": "Wave_Clear",
+      "clip": "Audio/World/S_Wave_Clear",
+      "volume": 0.8,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 1,
+      "description": "The last of a wave down and the arena unlocking. A release, not a fanfare."
+    },
+    {
+      "name": "Stage_Clear",
+      "clip": "Audio/UI/S_Stage_Clear",
+      "volume": 1,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 2,
+      "description": "An area beaten. This one can be a fanfare."
+    },
+    {
+      "name": "Stage_Fail",
+      "clip": "Audio/UI/S_Stage_Fail",
+      "volume": 1,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 2,
+      "description": "Ahmed down. Low and slow; no sting."
+    },
+    {
+      "name": "Level_Up",
+      "clip": "Audio/UI/S_Level_Up",
+      "volume": 0.95,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 1,
+      "description": "A rank gained from fighting. Bright, short, upward."
+    },
+    {
+      "name": "Upgrade_Bought",
+      "clip": "Audio/UI/S_Upgrade_Bought",
+      "volume": 0.8,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 0.2,
+      "description": "XP spent at the training camp. A confirm with weight; money changing hands."
+    },
+    {
+      "name": "UI_Tap",
+      "clip": "Audio/UI/S_UI_Tap",
+      "volume": 0.6,
+      "pitchMin": 0.98,
+      "pitchMax": 1.02,
+      "spatial": false,
+      "cooldown": 0.03,
+      "description": "Any button. Quiet, dry, instant."
+    },
+    {
+      "name": "UI_Back",
+      "clip": "Audio/UI/S_UI_Back",
+      "volume": 0.55,
+      "pitchMin": 0.98,
+      "pitchMax": 1.02,
+      "spatial": false,
+      "cooldown": 0.05,
+      "description": "Going back a screen. UI_Tap, lower."
+    },
+    {
+      "name": "UI_Denied",
+      "clip": "Audio/UI/S_UI_Denied",
+      "volume": 0.65,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 0.2,
+      "description": "A button that will not: not enough XP, a locked mode. Short, flat, not rude."
+    },
+    {
+      "name": "Weapon_Pickup",
+      "clip": "Audio/Combat/S_Weapon_Pickup",
+      "volume": 0.75,
+      "pitchMin": 0.97,
+      "pitchMax": 1.03,
+      "spatial": true,
+      "cooldown": 0.3,
+      "description": "A pipe, plank or crowbar picked up out of a smashed crate."
+    },
+    {
+      "name": "Weapon_Swing",
+      "clip": "Audio/Combat/S_Weapon_Swing",
+      "volume": 0.65,
+      "pitchMin": 0.94,
+      "pitchMax": 1.06,
+      "spatial": true,
+      "cooldown": 0.05,
+      "description": "An armed punch cutting air. Heavier than Whoosh_Heavy and with the object's own sound: pipe ring, plank whip."
+    },
+    {
+      "name": "Weapon_Hit",
+      "clip": "Audio/Combat/S_Weapon_Hit",
+      "volume": 1,
+      "pitchMin": 0.95,
+      "pitchMax": 1.04,
+      "spatial": true,
+      "cooldown": 0.06,
+      "description": "An armed punch landing. Steel or wood on body."
+    },
+    {
+      "name": "Weapon_Break",
+      "clip": "Audio/Combat/S_Weapon_Break",
+      "volume": 0.9,
+      "pitchMin": 0.98,
+      "pitchMax": 1.02,
+      "spatial": true,
+      "cooldown": 0.5,
+      "description": "The last use spent: the plank splitting, the pipe clanging away."
+    },
+    {
+      "name": "Crate_Break",
+      "clip": "Audio/World/S_Crate_Break",
+      "volume": 0.8,
+      "pitchMin": 0.94,
+      "pitchMax": 1.06,
+      "spatial": true,
+      "cooldown": 0.1,
+      "description": "A crate or barrel giving way. Wood splintering, or a barrel's hollow clang."
+    },
+    {
+      "name": "Pickup_Health",
+      "clip": "Audio/World/S_Pickup_Health",
+      "volume": 0.7,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": true,
+      "cooldown": 0.2,
+      "description": "The skewer. Warm, quick."
+    },
+    {
+      "name": "Pickup_Rage",
+      "clip": "Audio/World/S_Pickup_Rage",
+      "volume": 0.75,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": true,
+      "cooldown": 0.2,
+      "description": "The rage orb. A charge taken in; a little electric."
+    }
+  ]
+}

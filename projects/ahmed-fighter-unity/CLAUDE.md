@@ -24,6 +24,9 @@ writing story text, naming anything, or deciding what a place looks like.
   The C# type-checks against a stub of the UnityEngine API and the data is
   verified against the browser assets, but nothing has been pressed play on.
   Do not describe any of it as working until it has been.
+- **Materials, the render pipeline and the quality settings need an editor.**
+  They are not written here and cannot be. The mesh arrives with its eight
+  material slots named and empty; do not describe the look as done.
 
 ## The world
 
@@ -69,6 +72,20 @@ writing story text, naming anything, or deciding what a place looks like.
   turn every jab into a kick.
 - **Enemy strikes go through `Fighter.StartAttack`**, the same door the player
   uses. A fight style decides; it does not add reach, damage or moves.
+- **Nothing names an audio file.** Game code says
+  `AudioLibrary.Play("Hit_Heavy", where)` and the table decides the rest, so
+  recasting a sound is a row and a file. `sounds.json` is the one table the
+  browser build cannot produce — it has no audio — so it is generated from the
+  Unreal build's `DT_Sounds.csv` and the clips are the same recordings. The
+  two ports must not disagree about what a punch sounds like.
+- **The character mesh is generated, not authored.**
+  `../ahmed-fighter-ue5/Tools/blender/build_ahmed.py` is the game's only mesh
+  generator and writes `Assets/Resources/Models/Ahmed.fbx` itself, in metres
+  and Y-up, alongside the Unreal one. Do not edit the FBX and do not copy the
+  Unreal build's — its units and bone axes are that engine's, not this one's.
+  Resources rather than a folder of your choosing, because `Bootstrap` has no
+  scene to place a model in and `Resources.Load` is the only way it can reach
+  one.
 
 ## Relationship to the other two builds
 

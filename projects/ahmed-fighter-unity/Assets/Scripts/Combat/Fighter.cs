@@ -197,6 +197,11 @@ namespace Ahmed.Combat
             HitThisSwing.Clear();
             State = FighterState.Attack;
             OnAttackStarted(attack);
+            // The swing is heard before it lands, which is what gives the
+            // player something to react to. Heavy and light are separate cues
+            // because the wind-up is the tell.
+            Game.AudioLibrary.Play(attack.heavy ? "Whoosh_Heavy" : "Whoosh_Light",
+                                   transform.position);
             return true;
         }
 
@@ -334,6 +339,7 @@ namespace Ahmed.Combat
                 result.parried = true;
                 result.blocked = true;
                 InvulnerableRemaining = 0.25f;
+                Game.AudioLibrary.Play("Parry", result.impactPoint);
                 OnParried(attacker);
                 if (Damaged != null) { Damaged(this, result); }
                 return result;
@@ -345,6 +351,7 @@ namespace Ahmed.Combat
             {
                 result.blocked = true;
                 result.damage = damage * Playfield.BlockDamageMultiplier;
+                Game.AudioLibrary.Play("Block", result.impactPoint);
                 Health = Mathf.Max(0f, Health - result.damage);
                 Stamina = Mathf.Max(0f, Stamina - 14f);
                 if (Damaged != null) { Damaged(this, result); }
@@ -356,7 +363,13 @@ namespace Ahmed.Combat
             Health = Mathf.Max(0f, Health - damage);
 
             bool knockdown = attack.multiHit || (attack.heavy && Random.value < 0.45f);
-            ReceiveKnockback(attacker.Facing * attack.knockback, knockdown || Health <= 0f);
+            bool wentDown = knockdown || Health <= 0f;
+            // Knockdown, heavy or light -- one sound per blow, and the one
+            // that puts a fighter down is its own so the player can hear the
+            // difference.
+            Game.AudioLibrary.Play(wentDown ? "Hit_Knockdown"
+                : attack.heavy ? "Hit_Heavy" : "Hit_Light", result.impactPoint);
+            ReceiveKnockback(attacker.Facing * attack.knockback, wentDown);
             result.knockdown = knockdown;
             result.killed = Health <= 0f;
 
@@ -393,6 +406,7 @@ namespace Ahmed.Combat
             if (State == FighterState.Dead) { return; }
             State = FighterState.Dead;
             Health = 0f;
+            Game.AudioLibrary.Play("KO", transform.position);
             OnDeath();
             if (Defeated != null) { Defeated(this); }
         }

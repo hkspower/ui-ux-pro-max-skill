@@ -82,6 +82,7 @@ namespace Ahmed.World
             {
                 ArenaLocked = false;
                 CrowdControl.Clear();
+                Game.AudioLibrary.PlayUI("Wave_Clear");
                 if (WaveCleared != null) { WaveCleared(WaveIndex); }
                 WaveIndex++;
 
@@ -98,6 +99,7 @@ namespace Ahmed.World
                 && player.transform.position.x >= Stage.length - 3.6f)
             {
                 Finished = true;
+                Game.AudioLibrary.PlayUI("Stage_Clear");
                 if (StageCleared != null) { StageCleared(); }
             }
         }
@@ -122,6 +124,7 @@ namespace Ahmed.World
             {
                 SpawnFighter(wave.fighters[i], tier, i);
             }
+            Game.AudioLibrary.PlayUI("Wave_Start");
             if (WaveStarted != null) { WaveStarted(WaveIndex); }
         }
 

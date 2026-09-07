@@ -27,6 +27,15 @@ from mathutils import Vector
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_MODELS = os.path.abspath(os.path.join(HERE, "..", "..", "Content", "Models"))
 OUT_RENDER = os.path.abspath(os.path.join(HERE, "..", "..", "Docs", "renders"))
+# The Unity port is a sibling project and this is the game's only mesh
+# generator, so it writes there too rather than the model being copied by hand
+# and drifting. See export_unity() for why it cannot be the same file. It goes
+# under Resources because that port has no authored scene -- Bootstrap builds
+# everything at runtime, and Resources is the only place it can load a model
+# from without an editor.
+OUT_UNITY = os.path.abspath(os.path.join(
+    HERE, "..", "..", "..", "ahmed-fighter-unity",
+    "Assets", "Resources", "Models"))
 
 # Ahmed stands 1.80 m. Unreal works in centimetres, so both exporters below
 # scale by 100 on the way out.
@@ -758,6 +767,51 @@ def export(arm_obj, mesh_obj):
     return glb, fbx
 
 
+def export_unity(arm_obj, mesh_obj):
+    """The same body again, in Unity's terms.
+
+    It cannot be the same file as the Unreal one. Two settings differ and both
+    of them are load-bearing:
+
+      Scale. Unreal works in centimetres, so that export bakes metres into
+      centimetres with FBX_SCALE_UNITS. Unity works in metres, so this one
+      must not -- FBX_SCALE_NONE. Import the Unreal file into Unity and Ahmed
+      is a hundred metres tall.
+
+      Axes. Blender is Z-up and Unity is Y-up, and `bake_space_transform`
+      decides whether that rotation is baked into the vertices or left for the
+      importer to apply as a -90 degree offset on the root. Baked is what
+      keeps a Humanoid avatar's bones pointing where Unity expects.
+
+    Ahmed faces -Y in Blender, and both conventions send Blender's -Y to their
+    own forward -- Unreal's +X, Unity's +Z -- so he arrives facing the right
+    way in both without any special case.
+    """
+    os.makedirs(OUT_UNITY, exist_ok=True)
+    bpy.ops.object.select_all(action="DESELECT")
+    arm_obj.select_set(True)
+    mesh_obj.select_set(True)
+    bpy.context.view_layer.objects.active = arm_obj
+
+    fbx = os.path.join(OUT_UNITY, "Ahmed.fbx")
+    bpy.ops.export_scene.fbx(
+        filepath=fbx,
+        use_selection=True,
+        apply_unit_scale=True,
+        global_scale=1.0,
+        apply_scale_options="FBX_SCALE_NONE",    # metres stay metres
+        add_leaf_bones=False,
+        primary_bone_axis="Y",
+        secondary_bone_axis="X",
+        object_types={"ARMATURE", "MESH"},
+        mesh_smooth_type="FACE",
+        axis_forward="-Z",
+        axis_up="Y",
+        bake_space_transform=True,               # Y-up baked, not left as an offset
+    )
+    return fbx
+
+
 # ======================================================================= main
 
 def main():
@@ -792,6 +846,7 @@ def main():
     add_camera((0.35, -3.60, 1.05), look_at=Vector((0, 0, 0.90)), lens=58)
     render(os.path.join(OUT_RENDER, "ahmed-apose-3d.png"))
     glb, fbx = export(rig, body)
+    unity_fbx = export_unity(rig, body)
 
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
     print("verts      :", len(body.data.vertices))
@@ -800,6 +855,7 @@ def main():
     print("materials  :", [m.name for m in body.data.materials])
     print("glb        :", glb, os.path.getsize(glb), "bytes")
     print("fbx        :", fbx, os.path.getsize(fbx), "bytes")
+    print("unity fbx  :", unity_fbx, os.path.getsize(unity_fbx), "bytes")
 
 
 if __name__ == "__main__":

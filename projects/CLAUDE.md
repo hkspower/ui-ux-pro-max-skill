@@ -40,12 +40,33 @@ These are standing instructions, not preferences for one task.
 
 ---
 
+## Platform
+
+**AHMED is a console and PC game. It is not a mobile game.**
+
+That decides things that would otherwise be guesses:
+
+- **Assets are built for a screen you sit in front of**, not one you hold.
+  Budget for a console GPU: real meshes, real materials, real lighting. Do not
+  size textures, poly counts or effects for a phone.
+- **Input is a gamepad and a keyboard.** Not touch. Nothing should depend on
+  a touch control existing, and nothing should be laid out for a thumb.
+- **The HUD is read at a distance**, from a couch or a desk, not at arm's
+  length. Type and targets are sized for that.
+- The browser build still runs in a mobile browser and its graphics tiers
+  still exist — that is a property of shipping in a browser, not a statement
+  that the game is aimed at phones. **Do not strip mobile support out of it
+  without being asked**, and do not add anything new to it *because* of
+  phones either.
+
+---
+
 ## The three builds
 
 | | `ahmed-fighter/` | `ahmed-fighter-ue5/` | `ahmed-fighter-unity/` |
 | --- | --- | --- | --- |
 | What it is | The playable game. One HTML file, canvas 2D, no external assets, PWA with a versioned service worker. | The Unreal Engine 5 port. | The Unity port, in C#. **The open-world one** — nine districts rather than nine corridors. |
-| Art direction | Stylised **on purpose** — it draws every pixel in code, and stylisation is what makes that possible. | **Not cartoonish.** Adult action game, highest graphics the hardware carries. See its own CLAUDE.md. | Not decided. Everyone is a capsule. |
+| Art direction | Stylised **on purpose** — it draws every pixel in code, and stylisation is what makes that possible. | **Not cartoonish.** Adult action game, highest graphics the hardware carries. See its own CLAUDE.md. | Console and PC grade. Was capsules; the real mesh and the sound are in now. |
 | State | Runs. Verified in headless Chromium across phone/tablet/desktop, all ten stages, all three graphics tiers. | **Has never been compiled.** No engine has ever been run against it. | **Has never run in Unity.** Compiles, and its pure logic is executed and checked under Mono; nothing has been pressed play on. |
 | Units | Canvas pixels. | Centimetres. X along, **Y depth**, Z up. | Metres. X and Z are the ground plane, Y up. No depth axis — a fighter faces any direction. |
 | Balance data | `assets/*.js` — **the source of truth for every number in all three builds.** | Generated. Never hand-edit `Content/Data`. | Generated. Never hand-edit `Assets/Resources/Data`. |
