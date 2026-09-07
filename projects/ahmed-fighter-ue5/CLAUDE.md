@@ -88,3 +88,19 @@ anything to this project:
   any of it as verified until it has actually built.
 - **iOS is Mac-only.** There is no cross-compile. `Tools/ios/build-ios.sh`
   checks for this and says so rather than failing halfway through a cook.
+
+## Known, not fixed
+
+Written down rather than fixed, because fixing them was not what was asked.
+Don't re-discover them; don't fix them without being told to.
+
+- **The player's rage finisher does nothing.** `AhmedCharacter::Input_Rage`
+  calls `StartAttack(TEXT("Rage"))`, and there has never been a `Rage` row in
+  the attack table — the finisher is `Special`. `StartAttack` returns false,
+  so the meter never spends and nothing happens. One word to fix. The same
+  bug on the enraged boss *was* fixed, because that one was inside the fight
+  style work.
+- **Enemy strikes do not go through the ability system.** Enemies (and the
+  player) still throw via the legacy `AFighterBase::StartAttack` state
+  machine; the GAS layer exists beside it rather than under it. Moving combat
+  onto abilities for both sides is a separate job, and a large one.
