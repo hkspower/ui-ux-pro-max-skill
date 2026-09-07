@@ -53,8 +53,13 @@ python3 Tools/blender/build_ahmed.py
 
 It writes both model files plus three reference renders into `Docs/renders`.
 
-**What it is:** a clean, correctly proportioned blockout — 6.2k triangles, 24
-bones, eight material slots carrying the game's palette. He wears what the 2D
+**What it is:** a clean, correctly proportioned blockout — 6.5k triangles, 24
+bones, eight material slots carrying the game's palette. The proportions are
+**measured, not asserted**: he stands 1.795 m against the 1.80 m the script
+declares, soles on the floor to half a millimetre, about eight heads tall,
+with every segment inside half a percent of its anatomical length (upper arm
+0.335 m, forearm 0.263, thigh 0.439, shank 0.443 — Winter's fractions of
+stature) and limb girths within a centimetre of a person's. He wears what the 2D
 Ahmed wears: fair skin, a fitted black tee with short sleeves, black long
 trousers over a red waistband, dark trainers, and hair grown as real geometry
 off the skull rather than painted onto it. **What it is not:** a finished hero
@@ -76,6 +81,18 @@ The body is grown from a joint table with Blender's Skin modifier — the same
 joints the browser build draws through `tube()` and `capsule()`. One table
 feeds both, so the 3D Ahmed and the 2D Ahmed stay the same man; retune
 proportions in `J` at the top of the script and both stay in step.
+
+**Ahmed faces −Y.** Toes, face, hair parting and the guard's chin tuck all
+point that way, and Blender's FBX default (forward −Z, up Y) lands it on
+Unreal's +X. Anything added to the head or the feet has to agree with that —
+his face was once built on +Y while his feet were on −Y, which put his head on
+backwards and was invisible in the renders because the cameras framed the body
+and photographed the back of his skull.
+
+Skin radii are not anatomical radii. The Skin modifier's hull and the two
+subdivision levels inflate them by roughly 1.6×, so a radius reads as a limb
+about two thirds thicker than the number suggests. Change one by measuring the
+built mesh, never by typing an anatomy table into it.
 
 Import into UE5 as a **Skeletal Mesh** with *Import Normals* and a uniform
 scale of 1.0 — the FBX is already exported in centimetres.

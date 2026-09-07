@@ -49,27 +49,44 @@ PALETTE = {
 # ---------------------------------------------------------------- joints
 # name -> (position, parent, skin radius). One table, used for both the
 # skinned body mesh and the armature.
+#
+# The heights are skeletal landmarks as fractions of stature, not guesses:
+# hip joint 0.530 H, knee 0.285 H, ankle 0.039 H, acromion 0.812 H; upper arm
+# 0.186 H, forearm 0.146 H, thigh 0.245 H, shank 0.246 H (Winter, *Biomechanics
+# and Motor Control of Human Movement*). At H = 1.80 that puts the crown at
+# 1.79 and the chin near 1.57, which is the eight-heads figure this project's
+# art direction asks for.
+#
+# **Ahmed faces -Y.** Everything that gives him a front -- the toes, the face,
+# the hair parting, the guard's chin tuck -- points that way, and Blender's
+# FBX default (forward -Z, up Y) lands it on Unreal's +X.
 J = {
-    "pelvis":     (Vector((0.00,  0.00, 0.98)), None,        0.118),
-    "spine_01":   (Vector((0.00,  0.00, 1.14)), "pelvis",    0.106),
-    "spine_02":   (Vector((0.00,  0.00, 1.29)), "spine_01",  0.124),
-    "spine_03":   (Vector((0.00,  0.00, 1.44)), "spine_02",  0.146),
-    "neck_01":    (Vector((0.00,  0.00, 1.55)), "spine_03",  0.078),
-    "head":       (Vector((0.00,  0.012, 1.66)), "neck_01",  0.092),
-    "head_end":   (Vector((0.00,  0.00, 1.755)), "head",     0.040),
+    "pelvis":     (Vector((0.00,  0.000, 0.952)), None,       0.118),
+    "spine_01":   (Vector((0.00,  0.000, 1.108)), "pelvis",   0.106),
+    "spine_02":   (Vector((0.00,  0.000, 1.264)), "spine_01", 0.124),
+    "spine_03":   (Vector((0.00,  0.000, 1.440)), "spine_02", 0.146),
+    "neck_01":    (Vector((0.00,  0.000, 1.520)), "spine_03", 0.068),
+    "head":       (Vector((0.00, -0.014, 1.672)), "neck_01",  0.092),
+    "head_end":   (Vector((0.00, -0.006, 1.806)), "head",     0.040),
 }
 
 _LIMB = [
     # (base name, position, parent, radius)
-    ("clavicle", Vector((0.050, 0.00, 1.455)), "spine_03", 0.112),
-    ("upperarm", Vector((0.200, 0.00, 1.450)), "clavicle", 0.082),
-    ("lowerarm", Vector((0.420, 0.00, 1.235)), "upperarm", 0.061),
-    ("hand",     Vector((0.610, 0.00, 1.030)), "lowerarm", 0.044),
-    ("hand_end", Vector((0.665, 0.00, 0.975)), "hand",     0.036),
-    ("thigh",    Vector((0.100, 0.00, 0.950)), "pelvis",   0.108),
-    ("calf",     Vector((0.112, 0.00, 0.500)), "thigh",    0.080),
-    ("foot",     Vector((0.112, 0.00, 0.085)), "calf",     0.050),
-    ("ball",     Vector((0.112, -0.155, 0.045)), "foot",   0.040),
+    # Arms hang at 45 degrees, the A-pose UE5's mannequin animations retarget
+    # from. The elbow sits where a real one does: the upper arm is the longer
+    # of the two segments, 0.335 against the forearm's 0.263.
+    ("clavicle", Vector((0.046, -0.012, 1.448)), "spine_03", 0.100),
+    ("upperarm", Vector((0.178, -0.006, 1.442)), "clavicle", 0.064),
+    ("lowerarm", Vector((0.415,  0.000, 1.205)), "upperarm", 0.047),
+    ("hand",     Vector((0.601,  0.000, 1.019)), "lowerarm", 0.042),
+    ("hand_end", Vector((0.654,  0.000, 0.966)), "hand",     0.034),
+    # Legs taper inward from hip to ankle, the way a person's do. They used to
+    # splay -- ankles wider apart than hips -- which reads as bow-legged from
+    # the front and is the first thing wrong with a blockout's stance.
+    ("thigh",    Vector((0.092,  0.000, 0.952)), "pelvis",   0.098),
+    ("calf",     Vector((0.088,  0.000, 0.513)), "thigh",    0.062),
+    ("foot",     Vector((0.082,  0.000, 0.070)), "calf",     0.044),
+    ("ball",     Vector((0.082, -0.150, 0.0207)), "foot",     0.036),
 ]
 
 for _name, _pos, _parent, _r in _LIMB:
@@ -139,7 +156,7 @@ def build_body():
         "spine_01": (0.154, 0.104),   # waist: the narrow of the V-taper
         "spine_02": (0.198, 0.114),   # ribcage
         "spine_03": (0.232, 0.120),   # the shoulder shelf
-        "clavicle": (0.126, 0.112),   # deltoid, not a coat hanger
+        "clavicle": (0.112, 0.100),   # deltoid, not a coat hanger
         "pelvis":   (0.150, 0.114),
         "head":     (0.090, 0.100),
     }.items():
@@ -206,6 +223,7 @@ def assign_detail(obj, idx):
     """Waistband, hair and beard -- after subdivision, where polys are fine."""
     head = J["head"][0]
     band_lo, band_hi = 0.995, 1.035
+    leg_seam = min(J["thigh_l"][0].x, J["calf_l"][0].x)
     for poly in obj.data.polygons:
         c = poly.center
 
@@ -214,16 +232,24 @@ def assign_detail(obj, idx):
             continue
         # Sportswear stripe down the outer seam of each trouser leg: only the
         # faces that look straight out to the side, so it stays a narrow line.
+        # The width test comes off the joint table rather than being a number
+        # typed here -- the outer face of a leg is always further out than its
+        # joint and the inner face always closer, whatever the legs measure,
+        # so re-proportioning him cannot quietly delete the stripe.
         if (poly.material_index == idx["pants"] and 0.13 < c.z < 0.985
-                and abs(poly.normal.x) > 0.965 and abs(c.x) > 0.16):
+                and abs(poly.normal.x) > 0.965 and abs(c.x) > leg_seam):
             poly.material_index = idx["band"]
             continue
         if c.z < head.z - 0.09:
             continue
+        # Ahmed faces -Y, so the face is at -y and the back of the skull at
+        # +y. Both of these used to be the other way round, which put his
+        # hair over his face and his beard on the back of his head -- and,
+        # with the eyes below, his head on backwards.
         d = c - head
-        if c.z > head.z + 0.048 or d.y < -0.050:       # crown and back
+        if c.z > head.z + 0.048 or d.y > 0.050:        # crown and back
             poly.material_index = idx["hair"]
-        elif c.z < head.z - 0.030 and d.y > 0.045:     # jaw and chin
+        elif c.z < head.z - 0.030 and d.y < -0.045:    # jaw and chin
             poly.material_index = idx["beard"]
 
 
@@ -261,7 +287,7 @@ def add_hair(obj, idx):
         if d.z < -0.075:                       # below the jaw is not head at all
             continue
         # A hairline, not a helmet: high across the brow, low around the back.
-        front = d.y > -0.015
+        front = d.y < 0.015
         if d.z > (0.044 if front else -0.030):
             scalp.append(face)
 
@@ -276,8 +302,8 @@ def add_hair(obj, idx):
     for vert in new_verts:
         d = vert.co - head
         lift = 0.0
-        if d.y > 0.0 and d.z > 0.030:          # front of the crown: the quiff
-            lift = quiff_lift * min(1.0, d.y / 0.055) * min(1.0, (d.z - 0.030) / 0.045)
+        if d.y < 0.0 and d.z > 0.030:          # front of the crown: the quiff
+            lift = quiff_lift * min(1.0, -d.y / 0.055) * min(1.0, (d.z - 0.030) / 0.045)
         vert.co += vert.normal * (thickness + lift)
 
     for face in new_faces:
@@ -295,7 +321,7 @@ def add_eyes(obj, idx):
     for sign in (1, -1):
         bpy.ops.mesh.primitive_uv_sphere_add(
             radius=0.0145, segments=14, ring_count=10,
-            location=(head.x + 0.032 * sign, head.y + 0.080, head.z + 0.020),
+            location=(head.x + 0.032 * sign, head.y - 0.080, head.z + 0.020),
         )
         eye = bpy.context.object
         eye.scale = (1.0, 0.72, 1.0)
@@ -466,7 +492,8 @@ GUARD = dict(
         "foot":     (0.05, -0.90, -0.42),
     }),
     spine_01=(0, -0.06, 1.0), spine_02=(0, -0.10, 1.0), spine_03=(0, -0.05, 1.0),
-    neck_01=(0, 0.10, 1.0), head=(0, 0.06, 1.0),
+    # Chin tucked down and forward behind the guard, not lifted for it.
+    neck_01=(0, -0.10, 1.0), head=(0, -0.06, 1.0),
 )
 # Bladed stance: lead leg forward, rear leg loaded.
 GUARD.update({
