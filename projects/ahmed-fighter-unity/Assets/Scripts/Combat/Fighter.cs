@@ -33,8 +33,14 @@ namespace Ahmed.Combat
         /// <summary>Bosses shrug most knockdowns off so they cannot be stunlocked.</summary>
         public bool ResistsKnockdown;
 
-        /// <summary>+1 facing along +X, -1 facing back along it.</summary>
-        public float FacingSign { get; protected set; }
+        /// <summary>
+        /// Which way this fighter is looking, as a unit vector in the ground
+        /// plane. It used to be a sign on X, because the playfield was a strip
+        /// and there were only two directions to face. In an open district
+        /// there are all of them, and every reach, lunge and knockback below
+        /// is measured along this rather than along the world axis.
+        /// </summary>
+        public Vector3 Facing { get; protected set; }
 
         public bool IsAlive { get { return State != FighterState.Dead; } }
         public float HealthFraction { get { return MaxHealth > 0f ? Health / MaxHealth : 0f; } }
@@ -65,21 +71,22 @@ namespace Ahmed.Combat
         protected float InvulnerableRemaining;
         protected float ParryWindowRemaining;
 
-        private float _minX = float.NegativeInfinity;
-        private float _maxX = float.PositiveInfinity;
+        /// <summary>Where this fighter may stand. Set by whatever owns the
+        /// space -- a district, or an arena while a wave is live.</summary>
+        public Ahmed.World.Bounds2D Bounds = Ahmed.World.Bounds2D.Unbounded;
         private Vector3 _pendingMove;
 
         protected virtual void Awake()
         {
             Body = GetComponent<CharacterController>();
-            FacingSign = 1f;
+            Facing = Vector3.right;
             State = FighterState.Idle;
         }
 
         public void SetArenaBounds(float minX, float maxX)
         {
-            _minX = minX;
-            _maxX = maxX;
+            Bounds = new Ahmed.World.Bounds2D(minX, maxX,
+                                              Playfield.DepthMin, Playfield.DepthMax);
         }
 
         /// <summary>Travel carries condition across, so an area change does not heal.</summary>
@@ -129,9 +136,11 @@ namespace Ahmed.Combat
             step.y = Body.isGrounded ? -0.5f * Time.deltaTime : -9.81f * Time.deltaTime;
             Body.Move(step);
 
+            // Bounds are a rectangle now, not a strip with a fixed depth
+            // band. A district sets them when the player walks into it.
             Vector3 p = transform.position;
-            p.x = Mathf.Clamp(p.x, _minX, _maxX);
-            p.z = Mathf.Clamp(p.z, Playfield.DepthMin, Playfield.DepthMax);
+            p.x = Mathf.Clamp(p.x, Bounds.MinX, Bounds.MaxX);
+            p.z = Mathf.Clamp(p.z, Bounds.MinZ, Bounds.MaxZ);
             transform.position = p;
         }
 
@@ -209,7 +218,7 @@ namespace Ahmed.Combat
                 // committed blow. Without it every attack looks like it is
                 // thrown by someone standing still.
                 float lunge = CurrentAttack.heavy ? 1.65f : 1.20f;
-                _pendingMove += new Vector3(FacingSign, 0f, 0f) * (lunge * dt);
+                _pendingMove += Facing * (lunge * dt);
 
                 if (!AttackHitFired || CurrentAttack.multiHit)
                 {
@@ -225,10 +234,20 @@ namespace Ahmed.Combat
         }
 
         /// <summary>
-        /// The hitbox. The playfield is a strip: X runs along the stage and Z
-        /// is depth, so a strike reaches forward along X and tolerates a band
-        /// in Z -- which is why two fighters a metre apart in depth do not
-        /// trade blows.
+        /// The hitbox.
+        ///
+        /// A strike reaches forward along the direction the fighter is facing
+        /// and tolerates a band either side of that line. On the strip those
+        /// were the world's own X and Z, which is why the numbers are called
+        /// reach and depth tolerance; here they are the same two numbers taken
+        /// along and across the facing vector instead. Someone a metre off
+        /// your line still does not get hit, which is the property the whole
+        /// game's spacing was tuned around.
+        ///
+        /// Still an explicit test rather than a physics overlap, for the same
+        /// reason as in the other two builds: the results are frame
+        /// deterministic, and a beat-'em-up wants forgiving readable hitboxes
+        /// rather than physically exact ones.
         /// </summary>
         protected virtual void ResolveHits(AttackRow attack)
         {
@@ -244,14 +263,11 @@ namespace Ahmed.Combat
                 if (target.InvulnerableRemaining > 0f) { continue; }
                 if (HitThisSwing.Contains(target)) { continue; }
 
-                Vector3 delta = target.transform.position - origin;
-
-                // In front of the attacker, within reach, and on the same
-                // depth line. The -0.6 lets a strike still land on someone who
-                // has walked a little past you, which is forgiving on purpose.
-                float forward = delta.x * FacingSign;
-                if (forward < -0.6f || forward > attack.reach + 0.6f) { continue; }
-                if (Mathf.Abs(delta.z) > attack.depthTolerance) { continue; }
+                if (!InHitbox(origin, Facing, target.transform.position,
+                              attack.reach, attack.depthTolerance))
+                {
+                    continue;
+                }
 
                 HitThisSwing.Add(target);
                 AttackHitFired = true;
@@ -261,6 +277,33 @@ namespace Ahmed.Combat
 
                 if (!attack.multiHit) { return; }
             }
+        }
+
+        /// <summary>
+        /// Is a point inside the strike's box? Along the facing line for
+        /// reach, across it for tolerance.
+        ///
+        /// Static and free of the character on purpose: this is the one piece
+        /// of the fight that is pure geometry, it is the piece that changed
+        /// when the strip became a field, and lifting it out is what lets it
+        /// be tested without an engine. The property that has to hold is that
+        /// it does not care which way the pair is pointing -- rotate attacker
+        /// and target together and the answer must not move, or the fight is
+        /// harder facing some directions than others.
+        /// </summary>
+        public static bool InHitbox(Vector3 origin, Vector3 facing, Vector3 target,
+                                    float reach, float lateralTolerance)
+        {
+            Vector3 delta = target - origin;
+            delta.y = 0f;
+
+            // The -0.6 lets a strike still land on someone who has stepped a
+            // little past you, which is forgiving on purpose.
+            float forward = Vector3.Dot(delta, facing);
+            if (forward < -0.6f || forward > reach + 0.6f) { return false; }
+
+            Vector3 lateral = delta - facing * forward;
+            return lateral.magnitude <= lateralTolerance;
         }
 
         /// <summary>Damage this fighter deals, before the victim's defences.</summary>
@@ -279,8 +322,13 @@ namespace Ahmed.Combat
 
             // A parry is a block inside the window that opened the frame the
             // guard went up. It costs the attacker, not the defender.
-            bool facingIt = Mathf.Sign(attacker.transform.position.x - transform.position.x)
-                            == Mathf.Sign(FacingSign) || Blocking;
+            //
+            // You can only block what is in front of you. On the strip that
+            // was a sign comparison; in the open it is the front hemisphere,
+            // which is what stops a guard from covering your back.
+            Vector3 fromAttacker = attacker.transform.position - transform.position;
+            fromAttacker.y = 0f;
+            bool facingIt = Vector3.Dot(fromAttacker.normalized, Facing) > 0f;
             if (Blocking && facingIt && ParryWindowRemaining > 0f)
             {
                 result.parried = true;
@@ -308,8 +356,7 @@ namespace Ahmed.Combat
             Health = Mathf.Max(0f, Health - damage);
 
             bool knockdown = attack.multiHit || (attack.heavy && Random.value < 0.45f);
-            ReceiveKnockback(new Vector3(attacker.FacingSign * attack.knockback, 0f, 0f),
-                             knockdown || Health <= 0f);
+            ReceiveKnockback(attacker.Facing * attack.knockback, knockdown || Health <= 0f);
             result.knockdown = knockdown;
             result.killed = Health <= 0f;
 
@@ -354,9 +401,11 @@ namespace Ahmed.Combat
 
         public void FaceTowards(Vector3 worldPosition)
         {
-            float dx = worldPosition.x - transform.position.x;
-            if (Mathf.Abs(dx) > 0.05f) { FacingSign = Mathf.Sign(dx); }
-            transform.rotation = Quaternion.Euler(0f, FacingSign > 0f ? 90f : -90f, 0f);
+            Vector3 d = worldPosition - transform.position;
+            d.y = 0f;
+            if (d.sqrMagnitude < 0.0025f) { return; }   // too close to mean anything
+            Facing = d.normalized;
+            transform.rotation = Quaternion.LookRotation(Facing, Vector3.up);
         }
 
         public void FaceNearestOpponent()
@@ -371,9 +420,11 @@ namespace Ahmed.Combat
             {
                 if (targets[i] == null || !targets[i].IsAlive) { continue; }
                 Vector3 d = targets[i].transform.position - origin;
-                // Depth counts double: someone two metres in front is a better
-                // guess at the intended target than one beside you in Z.
-                float score = Mathf.Abs(d.x) + Mathf.Abs(d.z) * 2f;
+                d.y = 0f;
+                // Nearest, but someone already in front counts as nearer than
+                // someone the same distance behind: turning round to punch a
+                // person at your back is not what the player meant.
+                float score = d.magnitude - Vector3.Dot(d.normalized, Facing) * 0.9f;
                 if (score < best) { best = score; nearest = targets[i]; }
             }
             if (nearest != null) { FaceTowards(nearest.transform.position); }

@@ -25,14 +25,33 @@ writing story text, naming anything, or deciding what a place looks like.
   verified against the browser assets, but nothing has been pressed play on.
   Do not describe any of it as working until it has been.
 
+## The world
+
+- **A district's layout is derived from its stage, never authored.** Length,
+  waves, wave trigger distances and gates all come from the browser project;
+  `District.Spiral` turns "distance along the stage" into "how far around the
+  district". Hand-placing content would fork the pacing away from the build it
+  was tuned in. If a district needs more in it, that content belongs in the
+  browser project first.
+- **Layout must stay deterministic.** It uses a hash of the area and site
+  index, not `Random`, so a district is the same every run. A player learns a
+  place; a bug in one has to be reproducible.
+- **`WorldState` is what makes it a world.** A fight won stays won and a gate
+  opened stays open. Anything that should survive backtracking goes there.
+- **Encounters wake on proximity and let you leave.** Do not add a lock that
+  holds the player in a fight; that is the corridor design and it is the thing
+  this replaced.
+
 ## Units and axes
 
 - **Metres.** One canvas pixel is 0.024 m, applied in one function in the
   exporter. The Unreal port uses centimetres and the same 2.4 cm per pixel;
   changing one without the other silently gives the ports different games.
-- **X runs along the stage, Z is depth, Y is up.** The browser draws Y down and
-  Unreal uses Y for depth. Getting this wrong makes strikes miss on depth in a
-  way that looks like a hitbox bug.
+- **X and Z are the ground plane, Y is up.** The browser draws Y down and
+  Unreal uses Y for depth. There is no "depth axis" here any more: a fighter
+  faces any direction, and reach and tolerance are measured along and across
+  that facing vector, not along a world axis. Anything that reaches for
+  `position.x` to mean "forward" is a bug left from the strip.
 
 ## Architecture
 

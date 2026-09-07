@@ -41,7 +41,6 @@ namespace Ahmed.World
         public bool Finished { get; private set; }
 
         private readonly List<EnemyFighter> _live = new List<EnemyFighter>();
-        private readonly List<EnemyFighter> _tokenHolders = new List<EnemyFighter>();
         private float _arenaOriginX;
         private int _survivalWave;
 
@@ -82,7 +81,7 @@ namespace Ahmed.World
             if (ArenaLocked && CountLiving() == 0)
             {
                 ArenaLocked = false;
-                _tokenHolders.Clear();
+                CrowdControl.Clear();
                 if (WaveCleared != null) { WaveCleared(WaveIndex); }
                 WaveIndex++;
 
@@ -204,30 +203,17 @@ namespace Ahmed.World
 
         // ------------------------------------------------------------ tokens
 
-        /// <summary>
-        /// Claim the right to swing. The holders list is pruned of anyone no
-        /// longer mid-attack on every call, so a token cannot be leaked by an
-        /// enemy that was interrupted or killed halfway through a swing.
-        /// </summary>
+        /// <summary>Kept so the corridor mode reads the same as it did; the
+        /// pool itself moved to CrowdControl when the open world arrived, and
+        /// there is no longer one director for everyone to ask.</summary>
         public bool TryClaimAttackToken(EnemyFighter claimant)
         {
-            for (int i = _tokenHolders.Count - 1; i >= 0; i--)
-            {
-                EnemyFighter e = _tokenHolders[i];
-                if (e == null || !e.IsAlive || e.State != FighterState.Attack)
-                {
-                    _tokenHolders.RemoveAt(i);
-                }
-            }
-            if (_tokenHolders.Contains(claimant)) { return true; }
-            if (_tokenHolders.Count >= Playfield.MaxSimultaneousAttackers) { return false; }
-            _tokenHolders.Add(claimant);
-            return true;
+            return CrowdControl.TryClaim(claimant);
         }
 
         public void ReleaseAttackToken(EnemyFighter claimant)
         {
-            _tokenHolders.Remove(claimant);
+            CrowdControl.Release(claimant);
         }
 
         // ---------------------------------------------------------- survival

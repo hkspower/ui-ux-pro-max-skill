@@ -17,6 +17,13 @@ namespace Ahmed.Data
         public static PlayerRow Player { get; private set; }
         public static IList<StageRow> Stages { get { Load(); return _stages; } }
         public static IList<LevelRow> Levels { get { Load(); return _levels; } }
+        public static IList<WorldArea> Areas { get { Load(); return _areas; } }
+        /// <summary>Which area the game starts in. Carried on every row by the
+        /// exporter because JsonUtility has nowhere else to put a scalar.</summary>
+        public static int StartArea
+        {
+            get { Load(); return _areas.Count > 0 ? _areas[0].startArea : 0; }
+        }
 
         private static readonly Dictionary<string, AttackRow> _attacks =
             new Dictionary<string, AttackRow>();
@@ -27,6 +34,7 @@ namespace Ahmed.Data
         private static readonly Dictionary<string, TalentRow> _talents =
             new Dictionary<string, TalentRow>();
         private static List<StageRow> _stages = new List<StageRow>();
+        private static List<WorldArea> _areas = new List<WorldArea>();
         private static List<LevelRow> _levels = new List<LevelRow>();
         private static bool _loaded;
 
@@ -62,6 +70,11 @@ namespace Ahmed.Data
                 _stages.Add(st);
             }
             _levels.AddRange(Read<LevelRow>("levels"));
+            foreach (WorldArea a in Read<WorldArea>("world"))
+            {
+                a.Resolve();
+                _areas.Add(a);
+            }
 
             TextAsset player = Resources.Load<TextAsset>("Data/player");
             if (player == null)
@@ -126,6 +139,12 @@ namespace Ahmed.Data
             Load();
             TalentRow found;
             return _talents.TryGetValue(row, out found) ? found : null;
+        }
+
+        public static WorldArea Area(int index)
+        {
+            Load();
+            return index >= 0 && index < _areas.Count ? _areas[index] : null;
         }
 
         public static StageRow Stage(int index)

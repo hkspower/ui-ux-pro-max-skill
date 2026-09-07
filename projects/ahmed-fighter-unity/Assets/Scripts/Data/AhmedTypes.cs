@@ -304,6 +304,52 @@ namespace Ahmed.Data
         }
     }
 
+    /// <summary>
+    /// One way out of an area. `to` is the area it leads to, or -1 for a wall.
+    ///
+    /// Ten of the world's eighteen links want a talent, which is the whole
+    /// Metroidvania: the map is walkable from the first minute and most of it
+    /// is not yet reachable.
+    /// </summary>
+    [Serializable]
+    public class WorldLink
+    {
+        public int to = -1;
+        public string requiredAbility;
+        /// <summary>Opens only once this area index has been cleared. -1: never gated on that.</summary>
+        public int afterCleared = -1;
+        public float distance = -1f;
+
+        [NonSerialized] public Ability RequiredAbility;
+
+        public void Resolve()
+        {
+            RequiredAbility = string.IsNullOrEmpty(requiredAbility)
+                ? Ability.None
+                : (Ability)Enum.Parse(typeof(Ability), requiredAbility, true);
+        }
+    }
+
+    [Serializable]
+    public class WorldArea
+    {
+        public int index;
+        public string name;
+        public int mapX;
+        public int mapY;
+        public int startArea;
+        public WorldLink west;
+        public WorldLink east;
+        public WorldLink door;
+
+        public void Resolve()
+        {
+            if (west != null) { west.Resolve(); }
+            if (east != null) { east.Resolve(); }
+            if (door != null) { door.Resolve(); }
+        }
+    }
+
     [Serializable]
     public class PlayerRow
     {

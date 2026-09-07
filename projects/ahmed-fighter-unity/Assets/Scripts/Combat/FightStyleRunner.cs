@@ -111,7 +111,8 @@ namespace Ahmed.Combat
             if (_self.IsBusy) { return; }
 
             Vector3 to = Opponent.transform.position - _self.transform.position;
-            float distance = Mathf.Abs(to.x);
+            to.y = 0f;
+            float distance = to.magnitude;
 
             CurrentBand = Style.BandFor(distance);
             _self.FaceTowards(Opponent.transform.position);
@@ -134,7 +135,8 @@ namespace Ahmed.Combat
             {
                 if (targets[i] == null || !targets[i].IsAlive) { continue; }
                 Vector3 d = targets[i].transform.position - origin;
-                float score = Mathf.Abs(d.x) + Mathf.Abs(d.z) * 2f;
+                d.y = 0f;
+                float score = d.magnitude;
                 if (score < best) { best = score; nearest = targets[i]; }
             }
             Opponent = nearest;
@@ -154,7 +156,10 @@ namespace Ahmed.Combat
             // fight look weightless.
             if (_self.State == FighterState.Attack) { return; }
 
-            float facing = Mathf.Sign(to.x);
+            if (to.sqrMagnitude < 0.0001f) { return; }
+            Vector3 towards = to.normalized;
+            // Perpendicular in the ground plane: this is the circle.
+            Vector3 around = new Vector3(-towards.z, 0f, towards.x);
 
             float wanted = Style.preferredRange;
             if (_resetRemaining > 0f && Style.resetDistance > 0f)
@@ -174,7 +179,7 @@ namespace Ahmed.Combat
             float forward = 0f;
             if (Mathf.Abs(error) > 0.18f)
             {
-                forward = Mathf.Clamp(error / 1.2f, -1f, 1f) * urgency * facing;
+                forward = Mathf.Clamp(error / 1.2f, -1f, 1f) * urgency;
             }
 
             _circleTimer -= dt;
@@ -184,29 +189,23 @@ namespace Ahmed.Combat
                 _circleDirection = Random.value < 0.5f ? 1f : -1f;
             }
             float sideways = Style.circleTendency * _circleDirection;
-            if (Mathf.Abs(to.z) > 0.6f)
+
+            // On the strip, circling was a step in depth and the walls were
+            // two lines. In the open it is an orbit, and turning at the fence
+            // means reversing the orbit rather than bouncing off a wall.
+            Vector3 step = towards * forward + around * sideways;
+            Vector3 ahead = _self.transform.position + step * 1.5f;
+            if (!_self.Bounds.Inset(1.0f).Contains(ahead))
             {
-                sideways = Mathf.Sign(to.z);            // get on the line first
-            }
-            else
-            {
-                float z = _self.transform.position.z;
-                if ((z < Playfield.DepthMin + 0.6f && sideways < 0f)
-                    || (z > Playfield.DepthMax - 0.6f && sideways > 0f))
-                {
-                    sideways = -sideways;
-                    _circleDirection = -_circleDirection;
-                }
+                _circleDirection = -_circleDirection;
+                sideways = -sideways;
+                step = towards * forward + around * sideways;
             }
 
             float scale = _self.Blocking ? 0.45f : 1f;
-            if (!Mathf.Approximately(forward, 0f))
+            if (step.sqrMagnitude > 0.0001f)
             {
-                _self.AddMovement(Vector3.right, forward * scale);
-            }
-            if (!Mathf.Approximately(sideways, 0f))
-            {
-                _self.AddMovement(Vector3.forward, sideways * scale);
+                _self.AddMovement(step.normalized, Mathf.Min(1f, step.magnitude) * scale);
             }
         }
 
@@ -238,12 +237,7 @@ namespace Ahmed.Combat
             }
 
             // The crowd rule: only a couple may be swinging at once.
-            EnemyFighter enemy = _self as EnemyFighter;
-            if (enemy != null && World.WaveDirector.Active != null
-                && !World.WaveDirector.Active.TryClaimAttackToken(enemy))
-            {
-                return;
-            }
+            if (_self is EnemyFighter && !CrowdControl.TryClaim(_self)) { return; }
 
             StyleStrike strike = Style.ChooseStrike(CurrentBand, _extra);
             if (strike == null)

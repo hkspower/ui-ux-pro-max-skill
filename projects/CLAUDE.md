@@ -44,10 +44,10 @@ These are standing instructions, not preferences for one task.
 
 | | `ahmed-fighter/` | `ahmed-fighter-ue5/` | `ahmed-fighter-unity/` |
 | --- | --- | --- | --- |
-| What it is | The playable game. One HTML file, canvas 2D, no external assets, PWA with a versioned service worker. | The Unreal Engine 5 port. | The Unity port, in C#. |
+| What it is | The playable game. One HTML file, canvas 2D, no external assets, PWA with a versioned service worker. | The Unreal Engine 5 port. | The Unity port, in C#. **The open-world one** — nine districts rather than nine corridors. |
 | Art direction | Stylised **on purpose** — it draws every pixel in code, and stylisation is what makes that possible. | **Not cartoonish.** Adult action game, highest graphics the hardware carries. See its own CLAUDE.md. | Not decided. Everyone is a capsule. |
-| State | Runs. Verified in headless Chromium across phone/tablet/desktop, all ten stages, all three graphics tiers. | **Has never been compiled.** No engine has ever been run against it. | **Has never run.** Type-checks only. The fight is ported; the world is not. |
-| Units | Canvas pixels. | Centimetres. X along, **Y depth**, Z up. | Metres. X along, **Z depth**, Y up. |
+| State | Runs. Verified in headless Chromium across phone/tablet/desktop, all ten stages, all three graphics tiers. | **Has never been compiled.** No engine has ever been run against it. | **Has never run in Unity.** Compiles, and its pure logic is executed and checked under Mono; nothing has been pressed play on. |
+| Units | Canvas pixels. | Centimetres. X along, **Y depth**, Z up. | Metres. X and Z are the ground plane, Y up. No depth axis — a fighter faces any direction. |
 | Balance data | `assets/*.js` — **the source of truth for every number in all three builds.** | Generated. Never hand-edit `Content/Data`. | Generated. Never hand-edit `Assets/Resources/Data`. |
 
 **The browser project owns the numbers.** Change them in `assets/*.js` — the

@@ -38,8 +38,12 @@ namespace Ahmed.Combat
         private float _guardRollTimer;
         private float _guardRoll = 1f;
         private float _retreatRemaining;
-        private float _arenaMinX = float.NegativeInfinity;
-        private float _arenaMaxX = float.PositiveInfinity;
+        /// <summary>Where this one belongs. It fights around here and walks
+        /// back if the player leads it away, so an encounter you brushed past
+        /// does not follow you across the district.</summary>
+        private Vector3 _home;
+        private float _leash = float.PositiveInfinity;
+        private bool _leashed;
 
         protected override void Awake()
         {
@@ -78,9 +82,41 @@ namespace Ahmed.Combat
 
         public void SetEnemyArenaBounds(float minX, float maxX)
         {
-            _arenaMinX = minX;
-            _arenaMaxX = maxX;
             SetArenaBounds(minX, maxX);
+        }
+
+        /// <summary>Tie this fighter to a spot. Beyond the radius it stops
+        /// chasing and walks home.</summary>
+        public void Leash(Vector3 home, float radius)
+        {
+            _home = home;
+            _leash = radius;
+            _leashed = true;
+        }
+
+        /// <summary>Too far from home to keep fighting.</summary>
+        public bool OutsideLeash
+        {
+            get
+            {
+                if (!_leashed) { return false; }
+                Vector3 d = transform.position - _home;
+                d.y = 0f;
+                return d.magnitude > _leash;
+            }
+        }
+
+        /// <summary>Walk back. Returns true while it is still doing so.</summary>
+        public bool ReturnHome()
+        {
+            Vector3 d = _home - transform.position;
+            d.y = 0f;
+            if (d.magnitude < 1.5f) { return false; }
+            Blocking = false;
+            FaceTowards(_home);
+            AddMovement(d.normalized, 0.8f);
+            State = FighterState.Walk;
+            return true;
         }
 
         public override void GatherTargets(List<Fighter> into)
@@ -99,6 +135,8 @@ namespace Ahmed.Combat
             // otherwise be pulled toward its flank spot by the plain AI while
             // the style tried to hold its range, and the two would cancel out
             // into a shuffle.
+            if (IsAlive && !IsBusy && OutsideLeash && ReturnHome()) { return; }
+
             if (Style == null || !Style.IsDriving)
             {
                 PlayerFighter player = PlayerFighter.Current;
@@ -166,19 +204,16 @@ namespace Ahmed.Combat
             FaceTowards(target);
 
             Blocking = player.State == FighterState.Attack
-                       && Mathf.Abs(delta.x) < 2.4f && _guardRoll < _guardChance;
+                       && new Vector3(delta.x, 0f, delta.z).magnitude < 2.4f
+                       && _guardRoll < _guardChance;
 
-            bool inRange = Mathf.Abs(delta.x) < _preferredRange * 0.95f
-                           && Mathf.Abs(delta.z) < 0.7f;
+            Vector3 flat = new Vector3(delta.x, 0f, delta.z);
+            bool inRange = flat.magnitude < _preferredRange * 0.95f;
 
             if (inRange && _attackCooldown <= 0f && _moves.Length > 0
                 && player.State != FighterState.Down)
             {
-                if (World.WaveDirector.Active != null
-                    && !World.WaveDirector.Active.TryClaimAttackToken(this))
-                {
-                    return;
-                }
+                if (!CrowdControl.TryClaim(this)) { return; }
                 if (StartAttack(_moves[Random.Range(0, _moves.Length)]))
                 {
                     _attackCooldown = _attackInterval * Random.Range(0.75f, 1.45f);
@@ -187,26 +222,31 @@ namespace Ahmed.Combat
                 return;
             }
 
-            float desiredX = target.x + FlankSide * (_preferredRange * 0.70f + LaneOffset);
-            if (_retreatRemaining > 0f) { desiredX = target.x + FlankSide * 6.6f; }
+            // Hold a spot on the ring around the player rather than a point on
+            // a line. FlankSide was which side of him to stand on when there
+            // were only two; it is now which way round the ring to go, and the
+            // lane offset spreads several enemies along it so they surround
+            // rather than stack.
+            Vector3 fromPlayer = self - target;
+            fromPlayer.y = 0f;
+            if (fromPlayer.sqrMagnitude < 0.01f) { fromPlayer = new Vector3(1f, 0f, 0f); }
 
-            // Never try to stand where the arena will not let you -- flip sides.
-            if (desiredX < _arenaMinX + 0.5f || desiredX > _arenaMaxX - 0.5f)
+            float ring = _preferredRange * 0.80f;
+            if (_retreatRemaining > 0f) { ring = _preferredRange * 4.0f; }
+
+            float baseAngle = Mathf.Atan2(fromPlayer.z, fromPlayer.x);
+            float spread = FlankSide * (0.45f + LaneOffset * 0.35f);
+            float angle = baseAngle + spread;
+            Vector3 stand = target + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * ring;
+            stand = Bounds.Inset(1.5f).Clamp(stand);
+
+            Vector3 toDesired = stand - self;
+            toDesired.y = 0f;
+
+            if (toDesired.magnitude > 0.35f)
             {
-                FlankSide = -FlankSide;
-                desiredX = target.x + FlankSide * (_preferredRange * 0.70f + LaneOffset);
-            }
-            if (Mathf.Abs(delta.x) > 9.5f) { desiredX = target.x; }
-
-            float desiredZ = Mathf.Clamp(target.z + DepthOffset,
-                                         Playfield.DepthMin, Playfield.DepthMax);
-            Vector3 toDesired = new Vector3(desiredX - self.x, 0f, desiredZ - self.z);
-
-            if (toDesired.magnitude > 0.2f)
-            {
-                Vector3 dir = toDesired.normalized;
                 float scale = Blocking ? 0.4f : 1f;
-                AddMovement(new Vector3(dir.x, 0f, dir.z), scale);
+                AddMovement(toDesired.normalized, scale);
                 State = FighterState.Walk;
             }
             else if (State == FighterState.Walk)
@@ -226,18 +266,12 @@ namespace Ahmed.Combat
         protected override void OnKnockedDown()
         {
             // Drop the token at once so someone else can press the attack.
-            if (World.WaveDirector.Active != null)
-            {
-                World.WaveDirector.Active.ReleaseAttackToken(this);
-            }
+            CrowdControl.Release(this);
         }
 
         protected override void OnDeath()
         {
-            if (World.WaveDirector.Active != null)
-            {
-                World.WaveDirector.Active.ReleaseAttackToken(this);
-            }
+            CrowdControl.Release(this);
         }
     }
 }

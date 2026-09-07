@@ -4,10 +4,12 @@ The third build of the game, in Unity and C#. The browser game in
 `../ahmed-fighter` is the source of truth for every number; `../ahmed-fighter-ue5`
 is the Unreal port of the same thing.
 
-**Status: the fight works, the world does not yet.** Combat, the enemy AI and
-its fight styles, the wave director and the whole data pipeline are ported.
-Stage geometry, sealed routes, the save profile, audio and the HUD are not.
-See **What is not here yet** at the bottom — that list is the honest one.
+**Status: it is an open world you can walk around and fight in.** Nine
+districts, 131 to 260 metres a side, joined by the world graph's own eighteen
+links — ten of which want a talent you have to find. Combat, the fight styles,
+the encounters, the gates and the whole data pipeline are ported. Saving,
+audio, the HUD and any actual art are not. See **What is not here yet** at the
+bottom — that list is the honest one.
 
 ---
 
@@ -18,20 +20,23 @@ node Tools/export/export.mjs      # browser assets -> Assets/Resources/Data
 ```
 
 Open the project in Unity 2022.3 or newer, make an empty scene, add an empty
-GameObject and put `Ahmed.Game.Bootstrap` on it. Press play.
+GameObject and put `Ahmed.Game.Bootstrap` on it. Press play. Tick
+**Unlock Everything** on it to walk the whole map without earning the talents
+first — without it the world is correctly mostly shut, and four of the nine
+districts are all you can reach.
 
-`Bootstrap` builds a ground plane, a camera, a light, Ahmed and an enemy
-template out of primitives, then starts a `WaveDirector` on the stage index you
-give it. It exists because there are no authored scenes yet and a project you
-cannot press play on is not a port. Nothing else refers to it, so deleting it
-once there are real scenes costs nothing.
+`Bootstrap` builds Ahmed, a camera that follows him and an enemy template out
+of primitives, then hands the world to `DistrictRuntime`. It exists because
+there are no authored scenes yet and a project you cannot press play on is not
+a port. Nothing else refers to it, so deleting it later costs nothing.
 
 **Controls** are the legacy Input Manager, on purpose — no package, so the
 project opens and plays in a bare Unity install:
 
 | | |
 | --- | --- |
-| Move | WASD / arrows |
+| Move | WASD / arrows — **relative to the camera**, not the world |
+| Swing the camera | Q / E |
 | Punch | Fire1 (left mouse / left ctrl) — jab → cross → hook if you keep it going |
 | Kick | Fire2 (right mouse / left alt) — a knee inside, a roundhouse outside |
 | Guard | Fire3 / left shift — a hit in the first 0.2 s is a **parry** |
@@ -48,9 +53,68 @@ project opens and plays in a bare Unity install:
 | Player | `PlayerFighter` | jab→cross→hook chain, dodge dash, perfect parry, rage meter and finisher |
 | Enemy | `EnemyFighter` | flanking lanes, attack tokens, hit-and-run, boss phase two |
 | Fight styles | `FightStyleRunner` | range discipline, footwork, range-banded strike selection, reactions |
-| Stage flow | `WaveDirector` | wave triggers, arena lock, spawning, survival wave generation |
+| The world | `DistrictRuntime` | builds a district, wakes encounters by proximity, hands out gates, carries you across to the next |
+| District layout | `District` | derives an open field from the stage that used to be a corridor |
+| What the world remembers | `WorldState` | cleared encounters, opened gates, talents found |
+| Crowd control | `CrowdControl` | at most two enemies swinging at once, everywhere in the world |
+| Camera | `FollowCamera` | trails the player at a yaw you can swing |
 | Data | `GameData` | every table, loaded from `Assets/Resources/Data` |
-| Bring-up | `Bootstrap` | a playable stage with no authored scene |
+| Bring-up | `Bootstrap` | a playable world with no authored scene |
+| Corridor mode | `WaveDirector` | the old stage-at-a-time flow. **Nothing uses it now** — kept because survival waves live there and the open world has no replacement for them yet |
+
+---
+
+## What makes it an open world
+
+Three changes, and the first is the one everything else needed.
+
+**The fight left the strip.** Every build resolves hits as "in front of me,
+within reach, within a band either side". On a corridor that band was the
+world's own Z axis and "in front" was a sign on X — there were only two
+directions to face. `Fighter.InHitbox` now measures both along the direction
+the fighter is *facing*: reach along it, the same tolerance across it. The
+numbers did not change and the spacing the whole game was tuned around is
+intact; they are just taken along a vector instead of an axis. The property
+that has to hold is that rotating an attacker and a target together changes
+nothing, and it is checked rather than assumed.
+
+Movement is read off the camera rather than the world, because a camera that
+swings makes "push the stick away from you" mean something different every
+second otherwise.
+
+**Districts are derived, not authored.** Each area already carried a stage: its
+length, its waves and how far along each one triggered, its gates and what they
+want — all tuned by hand in the browser build. Hand-placing new content across
+a field would mean re-tuning the pacing of the entire game, so instead the one
+number that stops meaning anything in the open — *distance along the stage* —
+is reinterpreted as *how far around the district*. Sites land on an outward
+spiral by that fraction, jittered by a hash of the area and the site index.
+
+So if you walk out from the middle you meet things in the order the stage
+intended, but you can come at any of them from any direction, ignore them, or
+come back later — which is the part that makes it a world rather than a queue.
+It is deterministic: the same area lays out identically every run, so a player
+can learn it and a bug can be reproduced.
+
+**Encounters wake, they do not trigger.** A stage fired a wave when you had
+walked far enough along a line and locked you in until everything was dead.
+Here a fight starts because you came near it, does not stop you leaving, gives
+up and goes back to sleep if you walk away, and stays cleared once won. That
+one change is most of what separates a world from a level. Enemies are leashed
+to their site so an encounter you brushed past does not follow you across the
+district.
+
+| | corridors | districts |
+| --- | --- | --- |
+| ground you can stand on | 5,400 m² | **497,200 m²** |
+| per area | 77 × 8.4 m | 131 to 260 m a side |
+| reachable with no talents | — | 4 of 9 districts |
+| reachable with all five | — | 9 of 9 |
+
+> **The districts are as large as the content can fill.** Each carries the
+> three waves and one gate its stage had, which is sparse across 250 metres.
+> Making them bigger would only make them emptier; filling them means new
+> content, and content is not something to invent on your own.
 
 Distances are in **metres**. The browser build works in canvas pixels and the
 Unreal port in centimetres; one pixel is 2.4 cm, so one pixel is 0.024 m, and
@@ -114,13 +178,14 @@ Boss       an answer at every band, three-strike combinations, walks in
 Named rather than glossed, because a half-ported game that reads as finished is
 worse than one that says where it stops:
 
-- **No stage geometry.** `Bootstrap` makes a flat slab the length of the stage.
-  Backdrops, props and the nine areas' looks are not ported.
-- **No sealed routes.** `AbilityGate`, the talents that open them and the world
-  graph in `world.json` are exported but nothing reads them, so the
-  Metroidvania shape is absent — stages do not connect.
-- **No save or profile.** XP, levels and upgrades are exported and unused;
-  nothing persists between runs.
+- **No district art.** A flat slab and a cylinder per site. The nine areas'
+  looks, backdrops and props are not ported, and every district is the same
+  grey square.
+- **No save.** `WorldState` remembers cleared encounters, opened gates and
+  talents for as long as the game is running and forgets all of it on quit.
+  Writing it out is a serialiser over three sets, not a redesign.
+- **No levels or upgrades.** XP accumulates in `WorldState` and buys nothing;
+  the tables are exported and unread.
 - **No audio and no HUD.** Health, stamina, rage and mana are tracked and
   never drawn.
 - **No character mesh.** `../ahmed-fighter-ue5/Content/Models/Ahmed.fbx` is
@@ -129,7 +194,10 @@ worse than one that says where it stops:
   `../ahmed-fighter-ue5/Tools/blender/build_ahmed.py`, and its Humanoid avatar
   needs a rig it can map. Until then everyone is a capsule.
 - **None of this has run in Unity.** There is no editor in the environment it
-  was written in. The C# is type-checked — every file compiles clean against a
-  stub of the UnityEngine API — and the data is verified against the browser
-  assets and against the Unreal build's own tables, but *type-checks* and
-  *runs* are different words and only the first one is earned.
+  was written in. What *is* earned: every file compiles clean against a stub of
+  the UnityEngine API; the data is verified against the browser assets and
+  against the Unreal build's own tables; and the parts that are pure logic —
+  the hitbox geometry, the district layout, world reachability — are executed
+  under Mono against that stub and checked. Nothing has been pressed play on,
+  and physics, input, rendering and the frame loop are exactly the parts a stub
+  cannot stand in for.

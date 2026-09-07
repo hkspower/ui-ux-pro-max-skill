@@ -6,72 +6,63 @@ using Ahmed.World;
 namespace Ahmed.Game
 {
     /// <summary>
-    /// Builds a playable stage at runtime: ground, camera, light, Ahmed, an
-    /// enemy template and a wave director.
+    /// Brings the open world up: Ahmed, a camera that follows him, an enemy
+    /// template, and the district runtime that builds whichever of the nine
+    /// areas he is standing in.
     ///
-    /// It exists because the port has no authored scenes yet, and a project
-    /// you cannot press play on is not a port. Drop this on an empty
-    /// GameObject in an empty scene and the stage runs. Everything it makes is
-    /// a primitive -- the real character mesh, materials and level geometry
-    /// replace it piece by piece, and nothing else in the port refers to this
-    /// class, so deleting it later costs nothing.
+    /// It exists because the port has no authored scenes, and a project you
+    /// cannot press play on is not a port. Everything it makes is a primitive
+    /// -- the real character mesh, materials and district art replace them
+    /// piece by piece, and nothing else refers to this class, so deleting it
+    /// later costs nothing.
     /// </summary>
     public class Bootstrap : MonoBehaviour
     {
-        [Tooltip("Index into stages.json. 0 is Souq Mubarakiya.")]
-        public int StageIndex;
+        [Tooltip("Area to start in. -1 uses the world graph's own start.")]
+        public int StartArea = -1;
 
         [Tooltip("Enemy health and damage scaling, as the difficulty would set it.")]
         public float EnemyHealthScale = 1f;
         public float EnemyDamageScale = 1f;
 
-        private Transform _camera;
-        private PlayerFighter _player;
+        [Tooltip("Start with every talent, to walk the whole map without earning it.")]
+        public bool UnlockEverything;
 
         private void Awake()
         {
             GameData.Load();
-            StageRow stage = GameData.Stage(StageIndex);
-            float length = stage != null ? stage.length : 60f;
+            WorldState.Reset();
 
-            BuildGround(length);
+            if (UnlockEverything)
+            {
+                // Ten of the eighteen links want a talent. Without this the
+                // world is correctly mostly shut, which is right for play and
+                // unhelpful for looking at it.
+                WorldState.GrantTalent(Ability.Vault);
+                WorldState.GrantTalent(Ability.DashLeap);
+                WorldState.GrantTalent(Ability.PowerKick);
+                WorldState.GrantTalent(Ability.Haymaker);
+                WorldState.GrantTalent(Ability.HawkFist);
+            }
+
             BuildLight();
-            _camera = BuildCamera();
-            _player = BuildPlayer();
+            PlayerFighter player = BuildPlayer();
+            BuildCamera(player);
 
             GameObject template = BuildEnemyTemplate();
 
-            GameObject directorGo = new GameObject("WaveDirector");
-            WaveDirector director = directorGo.AddComponent<WaveDirector>();
-            director.StageIndex = StageIndex;
-            director.EnemyPrefab = template;
-            director.EnemyHealthScale = EnemyHealthScale;
-            director.EnemyDamageScale = EnemyDamageScale;
+            GameObject worldGo = new GameObject("World");
+            DistrictRuntime world = worldGo.AddComponent<DistrictRuntime>();
+            world.EnemyPrefab = template;
+            world.EnemyHealthScale = EnemyHealthScale;
+            world.EnemyDamageScale = EnemyDamageScale;
 
-            if (stage != null)
-            {
-                Debug.Log("[Ahmed] " + stage.displayName + " — " + stage.length.ToString("0.0")
-                    + " m, " + (stage.waves != null ? stage.waves.Length : 0) + " waves. "
-                    + stage.hint);
-            }
-        }
+            int start = StartArea >= 0 ? StartArea : GameData.StartArea;
+            world.Enter(start, Vector3.zero);
 
-        private void LateUpdate()
-        {
-            if (_camera == null || _player == null) { return; }
-            // A beat-'em-up camera trails along the strip and never turns.
-            // Following in Z as well would fight the depth the fight uses.
-            Vector3 p = _camera.position;
-            p.x = Mathf.Lerp(p.x, _player.transform.position.x + 2f, 4f * Time.deltaTime);
-            _camera.position = p;
-        }
-
-        private void BuildGround(float length)
-        {
-            GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            ground.name = "Ground";
-            ground.transform.position = new Vector3(length * 0.5f, -0.5f, 0f);
-            ground.transform.localScale = new Vector3(length + 40f, 1f, 12f);
+            Debug.Log("[Ahmed] " + GameData.Areas.Count + " districts, "
+                + "starting in area " + start
+                + (UnlockEverything ? " with every talent" : ""));
         }
 
         private void BuildLight()
@@ -83,22 +74,20 @@ namespace Ahmed.Game
             go.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
         }
 
-        private Transform BuildCamera()
+        private void BuildCamera(PlayerFighter player)
         {
             GameObject go = new GameObject("Camera");
             Camera cam = go.AddComponent<Camera>();
-            cam.fieldOfView = 42f;
-            // Back, up and looking slightly down: the browser build's framing,
-            // which is what the stage lengths and reaches were tuned against.
-            go.transform.position = new Vector3(0f, 4.2f, -12f);
-            go.transform.rotation = Quaternion.Euler(12f, 0f, 0f);
-            return go.transform;
+            cam.fieldOfView = 46f;
+            cam.farClipPlane = 600f;    // a district is 260 m across
+            FollowCamera follow = go.AddComponent<FollowCamera>();
+            follow.Target = player != null ? player.transform : null;
         }
 
         private PlayerFighter BuildPlayer()
         {
             GameObject go = MakeBody("Ahmed");
-            go.transform.position = new Vector3(3.4f, 1f, 0f);
+            go.transform.position = new Vector3(0f, 1f, 0f);
             return go.AddComponent<PlayerFighter>();
         }
 
@@ -106,7 +95,7 @@ namespace Ahmed.Game
         {
             GameObject go = MakeBody("EnemyTemplate");
             go.AddComponent<EnemyFighter>();
-            // Inactive so it is a prefab in all but name: the director clones
+            // Inactive so it is a prefab in all but name: the district clones
             // it, and the template itself never fights.
             go.SetActive(false);
             return go;

@@ -72,7 +72,7 @@ namespace Ahmed.Combat
             if (_dashRemaining > 0f)
             {
                 _dashRemaining -= dt;
-                AddMovement(new Vector3(FacingSign, 0f, 0f), 2.4f);
+                AddMovement(Facing, 2.4f);
                 if (_dashRemaining <= 0f && State == FighterState.Dash)
                 {
                     State = FighterState.Idle;
@@ -99,26 +99,41 @@ namespace Ahmed.Combat
             float moveX = Input.GetAxisRaw("Horizontal");
             float moveZ = Input.GetAxisRaw("Vertical");
 
+            // Movement is measured against the camera, not the world.
+            //
+            // On the strip it did not have to be: the camera never turned, so
+            // "right" was +X for the whole game. In a district the camera
+            // swings, and pushing the stick away from you has to mean away
+            // from you on screen or the world becomes unnavigable the first
+            // time you turn a corner.
+            Vector3 basisF = Vector3.forward, basisR = Vector3.right;
+            if (Game.FollowCamera.Current != null)
+            {
+                basisF = Game.FollowCamera.Current.Forward;
+                basisR = Game.FollowCamera.Current.Right;
+            }
+            Vector3 wish = basisR * moveX + basisF * moveZ;
+            if (wish.sqrMagnitude > 1f) { wish = wish.normalized; }
+
             if (!IsBusy)
             {
                 if (Input.GetButtonDown("Fire1")) { Punch(); return; }
                 if (Input.GetButtonDown("Fire2")) { Kick(); return; }
                 if (Input.GetKeyDown(KeyCode.R) && RageReady) { ReleaseRage(); return; }
                 if (Input.GetKeyDown(KeyCode.Space) && _dashCooldown <= 0f
-                    && (Mathf.Abs(moveX) > 0.1f || Mathf.Abs(moveZ) > 0.1f))
+                    && wish.sqrMagnitude > 0.01f)
                 {
-                    Dash(moveX);
+                    Dash(wish);
                     return;
                 }
 
-                if (Mathf.Abs(moveX) > 0.1f || Mathf.Abs(moveZ) > 0.1f)
+                if (wish.sqrMagnitude > 0.01f)
                 {
                     float scale = Blocking ? 0.45f : 1f;
-                    AddMovement(new Vector3(moveX, 0f, moveZ), scale);
-                    if (Mathf.Abs(moveX) > 0.1f)
-                    {
-                        FaceTowards(transform.position + new Vector3(moveX, 0f, 0f));
-                    }
+                    AddMovement(wish, scale);
+                    // Face where you are going, unless something is close
+                    // enough to be what you actually mean to hit.
+                    FaceTowards(transform.position + wish);
                     State = FighterState.Walk;
                 }
                 else if (State == FighterState.Walk)
@@ -154,26 +169,21 @@ namespace Ahmed.Combat
             GatherTargets(targets);
             for (int i = 0; i < targets.Count; i++)
             {
-                if (Mathf.Abs(targets[i].transform.position.x - transform.position.x) < 1.0f)
-                {
-                    close = true;
-                    break;
-                }
+                Vector3 d = targets[i].transform.position - transform.position;
+                d.y = 0f;
+                if (d.magnitude < 1.0f) { close = true; break; }
             }
             StartAttack(close ? "Knee" : "Kick");
         }
 
-        private void Dash(float moveX)
+        private void Dash(Vector3 wish)
         {
             State = FighterState.Dash;
             _dashRemaining = 0.18f;
             _dashCooldown = 0.6f;
             InvulnerableRemaining = 0.18f;   // the dodge is the point of it
             SpendStamina(12f);
-            if (Mathf.Abs(moveX) > 0.1f)
-            {
-                FaceTowards(transform.position + new Vector3(moveX, 0f, 0f));
-            }
+            FaceTowards(transform.position + wish);
         }
 
         private void ReleaseRage()
@@ -203,8 +213,7 @@ namespace Ahmed.Combat
             // A parry is worth more than a landed hit: it is the only thing
             // in the game that rewards reading rather than pressing.
             Rage = Mathf.Min(Playfield.RageMax, Rage + 18f);
-            if (attacker != null) { attacker.ReceiveKnockback(
-                new Vector3(-attacker.FacingSign * 2.2f, 0f, 0f), false); }
+            if (attacker != null) { attacker.ReceiveKnockback(attacker.Facing * -2.2f, false); }
         }
     }
 }
