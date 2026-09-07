@@ -2,6 +2,15 @@
 
 Guidance for anyone — person or assistant — working in this directory.
 
+## The story
+
+Canon lives in `../ahmed-fighter/CLAUDE.md` and applies to this build too.
+The short of it: Ahmed is a young MMA professional who falls through a hole
+in the street into an outer world, and fights his way through it — which is
+why talents, levels and upgrades are the plot rather than systems bolted onto
+one. Read it before writing story text, naming anything, or deciding what a
+place looks like.
+
 ## Art direction
 
 **This build is not cartoonish.** The browser project next door is stylised on
