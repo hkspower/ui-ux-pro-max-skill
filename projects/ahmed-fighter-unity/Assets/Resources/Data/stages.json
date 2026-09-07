@@ -9,13 +9,13 @@
       "briefing": "A crew has been leaning on the traders in the old souq for months. Ahmed grew up in these alleys. Tonight he stops being a bystander.",
       "briefingArabic": "بدأت الحكاية في سوق المباركية",
       "hint": "Trouble in the old market.",
-      "length": 69.6,
+      "length": 72,
       "tier": 0,
       "bossStage": false,
       "survival": false,
       "waves": [
         {
-          "triggerDistance": 13.44,
+          "triggerDistance": 7.2,
           "fighters": [
             "Thug",
             "Thug"
@@ -23,7 +23,7 @@
           "tierOverride": -1
         },
         {
-          "triggerDistance": 36.48,
+          "triggerDistance": 30,
           "fighters": [
             "Thug",
             "Thug",
@@ -32,7 +32,7 @@
           "tierOverride": -1
         },
         {
-          "triggerDistance": 58.8,
+          "triggerDistance": 56.4,
           "fighters": [
             "Brawler",
             "Brawler",
@@ -59,13 +59,35 @@
       "briefing": "Word travels. The Salmiya club wants to see what the souq kid can do. Six rounds, no headgear, and nobody is holding back.",
       "briefingArabic": "الاختبار الأول في نادي السالمية",
       "hint": "Spar your way through the club.",
-      "length": 69.6,
+      "length": 62.4,
       "tier": 0,
       "bossStage": false,
       "survival": false,
       "waves": [
         {
-          "triggerDistance": 12.96,
+          "triggerDistance": 6.72,
+          "fighters": [
+            "Thug"
+          ],
+          "tierOverride": -1
+        },
+        {
+          "triggerDistance": 16.32,
+          "fighters": [
+            "Brawler"
+          ],
+          "tierOverride": -1
+        },
+        {
+          "triggerDistance": 25.92,
+          "fighters": [
+            "Kicker",
+            "Thug"
+          ],
+          "tierOverride": -1
+        },
+        {
+          "triggerDistance": 35.52,
           "fighters": [
             "Brawler",
             "Brawler"
@@ -73,18 +95,16 @@
           "tierOverride": -1
         },
         {
-          "triggerDistance": 35.52,
+          "triggerDistance": 45.12,
           "fighters": [
             "Kicker",
-            "Kicker",
-            "Thug"
+            "Kicker"
           ],
           "tierOverride": -1
         },
         {
-          "triggerDistance": 58.08,
+          "triggerDistance": 54,
           "fighters": [
-            "Kicker",
             "Kicker",
             "Brawler",
             "Brawler"
@@ -110,13 +130,13 @@
       "briefing": "The crew moved their business to the harbour before sunrise. Wet stone, cold air, and runners who will not stand still.",
       "briefingArabic": "الفجر على الميناء",
       "hint": "Dawn on the harbour. They came early.",
-      "length": 72,
+      "length": 86.4,
       "tier": 1,
       "bossStage": false,
       "survival": false,
       "waves": [
         {
-          "triggerDistance": 13.44,
+          "triggerDistance": 16.8,
           "fighters": [
             "Runner",
             "Runner",
@@ -125,7 +145,7 @@
           "tierOverride": -1
         },
         {
-          "triggerDistance": 36.48,
+          "triggerDistance": 48,
           "fighters": [
             "Runner",
             "Runner",
@@ -135,7 +155,7 @@
           "tierOverride": -1
         },
         {
-          "triggerDistance": 60,
+          "triggerDistance": 78,
           "fighters": [
             "Bouncer",
             "Runner",
@@ -162,42 +182,36 @@
       "briefing": "They want the waterfront cleared before the season opens. Ahmed gets there first.",
       "briefingArabic": "ليلة على الواجهة البحرية",
       "hint": "Night raid on the waterfront.",
-      "length": 74.4,
+      "length": 67.2,
       "tier": 1,
       "bossStage": false,
       "survival": false,
       "waves": [
         {
-          "triggerDistance": 14.4,
+          "triggerDistance": 19.2,
           "fighters": [
             "Kicker",
             "Kicker",
+            "Brawler",
+            "Brawler",
             "Thug"
           ],
           "tierOverride": -1
         },
         {
-          "triggerDistance": 38.4,
-          "fighters": [
-            "Brawler",
-            "Brawler",
-            "Kicker"
-          ],
-          "tierOverride": -1
-        },
-        {
-          "triggerDistance": 62.4,
+          "triggerDistance": 52.8,
           "fighters": [
             "Grappler",
             "Kicker",
-            "Kicker"
+            "Kicker",
+            "Brawler"
           ],
           "tierOverride": -1
         }
       ],
       "gates": [
         {
-          "distance": 27.6,
+          "distance": 38.4,
           "type": "Wall",
           "rewardAbility": "None",
           "rewardExperience": 500
@@ -213,13 +227,13 @@
       "briefing": "The neon strip belongs to AL-SAQR — the Falcon. All legs, no patience. Beat him and the crew loses its enforcer.",
       "briefingArabic": "الصقر يحرس المارينا",
       "hint": "AL-SAQR runs this strip.",
-      "length": 62.4,
+      "length": 52.8,
       "tier": 2,
       "bossStage": true,
       "survival": false,
       "waves": [
         {
-          "triggerDistance": 13.44,
+          "triggerDistance": 10.8,
           "fighters": [
             "Capo",
             "Runner",
@@ -228,7 +242,7 @@
           "tierOverride": -1
         },
         {
-          "triggerDistance": 33.6,
+          "triggerDistance": 27.6,
           "fighters": [
             "Bouncer",
             "Capo"
@@ -236,7 +250,7 @@
           "tierOverride": -1
         },
         {
-          "triggerDistance": 50.4,
+          "triggerDistance": 45.6,
           "fighters": [
             "Saqr"
           ],
@@ -261,13 +275,13 @@
       "briefing": "They regrouped on the island, among the old stone. Nowhere to run out here — which cuts both ways.",
       "briefingArabic": "بين آثار فيلكا",
       "hint": "Grapplers hold the ruins.",
-      "length": 74.4,
+      "length": 60,
       "tier": 2,
       "bossStage": false,
       "survival": false,
       "waves": [
         {
-          "triggerDistance": 14.4,
+          "triggerDistance": 12,
           "fighters": [
             "Grappler",
             "Brawler"
@@ -275,7 +289,7 @@
           "tierOverride": -1
         },
         {
-          "triggerDistance": 38.4,
+          "triggerDistance": 28.8,
           "fighters": [
             "Grappler",
             "Grappler",
@@ -284,7 +298,7 @@
           "tierOverride": -1
         },
         {
-          "triggerDistance": 62.4,
+          "triggerDistance": 44.4,
           "fighters": [
             "Grappler",
             "Grappler",
@@ -311,33 +325,46 @@
       "briefing": "Trucks across both lanes, sun going down behind the pylons. The road to the camp runs straight through them.",
       "briefingArabic": "الطريق مقطوع عند الجهراء",
       "hint": "They blocked the road out.",
-      "length": 76.8,
+      "length": 81.6,
       "tier": 3,
       "bossStage": false,
       "survival": false,
       "waves": [
         {
-          "triggerDistance": 14.88,
+          "triggerDistance": 14.4,
           "fighters": [
-            "Bouncer",
             "Runner",
             "Runner"
           ],
           "tierOverride": -1
         },
         {
-          "triggerDistance": 38.88,
+          "triggerDistance": 30,
+          "fighters": [
+            "Bouncer",
+            "Runner"
+          ],
+          "tierOverride": -1
+        },
+        {
+          "triggerDistance": 45.6,
           "fighters": [
             "Capo",
-            "Kicker",
             "Kicker"
           ],
           "tierOverride": -1
         },
         {
-          "triggerDistance": 62.88,
+          "triggerDistance": 60,
           "fighters": [
             "Bouncer",
+            "Kicker"
+          ],
+          "tierOverride": -1
+        },
+        {
+          "triggerDistance": 73.2,
+          "fighters": [
             "Bouncer",
             "Capo"
           ],
@@ -362,35 +389,28 @@
       "briefing": "The camp is where they pick who fights for the belt. Ahmed was never on the list. He is now.",
       "briefingArabic": "المخيم يختار من ينافس على الحزام",
       "hint": "The contenders wait by the fire.",
-      "length": 76.8,
+      "length": 72,
       "tier": 3,
       "bossStage": false,
       "survival": false,
       "waves": [
         {
-          "triggerDistance": 14.88,
+          "triggerDistance": 21.6,
           "fighters": [
             "Kicker",
             "Kicker",
             "Brawler",
-            "Brawler"
-          ],
-          "tierOverride": -1
-        },
-        {
-          "triggerDistance": 39.6,
-          "fighters": [
-            "Champ",
+            "Brawler",
             "Capo"
           ],
           "tierOverride": -1
         },
         {
-          "triggerDistance": 63.6,
+          "triggerDistance": 55.2,
           "fighters": [
             "Champ",
-            "Grappler",
-            "Bouncer"
+            "Champ",
+            "Grappler"
           ],
           "tierOverride": -1
         }

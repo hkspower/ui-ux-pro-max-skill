@@ -677,8 +677,8 @@
     {
       "Name": "Level_02",
       "Level": 2,
-      "ExperienceRequired": 166,
-      "StepFromPrevious": 166,
+      "ExperienceRequired": 21,
+      "StepFromPrevious": 21,
       "Title": "ROOKIE",
       "BonusHealth": 6,
       "BonusMana": 4
@@ -686,8 +686,8 @@
     {
       "Name": "Level_03",
       "Level": 3,
-      "ExperienceRequired": 384,
-      "StepFromPrevious": 218,
+      "ExperienceRequired": 48,
+      "StepFromPrevious": 27,
       "Title": "AMATEUR",
       "BonusHealth": 12,
       "BonusMana": 8
@@ -695,8 +695,8 @@
     {
       "Name": "Level_04",
       "Level": 4,
-      "ExperienceRequired": 654,
-      "StepFromPrevious": 270,
+      "ExperienceRequired": 82,
+      "StepFromPrevious": 34,
       "Title": "AMATEUR",
       "BonusHealth": 18,
       "BonusMana": 12
@@ -704,8 +704,8 @@
     {
       "Name": "Level_05",
       "Level": 5,
-      "ExperienceRequired": 976,
-      "StepFromPrevious": 322,
+      "ExperienceRequired": 122,
+      "StepFromPrevious": 40,
       "Title": "AMATEUR",
       "BonusHealth": 24,
       "BonusMana": 16
@@ -713,8 +713,8 @@
     {
       "Name": "Level_06",
       "Level": 6,
-      "ExperienceRequired": 1350,
-      "StepFromPrevious": 374,
+      "ExperienceRequired": 168,
+      "StepFromPrevious": 46,
       "Title": "PROSPECT",
       "BonusHealth": 30,
       "BonusMana": 20
@@ -722,8 +722,8 @@
     {
       "Name": "Level_07",
       "Level": 7,
-      "ExperienceRequired": 1776,
-      "StepFromPrevious": 426,
+      "ExperienceRequired": 220,
+      "StepFromPrevious": 52,
       "Title": "PROSPECT",
       "BonusHealth": 36,
       "BonusMana": 24
@@ -731,8 +731,8 @@
     {
       "Name": "Level_08",
       "Level": 8,
-      "ExperienceRequired": 2254,
-      "StepFromPrevious": 478,
+      "ExperienceRequired": 278,
+      "StepFromPrevious": 58,
       "Title": "PROSPECT",
       "BonusHealth": 42,
       "BonusMana": 28
@@ -740,8 +740,8 @@
     {
       "Name": "Level_09",
       "Level": 9,
-      "ExperienceRequired": 2784,
-      "StepFromPrevious": 530,
+      "ExperienceRequired": 342,
+      "StepFromPrevious": 64,
       "Title": "PROSPECT",
       "BonusHealth": 48,
       "BonusMana": 32
@@ -749,8 +749,8 @@
     {
       "Name": "Level_10",
       "Level": 10,
-      "ExperienceRequired": 3366,
-      "StepFromPrevious": 582,
+      "ExperienceRequired": 413,
+      "StepFromPrevious": 71,
       "Title": "RANKED",
       "BonusHealth": 54,
       "BonusMana": 36
@@ -758,8 +758,8 @@
     {
       "Name": "Level_11",
       "Level": 11,
-      "ExperienceRequired": 4000,
-      "StepFromPrevious": 634,
+      "ExperienceRequired": 490,
+      "StepFromPrevious": 77,
       "Title": "RANKED",
       "BonusHealth": 60,
       "BonusMana": 40
@@ -767,8 +767,8 @@
     {
       "Name": "Level_12",
       "Level": 12,
-      "ExperienceRequired": 4686,
-      "StepFromPrevious": 686,
+      "ExperienceRequired": 573,
+      "StepFromPrevious": 83,
       "Title": "RANKED",
       "BonusHealth": 66,
       "BonusMana": 44
@@ -776,8 +776,8 @@
     {
       "Name": "Level_13",
       "Level": 13,
-      "ExperienceRequired": 5424,
-      "StepFromPrevious": 738,
+      "ExperienceRequired": 662,
+      "StepFromPrevious": 89,
       "Title": "RANKED",
       "BonusHealth": 72,
       "BonusMana": 48
@@ -785,8 +785,8 @@
     {
       "Name": "Level_14",
       "Level": 14,
-      "ExperienceRequired": 6214,
-      "StepFromPrevious": 790,
+      "ExperienceRequired": 758,
+      "StepFromPrevious": 96,
       "Title": "CONTENDER",
       "BonusHealth": 78,
       "BonusMana": 52
@@ -794,8 +794,8 @@
     {
       "Name": "Level_15",
       "Level": 15,
-      "ExperienceRequired": 7056,
-      "StepFromPrevious": 842,
+      "ExperienceRequired": 860,
+      "StepFromPrevious": 102,
       "Title": "CONTENDER",
       "BonusHealth": 84,
       "BonusMana": 56
@@ -803,8 +803,8 @@
     {
       "Name": "Level_16",
       "Level": 16,
-      "ExperienceRequired": 7950,
-      "StepFromPrevious": 894,
+      "ExperienceRequired": 968,
+      "StepFromPrevious": 108,
       "Title": "CONTENDER",
       "BonusHealth": 90,
       "BonusMana": 60
@@ -812,8 +812,8 @@
     {
       "Name": "Level_17",
       "Level": 17,
-      "ExperienceRequired": 8896,
-      "StepFromPrevious": 946,
+      "ExperienceRequired": 1082,
+      "StepFromPrevious": 114,
       "Title": "CONTENDER",
       "BonusHealth": 96,
       "BonusMana": 64
@@ -821,8 +821,8 @@
     {
       "Name": "Level_18",
       "Level": 18,
-      "ExperienceRequired": 9894,
-      "StepFromPrevious": 998,
+      "ExperienceRequired": 1202,
+      "StepFromPrevious": 120,
       "Title": "CHAMPION",
       "BonusHealth": 102,
       "BonusMana": 68
@@ -830,8 +830,8 @@
     {
       "Name": "Level_19",
       "Level": 19,
-      "ExperienceRequired": 10944,
-      "StepFromPrevious": 1050,
+      "ExperienceRequired": 1328,
+      "StepFromPrevious": 126,
       "Title": "CHAMPION",
       "BonusHealth": 108,
       "BonusMana": 72
@@ -839,8 +839,8 @@
     {
       "Name": "Level_20",
       "Level": 20,
-      "ExperienceRequired": 12046,
-      "StepFromPrevious": 1102,
+      "ExperienceRequired": 1461,
+      "StepFromPrevious": 133,
       "Title": "CHAMPION",
       "BonusHealth": 114,
       "BonusMana": 76
@@ -891,13 +891,13 @@
       "Briefing": "A crew has been leaning on the traders in the old souq for months. Ahmed grew up in these alleys. Tonight he stops being a bystander.",
       "BriefingArabic": "بدأت الحكاية في سوق المباركية",
       "Hint": "Trouble in the old market.",
-      "Length": 6960,
+      "Length": 7200,
       "Tier": 0,
       "bIsBossStage": false,
       "bSurvival": false,
       "Waves": [
         {
-          "TriggerDistance": 1344,
+          "TriggerDistance": 720,
           "Fighters": [
             "Thug",
             "Thug"
@@ -905,7 +905,7 @@
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 3648,
+          "TriggerDistance": 3000,
           "Fighters": [
             "Thug",
             "Thug",
@@ -914,7 +914,7 @@
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 5880,
+          "TriggerDistance": 5640,
           "Fighters": [
             "Brawler",
             "Brawler",
@@ -941,13 +941,35 @@
       "Briefing": "Word travels. The Salmiya club wants to see what the souq kid can do. Six rounds, no headgear, and nobody is holding back.",
       "BriefingArabic": "الاختبار الأول في نادي السالمية",
       "Hint": "Spar your way through the club.",
-      "Length": 6960,
+      "Length": 6240,
       "Tier": 0,
       "bIsBossStage": false,
       "bSurvival": false,
       "Waves": [
         {
-          "TriggerDistance": 1296,
+          "TriggerDistance": 672,
+          "Fighters": [
+            "Thug"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 1632,
+          "Fighters": [
+            "Brawler"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 2592,
+          "Fighters": [
+            "Kicker",
+            "Thug"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 3552,
           "Fighters": [
             "Brawler",
             "Brawler"
@@ -955,18 +977,16 @@
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 3552,
+          "TriggerDistance": 4512,
           "Fighters": [
             "Kicker",
-            "Kicker",
-            "Thug"
+            "Kicker"
           ],
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 5808,
+          "TriggerDistance": 5400,
           "Fighters": [
-            "Kicker",
             "Kicker",
             "Brawler",
             "Brawler"
@@ -992,13 +1012,13 @@
       "Briefing": "The crew moved their business to the harbour before sunrise. Wet stone, cold air, and runners who will not stand still.",
       "BriefingArabic": "الفجر على الميناء",
       "Hint": "Dawn on the harbour. They came early.",
-      "Length": 7200,
+      "Length": 8640,
       "Tier": 1,
       "bIsBossStage": false,
       "bSurvival": false,
       "Waves": [
         {
-          "TriggerDistance": 1344,
+          "TriggerDistance": 1680,
           "Fighters": [
             "Runner",
             "Runner",
@@ -1007,7 +1027,7 @@
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 3648,
+          "TriggerDistance": 4800,
           "Fighters": [
             "Runner",
             "Runner",
@@ -1017,7 +1037,7 @@
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 6000,
+          "TriggerDistance": 7800,
           "Fighters": [
             "Bouncer",
             "Runner",
@@ -1044,42 +1064,36 @@
       "Briefing": "They want the waterfront cleared before the season opens. Ahmed gets there first.",
       "BriefingArabic": "ليلة على الواجهة البحرية",
       "Hint": "Night raid on the waterfront.",
-      "Length": 7440,
+      "Length": 6720,
       "Tier": 1,
       "bIsBossStage": false,
       "bSurvival": false,
       "Waves": [
         {
-          "TriggerDistance": 1440,
+          "TriggerDistance": 1920,
           "Fighters": [
             "Kicker",
             "Kicker",
+            "Brawler",
+            "Brawler",
             "Thug"
           ],
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 3840,
-          "Fighters": [
-            "Brawler",
-            "Brawler",
-            "Kicker"
-          ],
-          "TierOverride": -1
-        },
-        {
-          "TriggerDistance": 6240,
+          "TriggerDistance": 5280,
           "Fighters": [
             "Grappler",
             "Kicker",
-            "Kicker"
+            "Kicker",
+            "Brawler"
           ],
           "TierOverride": -1
         }
       ],
       "Gates": [
         {
-          "Distance": 2760,
+          "Distance": 3840,
           "Type": "Wall",
           "RewardAbility": "None",
           "RewardExperience": 500
@@ -1095,13 +1109,13 @@
       "Briefing": "The neon strip belongs to AL-SAQR — the Falcon. All legs, no patience. Beat him and the crew loses its enforcer.",
       "BriefingArabic": "الصقر يحرس المارينا",
       "Hint": "AL-SAQR runs this strip.",
-      "Length": 6240,
+      "Length": 5280,
       "Tier": 2,
       "bIsBossStage": true,
       "bSurvival": false,
       "Waves": [
         {
-          "TriggerDistance": 1344,
+          "TriggerDistance": 1080,
           "Fighters": [
             "Capo",
             "Runner",
@@ -1110,7 +1124,7 @@
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 3360,
+          "TriggerDistance": 2760,
           "Fighters": [
             "Bouncer",
             "Capo"
@@ -1118,7 +1132,7 @@
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 5040,
+          "TriggerDistance": 4560,
           "Fighters": [
             "Saqr"
           ],
@@ -1143,13 +1157,13 @@
       "Briefing": "They regrouped on the island, among the old stone. Nowhere to run out here — which cuts both ways.",
       "BriefingArabic": "بين آثار فيلكا",
       "Hint": "Grapplers hold the ruins.",
-      "Length": 7440,
+      "Length": 6000,
       "Tier": 2,
       "bIsBossStage": false,
       "bSurvival": false,
       "Waves": [
         {
-          "TriggerDistance": 1440,
+          "TriggerDistance": 1200,
           "Fighters": [
             "Grappler",
             "Brawler"
@@ -1157,7 +1171,7 @@
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 3840,
+          "TriggerDistance": 2880,
           "Fighters": [
             "Grappler",
             "Grappler",
@@ -1166,7 +1180,7 @@
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 6240,
+          "TriggerDistance": 4440,
           "Fighters": [
             "Grappler",
             "Grappler",
@@ -1193,33 +1207,46 @@
       "Briefing": "Trucks across both lanes, sun going down behind the pylons. The road to the camp runs straight through them.",
       "BriefingArabic": "الطريق مقطوع عند الجهراء",
       "Hint": "They blocked the road out.",
-      "Length": 7680,
+      "Length": 8160,
       "Tier": 3,
       "bIsBossStage": false,
       "bSurvival": false,
       "Waves": [
         {
-          "TriggerDistance": 1488,
+          "TriggerDistance": 1440,
           "Fighters": [
-            "Bouncer",
             "Runner",
             "Runner"
           ],
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 3888,
+          "TriggerDistance": 3000,
+          "Fighters": [
+            "Bouncer",
+            "Runner"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 4560,
           "Fighters": [
             "Capo",
-            "Kicker",
             "Kicker"
           ],
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 6288,
+          "TriggerDistance": 6000,
           "Fighters": [
             "Bouncer",
+            "Kicker"
+          ],
+          "TierOverride": -1
+        },
+        {
+          "TriggerDistance": 7320,
+          "Fighters": [
             "Bouncer",
             "Capo"
           ],
@@ -1244,35 +1271,28 @@
       "Briefing": "The camp is where they pick who fights for the belt. Ahmed was never on the list. He is now.",
       "BriefingArabic": "المخيم يختار من ينافس على الحزام",
       "Hint": "The contenders wait by the fire.",
-      "Length": 7680,
+      "Length": 7200,
       "Tier": 3,
       "bIsBossStage": false,
       "bSurvival": false,
       "Waves": [
         {
-          "TriggerDistance": 1488,
+          "TriggerDistance": 2160,
           "Fighters": [
             "Kicker",
             "Kicker",
             "Brawler",
-            "Brawler"
-          ],
-          "TierOverride": -1
-        },
-        {
-          "TriggerDistance": 3960,
-          "Fighters": [
-            "Champ",
+            "Brawler",
             "Capo"
           ],
           "TierOverride": -1
         },
         {
-          "TriggerDistance": 6360,
+          "TriggerDistance": 5520,
           "Fighters": [
             "Champ",
-            "Grappler",
-            "Bouncer"
+            "Champ",
+            "Grappler"
           ],
           "TierOverride": -1
         }
@@ -1539,6 +1559,6 @@
     "UpgradeMaxLevel": 5,
     "LevelMax": 20
   },
-  "Revision": "bcfb41fa4d0c9eac",
-  "GeneratedAt": "2026-09-07T00:48:50.376Z"
+  "Revision": "87fdafcfc4540b94",
+  "GeneratedAt": "2026-09-07T08:58:25.506Z"
 }

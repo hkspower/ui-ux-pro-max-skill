@@ -14,12 +14,29 @@ window.ASSET_LEVELS = {
 
   max: 20,
 
-  /* XP needed to reach level n from level 1. Quadratic, so early levels come
-     quickly during the first two stages and later ones pace the campaign. */
+  /* XP needed to reach level n from the one below it. Quadratic, so early
+     levels come quickly during the first two areas and later ones pace the
+     campaign.
+
+     The shape was right and the scale was not. At 140n + 26n^2 the twenty
+     ranks cost 78,774 xp, and a COMPLETE clear of the game -- every area,
+     both bosses, every cache behind every gate -- yields about 4,100. That
+     is a full clear reaching level 7, level 20 costing nineteen of them, and
+     the first CHAMPION rank costing fourteen. The top half of the ladder was
+     unreachable in normal play.
+
+     Which matters beyond balance: the ranks are what AL-HALQA offers Ahmed
+     INSTEAD of a way out (see ../CLAUDE.md), and a ladder cannot tempt a man
+     with rungs he will never stand on.
+
+     Rescaled so one full clear lands on CONTENDER and CHAMPION is roughly
+     two and a half clears -- reachable by replaying areas, working the gates
+     you could not open the first time, or going back into survival. Earned,
+     but not a second job. */
   need: function(level){
     if(level <= 1) return 0;
     var n = level - 1;
-    return Math.round(140 * n + 26 * n * n);
+    return Math.round(18 * n + 3.1 * n * n);
   },
 
   /* What one level is worth. Health and MP grow; the numbers are small enough
