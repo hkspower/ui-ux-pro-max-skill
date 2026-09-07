@@ -53,19 +53,31 @@ python3 Tools/blender/build_ahmed.py
 
 It writes both model files plus three reference renders into `Docs/renders`.
 
-**What it is:** a clean, correctly proportioned blockout — 6.5k triangles, 24
+**What it is:** a clean, correctly proportioned blockout — 8.4k triangles, 24
 bones, eight material slots carrying the game's palette. The proportions are
-**measured, not asserted**: he stands 1.795 m against the 1.80 m the script
-declares, soles on the floor to half a millimetre, about eight heads tall,
-with every segment inside half a percent of its anatomical length (upper arm
-0.335 m, forearm 0.263, thigh 0.439, shank 0.443 — Winter's fractions of
-stature) and limb girths within a centimetre of a person's. He wears what the 2D
+**measured, not asserted**: he stands 1.802 m against the 1.80 m the script
+declares, soles on the floor to a tenth of a millimetre, about eight heads
+tall, with every segment inside half a percent of its anatomical length (upper
+arm 0.335 m, forearm 0.263, thigh 0.439, shank 0.443 — Winter's fractions of
+stature) and every girth within a centimetre of a person's:
+
+| | built | a person |
+| --- | --- | --- |
+| biceps / elbow / forearm / wrist | 0.108 / 0.087 / 0.091 / 0.072 | 0.108 / 0.086 / 0.094 / 0.064 |
+| thigh / knee / calf / ankle | 0.144 / 0.113 / 0.108 / 0.069 | 0.150 / 0.115 / 0.105 / 0.075 |
+| torso depth through the ribs | 0.217–0.236 | 0.225 |
+| foot length, heel behind ankle | 0.266 / 0.058 | 0.274 / 0.060 |
+
+Those two rows are the difference between a figure and a mannequin: a limb
+runs wide through the muscle, narrow across the joint and wide again below it.
+Drawn as a straight taper between three joints it is a tube, and a tube looks
+like a blockout however good its lengths are. He wears what the 2D
 Ahmed wears: fair skin, a fitted black tee with short sleeves, black long
 trousers over a red waistband, dark trainers, and hair grown as real geometry
 off the skull rather than painted onto it. **What it is not:** a finished hero
-character. There is no face beyond eyes, no hands beyond mitts, no cloth
-simulation and no normal maps — and the head will not read as a face at this
-vertex count. It exists so the gameplay code has something to drive today, and
+character. The face is a nose, two brows and two eyes over a jaw — enough to
+read as a face and no more — and there are no hands beyond mitts, no cloth
+simulation and no normal maps. It exists so the gameplay code has something to drive today, and
 so an artist has a rig and a silhouette to build onto rather than a blank
 project.
 
@@ -82,12 +94,29 @@ joints the browser build draws through `tube()` and `capsule()`. One table
 feeds both, so the 3D Ahmed and the 2D Ahmed stay the same man; retune
 proportions in `J` at the top of the script and both stay in step.
 
+**Shaping joints are not bones.** Anatomy the UE5 mannequin has no bone for —
+the biceps and forearm bellies, the quadriceps, the calf, the heel and toe,
+the jaw — lives in the joint table with its name in `SHAPE`. `build_armature`
+skips those and parents through them, so the mesh gains a bulge in the middle
+of the upper arm without the skeleton gaining a bone in the middle of the
+upper arm. The skeleton stays exactly the mannequin's 24, which is what keeps
+the retarget working. Miss the second half of that — a bone's tail must also
+never point at a shaping joint — and the upper arm bone ends at the biceps.
+
 **Ahmed faces −Y.** Toes, face, hair parting and the guard's chin tuck all
 point that way, and Blender's FBX default (forward −Z, up Y) lands it on
 Unreal's +X. Anything added to the head or the feet has to agree with that —
 his face was once built on +Y while his feet were on −Y, which put his head on
 backwards and was invisible in the renders because the cameras framed the body
 and photographed the back of his skull.
+
+The waistband is geometry, not paint. Nothing else works: the legs branch off
+the pelvis right where the belt goes, so the Skin modifier leaves almost no
+vertices between z 0.99 and 1.05 and the polygons that cross it are ten
+centimetres tall. Selecting the ones whose centre lands in the band paints a
+zigzag of diamonds; selecting every one that crosses it paints a ragged red
+block. `add_waistband` builds a ring instead, sized from the mesh it is going
+onto so it stays a belt if he is ever re-proportioned.
 
 Skin radii are not anatomical radii. The Skin modifier's hull and the two
 subdivision levels inflate them by roughly 1.6×, so a radius reads as a limb

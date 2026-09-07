@@ -65,9 +65,13 @@ J = {
     "spine_01":   (Vector((0.00,  0.000, 1.108)), "pelvis",   0.106),
     "spine_02":   (Vector((0.00,  0.000, 1.264)), "spine_01", 0.124),
     "spine_03":   (Vector((0.00,  0.000, 1.440)), "spine_02", 0.146),
-    "neck_01":    (Vector((0.00,  0.000, 1.520)), "spine_03", 0.068),
-    "head":       (Vector((0.00, -0.014, 1.672)), "neck_01",  0.092),
-    "head_end":   (Vector((0.00, -0.006, 1.806)), "head",     0.040),
+    "neck_01":    (Vector((0.00,  0.000, 1.520)), "spine_03", 0.062),
+    # The jaw is a shaping joint, not a bone. Without it the skull's front
+    # overhangs the neck by four centimetres with nothing in between, which
+    # reads as a shelf under the chin rather than a face.
+    "jaw":        (Vector((0.00, -0.030, 1.590)), "neck_01",  0.078),
+    "head":       (Vector((0.00, -0.014, 1.672)), "jaw",      0.092),
+    "head_end":   (Vector((0.00, -0.006, 1.796)), "head",     0.040),
 }
 
 _LIMB = [
@@ -75,18 +79,32 @@ _LIMB = [
     # Arms hang at 45 degrees, the A-pose UE5's mannequin animations retarget
     # from. The elbow sits where a real one does: the upper arm is the longer
     # of the two segments, 0.335 against the forearm's 0.263.
-    ("clavicle", Vector((0.046, -0.012, 1.448)), "spine_03", 0.100),
-    ("upperarm", Vector((0.178, -0.006, 1.442)), "clavicle", 0.064),
-    ("lowerarm", Vector((0.415,  0.000, 1.205)), "upperarm", 0.047),
-    ("hand",     Vector((0.601,  0.000, 1.019)), "lowerarm", 0.042),
-    ("hand_end", Vector((0.654,  0.000, 0.966)), "hand",     0.034),
+    #
+    # `biceps` and `forearm` are shaping joints. A limb drawn as two straight
+    # tapers between three joints is a tube, and a tube is what makes a
+    # blockout look like a blockout however good its proportions are. Real
+    # limbs have a belly and a joint: wide through the muscle, narrow across
+    # the elbow, wide again below it, narrow at the wrist.
+    ("clavicle",  Vector((0.046, -0.012, 1.448)),  "spine_03",   0.100),
+    ("upperarm",  Vector((0.178, -0.006, 1.442)),  "clavicle",   0.055),
+    ("biceps",    Vector((0.285, -0.003, 1.335)),  "upperarm",   0.060),
+    ("lowerarm",  Vector((0.415,  0.000, 1.205)),  "biceps",     0.043),
+    ("forearm",   Vector((0.471,  0.000, 1.149)),  "lowerarm",   0.053),
+    ("hand",      Vector((0.601,  0.000, 1.019)),  "forearm",    0.032),
+    ("hand_end",  Vector((0.654,  0.000, 0.966)),  "hand",       0.042),
     # Legs taper inward from hip to ankle, the way a person's do. They used to
     # splay -- ankles wider apart than hips -- which reads as bow-legged from
     # the front and is the first thing wrong with a blockout's stance.
-    ("thigh",    Vector((0.092,  0.000, 0.952)), "pelvis",   0.098),
-    ("calf",     Vector((0.088,  0.000, 0.513)), "thigh",    0.062),
-    ("foot",     Vector((0.082,  0.000, 0.070)), "calf",     0.044),
-    ("ball",     Vector((0.082, -0.150, 0.0207)), "foot",     0.036),
+    ("thigh",     Vector((0.092,  0.000, 0.952)),  "pelvis",     0.100),
+    ("quad",      Vector((0.090,  0.000, 0.776)),  "thigh",      0.090),
+    ("calf",      Vector((0.088,  0.000, 0.513)),  "quad",       0.060),
+    ("calf_belly",Vector((0.087,  0.000, 0.402)),  "calf",       0.066),
+    ("foot",      Vector((0.082,  0.000, 0.070)),  "calf_belly", 0.038),
+    # A foot is a heel, an arch and toes. It was an ankle and a stub, which is
+    # why he stood on two ellipses a third short of a foot's length.
+    ("heel",      Vector((0.082,  0.056, 0.038)),  "foot",       0.038),
+    ("ball",      Vector((0.082, -0.156, 0.0243)), "foot",       0.034),
+    ("toe",       Vector((0.082, -0.212, 0.021)),  "ball",       0.024),
 ]
 
 for _name, _pos, _parent, _r in _LIMB:
@@ -96,6 +114,24 @@ for _name, _pos, _parent, _r in _LIMB:
         J["{}_{}".format(_name, _side)] = (_p, _par, _r)
 
 ORDER = list(J.keys())
+
+# Joints that shape the mesh but are not bones.
+#
+# The skeleton has to stay exactly the UE5 mannequin's or the retarget that
+# makes this model useful stops working -- so anatomy the mannequin has no
+# bone for goes here instead. `build_armature` skips these and parents
+# through them, which is why a bulge in the middle of the upper arm does not
+# become a bone in the middle of the upper arm.
+_SHAPE_BASES = ("biceps", "forearm", "quad", "calf_belly", "heel", "toe")
+SHAPE = {"jaw"} | {"{}_{}".format(b, s) for b in _SHAPE_BASES for s in ("l", "r")}
+
+
+def skeletal_parent(name):
+    """The nearest ancestor of a joint that is a real bone."""
+    parent = J[name][1]
+    while parent is not None and parent in SHAPE:
+        parent = J[parent][1]
+    return parent
 
 
 # ===================================================================== setup
@@ -150,15 +186,27 @@ def build_body():
         layer[i].radius = (r, r)
     layer[index["pelvis"]].use_root = True
 
-    # The torso reads as a slab unless it is wider than it is deep, and the
-    # head wants to be an egg rather than a ball.
+    # Nothing on a person has a round cross-section. The torso is a flattened
+    # oval, the head is an egg, the jaw is wider than it is deep, and a limb
+    # is slightly flattened front to back. Left round, the ribcage came out
+    # 0.134 m deep against a person's 0.225 -- a plank with arms.
     for name, (rx, ry) in {
-        "spine_01": (0.154, 0.104),   # waist: the narrow of the V-taper
-        "spine_02": (0.198, 0.114),   # ribcage
-        "spine_03": (0.232, 0.120),   # the shoulder shelf
-        "clavicle": (0.112, 0.100),   # deltoid, not a coat hanger
-        "pelvis":   (0.150, 0.114),
-        "head":     (0.090, 0.100),
+        "pelvis":     (0.170, 0.140),   # hips carry the width low
+        "spine_01":   (0.150, 0.128),   # waist: the narrow of the V-taper
+        "spine_02":   (0.196, 0.164),   # ribcage, the deepest part of him
+        "spine_03":   (0.228, 0.168),   # the shoulder shelf
+        "clavicle":   (0.112, 0.124),   # deltoid, not a coat hanger
+        "neck_01":    (0.062, 0.070),   # necks are deeper than they are wide
+        "jaw":        (0.078, 0.090),
+        "head":       (0.087, 0.107),
+        "biceps":     (0.060, 0.056),
+        "forearm":    (0.053, 0.048),
+        "hand_end":   (0.042, 0.034),   # a fist is a slab, not a ball
+        "quad":       (0.090, 0.086),
+        "calf_belly": (0.066, 0.060),
+        "heel":       (0.036, 0.042),
+        "ball":       (0.038, 0.030),
+        "toe":        (0.026, 0.020),
     }.items():
         # A bare limb name means both sides.
         targets = [name] if name in index else [name + "_l", name + "_r"]
@@ -199,58 +247,107 @@ def add_material_slots(obj):
 def assign_kit(obj, idx):
     """Kit, painted before subdivision so every seam lands on an edge loop.
 
-    The `ax` guards matter: in the A-pose the hands hang to roughly hip
-    height, so a trouser test on z alone would put the forearms in trousers.
+    Seams on a limb are measured as distance from the joint they hang off,
+    not as a box in x and z. A box cuts a 45-degree arm diagonally, which is
+    where the notch in the old sleeve came from; a distance cuts it square
+    however the arm is posed.
     """
-    shoulder_z = J["upperarm_l"][0].z
+    shoulder = J["upperarm_l"][0]
+    waist_z = 1.082
     for poly in obj.data.polygons:
         c = poly.center
         z, ax = c.z, abs(c.x)
+        # Distance from whichever shoulder is on this side, and from the
+        # neck's own axis -- the second is the collar. A tee covers the
+        # trapezius right up to the neck; cutting it on height alone left a
+        # bare patch of shoulder on each side of his collar.
+        from_shoulder = (c - Vector((math.copysign(shoulder.x, c.x),
+                                     shoulder.y, shoulder.z))).length
+        from_neck = math.hypot(c.x, c.y)
 
-        if ax < 0.22 and z < 0.115:                    # trainers
+        if ax < 0.24 and z < 0.118:                    # trainers
             poly.material_index = idx["shoe"]
-        elif ax < 0.22 and z <= 1.02:                  # long trousers
+        elif ax < 0.24 and z <= waist_z:               # long trousers
             poly.material_index = idx["pants"]
-        elif 1.02 < z <= 1.50 and ax < 0.28:           # tee body
+        elif waist_z < z <= 1.552 and ax < 0.26 and from_neck > 0.058:
+            poly.material_index = idx["tee"]           # tee body and collar
+        elif from_shoulder < 0.175 and ax >= 0.13:     # fitted short sleeve
             poly.material_index = idx["tee"]
-        elif 0.22 <= ax < 0.33 and z > shoulder_z - 0.10:
-            poly.material_index = idx["tee"]           # fitted short sleeve
         else:
             poly.material_index = idx["skin"]
 
 
 def assign_detail(obj, idx):
-    """Waistband, hair and beard -- after subdivision, where polys are fine."""
+    """Trouser stripe, hair and beard -- after subdivision, where polys are fine.
+
+    The waistband is *not* here. It is geometry, added by `add_waistband`,
+    because no face selection can draw a clean belt at that height: the legs
+    branch off the pelvis right there, so the Skin modifier leaves almost no
+    vertices between z 0.99 and 1.05 and the polygons that do cross it are
+    ten centimetres tall. Painting them gave a ragged red block; painting
+    only the ones whose centre landed inside gave a zigzag of diamonds.
+    """
     head = J["head"][0]
-    band_lo, band_hi = 0.995, 1.035
     leg_seam = min(J["thigh_l"][0].x, J["calf_l"][0].x)
+
     for poly in obj.data.polygons:
         c = poly.center
 
-        if band_lo <= c.z <= band_hi and abs(c.x) < 0.20 and abs(c.y) < 0.16:
-            poly.material_index = idx["band"]
-            continue
         # Sportswear stripe down the outer seam of each trouser leg: only the
         # faces that look straight out to the side, so it stays a narrow line.
         # The width test comes off the joint table rather than being a number
         # typed here -- the outer face of a leg is always further out than its
         # joint and the inner face always closer, whatever the legs measure,
         # so re-proportioning him cannot quietly delete the stripe.
-        if (poly.material_index == idx["pants"] and 0.13 < c.z < 0.985
+        if (poly.material_index == idx["pants"] and 0.13 < c.z < 1.02
                 and abs(poly.normal.x) > 0.965 and abs(c.x) > leg_seam):
             poly.material_index = idx["band"]
             continue
-        if c.z < head.z - 0.09:
+        if c.z < head.z - 0.105:
             continue
-        # Ahmed faces -Y, so the face is at -y and the back of the skull at
-        # +y. Both of these used to be the other way round, which put his
-        # hair over his face and his beard on the back of his head -- and,
-        # with the eyes below, his head on backwards.
+        # Ahmed faces -Y: the face is at -y, the back of the skull at +y.
         d = c - head
-        if c.z > head.z + 0.048 or d.y > 0.050:        # crown and back
+        cheek = min(1.0, abs(d.x) / 0.072)
+
+        # Where these two sit is the whole difference between a face and a
+        # mask. The head runs chin 1.575 to crown 1.806, and the thirds fall
+        # nose base / brow / hairline -- so the hairline belongs ABOVE the
+        # brow. It was 15 mm below it, which is why the hair came down over
+        # his eyes like a helmet and left a slot for a bandit mask.
+        # Neither edge is straight, either: a hairline is lower in the middle
+        # than at the temples, a beard runs the other way, up to the sideburn.
+        hair_z = head.z + 0.066 + 0.020 * cheek
+        beard_z = head.z - 0.032 + 0.050 * cheek
+
+        if c.z > hair_z or d.y > 0.050:                # crown and back
             poly.material_index = idx["hair"]
-        elif c.z < head.z - 0.030 and d.y < -0.045:    # jaw and chin
+        elif c.z < beard_z and d.y < 0.020:            # jaw, chin, sideburns
             poly.material_index = idx["beard"]
+
+
+def add_waistband(obj, idx, z_centre=1.062, height=0.026):
+    """The waistband, as a ring of geometry hugging the body.
+
+    Sized from the mesh it is going onto rather than from a number typed
+    here, so it stays a belt if he is ever re-proportioned.
+    """
+    # Torso only. In the A-pose the hands hang to just below the waist, so a
+    # scan on height alone measures the arm span and produces a red rod
+    # through the body and out the wrists.
+    near = [v.co for v in obj.data.vertices
+            if abs(v.co.z - z_centre) < 0.045 and abs(v.co.x) < 0.30]
+    if not near:
+        return
+    hx = max(abs(v.x) for v in near)
+    hy = max(abs(v.y) for v in near)
+
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=32, radius=1.0, depth=height, location=(0.0, 0.0, z_centre))
+    band = bpy.context.object
+    band.scale = (hx + 0.003, hy + 0.003, 1.0)
+    bpy.ops.object.transform_apply(scale=True)
+    bpy.ops.object.shade_smooth()
+    _join_into(obj, band, obj.data.materials[idx["band"]])
 
 
 def _join_into(obj, part, material):
@@ -275,7 +372,7 @@ def add_hair(obj, idx):
     the swept quiff the 2D Ahmed wears.
     """
     head = J["head"][0]
-    thickness, quiff_lift = 0.008, 0.024
+    thickness, quiff_lift = 0.013, 0.026
 
     mesh = bmesh.new()
     mesh.from_mesh(obj.data)
@@ -287,8 +384,12 @@ def add_hair(obj, idx):
         if d.z < -0.075:                       # below the jaw is not head at all
             continue
         # A hairline, not a helmet: high across the brow, low around the back.
-        front = d.y < 0.015
-        if d.z > (0.044 if front else -0.030):
+        # The same hairline `assign_detail` paints, so the geometry and the
+        # colour agree -- otherwise the hair grows off one edge and is
+        # coloured to another, and the join shows as a rim of dark skin.
+        cheek = min(1.0, abs(d.x) / 0.072)
+        limit = (0.066 + 0.020 * cheek) if d.y < 0.015 else -0.030
+        if d.z > limit:
             scalp.append(face)
 
     if not scalp:
@@ -315,13 +416,50 @@ def add_hair(obj, idx):
     obj.data.update()
 
 
+def add_face(obj, idx):
+    """A nose and two brows.
+
+    A head with eyes and nothing else does not read as a face -- it reads as
+    a mask. These are the two features that carry the most for the least: the
+    nose gives the profile a centre line, and the brows give the eyes a top
+    edge, which is most of what makes a face look like it is looking at you.
+    Both are crude on purpose; this is a blockout, not a hero head.
+    """
+    head = J["head"][0]
+
+    # Nose: a wedge set into the face at the nose-base third, tall and narrow
+    # rather than a ball. Big enough to catch the light down one side, small
+    # enough not to read as a snout.
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        radius=0.016, segments=14, ring_count=10,
+        location=(head.x, head.y - 0.080, head.z - 0.026),
+    )
+    nose = bpy.context.object
+    nose.scale = (0.62, 1.20, 1.15)
+    bpy.ops.object.transform_apply(scale=True)
+    bpy.ops.object.shade_smooth()
+    _join_into(obj, nose, obj.data.materials[idx["skin"]])
+
+    # Brows: flattened bars on the brow third, in the hair colour.
+    for sign in (1, -1):
+        bpy.ops.mesh.primitive_uv_sphere_add(
+            radius=0.017, segments=12, ring_count=8,
+            location=(head.x + 0.032 * sign, head.y - 0.086, head.z + 0.016),
+        )
+        brow = bpy.context.object
+        brow.scale = (1.50, 0.40, 0.30)
+        bpy.ops.object.transform_apply(scale=True)
+        bpy.ops.object.shade_smooth()
+        _join_into(obj, brow, obj.data.materials[idx["hair"]])
+
+
 def add_eyes(obj, idx):
     """Two spheres set into the skull -- enough for the head to read as a face."""
     head = J["head"][0]
     for sign in (1, -1):
         bpy.ops.mesh.primitive_uv_sphere_add(
             radius=0.0145, segments=14, ring_count=10,
-            location=(head.x + 0.032 * sign, head.y - 0.080, head.z + 0.020),
+            location=(head.x + 0.032 * sign, head.y - 0.086, head.z - 0.006),
         )
         eye = bpy.context.object
         eye.scale = (1.0, 0.72, 1.0)
@@ -342,13 +480,17 @@ def build_armature():
     bpy.ops.object.mode_set(mode="EDIT")
 
     made = {}
-    # `*_end` joints only give the last real bone somewhere to point.
+    # `*_end` joints only give the last real bone somewhere to point, and
+    # SHAPE joints are mesh, not skeleton -- neither becomes a bone, and a
+    # bone never points its tail at one. Miss the second half and the upper
+    # arm bone ends at the biceps instead of the elbow.
     for name in ORDER:
-        if name.endswith("_end"):
+        if name.endswith("_end") or name in SHAPE:
             continue
-        pos, parent, _ = J[name]
+        pos = J[name][0]
 
-        children = [n for n in ORDER if J[n][1] == name]
+        children = [n for n in ORDER
+                    if n not in SHAPE and skeletal_parent(n) == name]
         if children:
             tail = J[children[0]][0]
         else:
@@ -626,7 +768,9 @@ def main():
     assign_kit(body, slots)          # coarse mesh: seams land on edge loops
     subdivide(body)
     assign_detail(body, slots)       # fine mesh: waistband, hair, beard
+    add_waistband(body, slots)
     add_eyes(body, slots)
+    add_face(body, slots)
     add_hair(body, slots)
     rig = build_armature()
     bind(body, rig)
