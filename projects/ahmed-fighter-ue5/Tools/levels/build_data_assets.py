@@ -21,6 +21,12 @@ What it decides that the CSV cannot:
   The cue tags. Which impact a strike plays is a property of the strike, and
   is derived here from whether it is heavy rather than authored per row.
 
+  The fight styles. DT_Fighters says an archetype's reach, rhythm and move
+  list; a style says what it does with them -- where it stands, how it moves
+  while it waits, and which of its moves is worth throwing from where it is.
+  That is derived here from the same row rather than authored, so the styles
+  cannot drift away from the numbers they came from.
+
 RUN IT INSIDE THE EDITOR, same as build_levels.py:
 
     exec(open(r"<project>/Tools/levels/build_data_assets.py").read())
@@ -146,7 +152,111 @@ def plan_talents():
     return out
 
 
-def describe(attacks, talents):
+# ---------------------------------------------------------------- styles
+#
+# Where each move is worth throwing from, and how likely it is to be the
+# start of something rather than the whole of it.
+#
+# Bands are the move's own property, not the archetype's: a knee is a close-
+# range strike whoever throws it, and an archetype that only knows knees is an
+# archetype that has to get inside to do anything at all. That is what makes
+# a grappler read as a grappler.
+STRIKE_BANDS = {
+    #          bands it can be thrown from       weight  opener chance
+    "Jab":     (["Mid", "Close"],                  1.6,   0.75),
+    "Cross":   (["Mid"],                           1.1,   0.35),
+    "Hook":    (["Mid", "Close"],                  0.9,   0.20),
+    "Kick":    (["Long", "Mid"],                   1.0,   0.15),
+    "Knee":    (["Close"],                         1.2,   0.30),
+    "Special": (["Mid", "Close"],                  0.5,   0.00),
+    "Rage":    (["Mid", "Close"],                  0.5,   0.00),
+}
+
+
+def plan_styles():
+    """One style per enemy archetype, derived from its own row.
+
+    Nothing here is a hand-tuned personality. Each dial is read off numbers
+    the browser project already carries -- reach, rhythm, guard, hit-and-run,
+    speed, boss -- because a style that disagrees with the numbers is a style
+    that makes the fighter feel broken rather than distinct.
+    """
+    out = []
+    for row in read("DT_Fighters.csv"):
+        name = row["Name"]
+        if name == "Ahmed":
+            continue                    # the player is not driven by a style
+
+        moves = [m.strip().strip('"') for m in
+                 row.get("Moves", "").strip("()").split(",") if m.strip()]
+        # A move listed twice is the browser project's way of saying "throw
+        # this one more often". Collapsing the repeat into the weight says
+        # the same thing where the selection can see it.
+        strikes = []
+        for m in moves:
+            if m not in STRIKE_BANDS:
+                raise SystemExit(
+                    "move '%s' (fighter %s) has no range bands. Add it to\n"
+                    "STRIKE_BANDS here and re-run." % (m, name))
+            existing = next((k for k in strikes if k["AttackRow"] == m), None)
+            if existing:
+                existing["Weight"] = round(existing["Weight"] + STRIKE_BANDS[m][1], 2)
+                continue
+            bands, weight, opener = STRIKE_BANDS[m]
+            strikes.append(dict(AttackRow=m, Bands=list(bands),
+                                Weight=weight, OpensCombination=opener))
+        if not strikes:
+            raise SystemExit("fighter '%s' has no moves to build a style from" % name)
+
+        reach = num(row, "PreferredRange", 130)
+        rate = num(row, "AttackInterval", 1.55)
+        speed = num(row, "MoveSpeed", 240)
+        hit_run = truthy(row.get("bHitAndRun"))
+        boss = truthy(row.get("bIsBoss"))
+        health = num(row, "MaxHealth", 46)
+
+        # A fighter that strikes and leaves holds its distance and bounces;
+        # one that does not walks in and stands there. That single flag is
+        # most of the difference between a runner and a bouncer.
+        discipline = 0.9 if hit_run else max(0.15, min(0.85, 1.0 - health / 300.0))
+        has_long = any("Long" in st["Bands"] for st in strikes)
+
+        out.append(dict(
+            asset="DA_Style_%s" % name,
+            DisplayName=row.get("DisplayName", name),
+            # Kickers stand a little further out than their reach suggests,
+            # because a kick thrown from punching distance is a kick that
+            # jams -- which is the mistake the old uniform AI made all night.
+            PreferredRange=round(reach * (1.12 if has_long else 0.95), 1),
+            RangeDiscipline=round(discipline, 2),
+            ResetDistance=round(reach * 2.6, 1) if hit_run else 0.0,
+            # Light and fast bounces; heavy and slow plants its feet.
+            BounceRate=round(min(2.2, speed / 260.0), 2) if speed > 260 else 0.0,
+            BounceAmplitude=round(reach * 0.22, 1) if speed > 260 else 0.0,
+            # Faster feet circle more; a wall of a fighter barely does.
+            CircleTendency=round(max(0.05, min(0.8, (speed - 200) / 260.0)), 2),
+            CircleSwitchTime=round(max(0.8, 4.0 - speed / 130.0), 2),
+            Strikes=strikes,
+            AttackInterval=rate if rate > 0 else 1.55,
+            # A slow archetype telegraphs; the jitter is what stops the fast
+            # ones from reading as a metronome.
+            RhythmJitter=round(max(0.15, min(0.45, 0.55 - rate * 0.12)), 2),
+            MaxComboLength=3 if boss else (2 if len(strikes) > 2 else 1),
+            GuardChance=num(row, "GuardChance", 0.12),
+            # Anything that closes behind a guard rather than waiting behind
+            # one: the heavies, and the bosses.
+            bGuardsWhileAdvancing=bool(boss or health >= 90),
+            # Answering back straight away is the brawler's habit, not the
+            # careful fighter's -- so it falls as guard rises.
+            CounterChance=round(max(0.05, min(0.55,
+                0.40 - num(row, "GuardChance", 0.12) * 0.5)), 2),
+            Notes="Generated from DT_Fighters row '%s'. Edit the browser "
+                  "project, re-export, re-run." % name,
+        ))
+    return out
+
+
+def describe(attacks, talents, styles):
     print("\n%s/  — %d attacks" % (OUT, len(attacks)))
     for a in attacks:
         print("   %-22s %-28s dmg %-5s reach %-5s %s%s"
@@ -157,8 +267,18 @@ def describe(attacks, talents):
         engine = "  (engine only)" if t["asset"].endswith(("Jump", "Climb")) else ""
         print("   %-22s %-26s %s%s" % (t["asset"], t["TalentTag"], t["DisplayName"], engine))
 
+    print("\n%s/  — %d fight styles" % (OUT, len(styles)))
+    for st in styles:
+        print("   %-22s range %-6s discipline %-5s bounce %-5s circle %-5s combo %d"
+              % (st["asset"], st["PreferredRange"], st["RangeDiscipline"],
+                 st["BounceRate"], st["CircleTendency"], st["MaxComboLength"]))
+        for k in st["Strikes"]:
+            print("        %-10s %-22s w %-5s opener %s"
+                  % (k["AttackRow"], "/".join(k["Bands"]), k["Weight"],
+                     k["OpensCombination"]))
 
-def build(attacks, talents):
+
+def build(attacks, talents, styles):
     import unreal  # noqa: E402
 
     EAL = unreal.EditorAssetLibrary
@@ -196,8 +316,35 @@ def build(attacks, talents):
         asset.set_editor_property("mana_cost", float(t["ManaCost"]))
         EAL.save_asset("%s/%s" % (OUT, t["asset"]))
 
-    unreal.log("Built %d attack and %d talent assets into %s"
-               % (len(attacks), len(talents), OUT))
+    BAND = dict(Out=unreal.RangeBand.OUT, Long=unreal.RangeBand.LONG,
+                Mid=unreal.RangeBand.MID, Close=unreal.RangeBand.CLOSE)
+
+    for st in styles:
+        asset = make(st["asset"], unreal.AhmedFightStyleData)
+        asset.set_editor_property("display_name", unreal.Text(st["DisplayName"]))
+        asset.set_editor_property("notes", st["Notes"])
+        for key in ("PreferredRange", "RangeDiscipline", "ResetDistance",
+                    "BounceRate", "BounceAmplitude", "CircleTendency",
+                    "CircleSwitchTime", "AttackInterval", "RhythmJitter",
+                    "GuardChance", "CounterChance"):
+            asset.set_editor_property(_snake(key), float(st[key]))
+        asset.set_editor_property("max_combo_length", int(st["MaxComboLength"]))
+        asset.set_editor_property("b_guards_while_advancing",
+                                  bool(st["bGuardsWhileAdvancing"]))
+
+        strikes = []
+        for k in st["Strikes"]:
+            strike = unreal.StyleStrike()
+            strike.set_editor_property("attack_row", unreal.Name(k["AttackRow"]))
+            strike.set_editor_property("bands", [BAND[b] for b in k["Bands"]])
+            strike.set_editor_property("weight", float(k["Weight"]))
+            strike.set_editor_property("opens_combination", float(k["OpensCombination"]))
+            strikes.append(strike)
+        asset.set_editor_property("strikes", strikes)
+        EAL.save_asset("%s/%s" % (OUT, st["asset"]))
+
+    unreal.log("Built %d attack, %d talent and %d style assets into %s"
+               % (len(attacks), len(talents), len(styles), OUT))
 
 
 def _snake(name):
@@ -212,10 +359,11 @@ def _snake(name):
 if __name__ == "__main__" or True:
     _attacks = plan_attacks()
     _talents = plan_talents()
+    _styles = plan_styles()
     try:
         import unreal  # noqa: F401
-        build(_attacks, _talents)
+        build(_attacks, _talents, _styles)
     except ImportError:
-        describe(_attacks, _talents)
+        describe(_attacks, _talents, _styles)
         print("\n%d assets planned. Run inside the Unreal editor to build them."
-              % (len(_attacks) + len(_talents)))
+              % (len(_attacks) + len(_talents) + len(_styles)))

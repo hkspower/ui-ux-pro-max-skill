@@ -5,6 +5,7 @@
 #include "EnemyFighter.generated.h"
 
 class AAhmedCharacter;
+class UFightStyleComponent;
 
 /**
  * Enemy AI, ported from the browser build's flanking behaviour.
@@ -52,6 +53,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Arena")
 	void SetArenaBounds(float InMinX, float InMaxX);
 
+	/** How this one fights. When the archetype names a style asset this takes
+	    over the decisions entirely and TickAI below never runs; when it does
+	    not, the component is inert and nothing changes. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+	TObjectPtr<UFightStyleComponent> FightStyle = nullptr;
+
 protected:
 	virtual void GatherTargets(TArray<AFighterBase*>& OutTargets) const override;
 	virtual void OnKnockedDown() override;
@@ -60,6 +67,10 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Fighter", meta = (DisplayName = "On Enraged"))
 	void BP_OnEnraged();
 
+	virtual void OnHitLanded(AFighterBase* Victim, const FHitResultData& Hit) override;
+
+	/** The plain AI: close, and swing at random. Used only by archetypes with
+	    no fight style asset. */
 	void TickAI(float DeltaSeconds, AAhmedCharacter* Player);
 	void EnterPhaseTwo();
 

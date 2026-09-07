@@ -2,6 +2,7 @@
 #include "Game/AhmedAudioSubsystem.h"
 
 #include "Combat/AhmedCharacter.h"
+#include "Combat/FightStyleComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -11,6 +12,11 @@ AEnemyFighter::AEnemyFighter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	AutoPossessAI = EAutoPossessAI::Disabled;	// the behaviour lives here, not in a controller
+
+	// Made here rather than in Blueprint so every enemy in the game has one
+	// whatever it was spawned from. It stays inert until an archetype hands
+	// it a style.
+	FightStyle = CreateDefaultSubobject<UFightStyleComponent>(TEXT("FightStyle"));
 }
 
 void AEnemyFighter::ConfigureFromDefinition(const FFighterDef& Def, int32 Tier,
@@ -30,6 +36,14 @@ void AEnemyFighter::ConfigureFromDefinition(const FFighterDef& Def, int32 Tier,
 	bResistsKnockdown = Def.bIsBoss;
 	ExperienceValue  = Def.ExperienceValue;
 	Moves            = Def.Moves;
+
+	// The style is what makes this archetype fight like itself rather than
+	// like every other archetype. Loaded synchronously because the fighter is
+	// about to walk on screen and start deciding things.
+	if (FightStyle && !Def.FightStyle.IsNull())
+	{
+		FightStyle->Style = Def.FightStyle.LoadSynchronous();
+	}
 
 	// Enemies are not stamina limited — that budget is the player's problem.
 	MaxStamina = Stamina = 9999.f;
@@ -69,10 +83,16 @@ void AEnemyFighter::Tick(float DeltaSeconds)
 		EnterPhaseTwo();
 	}
 
-	AAhmedCharacter* Player = Cast<AAhmedCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
-	if (Player && IsAlive() && !IsBusy())
+	// One or the other decides, never both: a styled fighter would otherwise
+	// be pulled towards its flank spot by the old AI while the style tried to
+	// hold its range, and the two would cancel out into a shuffle.
+	if (!FightStyle || !FightStyle->IsDriving())
 	{
-		TickAI(DeltaSeconds, Player);
+		AAhmedCharacter* Player = Cast<AAhmedCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
+		if (Player && IsAlive() && !IsBusy())
+		{
+			TickAI(DeltaSeconds, Player);
+		}
 	}
 
 	FVector Loc = GetActorLocation();
@@ -92,8 +112,20 @@ void AEnemyFighter::EnterPhaseTwo()
 	{
 		Move->MaxWalkSpeed *= 1.20f;
 	}
-	// Phase two earns the finisher.
-	Moves.AddUnique(TEXT("Rage"));
+	// Phase two earns the finisher, and hurries whichever brain is driving.
+	// The row is "Special": there has never been a "Rage" row in the attack
+	// table, so the old name resolved to nothing and an enraged boss simply
+	// logged a warning every time it tried to throw it.
+	Moves.AddUnique(TEXT("Special"));
+	if (FightStyle)
+	{
+		FStyleStrike Finisher;
+		Finisher.AttackRow = TEXT("Special");
+		Finisher.Bands = { ERangeBand::Mid, ERangeBand::Close };
+		Finisher.Weight = 0.8f;
+		FightStyle->AddStrike(Finisher);
+		FightStyle->Haste = 1.f / 0.70f;
+	}
 	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->Play(TEXT("Boss_Enrage"), this); }
 	BP_OnEnraged();
 }
@@ -183,6 +215,16 @@ void AEnemyFighter::TickAI(float DeltaSeconds, AAhmedCharacter* Player)
 	else if (State == EFighterState::Walk)
 	{
 		State = EFighterState::Idle;
+	}
+}
+
+void AEnemyFighter::OnHitLanded(AFighterBase* Victim, const FHitResultData& Hit)
+{
+	// Whether the swing connected is the difference between pressing the
+	// combination and paying for a miss, and only the hit resolution knows.
+	if (FightStyle)
+	{
+		FightStyle->NotifyHitLanded();
 	}
 }
 

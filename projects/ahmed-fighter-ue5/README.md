@@ -22,6 +22,7 @@ today. This is the engine port, not a replacement for it.
 | Shared combat | `AFighterBase` | startup/active/recovery attacks, health, stamina, blocking, knockdown, hit resolution |
 | Player | `AAhmedCharacter` | jab→cross→hook chain, dodge dash, perfect parry, rage meter and finisher, upgrade scaling |
 | Enemy AI | `AEnemyFighter` | flanking lanes, attack tokens, hit-and-run, boss phase two |
+| Fight styles | `UFightStyleComponent` + `UAhmedFightStyleData` | range discipline, footwork, range-banded strike selection, reactions |
 | Stage flow | `AWaveDirector` | wave triggers, arena lock, spawning, survival wave generation |
 | Sealed routes | `AAbilityGate` | ledge/gap/shutter/wall, strike-family matching, persistence |
 | Profile | `UAhmedGameInstance` + `UAhmedSaveGame` | XP, upgrades, abilities, opened gates, ranks, difficulty, stats |
@@ -364,6 +365,51 @@ assets/*.js ──(export.mjs)──> Content/Data/*.csv ──(build_data_asset
 and prints its plan outside it. An attack with no tag mapping is a **hard stop**
 rather than an untagged asset, because an untagged attack is one no gate will
 ever accept and that failure is invisible until someone cannot break a wall.
+
+### Fight styles
+
+Every archetype used to fight identically. `AEnemyFighter::TickAI` did one
+thing whoever was running it — hold a flank, close to a fixed distance, and
+throw `Moves[FMath::RandRange(0, Moves.Num() - 1)]` — so a kickboxer and a
+grappler differed only in how much health each had. The numbers were never
+the thing telling them apart.
+
+`UFightStyleComponent` asks four questions instead, and a style answers all
+four differently:
+
+| Question | Dial | What it does to the fight |
+| --- | --- | --- |
+| Where does it want to stand? | `PreferredRange`, `RangeDiscipline`, `ResetDistance` | a range fighter resets constantly; a pressure fighter walks in and stays |
+| How does it get there? | `BounceRate`, `BounceAmplitude`, `CircleTendency`, `CircleSwitchTime` | most of what a style looks like before anyone throws anything |
+| What does it throw? | `Strikes`, each with its range bands and weight | a boxer has **no answer at long range**, and that absence is what makes him close |
+| What does it do after? | `CounterChance`, `MaxComboLength`, whiff and reset handling | answering back is a decision, not a reflex |
+
+Range bands are fractions of the style's *own* reach (`0.55` / `1.05` / `1.85`
+× `PreferredRange`), because "close" means something different to a lanky
+kickboxer than to a squat grappler; an absolute threshold would leave the tall
+fighter with no mid range at all. Strike weights are normalised across
+whatever is legal at that instant, so removing a strike from a style never
+means re-tuning the others.
+
+The styles are **generated per archetype** by `build_data_assets.py`, from the
+same `DT_Fighters` row the fighter's numbers come from — reach, rhythm, guard,
+hit-and-run, speed, boss — so a style cannot drift away from the archetype it
+belongs to, and a fighter added to the browser project gets one without anyone
+linking it by hand. What that produces today:
+
+```
+Grappler   nothing at long, hooks at mid, 74% knees in close, flat-footed
+Kicker     kicks at long, kicks and punches at mid, punches only in close
+Runner     jabs, holds its distance, bounces hardest of anything in the game
+Bouncer    plants its feet, barely circles, hooks and knees, no combinations
+Boss       an answer at every band, three-strike combinations, walks straight in
+```
+
+A fighter throws through `AFighterBase::StartAttack`, the same door the old AI
+used, so a style can only ever do what an enemy could already do — it decides,
+it does not add reach or damage or moves. Without a style asset the component
+is inert and `TickAI` runs unchanged, which is what keeps an unconfigured
+enemy working.
 
 ### Two names for a talent
 

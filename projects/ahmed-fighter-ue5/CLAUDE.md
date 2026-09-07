@@ -63,6 +63,13 @@ anything to this project:
   attribute set is the one place that decides what a damage number means.
 - **A talent added to `EAbility` must be added to the tag bridge** in
   `AhmedTypes.cpp`, and vice versa. They are the same fact in two languages.
+- **How an enemy fights is a style, not a branch.** `UAhmedFightStyleData`
+  answers where it stands, how it moves, what it throws from where it is, and
+  what it does after. If you find yourself giving one archetype a special case
+  in a tick function, the thing you are reaching for is a dial on its style.
+  The styles are generated from `DT_Fighters` by `build_data_assets.py`; do not
+  hand-author one, and do not write to a style asset at runtime — it is shared
+  by every fighter of that archetype for the rest of the session.
 
 ## Working rules
 

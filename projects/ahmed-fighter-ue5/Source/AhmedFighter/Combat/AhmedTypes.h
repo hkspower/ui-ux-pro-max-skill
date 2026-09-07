@@ -5,6 +5,7 @@
 #include "GameplayTagContainer.h"
 #include "AhmedTypes.generated.h"
 
+class UAhmedFightStyleData;
 class UAnimMontage;
 class UStaticMesh;
 class UWorld;
@@ -195,6 +196,13 @@ struct FFighterDef : public FTableRowBase
 	/** Row names into the attack table. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI")
 	TArray<FName> Moves;
+
+	/** How it fights, as opposed to how hard it hits. Without one the fighter
+	    falls back to the plain close-and-swing AI, which is what every
+	    archetype used to do. Generated per archetype by
+	    Tools/levels/build_data_assets.py. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI")
+	TSoftObjectPtr<UAhmedFightStyleData> FightStyle;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
 	TSoftClassPtr<AActor> PawnClass;

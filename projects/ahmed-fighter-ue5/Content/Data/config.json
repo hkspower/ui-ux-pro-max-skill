@@ -106,7 +106,8 @@
         "Hook",
         "Kick",
         "Knee"
-      ]
+      ],
+      "FightStyle": ""
     },
     {
       "Name": "Thug",
@@ -124,7 +125,8 @@
       "Moves": [
         "Jab",
         "Cross"
-      ]
+      ],
+      "FightStyle": "/Game/Data/Generated/DA_Style_Thug.DA_Style_Thug"
     },
     {
       "Name": "Brawler",
@@ -143,7 +145,8 @@
         "Jab",
         "Cross",
         "Hook"
-      ]
+      ],
+      "FightStyle": "/Game/Data/Generated/DA_Style_Brawler.DA_Style_Brawler"
     },
     {
       "Name": "Kicker",
@@ -163,7 +166,8 @@
         "Jab",
         "Kick",
         "Cross"
-      ]
+      ],
+      "FightStyle": "/Game/Data/Generated/DA_Style_Kicker.DA_Style_Kicker"
     },
     {
       "Name": "Grappler",
@@ -182,7 +186,8 @@
         "Knee",
         "Hook",
         "Knee"
-      ]
+      ],
+      "FightStyle": "/Game/Data/Generated/DA_Style_Grappler.DA_Style_Grappler"
     },
     {
       "Name": "Champ",
@@ -203,7 +208,8 @@
         "Kick",
         "Hook",
         "Knee"
-      ]
+      ],
+      "FightStyle": "/Game/Data/Generated/DA_Style_Champ.DA_Style_Champ"
     },
     {
       "Name": "Runner",
@@ -222,7 +228,8 @@
         "Jab",
         "Jab",
         "Cross"
-      ]
+      ],
+      "FightStyle": "/Game/Data/Generated/DA_Style_Runner.DA_Style_Runner"
     },
     {
       "Name": "Bouncer",
@@ -241,7 +248,8 @@
         "Hook",
         "Knee",
         "Hook"
-      ]
+      ],
+      "FightStyle": "/Game/Data/Generated/DA_Style_Bouncer.DA_Style_Bouncer"
     },
     {
       "Name": "Capo",
@@ -262,7 +270,8 @@
         "Hook",
         "Jab",
         "Kick"
-      ]
+      ],
+      "FightStyle": "/Game/Data/Generated/DA_Style_Capo.DA_Style_Capo"
     },
     {
       "Name": "Boss",
@@ -283,7 +292,8 @@
         "Hook",
         "Kick",
         "Knee"
-      ]
+      ],
+      "FightStyle": "/Game/Data/Generated/DA_Style_Boss.DA_Style_Boss"
     },
     {
       "Name": "Saqr",
@@ -304,7 +314,8 @@
         "Kick",
         "Cross",
         "Knee"
-      ]
+      ],
+      "FightStyle": "/Game/Data/Generated/DA_Style_Saqr.DA_Style_Saqr"
     }
   ],
   "Talents": [
@@ -1528,6 +1539,6 @@
     "UpgradeMaxLevel": 5,
     "LevelMax": 20
   },
-  "Revision": "93b55e1776a3b6bc",
-  "GeneratedAt": "2026-09-06T21:31:19.924Z"
+  "Revision": "bcfb41fa4d0c9eac",
+  "GeneratedAt": "2026-09-07T00:48:50.376Z"
 }

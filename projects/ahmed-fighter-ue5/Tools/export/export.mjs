@@ -128,7 +128,7 @@ function attacks(A){
 function fighters(A){
   const header = ['Name','DisplayName','DisplayNameArabic','MaxHealth','PowerMultiplier',
                   'MoveSpeed','PreferredRange','AttackInterval','GuardChance',
-                  'bHitAndRun','bIsBoss','ExperienceValue','Moves'];
+                  'bHitAndRun','bIsBoss','ExperienceValue','Moves','FightStyle'];
   const rows = [];
 
   // Ahmed himself, so the table is the whole roster rather than the enemies
@@ -136,7 +136,7 @@ function fighters(A){
   const P = A.ahmed;
   rows.push(['Ahmed', P.name, P.ar, P.base.hp, P.base.pow, cm(P.base.spd),
              cm(P.base.reach), 0, 0, false, false, 0,
-             nameArray(['Jab','Cross','Hook','Kick','Knee'])]);
+             nameArray(['Jab','Cross','Hook','Kick','Knee']), '']);
 
   for(const [k, e] of Object.entries(A.enemies)){
     const moves = (e.moves || []).map(pascal);
@@ -144,10 +144,18 @@ function fighters(A){
     if(unknown.length) die(`${k} uses moves not in hits.js: ${unknown}`);
     rows.push([pascal(k), e.name, e.ar, e.hp, e.pow, cm(e.spd), cm(e.reach),
                e.rate, guardChanceFor(e), !!e.hitRun, isBoss(k, e), e.xp,
-               nameArray(moves)]);
+               nameArray(moves), styleAsset(pascal(k))]);
   }
   return csv(header, rows);
 }
+/* Points every archetype at the style asset build_data_assets.py generates
+   for it. Both sides derive the name from the same roster, so a fighter added
+   to the browser project gets a style without anyone linking one by hand --
+   and Ahmed gets none, because the player is not driven by one. */
+function styleAsset(name){
+  return `/Game/Data/Generated/DA_Style_${name}.DA_Style_${name}`;
+}
+
 /* The browser has no guard chance -- enemies block as a function of their
    archetype. Rather than invent a field the panel does not edit, it is
    derived: heavier, slower archetypes guard more. */
