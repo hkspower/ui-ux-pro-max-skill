@@ -228,10 +228,21 @@ worse than one that says where it stops:
   The solver (`TwoBoneIK.Solve`), the strike timeline, the stance map and the
   guard's geometry are pure and are executed under Mono: ten thousand random
   targets land within a millimetre, the joint always bends toward its pole,
-  every attack row is at full reach for its whole active window and back at
-  rest by the end of recovery, orthodox resolves to exactly the sides that
-  shipped before and southpaw to their mirror, and the raised guard sits above
-  the shoulder, in front, symmetric, and at 46% of the arm's reach.
+  a target inside the limb's fold radius folds it double instead of throwing
+  the joint away, every attack row is at full reach for its whole active
+  window and back at rest by the end of recovery, orthodox resolves to exactly
+  the sides that shipped before and southpaw to their mirror, and the raised
+  guard sits above the shoulder, in front, symmetric, and at 46% of the arm's
+  reach.
+
+  The stub those tests run against is checked too, because a stub whose maths
+  lies turns every one of them into a test of the stub. Four thousand random
+  cases of its quaternion and vector algebra are recomputed independently in
+  numpy through rotation matrices — a different formulation from the stub's
+  vector-form quaternion product — and agree to about 1e-7, with
+  `AngleAxis(90, up) * forward == +X` and `Cross(up, forward) == +X` pinning
+  it to Unity's left-handed convention. What no substitute reaches: Transform,
+  Physics and the frame loop. Those need the editor.
   The part that turns the answer into bone rotations, the foot ray and the
   script order behind `LateUpdate` have not been seen in an editor. A Humanoid
   avatar and real animation are still the editor job they were.

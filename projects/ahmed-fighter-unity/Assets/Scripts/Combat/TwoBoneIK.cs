@@ -30,6 +30,13 @@ namespace Ahmed.Combat
         /// plane the pole picks. A target beyond reach straightens the limb
         /// toward it; a target at the root falls back to the chain's current
         /// direction, so nothing divides by zero and nothing snaps.
+        ///
+        /// A limb cannot reach everything inside its own span either. Points
+        /// closer to the root than |a - b| are in a dead sphere no fold can
+        /// touch, and there the law of cosines has no answer: x runs away as
+        /// d goes to zero and the joint leaves the model. Those targets are
+        /// pulled out to the edge of that sphere first, which is the nearest
+        /// point the limb can actually hold, and the limb folds double.
         /// </summary>
         public static void Solve(Vector3 root, Vector3 mid, Vector3 end, Vector3 target, Vector3 pole,
                                  out Vector3 newMid, out Vector3 newEnd)
@@ -70,6 +77,17 @@ namespace Ahmed.Combat
                 newMid = root + axis * upper;
                 newEnd = root + axis * reach;
                 return;
+            }
+
+            // Inside the fold radius nothing is reachable, so aim at the
+            // closest point that is. Without this, a target on top of the
+            // root sent the joint hundreds of metres away rather than folding
+            // the limb: no NaN, no exception, just a leg pointing at nothing.
+            float inner = Mathf.Abs(upper - lower);
+            if (dist < inner + Epsilon)
+            {
+                dist = inner + Epsilon;
+                target = root + axis * dist;
             }
 
             float x = (upper * upper - lower * lower + dist * dist) / (2f * dist);
