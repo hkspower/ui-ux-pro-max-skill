@@ -6,7 +6,11 @@ is the Unreal port of the same thing.
 
 **Status: it is an open world you can walk around, fight in, and come back to.** Nine
 districts, 131 to 260 metres a side, joined by the world graph's own eighteen
-links — ten of which want a talent you have to find. Combat, the fight styles,
+links — ten of which want a talent you have to find — and since 2026-09-10
+each district is **three floors**: a cellar under it, the street, and the
+roofs above, joined by stairs and ladders inside the district. ZAYOS, the
+first title fight, is in the cellar under the striking house. The game has
+music now, one loop per floor and one for the title fights. Combat, the fight styles,
 the encounters, the gates, the whole data pipeline, Ahmed's own mesh and the
 game's thirty-nine sound effects are ported. Saving, the HUD and the districts'
 art are not. See **What is not here yet** at the bottom — that list is the
@@ -38,6 +42,7 @@ project opens and plays in a bare Unity install:
 | | |
 | --- | --- |
 | Move | WASD / arrows — **relative to the camera**, not the world |
+| Floors | walk into a stairhead (the tall marker) — down for nothing, up once you have VAULT |
 | Swing the camera | Q / E |
 | Punch | Fire1 (left mouse / left ctrl) — jab → cross → hook if you keep it going |
 | Kick | Fire2 (right mouse / left alt) — a knee inside, a roundhouse outside |
@@ -55,8 +60,9 @@ project opens and plays in a bare Unity install:
 | Player | `PlayerFighter` | jab→cross→hook chain, dodge dash, perfect parry, rage meter and finisher |
 | Enemy | `EnemyFighter` | flanking lanes, attack tokens, hit-and-run, boss phase two |
 | Fight styles | `FightStyleRunner` | range discipline, footwork, range-banded strike selection, reactions |
-| The world | `DistrictRuntime` | builds a district, wakes encounters by proximity, hands out gates, carries you across to the next |
-| District layout | `District` | derives an open field from the stage that used to be a corridor |
+| The world | `DistrictRuntime` | builds a district on its three floors, wakes encounters by proximity on the floor you are on, hands out gates, takes you up and down the shafts, carries you across to the next district |
+| District layout | `District` | derives an open field from the stage that used to be a corridor, and its cellar and roofs from `strata.json` |
+| Music | `MusicDirector` | one loop at a time, crossfaded: the floor's own, or the title fight's while one is live |
 | What the world remembers | `WorldState` | cleared encounters, opened gates, talents found |
 | Crowd control | `CrowdControl` | at most two enemies swinging at once, everywhere in the world |
 | Camera | `FollowCamera` | trails the player at a yaw you can swing |
@@ -118,6 +124,42 @@ district.
 | per area | 77 × 8.4 m | 131 to 260 m a side |
 | reachable with no talents | — | 4 of 9 districts |
 | reachable with all five | — | 9 of 9 |
+| floors | 1 | **3** — 1,329,500 m² on all of them |
+
+### Three floors
+
+Every district has a cellar and roofs. This is the world getting bigger
+*inside* the wheel — the one direction the canon allows — and nothing about
+the ring changes: no floor has a way out of its district, the only route
+between districts is still the street, and the ring's own "after this area
+is cleared" gates still read the street, so clearing a district still means
+clearing its street.
+
+A floor is **derived from its street** the way the district was derived from
+its stage: the same waves, one tier deeper underground, with a cache of XP
+where the street had its gate — so eighteen new fields did not mean
+re-tuning the game. The rule is data (`../ahmed-fighter/assets/strata.js`)
+and so is the one floor authored by hand: the cellar under the striking
+house, two fights and then **ZAYOS**. A street wave with a boss in it is never
+copied to a floor; a title fight happens once.
+
+Floors are separate fields at their own height (−12 m, 0, +13.9 m). The
+runtime only measures against sites on the floor Ahmed is standing on, so a
+fight in the cellar does not wake because he walked over it on the street,
+and a fight he leaves by the stairs goes back to sleep like one he walks
+away from. Each floor's spiral has its own phase, so the cellar is not the
+street traced onto a lower slab — checked. The stairs come in pairs, one end
+on each floor at the same x and z, placed where they are clear of every
+fight on both floors — the first version put three cellars' stairs inside an
+ambush's wake radius, and the test caught it. Stairs down want nothing;
+ladders up want VAULT, the first talent, so the roofs open the moment the
+striking house teaches him to climb.
+
+ZAYOS is the roster's `zayos` row, exported like everyone else, with one new
+column: `scale`. The port has one body and scales it — mesh and controller
+together — so he is 1.55 of a man to the collision system as well as to the
+eye. His gloves are not modelled: the mesh generator has no kit system yet,
+so he is Ahmed's body, larger, until the character work gives it one.
 
 > **The districts are as large as the content can fill.** Each carries the
 > three waves and one gate its stage had, which is sparse across 250 metres.
@@ -140,6 +182,11 @@ else.**
 ```
 ../ahmed-fighter/assets/*.js ──(Tools/export/export.mjs)──> Assets/Resources/Data/*.json
 ```
+
+`strata.json` is the floors: derived by the exporter from `strata.js` and the
+stages, eighteen rows, two per district. `Tools/harness/gen-testdata.mjs`
+writes the harness fixture from the exported tables — run it after an
+export, or the tests run against yesterday's world.
 
 `sounds.json` is the one table that does not come from the browser build — it
 has no audio at all. Its rows come from `../ahmed-fighter-ue5/Content/Data/
@@ -199,7 +246,7 @@ Boss       an answer at every band, three-strike combinations, walks in
 Named rather than glossed, because a half-ported game that reads as finished is
 worse than one that says where it stops:
 
-- **No district art.** A flat slab and a cylinder per site. The nine areas'
+- **No district art.** A flat slab per floor and a cylinder per site. The nine areas'
   looks, backdrops and props are not ported, and every district is the same
   grey square.
 - **No level ladder.** XP is spent at the hub now, but the rank titles in
@@ -249,6 +296,11 @@ worse than one that says where it stops:
   The part that turns the answer into bone rotations, the foot ray and the
   script order behind `LateUpdate` have not been seen in an editor. A Humanoid
   avatar and real animation are still the editor job they were.
+- **The music has never been heard.** Four loops, made with ElevenLabs
+  Music v2 and cut in an environment with no audio output; the seams
+  measure clean and the levels match, and that is all anyone knows about
+  them. See `../ahmed-fighter-ue5/Content/Audio/README.md`. `Music_Menu`
+  has no file; this build has no menu.
 - **Twenty of the thirty-nine sounds are never fired.** Every cue resolves to a
   real clip, and the nineteen the port can actually reach are wired. The rest
   belong to systems that are not ported: weapons, pickups, breakable crates and

@@ -316,6 +316,28 @@
         "Knee"
       ],
       "FightStyle": "/Game/Data/Generated/DA_Style_Saqr.DA_Style_Saqr"
+    },
+    {
+      "Name": "Zayos",
+      "DisplayName": "ZAYOS",
+      "DisplayNameArabic": "زايوس",
+      "MaxHealth": 300,
+      "PowerMultiplier": 1.35,
+      "MoveSpeed": 259,
+      "PreferredRange": 187,
+      "AttackInterval": 1.15,
+      "GuardChance": 0.42,
+      "bHitAndRun": false,
+      "bIsBoss": true,
+      "ExperienceValue": 130,
+      "Moves": [
+        "Jab",
+        "Cross",
+        "Hook",
+        "Hook",
+        "Cross"
+      ],
+      "FightStyle": "/Game/Data/Generated/DA_Style_Zayos.DA_Style_Zayos"
     }
   ],
   "Talents": [
@@ -1559,6 +1581,6 @@
     "UpgradeMaxLevel": 5,
     "LevelMax": 20
   },
-  "Revision": "87205e3867fcdb2b",
-  "GeneratedAt": "2026-09-09T05:55:50.430Z"
+  "Revision": "70fdd9e9131ebc94",
+  "GeneratedAt": "2026-09-09T22:12:28.084Z"
 }

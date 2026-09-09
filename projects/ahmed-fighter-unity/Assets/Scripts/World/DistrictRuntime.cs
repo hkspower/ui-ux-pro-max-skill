@@ -37,6 +37,15 @@ namespace Ahmed.World
         /// watches this; nothing else in the world cares.</summary>
         public bool InHub { get; private set; }
 
+        /// <summary>Which floor Ahmed is on: -1 the cellar, 0 the street,
+        /// +1 the roofs. Read off his height every frame, so a fall or a
+        /// shaft both count.</summary>
+        public int CurrentLevel { get; private set; }
+
+        /// <summary>The encounter whose title fight is live, or -1. The music
+        /// follows it.</summary>
+        private int _bossSite = -1;
+
         private readonly List<GameObject> _scenery = new List<GameObject>();
         private readonly Dictionary<int, List<EnemyFighter>> _liveBySite =
             new Dictionary<int, List<EnemyFighter>>();
@@ -59,7 +68,7 @@ namespace Ahmed.World
 
             WorldArea area = GameData.Area(areaIndex);
             StageRow stage = GameData.Stage(areaIndex);
-            District = District.Build(areaIndex, area, stage);
+            District = District.Build(areaIndex, area, stage, GameData.Strata(areaIndex));
             WorldState.CurrentArea = areaIndex;
 
             BuildScenery();
@@ -68,13 +77,25 @@ namespace Ahmed.World
             if (player != null)
             {
                 player.Bounds = District.Bounds;
-                player.transform.position = District.Bounds.Inset(4f).Clamp(arriveAt);
+                player.Teleport(District.Bounds.Inset(4f).Clamp(arriveAt));
+                CurrentLevel = District.LevelAt(arriveAt.y);
             }
             _exitCooldown = 0.75f;      // do not bounce straight back out again
+            _bossSite = -1;
+            PlayMusicForFloor();
 
             Debug.Log("[Ahmed] " + District.DisplayName + " — "
                 + (District.Extent * 2f).ToString("0") + " m across, "
+                + District.Floors.Count + " floors, "
                 + District.Sites.Count + " sites");
+        }
+
+        /// <summary>The floor's own loop, unless a title fight is on.</summary>
+        private void PlayMusicForFloor()
+        {
+            Game.MusicDirector music = Game.MusicDirector.Current;
+            if (music == null) { return; }
+            music.Play(_bossSite >= 0 ? "Music_Boss" : Game.MusicDirector.CueForLevel(CurrentLevel));
         }
 
         private void Unload()
@@ -90,6 +111,7 @@ namespace Ahmed.World
             _awake.Clear();
             _refusing.Clear();
             InHub = false;
+            _bossSite = -1;
             // Bodies that no longer exist must not hold an attack token
             // against the next fight.
             CrowdControl.Clear();
@@ -110,11 +132,17 @@ namespace Ahmed.World
         {
             float side = District.Extent * 2f;
 
-            GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            ground.name = "Ground " + District.Name;
-            ground.transform.position = new Vector3(0f, -0.5f, 0f);
-            ground.transform.localScale = new Vector3(side, 1f, side);
-            _scenery.Add(ground);
+            // One slab per floor. The cellar's and the roofs' are the street's
+            // again at their own height; what they look like is district art,
+            // which is not here yet, and this is the shape of them.
+            foreach (KeyValuePair<int, float> floor in District.Floors)
+            {
+                GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                ground.name = "Ground " + District.Name + " " + floor.Key;
+                ground.transform.position = new Vector3(0f, floor.Value - 0.5f, 0f);
+                ground.transform.localScale = new Vector3(side, 1f, side);
+                _scenery.Add(ground);
+            }
 
             for (int i = 0; i < District.Sites.Count; i++)
             {
@@ -122,11 +150,13 @@ namespace Ahmed.World
                 GameObject marker = GameObject.CreatePrimitive(
                     s.Kind == SiteKind.Exit ? PrimitiveType.Cube : PrimitiveType.Cylinder);
                 marker.name = s.Kind + " " + s.Id;
-                marker.transform.position = s.Position + Vector3.up * 0.6f;
+                marker.transform.position = s.Position + Vector3.up * (s.Kind == SiteKind.Shaft ? 1.5f : 0.6f);
                 marker.transform.localScale = s.Kind == SiteKind.Exit
                     ? new Vector3(3.5f, 2.4f, 1f)
                     : s.Kind == SiteKind.Hub
                         ? new Vector3(s.Radius * 2f, 0.1f, s.Radius * 2f)
+                    : s.Kind == SiteKind.Shaft
+                        ? new Vector3(1.6f, 1.5f, 1.6f)      // a stairhead, tall enough to see
                         : new Vector3(1.2f, 0.6f, 1.2f);
 
                 Collider c = marker.GetComponent<Collider>();
@@ -148,9 +178,24 @@ namespace Ahmed.World
             _exitCooldown = Mathf.Max(0f, _exitCooldown - Time.deltaTime);
             Vector3 here = player.transform.position;
 
+            int level = District.LevelAt(here.y);
+            if (level != CurrentLevel)
+            {
+                CurrentLevel = level;
+                PlayMusicForFloor();
+            }
+
             for (int i = 0; i < District.Sites.Count; i++)
             {
                 Site s = District.Sites[i];
+                // A floor is its own field. A fight in the cellar must not
+                // wake because Ahmed walked over it on the street, and the
+                // distance a site cares about is across its own floor.
+                if (s.Level != CurrentLevel)
+                {
+                    if (s.Kind == SiteKind.Encounter && _awake.Contains(s.Id)) { Sleep(s); }
+                    continue;
+                }
                 Vector3 d = s.Position - here;
                 d.y = 0f;
                 float distance = d.magnitude;
@@ -161,8 +206,62 @@ namespace Ahmed.World
                     case SiteKind.Gate: TickGate(s, distance, player); break;
                     case SiteKind.Exit: TickExit(s, distance); break;
                     case SiteKind.Hub: TickHub(s, distance, player); break;
+                    case SiteKind.Shaft: TickShaft(s, distance, player); break;
                 }
             }
+        }
+
+        /// <summary>
+        /// The stair or the ladder. Stepping in puts Ahmed on the other floor
+        /// at the same spot, a pace off the shaft so he does not come
+        /// straight back. A ladder that wants a talent he has not found
+        /// refuses him the way a sealed exit does: once per approach.
+        /// </summary>
+        private void TickShaft(Site s, float distance, PlayerFighter player)
+        {
+            if (distance > s.Radius) { _refusing.Remove(s.Id); return; }
+            if (_exitCooldown > 0f) { return; }
+
+            if (!WorldState.HasTalent(s.NeedsAbility))
+            {
+                if (_refusing.Add(s.Id)) { Game.AudioLibrary.Play("Exit_Sealed", s.Position); }
+                return;
+            }
+
+            float height;
+            if (!District.Floors.TryGetValue(s.ToLevel, out height)) { return; }
+            Vector3 to = new Vector3(s.Position.x, height, s.Position.z);
+            // Off the shaft's own radius, back toward the middle of the field.
+            Vector3 away = -new Vector3(s.Position.x, 0f, s.Position.z).normalized;
+            if (away.sqrMagnitude < 0.5f) { away = Vector3.forward; }
+            to += away * (s.Radius + 1.5f);
+            to = District.Bounds.Inset(2f).Clamp(to);
+
+            Game.AudioLibrary.PlayUI("Exit_Travel");
+            player.Teleport(to);
+            CurrentLevel = s.ToLevel;
+            _exitCooldown = 0.75f;
+            PlayMusicForFloor();
+            Debug.Log("[Ahmed] " + (s.ToLevel < 0 ? "down into the cellar of " : s.ToLevel > 0 ? "up onto the roofs of " : "back to the street of ")
+                + District.DisplayName);
+        }
+
+        /// <summary>Put an encounter back to sleep: its bodies go, and it will
+        /// wake again when he comes near. What a fight does when he leaves
+        /// it, by walking away or by taking the stairs.</summary>
+        private void Sleep(Site s)
+        {
+            List<EnemyFighter> live;
+            if (_liveBySite.TryGetValue(s.Id, out live))
+            {
+                for (int i = 0; i < live.Count; i++)
+                {
+                    if (live[i] != null) { Object.Destroy(live[i].gameObject); }
+                }
+                live.Clear();
+            }
+            _awake.Remove(s.Id);
+            if (_bossSite == s.Id) { _bossSite = -1; PlayMusicForFloor(); }
         }
 
         /// <summary>
@@ -207,6 +306,7 @@ namespace Ahmed.World
             player.Revive(health);
             Game.AudioLibrary.PlayUI("Stage_Fail");
             Enter(area, at);
+            player.Teleport(at);
             if (AreaChanged != null) { AreaChanged(area, District.DisplayName); }
             Debug.Log("[Ahmed] down. Back at the save point in " + District.DisplayName + ".");
         }
@@ -234,7 +334,8 @@ namespace Ahmed.World
             {
                 WorldState.MarkCleared(District.AreaIndex, s.Id);
                 _awake.Remove(s.Id);
-                Game.AudioLibrary.PlayUI("Wave_Clear");
+                Game.AudioLibrary.PlayUI(_bossSite == s.Id ? "Stage_Clear" : "Wave_Clear");
+                if (_bossSite == s.Id) { _bossSite = -1; PlayMusicForFloor(); }
                 CheckAreaCleared();
                 return;
             }
@@ -242,15 +343,7 @@ namespace Ahmed.World
             // Walked away. The fight goes back to sleep rather than trailing
             // him across the district -- an open world where every encounter
             // you brush past follows you forever is unplayable.
-            if (distance > s.Radius * 2.6f)
-            {
-                for (int i = 0; i < live.Count; i++)
-                {
-                    if (live[i] != null) { Object.Destroy(live[i].gameObject); }
-                }
-                live.Clear();
-                _awake.Remove(s.Id);
-            }
+            if (distance > s.Radius * 2.6f) { Sleep(s); }
         }
 
         private void Wake(Site s)
@@ -266,6 +359,23 @@ namespace Ahmed.World
                 EnemyFighter e = Spawn(s, s.Wave.fighters[i], i);
                 if (e != null) { live.Add(e); }
             }
+            // A title fight is one with a boss in it: the music changes, and
+            // changes back when he is down or when Ahmed leaves.
+            if (IsTitleFight(s)) { _bossSite = s.Id; PlayMusicForFloor(); }
+        }
+
+        /// <summary>Whether a wave carries a boss archetype. Read off the
+        /// roster rather than a flag on the wave, so it cannot disagree with
+        /// what the roster says a boss is.</summary>
+        public static bool IsTitleFight(Site s)
+        {
+            if (s == null || s.Wave == null || s.Wave.fighters == null) { return false; }
+            for (int i = 0; i < s.Wave.fighters.Length; i++)
+            {
+                FighterRow row = GameData.Fighter(s.Wave.fighters[i]);
+                if (row != null && row.boss) { return true; }
+            }
+            return false;
         }
 
         private EnemyFighter Spawn(Site site, string row, int indexInWave)
@@ -281,7 +391,7 @@ namespace Ahmed.World
             Vector3 at = site.Position + new Vector3(Mathf.Cos(angle) * radius, 0f,
                                                      Mathf.Sin(angle) * radius);
             at = District.Bounds.Inset(2f).Clamp(at);
-            at.y = transform.position.y;
+            at.y = site.Position.y;     // the site's own floor, not the world's
 
             GameObject go = Object.Instantiate(EnemyPrefab, at, Quaternion.identity);
             go.SetActive(true);
@@ -310,12 +420,16 @@ namespace Ahmed.World
             WorldState.AddExperience(enemy.ExperienceValue);
         }
 
+        /// <summary>The ring's gates read the street. A district is clear
+        /// when its street is, whatever is still standing in its cellar or on
+        /// its roofs -- those are inside the wheel, and the map's argument
+        /// is made at street level.</summary>
         private void CheckAreaCleared()
         {
             for (int i = 0; i < District.Sites.Count; i++)
             {
                 Site s = District.Sites[i];
-                if (s.Kind != SiteKind.Encounter) { continue; }
+                if (s.Kind != SiteKind.Encounter || s.Level != 0) { continue; }
                 if (!WorldState.IsCleared(District.AreaIndex, s.Id)) { return; }
             }
             if (!WorldState.IsAreaCleared(District.AreaIndex))
@@ -367,7 +481,7 @@ namespace Ahmed.World
             // Arrive at the far side of the district you came from, so walking
             // east and then west puts you back where you started.
             District next = District.Build(s.ToArea, GameData.Area(s.ToArea),
-                                           GameData.Stage(s.ToArea));
+                                           GameData.Stage(s.ToArea), null);
             Vector3 arrive;
             if (s.ExitLabel == "WEST") { arrive = new Vector3(next.Extent - 6f, 0f, 0f); }
             else if (s.ExitLabel == "EAST") { arrive = new Vector3(-next.Extent + 6f, 0f, 0f); }

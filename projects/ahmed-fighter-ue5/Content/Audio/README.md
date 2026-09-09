@@ -79,7 +79,7 @@ file, so nothing else has to change.
 - `S_Whoosh_Light.wav` is 0.11 s: the only swish in the render was at the
   very end of the file and there is nothing after it, so the clip has no
   tail at all. It is right for a jab. Re-roll it if it reads as a click.
-- The three `Music_*` cues have **no file**. They are loops, not effects, and
+- ~~The three `Music_*` cues have **no file**.~~ Four of the five have one now; see the Music section. They are loops, not effects, and
   a text-to-sound model is the wrong tool for them.
 
 ## `Content/Audio/Combat/`
@@ -114,11 +114,32 @@ file, so nothing else has to change.
 
 ## `Content/Audio/Music/`
 
+Five cues, four files. Made 2026-09-10 (Riyadh) with ElevenLabs Music v2 on
+the flow below, one render each, then cut to loops: a bar-aligned 60 s
+window from the body of the render (past any intro), the tail crossfaded
+into the head over 1.5 s so the seam is inaudible — measured: the jump
+across the seam is at or below the mean sample-to-sample step on every
+loop — and loudness-normalised so the Volume column sets the level.
+48 kHz, stereo, 16-bit. **Nobody has listened to them**: they were made and
+cut in an environment with no audio output, like the effects were. The
+Unity build plays the same four files from `Assets/Resources/Audio/Music`.
+
+    https://elevenlabs.io/app/flows/hNoQD2fFLdMb3eyOQZqK
+
 | File | Cue | What it is |
 | --- | --- | --- |
-| `M_Stage.wav` | `Music_Stage` | The fight loop. One track per theme is the intent; start with one and cast per stage later. |
-| `M_Menu.wav` | `Music_Menu` | The title screen. Slower than the fight loop, same key. |
-| `M_Boss.wav` | `Music_Boss` | The two title fights. The stage loop with the floor taken out. |
+| `M_Stage.wav` | `Music_Stage` | The street. Darbuka and frame drum, sawtooth bass, oud stabs, D Hijaz at 100 BPM — the browser build's procedural loop, played by people. 25 bars. |
+| `M_Under.wav` | `Music_Under` | The cellars. Sub-bass drone, a darbuka echoing in stone, sparse low oud, metallic hits. 88 BPM, 22 bars. |
+| `M_Up.wav` | `Music_Up` | The roofs. Wind-like pads, oud and qanun ostinato, light frame drum, wide reverb. 104 BPM, 26 bars. |
+| `M_Boss.wav` | `Music_Boss` | The title fights — ZAYOS, AL-SAQR, AL-WAHSH. Darbuka over taiko-scale drums, distorted bass, brass stabs. 118 BPM, 29 bars. |
+| — | `Music_Menu` | Still no file. The Unity build has no menu; the row waits for the Unreal one. |
+
+The renders were requested instrumental but the model's "instrumental"
+setting was left on auto, so each full render was put through Scribe: all
+four transcripts came back empty, so none of them carries a vocal line.
+That is the one thing about them that is verified. To recast one, re-roll
+that node on the flow and cut it again with the same windows (the cut was
+four ffmpeg lines; `Tools/audio` has none of this yet).
 
 ## `Content/Audio/UI/`
 

@@ -355,6 +355,8 @@ namespace UnityEngine
         public static float Clamp(float v, float a, float b) { return v < a ? a : (v > b ? b : v); }
         public static int Clamp(int v, int a, int b) { return v < a ? a : (v > b ? b : v); }
         public static float Clamp01(float v) { return Clamp(v, 0f, 1f); }
+        public static float MoveTowards(float a, float b, float maxDelta) {
+            return Math.Abs(b - a) <= maxDelta ? b : a + Math.Sign(b - a) * maxDelta; }
         public static float Max(float a, float b) { return a > b ? a : b; }
         public static int Max(int a, int b) { return a > b ? a : b; }
         public static float Min(float a, float b) { return a < b ? a : b; }

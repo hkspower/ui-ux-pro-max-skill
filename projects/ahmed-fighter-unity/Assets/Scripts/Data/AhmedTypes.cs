@@ -138,6 +138,9 @@ namespace Ahmed.Data
         public string[] moves;
         /// <summary>Name of the row in styles.json, or empty for the player.</summary>
         public string fightStyle;
+        /// <summary>How big the body is against Ahmed's. The port has one
+        /// mesh and scales it; ZAYOS is 1.55 of a man.</summary>
+        public float scale = 1f;
     }
 
     [Serializable]
@@ -325,6 +328,46 @@ namespace Ahmed.Data
             if (gates == null) { gates = new GateRow[0]; }
             if (waves == null) { waves = new WaveRow[0]; }
             for (int i = 0; i < gates.Length; i++) { gates[i].Resolve(); }
+        }
+    }
+
+    /// <summary>
+    /// One of the two extra floors of a district -- under it, or up on its
+    /// roofs. Derived from the street by the exporter (the same waves, a
+    /// tier deeper underground, an XP cache where the street had its gate)
+    /// unless strata.js authors it by hand, which so far only the cellar
+    /// under the striking house is. Distances are metres along the street,
+    /// the same measure the street's own waves use, so one spiral places
+    /// all three floors.
+    /// </summary>
+    [Serializable]
+    public class StratumRow
+    {
+        public int area;
+        /// <summary>"Under" or "Up".</summary>
+        public string level;
+        /// <summary>-1 under the street, +1 above it.</summary>
+        public int offset;
+        /// <summary>Metres above the street. Negative is below.</summary>
+        public float height;
+        public string briefing;
+        public string briefingArabic;
+        public WaveRow[] waves;
+        public GateRow[] gates;
+        /// <summary>Where along the street the stair or ladder stands.</summary>
+        public float shaftDistance;
+        public string shaftAbility;
+
+        [NonSerialized] public Ability ShaftAbility;
+
+        public void Resolve()
+        {
+            if (gates == null) { gates = new GateRow[0]; }
+            if (waves == null) { waves = new WaveRow[0]; }
+            for (int i = 0; i < gates.Length; i++) { gates[i].Resolve(); }
+            ShaftAbility = string.IsNullOrEmpty(shaftAbility)
+                ? Ability.None
+                : (Ability)Enum.Parse(typeof(Ability), shaftAbility, true);
         }
     }
 

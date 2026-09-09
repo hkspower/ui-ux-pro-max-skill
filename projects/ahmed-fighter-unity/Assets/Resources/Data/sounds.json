@@ -428,6 +428,61 @@
       "cooldown": 0.2,
       "lead": 0.062,
       "description": "The rage orb. A charge taken in; a little electric."
+    },
+    {
+      "name": "Music_Stage",
+      "clip": "Audio/Music/M_Stage",
+      "volume": 0.8,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 0,
+      "lead": 0,
+      "description": "The fight loop. One track per theme is the intent; start with one and cast per stage later."
+    },
+    {
+      "name": "Music_Menu",
+      "clip": "Audio/Music/M_Menu",
+      "volume": 0.7,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 0,
+      "lead": 0,
+      "description": "The title screen. Slower than the fight loop, same key."
+    },
+    {
+      "name": "Music_Boss",
+      "clip": "Audio/Music/M_Boss",
+      "volume": 0.85,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 0,
+      "lead": 0,
+      "description": "The title fights -- ZAYOS in the cellar"
+    },
+    {
+      "name": "Music_Under",
+      "clip": "Audio/Music/M_Under",
+      "volume": 0.75,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 0,
+      "lead": 0,
+      "description": "Underground. The stage loop slowed and sunk: sub bass, a darbuka echoing in a cellar, no top end."
+    },
+    {
+      "name": "Music_Up",
+      "clip": "Audio/Music/M_Up",
+      "volume": 0.75,
+      "pitchMin": 1,
+      "pitchMax": 1,
+      "spatial": false,
+      "cooldown": 0,
+      "lead": 0,
+      "description": "The roofs. The stage loop opened out: wind, wide reverb, oud and qanun high above the street."
     }
   ]
 }

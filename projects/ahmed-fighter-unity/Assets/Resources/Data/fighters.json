@@ -20,7 +20,8 @@
         "Kick",
         "Knee"
       ],
-      "fightStyle": ""
+      "fightStyle": "",
+      "scale": 1
     },
     {
       "name": "Thug",
@@ -39,7 +40,8 @@
         "Jab",
         "Cross"
       ],
-      "fightStyle": "Thug"
+      "fightStyle": "Thug",
+      "scale": 1
     },
     {
       "name": "Brawler",
@@ -59,7 +61,8 @@
         "Cross",
         "Hook"
       ],
-      "fightStyle": "Brawler"
+      "fightStyle": "Brawler",
+      "scale": 1.05
     },
     {
       "name": "Kicker",
@@ -80,7 +83,8 @@
         "Kick",
         "Cross"
       ],
-      "fightStyle": "Kicker"
+      "fightStyle": "Kicker",
+      "scale": 1.02
     },
     {
       "name": "Grappler",
@@ -100,7 +104,8 @@
         "Hook",
         "Knee"
       ],
-      "fightStyle": "Grappler"
+      "fightStyle": "Grappler",
+      "scale": 1.18
     },
     {
       "name": "Champ",
@@ -122,7 +127,8 @@
         "Hook",
         "Knee"
       ],
-      "fightStyle": "Champ"
+      "fightStyle": "Champ",
+      "scale": 1.1
     },
     {
       "name": "Runner",
@@ -142,7 +148,8 @@
         "Jab",
         "Cross"
       ],
-      "fightStyle": "Runner"
+      "fightStyle": "Runner",
+      "scale": 0.94
     },
     {
       "name": "Bouncer",
@@ -162,7 +169,8 @@
         "Knee",
         "Hook"
       ],
-      "fightStyle": "Bouncer"
+      "fightStyle": "Bouncer",
+      "scale": 1.24
     },
     {
       "name": "Capo",
@@ -184,7 +192,8 @@
         "Jab",
         "Kick"
       ],
-      "fightStyle": "Capo"
+      "fightStyle": "Capo",
+      "scale": 1.06
     },
     {
       "name": "Boss",
@@ -206,7 +215,8 @@
         "Kick",
         "Knee"
       ],
-      "fightStyle": "Boss"
+      "fightStyle": "Boss",
+      "scale": 1.26
     },
     {
       "name": "Saqr",
@@ -228,7 +238,31 @@
         "Cross",
         "Knee"
       ],
-      "fightStyle": "Saqr"
+      "fightStyle": "Saqr",
+      "scale": 1.14
+    },
+    {
+      "name": "Zayos",
+      "displayName": "ZAYOS",
+      "displayNameArabic": "زايوس",
+      "maxHealth": 300,
+      "powerMultiplier": 1.35,
+      "moveSpeed": 2.592,
+      "preferredRange": 1.872,
+      "attackInterval": 1.15,
+      "guardChance": 0.42,
+      "hitAndRun": false,
+      "boss": true,
+      "experienceValue": 130,
+      "moves": [
+        "Jab",
+        "Cross",
+        "Hook",
+        "Hook",
+        "Cross"
+      ],
+      "fightStyle": "Zayos",
+      "scale": 1.55
     }
   ]
 }

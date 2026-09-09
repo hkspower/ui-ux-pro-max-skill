@@ -96,6 +96,16 @@ namespace Ahmed.Combat
             State = FighterState.Idle;
         }
 
+        /// <summary>Put the body somewhere else. Through the controller, off
+        /// and on again, because a CharacterController that is moved by its
+        /// transform keeps the old position for a frame and sweeps back.</summary>
+        public void Teleport(Vector3 to)
+        {
+            if (Body != null) { Body.enabled = false; }
+            transform.position = to;
+            if (Body != null) { Body.enabled = true; }
+        }
+
         public void SetArenaBounds(float minX, float maxX)
         {
             Bounds = new Ahmed.World.Bounds2D(minX, maxX,

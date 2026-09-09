@@ -1,0 +1,806 @@
+{
+  "items": [
+    {
+      "area": 0,
+      "level": "Under",
+      "offset": -1,
+      "height": -12,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 7.2,
+          "fighters": [
+            "Thug",
+            "Thug"
+          ],
+          "tierOverride": 1
+        },
+        {
+          "triggerDistance": 30,
+          "fighters": [
+            "Thug",
+            "Thug",
+            "Brawler"
+          ],
+          "tierOverride": 1
+        },
+        {
+          "triggerDistance": 56.4,
+          "fighters": [
+            "Brawler",
+            "Brawler",
+            "Thug"
+          ],
+          "tierOverride": 1
+        }
+      ],
+      "gates": [
+        {
+          "distance": 27.6,
+          "type": "Wall",
+          "rewardAbility": "None",
+          "rewardExperience": 225
+        }
+      ],
+      "shaftDistance": 36,
+      "shaftAbility": "None"
+    },
+    {
+      "area": 0,
+      "level": "Up",
+      "offset": 1,
+      "height": 13.92,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 7.2,
+          "fighters": [
+            "Thug",
+            "Thug"
+          ],
+          "tierOverride": 0
+        },
+        {
+          "triggerDistance": 30,
+          "fighters": [
+            "Thug",
+            "Thug",
+            "Brawler"
+          ],
+          "tierOverride": 0
+        },
+        {
+          "triggerDistance": 56.4,
+          "fighters": [
+            "Brawler",
+            "Brawler",
+            "Thug"
+          ],
+          "tierOverride": 0
+        }
+      ],
+      "gates": [
+        {
+          "distance": 27.6,
+          "type": "Ledge",
+          "rewardAbility": "None",
+          "rewardExperience": 225
+        }
+      ],
+      "shaftDistance": 36,
+      "shaftAbility": "Vault"
+    },
+    {
+      "area": 1,
+      "level": "Under",
+      "offset": -1,
+      "height": -12,
+      "briefing": "Under the striking house. They keep ZAYOS down here. Nobody who went down to him has needed the stairs back up.",
+      "briefingArabic": "تحت بيت الضرب. هنا يحتفظون بزايوس.",
+      "waves": [
+        {
+          "triggerDistance": 17.472,
+          "fighters": [
+            "Brawler",
+            "Brawler"
+          ],
+          "tierOverride": -1
+        },
+        {
+          "triggerDistance": 36.192,
+          "fighters": [
+            "Grappler",
+            "Brawler"
+          ],
+          "tierOverride": -1
+        },
+        {
+          "triggerDistance": 56.16,
+          "fighters": [
+            "Zayos"
+          ],
+          "tierOverride": -1
+        }
+      ],
+      "gates": [
+        {
+          "distance": 46.176,
+          "type": "Wall",
+          "rewardAbility": "None",
+          "rewardExperience": 400
+        }
+      ],
+      "shaftDistance": 31.2,
+      "shaftAbility": "None"
+    },
+    {
+      "area": 1,
+      "level": "Up",
+      "offset": 1,
+      "height": 13.92,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 6.72,
+          "fighters": [
+            "Thug"
+          ],
+          "tierOverride": 0
+        },
+        {
+          "triggerDistance": 16.32,
+          "fighters": [
+            "Brawler"
+          ],
+          "tierOverride": 0
+        },
+        {
+          "triggerDistance": 25.92,
+          "fighters": [
+            "Kicker",
+            "Thug"
+          ],
+          "tierOverride": 0
+        },
+        {
+          "triggerDistance": 35.52,
+          "fighters": [
+            "Brawler",
+            "Brawler"
+          ],
+          "tierOverride": 0
+        },
+        {
+          "triggerDistance": 45.12,
+          "fighters": [
+            "Kicker",
+            "Kicker"
+          ],
+          "tierOverride": 0
+        },
+        {
+          "triggerDistance": 54,
+          "fighters": [
+            "Kicker",
+            "Brawler",
+            "Brawler"
+          ],
+          "tierOverride": 0
+        }
+      ],
+      "gates": [
+        {
+          "distance": 48,
+          "type": "Ledge",
+          "rewardAbility": "None",
+          "rewardExperience": 300
+        }
+      ],
+      "shaftDistance": 31.2,
+      "shaftAbility": "Vault"
+    },
+    {
+      "area": 2,
+      "level": "Under",
+      "offset": -1,
+      "height": -12,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 16.8,
+          "fighters": [
+            "Runner",
+            "Runner",
+            "Thug"
+          ],
+          "tierOverride": 2
+        },
+        {
+          "triggerDistance": 48,
+          "fighters": [
+            "Runner",
+            "Runner",
+            "Brawler",
+            "Brawler"
+          ],
+          "tierOverride": 2
+        },
+        {
+          "triggerDistance": 78,
+          "fighters": [
+            "Bouncer",
+            "Runner",
+            "Runner"
+          ],
+          "tierOverride": 2
+        }
+      ],
+      "gates": [
+        {
+          "distance": 25.2,
+          "type": "Wall",
+          "rewardAbility": "None",
+          "rewardExperience": 300
+        }
+      ],
+      "shaftDistance": 43.2,
+      "shaftAbility": "None"
+    },
+    {
+      "area": 2,
+      "level": "Up",
+      "offset": 1,
+      "height": 13.92,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 16.8,
+          "fighters": [
+            "Runner",
+            "Runner",
+            "Thug"
+          ],
+          "tierOverride": 1
+        },
+        {
+          "triggerDistance": 48,
+          "fighters": [
+            "Runner",
+            "Runner",
+            "Brawler",
+            "Brawler"
+          ],
+          "tierOverride": 1
+        },
+        {
+          "triggerDistance": 78,
+          "fighters": [
+            "Bouncer",
+            "Runner",
+            "Runner"
+          ],
+          "tierOverride": 1
+        }
+      ],
+      "gates": [
+        {
+          "distance": 25.2,
+          "type": "Ledge",
+          "rewardAbility": "None",
+          "rewardExperience": 300
+        }
+      ],
+      "shaftDistance": 43.2,
+      "shaftAbility": "Vault"
+    },
+    {
+      "area": 3,
+      "level": "Under",
+      "offset": -1,
+      "height": -12,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 19.2,
+          "fighters": [
+            "Kicker",
+            "Kicker",
+            "Brawler",
+            "Brawler",
+            "Thug"
+          ],
+          "tierOverride": 2
+        },
+        {
+          "triggerDistance": 52.8,
+          "fighters": [
+            "Grappler",
+            "Kicker",
+            "Kicker",
+            "Brawler"
+          ],
+          "tierOverride": 2
+        }
+      ],
+      "gates": [
+        {
+          "distance": 38.4,
+          "type": "Wall",
+          "rewardAbility": "None",
+          "rewardExperience": 250
+        }
+      ],
+      "shaftDistance": 33.6,
+      "shaftAbility": "None"
+    },
+    {
+      "area": 3,
+      "level": "Up",
+      "offset": 1,
+      "height": 13.92,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 19.2,
+          "fighters": [
+            "Kicker",
+            "Kicker",
+            "Brawler",
+            "Brawler",
+            "Thug"
+          ],
+          "tierOverride": 1
+        },
+        {
+          "triggerDistance": 52.8,
+          "fighters": [
+            "Grappler",
+            "Kicker",
+            "Kicker",
+            "Brawler"
+          ],
+          "tierOverride": 1
+        }
+      ],
+      "gates": [
+        {
+          "distance": 38.4,
+          "type": "Ledge",
+          "rewardAbility": "None",
+          "rewardExperience": 250
+        }
+      ],
+      "shaftDistance": 33.6,
+      "shaftAbility": "Vault"
+    },
+    {
+      "area": 4,
+      "level": "Under",
+      "offset": -1,
+      "height": -12,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 10.8,
+          "fighters": [
+            "Capo",
+            "Runner",
+            "Runner"
+          ],
+          "tierOverride": 3
+        },
+        {
+          "triggerDistance": 27.6,
+          "fighters": [
+            "Bouncer",
+            "Capo"
+          ],
+          "tierOverride": 3
+        }
+      ],
+      "gates": [
+        {
+          "distance": 22.8,
+          "type": "Wall",
+          "rewardAbility": "None",
+          "rewardExperience": 300
+        }
+      ],
+      "shaftDistance": 26.4,
+      "shaftAbility": "None"
+    },
+    {
+      "area": 4,
+      "level": "Up",
+      "offset": 1,
+      "height": 13.92,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 10.8,
+          "fighters": [
+            "Capo",
+            "Runner",
+            "Runner"
+          ],
+          "tierOverride": 2
+        },
+        {
+          "triggerDistance": 27.6,
+          "fighters": [
+            "Bouncer",
+            "Capo"
+          ],
+          "tierOverride": 2
+        }
+      ],
+      "gates": [
+        {
+          "distance": 22.8,
+          "type": "Ledge",
+          "rewardAbility": "None",
+          "rewardExperience": 300
+        }
+      ],
+      "shaftDistance": 26.4,
+      "shaftAbility": "Vault"
+    },
+    {
+      "area": 5,
+      "level": "Under",
+      "offset": -1,
+      "height": -12,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 12,
+          "fighters": [
+            "Grappler",
+            "Brawler"
+          ],
+          "tierOverride": 3
+        },
+        {
+          "triggerDistance": 28.8,
+          "fighters": [
+            "Grappler",
+            "Grappler",
+            "Kicker"
+          ],
+          "tierOverride": 3
+        },
+        {
+          "triggerDistance": 44.4,
+          "fighters": [
+            "Grappler",
+            "Grappler",
+            "Capo"
+          ],
+          "tierOverride": 3
+        }
+      ],
+      "gates": [
+        {
+          "distance": 51.6,
+          "type": "Wall",
+          "rewardAbility": "None",
+          "rewardExperience": 300
+        }
+      ],
+      "shaftDistance": 30,
+      "shaftAbility": "None"
+    },
+    {
+      "area": 5,
+      "level": "Up",
+      "offset": 1,
+      "height": 13.92,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 12,
+          "fighters": [
+            "Grappler",
+            "Brawler"
+          ],
+          "tierOverride": 2
+        },
+        {
+          "triggerDistance": 28.8,
+          "fighters": [
+            "Grappler",
+            "Grappler",
+            "Kicker"
+          ],
+          "tierOverride": 2
+        },
+        {
+          "triggerDistance": 44.4,
+          "fighters": [
+            "Grappler",
+            "Grappler",
+            "Capo"
+          ],
+          "tierOverride": 2
+        }
+      ],
+      "gates": [
+        {
+          "distance": 51.6,
+          "type": "Ledge",
+          "rewardAbility": "None",
+          "rewardExperience": 300
+        }
+      ],
+      "shaftDistance": 30,
+      "shaftAbility": "Vault"
+    },
+    {
+      "area": 6,
+      "level": "Under",
+      "offset": -1,
+      "height": -12,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 14.4,
+          "fighters": [
+            "Runner",
+            "Runner"
+          ],
+          "tierOverride": 4
+        },
+        {
+          "triggerDistance": 30,
+          "fighters": [
+            "Bouncer",
+            "Runner"
+          ],
+          "tierOverride": 4
+        },
+        {
+          "triggerDistance": 45.6,
+          "fighters": [
+            "Capo",
+            "Kicker"
+          ],
+          "tierOverride": 4
+        },
+        {
+          "triggerDistance": 60,
+          "fighters": [
+            "Bouncer",
+            "Kicker"
+          ],
+          "tierOverride": 4
+        },
+        {
+          "triggerDistance": 73.2,
+          "fighters": [
+            "Bouncer",
+            "Capo"
+          ],
+          "tierOverride": 4
+        }
+      ],
+      "gates": [
+        {
+          "distance": 26.4,
+          "type": "Wall",
+          "rewardAbility": "None",
+          "rewardExperience": 300
+        }
+      ],
+      "shaftDistance": 40.8,
+      "shaftAbility": "None"
+    },
+    {
+      "area": 6,
+      "level": "Up",
+      "offset": 1,
+      "height": 13.92,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 14.4,
+          "fighters": [
+            "Runner",
+            "Runner"
+          ],
+          "tierOverride": 3
+        },
+        {
+          "triggerDistance": 30,
+          "fighters": [
+            "Bouncer",
+            "Runner"
+          ],
+          "tierOverride": 3
+        },
+        {
+          "triggerDistance": 45.6,
+          "fighters": [
+            "Capo",
+            "Kicker"
+          ],
+          "tierOverride": 3
+        },
+        {
+          "triggerDistance": 60,
+          "fighters": [
+            "Bouncer",
+            "Kicker"
+          ],
+          "tierOverride": 3
+        },
+        {
+          "triggerDistance": 73.2,
+          "fighters": [
+            "Bouncer",
+            "Capo"
+          ],
+          "tierOverride": 3
+        }
+      ],
+      "gates": [
+        {
+          "distance": 26.4,
+          "type": "Ledge",
+          "rewardAbility": "None",
+          "rewardExperience": 300
+        }
+      ],
+      "shaftDistance": 40.8,
+      "shaftAbility": "Vault"
+    },
+    {
+      "area": 7,
+      "level": "Under",
+      "offset": -1,
+      "height": -12,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 21.6,
+          "fighters": [
+            "Kicker",
+            "Kicker",
+            "Brawler",
+            "Brawler",
+            "Capo"
+          ],
+          "tierOverride": 4
+        },
+        {
+          "triggerDistance": 55.2,
+          "fighters": [
+            "Champ",
+            "Champ",
+            "Grappler"
+          ],
+          "tierOverride": 4
+        }
+      ],
+      "gates": [
+        {
+          "distance": 27.6,
+          "type": "Wall",
+          "rewardAbility": "None",
+          "rewardExperience": 125
+        }
+      ],
+      "shaftDistance": 36,
+      "shaftAbility": "None"
+    },
+    {
+      "area": 7,
+      "level": "Up",
+      "offset": 1,
+      "height": 13.92,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 21.6,
+          "fighters": [
+            "Kicker",
+            "Kicker",
+            "Brawler",
+            "Brawler",
+            "Capo"
+          ],
+          "tierOverride": 3
+        },
+        {
+          "triggerDistance": 55.2,
+          "fighters": [
+            "Champ",
+            "Champ",
+            "Grappler"
+          ],
+          "tierOverride": 3
+        }
+      ],
+      "gates": [
+        {
+          "distance": 27.6,
+          "type": "Ledge",
+          "rewardAbility": "None",
+          "rewardExperience": 125
+        }
+      ],
+      "shaftDistance": 36,
+      "shaftAbility": "Vault"
+    },
+    {
+      "area": 8,
+      "level": "Under",
+      "offset": -1,
+      "height": -12,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 10.08,
+          "fighters": [
+            "Champ",
+            "Champ"
+          ],
+          "tierOverride": 5
+        }
+      ],
+      "gates": [
+        {
+          "distance": 26.88,
+          "type": "Wall",
+          "rewardAbility": "None",
+          "rewardExperience": 300
+        }
+      ],
+      "shaftDistance": 19.2,
+      "shaftAbility": "None"
+    },
+    {
+      "area": 8,
+      "level": "Up",
+      "offset": 1,
+      "height": 13.92,
+      "briefing": "",
+      "briefingArabic": "",
+      "waves": [
+        {
+          "triggerDistance": 10.08,
+          "fighters": [
+            "Champ",
+            "Champ"
+          ],
+          "tierOverride": 4
+        }
+      ],
+      "gates": [
+        {
+          "distance": 26.88,
+          "type": "Ledge",
+          "rewardAbility": "None",
+          "rewardExperience": 300
+        }
+      ],
+      "shaftDistance": 19.2,
+      "shaftAbility": "Vault"
+    }
+  ]
+}

@@ -35,6 +35,7 @@ namespace Ahmed.Data
         private static readonly Dictionary<string, TalentRow> _talents =
             new Dictionary<string, TalentRow>();
         private static List<StageRow> _stages = new List<StageRow>();
+        private static List<StratumRow> _strata = new List<StratumRow>();
         private static List<WorldArea> _areas = new List<WorldArea>();
         private static List<LevelRow> _levels = new List<LevelRow>();
         private static List<UpgradeRow> _upgrades = new List<UpgradeRow>();
@@ -70,6 +71,11 @@ namespace Ahmed.Data
             {
                 st.Resolve();
                 _stages.Add(st);
+            }
+            foreach (StratumRow st in Read<StratumRow>("strata"))
+            {
+                st.Resolve();
+                _strata.Add(st);
             }
             _levels.AddRange(Read<LevelRow>("levels"));
             foreach (UpgradeRow u in Read<UpgradeRow>("upgrades"))
@@ -185,6 +191,19 @@ namespace Ahmed.Data
         {
             Load();
             return index >= 0 && index < _stages.Count ? _stages[index] : null;
+        }
+
+        /// <summary>The extra floors of an area -- under and up -- or an
+        /// empty list for an area that has only its street.</summary>
+        public static List<StratumRow> Strata(int area)
+        {
+            Load();
+            List<StratumRow> found = new List<StratumRow>();
+            for (int i = 0; i < _strata.Count; i++)
+            {
+                if (_strata[i].area == area) { found.Add(_strata[i]); }
+            }
+            return found;
         }
 
         /// <summary>Experience needed to leave this level. Zero at the cap.</summary>

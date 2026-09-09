@@ -113,6 +113,24 @@ namespace Ahmed.Game
             return !string.IsNullOrEmpty(cue) && Rows.TryGetValue(cue, out row) ? row.lead : 0f;
         }
 
+        /// <summary>A music row's clip and level, for the director. False
+        /// and null for a cue with no row or no file -- the director goes
+        /// quiet rather than the game going wrong.</summary>
+        public static bool Music(string cue, out AudioClip clip, out float volume)
+        {
+            Load();
+            clip = null; volume = 0f;
+            SoundRow row;
+            if (string.IsNullOrEmpty(cue) || !Rows.TryGetValue(cue, out row))
+            {
+                WarnOnce(cue ?? "(null)", "no row in sounds.json");
+                return false;
+            }
+            clip = Resolve(row);
+            volume = row.volume;
+            return clip != null;
+        }
+
         private static void Fire(string cue, Vector3 at, bool positioned)
         {
             Load();

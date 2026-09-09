@@ -54,7 +54,7 @@ const m = px => +(px * PX_TO_M).toFixed(4);
    to agree with what the browser sees, since it is the same code path. */
 function loadAssets(){
   const names = ['ahmed','enemies','hits','talents','upgrades','weapons',
-                 'levels','world','stages','colors'];
+                 'levels','world','stages','colors','strata'];
   const win = {};
   for(const n of names){
     const path = join(WEB, 'assets', `${n}.js`);
@@ -67,7 +67,8 @@ function loadAssets(){
     ahmed:win.ASSET_AHMED, enemies:win.ASSET_ENEMIES, hits:win.ASSET_HITS,
     talents:win.ASSET_TALENTS, upgrades:win.ASSET_UPGRADES,
     weapons:win.ASSET_WEAPONS, levels:win.ASSET_LEVELS,
-    world:win.ASSET_WORLD, stages:win.ASSET_STAGES, colors:win.ASSET_COLORS
+    world:win.ASSET_WORLD, stages:win.ASSET_STAGES, colors:win.ASSET_COLORS,
+    strata:win.ASSET_STRATA
   };
 }
 
@@ -126,7 +127,8 @@ function fighters(A){
     moveSpeed: m(P.base.spd), preferredRange: m(P.base.reach),
     attackInterval: 0, guardChance: 0, hitAndRun: false, boss: false,
     experienceValue: 0, moves: ['Jab','Cross','Hook','Kick','Knee'],
-    fightStyle: ''            // the player is not driven by one
+    fightStyle: '',           // the player is not driven by one
+    scale: 1
   }];
   for(const [k, e] of Object.entries(A.enemies)){
     const moves = (e.moves || []).map(pascal);
@@ -138,7 +140,11 @@ function fighters(A){
       moveSpeed: m(e.spd), preferredRange: m(e.reach),
       attackInterval: e.rate, guardChance: guardChanceFor(e),
       hitAndRun: !!e.hitRun, boss: isBoss(k, e), experienceValue: e.xp,
-      moves, fightStyle: pascal(k)
+      moves, fightStyle: pascal(k),
+      // The browser draws every archetype at its own size; this is that
+      // number, and the port scales the one body it has by it. ZAYOS is
+      // 1.55 -- a boxing monster is a big body before it is anything else.
+      scale: e.sc || 1
     });
   }
   return table(rows);
@@ -265,6 +271,84 @@ function world(A){
   })));
 }
 
+/* ------------------------------------------------------------- the strata */
+/* Under and up: the two extra floors of every district. A level with no
+   override is derived from its street the way the district is derived from
+   its stage -- the same waves, shifted by the rule's tier, and an XP cache
+   where the street had its gate -- so adding a floor does not mean re-tuning
+   the pacing of the game. Two things the derivation refuses to copy:
+
+     A title fight happens once. A street wave with a boss in it (AL-SAQR on
+     the crescent, AL-WAHSH in the arena) is dropped from the derived floors
+     rather than spawning the boss a second and third time.
+
+     The floors are inside the wheel. No level carries an exit, and the
+     ring's own "after this area is cleared" gates still read the street.
+
+   `at` in the asset is a fraction of the street's length; it crosses here
+   as metres along the stage, the same field the street's own waves use, so
+   District places them with the same spiral. */
+function strata(A){
+  const S = A.strata, rows = [];
+  if(!S || !S.rule || !S.height) die('strata.js is missing its rule or height table');
+  const bossIn = w => (w.e || []).some(([t]) => A.enemies[t] && isBoss(t, A.enemies[t]));
+  A.world.layout.forEach((_, i) => {
+    const st = A.stages[i];
+    if(!st || st.survival) return;
+    const len = st.len;
+    for(const lvl of ['under', 'up']){
+      const rule = S.rule[lvl];
+      if(!rule) die(`strata.js has no rule for level '${lvl}'`);
+      const ov = ((S.override || {})[i] || {})[lvl];
+      const street = (st.gates || [])[0];
+      let waves, gates, shaft, story = '', storyAr = '';
+      if(ov){
+        waves = ov.waves || []; gates = ov.gates || [];
+        shaft = ov.shaft || S.shaft[lvl];
+        story = ov.story || ''; storyAr = ov.storyAr || '';
+        for(const w of waves){
+          if(w.boss && !bossIn(w)) die(`strata area ${i} ${lvl}: a wave marked boss has no boss archetype in it`);
+        }
+      } else {
+        waves = (st.waves || [])
+          .filter(w => w.at >= 0 && !bossIn(w))
+          .map(w => ({ at: w.at / len, e: w.e,
+                       tier: (w.tier === undefined ? st.tier : w.tier) + rule.tier }));
+        const xp = street && street.reward && street.reward.xp
+          ? Math.round(street.reward.xp * rule.cache.xp) : 300;
+        gates = [{ at: street ? street.at / len : 0.7, type: rule.cache.type, reward: { xp } }];
+        shaft = S.shaft[lvl];
+      }
+      for(const w of waves)
+        for(const [t] of (w.e || []))
+          if(!A.enemies[t]) die(`strata area ${i} ${lvl}: unknown archetype '${t}'`);
+      if(!shaft) die(`strata area ${i} ${lvl}: no shaft`);
+      rows.push({
+        area: i, level: pascal(lvl), offset: lvl === 'under' ? -1 : 1,
+        height: m(S.height[lvl]),
+        briefing: story, briefingArabic: storyAr,
+        waves: waves.map(w => ({
+          triggerDistance: m(w.at * len),
+          fighters: (w.e || []).flatMap(([type, n]) =>
+            Array.from({ length: n }, () => pascal(type))),
+          tierOverride: w.tier === undefined ? -1 : w.tier
+        })),
+        gates: gates.map(g => ({
+          distance: m(g.at * len),
+          type: GATE[g.type] || die(`strata area ${i} ${lvl} has gate type '${g.type}'`),
+          rewardAbility: g.reward && g.reward.ability
+            ? (ABILITY[g.reward.ability] || die(`unknown reward ability ${g.reward.ability}`))
+            : 'None',
+          rewardExperience: (g.reward && g.reward.xp) || 0
+        })),
+        shaftDistance: m(shaft.at * len),
+        shaftAbility: shaft.needs ? (ABILITY[shaft.needs] || die(`shaft wants unknown talent ${shaft.needs}`)) : 'None'
+      });
+    }
+  });
+  return table(rows);
+}
+
 function talents(A){
   return table(Object.entries(A.talents.abilities).map(([k, t]) => {
     if(!ABILITY[k]) die(`talent '${k}' has no Ability enum value -- add it first`);
@@ -374,7 +458,7 @@ function sounds(){
     const c = splitCsv(l), r = {};
     head.forEach((h, i) => { r[h] = c[i]; });
     return r;
-  }).filter(r => r.Name && !r.Name.startsWith('Music_'));
+  }).filter(r => r.Name);   // the Music_ rows cross too: MusicDirector plays them
 
   return table(rows.map(r => ({
     name: r.Name,
@@ -435,6 +519,7 @@ const files = {
   'stages.json':   stages(A),
   'colors.json':   table(colourRows(A)),
   'world.json':    world(A),
+  'strata.json':   strata(A),
   'talents.json':  talents(A),
   'levels.json':   levels(A),
   'upgrades.json': upgrades(A),

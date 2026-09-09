@@ -66,6 +66,7 @@ namespace Ahmed.Game
             world.EnemyHealthScale = EnemyHealthScale;
             world.EnemyDamageScale = EnemyDamageScale;
             worldGo.AddComponent<HubPanel>();
+            worldGo.AddComponent<MusicDirector>();
 
             // A saved run resumes where it was saved; a new one opens in the
             // hub at the centre of the starting district, which is the one
@@ -77,7 +78,7 @@ namespace Ahmed.Game
                            ? WorldState.CheckpointPosition : Vector3.zero;
             world.Enter(start, arrive);
 
-            Debug.Log("[Ahmed] " + GameData.Areas.Count + " districts, "
+            Debug.Log("[Ahmed] " + GameData.Areas.Count + " districts on three floors, "
                 + (loaded ? "resumed" : "new run") + " in area " + start
                 + ", " + WorldState.Experience + " XP"
                 + (UnlockEverything ? ", with every talent" : ""));

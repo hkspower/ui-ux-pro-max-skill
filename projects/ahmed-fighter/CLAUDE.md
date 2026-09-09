@@ -114,6 +114,7 @@ He wins. He does not leave.
 | | |
 | --- | --- |
 | **AHMED / أحمد** | The one who fell. Spelled *Ahmed* in the game's text and code; the author also writes it *Ahmad*. |
+| **ZAYOS / زايوس** | The first title fight, and the only one that is not on the ring: he is *under* it, in the cellar of the striking house. A boxing monster — gloves, a body half again the size of any man in the Halqa, long arms, slow. He only punches. Nobody who went down to him has needed the stairs back up. He is what the house keeps to see whether a stranger is worth the six rounds upstairs. (Unity build only, 2026-09-10; see *Floors* below.) |
 | **AL-SAQR / الصقر** — the Falcon | All legs, no patience. Runs the neon crescent. He fell too, years back, and gave up asking about it — which is where the impatience comes from. He is what Ahmed becomes in a year, and he says so, and it does not land. |
 | **AL-WAHSH / الوحش** — the Beast | Champion of the Halqa, and the one who has been down here longest. He is not a monster; he is what staying looks like when you are very good at it. Beating him is not defeating him. It is replacing him. |
 
@@ -146,6 +147,14 @@ the arena is at the hub on purpose, and the only non-street link in the world
 is the one that leads inward. A shortcut out, a route home, or a tenth area
 outside the ring would take the story apart. If the world ever needs to be
 bigger, it gets bigger *inside* the wheel.
+
+**Floors.** The Unity build's districts have three floors — *under*, the
+street, *up* — and that is the world getting bigger *inside* the wheel, which
+the paragraph above allows and nothing else does. No floor has a way out of
+the district it is under or over; the only way between districts is still
+the street; and the ring's own gates still read the street, so a district is
+clear when its street is. The data is `assets/strata.js`. The browser build
+does not read it and its map is unchanged.
 
 **Survival mode is the thesis with the story removed** — "no belt, no crowd,
 no end, just the next wave." It is what the Halqa is when nobody is dressing

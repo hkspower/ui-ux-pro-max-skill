@@ -50,6 +50,13 @@ writing story text, naming anything, or deciding what a place looks like.
   second answer to a question the world only gets to answer once. It is
   derived like every other site — the centre of whichever area the world graph
   starts in — not placed at a coordinate.
+- **A district is three floors, and the floors are inside the wheel.** The
+  cellar and the roofs are derived from the street by the exporter unless
+  `strata.js` authors one by hand; no floor may carry an exit, and the
+  ring's gates read the street only. Do not add a fourth floor, a floor
+  with a way out, or a boss to a derived floor — a title fight happens once.
+  The runtime measures only against sites on the floor Ahmed is on; anything
+  that reaches across floors is a bug.
 - **Encounters wake on proximity and let you leave.** Do not add a lock that
   holds the player in a fight; that is the corridor design and it is the thing
   this replaced.
@@ -81,6 +88,10 @@ writing story text, naming anything, or deciding what a place looks like.
   turn every jab into a kick.
 - **Enemy strikes go through `Fighter.StartAttack`**, the same door the player
   uses. A fight style decides; it does not add reach, damage or moves.
+- **The music is cues, like every other sound.** `MusicDirector.Play` takes a
+  cue name off `sounds.json`; the world tells it the floor and whether a
+  title fight is live, and it decides nothing itself. Do not play music from
+  anywhere else.
 - **Nothing names an audio file.** Game code says
   `AudioLibrary.Play("Hit_Heavy", where)` and the table decides the rest, so
   recasting a sound is a row and a file. `sounds.json` is the one table the

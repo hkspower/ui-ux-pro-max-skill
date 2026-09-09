@@ -65,11 +65,11 @@ That decides things that would otherwise be guesses:
 
 | | `ahmed-fighter/` | `ahmed-fighter-ue5/` | `ahmed-fighter-unity/` |
 | --- | --- | --- | --- |
-| What it is | The playable game. One HTML file, canvas 2D, no external assets, PWA with a versioned service worker. | The Unreal Engine 5 port. | The Unity port, in C#. **The open-world one** — nine districts rather than nine corridors. |
+| What it is | The playable game. One HTML file, canvas 2D, no external assets, PWA with a versioned service worker. | The Unreal Engine 5 port. | The Unity port, in C#. **The open-world one** — nine districts rather than nine corridors, and since 2026-09-10 each on three floors (under / street / up), with ZAYOS in the cellar under the striking house and music. |
 | Art direction | Stylised **on purpose** — it draws every pixel in code, and stylisation is what makes that possible. | **Not cartoonish.** Adult action game, highest graphics the hardware carries. See its own CLAUDE.md. | Console and PC grade. Was capsules; the real mesh and the sound are in now. |
 | State | Runs. Verified in headless Chromium across phone/tablet/desktop, all ten stages, all three graphics tiers. | **Has never been compiled.** No engine has ever been run against it. | **Has never run in Unity.** Compiles, and its pure logic is executed and checked under Mono; nothing has been pressed play on. |
 | Units | Canvas pixels. | Centimetres. X along, **Y depth**, Z up. | Metres. X and Z are the ground plane, Y up. No depth axis — a fighter faces any direction. |
-| Balance data | `assets/*.js` — **the source of truth for every number in all three builds**, and since 2026-09-09 for the colour scheme too (`assets/colors.js`). | Generated. Never hand-edit `Content/Data`. | Generated. Never hand-edit `Assets/Resources/Data`. |
+| Balance data | `assets/*.js` — **the source of truth for every number in all three builds**, since 2026-09-09 for the colour scheme too (`assets/colors.js`), and since 2026-09-10 for the Unity floors (`assets/strata.js`, which the browser build itself does not read). | Generated. Never hand-edit `Content/Data`. | Generated. Never hand-edit `Assets/Resources/Data`. |
 
 **The browser project owns the numbers.** Change them in `assets/*.js` — the
 control panel at `ahmed-fighter/panel/` is the comfortable way — then re-export

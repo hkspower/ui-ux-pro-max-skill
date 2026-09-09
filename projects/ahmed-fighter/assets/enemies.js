@@ -1,5 +1,5 @@
 /* AHMED — Kuwait Fighter
-   ENEMIES — the ten archetypes.
+   ENEMIES — the eleven archetypes.
 
    `col` is the palette, `look` the kit. Silhouette carries the read in a
    crowded wave, so build, headwear and garment matter more than colour:
@@ -49,5 +49,15 @@ window.ASSET_ENEMIES = {
   saqr:    {hp:290, pow:1.30, spd:186, reach:76, rate:0.80, xp:150, sc:1.14,
             moves:['kick','jab','kick','cross','knee'], name:'AL-SAQR', ar:'الصقر',
             col:{skin:'#c08a58', top:'#2c4a8a', bottom:'#20242e', band:'#e8e2d4'},
-            look:{ build:1.12, tee:true, pants:true, hoodie:true, stripe:true, hands:'wraps', hair:'#1b1712' }}
+            look:{ build:1.12, tee:true, pants:true, hoodie:true, stripe:true, hands:'wraps', hair:'#1b1712' }},
+  /* ZAYOS -- the first title fight, in the cellar under the striking house
+     (see strata.js). A boxing monster: gloves, a body half again the size
+     of anyone else's, long arms, and slow. He only ever punches -- no kick
+     is in his list -- so everything he does comes down the same two lanes,
+     and the fight is learning to be somewhere else when it lands. `sc`
+     is what the ports scale the body by; `hands:'gloves'` is the kit. */
+  zayos:   {hp:300, pow:1.35, spd:108, reach:78, rate:1.15, xp:130, sc:1.55,
+            moves:['jab','cross','hook','hook','cross'], name:'ZAYOS', ar:'زايوس',
+            col:{skin:'#7a4a2c', top:'#1a1216', bottom:'#0f0c10', band:'#c8102e'},
+            look:{ build:1.60, tee:false, pants:true, hands:'gloves', bald:true, scar:true }}
 };

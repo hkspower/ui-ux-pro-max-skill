@@ -40,4 +40,6 @@ Pickup_Health,/Game/Audio/World/S_Pickup_Health.S_Pickup_Health,Effects,0.70,1.0
 Pickup_Rage,/Game/Audio/World/S_Pickup_Rage.S_Pickup_Rage,Effects,0.75,1.00,1.00,True,0.20,0.062,The rage orb. A charge taken in; a little electric.
 Music_Stage,/Game/Audio/Music/M_Stage.M_Stage,Music,0.80,1.00,1.00,False,0.00,0.000,The fight loop. One track per theme is the intent; start with one and cast per stage later.
 Music_Menu,/Game/Audio/Music/M_Menu.M_Menu,Music,0.70,1.00,1.00,False,0.00,0.000,"The title screen. Slower than the fight loop, same key."
-Music_Boss,/Game/Audio/Music/M_Boss.M_Boss,Music,0.85,1.00,1.00,False,0.00,0.000,The two title fights. The stage loop with the floor taken out.
+Music_Boss,/Game/Audio/Music/M_Boss.M_Boss,Music,0.85,1.00,1.00,False,0.00,0.000,The title fights -- ZAYOS in the cellar, AL-SAQR, AL-WAHSH. The stage loop with the floor taken out.
+Music_Under,/Game/Audio/Music/M_Under.M_Under,Music,0.75,1.00,1.00,False,0.00,0.000,"Underground. The stage loop slowed and sunk: sub bass, a darbuka echoing in a cellar, no top end."
+Music_Up,/Game/Audio/Music/M_Up.M_Up,Music,0.75,1.00,1.00,False,0.00,0.000,"The roofs. The stage loop opened out: wind, wide reverb, oud and qanun high above the street."

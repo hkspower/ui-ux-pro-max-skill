@@ -82,6 +82,29 @@ namespace Ahmed.Combat
             // The style is what makes this archetype fight like itself rather
             // than like every other archetype.
             if (Style != null) { Style.Style = GameData.Style(def.fightStyle); }
+
+            SetStature(def.scale);
+        }
+
+        /// <summary>
+        /// The size of the body against Ahmed's. The port has one mesh, so
+        /// a big man is that mesh scaled -- and the controller with it, or
+        /// the collision system would still think ZAYOS was 1.8 m while the
+        /// body it saw was 2.8. Reach is the attack row's and does not grow:
+        /// a boss who hit from further than his row said would be a boss the
+        /// numbers were not tuned for.
+        /// </summary>
+        public void SetStature(float scale)
+        {
+            if (scale <= 0f || Mathf.Abs(scale - 1f) < 0.001f) { return; }
+            Transform mesh = transform.Find("Mesh");
+            if (mesh != null) { mesh.localScale = mesh.localScale * scale; }
+            if (Body != null)
+            {
+                Body.height *= scale;
+                Body.radius *= scale;
+                Body.center = Body.center * scale;
+            }
         }
 
         public void SetEnemyArenaBounds(float minX, float maxX)

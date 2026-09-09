@@ -464,6 +464,51 @@
       "guardChance": 0.37,
       "guardsWhileAdvancing": true,
       "counterChance": 0.22
+    },
+    {
+      "name": "Zayos",
+      "displayName": "ZAYOS",
+      "preferredRange": 1.7784,
+      "rangeDiscipline": 0.15,
+      "resetDistance": 0,
+      "bounceRate": 0,
+      "bounceAmplitude": 0,
+      "circleTendency": 0.23,
+      "circleSwitchTime": 2.01,
+      "strikes": [
+        {
+          "attackRow": "Jab",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 1.6,
+          "opensCombination": 0.75
+        },
+        {
+          "attackRow": "Cross",
+          "bands": [
+            "Mid"
+          ],
+          "weight": 2.2,
+          "opensCombination": 0.35
+        },
+        {
+          "attackRow": "Hook",
+          "bands": [
+            "Mid",
+            "Close"
+          ],
+          "weight": 1.8,
+          "opensCombination": 0.2
+        }
+      ],
+      "attackInterval": 1.15,
+      "rhythmJitter": 0.41,
+      "maxComboLength": 3,
+      "guardChance": 0.42,
+      "guardsWhileAdvancing": true,
+      "counterChance": 0.19
     }
   ]
 }

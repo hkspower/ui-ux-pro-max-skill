@@ -209,6 +209,7 @@ colour swap does not, especially in a five-enemy wave.
 | Enforcer / مُنفّذ | Fast technical combos. | sunglasses but hair, teal jacket |
 | Contender / منافس | Uses the full moveset. | purple jacket over indigo jeans |
 | **AL-SAQR / الصقر** | Mid-campaign boss. All legs, no patience. | navy hoodie, track pants |
+| **ZAYOS / زايوس** | The first title fight — Unity build only, in the cellar under the striking house (`assets/strata.js`). A boxing monster: 1.55 of a man, only punches, slow. No browser stage spawns him; he is in the roster so the ports read one table. | gloves, bare-chested, bald, scarred |
 | **AL-WAHSH / الوحش** | Final boss. Two phases. | biggest, bald, full beard, black |
 
 Everyone fights in street clothes, not gym kit: a shirt or hoodie or jacket
