@@ -362,7 +362,12 @@ function apiPayload(A, files){
     Weapons: parseCsv(files['DT_Weapons.csv']),
     Stages: JSON.parse(files['DT_Stages.json']),
     World: JSON.parse(files['DT_World.json']),
-    Player: JSON.parse(files['Player.json'])
+    Player: JSON.parse(files['Player.json']),
+    // The scheme and the sound catalogue travel too, so a tool on the other
+    // end of the API can ask for one table and get any of them. Sounds is
+    // hand-authored and read off disk rather than exported.
+    Colors: parseCsv(files['DT_Colors.csv']),
+    Sounds: parseCsv(readFileSync(join(DATA, 'DT_Sounds.csv'), 'utf8'))
   };
   // The revision is the content's own hash, so a client can ask "is this what
   // I already have?" without anyone remembering to bump a number.

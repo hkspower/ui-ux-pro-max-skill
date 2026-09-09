@@ -34,7 +34,10 @@ public class AhmedFighter : ModuleRules
 			// once the file is in the module.
 			"HTTP",
 			"Json",
-			"JsonUtilities"
+			"JsonUtilities",
+			// The live link: one socket to the server's /v1/live, so a
+			// retune reaches a running game. Game/AhmedLiveLinkSubsystem.h.
+			"WebSockets"
 		});
 
 		// Lets sources include as "Combat/FighterBase.h" rather than by relative path.

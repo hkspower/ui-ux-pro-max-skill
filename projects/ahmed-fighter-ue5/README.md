@@ -29,6 +29,8 @@ today. This is the engine port, not a replacement for it.
 | Scoring | `AAhmedGameMode` | S/A/B/C rank, clear bonus, progress writeback |
 | Character mesh | `Content/Models/Ahmed.fbx` | rigged blockout, Unreal bone names, built by script |
 | Remote balance | `UAhmedConfigSubsystem` | baked tables first, cache second, server third; whole-payload-or-nothing |
+| Live link | `UAhmedLiveLinkSubsystem` | one WebSocket to the server; a changed payload refetches without a restart |
+| Save sync | `UAhmedSaveSyncSubsystem` | the profile uploaded to and fetched from `/v1/saves/{id}` |
 
 Data lives in `Content/Data` and drives everything. It is **generated** from
 the browser project rather than authored here — see **Data comes from the
@@ -236,26 +238,39 @@ disagree with the browser project stops before the cook rather than after it.
 
 ---
 
-## The balance API
+## The live API
 
 Optional, and off by default. The game ships with the tables baked in and is
-complete without a network — what the server buys is turning a store review
-into a thirty-second change.
+complete without a network. What the server buys is that a number retuned in
+the browser project — the control panel at `../ahmed-fighter/panel/` — and
+exported reaches a **running** Unreal build in about a second, and that a
+profile can follow a player off one machine and onto another.
 
 ```bash
 node Tools/api/server.mjs             # port 8787
 PORT=9000 node Tools/api/server.mjs
-node Tools/api/server.mjs --watch     # re-read the payload every request
+SAVE_TOKEN=… node Tools/api/server.mjs   # saves need `Authorization: Bearer …`
+node Tools/api/test.mjs               # every endpoint, end to end, in ~3 s
 ```
+
+No dependencies — the WebSocket is written in the file (RFC 6455: the
+handshake, unmasking, text frames, ping/pong, close) rather than installed.
 
 | | |
 | --- | --- |
 | `GET /v1/revision` | 16 hex characters. Cheap — the client stops here when it matches. |
-| `GET /v1/config` | the payload; honours `If-None-Match`, answers `304` |
-| `GET /health` | for whatever is watching the process |
+| `GET /v1/config` | the whole payload; honours `If-None-Match`, answers `304` |
+| `GET /v1/tables` | the table names: Attacks, Fighters, Talents, GateKinds, Upgrades, Levels, Weapons, Stages, World, Player, **Colors**, **Sounds** |
+| `GET /v1/tables/{Name}` | one table, with its own ETag — for a tool that wants the roster and not the 40 KB |
+| `GET` / `PUT` / `DELETE /v1/saves/{id}` | a profile: JSON ≤ 256 KB carrying `SchemaVersion` and `Progress`, ids `[A-Za-z0-9_-]{1,64}`; `401` without the token once one is set |
+| `GET /v1/live` *(WebSocket)* | says `{"Type":"hello","Revision":…}` on connect, pushes `{"Type":"revision",…}` whenever `config.json` on disk changes, answers `{"Type":"ping"}` with a pong, pings every 25 s |
+| `GET /health` | `{ ok, revision, live }` — `live` is how many games are connected |
 
-`UAhmedConfigSubsystem` is the client. On launch it does three things in this
-order, and **the first one is what the player actually plays**:
+Three subsystems on the Unreal side, each `Config = Game` and switched off
+in `DefaultGame.ini` until you have a server:
+
+**`UAhmedConfigSubsystem`** pulls the tables. On launch it does three things
+in this order, and **the first one is what the player actually plays**:
 
 1. Point at the baked tables. The game is ready. No network, no wait.
 2. Apply anything a previous run cached, if its revision is newer.
@@ -268,11 +283,35 @@ because the halves were tuned against each other. Anything that goes wrong —
 offline, timeout, malformed, a table that will not parse — leaves the game on
 what it already had and says so in `LogAhmedBalance`.
 
+**`UAhmedLiveLinkSubsystem`** is what makes it live. It holds one socket open
+to `/v1/live` and, on a `revision` message that differs from what the config
+subsystem holds, calls `RefreshFromServer()` — the same fetch, the same
+validation, the same whole-or-nothing apply. It never touches a table
+itself. A dropped socket reconnects with a doubling backoff capped at a
+minute. So: retune in the panel, `node Tools/export/export.mjs --api`, and
+the build you are looking at has the new numbers.
+
+**`UAhmedSaveSyncSubsystem`** carries the profile. `Upload()` PUTs
+`FAhmedProgress` as JSON under `SchemaVersion` / `Progress` — the two keys
+the server validates — and `Download()` fetches it, parses it into a fresh
+struct, and only then replaces the local profile and writes the slot. A body
+that half-parses changes nothing. Nothing happens unless one of the two is
+called; the local slot stays the truth.
+
+> **What is and is not verified.** The server and its test are real:
+> `Tools/api/test.mjs` starts it against a copy of the payload, hits every
+> endpoint, opens the socket, rewrites `config.json` on disk and sees the
+> push arrive — 39 checks, run before this was committed. The three C++
+> subsystems have never been compiled, like everything else under `Source/`;
+> the module list in `AhmedFighter.Build.cs` gained `WebSockets` for the
+> link.
+
 > **Before this goes on the internet.** The server terminates plain HTTP and
 > knows nothing about TLS. iOS will refuse a plain-HTTP call from a shipped
 > app, and the right answer is to put the server behind HTTPS rather than to
 > punch an ATS hole — an exception would also let anyone on the same wifi
-> rewrite the game's balance in flight. `Config/IOS/IOSEngine.ini` keeps
+> rewrite the game's balance in flight. A save endpoint with no `SAVE_TOKEN`
+> is a save anyone can overwrite. `Config/IOS/IOSEngine.ini` keeps
 > `bDisableHTTPS=False` deliberately and carries a commented local-only
 > exception for development.
 
