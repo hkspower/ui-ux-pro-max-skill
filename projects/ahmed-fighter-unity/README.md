@@ -214,7 +214,10 @@ worse than one that says where it stops:
   `Assets/Resources/Models/Ahmed.fbx` is the real body — 4,260 verts, 32 bones
   counting `root` and the mannequin's seven IK targets, 1.802 m. `FighterIK`
   moves it: every frame it puts the eight limb bones back to rest, plants each
-  foot on the nearest thing under it that is not another fighter, raises the
+  foot on the nearest thing under it that is not another fighter (which is
+  defensive rather than a fix — measured across twelve spacings from 0.05 to
+  0.60 m, a foot ray never reaches another fighter on level ground, because it
+  is vertical and either misses them or starts inside them), raises the
   hands when the fighter is blocking, and during an attack drives the limb the
   row names — lead hand for jab and hook, rear hand for cross and the
   finisher, rear leg for knee and kick — to the row's reach over its startup,
@@ -252,10 +255,29 @@ worse than one that says where it stops:
   gates, the interface, the level-up, and the footstep, which wants an
   animation event this build has no animation for.
 - **None of this has run in Unity.** There is no editor in the environment it
-  was written in. What *is* earned: every file compiles clean against a stub of
-  the UnityEngine API; the data is verified against the browser assets and
-  against the Unreal build's own tables; and the parts that are pure logic —
-  the hitbox geometry, the district layout, world reachability — are executed
-  under Mono against that stub and checked. Nothing has been pressed play on,
-  and physics, input, rendering and the frame loop are exactly the parts a stub
-  cannot stand in for.
+  was written in, and no way to get one: every `unity3d.com` host is blocked
+  here, download and licensing alike. What *is* earned is in `Tools/harness`,
+  and one command runs all of it:
+
+  ```bash
+  Tools/harness/run.sh
+  ```
+
+  That builds the port with warnings as errors and executes five suites against
+  a small `UnityEngine` that composes transforms through their parents, answers
+  downward raycasts, and drives Awake/Start/Update/LateUpdate by reflection in
+  script order — so the port's own private methods run. The district layout,
+  world reachability, the hitbox geometry, the two-bone solver, the save format,
+  the upgrade economy and `FighterIK` on a real skeleton are all executed and
+  measured. The harness's own algebra is recomputed independently in numpy so a
+  stub whose maths lies cannot quietly pass everything above it.
+
+  It is still not Unity. There is no renderer, no animation system, no real
+  physics solver, and raycasts go straight down only. Nothing has been pressed
+  play on, and materials, lighting, input and the real frame loop are exactly
+  what a harness cannot stand in for.
+- **The feet have no pelvis drop.** Measured on a 0.20 m step: the controller
+  rides up onto it, and the leg on the low side hangs at full extension instead
+  of the hips lowering to meet the floor. Real foot IK lowers the pelvis to the
+  lower foot; this does not. Every district is one flat slab today, so it never
+  shows — it will the moment the ground stops being flat.
