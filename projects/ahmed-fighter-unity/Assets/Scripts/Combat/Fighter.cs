@@ -43,6 +43,12 @@ namespace Ahmed.Combat
         public Vector3 Facing { get; protected set; }
 
         public bool IsAlive { get { return State != FighterState.Dead; } }
+
+        /// <summary>The attack being thrown, and how far into it. Read-only,
+        /// for whatever draws the pose from the fight rather than the other
+        /// way round.</summary>
+        public AttackRow ActiveAttack { get { return CurrentAttack; } }
+        public float AttackTime { get { return AttackElapsed; } }
         public float HealthFraction { get { return MaxHealth > 0f ? Health / MaxHealth : 0f; } }
 
         /// <summary>Mid-swing, stunned, floored or dead: taking no new orders.</summary>

@@ -62,6 +62,7 @@ project opens and plays in a bare Unity install:
 | Camera | `FollowCamera` | trails the player at a yaw you can swing |
 | Data | `GameData` | every table, loaded from `Assets/Resources/Data` |
 | Sound | `AudioLibrary` | plays a cue by name off `sounds.json`: which clip, how loud, how far the pitch may drift, how often it may retrigger |
+| Pose | `FighterIK`, `TwoBoneIK` | computes the pose: feet planted on the ground, strikes thrown from the attack rows; the solver is pure and executed |
 | Bring-up | `Bootstrap` | a playable world with no authored scene |
 | Corridor mode | `WaveDirector` | the old stage-at-a-time flow. **Nothing uses it now** — kept because survival waves live there and the open world has no replacement for them yet |
 
@@ -207,11 +208,23 @@ worse than one that says where it stops:
   nothing in them, because a material is a Unity asset and there is no editor
   here to author one. The same goes for the render pipeline and the quality
   settings: this port has never had either set.
-- **The mesh has no avatar and no animation.** `Assets/Resources/Models/Ahmed.fbx`
-  is the real body — 4,260 verts, 32 bones counting `root` and the mannequin's
-  seven IK targets, 1.802 m — and it is a static pose.
-  Mapping it to a Humanoid avatar, and everything that follows from that, is an
-  editor job. Fighters move and turn; the mesh does not yet move with them.
+- **The mesh has no avatar and no animation, so its pose is computed.**
+  `Assets/Resources/Models/Ahmed.fbx` is the real body — 4,260 verts, 32 bones
+  counting `root` and the mannequin's seven IK targets, 1.802 m. `FighterIK`
+  moves it: every frame it puts the eight limb bones back to rest, plants each
+  foot on whatever a ray finds under it, and during an attack drives the limb
+  the row names — lead hand for jab and hook, rear hand for cross and the
+  finisher, right leg for knee and kick — to the row's reach over its startup,
+  holds it through the active frames and brings it back over the recovery.
+  That is feet and strikes and nothing else: no walk cycle, no guard, no
+  weight shift, no hit reaction, and the body above the hips does not move.
+  The solver (`TwoBoneIK.Solve`) and the strike timeline are pure and are
+  executed under Mono: ten thousand random targets land within a millimetre,
+  the joint always bends toward its pole, and every attack row is at full
+  reach for its whole active window and back at rest by the end of recovery.
+  The part that turns the answer into bone rotations, the foot ray and the
+  script order behind `LateUpdate` have not been seen in an editor. A Humanoid
+  avatar and real animation are still the editor job they were.
 - **Twenty of the thirty-nine sounds are never fired.** Every cue resolves to a
   real clip, and the nineteen the port can actually reach are wired. The rest
   belong to systems that are not ported: weapons, pickups, breakable crates and

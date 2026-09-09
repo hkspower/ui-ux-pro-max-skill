@@ -135,6 +135,11 @@ namespace Ahmed.Game
             // it happens to have been made at.
             visual.transform.SetParent(go.transform, false);
 
+            // The real mesh gets its pose computed: feet on the ground,
+            // strikes thrown from the attack rows. A capsule has no bones to
+            // move, so it gets nothing.
+            if (model != null) { go.AddComponent<FighterIK>(); }
+
             // On the body itself, which is no longer scaled -- the controller
             // takes the transform's scale with it, so a scaled root quietly
             // made every fighter 1.62 m to the collision system while the

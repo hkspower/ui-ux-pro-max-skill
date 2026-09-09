@@ -78,6 +78,13 @@ writing story text, naming anything, or deciding what a place looks like.
   browser build cannot produce — it has no audio — so it is generated from the
   Unreal build's `DT_Sounds.csv` and the clips are the same recordings. The
   two ports must not disagree about what a punch sounds like.
+- **The pose is computed, and a strike's look comes from its row.** There is
+  no animation. `FighterIK` plants the feet and drives the striking limb to
+  the attack row's reach over the row's own startup, active and recovery, so
+  a new move needs no animation clip — it needs its limb and landing height in
+  `FighterIK.StrikeLimb`, and nothing else. `TwoBoneIK.Solve` is pure on
+  purpose: it is the geometry, and keeping it free of Transforms is what lets
+  it be executed and checked without an editor. Do not put scene access in it.
 - **The character mesh is generated, not authored.**
   `../ahmed-fighter-ue5/Tools/blender/build_ahmed.py` is the game's only mesh
   generator and writes `Assets/Resources/Models/Ahmed.fbx` itself, in metres
