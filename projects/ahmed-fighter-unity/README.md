@@ -212,16 +212,24 @@ worse than one that says where it stops:
   `Assets/Resources/Models/Ahmed.fbx` is the real body — 4,260 verts, 32 bones
   counting `root` and the mannequin's seven IK targets, 1.802 m. `FighterIK`
   moves it: every frame it puts the eight limb bones back to rest, plants each
-  foot on whatever a ray finds under it, and during an attack drives the limb
-  the row names — lead hand for jab and hook, rear hand for cross and the
-  finisher, right leg for knee and kick — to the row's reach over its startup,
+  foot on the nearest thing under it that is not another fighter, raises the
+  hands when the fighter is blocking, and during an attack drives the limb the
+  row names — lead hand for jab and hook, rear hand for cross and the
+  finisher, rear leg for knee and kick — to the row's reach over its startup,
   holds it through the active frames and brings it back over the recovery.
-  That is feet and strikes and nothing else: no walk cycle, no guard, no
-  weight shift, no hit reaction, and the body above the hips does not move.
-  The solver (`TwoBoneIK.Solve`) and the strike timeline are pure and are
-  executed under Mono: ten thousand random targets land within a millimetre,
-  the joint always bends toward its pole, and every attack row is at full
-  reach for its whole active window and back at rest by the end of recovery.
+  Which side is lead depends on the stance, and an archetype's stance is a
+  hash of its own name, so a kickboxer fights the same way every run and does
+  not fight the way the grappler beside it does. Ahmed is always orthodox.
+  That is feet, guard and strikes and nothing else: no walk cycle, no weight
+  shift, no hit reaction, nothing for a knockdown — a downed fighter is still
+  standing — and the body above the hips does not move.
+  The solver (`TwoBoneIK.Solve`), the strike timeline, the stance map and the
+  guard's geometry are pure and are executed under Mono: ten thousand random
+  targets land within a millimetre, the joint always bends toward its pole,
+  every attack row is at full reach for its whole active window and back at
+  rest by the end of recovery, orthodox resolves to exactly the sides that
+  shipped before and southpaw to their mirror, and the raised guard sits above
+  the shoulder, in front, symmetric, and at 46% of the arm's reach.
   The part that turns the answer into bone rotations, the foot ray and the
   script order behind `LateUpdate` have not been seen in an editor. A Humanoid
   avatar and real animation are still the editor job they were.

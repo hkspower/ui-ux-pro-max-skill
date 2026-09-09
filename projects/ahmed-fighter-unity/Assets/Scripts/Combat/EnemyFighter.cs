@@ -16,6 +16,9 @@ namespace Ahmed.Combat
     public class EnemyFighter : Fighter
     {
         public int ExperienceValue = 14;
+        /// <summary>The archetype row this one was built from. Read-only, and
+        /// it is what lets the pose tell a kickboxer from a grappler.</summary>
+        public string Archetype { get; private set; }
         public bool IsBoss;
         public bool Enraged { get; private set; }
 
@@ -59,6 +62,7 @@ namespace Ahmed.Combat
         public void ConfigureFrom(FighterRow def, int tier, float difficultyHealth,
                                   float difficultyDamage)
         {
+            Archetype = def.name;
             float tierBoost = 1f + tier * 0.10f;
 
             InitialiseVitals(Mathf.Max(1f, Mathf.Round(def.maxHealth * tierBoost * difficultyHealth)),

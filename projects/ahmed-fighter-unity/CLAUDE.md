@@ -79,10 +79,18 @@ writing story text, naming anything, or deciding what a place looks like.
   Unreal build's `DT_Sounds.csv` and the clips are the same recordings. The
   two ports must not disagree about what a punch sounds like.
 - **The pose is computed, and a strike's look comes from its row.** There is
-  no animation. `FighterIK` plants the feet and drives the striking limb to
-  the attack row's reach over the row's own startup, active and recovery, so
-  a new move needs no animation clip — it needs its limb and landing height in
-  `FighterIK.StrikeLimb`, and nothing else. `TwoBoneIK.Solve` is pure on
+  no animation. `FighterIK` plants the feet, raises the guard and drives the
+  striking limb to the attack row's reach over the row's own startup, active
+  and recovery, so a new move needs no animation clip — it needs its limb and
+  landing height in `FighterIK.StrikeLimb`, and nothing else.
+- **A limb is lead or rear, never left or right.** Naming sides in the strike
+  map is what made every fighter in the game throw with the same hand. Which
+  side a lead limb is comes from the stance, and a stance comes from a hash of
+  the archetype's name — deterministic for the same reason district layout is:
+  a player learns an archetype, so it has to fight the same way every run.
+- **Anything the pose reads must be state the fight already keeps.** The guard
+  is `Fighter.Blocking`, the strike is the attack row. Do not add a field to a
+  fighter so the pose can have something to look at. `TwoBoneIK.Solve` is pure on
   purpose: it is the geometry, and keeping it free of Transforms is what lets
   it be executed and checked without an editor. Do not put scene access in it.
 - **The character mesh is generated, not authored.**
