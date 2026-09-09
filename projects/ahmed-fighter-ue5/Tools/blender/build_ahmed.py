@@ -53,6 +53,15 @@ PALETTE = {
     "hair":   (0.020, 0.014, 0.009, 1.0),   # #1e150f
     "beard":  (0.026, 0.018, 0.012, 1.0),   # a shade off the hair
     "eye":    (0.012, 0.010, 0.009, 1.0),
+    # The kit the browser build lists for him (assets/ahmed.js): taped fists,
+    # a wristwatch on the lead arm, the flag on the chest. Same man.
+    "wrap":   (0.807, 0.768, 0.672, 1.0),   # #e8e2d4  hand tape, the browser's tapeCol
+    "watch":  (0.030, 0.034, 0.045, 1.0),   # dark steel
+    "mouth":  (0.190, 0.062, 0.045, 1.0),   # the lip line inside the beard
+    "flag_g": (0.000, 0.201, 0.047, 1.0),   # #007a3d
+    "flag_w": (0.887, 0.913, 0.940, 1.0),   # #f3f5f8
+    "flag_r": (0.608, 0.008, 0.043, 1.0),   # #c8102e
+    "flag_k": (0.004, 0.005, 0.007, 1.0),   # #101216
 }
 
 # ---------------------------------------------------------------- joints
@@ -95,6 +104,11 @@ _LIMB = [
     # limbs have a belly and a joint: wide through the muscle, narrow across
     # the elbow, wide again below it, narrow at the wrist.
     ("clavicle",  Vector((0.046, -0.012, 1.448)),  "spine_03",   0.100),
+    # The two masses an athlete's shoulder has and a tube does not: the
+    # trapezius sloping from the neck out to the shoulder, and the deltoid
+    # capping it. Both shaping joints; neither is a mannequin bone.
+    ("trap",      Vector((0.062,  0.012, 1.488)),  "spine_03",   0.056),
+    ("delt",      Vector((0.200, -0.005, 1.450)),  "clavicle",   0.060),
     ("upperarm",  Vector((0.178, -0.006, 1.442)),  "clavicle",   0.055),
     ("biceps",    Vector((0.285, -0.003, 1.335)),  "upperarm",   0.060),
     # The elbow sits 1.2 cm behind the shoulder-to-wrist line and the knee
@@ -107,6 +121,26 @@ _LIMB = [
     ("forearm",   Vector((0.471,  0.000, 1.149)),  "lowerarm",   0.053),
     ("hand",      Vector((0.601,  0.000, 1.019)),  "forearm",    0.032),
     ("hand_end",  Vector((0.654,  0.000, 0.966)),  "hand",       0.042),
+    # A fist, not a mitt. Four fingers curl off the knuckle row -- out along
+    # the arm to the knuckle, down into the palm, back toward the wrist --
+    # and the thumb lies across them. All shaping joints: the mannequin has
+    # finger bones but a closed fist never opens in this game, so the mesh
+    # carries the fingers and the skeleton stays the 24 that retarget.
+    # Palm faces -Y, the way Ahmed faces; the back of the fist is +Y.
+    ("knuckle_1", Vector((0.664,  0.000, 0.978)),  "hand_end",   0.0090),
+    ("knuckle_2", Vector((0.672,  0.000, 0.960)),  "hand_end",   0.0095),
+    ("knuckle_3", Vector((0.664,  0.000, 0.943)),  "hand_end",   0.0090),
+    ("knuckle_4", Vector((0.652,  0.000, 0.928)),  "hand_end",   0.0082),
+    ("phalanx_1", Vector((0.668, -0.024, 0.982)),  "knuckle_1",  0.0080),
+    ("phalanx_2", Vector((0.676, -0.025, 0.963)),  "knuckle_2",  0.0085),
+    ("phalanx_3", Vector((0.668, -0.024, 0.946)),  "knuckle_3",  0.0080),
+    ("phalanx_4", Vector((0.655, -0.022, 0.931)),  "knuckle_4",  0.0072),
+    ("tip_1",     Vector((0.651, -0.026, 0.996)),  "phalanx_1",  0.0068),
+    ("tip_2",     Vector((0.658, -0.027, 0.979)),  "phalanx_2",  0.0072),
+    ("tip_3",     Vector((0.650, -0.026, 0.963)),  "phalanx_3",  0.0068),
+    ("tip_4",     Vector((0.638, -0.024, 0.949)),  "phalanx_4",  0.0062),
+    ("thumb_1",   Vector((0.626, -0.024, 1.000)),  "hand",       0.0092),
+    ("thumb_2",   Vector((0.648, -0.036, 0.984)),  "thumb_1",    0.0080),
     # Legs taper inward from hip to ankle, the way a person's do. They used to
     # splay -- ankles wider apart than hips -- which reads as bow-legged from
     # the front and is the first thing wrong with a blockout's stance.
@@ -137,7 +171,11 @@ ORDER = list(J.keys())
 # bone for goes here instead. `build_armature` skips these and parents
 # through them, which is why a bulge in the middle of the upper arm does not
 # become a bone in the middle of the upper arm.
-_SHAPE_BASES = ("biceps", "forearm", "quad", "calf_belly", "heel", "toe")
+_SHAPE_BASES = ("biceps", "forearm", "quad", "calf_belly", "heel", "toe",
+                "trap", "delt",
+                "knuckle_1", "knuckle_2", "knuckle_3", "knuckle_4",
+                "phalanx_1", "phalanx_2", "phalanx_3", "phalanx_4",
+                "tip_1", "tip_2", "tip_3", "tip_4", "thumb_1", "thumb_2")
 SHAPE = {"jaw"} | {"{}_{}".format(b, s) for b in _SHAPE_BASES for s in ("l", "r")}
 
 
@@ -158,14 +196,49 @@ def reset_scene():
     scene.unit_settings.length_unit = "METERS"
 
 
-def make_material(name, rgba, roughness=0.62, sheen=0.0):
+def make_material(name, rgba, roughness=0.62, sheen=0.0, metallic=0.0,
+                  subsurface=0.0, weave=0.0, coat=0.0):
+    """A Principled BSDF that answers to the light the way the surface does.
+
+    Base colour, roughness and metallic are the three that survive export --
+    glTF carries them and Unreal reads them on import. Subsurface (skin),
+    the coat (an eye's wet surface, a trainer's synthetic) and the weave (a
+    procedural bump that gives cloth a fibre) exist for the renders in
+    Docs/renders and do not travel: those want a baked texture and this mesh
+    has no UVs. What the engine gets is the right colour at the right
+    roughness; what it does not get yet is written in the README.
+    """
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    nodes = mat.node_tree.nodes
+    bsdf = nodes["Principled BSDF"]
     bsdf.inputs["Base Color"].default_value = rgba
     bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Metallic"].default_value = metallic
     if "Sheen Weight" in bsdf.inputs:
         bsdf.inputs["Sheen Weight"].default_value = sheen
+    if subsurface > 0.0 and "Subsurface Weight" in bsdf.inputs:
+        bsdf.inputs["Subsurface Weight"].default_value = subsurface
+        # Red goes deepest in skin; the scale is centimetres of scatter.
+        bsdf.inputs["Subsurface Radius"].default_value = (1.0, 0.25, 0.10)
+        bsdf.inputs["Subsurface Scale"].default_value = 0.012
+    if coat > 0.0 and "Coat Weight" in bsdf.inputs:
+        bsdf.inputs["Coat Weight"].default_value = coat
+        bsdf.inputs["Coat Roughness"].default_value = 0.08
+    if weave > 0.0:
+        # Fibre: a fine noise driven through a bump, so cloth is not a
+        # painted colour. Procedural rather than a texture because there
+        # are no UVs; it is what makes the tee read as jersey in the render.
+        noise = nodes.new("ShaderNodeTexNoise")
+        noise.inputs["Scale"].default_value = 900.0
+        noise.inputs["Detail"].default_value = 4.0
+        noise.inputs["Roughness"].default_value = 0.7
+        bump = nodes.new("ShaderNodeBump")
+        bump.inputs["Strength"].default_value = weave
+        bump.inputs["Distance"].default_value = 0.0006
+        links = mat.node_tree.links
+        links.new(noise.outputs["Fac"], bump.inputs["Height"])
+        links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return mat
 
 
@@ -216,7 +289,10 @@ def build_body():
         "head":       (0.087, 0.107),
         "biceps":     (0.060, 0.056),
         "forearm":    (0.053, 0.048),
-        "hand_end":   (0.042, 0.034),   # a fist is a slab, not a ball
+        "hand_end":   (0.040, 0.030),   # a fist is a slab, not a ball
+        "trap":       (0.052, 0.064),   # the slope, deeper than wide
+        "delt":       (0.061, 0.058),
+        "thumb_1":    (0.0085, 0.0100),
         "quad":       (0.090, 0.086),
         "calf_belly": (0.066, 0.060),
         "heel":       (0.036, 0.042),
@@ -245,14 +321,21 @@ def subdivide(obj):
 def add_material_slots(obj):
     """Five slots plus a beard, in a fixed order the two passes index into."""
     mats = [
-        ("skin",   make_material("Ahmed_Skin", PALETTE["skin"], 0.58)),
-        ("tee",    make_material("Ahmed_Tee", PALETTE["tee"], 0.72, sheen=0.30)),
-        ("pants",  make_material("Ahmed_Pants", PALETTE["pants"], 0.78, sheen=0.18)),
-        ("shoe",   make_material("Ahmed_Shoe", PALETTE["shoe"], 0.46)),
-        ("band",   make_material("Ahmed_Band", PALETTE["band"], 0.66)),
-        ("hair",   make_material("Ahmed_Hair", PALETTE["hair"], 0.42)),
-        ("beard",  make_material("Ahmed_Beard", PALETTE["beard"], 0.50)),
-        ("eye",    make_material("Ahmed_Eye", PALETTE["eye"], 0.18)),
+        ("skin",   make_material("Ahmed_Skin", PALETTE["skin"], 0.55, subsurface=0.30)),
+        ("tee",    make_material("Ahmed_Tee", PALETTE["tee"], 0.86, sheen=0.35, weave=0.18)),
+        ("pants",  make_material("Ahmed_Pants", PALETTE["pants"], 0.80, sheen=0.20, weave=0.12)),
+        ("shoe",   make_material("Ahmed_Shoe", PALETTE["shoe"], 0.42, coat=0.25)),
+        ("band",   make_material("Ahmed_Band", PALETTE["band"], 0.70, weave=0.10)),
+        ("hair",   make_material("Ahmed_Hair", PALETTE["hair"], 0.38)),
+        ("beard",  make_material("Ahmed_Beard", PALETTE["beard"], 0.48)),
+        ("eye",    make_material("Ahmed_Eye", PALETTE["eye"], 0.10, coat=1.0)),
+        ("wrap",   make_material("Ahmed_Wrap", PALETTE["wrap"], 0.88, sheen=0.20, weave=0.22)),
+        ("watch",  make_material("Ahmed_Watch", PALETTE["watch"], 0.28, metallic=0.90)),
+        ("mouth",  make_material("Ahmed_Mouth", PALETTE["mouth"], 0.45)),
+        ("flag_g", make_material("Ahmed_Flag_Green", PALETTE["flag_g"], 0.80)),
+        ("flag_w", make_material("Ahmed_Flag_White", PALETTE["flag_w"], 0.80)),
+        ("flag_r", make_material("Ahmed_Flag_Red", PALETTE["flag_r"], 0.80)),
+        ("flag_k", make_material("Ahmed_Flag_Black", PALETTE["flag_k"], 0.80)),
     ]
     for _, mat in mats:
         obj.data.materials.append(mat)
@@ -288,8 +371,18 @@ def assign_kit(obj, idx):
             poly.material_index = idx["tee"]           # tee body and collar
         elif from_shoulder < 0.175 and ax >= 0.13:     # fitted short sleeve
             poly.material_index = idx["tee"]
+        elif _near_segment(c, J["hand_l"][0], J["hand_end_l"][0], 0.034) \
+                or _near_segment(c, J["hand_r"][0], J["hand_end_r"][0], 0.034):
+            # Hand wraps: tape from the wrist over the back of the hand and
+            # the knuckles, the way the browser build paints them. The
+            # fingers past the knuckle row stay skin.
+            poly.material_index = idx["wrap"]
         else:
             poly.material_index = idx["skin"]
+
+
+def _near_segment(point, a, b, radius):
+    return _point_to_segment(point, a, b) < radius
 
 
 def assign_detail(obj, idx):
@@ -338,6 +431,123 @@ def assign_detail(obj, idx):
             poly.material_index = idx["hair"]
         elif c.z < beard_z and d.y < 0.020:            # jaw, chin, sideburns
             poly.material_index = idx["beard"]
+
+
+def add_ring(obj, material, centre, axis, height, near_radius=0.045, proud=0.002,
+             vertices=32):
+    """A ring of geometry hugging the body about an axis: a hem, a cuff, a
+    collar, a watch. Sized from the mesh it goes onto, like the waistband,
+    so it stays on the body if he is re-proportioned. Returns the fitted
+    radii, so the caller can check it hugged something."""
+    axis = Vector(axis).normalized()
+    # Body vertices within the ring's own height along the axis.
+    basis = axis.to_track_quat("Z", "Y").to_matrix()   # local Z is the axis
+    inv = basis.inverted()
+    near = []
+    for v in obj.data.vertices:
+        d = inv @ (v.co - Vector(centre))
+        if abs(d.z) < height and math.hypot(d.x, d.y) < near_radius:
+            near.append(d)
+    if not near:
+        return None
+    rx = max(abs(d.x) for d in near) + proud
+    ry = max(abs(d.y) for d in near) + proud
+    bpy.ops.mesh.primitive_cylinder_add(vertices=vertices, radius=1.0, depth=height,
+                                        location=centre)
+    ring = bpy.context.object
+    ring.scale = (rx, ry, 1.0)
+    ring.rotation_mode = "QUATERNION"
+    ring.rotation_quaternion = axis.to_track_quat("Z", "Y")
+    bpy.ops.object.transform_apply(scale=True, rotation=True)
+    bpy.ops.object.shade_smooth()
+    _join_into(obj, ring, material)
+    return rx, ry
+
+
+def add_cloth_edges(obj, idx):
+    """Where the clothes end: a ribbed collar at the neck, a hem on each
+    sleeve, a cuff on each trouser leg. A tee painted onto a body has no
+    edge, and the edge is most of what says cloth."""
+    tee, pants = obj.data.materials[idx["tee"]], obj.data.materials[idx["pants"]]
+    out = {}
+    out["collar"] = add_ring(obj, tee, J["neck_01"][0] + Vector((0, 0, 0.026)),
+                             (0, 0, 1), 0.012, near_radius=0.10)
+    for side in ("l", "r"):
+        shoulder, elbow = J["upperarm_" + side][0], J["lowerarm_" + side][0]
+        along = (elbow - shoulder).normalized()
+        out["sleeve_" + side] = add_ring(obj, tee, shoulder + along * 0.175, along, 0.012,
+                                         near_radius=0.09)
+        foot = J["foot_" + side][0]
+        out["cuff_" + side] = add_ring(obj, pants, Vector((foot.x, foot.y, 0.118)),
+                                       (0, 0, 1), 0.014, near_radius=0.08)
+    return out
+
+
+def add_watch(obj, idx):
+    """The wristwatch on the lead arm. Orthodox: the left. A band around the
+    wrist and a flat case on the back of it."""
+    wrist, hand_end = J["hand_l"][0], J["hand_end_l"][0]
+    along = (hand_end - wrist).normalized()
+    centre = wrist - along * 0.012
+    fit = add_ring(obj, obj.data.materials[idx["watch"]], centre, along, 0.011,
+                   near_radius=0.06, proud=0.0025, vertices=24)
+    # The case sits on the back of the wrist (+Y is the back of the hand).
+    bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.016, depth=0.006,
+                                        location=centre + Vector((0, (fit[1] if fit else 0.03) + 0.002, 0)))
+    case = bpy.context.object
+    case.rotation_euler = (math.radians(90.0), 0.0, 0.0)
+    bpy.ops.object.transform_apply(rotation=True)
+    bpy.ops.object.shade_smooth()
+    _join_into(obj, case, obj.data.materials[idx["watch"]])
+    return fit
+
+
+def add_flag_patch(obj, idx):
+    """The Kuwait flag on the chest, as the browser build's `patch` flag
+    says. A small panel of four faces -- green, white, red, and the black
+    hoist -- laid on the left breast, proud of the tee by a couple of
+    millimetres so it reads as a sewn patch and not paint."""
+    w, h = 0.048, 0.030
+    x0, z0 = 0.044, 1.352                      # left breast, Ahmed's left is +X
+    # Find the chest surface under the patch: the nearest tee vertex.
+    probe = Vector((x0, -0.20, z0))
+    surface = min((v.co for v in obj.data.vertices
+                   if abs(v.co.x - x0) < 0.03 and abs(v.co.z - z0) < 0.03 and v.co.y < 0.0),
+                  key=lambda c: (c - probe).length)
+    y = surface.y - 0.0025
+    mesh = bpy.data.meshes.new("Patch")
+    hoist = w * 0.27
+    band = h / 3.0
+    verts, faces, mats = [], [], []
+    def quad(xa, xb, za, zb, m):
+        i = len(verts)
+        verts.extend([(xa, y, za), (xb, y, za), (xb, y, zb), (xa, y, zb)])
+        faces.append((i, i + 1, i + 2, i + 3)); mats.append(m)
+    # x runs +X to -X across the chest as seen from the front (he faces -Y),
+    # so the hoist -- the flag's left edge to the viewer -- is at +X.
+    quad(x0 + w / 2, x0 + w / 2 - hoist, z0 - h / 2, z0 + h / 2, "flag_k")
+    fx0, fx1 = x0 + w / 2 - hoist, x0 - w / 2
+    quad(fx0, fx1, z0 + h / 2 - band, z0 + h / 2, "flag_g")
+    quad(fx0, fx1, z0 - h / 2 + band, z0 + h / 2 - band, "flag_w")
+    quad(fx0, fx1, z0 - h / 2, z0 - h / 2 + band, "flag_r")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    patch = bpy.data.objects.new("Patch", mesh)
+    bpy.context.collection.objects.link(patch)
+    for key in ("flag_k", "flag_g", "flag_w", "flag_r"):
+        patch.data.materials.append(obj.data.materials[idx[key]])
+    order = ["flag_k", "flag_g", "flag_w", "flag_r"]
+    for poly, m in zip(patch.data.polygons, mats):
+        poly.material_index = order.index(m)
+    # Faces must point out of the chest, toward -Y.
+    for poly in patch.data.polygons:
+        if poly.normal.y > 0.0:
+            poly.flip()
+    bpy.ops.object.select_all(action="DESELECT")
+    patch.select_set(True); obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.join()
+    return y
 
 
 def add_waistband(obj, idx, z_centre=1.062, height=0.026):
@@ -443,17 +653,42 @@ def add_face(obj, idx):
     head = J["head"][0]
 
     # Nose: a wedge set into the face at the nose-base third, tall and narrow
-    # rather than a ball. Big enough to catch the light down one side, small
-    # enough not to read as a snout.
+    # rather than a ball, with a bridge running up toward the brow -- the
+    # profile's centre line, which a ball never gave it.
     bpy.ops.mesh.primitive_uv_sphere_add(
         radius=0.016, segments=14, ring_count=10,
-        location=(head.x, head.y - 0.080, head.z - 0.026),
+        location=(head.x, head.y - 0.079, head.z - 0.022),
     )
     nose = bpy.context.object
-    nose.scale = (0.62, 1.20, 1.15)
+    nose.scale = (0.60, 1.10, 1.75)
     bpy.ops.object.transform_apply(scale=True)
     bpy.ops.object.shade_smooth()
     _join_into(obj, nose, obj.data.materials[idx["skin"]])
+
+    # Ears: flattened ovals on the skull's sides, level with the eyes, set
+    # a little back. The profile had none, and a head with no ear reads as
+    # a helmet from the side.
+    for sign in (1, -1):
+        bpy.ops.mesh.primitive_uv_sphere_add(
+            radius=0.017, segments=12, ring_count=8,
+            location=(head.x + 0.083 * sign, head.y + 0.006, head.z - 0.008),
+        )
+        ear = bpy.context.object
+        ear.scale = (0.40, 0.85, 1.20)
+        bpy.ops.object.transform_apply(scale=True)
+        bpy.ops.object.shade_smooth()
+        _join_into(obj, ear, obj.data.materials[idx["skin"]])
+
+    # Mouth: a lip line inside the beard, a shade darker than skin.
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        radius=0.012, segments=12, ring_count=8,
+        location=(head.x, head.y - 0.084, head.z - 0.056),
+    )
+    mouth = bpy.context.object
+    mouth.scale = (1.70, 0.40, 0.30)
+    bpy.ops.object.transform_apply(scale=True)
+    bpy.ops.object.shade_smooth()
+    _join_into(obj, mouth, obj.data.materials[idx["mouth"]])
 
     # Brows: flattened bars on the brow third, in the hair colour.
     for sign in (1, -1):
@@ -933,6 +1168,34 @@ def limb_targets(arm_obj, mesh_obj, fk, plant):
     return targets, poles, report
 
 
+def print_detail_report(body, edges, watch, patch_y):
+    """The new geometry, measured off the built mesh rather than described.
+    Every number here is a check the build fails on if it drifts."""
+    co = [v.co for v in body.data.vertices]
+    # The fist: its span across the knuckle row, and that fingers exist.
+    fist = [c for c in co if (c - J["hand_end_l"][0]).length < 0.06 and c.x > 0.60]
+    span_z = max(c.z for c in fist) - min(c.z for c in fist)
+    depth_y = max(c.y for c in fist) - min(c.y for c in fist)
+    print("fist        : left, {} verts, {:.3f} m across the knuckles, {:.3f} m deep".format(
+        len(fist), span_z, depth_y))
+    assert 0.075 < span_z < 0.115, "a fist is 8-11 cm across the knuckles"
+    assert 0.045 < depth_y < 0.095, "a closed fist is 5-9 cm front to back"
+    # Every ring found a body to hug.
+    for name, fit in edges.items():
+        assert fit is not None, name + " found no body under it"
+        print("edge        : {:<9} {:.3f} x {:.3f} m".format(name, fit[0], fit[1]))
+    assert watch is not None, "the watch found no wrist"
+    print("watch       : {:.3f} x {:.3f} m band on the left wrist".format(*watch))
+    print("flag patch  : on the left breast at y {:+.4f}".format(patch_y))
+    assert -0.16 < patch_y < -0.08, "the patch is not on the chest"
+    # Ears: one each side, symmetric.
+    head = J["head"][0]
+    ears = [c for c in co if abs(abs(c.x - head.x) - 0.083) < 0.012 and abs(c.z - head.z + 0.008) < 0.03]
+    left = sum(1 for c in ears if c.x > head.x); right = len(ears) - left
+    print("ears        : {} verts left, {} right".format(left, right))
+    assert left > 20 and right > 20 and abs(left - right) <= 2, "the ears are not a pair"
+
+
 def print_pose_report(name, plant, report):
     print("pose {:<6}: ".format(name)
           + "  ".join("{} {:+.4f}".format(k, v) for k, v in sorted(report.items())))
@@ -1145,9 +1408,13 @@ def main():
     subdivide(body)
     assign_detail(body, slots)       # fine mesh: waistband, hair, beard
     add_waistband(body, slots)
+    edges = add_cloth_edges(body, slots)
+    watch = add_watch(body, slots)
+    patch_y = add_flag_patch(body, slots)
     add_eyes(body, slots)
     add_face(body, slots)
     add_hair(body, slots)
+    print_detail_report(body, edges, watch, patch_y)
     rig = build_armature()
     bind(body, rig)
     add_ik(rig)
@@ -1184,6 +1451,7 @@ def main():
     print("tris       :", tris)
     print("bones      :", len(rig.data.bones),
           "(24 deforming + root + 7 IK)")
+    assert len(rig.data.bones) == 32, "the skeleton must stay the mannequin's 24 + root + 7 IK"
     print("materials  :", [m.name for m in body.data.materials])
     print("glb        :", glb, os.path.getsize(glb), "bytes")
     print("fbx        :", fbx, os.path.getsize(fbx), "bytes")

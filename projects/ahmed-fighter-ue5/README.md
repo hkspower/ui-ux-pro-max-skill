@@ -53,16 +53,17 @@ pip install bpy
 python3 Tools/blender/build_ahmed.py
 ```
 
-It writes both model files plus three reference renders into `Docs/renders`.
+It writes both model files (and the Unity one) plus three reference renders into `Docs/renders`, and fails the build if any of the measurements below drift.
 
-**What it is:** a clean, correctly proportioned blockout — 8.4k triangles, 32
-bones (the mannequin's 24 that deform, plus `root` and its seven IK bones),
-eight material slots carrying the game's palette. The proportions are
-**measured, not asserted**: he stands 1.802 m against the 1.80 m the script
-declares, soles on the floor to a tenth of a millimetre, about eight heads
-tall, with every segment inside half a percent of its anatomical length (upper
-arm 0.335 m, forearm 0.263, thigh 0.439, shank 0.443 — Winter's fractions of
-stature) and every girth within a centimetre of a person's:
+**What it is:** a correctly proportioned body with the beginnings of a
+character on it — about 17k triangles, 32 bones (the mannequin's 24 that
+deform, plus `root` and its seven IK bones), fifteen material slots carrying
+the game's palette and his kit. The proportions are **measured, not
+asserted**: he stands 1.802 m against the 1.80 m the script declares, soles
+on the floor to a tenth of a millimetre, about eight heads tall, with every
+segment inside half a percent of its anatomical length (upper arm 0.335 m,
+forearm 0.263, thigh 0.439, shank 0.443 — Winter's fractions of stature) and
+every girth within a centimetre of a person's:
 
 | | built | a person |
 | --- | --- | --- |
@@ -70,19 +71,51 @@ stature) and every girth within a centimetre of a person's:
 | thigh / knee / calf / ankle | 0.144 / 0.113 / 0.108 / 0.069 | 0.150 / 0.115 / 0.105 / 0.075 |
 | torso depth through the ribs | 0.217–0.236 | 0.225 |
 | foot length, heel behind ankle | 0.266 / 0.058 | 0.274 / 0.060 |
+| fist across the knuckles / front to back | 0.096 / 0.066 | 0.090 / 0.070 |
 
-Those two rows are the difference between a figure and a mannequin: a limb
-runs wide through the muscle, narrow across the joint and wide again below it.
+Those rows are the difference between a figure and a mannequin: a limb runs
+wide through the muscle, narrow across the joint and wide again below it.
 Drawn as a straight taper between three joints it is a tube, and a tube looks
-like a blockout however good its lengths are. He wears what the 2D
-Ahmed wears: fair skin, a fitted black tee with short sleeves, black long
-trousers over a red waistband, dark trainers, and hair grown as real geometry
-off the skull rather than painted onto it. **What it is not:** a finished hero
-character. The face is a nose, two brows and two eyes over a jaw — enough to
-read as a face and no more — and there are no hands beyond mitts, no cloth
-simulation and no normal maps. It exists so the gameplay code has something to drive today, and
-so an artist has a rig and a silhouette to build onto rather than a blank
-project.
+like a blockout however good its lengths are.
+
+**The 2026-09-10 pass (Riyadh)** took the Adobe check's list — stump hands,
+an egg of a head, no cloth, no materials — and did what a generator can do
+about each, every piece measured off the built mesh and asserted in the
+build:
+
+- **Fists.** Four fingers curl off the knuckle row and the thumb lies
+  across them: fourteen shaping joints a side, no new bones, because a
+  closed fist never opens in this game and the skeleton has to stay the 24
+  that retarget. 9.6 cm across the knuckles, 6.6 cm deep.
+- **His kit, from `assets/ahmed.js`.** Hand wraps painted from the wrist
+  over the knuckles in the browser's tape colour (`#e8e2d4` — on his fair
+  skin it reads faintly, which is the data's colour and not the mesh's
+  fault); the wristwatch on the lead arm, a band and a case; the Kuwait
+  flag on the left breast as a sewn patch of four faces, 2.5 mm proud of the
+  tee. The 3D and 2D Ahmed list the same kit now.
+- **Cloth edges.** A ribbed collar, a hem on each sleeve, a cuff on each
+  trouser leg — rings of geometry sized from the mesh under them, like the
+  waistband. A tee painted onto a body has no edge, and the edge is most of
+  what says cloth.
+- **The head.** Ears, a mouth line inside the beard, and the nose given a
+  bridge up to the brow. The profile has a centre line and an ear; from the
+  side it is a head, not a helmet.
+- **Shoulders.** Trapezius and deltoid as shaping joints, so the neck slopes
+  out to a capped shoulder instead of meeting a cylinder. The first cut of
+  these was two sizes too big and rendered as shoulder pads; they are tucked
+  in now.
+- **Materials.** Every slot is a Principled BSDF that answers to the light:
+  skin with subsurface scattering, tee and trousers with a sheen and a
+  procedural weave bump, a coated eye, a metallic watch, leather-roughness
+  trainers. **Only base colour, roughness and metallic travel** — glTF and
+  FBX carry those and Unreal reads them on import. The subsurface, the coat
+  and the weave are render-only: baking them wants UVs, and this mesh has
+  none yet.
+
+**What it is not:** a finished hero character. The hair is still a shell,
+there is no cloth simulation, no normal maps, no damage. It exists so the
+gameplay code has something to drive today, and so an artist has a rig, a
+silhouette and a kit to build onto rather than a blank project.
 
 Two things make it drop straight into UE5:
 
