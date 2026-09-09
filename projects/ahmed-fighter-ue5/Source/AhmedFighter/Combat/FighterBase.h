@@ -220,6 +220,15 @@ protected:
 	float AttackElapsed = 0.f;
 	bool bAttackHitFired = false;
 
+	/** The swing's sound and when in the attack to start it. The clip is
+	    begun early by its own lead so the swish peaks on the first active
+	    frame; a swing that is interrupted before then never sounds, because
+	    it never happened. */
+	FName SwingCue = NAME_None;
+	float SwingAt = 0.f;
+	bool bSwingFired = true;
+	void FireSwingCue();
+
 	/** Targets already struck by the current swing, so multi-hit never double-dips. */
 	TArray<TWeakObjectPtr<AFighterBase>> HitThisSwing;
 

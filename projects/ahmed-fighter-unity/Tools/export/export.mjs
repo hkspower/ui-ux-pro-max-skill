@@ -330,6 +330,7 @@ function sounds(){
     pitchMax: +r.PitchMax || 1,
     spatial: String(r.bSpatial).trim().toLowerCase() === 'true',
     cooldown: +r.Cooldown || 0,
+    lead: +r.Lead || 0,
     description: r.Description || ''
   })));
 }

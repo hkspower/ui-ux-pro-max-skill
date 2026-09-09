@@ -37,6 +37,10 @@ namespace Ahmed.World
         private readonly Dictionary<int, List<EnemyFighter>> _liveBySite =
             new Dictionary<int, List<EnemyFighter>>();
         private readonly HashSet<int> _awake = new HashSet<int>();
+        /// <summary>Exits that have already refused the player on this
+        /// approach. The refusal sounds once when he reaches the door, not
+        /// every cooldown for as long as he stands in it.</summary>
+        private readonly HashSet<int> _refusing = new HashSet<int>();
         private float _exitCooldown;
 
         private void Awake() { Current = this; }
@@ -79,6 +83,7 @@ namespace Ahmed.World
             }
             _liveBySite.Clear();
             _awake.Clear();
+            _refusing.Clear();
             // Bodies that no longer exist must not hold an attack token
             // against the next fight.
             CrowdControl.Clear();
@@ -288,15 +293,17 @@ namespace Ahmed.World
 
         private void TickExit(Site s, float distance)
         {
-            if (_exitCooldown > 0f || distance > s.Radius) { return; }
+            if (distance > s.Radius) { _refusing.Remove(s.Id); return; }
+            if (_exitCooldown > 0f) { return; }
 
             WorldLink link = LinkFor(s);
             if (!WorldState.CanUse(link))
             {
                 // Sealed. There is no HUD yet, so this is the only thing that
                 // tells the player the route refused them rather than that
-                // they missed the door.
-                Game.AudioLibrary.Play("Exit_Sealed", s.Position);
+                // they missed the door. Once per approach: he has to step
+                // away and come back to hear it again.
+                if (_refusing.Add(s.Id)) { Game.AudioLibrary.Play("Exit_Sealed", s.Position); }
                 return;
             }
 

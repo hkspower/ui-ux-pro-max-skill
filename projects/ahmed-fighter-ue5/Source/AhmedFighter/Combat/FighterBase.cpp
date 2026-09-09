@@ -152,6 +152,7 @@ void AFighterBase::ReceiveKnockback(const FVector& Impulse, bool bKnockdown)
 		return;
 	}
 	LaunchCharacter(Impulse, true, false);
+	bSwingFired = true;		// whatever was being thrown is over
 
 	if (bKnockdown && !bResistsKnockdown)
 	{
@@ -280,12 +281,33 @@ bool AFighterBase::StartAttack(FName AttackRow)
 	State = EFighterState::Attack;
 
 	// The swing is heard before it lands; whether it lands is the next sound.
-	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this))
+	// The clip is not started here: its swish sits some way into the file,
+	// so it is scheduled to begin that much before the first active frame
+	// and peaks on it. A lead longer than the startup starts at once and
+	// lands late by the difference, which the table is cut to avoid.
+	SwingCue = Attack->bHeavy ? TEXT("Whoosh_Heavy") : TEXT("Whoosh_Light");
+	UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this);
+	SwingAt = FMath::Max(0.f, Attack->Startup - (Audio ? Audio->GetLead(SwingCue) : 0.f));
+	bSwingFired = false;
+	if (SwingAt <= 0.f)
 	{
-		Audio->Play(Attack->bHeavy ? TEXT("Whoosh_Heavy") : TEXT("Whoosh_Light"), this);
+		FireSwingCue();
 	}
 	BP_OnAttackStarted(AttackRow);
 	return true;
+}
+
+void AFighterBase::FireSwingCue()
+{
+	if (bSwingFired)
+	{
+		return;
+	}
+	bSwingFired = true;
+	if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this))
+	{
+		Audio->Play(SwingCue, this);
+	}
 }
 
 void AFighterBase::TickAttack(float DeltaSeconds)
@@ -297,6 +319,10 @@ void AFighterBase::TickAttack(float DeltaSeconds)
 	}
 
 	AttackElapsed += DeltaSeconds;
+	if (!bSwingFired && AttackElapsed >= SwingAt)
+	{
+		FireSwingCue();
+	}
 
 	const float ActiveStart = CurrentAttack->Startup;
 	const float ActiveEnd   = CurrentAttack->Startup + CurrentAttack->Active;
@@ -449,6 +475,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 	State  = EFighterState::Hit;
 	HitStunRemaining = Attack.bHeavy ? 0.34f : 0.22f;
 	CurrentAttack = nullptr;
+	bSwingFired = true;		// the swing this blow interrupted never happened
 	LaunchCharacter(FVector(Attacker->GetFacingSign() * Attack.Knockback, 0.f, 0.f), true, false);
 
 	// Knockdown: always on a killing blow, sometimes on a heavy one, always on

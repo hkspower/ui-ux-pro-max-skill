@@ -8,6 +8,7 @@
       "pitchMax": 1.08,
       "spatial": true,
       "cooldown": 0.03,
+      "lead": 0.05,
       "description": "Air moved by a jab or cross. Short, dry, no tail. The sound of missing."
     },
     {
@@ -18,6 +19,7 @@
       "pitchMax": 1.04,
       "spatial": true,
       "cooldown": 0.05,
+      "lead": 0.1,
       "description": "A hook, kick or knee cutting air. Lower and longer than the light one; the wind-up should be audible."
     },
     {
@@ -28,6 +30,7 @@
       "pitchMax": 1.07,
       "spatial": true,
       "cooldown": 0.04,
+      "lead": 0.048,
       "description": "Fist on body, jab or cross. A slap with weight behind it, not a movie punch. Dry."
     },
     {
@@ -38,6 +41,7 @@
       "pitchMax": 1.03,
       "spatial": true,
       "cooldown": 0.06,
+      "lead": 0.052,
       "description": "Hook, kick or knee landing. Deep, with a crack on top. This is the one the player waits for."
     },
     {
@@ -48,6 +52,7 @@
       "pitchMax": 1.02,
       "spatial": true,
       "cooldown": 0.1,
+      "lead": 0.056,
       "description": "The blow that puts someone down. Heavier than Hit_Heavy and followed by the body hitting the ground."
     },
     {
@@ -58,6 +63,7 @@
       "pitchMax": 1.05,
       "spatial": true,
       "cooldown": 0.05,
+      "lead": 0.01,
       "description": "A strike caught on the forearms. Dull thud, muffled, no crack."
     },
     {
@@ -68,6 +74,7 @@
       "pitchMax": 1,
       "spatial": true,
       "cooldown": 0.15,
+      "lead": 0.007,
       "description": "The perfect guard. Sharp and bright with a short ring -- it has to be unmistakable from Block, because it is the reward."
     },
     {
@@ -78,6 +85,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 0.5,
+      "lead": 0.15,
       "description": "The finisher going off. Big, low, room-filling; the one sound allowed to be cinematic."
     },
     {
@@ -88,6 +96,7 @@
       "pitchMax": 1.03,
       "spatial": true,
       "cooldown": 0.2,
+      "lead": 0.06,
       "description": "HAWK FIST lighting up: a whump of flame catching on a fist."
     },
     {
@@ -98,6 +107,7 @@
       "pitchMax": 1.05,
       "spatial": true,
       "cooldown": 0.06,
+      "lead": 0.095,
       "description": "A flaming punch landing. Hit_Heavy with a burst of fire over it."
     },
     {
@@ -108,6 +118,7 @@
       "pitchMax": 1.02,
       "spatial": true,
       "cooldown": 0.2,
+      "lead": 0.081,
       "description": "A fighter going down for good. Body on ground, then nothing. Not a crowd sound."
     },
     {
@@ -118,6 +129,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 1,
+      "lead": 0.187,
       "description": "A boss crossing into phase two. A roar, or a breath drawn -- it should make the player step back."
     },
     {
@@ -128,6 +140,7 @@
       "pitchMax": 1.08,
       "spatial": true,
       "cooldown": 0.1,
+      "lead": 0.074,
       "description": "A dodge dash. Feet scraping and a short rush of cloth."
     },
     {
@@ -138,6 +151,7 @@
       "pitchMax": 1.06,
       "spatial": true,
       "cooldown": 0.12,
+      "lead": 0.051,
       "description": "The dash once DASH LEAP is held: the same scrape, then a beat of nothing before the landing."
     },
     {
@@ -148,6 +162,7 @@
       "pitchMax": 1.1,
       "spatial": true,
       "cooldown": 0.08,
+      "lead": 0.085,
       "description": "One step on the stage floor. Fired from the walk animation's notify. Wide pitch range so a walk cycle never sounds looped."
     },
     {
@@ -158,6 +173,7 @@
       "pitchMax": 1.04,
       "spatial": true,
       "cooldown": 0.15,
+      "lead": 0.015,
       "description": "Feet hitting the ground after a leap or a knockback."
     },
     {
@@ -168,6 +184,7 @@
       "pitchMax": 1.05,
       "spatial": true,
       "cooldown": 0.08,
+      "lead": 0.086,
       "description": "A strike landing on a shutter or a cracked wall that has not given yet. Metal or stone taking a hit and holding."
     },
     {
@@ -178,6 +195,7 @@
       "pitchMax": 1.03,
       "spatial": true,
       "cooldown": 0.5,
+      "lead": 0.015,
       "description": "The third strike: a shutter tearing off its rails, or masonry coming down. Debris after."
     },
     {
@@ -188,6 +206,7 @@
       "pitchMax": 1.02,
       "spatial": true,
       "cooldown": 0.5,
+      "lead": 0.101,
       "description": "A ledge climbed, a gap crossed, a locker opened -- the quiet gates. A latch, a scrape, a hand on stone."
     },
     {
@@ -198,6 +217,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 1,
+      "lead": 0.018,
       "description": "A talent picked up. The biggest UI sound in the game; the world just opened."
     },
     {
@@ -208,6 +228,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 0.5,
+      "lead": 0.01,
       "description": "XP found behind a gate. Smaller than Talent_Found; a reward, not a milestone."
     },
     {
@@ -218,6 +239,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 1,
+      "lead": 0.2,
       "description": "Walking out of an area into the next. A door, a step through, a breath of the new place."
     },
     {
@@ -228,6 +250,7 @@
       "pitchMax": 1.02,
       "spatial": false,
       "cooldown": 0.6,
+      "lead": 0.1,
       "description": "A route refusing you. Solid and final -- a bolt, a hand on a locked door. Pairs with the SEALED banner."
     },
     {
@@ -238,6 +261,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 1,
+      "lead": 0.34,
       "description": "An ambush closing in. Low, rising, short. The arena just locked."
     },
     {
@@ -248,6 +272,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 1,
+      "lead": 0.063,
       "description": "The last of a wave down and the arena unlocking. A release, not a fanfare."
     },
     {
@@ -258,6 +283,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 2,
+      "lead": 0.138,
       "description": "An area beaten. This one can be a fanfare."
     },
     {
@@ -268,6 +294,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 2,
+      "lead": 0.494,
       "description": "Ahmed down. Low and slow; no sting."
     },
     {
@@ -278,6 +305,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 1,
+      "lead": 0.007,
       "description": "A rank gained from fighting. Bright, short, upward."
     },
     {
@@ -288,6 +316,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 0.2,
+      "lead": 0.05,
       "description": "XP spent at the training camp. A confirm with weight; money changing hands."
     },
     {
@@ -298,6 +327,7 @@
       "pitchMax": 1.02,
       "spatial": false,
       "cooldown": 0.03,
+      "lead": 0.022,
       "description": "Any button. Quiet, dry, instant."
     },
     {
@@ -308,6 +338,7 @@
       "pitchMax": 1.02,
       "spatial": false,
       "cooldown": 0.05,
+      "lead": 0.03,
       "description": "Going back a screen. UI_Tap, lower."
     },
     {
@@ -318,6 +349,7 @@
       "pitchMax": 1,
       "spatial": false,
       "cooldown": 0.2,
+      "lead": 0.063,
       "description": "A button that will not: not enough XP, a locked mode. Short, flat, not rude."
     },
     {
@@ -328,6 +360,7 @@
       "pitchMax": 1.03,
       "spatial": true,
       "cooldown": 0.3,
+      "lead": 0.05,
       "description": "A pipe, plank or crowbar picked up out of a smashed crate."
     },
     {
@@ -338,6 +371,7 @@
       "pitchMax": 1.06,
       "spatial": true,
       "cooldown": 0.05,
+      "lead": 0.101,
       "description": "An armed punch cutting air. Heavier than Whoosh_Heavy and with the object's own sound: pipe ring, plank whip."
     },
     {
@@ -348,6 +382,7 @@
       "pitchMax": 1.04,
       "spatial": true,
       "cooldown": 0.06,
+      "lead": 0.007,
       "description": "An armed punch landing. Steel or wood on body."
     },
     {
@@ -358,6 +393,7 @@
       "pitchMax": 1.02,
       "spatial": true,
       "cooldown": 0.5,
+      "lead": 0.227,
       "description": "The last use spent: the plank splitting, the pipe clanging away."
     },
     {
@@ -368,6 +404,7 @@
       "pitchMax": 1.06,
       "spatial": true,
       "cooldown": 0.1,
+      "lead": 0.017,
       "description": "A crate or barrel giving way. Wood splintering, or a barrel's hollow clang."
     },
     {
@@ -378,6 +415,7 @@
       "pitchMax": 1,
       "spatial": true,
       "cooldown": 0.2,
+      "lead": 0.068,
       "description": "The skewer. Warm, quick."
     },
     {
@@ -388,6 +426,7 @@
       "pitchMax": 1,
       "spatial": true,
       "cooldown": 0.2,
+      "lead": 0.062,
       "description": "The rage orb. A charge taken in; a little electric."
     }
   ]

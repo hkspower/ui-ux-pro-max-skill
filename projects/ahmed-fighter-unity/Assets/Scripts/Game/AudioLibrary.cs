@@ -16,6 +16,10 @@ namespace Ahmed.Game
         public bool spatial;
         /// <summary>Seconds this cue refuses to retrigger for.</summary>
         public float cooldown;
+        /// <summary>Seconds from the start of the clip to its transient.
+        /// A swing is fired this much before the blow lands, so the swish
+        /// peaks on the first active frame rather than on the button.</summary>
+        public float lead;
         public string description;
     }
 
@@ -98,6 +102,15 @@ namespace Ahmed.Game
         public static void PlayUI(string cue)
         {
             Fire(cue, Vector3.zero, false);
+        }
+
+        /// <summary>How far into a clip its transient sits, in seconds. Zero
+        /// for a cue with no row, so a missing sound never delays a swing.</summary>
+        public static float Lead(string cue)
+        {
+            Load();
+            SoundRow row;
+            return !string.IsNullOrEmpty(cue) && Rows.TryGetValue(cue, out row) ? row.lead : 0f;
         }
 
         private static void Fire(string cue, Vector3 at, bool positioned)

@@ -58,6 +58,13 @@ struct FSoundCueDef : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound", meta = (ClampMin = "0"))
 	float Cooldown = 0.04f;
 
+	/** Seconds from the start of the clip to its transient. A swing is
+	    started this much before the blow lands, so the swish peaks on the
+	    first active frame rather than on the button press. Measured from the
+	    file, not guessed; re-measure it when a clip is recast. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound", meta = (ClampMin = "0"))
+	float Lead = 0.f;
+
 	/** What the cue is for, and what the file should sound like. Read this
 	    before recording or buying a replacement. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sound", meta = (MultiLine = true))
@@ -94,6 +101,11 @@ public:
 	/** Flat in both ears, regardless of the row's bSpatial: menus, banners. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	void PlayUI(FName Cue);
+
+	/** How far into a cue's clip its transient sits, in seconds. Zero for a
+	    cue with no row, so a missing sound never delays a swing. */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	float GetLead(FName Cue);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	void SetBusVolume(ESoundBus Bus, float Volume);

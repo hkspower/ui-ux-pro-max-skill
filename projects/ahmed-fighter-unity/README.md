@@ -141,6 +141,14 @@ has no audio at all. Its rows come from `../ahmed-fighter-ue5/Content/Data/
 DT_Sounds.csv`, and the clips under `Assets/Resources/Audio` are the same
 recordings the Unreal build plays, so a punch sounds the same in both.
 
+Each row carries a `lead`: how far into its clip the transient sits. A swing
+is not played when the button is pressed; `Fighter.StartAttack` schedules its
+cue at the attack's startup minus that lead, and the attack tick starts the
+clip on the way through, so the swish peaks on the first active frame. A
+swing interrupted before then never sounds. The finisher passes `Rage` as its
+swing cue instead of the heavy whoosh; a sealed exit refuses you once per
+approach rather than every cooldown you stand in it.
+
 Never hand-edit the JSON. Change the assets — the control panel at
 `../ahmed-fighter/panel/` is the comfortable way — and re-run the export.
 `node Tools/export/export.mjs --check` fails if the two have drifted.

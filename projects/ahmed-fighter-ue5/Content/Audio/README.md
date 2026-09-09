@@ -32,24 +32,53 @@ They are a **first pass, and nobody has listened to them.** They were made and
 processed in an environment with no audio output, so they are correct in
 format and unheard in content. Play a stage before trusting any of them.
 
-Each was converted to the spec above: head and tail trimmed to the transient,
-levelled so the Volume column in `DT_Sounds.csv` is the thing setting the
-level rather than whatever the model happened to render, 48 kHz, mono where
-the cue is spatial and stereo where it is not.
+Each was converted to the spec above: levelled so the Volume column in
+`DT_Sounds.csv` is the thing setting the level rather than whatever the model
+happened to render, 48 kHz, mono where the cue is spatial and stereo where it
+is not.
+
+**Then they were cut to their timing (2026-09-09).** The first pass had
+trimmed silence, not sound: most clips still carried the model's generation
+length, so `S_Block` was 2.2 s with its thud at 1.78 s, `S_Whoosh_Light` was
+0.6 s with the swish at 0.56 s under a jab whose startup is 0.07 s, and
+`S_UI_Tap` ran a full second for a sound the table calls instant. Every clip
+was measured with a 5 ms RMS envelope and cut from the original so that it is
+as long as its sound: impacts start at their onset, one-shots end when the
+event does, rewards and stings keep the tail the Description asks for, and a
+swing's transient sits at a short, known lead. Fades are 2 ms in and 20 to
+100 ms out. Nothing was re-levelled or resampled. The 39 effects went from
+46.0 s to 24.3 s.
+
+**The Lead column** is that lead, measured from the file after the cut: the
+seconds from the start of the clip to its transient. The fighters read it.
+`AFighterBase::StartAttack` no longer plays the swing; it schedules the cue
+at `max(0, Startup - Lead)` and `TickAttack` starts the clip when the attack
+crosses that time, so the swish peaks on the first active frame instead of on
+the button press. A swing interrupted before then never sounds. The three
+swing cues are cut so their lead fits inside the shortest startup they play
+under -- `Whoosh_Light` 0.050 s under the 0.070 s jab, `Whoosh_Heavy` 0.100 s
+under the 0.130 s knee, `Rage` 0.150 s under the 0.180 s finisher -- and
+the Unity build's `AudioLibrary.Lead` reads the same number. **Re-measure
+Lead whenever a clip is recast**; a wrong lead is a swing that sounds early
+or late by exactly the error.
 
 **To recast one**, open the flow, re-roll that node with a different prompt,
-and drop the new take in over the file. Nothing in code names a file, so
-nothing else has to change.
+drop the new take in over the file, and set its Lead. Nothing in code names a
+file, so nothing else has to change.
 
 **Known suspect:**
 
 - `S_Block.wav` and `S_Dash_Leap.wav` came back at 12 and 14 seconds against
   the one-shot everything else rendered as. That is the model looping rather
-  than answering the prompt, so both were cut to their first transient — they
-  are the two most likely to want re-rolling.
+  than answering the prompt. The block is now the 0.38 s around its thud and
+  the leap the first 0.8 s, which is a cut of the right sound, not a
+  recording of it — they are still the two most likely to want re-rolling.
 - `S_UI_Tap.wav` was quiet enough that the silence trim removed the entire
-  file on the first pass and had to be re-cut with the gate 30 dB lower.
-  Check it is audible at all in the mix.
+  file on the first pass. It is now 90 ms long. Check it is audible at all in
+  the mix.
+- `S_Whoosh_Light.wav` is 0.11 s: the only swish in the render was at the
+  very end of the file and there is nothing after it, so the clip has no
+  tail at all. It is right for a jab. Re-roll it if it reads as a click.
 - The three `Music_*` cues have **no file**. They are loops, not effects, and
   a text-to-sound model is the wrong tool for them.
 

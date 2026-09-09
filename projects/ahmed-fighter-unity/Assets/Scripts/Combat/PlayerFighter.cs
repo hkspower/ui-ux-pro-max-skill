@@ -195,11 +195,12 @@ namespace Ahmed.Combat
         private void ReleaseRage()
         {
             FaceNearestOpponent();
-            if (StartAttack("Special"))
+            // The finisher's own sound is its swing, timed to the blow like
+            // any other, rather than a heavy whoosh with the Rage sting on top.
+            if (StartAttack("Special", "Rage"))
             {
                 Rage = 0f;
                 InvulnerableRemaining = 0.55f;
-                Game.AudioLibrary.PlayUI("Rage");
             }
         }
 

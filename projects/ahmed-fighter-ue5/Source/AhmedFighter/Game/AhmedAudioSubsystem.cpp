@@ -71,6 +71,12 @@ void UAhmedAudioSubsystem::PlayAt(FName Cue, FVector Location)
 	PlayResolved(Cue, *Row, Sound, Row->bSpatial ? &Location : nullptr);
 }
 
+float UAhmedAudioSubsystem::GetLead(FName Cue)
+{
+	const FSoundCueDef* Row = Find(Cue);
+	return Row ? FMath::Max(0.f, Row->Lead) : 0.f;
+}
+
 void UAhmedAudioSubsystem::PlayUI(FName Cue)
 {
 	const FSoundCueDef* Row = Find(Cue);

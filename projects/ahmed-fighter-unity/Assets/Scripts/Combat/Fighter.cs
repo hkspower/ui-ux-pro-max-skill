@@ -64,6 +64,13 @@ namespace Ahmed.Combat
         protected AttackRow CurrentAttack;
         protected float AttackElapsed;
         protected bool AttackHitFired;
+        /// <summary>The swing's sound, and when in the attack to fire it. The
+        /// clip is started early by its own lead so the swish peaks on the
+        /// first active frame; a swing that is interrupted first never
+        /// sounds, because it never happened.</summary>
+        private string _swingCue;
+        private float _swingAt;
+        private bool _swingFired;
         protected readonly List<Fighter> HitThisSwing = new List<Fighter>();
 
         protected float HitStunRemaining;
@@ -180,8 +187,10 @@ namespace Ahmed.Combat
 
         // ----------------------------------------------------------- attacks
 
-        /// <summary>Begins an attack if the state allows it. False if refused.</summary>
-        public bool StartAttack(string row)
+        /// <summary>Begins an attack if the state allows it. False if refused.
+        /// The swing cue defaults to the whoosh for the row's weight; the
+        /// finisher passes its own.</summary>
+        public bool StartAttack(string row, string swingCue = null)
         {
             if (IsBusy || State == FighterState.Dash) { return false; }
 
@@ -197,12 +206,33 @@ namespace Ahmed.Combat
             HitThisSwing.Clear();
             State = FighterState.Attack;
             OnAttackStarted(attack);
+
             // The swing is heard before it lands, which is what gives the
             // player something to react to. Heavy and light are separate cues
-            // because the wind-up is the tell.
-            Game.AudioLibrary.Play(attack.heavy ? "Whoosh_Heavy" : "Whoosh_Light",
-                                   transform.position);
+            // because the wind-up is the tell. The clip is not played here:
+            // its swish sits some way into the file, so it is scheduled to
+            // start that much before the first active frame and peaks on it.
+            _swingCue = swingCue ?? (attack.heavy ? "Whoosh_Heavy" : "Whoosh_Light");
+            _swingAt = SwingCueTime(attack.startup, Game.AudioLibrary.Lead(_swingCue));
+            _swingFired = false;
+            if (_swingAt <= 0f) { FireSwingCue(); }
             return true;
+        }
+
+        /// <summary>When into an attack to start its swing clip so the clip's
+        /// transient lands on the first active frame. Pure, so it can be
+        /// checked without an engine: never negative, and startup minus lead
+        /// whenever the lead fits inside the startup.</summary>
+        public static float SwingCueTime(float startup, float lead)
+        {
+            return Mathf.Max(0f, startup - lead);
+        }
+
+        private void FireSwingCue()
+        {
+            if (_swingFired) { return; }
+            _swingFired = true;
+            Game.AudioLibrary.Play(_swingCue, transform.position);
         }
 
         protected void TickAttack(float dt)
@@ -213,6 +243,7 @@ namespace Ahmed.Combat
                 return;
             }
             AttackElapsed += dt;
+            if (!_swingFired && AttackElapsed >= _swingAt) { FireSwingCue(); }
 
             float activeStart = CurrentAttack.startup;
             float activeEnd = CurrentAttack.startup + CurrentAttack.active;
@@ -382,6 +413,11 @@ namespace Ahmed.Combat
         {
             if (!IsAlive) { return; }
             _pendingMove += impulse * Time.deltaTime;
+
+            // Either way the swing this fighter was in is over. A whoosh that
+            // has not started yet must not start now for a punch that was
+            // never thrown.
+            _swingFired = true;
 
             if (knockdown && (!ResistsKnockdown || Health <= 0f))
             {
