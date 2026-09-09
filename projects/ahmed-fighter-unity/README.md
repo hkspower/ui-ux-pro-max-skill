@@ -208,7 +208,8 @@ worse than one that says where it stops:
   here to author one. The same goes for the render pipeline and the quality
   settings: this port has never had either set.
 - **The mesh has no avatar and no animation.** `Assets/Resources/Models/Ahmed.fbx`
-  is the real body — 4,260 verts, 24 bones, 1.802 m — and it is a static pose.
+  is the real body — 4,260 verts, 32 bones counting `root` and the mannequin's
+  seven IK targets, 1.802 m — and it is a static pose.
   Mapping it to a Humanoid avatar, and everything that follows from that, is an
   editor job. Fighters move and turn; the mesh does not yet move with them.
 - **Twenty of the thirty-nine sounds are never fired.** Every cue resolves to a

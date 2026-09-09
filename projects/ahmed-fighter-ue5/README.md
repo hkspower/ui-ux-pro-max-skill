@@ -53,8 +53,9 @@ python3 Tools/blender/build_ahmed.py
 
 It writes both model files plus three reference renders into `Docs/renders`.
 
-**What it is:** a clean, correctly proportioned blockout — 8.4k triangles, 24
-bones, eight material slots carrying the game's palette. The proportions are
+**What it is:** a clean, correctly proportioned blockout — 8.4k triangles, 32
+bones (the mannequin's 24 that deform, plus `root` and its seven IK bones),
+eight material slots carrying the game's palette. The proportions are
 **measured, not asserted**: he stands 1.802 m against the 1.80 m the script
 declares, soles on the floor to a tenth of a millimetre, about eight heads
 tall, with every segment inside half a percent of its anatomical length (upper
@@ -99,9 +100,32 @@ the biceps and forearm bellies, the quadriceps, the calf, the heel and toe,
 the jaw — lives in the joint table with its name in `SHAPE`. `build_armature`
 skips those and parents through them, so the mesh gains a bulge in the middle
 of the upper arm without the skeleton gaining a bone in the middle of the
-upper arm. The skeleton stays exactly the mannequin's 24, which is what keeps
-the retarget working. Miss the second half of that — a bone's tail must also
-never point at a shaping joint — and the upper arm bone ends at the biceps.
+upper arm. The deforming skeleton stays exactly the mannequin's 24, which is
+what keeps the retarget working. Miss the second half of that — a bone's tail
+must also never point at a shaping joint — and the upper arm bone ends at the
+biceps.
+
+**The rig has IK, and a pose is targets.** Above the pelvis sits `root`, and
+under it the mannequin's own `ik_foot_root`, `ik_foot_l/r`, `ik_hand_root`,
+`ik_hand_gun` and `ik_hand_l/r` — real bones in both exports, each copying the
+bone it stands in for, none of them weighted to a vertex. In Blender the calf
+and lowerarm carry IK constraints to those targets, two bones a chain, with
+knee and elbow poles on Empties that are never exported. Three things make the
+solve behave, and each was found by measuring rather than asserting: the
+joint table pre-bends every knee 1.2 cm forward and every elbow 1.2 cm back,
+because a perfectly straight limb has no bend direction and the solver was
+choosing sideways; the eight chain bones are rolled so their hinge plane
+contains that pre-bend; and each hinge is limited to the one side a probe
+solve showed it bends toward its pole. The pole angles are searched for, not
+typed — with every target at rest the solve must reproduce the rest pose
+within 1e-4 m. `GUARD` and `KICK` are still written as aims, but `limb_targets`
+reads the ankles and wrists off that stance and hands the solver targets,
+then lowers each planted foot until its sole is where the rest pose puts it:
+both feet in the guard, the standing foot in the kick, to the millimetre. The
+IK is muted for export, so the bind pose is the rest pose exactly. What the
+solver also caught: the old FK guard had the rear knee ten centimetres behind
+the hip-to-ankle line, a knee bent backwards, and a standing knee's pole now
+always points forward whatever the aims said.
 
 **Ahmed faces −Y.** Toes, face, hair parting and the guard's chin tuck all
 point that way, and Blender's FBX default (forward −Z, up Y) lands it on

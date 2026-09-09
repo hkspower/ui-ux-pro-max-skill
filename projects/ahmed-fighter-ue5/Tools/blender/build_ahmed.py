@@ -97,7 +97,13 @@ _LIMB = [
     ("clavicle",  Vector((0.046, -0.012, 1.448)),  "spine_03",   0.100),
     ("upperarm",  Vector((0.178, -0.006, 1.442)),  "clavicle",   0.055),
     ("biceps",    Vector((0.285, -0.003, 1.335)),  "upperarm",   0.060),
-    ("lowerarm",  Vector((0.415,  0.000, 1.205)),  "biceps",     0.043),
+    # The elbow sits 1.2 cm behind the shoulder-to-wrist line and the knee
+    # 1.2 cm in front of the hip-to-ankle line. A perfectly straight limb has
+    # no bend direction, and an IK solver asked to shorten one picks a side
+    # at random -- sideways, or backwards. The pre-bend is the answer every
+    # rig gives: it tells the solver which way the joint goes before it has
+    # to decide, and it is far too small to see in the mesh.
+    ("lowerarm",  Vector((0.415,  0.012, 1.205)),  "biceps",     0.043),
     ("forearm",   Vector((0.471,  0.000, 1.149)),  "lowerarm",   0.053),
     ("hand",      Vector((0.601,  0.000, 1.019)),  "forearm",    0.032),
     ("hand_end",  Vector((0.654,  0.000, 0.966)),  "hand",       0.042),
@@ -106,7 +112,7 @@ _LIMB = [
     # the front and is the first thing wrong with a blockout's stance.
     ("thigh",     Vector((0.092,  0.000, 0.952)),  "pelvis",     0.100),
     ("quad",      Vector((0.090,  0.000, 0.776)),  "thigh",      0.090),
-    ("calf",      Vector((0.088,  0.000, 0.513)),  "quad",       0.060),
+    ("calf",      Vector((0.088, -0.012, 0.513)),  "quad",       0.060),
     ("calf_belly",Vector((0.087,  0.000, 0.402)),  "calf",       0.066),
     ("foot",      Vector((0.082,  0.000, 0.070)),  "calf_belly", 0.038),
     # A foot is a heel, an arch and toes. It was an ankle and a stub, which is
@@ -518,8 +524,199 @@ def build_armature():
             bone.parent = made[parent]
             bone.use_connect = (bone.head - made[parent].tail).length < 1e-5
 
+    add_ik_bones(arm_data, made)
+
+    # A knee and an elbow are hinges, and a hinge has an axis. The IK below
+    # locks each to rotation about its bone's X, so X has to lie across the
+    # bend: roll the four chain bones on each side so their Z points the way
+    # the joint bends -- forward for the leg, back for the arm -- and X falls
+    # perpendicular to that plane. Left at roll zero the elbow's hinge faced
+    # 40 degrees off its own pre-bend and the solver split the difference.
+    for side in ("l", "r"):
+        for base in ("thigh", "calf"):
+            made["{}_{}".format(base, side)].align_roll(Vector((0, -1, 0)))
+        for base in ("upperarm", "lowerarm"):
+            made["{}_{}".format(base, side)].align_roll(Vector((0, 1, 0)))
+
     bpy.ops.object.mode_set(mode="OBJECT")
     return arm
+
+
+# The UE5 mannequin's IK bones, and the root they hang from. They are real
+# bones in the export so both engines see the mannequin's full hierarchy, but
+# they move no vertex: use_deform is off, so bone heat never weights to them
+# and the mesh never knows they exist. Each IK bone copies the bone it
+# stands in for -- ik_foot_l is foot_l's head and tail -- so a retarget sees
+# the same axes on both.
+IK_BONES = [
+    # (name, parent, copy-of)
+    ("ik_foot_root", "root",         None),
+    ("ik_foot_l",    "ik_foot_root", "foot_l"),
+    ("ik_foot_r",    "ik_foot_root", "foot_r"),
+    ("ik_hand_root", "root",         None),
+    ("ik_hand_gun",  "ik_hand_root", "hand_r"),
+    ("ik_hand_l",    "ik_hand_gun",  "hand_l"),
+    ("ik_hand_r",    "ik_hand_gun",  "hand_r"),
+]
+
+
+def add_ik_bones(arm_data, made):
+    """root above the pelvis, then the IK targets under root.
+
+    root sits at the origin because the IK targets need a parent that does
+    not move with the hips: a foot target that followed the pelvis would
+    follow the body off the floor it is meant to be holding the foot to.
+    """
+    root = arm_data.edit_bones.new("root")
+    root.head = Vector((0, 0, 0))
+    root.tail = Vector((0, 0, 0.06))
+    root.use_deform = False
+    made["pelvis"].parent = root
+    made["root"] = root
+
+    for name, parent, like in IK_BONES:
+        bone = arm_data.edit_bones.new(name)
+        if like:
+            bone.head = made[like].head.copy()
+            bone.tail = made[like].tail.copy()
+        else:
+            bone.head = Vector((0, 0, 0))
+            bone.tail = Vector((0, 0, 0.06))
+        bone.use_deform = False
+        bone.parent = made[parent]
+        made[name] = bone
+
+
+# ================================================================== IK setup
+
+# The chains the solver drives: the bone that carries the constraint, the
+# target it reaches for, and the pole that says which way the joint bends.
+# Two bones per chain because the shaping joints are not bones -- thigh then
+# calf, upperarm then lowerarm -- so the solve is the clean two-bone case.
+IK_CHAINS = [
+    # (constrained bone, target bone, pole empty, rest pole offset from the joint)
+    ("calf_l",     "ik_foot_l", "Pole_Knee_l",  Vector((0.0, -0.6,  0.0))),
+    ("calf_r",     "ik_foot_r", "Pole_Knee_r",  Vector((0.0, -0.6,  0.0))),
+    # Each rest pole sits out along its joint's pre-bend, because that is the
+    # plane the hinge bends in: knees forward, elbows back.
+    ("lowerarm_l", "ik_hand_l", "Pole_Elbow_l", Vector((0.0,  0.6,  0.0))),
+    ("lowerarm_r", "ik_hand_r", "Pole_Elbow_r", Vector((0.0,  0.6,  0.0))),
+]
+
+
+def add_ik(arm_obj):
+    """IK constraints on the four limbs, with pole angles measured, not guessed.
+
+    The knee and elbow poles are Empties rather than bones so they are never
+    exported (the exporters take armatures and meshes only). Each pole angle
+    is then found by search: with every target at its rest position the
+    solved pose must be the rest pose, and the angle that makes it so is the
+    one the constraint keeps. On a limb this straight the wrong angle does
+    not bend the knee, it twists the whole leg about its own axis, and the
+    foot goes with it.
+    """
+    bpy.context.view_layer.objects.active = arm_obj
+    bpy.ops.object.mode_set(mode="POSE")
+    for bone_name, target, pole_name, offset in IK_CHAINS:
+        joint = arm_obj.pose.bones[bone_name].bone.head_local
+        pole = bpy.data.objects.new(pole_name, None)
+        pole.empty_display_size = 0.05
+        pole.location = joint + offset
+        bpy.context.collection.objects.link(pole)
+
+        c = arm_obj.pose.bones[bone_name].constraints.new("IK")
+        c.name = "IK"
+        c.target = arm_obj
+        c.subtarget = target
+        c.pole_target = pole
+        c.chain_count = 2
+        c.use_tail = True
+
+        # A knee and an elbow are hinges. Left free on all three axes the
+        # solver bends them sideways as happily as forwards.
+        pb = arm_obj.pose.bones[bone_name]
+        pb.lock_ik_y = True
+        pb.lock_ik_z = True
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    pose(arm_obj, {})
+    for bone_name, _, _, _ in IK_CHAINS:
+        _tune_pole_angle(arm_obj, bone_name)
+    for chain in IK_CHAINS:
+        _limit_hinge(arm_obj, chain)
+
+
+def _limit_hinge(arm_obj, chain):
+    """Let the hinge bend one way only, and find out which way by asking.
+
+    Which sign of rotation about the bone's X is the knee bending forwards
+    depends on the bone's roll, and the roll came from a head and a tail, so
+    rather than assert a convention the chain is solved once to a target
+    that has to bend it, with the pole on the anatomical side, and the sign
+    that produced is the sign that is allowed from then on. The pre-bend in
+    the joint table is what makes that probe land on the right side.
+    """
+    bone_name, target, pole_name, offset = chain
+    pb = arm_obj.pose.bones[bone_name]
+    root = pb.parent
+    joint = pb.bone.head_local.copy()
+    tail = pb.bone.tail_local.copy()
+    towards_root = (root.bone.head_local - tail).normalized()
+    pose(arm_obj, {}, {target: tail + towards_root * 0.15}, {pole_name: joint + offset})
+
+    rest = root.bone.matrix_local.inverted() @ pb.bone.matrix_local
+    now = root.matrix.inverted() @ pb.matrix
+    bent = math.degrees((rest.inverted() @ now).to_euler("XYZ").x)
+    mid = (root.head + pb.tail) * 0.5
+    towards_pole = (pb.head - mid).normalized().dot((Vector(joint + offset) - mid).normalized())
+    assert abs(bent) > 20.0 and towards_pole > 0.9, \
+        "hinge probe on {} did not bend towards its pole ({:.1f} deg, dot {:.2f})".format(
+            bone_name, bent, towards_pole)
+
+    pb.use_ik_limit_x = True
+    if bent < 0.0:
+        pb.ik_min_x, pb.ik_max_x = math.radians(-160.0), 0.0
+    else:
+        pb.ik_min_x, pb.ik_max_x = 0.0, math.radians(160.0)
+    print("hinge       : {:<11} bends {:+.1f} deg towards its pole (dot {:.3f}); "
+          "limited to that side".format(bone_name, bent, towards_pole))
+    pose(arm_obj, {})
+
+
+def _chain_deviation(arm_obj, bone_name):
+    """How far the two chain bones sit from their rest matrices, in metres
+    and in matrix terms -- zero means the solve reproduces the rest pose."""
+    worst = 0.0
+    pb = arm_obj.pose.bones[bone_name]
+    for bone in (pb, pb.parent):
+        delta = bone.matrix - bone.bone.matrix_local
+        for row in delta:
+            for v in row:
+                worst = max(worst, abs(v))
+    return worst
+
+
+def _tune_pole_angle(arm_obj, bone_name):
+    c = arm_obj.pose.bones[bone_name].constraints["IK"]
+
+    def deviation(deg):
+        c.pole_angle = math.radians(deg)
+        bpy.context.view_layer.update()
+        return _chain_deviation(arm_obj, bone_name)
+
+    best = min(range(-180, 180, 2), key=deviation)
+    best = min((best + k * 0.1 for k in range(-20, 21)), key=deviation)
+    best = min((best + k * 0.005 for k in range(-20, 21)), key=deviation)
+    final = deviation(best)
+    print("pole angle  : {:<11} {:8.1f} deg   rest deviation {:.2e}".format(
+        bone_name, best, final))
+    assert final < 1e-3, "IK will not sit still at rest on " + bone_name
+
+
+def mute_ik(arm_obj, muted):
+    for bone_name, _, _, _ in IK_CHAINS:
+        arm_obj.pose.bones[bone_name].constraints["IK"].mute = muted
+    bpy.context.view_layer.update()
 
 
 def bind(mesh_obj, arm_obj):
@@ -592,13 +789,21 @@ def _hierarchy_order(arm_obj):
     return out
 
 
-def pose(arm_obj, directions):
-    """A pose is where each limb points, in world space -- not Euler angles.
+def pose(arm_obj, directions, targets=None, poles=None):
+    """A pose is where each limb points, in world space -- not Euler angles --
+    plus, for the four limbs, where the foot or the fist is.
 
     Aiming bones is how you would describe a stance out loud ("lead hand up by
     the chin, rear leg back"), and unlike per-bone Euler triples it does not
     silently mirror wrong: the left and right sides take the same numbers with
-    x negated, and both land where they should.
+    x negated, and both land where they should. The limbs go a step further:
+    the aims say roughly where a leg or an arm goes, and then the IK targets
+    say exactly where it ends, so a planted foot is planted and a fist on the
+    chin is on the chin whatever the rest of the body did.
+
+    `targets` are world positions for ik_foot_l/r and ik_hand_l/r; `poles`
+    are world positions for the four pole Empties. With neither given every
+    target sits at rest and the IK reproduces the FK pose to the millimetre.
     """
     bpy.context.view_layer.objects.active = arm_obj
     bpy.ops.object.mode_set(mode="POSE")
@@ -609,8 +814,23 @@ def pose(arm_obj, directions):
         bone.location = (0, 0, 0)
     bpy.context.view_layer.update()
 
+    # Targets and poles first, aims second. An aim is a world-space matrix
+    # written against the bone's parent as it is evaluated at that moment,
+    # so a foot aimed before its calf has been solved is aimed against the
+    # wrong calf and ends up tilted by however far the solver moved it.
+    for name, where in (poles or {}).items():
+        bpy.data.objects[name].location = Vector(where)
+    for name, where in (targets or {}).items():
+        pbone = arm_obj.pose.bones[name]
+        matrix = pbone.matrix.copy()
+        matrix.translation = Vector(where)
+        pbone.matrix = matrix
+    bpy.context.view_layer.update()
+
     for name in _hierarchy_order(arm_obj):
         if name not in directions:
+            continue
+        if targets and name in CHAIN_BONES:
             continue
         pbone = arm_obj.pose.bones[name]
         aim = Vector(directions[name]).normalized()
@@ -620,6 +840,108 @@ def pose(arm_obj, directions):
         bpy.context.view_layer.update()
 
     bpy.ops.object.mode_set(mode="OBJECT")
+
+
+# The bones the solver owns. When a pose gives IK targets these are not
+# aimed: an aim written before the solve only tells the solver where to start
+# looking, and started on the wrong side of a hinge it finds the wrong
+# solution and stays there.
+CHAIN_BONES = {"{}_{}".format(base, side)
+               for base in ("thigh", "calf", "upperarm", "lowerarm")
+               for side in ("l", "r")}
+
+
+def _pole_from(a, b, c, fallback):
+    """Where a joint's pole goes so the IK bends the way the FK did: out
+    along the bend, from the joint. A straight limb has no bend to read, so
+    it takes the fallback direction instead."""
+    bend = b - (a + c) * 0.5
+    if bend.length < 0.01:
+        bend = fallback
+    return b + bend.normalized() * 0.6
+
+
+def _foot_floor(mesh_obj, arm_obj, side):
+    """The lowest point of the mesh that this foot carries, in world z."""
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    evaluated = mesh_obj.evaluated_get(depsgraph)
+    groups = {g.index for g in mesh_obj.vertex_groups
+              if g.name in ("foot_" + side, "ball_" + side)}
+    lowest = None
+    for vert, evaluated_vert in zip(mesh_obj.data.vertices, evaluated.data.vertices):
+        if any(g.group in groups and g.weight > 0.3 for g in vert.groups):
+            z = (evaluated.matrix_world @ evaluated_vert.co).z
+            lowest = z if lowest is None else min(lowest, z)
+    return lowest
+
+
+def limb_targets(arm_obj, mesh_obj, fk, plant):
+    """Turn an FK stance into IK targets, then put the planted feet down.
+
+    The FK stance is posed once with the IK muted and the ankles, wrists,
+    knees and elbows read off it: the targets are the ankles and wrists, the
+    poles sit out along each joint's bend. That reproduces the stance
+    exactly, which is the point -- the look was tuned by aiming bones and
+    should not change because the solver did. Then each planted foot's
+    target is lowered until the foot's sole is where it is in the rest pose,
+    which is the floor. Returns (targets, poles, report).
+    """
+    mute_ik(arm_obj, True)
+    pose(arm_obj, fk)
+    pb = arm_obj.pose.bones
+    world = arm_obj.matrix_world
+    targets, poles = {}, {}
+    for side in ("l", "r"):
+        hip, knee, ankle = (world @ pb["thigh_" + side].head, world @ pb["calf_" + side].head,
+                            world @ pb["calf_" + side].tail)
+        targets["ik_foot_" + side] = ankle.copy()
+        if side in plant:
+            # A standing knee bends forward, whatever the aims said. The FK
+            # guard had the rear knee ten centimetres behind the hip-to-ankle
+            # line, which is a knee bent the wrong way, and a solver that
+            # copied it would only be reproducing the mistake with more
+            # precision.
+            poles["Pole_Knee_" + side] = knee + Vector((0, -0.6, 0))
+        else:
+            poles["Pole_Knee_" + side] = _pole_from(hip, knee, ankle, Vector((0, -1, 0)))
+        shoulder, elbow, wrist = (world @ pb["upperarm_" + side].head,
+                                  world @ pb["lowerarm_" + side].head,
+                                  world @ pb["lowerarm_" + side].tail)
+        targets["ik_hand_" + side] = wrist.copy()
+        poles["Pole_Elbow_" + side] = _pole_from(shoulder, elbow, wrist, Vector((0, 1, 0)))
+    mute_ik(arm_obj, False)
+
+    pose(arm_obj, {})
+    floor = {side: _foot_floor(mesh_obj, arm_obj, side) for side in ("l", "r")}
+
+    report = {}
+    for side in plant:
+        for _ in range(3):
+            pose(arm_obj, fk, targets, poles)
+            drop = _foot_floor(mesh_obj, arm_obj, side) - floor[side]
+            targets["ik_foot_" + side].z -= drop
+            if abs(drop) < 0.0005:
+                break
+    pose(arm_obj, fk, targets, poles)
+    for side in ("l", "r"):
+        report["foot_" + side] = _foot_floor(mesh_obj, arm_obj, side) - floor[side]
+        report["hand_" + side] = ((world @ pb["lowerarm_" + side].tail)
+                                  - targets["ik_hand_" + side]).length
+        hip, knee, ankle = (world @ pb["thigh_" + side].head, world @ pb["calf_" + side].head,
+                            world @ pb["calf_" + side].tail)
+        report["knee_" + side] = (knee - (hip + ankle) * 0.5).y   # forward is -y
+    return targets, poles, report
+
+
+def print_pose_report(name, plant, report):
+    print("pose {:<6}: ".format(name)
+          + "  ".join("{} {:+.4f}".format(k, v) for k, v in sorted(report.items())))
+    for side in plant:
+        assert abs(report["foot_" + side]) < 0.003, "foot_{} is not on the floor".format(side)
+    for side in ("l", "r"):
+        assert report["hand_" + side] < 0.01, "hand_{} missed its target".format(side)
+    for side in plant:
+        assert report["knee_" + side] <= 0.0005, "knee_{} bends backwards".format(side)
 
 
 def _mirror(spec):
@@ -828,20 +1150,29 @@ def main():
     add_hair(body, slots)
     rig = build_armature()
     bind(body, rig)
+    add_ik(rig)
 
     build_studio()
 
     os.makedirs(OUT_RENDER, exist_ok=True)
 
-    pose(rig, GUARD)
+    # Both feet on the floor in the guard; the standing foot in the kick.
+    targets, poles, report = limb_targets(rig, body, GUARD, plant=("l", "r"))
+    print_pose_report("guard", ("l", "r"), report)
+    pose(rig, GUARD, targets, poles)
     add_camera((1.55, -3.35, 1.24), look_at=Vector((0, 0, 0.90)), lens=62)
     render(os.path.join(OUT_RENDER, "ahmed-guard-3d.png"))
 
-    pose(rig, KICK)
+    targets, poles, report = limb_targets(rig, body, KICK, plant=("l",))
+    print_pose_report("kick", ("l",), report)
+    pose(rig, KICK, targets, poles)
     add_camera((3.00, -2.45, 1.22), look_at=Vector((0.14, 0, 0.96)), lens=58)
     render(os.path.join(OUT_RENDER, "ahmed-kick-3d.png"))
 
-    # Ship the model in its A-pose so UE5 can retarget onto it cleanly.
+    # Ship the model in its A-pose so UE5 can retarget onto it cleanly. The
+    # IK is muted for the export so the bind pose is the rest pose exactly;
+    # the constraints are Blender's and do not travel with the file anyway.
+    mute_ik(rig, True)
     pose(rig, {})
     add_camera((0.35, -3.60, 1.05), look_at=Vector((0, 0, 0.90)), lens=58)
     render(os.path.join(OUT_RENDER, "ahmed-apose-3d.png"))
@@ -851,7 +1182,8 @@ def main():
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
     print("verts      :", len(body.data.vertices))
     print("tris       :", tris)
-    print("bones      :", len(rig.data.bones))
+    print("bones      :", len(rig.data.bones),
+          "(24 deforming + root + 7 IK)")
     print("materials  :", [m.name for m in body.data.materials])
     print("glb        :", glb, os.path.getsize(glb), "bytes")
     print("fbx        :", fbx, os.path.getsize(fbx), "bytes")
