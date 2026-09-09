@@ -69,7 +69,7 @@ That decides things that would otherwise be guesses:
 | Art direction | Stylised **on purpose** — it draws every pixel in code, and stylisation is what makes that possible. | **Not cartoonish.** Adult action game, highest graphics the hardware carries. See its own CLAUDE.md. | Console and PC grade. Was capsules; the real mesh and the sound are in now. |
 | State | Runs. Verified in headless Chromium across phone/tablet/desktop, all ten stages, all three graphics tiers. | **Has never been compiled.** No engine has ever been run against it. | **Has never run in Unity.** Compiles, and its pure logic is executed and checked under Mono; nothing has been pressed play on. |
 | Units | Canvas pixels. | Centimetres. X along, **Y depth**, Z up. | Metres. X and Z are the ground plane, Y up. No depth axis — a fighter faces any direction. |
-| Balance data | `assets/*.js` — **the source of truth for every number in all three builds.** | Generated. Never hand-edit `Content/Data`. | Generated. Never hand-edit `Assets/Resources/Data`. |
+| Balance data | `assets/*.js` — **the source of truth for every number in all three builds**, and since 2026-09-09 for the colour scheme too (`assets/colors.js`). | Generated. Never hand-edit `Content/Data`. | Generated. Never hand-edit `Assets/Resources/Data`. |
 
 **The browser project owns the numbers.** Change them in `assets/*.js` — the
 control panel at `ahmed-fighter/panel/` is the comfortable way — then re-export

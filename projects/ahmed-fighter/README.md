@@ -605,6 +605,24 @@ how the opposition in the key art is rendered.
 `panel/index.html` — open it the same way you open the game. It loads the same
 `assets/*.js` the game loads, so what it shows is what the game is running.
 
+### The colour scheme
+
+`assets/colors.js` is the whole scheme in one place — surfaces, text, the
+brand marks, the states a player reads off a bar or a badge, the four
+controls, the edges. Thirty-eight colours in nine groups, and both ports
+export it, so a change to a value lands in all three builds.
+
+What it does **not** hold, deliberately: the nine stage backdrops and their
+lighting rigs (`THEME`), the fighters' kits (`ahmed.js`, `enemies.js`) and the
+weapon materials (`weapons.js`). Those are painting that belongs to one
+subject, not a scheme shared across the game — a sky gradient is not a token,
+and nine unrelated skies in one list would not be a palette.
+
+The draw code still says `C.gold` and `UI.ink2`; both are now derived from
+this file rather than repeating it, because five hundred call sites read
+better short. Add a colour here first, then give it a short name if the draw
+code needs one.
+
 Editing the numbers by hand works. What it cannot show you is what a change
 costs: raise the hook by two damage and you have moved the time to kill on ten
 enemies, the XP rate of the whole campaign, and whether the training camp is

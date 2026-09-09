@@ -54,7 +54,7 @@ const cm1 = px => +(px * PX_TO_CM).toFixed(1);
    code path. */
 function loadAssets(){
   const names = ['ahmed','enemies','hits','talents','upgrades','weapons',
-                 'levels','world','stages'];
+                 'levels','world','stages','colors'];
   const win = {};
   for(const n of names){
     const path = join(WEB, 'assets', `${n}.js`);
@@ -69,7 +69,7 @@ function loadAssets(){
     ahmed:win.ASSET_AHMED, enemies:win.ASSET_ENEMIES, hits:win.ASSET_HITS,
     talents:win.ASSET_TALENTS, upgrades:win.ASSET_UPGRADES,
     weapons:win.ASSET_WEAPONS, levels:win.ASSET_LEVELS,
-    world:win.ASSET_WORLD, stages:win.ASSET_STAGES
+    world:win.ASSET_WORLD, stages:win.ASSET_STAGES, colors:win.ASSET_COLORS
   };
 }
 
@@ -184,6 +184,53 @@ function gates(A){
             g.n, g.ar, g.how, g.breakBy ? FAMILY[g.breakBy] : 'None'];
   });
   return csv(header, rows);
+}
+
+
+/* ------------------------------------------------------------- the colours */
+/* The scheme, flattened. It is nested by group in the asset file because that
+   is how a person reads a palette, and flat here because that is how a table
+   is looked up -- "State_Health" is one row name, not a walk down two objects.
+   Both spellings are carried: the hex a designer recognises, and the sRGB
+   components FLinearColor::FromSRGBColor wants, so the engine parses nothing. */
+function colours(A){
+  const header = ['Name','Group','Key','Css','Hex','R','G','B','A'];
+  const rows = [];
+  for(const [group, entries] of Object.entries(A.colors)){
+    for(const [name, value] of Object.entries(entries)){
+      const c = parseColour(value);
+      if(!c) die(`colors.js: ${group}.${name} is not a colour: ${value}`);
+      const G = pascal(group), N = pascal(name);
+      rows.push([`${G}_${N}`, G, `${G}.${N}`, value, c.hex, c.r, c.g, c.b, c.a]);
+    }
+  }
+  return csv(header, rows);
+}
+
+/* #rgb, #rrggbb, #rrggbbaa and rgba(). Components come out 0..1 sRGB. */
+function parseColour(v){
+  const s = String(v).trim();
+  const round = n => Math.round(n * 1e4) / 1e4;
+  const out = (r, g, b, a) => ({
+    r: round(r/255), g: round(g/255), b: round(b/255), a: round(a),
+    hex: '#' + [r,g,b].map(n => n.toString(16).padStart(2,'0')).join('')
+  });
+  let m = s.match(/^#([0-9a-f]{3,8})$/i);
+  if(m){
+    let h = m[1];
+    if(h.length === 3) h = h.split('').map(c => c + c).join('');
+    if(h.length === 6) h += 'ff';
+    if(h.length !== 8) return null;
+    const n = parseInt(h, 16);
+    return out((n>>>24)&255, (n>>>16)&255, (n>>>8)&255, (n&255)/255);
+  }
+  m = s.match(/^rgba?\(([^)]+)\)$/i);
+  if(m){
+    const p = m[1].split(',').map(x => parseFloat(x));
+    if(p.length < 3 || p.some(isNaN)) return null;
+    return out(p[0], p[1], p[2], p.length > 3 ? p[3] : 1);
+  }
+  return null;
 }
 
 function upgrades(A){
@@ -370,6 +417,7 @@ function main(){
     'DT_Fighters.csv': fighters(A),
     'DT_Talents.csv':  talents(A),
     'DT_GateKinds.csv': gates(A),
+    'DT_Colors.csv':   colours(A),
     'DT_Upgrades.csv': upgrades(A),
     'DT_Levels.csv':   levels(A),
     'DT_Weapons.csv':  weapons(A),

@@ -54,7 +54,7 @@ const m = px => +(px * PX_TO_M).toFixed(4);
    to agree with what the browser sees, since it is the same code path. */
 function loadAssets(){
   const names = ['ahmed','enemies','hits','talents','upgrades','weapons',
-                 'levels','world','stages'];
+                 'levels','world','stages','colors'];
   const win = {};
   for(const n of names){
     const path = join(WEB, 'assets', `${n}.js`);
@@ -67,7 +67,7 @@ function loadAssets(){
     ahmed:win.ASSET_AHMED, enemies:win.ASSET_ENEMIES, hits:win.ASSET_HITS,
     talents:win.ASSET_TALENTS, upgrades:win.ASSET_UPGRADES,
     weapons:win.ASSET_WEAPONS, levels:win.ASSET_LEVELS,
-    world:win.ASSET_WORLD, stages:win.ASSET_STAGES
+    world:win.ASSET_WORLD, stages:win.ASSET_STAGES, colors:win.ASSET_COLORS
   };
 }
 
@@ -305,6 +305,55 @@ function upgrades(A){
   return table(rows);
 }
 
+
+/* ------------------------------------------------------------- the colours */
+/* The scheme, flattened. It is nested by group in the asset file because that
+   is how a person reads a palette, and flat here because that is how a table
+   is looked up -- "State.Health" is one key, not a walk down two objects.
+   Both spellings are carried: the hex a designer recognises, and the sRGB
+   components an engine needs, so neither side has to parse a string. */
+function colourRows(A){
+  const rows = [];
+  for(const [group, entries] of Object.entries(A.colors)){
+    for(const [name, value] of Object.entries(entries)){
+      const c = parseColour(value);
+      if(!c) die(`colors.js: ${group}.${name} is not a colour: ${value}`);
+      rows.push({ group: pascal(group), name: pascal(name),
+                  key: `${pascal(group)}.${pascal(name)}`,
+                  css: value, hex: c.hex,
+                  r: c.r, g: c.g, b: c.b, a: c.a });
+    }
+  }
+  return rows;
+}
+
+/* #rgb, #rrggbb, #rrggbbaa and rgba(). Components come out 0..1 sRGB, which
+   is what both engines want; neither takes a CSS string. */
+function parseColour(v){
+  const s = String(v).trim();
+  const round = n => Math.round(n * 1e4) / 1e4;
+  const out = (r, g, b, a) => ({
+    r: round(r/255), g: round(g/255), b: round(b/255), a: round(a),
+    hex: '#' + [r,g,b].map(n => n.toString(16).padStart(2,'0')).join('')
+  });
+  let m = s.match(/^#([0-9a-f]{3,8})$/i);
+  if(m){
+    let h = m[1];
+    if(h.length === 3) h = h.split('').map(c => c + c).join('');
+    if(h.length === 6) h += 'ff';
+    if(h.length !== 8) return null;
+    const n = parseInt(h, 16);
+    return out((n>>>24)&255, (n>>>16)&255, (n>>>8)&255, (n&255)/255);
+  }
+  m = s.match(/^rgba?\(([^)]+)\)$/i);
+  if(m){
+    const p = m[1].split(',').map(x => parseFloat(x));
+    if(p.length < 3 || p.some(isNaN)) return null;
+    return out(p[0], p[1], p[2], p.length > 3 ? p[3] : 1);
+  }
+  return null;
+}
+
 /* ------------------------------------------------------------- the sounds */
 /* The one table that does not come from the browser project.
 
@@ -384,6 +433,7 @@ const files = {
   'fighters.json': fighters(A),
   'styles.json':   styles(A),
   'stages.json':   stages(A),
+  'colors.json':   table(colourRows(A)),
   'world.json':    world(A),
   'talents.json':  talents(A),
   'levels.json':   levels(A),

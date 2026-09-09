@@ -38,6 +38,7 @@
 </div>
 <!-- Game data lives in assets/ so each table can be edited on its own.
      Plain scripts, in dependency order, so the game still opens from disk. -->
+<script src="assets/colors.js"></script>
 <script src="assets/ahmed.js"></script>
 <script src="assets/enemies.js"></script>
 <script src="assets/hits.js"></script>
@@ -72,9 +73,15 @@ var W = 1280, H = 720;              // logical canvas resolution
 var CAMPAIGN = 9;                   // campaign stages; anything after is a side mode
 var FLOOR_TOP = 452, FLOOR_H = 196; // playfield depth band (z = 0..1)
 
+/* The scheme is assets/colors.js. C is the short spelling the draw code has
+   always used, derived from it rather than repeating it -- one value, two
+   names, and the names stay because five hundred call sites read better as
+   C.gold than as COL.brand.gold. */
+var COL = window.ASSET_COLORS;
 var C = {
-  red:'#c8102e', green:'#007a3d', gold:'#edbe57', sand:'#e8dcc0',
-  ink:'#0a0c11', dim:'#8a8574', white:'#fdfaf2', hp:'#37c26b', bad:'#e2413f'
+  red:   COL.brand.red,   green: COL.brand.green, gold: COL.brand.gold,
+  sand:  COL.fg.sand,     ink:   COL.ink.deep,    dim:  COL.fg.dim,
+  white: COL.fg.white,    hp:    COL.state.health, bad: COL.state.critical
 };
 
 var cv = document.getElementById('c');
@@ -179,9 +186,9 @@ loadSave();
 
 /* --------------------------------------------------------------- difficulty */
 var DIFF = [
-  {n:'ROOKIE',   ar:'مبتدئ',  dmg:0.62, hp:0.78, col:'#37c26b'},
-  {n:'PRO',      ar:'محترف',  dmg:1.00, hp:1.00, col:'#edbe57'},
-  {n:'CHAMPION', ar:'بطل',    dmg:1.45, hp:1.38, col:'#e2413f'}
+  {n:'ROOKIE',   ar:'مبتدئ',  dmg:0.62, hp:0.78, col:ASSET_COLORS.difficulty.rookie},
+  {n:'PRO',      ar:'محترف',  dmg:1.00, hp:1.00, col:ASSET_COLORS.difficulty.pro},
+  {n:'CHAMPION', ar:'بطل',    dmg:1.45, hp:1.38, col:ASSET_COLORS.difficulty.champion}
 ];
 function diff(){ return DIFF[clamp(save.diff, 0, 2)]; }
 
@@ -421,10 +428,10 @@ var In = {
 };
 
 var BTN = {
-  punch  :{x:W-96,  y:H-92,  r:52, label:'PUNCH', ar:'لكمة',  col:'#e2413f', key:'punch'},
-  kick   :{x:W-96,  y:H-212, r:50, label:'KICK',  ar:'ركلة',  col:'#edbe57', key:'kick'},
-  block  :{x:W-216, y:H-108, r:44, label:'BLOCK', ar:'صد',    col:'#5aa9e6', key:'block'},
-  special:{x:W-208, y:H-224, r:44, label:'RAGE',  ar:'غضب',   col:'#b46ce0', key:'special'}
+  punch  :{x:W-96,  y:H-92,  r:52, label:'PUNCH', ar:'لكمة',  col:COL.control.punch, key:'punch'},
+  kick   :{x:W-96,  y:H-212, r:50, label:'KICK',  ar:'ركلة',  col:COL.control.kick,  key:'kick'},
+  block  :{x:W-216, y:H-108, r:44, label:'BLOCK', ar:'صد',    col:COL.control.block, key:'block'},
+  special:{x:W-208, y:H-224, r:44, label:'RAGE',  ar:'غضب',   col:COL.control.rage,  key:'special'}
 };
 
 function toLocal(e){
@@ -3664,7 +3671,7 @@ function hawkAttack(f, a){
 
 function breakWeapon(f){
   var sp = screenOf(f);
-  burst(sp.x, sp.y - 80, 16, '#c9d2de', 300);
+  burst(sp.x, sp.y - 80, 16, COL.pickup.weapon, 300);
   popNum(sp.x, sp.y - 130, 'BROKE', 'crit');
   Sfx.hurt(); haptic(25);
   f.weapon = null;
@@ -3720,7 +3727,8 @@ function updateItems(F, dt){
         popNum(sp.x, sp.y - 130, 'RAGE', 'crit');
       }
       burst(it.x, FLOOR_TOP + it.z*FLOOR_H - 20, 12,
-            it.kind === 'food' ? C.hp : it.kind === 'weapon' ? '#c9d2de' : '#e05cf0', 220);
+            it.kind === 'food' ? COL.pickup.health :
+            it.kind === 'weapon' ? COL.pickup.weapon : COL.pickup.rage, 220);
       Sfx.ok();
       F.items.splice(i, 1);
       continue;
@@ -3788,7 +3796,8 @@ function drawItem(it, camX){
   ctx.globalAlpha = fade;
   ctx.save(); ctx.translate(X, Y + bob); ctx.scale(s, s);
   ctx.globalAlpha = fade * 0.30;
-  var glow = it.kind === 'food' ? C.hp : it.kind === 'weapon' ? '#c9d2de' : '#e05cf0';
+  var glow = it.kind === 'food' ? COL.pickup.health :
+             it.kind === 'weapon' ? COL.pickup.weapon : COL.pickup.rage;
   ctx.fillStyle = glow;
   circle(0, 0, 26 + Math.sin(it.t*6)*4); ctx.fill();
   ctx.globalAlpha = fade;
@@ -3807,7 +3816,7 @@ function drawItem(it, camX){
     ctx.fillStyle = '#b85f30';
     circle(0, -7, 6.5); ctx.fill(); circle(0, 3, 6.5); ctx.fill(); circle(0, 12, 5.5); ctx.fill();
   } else {
-    ctx.fillStyle = '#e05cf0';
+    ctx.fillStyle = COL.pickup.rage;
     ctx.beginPath();
     ctx.moveTo(0,-14); ctx.lineTo(10,0); ctx.lineTo(0,14); ctx.lineTo(-10,0);
     ctx.closePath(); ctx.fill();
@@ -3901,7 +3910,10 @@ function drawGate(g, camX){
       for(var r=0;r<6;r++){
         ctx.beginPath(); ctx.moveTo(-26, -66 + r*11); ctx.lineTo(26, -66 + r*11); ctx.stroke();
       }
-      ctx.fillStyle = g.type === 'shutter' ? '#c8102e' : '#e0b34a';
+      // The one badge in the game still on the pre-system gold. It is a
+      // readout of what the gate wants, not painting, so it takes the
+      // scheme's gold like every other readout does.
+      ctx.fillStyle = g.type === 'shutter' ? COL.brand.red : COL.brand.gold;
       roundRect(-8, -40, 16, 8, 2); ctx.fill();
       if(g.hp) {                                    // damage shows the strikes landing
         ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 2;
@@ -3950,7 +3962,7 @@ function drawGate(g, camX){
     bobY += Math.sin(gameTime*3)*3;
     var px = (g.type === 'gap') ? 50 : 0;
     ctx.globalAlpha = 0.45 + Math.sin(gameTime*4)*0.2;
-    ctx.fillStyle = g.reward.ability ? '#e05cf0' : C.gold;
+    ctx.fillStyle = g.reward.ability ? COL.state.rageFull : C.gold;
     circle(px, bobY, 15); ctx.fill();
     ctx.globalAlpha = 1;
     ctx.fillStyle = g.reward.ability ? '#f4c4ff' : '#ffe9a8';
@@ -4004,7 +4016,8 @@ function rankFor(F){
   return score > 620 ? 'S' : score > 470 ? 'A' : score > 330 ? 'B' : 'C';
 }
 function rankColor(r){
-  return r === 'S' ? '#e05cf0' : r === 'A' ? C.gold : r === 'B' ? C.hp : C.dim;
+  var R = COL.rank;
+  return r === 'S' ? R.s : r === 'A' ? R.a : r === 'B' ? R.b : R.c;
 }
 
 function updateFight(dt){
@@ -4259,16 +4272,17 @@ function drawHUD(){
   var hpCol = C.hp;
   if(hf <= 0.25){
     var beat = Math.round((0.5 + Math.sin(gameTime*7)*0.5) * 8) / 8;
-    hpCol = p.hp > 0 ? mix(C.bad, '#ff9a97', beat) : C.bad;
+    hpCol = p.hp > 0 ? mix(C.bad, COL.state.hurt, beat) : C.bad;
   }
   bar(bx, py + 52, bw, 13, p.hp, p.maxHp, hpCol, 'HP');
   // The one number worth reading at a glance, on the panel's own top line.
   txt(Math.ceil(p.hp) + ' / ' + Math.round(p.maxHp), px + pw - 16, py + 40,
       UI.t.label, hf > 0.25 ? UI.fgMut : C.bad, 'right', 800);
-  bar(bx, py + 71, bw, 9,  p.mp, p.maxMp, '#ff9a3c', 'MP');
-  bar(bx, py + 86, bw*0.62, 7, p.stam, p.maxStam, '#59b6ff', 'ST');
-  bar(bx, py + 99, bw*0.62, 7, p.rage, 100, p.rage >= 100 ? '#e05cf0' : '#7a4a90', 'RG');
-  if(p.rage >= 100) txtLS('READY', bx + bw*0.62 + 10, py + 99, UI.t.micro, '#e9a7ff',
+  bar(bx, py + 71, bw, 9,  p.mp, p.maxMp, COL.state.mana, 'MP');
+  bar(bx, py + 86, bw*0.62, 7, p.stam, p.maxStam, COL.state.stamina, 'ST');
+  bar(bx, py + 99, bw*0.62, 7, p.rage, 100,
+      p.rage >= 100 ? COL.state.rageFull : COL.state.rage, 'RG');
+  if(p.rage >= 100) txtLS('READY', bx + bw*0.62 + 10, py + 99, UI.t.micro, COL.state.rageText,
                           'left', 900, 1.6, 0.6 + Math.sin(gameTime*8)*0.4);
 
   // Career progress, hairline along the panel's own bottom edge.
@@ -4540,10 +4554,10 @@ var UI = {
   // One size per role. A screen picks a role, never a number.
   t:   { display:112, screen:56, title:40, head:26, sub:19, body:16, label:13, micro:11 },
   // Colour by role, so intent is visible at the call site.
-  ink0:'#05070b', ink1:'#0b101a', ink2:'#151b28', ink3:'#1e2534',
-  fg:'#f4f1e8', fgMut:'rgba(244,241,232,.62)', fgFaint:'rgba(244,241,232,.32)',
-  gold:'#edbe57', red:'#c8102e', green:'#007a3d',
-  line:'rgba(237,190,87,.20)', lineSoft:'rgba(255,255,255,.07)',
+  ink0:COL.ink.void, ink1:COL.ink.screen, ink2:COL.ink.panel, ink3:COL.ink.raised,
+  fg:COL.fg.bright, fgMut:COL.fg.muted, fgFaint:COL.fg.faint,
+  gold:COL.brand.gold, red:COL.brand.red, green:COL.brand.green,
+  line:COL.line.accent, lineSoft:COL.line.soft,
   // Fixed metrics: the same control is the same size on every screen.
   btn: { lg:{w:300,h:76}, md:{w:190,h:58}, sm:{w:150,h:46} },
   // Border weight and corner by role. Every edge in the game came from a
