@@ -371,10 +371,27 @@ cannot happen again.
 | `UI.sp` | the 8pt spacing scale — gaps and offsets come from here |
 | `UI.t` | one type size per role: display, title, head, sub, body, label, micro |
 | `UI.btn` | `lg` / `md` / `sm`; the same control is the same size everywhere |
+| `UI.bodyY` | the first content row under the head — screens used to type 124, 132, 138, 156 and 206 |
 | `UI.navY` | the single y every screen's nav row sits on |
 | `UI.bw` | border weight: `hair` / `line` / `bold` |
 | `UI.r` | corner radius: `sm` / `md` / `lg` |
 | colour roles | `ink0..3`, `fg`/`fgMut`/`fgFaint`, `gold`, `red`, `green`, `line` |
+
+The tokens existed before every call site used them. A pass over the whole
+interface, measured by hooking `fillText`, `roundRect` and `stroke` under a
+headless browser across all fourteen screens: 273 text draws at nineteen sizes
+off the scale (14, 15, 17, 18, 20, 21, 22, 24, 30, 44, 54, 66 …) are down to
+one, the deliberate `CHAMPION` pulse; radii 10, 4, 3 and 14 typed at call
+sites are gone; the map's 5px route stroke is `UI.bw.bold`. Most of it came
+from `uiButton` itself, which drew every label at 20, every sub-label at 15,
+every primary at 24, and let shrink-to-fit hand out 16.5, 18.2 and 23.9 —
+`fitSize()` now measures the string and steps down the scale instead. The
+same pass found that `panel()` filled at radius 14 and stroked at 16, so the
+border overhung its own corner on every default panel, and two collisions:
+the settings wipe warning drawn through the bottom stat row, and the
+briefing's best-rank readout drawn inside the sealed-route card. Both
+screens are anchored from `UI.navY` upwards now, and the rank readout sits
+in the head row where every other screen's readout is.
 
 ### Edges
 
