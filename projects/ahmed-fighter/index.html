@@ -4221,7 +4221,9 @@ function bar(x, y, w, h, v, max, col, label){
     ctx.fillStyle = col;
     roundRect(x, y, Math.max(h, w*f), h, h/2); ctx.fill();
   }
-  if(label) txtLS(label, x - 8, y + h/2, UI.t.micro, UI.fgFaint, 'right', 800, 1.4);
+  // The label is read from a couch, not held at arm's length: micro at a
+  // third opacity was legible on a monitor and gone on a television.
+  if(label) txtLS(label, x - 8, y + h/2, UI.t.label, UI.fgMut, 'right', 800, 1.4);
 }
 
 function drawHUD(){
@@ -4246,7 +4248,23 @@ function drawHUD(){
   txtLS(ASSET_LEVELS.title(lv), px + 80, py + 40, UI.t.micro, UI.fgFaint, 'left', 800, 2);
 
   var bx = px + 96, bw = pw - 112;
-  bar(bx, py + 52, bw, 13, p.hp, p.maxHp, C.hp, 'HP');
+
+  // Health said the same thing at full and at nothing: a green bar, shorter.
+  // Now it turns at a quarter and breathes there, because a colour that never
+  // moves stops being seen a minute into a fight. Two states and not three:
+  // an amber middle band was tried and it read as the orange MP bar sitting
+  // directly under it. The pulse is quantised to eight steps so mix()'s cache
+  // still hits every frame.
+  var hf = p.maxHp > 0 ? clamp(p.hp / p.maxHp, 0, 1) : 0;
+  var hpCol = C.hp;
+  if(hf <= 0.25){
+    var beat = Math.round((0.5 + Math.sin(gameTime*7)*0.5) * 8) / 8;
+    hpCol = p.hp > 0 ? mix(C.bad, '#ff9a97', beat) : C.bad;
+  }
+  bar(bx, py + 52, bw, 13, p.hp, p.maxHp, hpCol, 'HP');
+  // The one number worth reading at a glance, on the panel's own top line.
+  txt(Math.ceil(p.hp) + ' / ' + Math.round(p.maxHp), px + pw - 16, py + 40,
+      UI.t.label, hf > 0.25 ? UI.fgMut : C.bad, 'right', 800);
   bar(bx, py + 71, bw, 9,  p.mp, p.maxMp, '#ff9a3c', 'MP');
   bar(bx, py + 86, bw*0.62, 7, p.stam, p.maxStam, '#59b6ff', 'ST');
   bar(bx, py + 99, bw*0.62, 7, p.rage, 100, p.rage >= 100 ? '#e05cf0' : '#7a4a90', 'RG');
@@ -4262,10 +4280,17 @@ function drawHUD(){
     roundRect(px + 12, py + ph - 8, Math.max(3, (pw - 24) * xf), 3, 1.5); ctx.fill();
   }
 
+  // Everything under the player panel is one column, stacked, because the
+  // two things that live here appear on their own schedules: the combo used
+  // to be pinned at y 168 and the weapon chip drawn at 148, so picking up a
+  // pipe and landing a combo -- which is most of a fight -- painted the
+  // count straight through the chip and cost the player both readouts.
+  var stackY = 148;
+
   // Armed: the swings left matter more than the name, so they get the size.
   if(p.weapon){
     var WD = ASSET_WEAPONS[p.weapon.key];
-    var wx = 16, wy = 148;
+    var wx = 16, wy = stackY;
     ctx.fillStyle = 'rgba(8,10,16,.62)';
     roundRect(wx, wy, 214, 44, 10); ctx.fill();
     edge(wx, wy, 214, 44, UI.r.md, 'line', UI.bw.line);
@@ -4276,6 +4301,7 @@ function drawHUD(){
     var left = p.weapon.uses;
     txt(left + (left === 1 ? ' SWING LEFT' : ' SWINGS LEFT'), wx + 62, wy + 33, UI.t.label,
         left <= 2 ? C.bad : UI.fgMut, 'left', 700);
+    stackY += 44 + UI.sp[2];
   }
 
   // stage progress
@@ -4312,12 +4338,12 @@ function drawHUD(){
     txt(String(alive), W-30, 40, 30, C.bad, 'right', 900);
   }
 
-  // combo
+  // combo, next in the same column
   if(p.combo > 1){
     var a = clamp(p.comboT/1.7, 0, 1);
     var pulse = 1 + Math.sin(gameTime*18)*0.05;
-    txt(p.combo + ' HIT', 130, 168, 44*pulse, C.gold, 'center', 900, a);
-    txt('COMBO', 130, 198, 16, C.white, 'center', 800, a*0.8);
+    txt(p.combo + ' HIT', 130, stackY + 22, UI.t.title*pulse, C.gold, 'center', 900, a);
+    txt('COMBO', 130, stackY + 52, UI.t.body, C.white, 'center', 800, a*0.8);
   }
 
   // objective banner
