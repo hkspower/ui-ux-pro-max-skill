@@ -17,6 +17,7 @@ namespace Ahmed.Data
         public static PlayerRow Player { get; private set; }
         public static IList<StageRow> Stages { get { Load(); return _stages; } }
         public static IList<LevelRow> Levels { get { Load(); return _levels; } }
+        public static IList<UpgradeRow> Upgrades { get { Load(); return _upgrades; } }
         public static IList<WorldArea> Areas { get { Load(); return _areas; } }
         /// <summary>Which area the game starts in. Carried on every row by the
         /// exporter because JsonUtility has nowhere else to put a scalar.</summary>
@@ -36,6 +37,7 @@ namespace Ahmed.Data
         private static List<StageRow> _stages = new List<StageRow>();
         private static List<WorldArea> _areas = new List<WorldArea>();
         private static List<LevelRow> _levels = new List<LevelRow>();
+        private static List<UpgradeRow> _upgrades = new List<UpgradeRow>();
         private static bool _loaded;
 
         /// <summary>JsonUtility cannot read a top-level array, so every table
@@ -70,6 +72,11 @@ namespace Ahmed.Data
                 _stages.Add(st);
             }
             _levels.AddRange(Read<LevelRow>("levels"));
+            foreach (UpgradeRow u in Read<UpgradeRow>("upgrades"))
+            {
+                u.Resolve();
+                _upgrades.Add(u);
+            }
             foreach (WorldArea a in Read<WorldArea>("world"))
             {
                 a.Resolve();
@@ -87,6 +94,33 @@ namespace Ahmed.Data
             {
                 Player = JsonUtility.FromJson<PlayerRow>(player.text);
             }
+        }
+
+        /// <summary>What the next level of a track costs, or -1 at the cap.
+        /// The price rises with the level, so it is a lookup and not a
+        /// formula living in two places.</summary>
+        public static int UpgradeCost(UpgradeTrack track, int nextLevel)
+        {
+            Load();
+            for (int i = 0; i < _upgrades.Count; i++)
+            {
+                if (_upgrades[i].Track == track && _upgrades[i].level == nextLevel)
+                {
+                    return _upgrades[i].cost;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>A track's row at any level, for its name and blurb.</summary>
+        public static UpgradeRow UpgradeInfo(UpgradeTrack track)
+        {
+            Load();
+            for (int i = 0; i < _upgrades.Count; i++)
+            {
+                if (_upgrades[i].Track == track) { return _upgrades[i]; }
+            }
+            return null;
         }
 
         private static T[] Read<T>(string file)

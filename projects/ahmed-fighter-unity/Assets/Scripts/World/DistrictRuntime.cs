@@ -33,6 +33,10 @@ namespace Ahmed.World
         /// <summary>Fires when the player crosses into another area.</summary>
         public event System.Action<int, string> AreaChanged;
 
+        /// <summary>True while Ahmed is standing in the hub. The upgrade panel
+        /// watches this; nothing else in the world cares.</summary>
+        public bool InHub { get; private set; }
+
         private readonly List<GameObject> _scenery = new List<GameObject>();
         private readonly Dictionary<int, List<EnemyFighter>> _liveBySite =
             new Dictionary<int, List<EnemyFighter>>();
@@ -42,6 +46,7 @@ namespace Ahmed.World
         /// every cooldown for as long as he stands in it.</summary>
         private readonly HashSet<int> _refusing = new HashSet<int>();
         private float _exitCooldown;
+        private bool _respawning;
 
         private void Awake() { Current = this; }
         private void OnDestroy() { if (Current == this) { Current = null; } }
@@ -84,6 +89,7 @@ namespace Ahmed.World
             _liveBySite.Clear();
             _awake.Clear();
             _refusing.Clear();
+            InHub = false;
             // Bodies that no longer exist must not hold an attack token
             // against the next fight.
             CrowdControl.Clear();
@@ -119,7 +125,9 @@ namespace Ahmed.World
                 marker.transform.position = s.Position + Vector3.up * 0.6f;
                 marker.transform.localScale = s.Kind == SiteKind.Exit
                     ? new Vector3(3.5f, 2.4f, 1f)
-                    : new Vector3(1.2f, 0.6f, 1.2f);
+                    : s.Kind == SiteKind.Hub
+                        ? new Vector3(s.Radius * 2f, 0.1f, s.Radius * 2f)
+                        : new Vector3(1.2f, 0.6f, 1.2f);
 
                 Collider c = marker.GetComponent<Collider>();
                 if (c != null) { Object.Destroy(c); }   // markers are signposts, not walls
@@ -133,7 +141,9 @@ namespace Ahmed.World
         {
             if (District == null) { return; }
             PlayerFighter player = PlayerFighter.Current;
-            if (player == null || !player.IsAlive) { return; }
+            if (player == null) { return; }
+            if (!player.IsAlive) { Respawn(player); return; }
+            _respawning = false;
 
             _exitCooldown = Mathf.Max(0f, _exitCooldown - Time.deltaTime);
             Vector3 here = player.transform.position;
@@ -150,8 +160,55 @@ namespace Ahmed.World
                     case SiteKind.Encounter: TickEncounter(s, distance); break;
                     case SiteKind.Gate: TickGate(s, distance, player); break;
                     case SiteKind.Exit: TickExit(s, distance); break;
+                    case SiteKind.Hub: TickHub(s, distance, player); break;
                 }
             }
+        }
+
+        /// <summary>
+        /// The hub: a save point and a place to spend what you have earned.
+        ///
+        /// Walking in writes the world down, banks where to come back to, and
+        /// puts Ahmed back on his feet. Walking out closes the panel. It fires
+        /// on the crossing rather than every frame -- a save point that writes
+        /// sixty times a second while you stand on it is a stutter, not a
+        /// feature -- and the heal is the reason to come back to it at all.
+        /// </summary>
+        private void TickHub(Site s, float distance, PlayerFighter player)
+        {
+            bool inside = distance <= s.Radius;
+            if (inside == InHub) { return; }
+            InHub = inside;
+            if (!inside) { return; }
+
+            WorldState.SetCheckpoint(District.AreaIndex, s.Position, 1f);
+            player.Restore();
+            SaveGame.Write();
+            Game.AudioLibrary.PlayUI("Exp_Cache");
+            Debug.Log("[Ahmed] saved at the hub in " + District.DisplayName
+                + " — " + WorldState.Experience + " XP unspent.");
+        }
+
+        /// <summary>
+        /// Ahmed went down. Before this the world simply stopped: the update
+        /// returned early for as long as he was dead, so a lost fight was the
+        /// end of the session. He comes back at the last save point now, and
+        /// the encounter he lost is awake again because it was never cleared.
+        /// </summary>
+        private void Respawn(PlayerFighter player)
+        {
+            if (_respawning) { return; }
+            _respawning = true;
+
+            int area = WorldState.HasCheckpoint ? WorldState.CheckpointArea : District.AreaIndex;
+            Vector3 at = WorldState.HasCheckpoint ? WorldState.CheckpointPosition : Vector3.zero;
+            float health = WorldState.HasCheckpoint ? WorldState.CheckpointHealth : 1f;
+
+            player.Revive(health);
+            Game.AudioLibrary.PlayUI("Stage_Fail");
+            Enter(area, at);
+            if (AreaChanged != null) { AreaChanged(area, District.DisplayName); }
+            Debug.Log("[Ahmed] down. Back at the save point in " + District.DisplayName + ".");
         }
 
         private void TickEncounter(Site s, float distance)

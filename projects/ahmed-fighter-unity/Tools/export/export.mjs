@@ -287,12 +287,19 @@ function levels(A){
 }
 
 function upgrades(A){
+  /* `tracks` is an array, so Object.entries handed this the string indices
+     '0'..'4' as the track key, and cost() takes one argument -- the level you
+     are buying -- so passing the key first priced every level of a track the
+     same and made the price depend on which track it was. The table went out
+     with tracks named 0 to 4 and BOXING costing 120 at every level. The
+     Unreal exporter had it right, and this now matches it. */
   const U = A.upgrades, rows = [];
-  for(const [k, u] of Object.entries(U.tracks)){
-    for(let lv = 1; lv <= U.maxLevel; lv++){
-      rows.push({ track: pascal(k), level: lv, cost: U.cost(k, lv),
-                  displayName: u.n, displayNameArabic: u.ar,
-                  description: u.d, perLevel: u.per });
+  for(const t of U.tracks){
+    for(let lv = 0; lv < U.maxLevel; lv++){
+      rows.push({ track: pascal(t.k), level: lv + 1,
+                  cost: Math.round(U.cost(lv)),
+                  displayName: t.n, displayNameArabic: t.ar,
+                  description: t.d });
     }
   }
   return table(rows);

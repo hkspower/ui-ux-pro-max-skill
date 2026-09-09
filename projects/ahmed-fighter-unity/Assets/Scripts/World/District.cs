@@ -5,7 +5,7 @@ using Ahmed.Data;
 namespace Ahmed.World
 {
     /// <summary>One thing worth walking to in a district.</summary>
-    public enum SiteKind { Encounter, Gate, Exit }
+    public enum SiteKind { Encounter, Gate, Exit, Hub }
 
     public class Site
     {
@@ -89,6 +89,7 @@ namespace Ahmed.World
 
             d.PlaceSites(stage);
             d.PlaceExits(area);
+            d.PlaceHub(area);
             return d;
         }
 
@@ -129,6 +130,31 @@ namespace Ahmed.World
                     Sites.Add(s);
                 }
             }
+        }
+
+        /// <summary>
+        /// The one place in the world that is his.
+        ///
+        /// It goes at the centre of the starting district and nowhere else.
+        /// The centre because that is where the spiral begins and where the
+        /// player is put down, so the game opens standing in it; nowhere else
+        /// because the canon is explicit that the map is the argument -- the
+        /// ring is closed, the arena is the hub of it, and a second safe room
+        /// somewhere out on the loop would be a second answer to a question
+        /// the world only gets to answer once.
+        ///
+        /// It is derived, not authored, like everything else here: the centre
+        /// of whichever area the world graph says the game starts in.
+        /// </summary>
+        private void PlaceHub(WorldArea area)
+        {
+            if (area == null || area.startArea != AreaIndex) { return; }
+            Site s = new Site();
+            s.Kind = SiteKind.Hub;
+            s.Id = 2000;
+            s.Position = Vector3.zero;
+            s.Radius = 7f;
+            Sites.Add(s);
         }
 
         /// <summary>

@@ -38,12 +38,11 @@ namespace Ahmed.Combat
             Current = this;
 
             _row = GameData.Player;
-            InitialiseVitals(_row.baseHealth > 0f ? _row.baseHealth : 100f,
-                             _row.baseStamina > 0f ? _row.baseStamina : 100f);
+            InitialiseVitals(UpgradeStore.MaxHealth(_row), UpgradeStore.MaxStamina(_row));
             MaxMana = _row.baseMana;
             Mana = _row.baseMana;
             PowerMultiplier = _row.basePower > 0f ? _row.basePower : 1f;
-            MoveSpeed = _row.baseMoveSpeed > 0f ? _row.baseMoveSpeed : 3.4f;
+            MoveSpeed = UpgradeStore.MoveSpeed(_row);
         }
 
         private void OnDestroy()
@@ -204,9 +203,50 @@ namespace Ahmed.Combat
             }
         }
 
+        /// <summary>Boxing lifts a jab, kicking lifts a kick. This is the one
+        /// upgrade effect the player row has no field for, because the browser
+        /// build spells it at the damage site too.</summary>
         public override float OutgoingDamageMultiplier(AttackRow attack)
         {
-            return PowerMultiplier;
+            return PowerMultiplier
+                 * (attack != null ? UpgradeStore.DamageMultiplier(attack.Family) : 1f);
+        }
+
+        /// <summary>
+        /// Take the bought levels again, keeping how hurt he is.
+        ///
+        /// Called after a purchase at the hub. The fractions are preserved on
+        /// purpose: buying VITALITY at ten per cent health must not be a
+        /// full heal, or the shop becomes the way you win a fight.
+        /// </summary>
+        public void ApplyUpgrades()
+        {
+            float health = MaxHealth > 0f ? Health / MaxHealth : 1f;
+            float stamina = MaxStamina > 0f ? Stamina / MaxStamina : 1f;
+            MaxHealth = UpgradeStore.MaxHealth(_row);
+            MaxStamina = UpgradeStore.MaxStamina(_row);
+            MoveSpeed = UpgradeStore.MoveSpeed(_row);
+            SetCondition(MaxHealth * health, MaxStamina * stamina);
+        }
+
+        /// <summary>Back to full. What standing in the hub is for.</summary>
+        public void Restore()
+        {
+            ApplyUpgrades();
+            SetCondition(MaxHealth, MaxStamina);
+            Mana = MaxMana;
+        }
+
+        /// <summary>Up off the floor at the save point, at this much health.
+        /// The only way out of Dead, and it clears the rage he died holding
+        /// so a death is not a free finisher on the way back.</summary>
+        public void Revive(float healthFraction)
+        {
+            ApplyUpgrades();
+            State = FighterState.Idle;
+            SetCondition(MaxHealth * Mathf.Clamp01(healthFraction), MaxStamina);
+            Mana = MaxMana;
+            Rage = 0f;
         }
 
         protected override void OnHitLanded(Fighter victim, HitResult hit)

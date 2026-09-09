@@ -28,11 +28,19 @@ namespace Ahmed.Game
         [Tooltip("Start with every talent, to walk the whole map without earning it.")]
         public bool UnlockEverything;
 
+        [Tooltip("Throw away the save and start the run again.")]
+        public bool ClearSaveOnStart;
+
         private void Awake()
         {
             GameData.Load();
             AudioLibrary.Load();    // up front, so the first punch is not the load
+
+            // A save is the world; loading one replaces it, so this happens
+            // before anything reads WorldState. No save means a new run.
             WorldState.Reset();
+            bool loaded = !ClearSaveOnStart && SaveGame.Read();
+            if (ClearSaveOnStart) { SaveGame.Erase(); }
 
             if (UnlockEverything)
             {
@@ -57,13 +65,22 @@ namespace Ahmed.Game
             world.EnemyPrefab = template;
             world.EnemyHealthScale = EnemyHealthScale;
             world.EnemyDamageScale = EnemyDamageScale;
+            worldGo.AddComponent<HubPanel>();
 
-            int start = StartArea >= 0 ? StartArea : GameData.StartArea;
-            world.Enter(start, Vector3.zero);
+            // A saved run resumes where it was saved; a new one opens in the
+            // hub at the centre of the starting district, which is the one
+            // place in the world that is his.
+            int start = StartArea >= 0 ? StartArea
+                      : loaded && WorldState.HasCheckpoint ? WorldState.CheckpointArea
+                      : GameData.StartArea;
+            Vector3 arrive = loaded && WorldState.HasCheckpoint && StartArea < 0
+                           ? WorldState.CheckpointPosition : Vector3.zero;
+            world.Enter(start, arrive);
 
             Debug.Log("[Ahmed] " + GameData.Areas.Count + " districts, "
-                + "starting in area " + start
-                + (UnlockEverything ? " with every talent" : ""));
+                + (loaded ? "resumed" : "new run") + " in area " + start
+                + ", " + WorldState.Experience + " XP"
+                + (UnlockEverything ? ", with every talent" : ""));
         }
 
         private void BuildLight()

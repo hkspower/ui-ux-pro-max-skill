@@ -13,8 +13,8 @@ namespace Ahmed.World
     /// Without it, backtracking is just the same fights again and the map
     /// stops being a place.
     ///
-    /// In memory only so far: nothing here survives quitting. Saving it is
-    /// the next job and is a serialiser over these three sets, not a redesign.
+    /// It survives quitting now: <see cref="SaveGame"/> is the serialiser over
+    /// these sets, and the hub in the first district is where it is written.
     /// </summary>
     public static class WorldState
     {
@@ -22,9 +22,51 @@ namespace Ahmed.World
         private static readonly HashSet<long> Cleared = new HashSet<long>();
         private static readonly HashSet<Ability> Talents = new HashSet<Ability>();
         private static readonly HashSet<int> ClearedAreas = new HashSet<int>();
+        /// <summary>Levels bought per track, indexed by UpgradeTrack.</summary>
+        private static readonly int[] Upgrades =
+            new int[System.Enum.GetValues(typeof(UpgradeTrack)).Length];
 
         public static int Experience { get; private set; }
         public static int CurrentArea { get; set; }
+
+        // ------------------------------------------------------------- upgrades
+
+        public static int UpgradeLevel(UpgradeTrack track) { return Upgrades[(int)track]; }
+
+        /// <summary>Used by the save; a purchase goes through UpgradeStore.</summary>
+        public static void SetUpgradeLevel(UpgradeTrack track, int level)
+        {
+            Upgrades[(int)track] = UnityEngine.Mathf.Max(0, level);
+        }
+
+        /// <summary>Take experience for a purchase. False if it is not there,
+        /// and nothing is spent -- the caller must not have to check first.</summary>
+        public static bool SpendExperience(int amount)
+        {
+            if (amount < 0 || Experience < amount) { return false; }
+            Experience -= amount;
+            return true;
+        }
+
+        // ----------------------------------------------------------- checkpoint
+
+        /// <summary>Where the last save point was touched. A death returns
+        /// Ahmed here rather than leaving him on the floor, which is what he
+        /// did before: nothing in the world reacted to the player dying.</summary>
+        public static bool HasCheckpoint { get; private set; }
+        public static int CheckpointArea { get; private set; }
+        public static UnityEngine.Vector3 CheckpointPosition { get; private set; }
+        /// <summary>Condition to come back in, as a fraction of maximum.</summary>
+        public static float CheckpointHealth { get; private set; }
+
+        public static void SetCheckpoint(int area, UnityEngine.Vector3 position,
+                                         float healthFraction)
+        {
+            HasCheckpoint = true;
+            CheckpointArea = area;
+            CheckpointPosition = position;
+            CheckpointHealth = UnityEngine.Mathf.Clamp01(healthFraction);
+        }
 
         private static long Key(int area, int site) { return ((long)area << 32) | (uint)site; }
 
@@ -64,14 +106,28 @@ namespace Ahmed.World
             return true;
         }
 
+        // ---------------------------------------------------- for the save only
+
+        public static IEnumerable<long> ClearedKeys { get { return Cleared; } }
+        public static IEnumerable<Ability> HeldTalents { get { return Talents; } }
+        public static IEnumerable<int> ClearedAreaList { get { return ClearedAreas; } }
+        public static void RestoreClearedKey(long key) { Cleared.Add(key); }
+        public static void RestoreExperience(int xp) { Experience = xp < 0 ? 0 : xp; }
+        public static void ClearCheckpoint() { HasCheckpoint = false; }
+
         /// <summary>New game. Also what a test calls between cases.</summary>
         public static void Reset()
         {
             Cleared.Clear();
             Talents.Clear();
             ClearedAreas.Clear();
+            for (int i = 0; i < Upgrades.Length; i++) { Upgrades[i] = 0; }
             Experience = 0;
             CurrentArea = 0;
+            HasCheckpoint = false;
+            CheckpointArea = 0;
+            CheckpointPosition = UnityEngine.Vector3.zero;
+            CheckpointHealth = 1f;
         }
     }
 }

@@ -6,6 +6,30 @@ namespace Ahmed.Data
     /// <summary>Which upgrade track an attack scales with.</summary>
     public enum AttackFamily { Box, Kick }
 
+    /// <summary>The five tracks experience is spent on. The names are the
+    /// browser build's own track keys, and the first two are also attack
+    /// families, which is how a boxing level knows it lifts a jab.</summary>
+    public enum UpgradeTrack { Box, Kick, Vit, Spd, Stam }
+
+    /// <summary>One level of one track: what it costs and what it says.</summary>
+    [Serializable]
+    public class UpgradeRow
+    {
+        public string track;
+        public int level;
+        public int cost;
+        public string displayName;
+        public string displayNameArabic;
+        public string description;
+
+        [NonSerialized] public UpgradeTrack Track;
+
+        public void Resolve()
+        {
+            Track = (UpgradeTrack)Enum.Parse(typeof(UpgradeTrack), track, true);
+        }
+    }
+
     /// <summary>
     /// Combat state. Mirrors the browser build's <c>state</c> field one for
     /// one, and the Unreal port's EFighterState, so the three builds can be

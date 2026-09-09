@@ -40,7 +40,16 @@ writing story text, naming anything, or deciding what a place looks like.
   index, not `Random`, so a district is the same every run. A player learns a
   place; a bug in one has to be reproducible.
 - **`WorldState` is what makes it a world.** A fight won stays won and a gate
-  opened stays open. Anything that should survive backtracking goes there.
+  opened stays open. Anything that should survive backtracking goes there —
+  and anything in it that should survive quitting goes into `SaveGame.Encode`
+  in the same commit, or it is lost silently the first time someone closes the
+  game.
+- **There is one hub and it is at the centre of the starting district.** The
+  canon is explicit that the map is the argument: the ring is closed and the
+  arena is the room at its hub. A second safe room out on the loop would be a
+  second answer to a question the world only gets to answer once. It is
+  derived like every other site — the centre of whichever area the world graph
+  starts in — not placed at a coordinate.
 - **Encounters wake on proximity and let you leave.** Do not add a lock that
   holds the player in a fight; that is the corridor design and it is the thing
   this replaced.

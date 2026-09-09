@@ -4,7 +4,7 @@ The third build of the game, in Unity and C#. The browser game in
 `../ahmed-fighter` is the source of truth for every number; `../ahmed-fighter-ue5`
 is the Unreal port of the same thing.
 
-**Status: it is an open world you can walk around and fight in.** Nine
+**Status: it is an open world you can walk around, fight in, and come back to.** Nine
 districts, 131 to 260 metres a side, joined by the world graph's own eighteen
 links — ten of which want a talent you have to find. Combat, the fight styles,
 the encounters, the gates, the whole data pipeline, Ahmed's own mesh and the
@@ -62,6 +62,10 @@ project opens and plays in a bare Unity install:
 | Camera | `FollowCamera` | trails the player at a yaw you can swing |
 | Data | `GameData` | every table, loaded from `Assets/Resources/Data` |
 | Sound | `AudioLibrary` | plays a cue by name off `sounds.json`: which clip, how loud, how far the pitch may drift, how often it may retrigger |
+| The hub | `DistrictRuntime.TickHub` | the save point at the centre of the first district: writes the save, banks a checkpoint, heals |
+| Saving | `SaveGame` | encodes and decodes the world as text; `Encode`/`Decode` are pure, the storage is PlayerPrefs |
+| Upgrades | `UpgradeStore` | what XP buys and what it is worth; the rules are pure, the prices come from `upgrades.json` |
+| The upgrade base | `HubPanel` | the port's only interface, IMGUI, drawn while you stand in the hub |
 | Pose | `FighterIK`, `TwoBoneIK` | computes the pose: feet planted on the ground, strikes thrown from the attack rows; the solver is pure and executed |
 | Bring-up | `Bootstrap` | a playable world with no authored scene |
 | Corridor mode | `WaveDirector` | the old stage-at-a-time flow. **Nothing uses it now** — kept because survival waves live there and the open world has no replacement for them yet |
@@ -198,11 +202,9 @@ worse than one that says where it stops:
 - **No district art.** A flat slab and a cylinder per site. The nine areas'
   looks, backdrops and props are not ported, and every district is the same
   grey square.
-- **No save.** `WorldState` remembers cleared encounters, opened gates and
-  talents for as long as the game is running and forgets all of it on quit.
-  Writing it out is a serialiser over three sets, not a redesign.
-- **No levels or upgrades.** XP accumulates in `WorldState` and buys nothing;
-  the tables are exported and unread.
+- **No level ladder.** XP is spent at the hub now, but the rank titles in
+  `levels.json` are still exported and unread — nothing calls Ahmed a
+  CONTENDER.
 - **No HUD.** Health, stamina, rage and mana are tracked and never drawn.
 - **No materials.** The mesh arrives with its eight material slots named and
   nothing in them, because a material is a Unity asset and there is no editor
