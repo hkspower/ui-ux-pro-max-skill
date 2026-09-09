@@ -41,7 +41,7 @@ public:
 
 	virtual void BeginPlay() override;
 
-	/** Level to open. The map's asset name, e.g. L_SalmiyaGym. */
+	/** Level to open. The map's asset name, e.g. L_BaytAlDarb. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
 	FName DestinationLevel;
 

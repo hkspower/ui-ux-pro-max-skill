@@ -67,15 +67,15 @@ Beaten enemies drop loot too, about one in six. A downed boss always does.
 
 ## The world
 
-Kuwait is one connected place, not a stage list. Walk off the east edge of an
+AL-HALQA is one connected place, not a stage list. Walk off the east edge of an
 area and you arrive at the west edge of the next one — no menu, no loading
 screen, carrying the health, mana, rage and weapon you were holding a step
 earlier. Walk back and you return the same way.
 
-The world is a ring with a hub. Souq Mubarakiya is the hub: its east edge starts
-the loop, its west edge is a shortcut to the Desert Camp that only exists once
-you have beaten the Desert from the other side, and a door partway along it
-leads to the Arena. Every link is two-way, and every link is symmetric — if a
+The world is a ring with a hub. Souq al-Dawar is the hub: its east edge starts
+the loop, its west edge is a shortcut to the camp of fires that only exists once
+you have beaten the camp from the other side, and a door partway along it
+leads to the arena. Every link is two-way, and every link is symmetric — if a
 route wants POWER KICK from one side it wants POWER KICK from the other, so no
 route can ever strand you.
 
@@ -123,15 +123,15 @@ there.
 
 | # | Stage | الاسم |
 | --- | --- | --- |
-| 1 | Souq Mubarakiya | سوق المباركية |
-| 2 | Salmiya Gym | نادي السالمية |
-| 3 | Sharq Fish Market | سوق شرق للسمك |
-| 4 | Kuwait Towers | أبراج الكويت |
-| 5 | Marina Crescent — boss: **AL-SAQR / الصقر** | مارينا كريسنت |
-| 6 | Failaka Island | جزيرة فيلكا |
-| 7 | Jahra Road | طريق الجهراء |
-| 8 | Desert Camp | مخيم البر |
-| 9 | Kuwait Arena — boss: **AL-WAHSH / الوحش** | بطولة الكويت |
+| 1 | Souq al-Dawar — the circling market | سوق الدوار |
+| 2 | Bayt al-Darb — the striking house | بيت الضرب |
+| 3 | Marsa al-Fajr — the dawn harbour | مرسى الفجر |
+| 4 | Abraj al-Malih — the salt towers | أبراج المالح |
+| 5 | Al-Hilal — the neon crescent. Boss: **AL-SAQR / الصقر** | الهلال |
+| 6 | Jazirat al-Hajar — the stone island | جزيرة الحجر |
+| 7 | Al-Tariq al-Masdud — the dead road | الطريق المسدود |
+| 8 | Mukhayyam al-Niran — the camp of fires | مخيم النيران |
+| 9 | Al-Halqa — the ring itself. Boss: **AL-WAHSH / الوحش** | الحلقة |
 
 ## Levels, XP and MP
 
@@ -260,15 +260,15 @@ route means you do not.
 
 | Ability | Found | Opens |
 | --- | --- | --- |
-| **VAULT** ⤴ / وثبة | Salmiya Gym, in a locker | ledges |
-| **DASH LEAP** ⇥ / قفزة | Sharq Fish Market, up a ledge | broken ground, and lengthens your dodge |
-| **POWER KICK** ⚡ / ركلة قوية | Marina Crescent, across a gap | steel shutters |
-| **HAYMAKER** ✊ / قاضية | Jahra Road, behind a shutter | cracked walls |
+| **VAULT** ⤴ / وثبة | Bayt al-Darb, in a locker | ledges |
+| **DASH LEAP** ⇥ / قفزة | Marsa al-Fajr, up a ledge | broken ground, and lengthens your dodge |
+| **POWER KICK** ⚡ / ركلة قوية | Al-Hilal, across a gap | steel shutters |
+| **HAYMAKER** ✊ / قاضية | Al-Tariq al-Masdud, behind a shutter | cracked walls |
 
 Ledges and gaps open by reaching them. **Shutters take three kicks; cracked
 walls take three punches** — the right family of strike, not just any hit. Once
-HAYMAKER is yours, cracked walls in Souq Mubarakiya, Kuwait Towers and Desert
-Camp pay out XP caches.
+HAYMAKER is yours, cracked walls in the souq, the salt towers and the camp of
+fires pay out XP caches.
 
 ## Difficulty
 
@@ -461,8 +461,8 @@ knows which stage it is drawing — it asks the rig.
 | `bloom` `haze` `exposure` `contrast` `saturate` | the post chain's dials | |
 
 So the Souq is a low warm sun down the length of the market with a cold sky
-filling the shadows; Salmiya Gym is hard strip lights straight down and almost
-no bounce; Marina Crescent is neon, where nothing is white and the silhouette
+filling the shadows; the striking house is hard strip lights straight down and
+almost no bounce; the neon crescent is neon, where nothing is white and the silhouette
 edge burns magenta; and the Arena is lit like a title fight — hard spots
 overhead, two more behind, and blacks allowed to go black.
 
@@ -551,9 +551,10 @@ is what tells you where you are standing.
 
 Three rules keep the nine stages reading as one game:
 
-**The floor is the stage.** Souq is worn flagstone, the gym is a taped mat,
-Sharq is hosed-down concrete holding puddles, Marina is boardwalk under neon,
-Jahra is asphalt with lane dashes, the desert is dune ripples, the arena is
+**The floor is the stage.** The souq is worn flagstone, the striking house is a
+taped mat, the harbour is hosed-down concrete holding puddles, the crescent is
+boardwalk under neon, the dead road is asphalt with lane dashes, the camp is
+dune ripples, the arena is
 championship canvas under spotlights. Before this each stage had the same
 gradient slab, and nine locations looked like one.
 

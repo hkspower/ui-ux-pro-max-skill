@@ -157,7 +157,7 @@ scale of 1.0 — the FBX is already exported in centimetres.
    - `BP_Gate_Shutter` / `BP_Gate_Wall` / `BP_Gate_Ledge` / `BP_Gate_Gap` /
      `BP_Gate_Stash` from `AAbilityGate`, each with its `GateType` set.
 6. **Build a level.** Drop in a `AWaveDirector`, set its `StageRow` (e.g.
-   `SouqMubarakiya`), assign the three tables and `DefaultEnemyClass = BP_Enemy`.
+   `SouqAlDawar`), assign the three tables and `DefaultEnemyClass = BP_Enemy`.
    Place the gates and give each a unique `GateId`.
 7. Set **Project Settings → Maps & Modes** to `AhmedGameMode` and
    `AhmedGameInstance` (already written into `Config/DefaultEngine.ini`).

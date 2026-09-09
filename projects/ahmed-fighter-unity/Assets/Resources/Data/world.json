@@ -27,7 +27,7 @@
     },
     {
       "index": 1,
-      "name": "GYM",
+      "name": "DARB",
       "mapX": 470,
       "mapY": 250,
       "startArea": 0,
@@ -52,7 +52,7 @@
     },
     {
       "index": 2,
-      "name": "SHARQ",
+      "name": "MARSA",
       "mapX": 640,
       "mapY": 250,
       "startArea": 0,
@@ -77,7 +77,7 @@
     },
     {
       "index": 3,
-      "name": "TOWERS",
+      "name": "MALIH",
       "mapX": 810,
       "mapY": 250,
       "startArea": 0,
@@ -102,7 +102,7 @@
     },
     {
       "index": 4,
-      "name": "MARINA",
+      "name": "HILAL",
       "mapX": 980,
       "mapY": 250,
       "startArea": 0,
@@ -127,7 +127,7 @@
     },
     {
       "index": 5,
-      "name": "FAILAKA",
+      "name": "HAJAR",
       "mapX": 980,
       "mapY": 410,
       "startArea": 0,
@@ -152,7 +152,7 @@
     },
     {
       "index": 6,
-      "name": "JAHRA",
+      "name": "MASDUD",
       "mapX": 810,
       "mapY": 410,
       "startArea": 0,
@@ -177,7 +177,7 @@
     },
     {
       "index": 7,
-      "name": "DESERT",
+      "name": "NIRAN",
       "mapX": 470,
       "mapY": 410,
       "startArea": 0,
@@ -202,7 +202,7 @@
     },
     {
       "index": 8,
-      "name": "ARENA",
+      "name": "HALQA",
       "mapX": 130,
       "mapY": 250,
       "startArea": 0,

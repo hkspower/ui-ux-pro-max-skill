@@ -29,36 +29,36 @@ window.ASSET_WORLD = {
   /* Where the map screen draws each area, and its short name. */
   layout: [
     { x: 300, y: 250, n: 'SOUQ' },
-    { x: 470, y: 250, n: 'GYM' },
-    { x: 640, y: 250, n: 'SHARQ' },
-    { x: 810, y: 250, n: 'TOWERS' },
-    { x: 980, y: 250, n: 'MARINA' },
-    { x: 980, y: 410, n: 'FAILAKA' },
-    { x: 810, y: 410, n: 'JAHRA' },
-    { x: 470, y: 410, n: 'DESERT' },
-    { x: 130, y: 250, n: 'ARENA' }
+    { x: 470, y: 250, n: 'DARB' },
+    { x: 640, y: 250, n: 'MARSA' },
+    { x: 810, y: 250, n: 'MALIH' },
+    { x: 980, y: 250, n: 'HILAL' },
+    { x: 980, y: 410, n: 'HAJAR' },
+    { x: 810, y: 410, n: 'MASDUD' },
+    { x: 470, y: 410, n: 'NIRAN' },
+    { x: 130, y: 250, n: 'HALQA' }
   ],
 
   areas: [
-    // 0 SOUQ MUBARAKIYA — the hub
+    // 0 SOUQ AL-DAWAR — the hub
     { w:{ to:7, needs:'vault', afterCleared:7 },
       e:{ to:1 },
       d:{ to:8, at:1900, needs:'hawk' } },
-    // 1 SALMIYA GYM
+    // 1 BAYT AL-DARB
     { w:{ to:0 }, e:{ to:2 } },
-    // 2 SHARQ FISH MARKET
+    // 2 MARSA AL-FAJR
     { w:{ to:1 }, e:{ to:3 } },
-    // 3 KUWAIT TOWERS
+    // 3 ABRAJ AL-MALIH
     { w:{ to:2 }, e:{ to:4, needs:'dashleap' } },
-    // 4 MARINA CRESCENT — AL-SAQR
+    // 4 AL-HILAL — AL-SAQR
     { w:{ to:3, needs:'dashleap' }, e:{ to:5 } },
-    // 5 FAILAKA ISLAND
+    // 5 JAZIRAT AL-HAJAR
     { w:{ to:4 }, e:{ to:6, needs:'powerkick' } },
-    // 6 JAHRA ROAD
+    // 6 AL-TARIQ AL-MASDUD
     { w:{ to:5, needs:'powerkick' }, e:{ to:7, needs:'haymaker' } },
-    // 7 DESERT CAMP
+    // 7 MUKHAYYAM AL-NIRAN
     { w:{ to:6, needs:'haymaker' }, e:{ to:0, needs:'vault', afterCleared:7 } },
-    // 8 KUWAIT ARENA — AL-WAHSH, a dead end off the hub
+    // 8 AL-HALQA — AL-WAHSH, a dead end off the hub
     { w:{ to:0, needs:'hawk' } }
   ]
 };

@@ -883,14 +883,14 @@
   ],
   "Stages": [
     {
-      "Name": "SouqMubarakiya",
+      "Name": "SouqAlDawar",
       "Index": 0,
-      "DisplayName": "SOUQ MUBARAKIYA",
-      "DisplayNameArabic": "سوق المباركية",
+      "DisplayName": "SOUQ AL-DAWAR",
+      "DisplayNameArabic": "سوق الدوار",
       "Theme": "Souq",
-      "Briefing": "A crew has been leaning on the traders in the old souq for months. Ahmed grew up in these alleys. Tonight he stops being a bystander.",
-      "BriefingArabic": "بدأت الحكاية في سوق المباركية",
-      "Hint": "Trouble in the old market.",
+      "Briefing": "He asks where the hole is. Nobody understands the question. A crew leans on the traders. He steps in. It is the only thing he knows.",
+      "BriefingArabic": "يسأل عن الحفرة، ولا أحد يفهم",
+      "Hint": "Ask about the hole. Nobody looks up.",
       "Length": 7200,
       "Tier": 0,
       "bIsBossStage": false,
@@ -933,14 +933,14 @@
       ]
     },
     {
-      "Name": "SalmiyaGym",
+      "Name": "BaytAlDarb",
       "Index": 1,
-      "DisplayName": "SALMIYA GYM",
-      "DisplayNameArabic": "نادي السالمية",
+      "DisplayName": "BAYT AL-DARB",
+      "DisplayNameArabic": "بيت الضرب",
       "Theme": "Gym",
-      "Briefing": "Word travels. The Salmiya club wants to see what the souq kid can do. Six rounds, no headgear, and nobody is holding back.",
-      "BriefingArabic": "الاختبار الأول في نادي السالمية",
-      "Hint": "Spar your way through the club.",
+      "Briefing": "Word travels. The striking house wants to see what the stranger can do. Six rounds. Then they hand him VAULT. He takes it for a way up.",
+      "BriefingArabic": "ست جولات، والبيت كله يراقب",
+      "Hint": "Six rounds. They want to see him.",
       "Length": 6240,
       "Tier": 0,
       "bIsBossStage": false,
@@ -1004,14 +1004,14 @@
       ]
     },
     {
-      "Name": "SharqFishMarket",
+      "Name": "MarsaAlFajr",
       "Index": 2,
-      "DisplayName": "SHARQ FISH MARKET",
-      "DisplayNameArabic": "سوق شرق للسمك",
+      "DisplayName": "MARSA AL-FAJR",
+      "DisplayNameArabic": "مرسى الفجر",
       "Theme": "Fishmarket",
-      "Briefing": "The crew moved their business to the harbour before sunrise. Wet stone, cold air, and runners who will not stand still.",
-      "BriefingArabic": "الفجر على الميناء",
-      "Hint": "Dawn on the harbour. They came early.",
+      "Briefing": "Dawn on the water. The stone is wet and the runners will not stand still. The next rung sits behind a fight. So will the one after.",
+      "BriefingArabic": "فجر على الماء، وخصوم لا يثبتون",
+      "Hint": "Dawn. Runners who will not stand still.",
       "Length": 8640,
       "Tier": 1,
       "bIsBossStage": false,
@@ -1056,14 +1056,14 @@
       ]
     },
     {
-      "Name": "KuwaitTowers",
+      "Name": "AbrajAlMalih",
       "Index": 3,
-      "DisplayName": "KUWAIT TOWERS",
-      "DisplayNameArabic": "أبراج الكويت",
+      "DisplayName": "ABRAJ AL-MALIH",
+      "DisplayNameArabic": "أبراج المالح",
       "Theme": "Towers",
-      "Briefing": "They want the waterfront cleared before the season opens. Ahmed gets there first.",
-      "BriefingArabic": "ليلة على الواجهة البحرية",
-      "Hint": "Night raid on the waterfront.",
+      "Briefing": "Night on the salt towers. This is a raid, not a patrol. He takes it tower by tower. He thinks he is working his way out.",
+      "BriefingArabic": "غارة ليلية على أبراج المالح",
+      "Hint": "Night. A raid, not a patrol.",
       "Length": 6720,
       "Tier": 1,
       "bIsBossStage": false,
@@ -1101,14 +1101,14 @@
       ]
     },
     {
-      "Name": "MarinaCrescent",
+      "Name": "AlHilal",
       "Index": 4,
-      "DisplayName": "MARINA CRESCENT",
-      "DisplayNameArabic": "مارينا كريسنت",
+      "DisplayName": "AL-HILAL",
+      "DisplayNameArabic": "الهلال",
       "Theme": "Marina",
-      "Briefing": "The neon strip belongs to AL-SAQR — the Falcon. All legs, no patience. Beat him and the crew loses its enforcer.",
-      "BriefingArabic": "الصقر يحرس المارينا",
-      "Hint": "AL-SAQR runs this strip.",
+      "Briefing": "AL-SAQR runs the neon crescent. He is all legs and no patience. He fell too, a long time ago. He says so once. Ahmed does not hear it.",
+      "BriefingArabic": "الصقر سقط قبله، وكف عن السؤال",
+      "Hint": "AL-SAQR runs the crescent.",
       "Length": 5280,
       "Tier": 2,
       "bIsBossStage": true,
@@ -1149,14 +1149,14 @@
       ]
     },
     {
-      "Name": "FailakaIsland",
+      "Name": "JaziratAlHajar",
       "Index": 5,
-      "DisplayName": "FAILAKA ISLAND",
-      "DisplayNameArabic": "جزيرة فيلكا",
+      "DisplayName": "JAZIRAT AL-HAJAR",
+      "DisplayNameArabic": "جزيرة الحجر",
       "Theme": "Failaka",
-      "Briefing": "They regrouped on the island, among the old stone. Nowhere to run out here — which cuts both ways.",
-      "BriefingArabic": "بين آثار فيلكا",
-      "Hint": "Grapplers hold the ruins.",
+      "Briefing": "They fall back to the stone island. Grapplers hold the ruins. There is nowhere to run out here. That cuts both ways.",
+      "BriefingArabic": "لا مهرب هنا، لا لهم ولا له",
+      "Hint": "Grapplers hold the stone.",
       "Length": 6000,
       "Tier": 2,
       "bIsBossStage": false,
@@ -1199,14 +1199,14 @@
       ]
     },
     {
-      "Name": "JahraRoad",
+      "Name": "AlTariqAlMasdud",
       "Index": 6,
-      "DisplayName": "JAHRA ROAD",
-      "DisplayNameArabic": "طريق الجهراء",
+      "DisplayName": "AL-TARIQ AL-MASDUD",
+      "DisplayNameArabic": "الطريق المسدود",
       "Theme": "Highway",
-      "Briefing": "Trucks across both lanes, sun going down behind the pylons. The road to the camp runs straight through them.",
-      "BriefingArabic": "الطريق مقطوع عند الجهراء",
-      "Hint": "They blocked the road out.",
+      "Briefing": "The road is dead. Trucks sit across both lanes and the sun is going down. It is not one fight. It is a queue of them. He takes his place in it.",
+      "BriefingArabic": "الطريق مقطوع ولا طريق غيره",
+      "Hint": "The road is blocked. Walk it anyway.",
       "Length": 8160,
       "Tier": 3,
       "bIsBossStage": false,
@@ -1263,14 +1263,14 @@
       ]
     },
     {
-      "Name": "DesertCamp",
+      "Name": "MukhayyamAlNiran",
       "Index": 7,
-      "DisplayName": "DESERT CAMP",
-      "DisplayNameArabic": "مخيم البر",
+      "DisplayName": "MUKHAYYAM AL-NIRAN",
+      "DisplayNameArabic": "مخيم النيران",
       "Theme": "Desert",
-      "Briefing": "The camp is where they pick who fights for the belt. Ahmed was never on the list. He is now.",
-      "BriefingArabic": "المخيم يختار من ينافس على الحزام",
-      "Hint": "The contenders wait by the fire.",
+      "Briefing": "Here they pick who fights for the belt. He was never on the list. He is now. The last wall gives him HAWK FIST, fire in his hands. West is the souq.",
+      "BriefingArabic": "نار في يديه، والحلقة تكتمل",
+      "Hint": "The contenders wait by the fires.",
       "Length": 7200,
       "Tier": 3,
       "bIsBossStage": false,
@@ -1307,14 +1307,14 @@
       ]
     },
     {
-      "Name": "KuwaitArena",
+      "Name": "AlHalqa",
       "Index": 8,
-      "DisplayName": "KUWAIT ARENA",
-      "DisplayNameArabic": "بطولة الكويت",
+      "DisplayName": "AL-HALQA",
+      "DisplayNameArabic": "الحلقة",
       "Theme": "Arena",
-      "Briefing": "A full house, and AL-WAHSH waiting in the far corner. One fight between the souq kid and the belt.",
-      "BriefingArabic": "المواجهة الأخيرة مع الوحش",
-      "Hint": "Title fight. No way out.",
+      "Briefing": "The door off the souq opens to his new hands. It is not the way up. The house is full. It knows his name. AL-WAHSH waits in the far corner.",
+      "BriefingArabic": "الحلقة تعرف اسمه، والوحش ينتظر",
+      "Hint": "The door his hands fit. No way up.",
       "Length": 3840,
       "Tier": 4,
       "bIsBossStage": true,
@@ -1339,14 +1339,14 @@
       "Gates": []
     },
     {
-      "Name": "Survival",
+      "Name": "BilaNihaya",
       "Index": 9,
-      "DisplayName": "SURVIVAL",
-      "DisplayNameArabic": "البقاء",
+      "DisplayName": "BILA NIHAYA",
+      "DisplayNameArabic": "بلا نهاية",
       "Theme": "Arena",
       "Briefing": "No belt, no crowd, no end. Just the next wave.",
-      "BriefingArabic": "موجات لا تنتهي",
-      "Hint": "Endless waves. How far can Ahmed go?",
+      "BriefingArabic": "لا حزام ولا جمهور ولا نهاية",
+      "Hint": "No end. Just the next wave.",
       "Length": 3360,
       "Tier": 0,
       "bIsBossStage": false,
@@ -1393,7 +1393,7 @@
       },
       {
         "Index": 1,
-        "Name": "GYM",
+        "Name": "DARB",
         "MapX": 470,
         "MapY": 250,
         "West": {
@@ -1412,7 +1412,7 @@
       },
       {
         "Index": 2,
-        "Name": "SHARQ",
+        "Name": "MARSA",
         "MapX": 640,
         "MapY": 250,
         "West": {
@@ -1431,7 +1431,7 @@
       },
       {
         "Index": 3,
-        "Name": "TOWERS",
+        "Name": "MALIH",
         "MapX": 810,
         "MapY": 250,
         "West": {
@@ -1450,7 +1450,7 @@
       },
       {
         "Index": 4,
-        "Name": "MARINA",
+        "Name": "HILAL",
         "MapX": 980,
         "MapY": 250,
         "West": {
@@ -1469,7 +1469,7 @@
       },
       {
         "Index": 5,
-        "Name": "FAILAKA",
+        "Name": "HAJAR",
         "MapX": 980,
         "MapY": 410,
         "West": {
@@ -1488,7 +1488,7 @@
       },
       {
         "Index": 6,
-        "Name": "JAHRA",
+        "Name": "MASDUD",
         "MapX": 810,
         "MapY": 410,
         "West": {
@@ -1507,7 +1507,7 @@
       },
       {
         "Index": 7,
-        "Name": "DESERT",
+        "Name": "NIRAN",
         "MapX": 470,
         "MapY": 410,
         "West": {
@@ -1526,7 +1526,7 @@
       },
       {
         "Index": 8,
-        "Name": "ARENA",
+        "Name": "HALQA",
         "MapX": 130,
         "MapY": 250,
         "West": {
@@ -1559,6 +1559,6 @@
     "UpgradeMaxLevel": 5,
     "LevelMax": 20
   },
-  "Revision": "87fdafcfc4540b94",
-  "GeneratedAt": "2026-09-07T08:58:25.506Z"
+  "Revision": "87205e3867fcdb2b",
+  "GeneratedAt": "2026-09-09T05:55:50.430Z"
 }

@@ -280,7 +280,7 @@ var ACHIEVEMENTS = [
    test:function(){ return save.stats.crates >= 50; }},
   {k:'parry',    n:'READ THE PUNCH', ar:'قراءة اللكمة', d:'Land 25 perfect parries.',
    test:function(){ return save.stats.parries >= 25; }},
-  {k:'saqr',     n:'FALCON DOWN',    ar:'سقط الصقر',   d:'Beat AL-SAQR at Marina Crescent.',
+  {k:'saqr',     n:'FALCON DOWN',    ar:'سقط الصقر',   d:'Beat AL-SAQR on Al-Hilal.',
    test:function(){ return save.cleared.indexOf(4) >= 0; }},
   {k:'belt',     n:'THE BELT',       ar:'الحزام',      d:'Beat AL-WAHSH and take the title.',
    test:function(){ return save.cleared.indexOf(8) >= 0; }},
@@ -294,7 +294,7 @@ var ACHIEVEMENTS = [
    test:function(){ return save.abilities.length >= 5; }},
   {k:'surv10',   n:'LAST MAN UP',    ar:'آخر الواقفين', d:'Reach wave 10 in Survival.',
    test:function(){ return save.survBest >= 10; }},
-  {k:'allstage', n:'ALL OF KUWAIT',  ar:'كل الكويت',   d:'Clear all nine stages.',
+  {k:'allstage', n:'FULL CIRCLE',    ar:'دورة كاملة',  d:'Clear all nine areas and close the ring.',
    test:function(){ return save.cleared.length >= CAMPAIGN; }}
 ];
 var achToast = null, achToastT = 0;
@@ -914,7 +914,7 @@ var EDGE = 'rgba(6,9,15,.55)', EDGE_W = 1.7;
    the same idea in 2D. Each stage owns a rig -- a key, a fill, a rim, an
    exposure and a film response -- and every fighter, prop and post pass reads
    from it. Change the rig and the whole stage changes with it, which is why
-   Marina at sunset and Failaka at night cannot look like the same fight in a
+   the crescent at sunset and the island at night cannot look like the same fight in a
    different wallpaper.
 
      key    the sun, or the strip light overhead. Direction + colour.
@@ -1977,7 +1977,7 @@ function shadeCalc(hex, amt){
 }
 
 /* ==========================================================================
-   STAGES — Kuwait locations, drawn procedurally with parallax layers
+   STAGES — the Halqa's places, drawn procedurally with parallax layers
    ========================================================================== */
 
 var STAGES = ASSET_STAGES;
@@ -2550,7 +2550,7 @@ var THEME = {
   },
   highway: {
     sky:['#f0a15e','#c9683f','#6d3b4a'], ground:['#4a4a52','#2c2c33'], fog:'rgba(255,160,110,.20)',
-    // Dusk on the Jahra road: an orange sky ahead, headlights behind, and grey
+    // Dusk on the dead road: an orange sky ahead, headlights behind, and grey
     // asphalt underneath giving almost nothing back.
     rig:{ key:{x:-0.58,y:-0.78,col:'#ffb070',power:0.96}, fill:{col:'#6b7a92',power:0.40},
           rim:{col:'#fff2d8',power:0.84}, toe:'rgba(20,17,26,.24)', shoulder:'rgba(255,244,226,.90)',
@@ -2573,7 +2573,7 @@ var THEME = {
                        y1:FLOOR_TOP+90, par:0.85, driftX:240, sway:3, seed:360 });
     },
     far:function(camX){
-      // Dusk on the Jahra road: the sun going down ahead, the town it runs to
+      // Dusk on the dead road: the sun going down ahead, the town it runs to
       // sitting low on the horizon, dunes crowding the verge.
       ctx.fillStyle = 'rgba(255,225,170,.95)';
       circle(880 - camX*0.03, 190, 66); ctx.fill();
@@ -5315,18 +5315,18 @@ function drawVictory(dt){
   screenBg('#1d1730');
   var pulse = 1 + Math.sin(gameTime*3)*0.02;
   txtLS('CHAMPION', W/2, 150, UI.t.screen*pulse, UI.gold, 'center', 900, 8);
-  txt('بطل الكويت', W/2, 210, 30, C.white, 'center', 700);
+  txt('بطل الحلقة', W/2, 210, 30, C.white, 'center', 700);
   var F = G.fight;
   var ep = [
-    'AL-WAHSH stays down. The arena is on its feet.',
-    'The souq traders came out for this one — they are the loudest row in the house.',
-    'Ahmed takes the belt back to Mubarakiya in the morning, and opens the shop.'
+    'AL-WAHSH stays down. The house is on its feet, and it is shouting one name.',
+    'The belt is his. The only door out leads back to the souq.',
+    'He does not leave.'
   ];
   for(var i=0;i<ep.length;i++){
     var a = clamp((G.endT - 0.3 - i*0.5) * 2.2, 0, 1);
     txt(ep[i], W/2, 262 + i*32, 18, i === 2 ? C.gold : C.sand, 'center', 600, a);
   }
-  txt('أحمد يرفع الحزام في بطولة الكويت', W/2, 372, 18, 'rgba(255,255,255,.6)', 'center', 700,
+  txt('أحمد يرفع الحزام ولا يعود', W/2, 372, 18, 'rgba(255,255,255,.6)', 'center', 700,
       clamp((G.endT - 1.6) * 2, 0, 1));
   txt('Best combo this run: ' + F.bestCombo + '   ·   Rank: ' + (F.rank || '-') +
       '   ·   Total XP: ' + save.xp, W/2, 414, 18, C.hp, 'center', 800);

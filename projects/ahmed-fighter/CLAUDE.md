@@ -157,12 +157,19 @@ it up.
 
 Written down honestly rather than smoothed over:
 
-- **The game's own text still says Kuwait.** The nine areas are named for real
-  places — Souq Mubarakiya, Salmiya Gym, Sharq Fish Market, Kuwait Towers,
-  Marina Crescent, Failaka Island, Jahra Road, Desert Camp, Kuwait Arena — and
-  their per-stage story text is written for that framing. **None of it has
-  been changed.** Renaming them to the Halqa's own places is a separate pass;
-  what it touches is below.
+- **The game's text now says the Halqa.** On 2026-09-09 (Riyadh) the nine
+  areas were renamed to the places below and every line a player reads about
+  them was rewritten for this story: the stage names, hints, story lines and
+  their Arabic, the map labels, the victory screen (he wins, he does not
+  leave) and the two achievements that named Kuwait. Three things were kept
+  on purpose: the product title *AHMED — Kuwait Fighter* and the Almuhallab
+  credit, which are the game's name and its maker rather than its world; the
+  theme ids in the code (`souq`, `gym`, `fishmarket`, `towers`, `marina`,
+  `failaka`, `highway`, `desert`, `arena`), which are internal keys and not
+  text; and the press kit under `press/`, which is marketing and still tells
+  the old story. The backdrops still draw the shapes they always drew — the
+  towers, the dhow, the harbour — so the salt towers *look* like a real
+  skyline; that is art, not text, and was not asked for.
 - **What the Halqa is** — whether it made itself, whether anyone runs it,
   whether the hole was an accident — is not answered, and the game is stronger
   if it stays that way. Al-Saqr and Al-Wahsh both fell in; neither of them
@@ -170,22 +177,26 @@ Written down honestly rather than smoothed over:
 - **How many others fell.** Every enemy archetype could be a faller, or none
   of them could. Not decided.
 
-### What renaming the areas would touch
+### What the rename touched
 
-One edit and three cascades:
+One edit and three cascades, all done:
 
 ```
 ahmed-fighter/assets/stages.js        the nine names and their story text
   -> ahmed-fighter-ue5    node Tools/export/export.mjs --api
-     and Tools/levels/build_levels.py regenerates L_<Name>.umap per stage
+     (Config/DefaultEngine.ini now opens L_SouqAlDawar; build_levels.py
+      names every level from the new rows)
   -> ahmed-fighter-unity  node Tools/export/export.mjs
-  -> assets/world.js      the map-screen labels (SOUQ, GYM, SHARQ, ...)
+  -> assets/world.js      the map-screen labels (SOUQ, DARB, MARSA, MALIH,
+                          HILAL, HAJAR, MASDUD, NIRAN, HALQA)
   -> the three READMEs, which name the areas in prose
+  -> index.html           the victory screen and two achievements
+  -> sw.js                the cache version, so players get the new text
 ```
 
-Proposed names, kept to the shapes the stages already are:
+The names, kept to the shapes the stages already are:
 
-| # | Now | The Halqa |
+| # | Was | The Halqa |
 | --- | --- | --- |
 | 0 | Souq Mubarakiya | **SOUQ AL-DAWAR** / سوق الدوار — the circling market |
 | 1 | Salmiya Gym | **BAYT AL-DARB** / بيت الضرب — the striking house |
