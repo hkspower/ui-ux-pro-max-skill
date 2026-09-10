@@ -5,7 +5,7 @@ for the Unity port.
 Run headless with no Blender install required:
 
     pip install bpy
-    python3 build_ahmed.py            # the hero: 4K textures, 64-sample renders
+    python3 build_ahmed.py            # the hero: 4K colour, 2K normals, 64-sample renders
     python3 build_ahmed.py --fast     # 1K textures and quick renders, for a look
     python3 build_ahmed.py --resume   # reload the nine-minute body and redo the rest
     python3 build_ahmed.py --coarse   # a rough body, to check the later stages

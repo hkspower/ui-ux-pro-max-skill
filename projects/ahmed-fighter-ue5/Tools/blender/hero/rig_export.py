@@ -77,39 +77,50 @@ def export_all(arm, mesh, out_ue5, out_unity, textures_ue5, textures_unity):
         bpy.data.objects.remove(o, do_unlink=True)
     bpy.ops.object.select_all(action='DESELECT'); arm.select_set(True); mesh.select_set(True)
     bpy.context.view_layer.objects.active = arm
-    glb = os.path.join(out_ue5, "Ahmed.glb")
-    bpy.ops.export_scene.gltf(filepath=glb, export_format="GLB", use_selection=True, export_yup=True, export_apply=True,
-                              export_image_format='AUTO')
+    # Nothing embeds its textures. The bake has just written them next door
+    # into Content/Textures/Ahmed and both engines import a PNG as an asset
+    # of their own anyway, so an embedded copy is a second and a third 34 MB
+    # of the same sixteen files -- inside a container, where git cannot even
+    # see that they are the same. Both formats reference them instead.
+    gltf = os.path.join(out_ue5, "Ahmed.gltf")
+    bpy.ops.export_scene.gltf(filepath=gltf, export_format="GLTF_SEPARATE", use_selection=True,
+                              export_yup=True, export_apply=True, export_keep_originals=True)
     fbx = os.path.join(out_ue5, "Ahmed.fbx")
     bpy.ops.export_scene.fbx(filepath=fbx, use_selection=True, apply_unit_scale=True, global_scale=1.0,
                              apply_scale_options="FBX_SCALE_UNITS", add_leaf_bones=False,
                              primary_bone_axis="Y", secondary_bone_axis="X", object_types={"ARMATURE", "MESH"},
-                             mesh_smooth_type="FACE", bake_space_transform=False, path_mode='COPY', embed_textures=True)
+                             mesh_smooth_type="FACE", bake_space_transform=False,
+                             path_mode='RELATIVE', embed_textures=False)
     ufbx = os.path.join(out_unity, "Ahmed.fbx")
     bpy.ops.export_scene.fbx(filepath=ufbx, use_selection=True, apply_unit_scale=True, global_scale=1.0,
                              apply_scale_options="FBX_SCALE_NONE", add_leaf_bones=False,
                              primary_bone_axis="Y", secondary_bone_axis="X", object_types={"ARMATURE", "MESH"},
                              mesh_smooth_type="FACE", axis_forward="-Z", axis_up="Y", bake_space_transform=True,
                              path_mode='COPY', embed_textures=False)
-    return glb, fbx, ufbx
+    return gltf, fbx, ufbx
 
-def verify_glb(path):
-    """Read the GLB's own JSON: what an engine's importer sees, with no
-    Blender importer in between (Blender's adds a bone-shape mesh of its own)."""
-    import struct, json
-    b = open(path, "rb").read()
-    ln = struct.unpack("<I", b[12:16])[0]; j = json.loads(b[20:20 + ln])
+def verify_gltf(path):
+    """Read the glTF's own JSON: what an engine's importer sees, with no
+    Blender importer in between (Blender's adds a bone-shape mesh of its
+    own). Every image must resolve to a file that is really there, which is
+    the thing that can go wrong once they are not embedded."""
+    import json
+    j = json.load(open(path))
+    missing = [i.get("uri") for i in j.get("images", [])
+               if "uri" not in i or not os.path.exists(os.path.join(os.path.dirname(path), i["uri"]))]
+    assert not missing, "the glTF points at textures that are not there: %s" % missing
     acc = j["accessors"]
     tris = sum(acc[p["indices"]]["count"] // 3 for m in j["meshes"] for p in m["primitives"] if "indices" in p)
     zs = [(acc[p["attributes"]["POSITION"]]["min"][1], acc[p["attributes"]["POSITION"]]["max"][1])
           for m in j["meshes"] for p in m["primitives"]]        # glTF is Y-up
     return dict(armatures=len(j.get("skins", [])), bones=sum(len(s["joints"]) for s in j.get("skins", [])),
                 meshes=[m["name"] for m in j["meshes"]], tris=tris, materials=len(j.get("materials", [])),
-                images=len(j.get("images", [])), height=max(z[1] for z in zs) - min(z[0] for z in zs))
+                images=len(j.get("images", [])), images_resolve=True,
+                height=max(z[1] for z in zs) - min(z[0] for z in zs))
 
 def verify_roundtrip(path):
     """Import into a fresh scene and count what came back."""
-    if path.endswith(".glb"): return verify_glb(path)
+    if path.endswith((".gltf", ".glb")): return verify_gltf(path)
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.fbx(filepath=path)
     arms = [o for o in bpy.data.objects if o.type == 'ARMATURE']

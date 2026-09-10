@@ -253,12 +253,18 @@ def shader(name, kind, roughness, sheen=0.0, metallic=0.0, subsurface=0.0, pores
     return mat
 
 # ------------------------------------------------------------------ bake
-def bake_set(obj, mat, size, out_dir, base, maps=("albedo", "normal", "roughness"), source=None):
+def bake_set(obj, mat, size, out_dir, base, maps=("albedo", "normal", "roughness"), source=None, normal_size=None):
     """Bake one material's maps through the object's UVs. With `source` --
     the same surface before decimation, painted -- the colour and the
     normal come from it: the tape's edges, the patch, the sculpted face and
     the folds land in the textures at the source's resolution, not the
-    game mesh's."""
+    game mesh's.
+
+    `normal_size` bakes the normal map smaller than the colour. The shape
+    the sculpt put in is low-frequency and survives it; the pore and weave
+    bump is finer than a texel at the colour's resolution, so at full size
+    it is stored as per-pixel dither the first mip level averages away --
+    17.7 MB of it on the skin alone, against 3.2 MB at half."""
     nt = mat.node_tree
     tex = nt.nodes.new("ShaderNodeTexImage"); nt.nodes.active = tex
     # the image node must be active in every material the bake touches
@@ -282,7 +288,8 @@ def bake_set(obj, mat, size, out_dir, base, maps=("albedo", "normal", "roughness
     # across materials because every material gets its own image.
     written = {}
     for m in maps:
-        img = bpy.data.images.new("%s_%s" % (base, m), size, size, alpha=False, float_buffer=False)
+        px = normal_size if (m == "normal" and normal_size) else size
+        img = bpy.data.images.new("%s_%s" % (base, m), px, px, alpha=False, float_buffer=False)
         img.colorspace_settings.name = 'sRGB' if m == "albedo" else 'Non-Color'
         img.filepath_raw = os.path.join(out_dir, "T_%s_%s.png" % (base, {"albedo": "BaseColor", "normal": "Normal", "roughness": "Roughness"}[m]))
         img.file_format = 'PNG'

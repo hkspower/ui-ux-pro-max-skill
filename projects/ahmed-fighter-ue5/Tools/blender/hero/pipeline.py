@@ -8,7 +8,7 @@
 
 Run through build_ahmed.py:
 
-    python3 build_ahmed.py              the hero: 4K textures, 64-sample renders
+    python3 build_ahmed.py              the hero: 4K colour, 2K normals, 64-sample renders
     python3 build_ahmed.py --fast       1K textures, quick renders, for a look
     python3 build_ahmed.py --resume     skip the nine-minute build, reload it
     python3 build_ahmed.py --coarse     a rough body, to check the later stages
@@ -190,7 +190,8 @@ def run(argv=None):
             # the soles bake into the same image afterwards: same material, own charts
         source = {"skin": hi["body"], "hair": hi["body"], "shoe": hi["body"], "tee": hi["tee"], "pants": hi["pants"]}.get(key)
         baked[key] = F.bake_set(obj, mats[key], size, UE5_TEX, {"skin": "Ahmed_Skin", "hair": "Ahmed_Hair", "shoe": "Ahmed_Shoe", "tee": "Ahmed_Tee", "pants": "Ahmed_Pants", "eye": "Ahmed_Eye"}[key],
-                                maps=("albedo", "normal", "roughness") if key != "eye" else ("albedo",), source=source)
+                                maps=("albedo", "normal", "roughness") if key != "eye" else ("albedo",), source=source,
+                                normal_size=max(512, size // 2))
         if obj not in (tee, pants) and obj not in eyes: bpy.data.objects.remove(obj, do_unlink=True)
         stamp("baked %s at %d" % (key, size))
     for k, m in mats.items(): F.wire_textures(m, baked[k])
@@ -227,12 +228,12 @@ def run(argv=None):
 
     # ---- export, then read it back
     total = sum(len(p.vertices) - 2 for p in mesh.data.polygons)
-    glb, fbx, ufbx = R.export_all(rig, mesh, UE5_MODELS, UNITY_MODELS, UE5_TEX, None)
+    gltf, fbx, ufbx = R.export_all(rig, mesh, UE5_MODELS, UNITY_MODELS, UE5_TEX, None)
     summary = dict(tris=total, verts=len(mesh.data.vertices), bones=len(rig.data.bones), finger_bones=nf,
                    materials=[m.name for m in mesh.data.materials], textures=sorted(os.listdir(UE5_TEX)),
-                   glb=os.path.getsize(glb), fbx=os.path.getsize(fbx), unity_fbx=os.path.getsize(ufbx))
+                   gltf=os.path.getsize(gltf), fbx=os.path.getsize(fbx), unity_fbx=os.path.getsize(ufbx))
     stamp("exported: %d tris, %d bones" % (total, summary["bones"]))
-    summary["roundtrip_glb"] = R.verify_roundtrip(glb)
+    summary["roundtrip_gltf"] = R.verify_roundtrip(gltf)
     summary["roundtrip_fbx_unity"] = R.verify_roundtrip(ufbx)
     json.dump(summary, open(os.path.join(OUT, "summary.json"), "w"), indent=1)
     print(json.dumps(summary, indent=1))
