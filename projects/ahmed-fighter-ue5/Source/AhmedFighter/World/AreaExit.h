@@ -30,6 +30,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnExitRefused, EAbility, Needed, F
  *
  * A refused exit pushes the player back a step and broadcasts why, so the HUD
  * can say SEALED — NEEDS VAULT the way the browser build does.
+ *
+ * On an open-world map (Tools/fab/lay_out_world.py) every district is in the
+ * same level and the exit is a doorway rather than a load: it names the exit
+ * it opens onto and steps the player through to it, carrying nothing across
+ * because nothing has to be.
  */
 UCLASS()
 class AHMEDFIGHTER_API AAreaExit : public AActor
@@ -41,9 +46,20 @@ public:
 
 	virtual void BeginPlay() override;
 
-	/** Level to open. The map's asset name, e.g. L_BaytAlDarb. */
+	/** Level to open. The map's asset name, e.g. L_BaytAlDarb. Unused when
+	    the destination is in this level -- see DestinationExit. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
 	FName DestinationLevel;
+
+	/** The far side's doorway, when it is in this same level. Set, the exit
+	    steps the player through to it instead of opening DestinationLevel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
+	TObjectPtr<AAreaExit> DestinationExit = nullptr;
+
+	/** Where an arriving player is stood, along X from this exit: a step
+	    inside the district, clear of the trigger so he does not bounce back. */
+	UFUNCTION(BlueprintPure, Category = "Exit")
+	FVector GetLandingLocation() const;
 
 	/** Stage row of the destination, for the HUD and the save. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")

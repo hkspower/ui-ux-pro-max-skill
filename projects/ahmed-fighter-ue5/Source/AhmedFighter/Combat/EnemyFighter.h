@@ -53,6 +53,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Arena")
 	void SetArenaBounds(float InMinX, float InMaxX);
 
+	UFUNCTION(BlueprintCallable, Category = "Arena")
+	void SetArenaFrame(float InMinX, float InMaxX, float InMinY, float InMaxY);
+
 	/** How this one fights. When the archetype names a style asset this takes
 	    over the decisions entirely and TickAI below never runs; when it does
 	    not, the component is inert and nothing changes. */
@@ -97,4 +100,6 @@ private:
 
 	float ArenaMinX = -FLT_MAX;
 	float ArenaMaxX =  FLT_MAX;
+	float ArenaMinY = AhmedGameplay::DepthMin;
+	float ArenaMaxY = AhmedGameplay::DepthMax;
 };

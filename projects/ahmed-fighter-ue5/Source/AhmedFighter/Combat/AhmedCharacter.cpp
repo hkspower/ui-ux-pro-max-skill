@@ -167,14 +167,21 @@ void AAhmedCharacter::Tick(float DeltaSeconds)
 	// Keep Ahmed inside the strip: the arena along X, the walkable depth in Y.
 	FVector Loc = GetActorLocation();
 	Loc.X = FMath::Clamp(Loc.X, ArenaMinX, ArenaMaxX);
-	Loc.Y = FMath::Clamp(Loc.Y, AhmedGameplay::DepthMin, AhmedGameplay::DepthMax);
+	Loc.Y = FMath::Clamp(Loc.Y, ArenaMinY, ArenaMaxY);
 	SetActorLocation(Loc);
 }
 
 void AAhmedCharacter::SetArenaBounds(float InMinX, float InMaxX)
 {
+	SetArenaFrame(InMinX, InMaxX, AhmedGameplay::DepthMin, AhmedGameplay::DepthMax);
+}
+
+void AAhmedCharacter::SetArenaFrame(float InMinX, float InMaxX, float InMinY, float InMaxY)
+{
 	ArenaMinX = InMinX;
 	ArenaMaxX = InMaxX;
+	ArenaMinY = InMinY;
+	ArenaMaxY = InMaxY;
 }
 
 void AAhmedCharacter::GatherTargets(TArray<AFighterBase*>& OutTargets) const

@@ -19,11 +19,56 @@ AWaveDirector* AWaveDirector::Get(const UWorld* World)
 	{
 		return nullptr;
 	}
+	const APawn* Player = UGameplayStatics::GetPlayerPawn(World, 0);
+	const FVector Where = Player ? Player->GetActorLocation() : FVector::ZeroVector;
+
+	AWaveDirector* Nearest = nullptr;
+	float NearestDist = FLT_MAX;
 	for (TActorIterator<AWaveDirector> It(World); It; ++It)
 	{
-		return *It;
+		if (Player && It->Contains(Where))
+		{
+			return *It;
+		}
+		const float Dist = FVector::DistSquared(It->GetActorLocation(), Where);
+		if (Dist < NearestDist)
+		{
+			Nearest = *It;
+			NearestDist = Dist;
+		}
 	}
-	return nullptr;
+	return Nearest;
+}
+
+void AWaveDirector::GetAll(const UWorld* World, TArray<AWaveDirector*>& Out)
+{
+	Out.Reset();
+	if (!World)
+	{
+		return;
+	}
+	for (TActorIterator<AWaveDirector> It(World); It; ++It)
+	{
+		Out.Add(*It);
+	}
+}
+
+float AWaveDirector::GetStageLength() const
+{
+	return Stage ? Stage->Length : 0.f;
+}
+
+bool AWaveDirector::Contains(const FVector& WorldLocation) const
+{
+	// The margin is the doorway: an exit sits EXIT_MARGIN inside the strip
+	// and the arriving step lands a little past it, and both are still ours.
+	constexpr float Margin = 400.f;
+	const FVector Origin = GetActorLocation();
+	const float X = WorldLocation.X - Origin.X;
+	const float Y = WorldLocation.Y - Origin.Y;
+	const float Length = Stage ? Stage->Length : 100000.f;
+	return X >= -Margin && X <= Length + Margin
+		&& Y >= AhmedGameplay::DepthMin - Margin && Y <= AhmedGameplay::DepthMax + Margin;
 }
 
 void AWaveDirector::BeginPlay()
@@ -77,6 +122,12 @@ void AWaveDirector::Tick(float DeltaSeconds)
 		return;
 	}
 
+	// Another district's fight is not this director's business.
+	if (!Contains(Player->GetActorLocation()))
+	{
+		return;
+	}
+
 	if (!Player->IsAlive())
 	{
 		bFinished = true;
@@ -89,7 +140,7 @@ void AWaveDirector::Tick(float DeltaSeconds)
 	if (!bArenaLocked && WaveIndex < Waves.Num())
 	{
 		const FWaveDef& Next = Waves[WaveIndex];
-		if (Next.TriggerDistance < 0.f || Player->GetActorLocation().X > Next.TriggerDistance)
+		if (Next.TriggerDistance < 0.f || LocalX(Player->GetActorLocation()) > Next.TriggerDistance)
 		{
 			BeginWave(Next);
 		}
@@ -119,7 +170,7 @@ void AWaveDirector::Tick(float DeltaSeconds)
 	// Stage cleared once every wave is down and the exit is reached.
 	if (!Stage->bSurvival
 		&& WaveIndex >= Waves.Num()
-		&& Player->GetActorLocation().X >= Stage->Length - 360.f)
+		&& LocalX(Player->GetActorLocation()) >= Stage->Length - 360.f)
 	{
 		bFinished = true;
 		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Stage_Clear")); }
@@ -151,19 +202,24 @@ void AWaveDirector::BeginWave(const FWaveDef& Wave)
 
 void AWaveDirector::ApplyArenaBounds()
 {
-	const float MinX = bArenaLocked ? ArenaOriginX : 0.f;
+	// ArenaOriginX is already world (it came from the player); the stage's
+	// own ends and the walkable depth are local to the district.
+	const FVector Origin = GetActorLocation();
+	const float MinX = bArenaLocked ? ArenaOriginX : Origin.X;
 	const float MaxX = bArenaLocked ? ArenaOriginX + AhmedGameplay::ArenaWidth
-									: (Stage ? Stage->Length : 100000.f);
+									: Origin.X + (Stage ? Stage->Length : 100000.f);
+	const float MinY = Origin.Y + AhmedGameplay::DepthMin;
+	const float MaxY = Origin.Y + AhmedGameplay::DepthMax;
 
 	if (AAhmedCharacter* Player = Cast<AAhmedCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
 	{
-		Player->SetArenaBounds(MinX, MaxX);
+		Player->SetArenaFrame(MinX, MaxX, MinY, MaxY);
 	}
 	for (AEnemyFighter* E : LiveEnemies)
 	{
 		if (IsValid(E))
 		{
-			E->SetArenaBounds(MinX, MaxX);
+			E->SetArenaFrame(MinX, MaxX, MinY, MaxY);
 		}
 	}
 }
@@ -194,7 +250,8 @@ void AWaveDirector::SpawnFighter(FName Row, int32 Tier, int32 IndexInWave, int32
 	const float SpawnX = bFromRight
 		? ArenaOriginX + AhmedGameplay::ArenaWidth + 200.f + IndexInWave * 90.f
 		: ArenaOriginX - 200.f - IndexInWave * 70.f;
-	const float SpawnY = FMath::FRandRange(AhmedGameplay::DepthMin * 0.8f, AhmedGameplay::DepthMax * 0.8f);
+	const float SpawnY = GetActorLocation().Y
+		+ FMath::FRandRange(AhmedGameplay::DepthMin * 0.8f, AhmedGameplay::DepthMax * 0.8f);
 
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;

@@ -44,6 +44,16 @@ bool AAreaExit::IsOpenFor(const UAhmedGameInstance* GI) const
 	return true;
 }
 
+FVector AAreaExit::GetLandingLocation() const
+{
+	// Inward is +X from a west edge and -X from an east one; the door off the
+	// souq stands in the strip's middle, so a step back the way it faces.
+	const float Inward = (Side == EAreaSide::East) ? -1.f : 1.f;
+	FVector Loc = GetActorLocation();
+	Loc.X += Inward * 240.f;
+	return Loc;
+}
+
 void AAreaExit::HandleOverlap(UPrimitiveComponent*, AActor* Other, UPrimitiveComponent*, int32, bool, const FHitResult&)
 {
 	AAhmedCharacter* Player = Cast<AAhmedCharacter>(Other);
@@ -88,6 +98,41 @@ void AAreaExit::HandleOverlap(UPrimitiveComponent*, AActor* Other, UPrimitiveCom
 			// key is there but the far side has not been earned.
 			OnExitRefused.Broadcast(bHasAbility ? EAbility::None : RequiredAbility,
 				bHasAbility ? AfterClearedStage : NAME_None);
+		}
+		return;
+	}
+
+	if (DestinationExit)
+	{
+		// Same level: a step through the doorway. The far exit is told it is
+		// travelling too, so landing beside it cannot send him straight back.
+		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Exit_Travel")); }
+		if (GI)
+		{
+			FAhmedProgress& P = GI->GetMutableProgress();
+			P.CurrentStage = DestinationStage;
+			P.VisitedStages.AddUnique(DestinationStage);
+			GI->SaveProgress();
+		}
+		DestinationExit->bTravelling = true;
+		Player->SetActorLocation(DestinationExit->GetLandingLocation());
+		Player->SetActorRotation(FRotator(0.f, DestinationExit->Side == EAreaSide::East ? 180.f : 0.f, 0.f));
+		// The district he has stepped into owns him now: its strip is the
+		// clamp, not the one he came from.
+		if (AWaveDirector* There = AWaveDirector::Get(World))
+		{
+			There->ApplyArenaBounds();
+		}
+		if (World)
+		{
+			// Released next frame, once the overlap from the landing has been
+			// and gone. Cannot be released here: the landing overlap fires
+			// inside SetActorLocation, before this returns.
+			TWeakObjectPtr<AAreaExit> Far = DestinationExit;
+			World->GetTimerManager().SetTimerForNextTick([Far]()
+			{
+				if (Far.IsValid()) { Far->bTravelling = false; }
+			});
 		}
 		return;
 	}

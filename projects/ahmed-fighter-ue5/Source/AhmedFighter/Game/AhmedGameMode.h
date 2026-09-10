@@ -48,6 +48,10 @@ protected:
 	void HandleStageFailed();
 
 private:
+	/** The director of the district the player is in. A generated stage map
+	    has one; an open-world map has one per district, and this follows him. */
+	AWaveDirector* CurrentDirector() const;
+
 	UPROPERTY()
 	TObjectPtr<AWaveDirector> Director = nullptr;
 };

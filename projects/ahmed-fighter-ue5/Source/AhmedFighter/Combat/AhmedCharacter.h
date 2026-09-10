@@ -84,9 +84,15 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> SideViewCamera = nullptr;
 
-	/** The arena clamps the player so fights never drift under the touch controls. */
+	/** The arena clamps the player so fights never drift under the touch
+	    controls. X is the strip's ends, Y its walkable depth; the depth
+	    defaults to the strip at the world origin, which is where a generated
+	    stage map puts it. */
 	UFUNCTION(BlueprintCallable, Category = "Arena")
 	void SetArenaBounds(float InMinX, float InMaxX);
+
+	UFUNCTION(BlueprintCallable, Category = "Arena")
+	void SetArenaFrame(float InMinX, float InMaxX, float InMinY, float InMaxY);
 
 protected:
 	virtual void OnHitLanded(AFighterBase* Victim, const FHitResultData& Hit) override;
@@ -130,6 +136,8 @@ private:
 
 	float ArenaMinX = -FLT_MAX;
 	float ArenaMaxX =  FLT_MAX;
+	float ArenaMinY = AhmedGameplay::DepthMin;
+	float ArenaMaxY = AhmedGameplay::DepthMax;
 
 	float BaseWalkSpeed = 520.f;
 };

@@ -16,12 +16,16 @@ void AAhmedGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	Director = AWaveDirector::Get(GetWorld());
-	if (Director)
+	// Listen to every director in the level: one on a stage map, nine on an
+	// open-world map. Which one is speaking is the one the player is in.
+	TArray<AWaveDirector*> Directors;
+	AWaveDirector::GetAll(GetWorld(), Directors);
+	for (AWaveDirector* D : Directors)
 	{
-		Director->OnStageCleared.AddDynamic(this, &AAhmedGameMode::HandleStageCleared);
-		Director->OnStageFailed.AddDynamic(this, &AAhmedGameMode::HandleStageFailed);
+		D->OnStageCleared.AddDynamic(this, &AAhmedGameMode::HandleStageCleared);
+		D->OnStageFailed.AddDynamic(this, &AAhmedGameMode::HandleStageFailed);
 	}
+	Director = AWaveDirector::Get(GetWorld());
 
 	UAhmedGameInstance* GI = GetGameInstance<UAhmedGameInstance>();
 	if (GI)
@@ -108,8 +112,14 @@ FName AAhmedGameMode::ScoreStage(int32 Kills, int32 BestCombo, float HealthFract
 	return TEXT("C");
 }
 
+AWaveDirector* AAhmedGameMode::CurrentDirector() const
+{
+	return AWaveDirector::Get(GetWorld());
+}
+
 void AAhmedGameMode::HandleStageCleared()
 {
+	Director = CurrentDirector();
 	CompleteStage(Director ? Director->StageRow : NAME_None);
 }
 

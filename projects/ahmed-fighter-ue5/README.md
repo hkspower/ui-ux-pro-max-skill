@@ -424,6 +424,70 @@ thin marker across the strip where each ambush fires. The distances, gates,
 exits and their requirements are exact; the art that replaces the cubes is
 described in `CLAUDE.md`.
 
+### Importing an open-world map from Fab
+
+The nine blockout levels are one way to hold the world. The other, since
+2026-09-10, is **one map from Fab with the whole of the Halqa laid over it**:
+`Tools/fab/lay_out_world.py`. Fab needs an Epic account and the editor's Fab
+plugin, neither of which this repository can stand in for, so the script does
+not fetch a map — it takes whichever one you have added to the project and
+opened, and puts the game into it. The map is yours: its ground, buildings,
+sky and lighting stay exactly as imported. What the script adds is what the
+game needs to run, at positions worked out from `DT_Stages.json` and
+`DT_World.json`:
+
+- one `AWaveDirector` per district, at the district's origin;
+- every sealed route as an `AAbilityGate`, set back off the strip;
+- every link in the world graph as a pair of `AAreaExit`s that open onto
+  each other — a doorway, not a level load;
+- a `PlayerStart` in the souq, and a thin marker where each ambush fires.
+
+A district is a strip along world +X, as long as its stage and 8.4 m deep,
+because the fight code measures along X and across Y. The eight ring
+districts stand on a circle around the arena in world-graph order — souq at
+the top, then clockwise east — and the arena is the room at the hub, which is
+what the canon says the map is. The circle is as small as the strips allow
+without any two touching: 112 m radius with today's stage lengths, so the
+world needs about 330 m of open ground each way. Survival is a mode, not a
+place, and is not placed.
+
+Run outside the editor it prints the plan, checks that no two strips overlap
+and that every doorway has its pair, and draws `Docs/fab-layout.png`:
+
+```bash
+python3 Tools/fab/lay_out_world.py
+```
+
+Inside the editor, with the Fab map open (set `CENTRE` at the top of the
+script to where on the map the arena should stand):
+
+```python
+exec(open(r"/path/to/ahmed-fighter-ue5/Tools/fab/lay_out_world.py").read())
+```
+
+It finds the ground under every actor by tracing down onto the map, warns
+where a strip's ground is more than 60 cm uneven (flatten it or move
+`CENTRE`), marks everything it places as not spatially loaded so World
+Partition cannot stream a director out from under the player, and puts it
+all in an outliner folder `AHMED` which it clears first, so it can be re-run
+after a balance change. It has been run outside the editor only.
+
+What changed in the C++ for this — none of it compiled, like the rest:
+
+- `AWaveDirector` measures every stage distance from its own origin
+  (`LocalX`), only runs while the player is inside its strip (`Contains`),
+  clamps the fighters to its own strip's depth, and `Get(World)` now answers
+  with the director whose district the player is in. A single director at
+  the origin, which is what the generated levels have, behaves as before.
+- `AAhmedCharacter` and `AEnemyFighter` gained `SetArenaFrame(MinX, MaxX,
+  MinY, MaxY)`; `SetArenaBounds` keeps its old meaning by calling it with
+  the strip at the origin.
+- `AAreaExit` gained `DestinationExit`: set, it steps the player through to
+  that doorway in the same level and hands him to that district's director,
+  instead of opening `DestinationLevel`.
+- `AAhmedGameMode` listens to every director in the level and scores the
+  one the player is standing in.
+
 **Walking between areas** is `AAreaExit`, new in this pass. Step into one and,
 if you carry what it wants, the next level opens with you at its matching
 edge, carrying health, stamina and rage across — a step through a doorway,

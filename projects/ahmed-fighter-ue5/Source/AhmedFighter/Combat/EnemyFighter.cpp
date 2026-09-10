@@ -56,8 +56,15 @@ void AEnemyFighter::ConfigureFromDefinition(const FFighterDef& Def, int32 Tier,
 
 void AEnemyFighter::SetArenaBounds(float InMinX, float InMaxX)
 {
+	SetArenaFrame(InMinX, InMaxX, AhmedGameplay::DepthMin, AhmedGameplay::DepthMax);
+}
+
+void AEnemyFighter::SetArenaFrame(float InMinX, float InMaxX, float InMinY, float InMaxY)
+{
 	ArenaMinX = InMinX;
 	ArenaMaxX = InMaxX;
+	ArenaMinY = InMinY;
+	ArenaMaxY = InMaxY;
 }
 
 void AEnemyFighter::GatherTargets(TArray<AFighterBase*>& OutTargets) const
@@ -97,7 +104,7 @@ void AEnemyFighter::Tick(float DeltaSeconds)
 
 	FVector Loc = GetActorLocation();
 	Loc.X = FMath::Clamp(Loc.X, ArenaMinX, ArenaMaxX);
-	Loc.Y = FMath::Clamp(Loc.Y, AhmedGameplay::DepthMin, AhmedGameplay::DepthMax);
+	Loc.Y = FMath::Clamp(Loc.Y, ArenaMinY, ArenaMaxY);
 	SetActorLocation(Loc);
 }
 
