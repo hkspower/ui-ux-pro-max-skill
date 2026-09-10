@@ -344,6 +344,7 @@ namespace UnityEngine
         public static bool GetKey(KeyCode k) { return false; }
         public static bool GetKeyDown(KeyCode k) { return false; }
         public static float GetAxisRaw(string n) { return 0f; }
+        public static float GetAxis(string n) { return 0f; }
     }
     public enum KeyCode { None, Space, LeftShift, Q, E, R, Alpha1, Alpha2, Alpha3, Alpha4, Alpha5 }
     // Real implementations. A stub whose maths lies turns every behavioural

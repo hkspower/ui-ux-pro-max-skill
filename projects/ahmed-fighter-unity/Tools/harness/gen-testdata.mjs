@@ -18,7 +18,7 @@ const gate = g => `new GateRow{distance=${f(g.distance)},type=${q(g.type)},rewar
 const areas = read('world').map(a =>
   `        new WorldArea{index=${a.index},name=${q(a.name)},mapX=${a.mapX},mapY=${a.mapY},startArea=${a.startArea},west=${link(a.west)},east=${link(a.east)},door=${link(a.door)}},`);
 const stages = read('stages').map(s =>
-  `        new StageRow{name=${q(s.name)},index=${s.index},displayName=${q(s.displayName)},length=${f(s.length)},tier=${s.tier},bossStage=${s.bossStage},survival=${s.survival},waves=new WaveRow[]{${(s.waves||[]).map(wave).join(',')}},gates=new GateRow[]{${(s.gates||[]).map(gate).join(',')}}},`);
+  `        new StageRow{name=${q(s.name)},index=${s.index},displayName=${q(s.displayName)},theme=${q(s.theme)},length=${f(s.length)},tier=${s.tier},bossStage=${s.bossStage},survival=${s.survival},waves=new WaveRow[]{${(s.waves||[]).map(wave).join(',')}},gates=new GateRow[]{${(s.gates||[]).map(gate).join(',')}}},`);
 const strata = read('strata').map(r =>
   `        new StratumRow{area=${r.area},level=${q(r.level)},offset=${r.offset},height=${f(r.height)},shaftDistance=${f(r.shaftDistance)},shaftAbility=${q(r.shaftAbility)},waves=new WaveRow[]{${(r.waves||[]).map(wave).join(',')}},gates=new GateRow[]{${(r.gates||[]).map(gate).join(',')}}},`);
 const fighters = read('fighters').map(r =>

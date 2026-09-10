@@ -13,7 +13,7 @@ echo "== compiling the port (warnings as errors) =="
 mcs -target:library -out:"$OUT/port.dll" -warnaserror -warn:4 -nowarn:649 \
     "$H/UnityEngine.cs" Assets/Scripts/*/*.cs || fail=1
 
-for t in World IK Hub Pose Algebra Strata; do
+for t in World IK Hub Pose Algebra Strata Place; do
   echo
   echo "== $t =="
   if ! mcs -out:"$OUT/$t.exe" -target:exe -nowarn:649 \

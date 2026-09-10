@@ -61,6 +61,22 @@ writing story text, naming anything, or deciding what a place looks like.
 - **Encounters wake on proximity and let you leave.** Do not add a lock that
   holds the player in a fight; that is the corridor design and it is the thing
   this replaced.
+- **What stands in a district is derived too, and `Landmarks` is all of it.**
+  The street is `District.PathPoint` — the same spiral the sites came off —
+  so the way through passes the stage's own content in the stage's own order;
+  buildings fill the space either side of it; the rim is gapped at every exit.
+  Do not hand-place a building, and do not put a coordinate in a theme: a
+  theme is a vocabulary (spacing, density, heights, what the tall thing is),
+  and a place is what that vocabulary plus the district's data produces. The
+  three rules a change must keep are that nothing solid stands on a site, in
+  the street, or outside the bounds — the harness checks all three across all
+  nine districts and all their floors.
+- **A district does not all exist at once.** `Scenery` streams it in 24 m
+  cells around the player and prepares the next district while he walks
+  towards its door. Anything that needs the whole district in the scene —
+  a pathfinder, a global query, a light per structure — is a thing that will
+  work in the souq and stall in the towers. Ask the plan, not the scene:
+  `Landmarks.For` is pure and cheap.
 
 ## Units and axes
 

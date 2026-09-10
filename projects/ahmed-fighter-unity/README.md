@@ -94,7 +94,12 @@ nothing, and it is checked rather than assumed.
 
 Movement is read off the camera rather than the world, because a camera that
 swings makes "push the stick away from you" mean something different every
-second otherwise.
+second otherwise. The camera is a boom the player swings and pitches himself —
+mouse or right stick, Q and E for a keyboard with no mouse — and once the
+districts had buildings in them it had to be swept as well: it stops short of
+the first thing between it and Ahmed, snapping in and easing back out, because
+a boom that ignores a wall spends half of every fight inside one. Its geometry
+is static and free of the scene, so it is executed and checked like the IK.
 
 **Districts are derived, not authored.** Each area already carried a stage: its
 length, its waves and how far along each one triggered, its gates and what they
@@ -125,6 +130,46 @@ district.
 | reachable with no talents | — | 4 of 9 districts |
 | reachable with all five | — | 9 of 9 |
 | floors | 1 | **3** — 1,329,500 m² on all of them |
+
+**A district is a place, not a slab.** Since 2026-09-11 the field carries
+structures, and they are derived like everything else here. The street *is*
+the spiral — `District.PathPoint` is the curve the sites were placed along,
+so the way through a district passes everything the stage meant you to meet,
+in the order it meant, with a spur out to each fight. Buildings stand either
+side of it on a polar lattice, and the field ends in a rim with a gap at every
+exit, so the way out is findable from inside.
+
+Each theme has its own vocabulary — a souq is stalls at ten metres and nothing
+above ten; the salt towers are plots at twenty-one metres and towers up to
+fifty-one; the desert is almost nothing, a long way apart, because crossing it
+is the point. A floor has its own too: the cellar is pillars and rubble
+whatever is above it, the roofs are tanks and aerials. `Landmarks` is the
+whole of it, and nothing in a district is authored.
+
+The structures are solid, and fighters move with a `CharacterController`, so
+they are cover rather than scenery: you can put a stall between yourself and a
+kickboxer.
+
+| | before | now |
+| --- | --- | --- |
+| structures in a district | 0 | **1,269** across three floors |
+| the souq, the densest | — | 352 on the street, 5.9 per 1,000 m² |
+| the desert, the emptiest | — | 124, 2.1 per 1,000 m² |
+| tallest thing standing | — | 50.9 m, in the salt towers |
+| in the scene at once | — | 314 at most, walking the souq end to end |
+
+**And it is streamed.** A district is over a thousand structures; building all
+of them at a doorway is a stall and a scene nobody can see the far end of.
+`Scenery` files them into 24 m cells and keeps only the cells within 78 m of
+the player, letting them go again at 96 m so standing on a boundary does not
+thrash, and building at most 24 structures a frame so a cell arriving is a few
+frames of quiet work. Walking the souq from one edge to the other, 314 of its
+1,269 structures are ever resident at once.
+
+Crossing between districts is prefetched: come within four site radii of a
+door you can actually use and the far side is built — its layout, its sites,
+its structures, all of it off-scene — so stepping through is a step. Turn
+round and it is thrown away.
 
 ### Three floors
 
@@ -246,9 +291,12 @@ Boss       an answer at every band, three-strike combinations, walks in
 Named rather than glossed, because a half-ported game that reads as finished is
 worse than one that says where it stops:
 
-- **No district art.** A flat slab per floor and a cylinder per site. The nine areas'
-  looks, backdrops and props are not ported, and every district is the same
-  grey square.
+- **No district art.** The districts have shape now — a street, buildings
+  either side of it, a rim, all of it per theme and per floor — but every one
+  of those structures is an untextured primitive named for what it stands in
+  for (`stall`, `tower`, `dune`). The nine areas' looks and backdrops are not
+  ported, and swapping a primitive for a mesh is a lookup on
+  `Placement.Kind`, which is what that field is for.
 - **No level ladder.** XP is spent at the hub now, but the rank titles in
   `levels.json` are still exported and unread — nothing calls Ahmed a
   CONTENDER.

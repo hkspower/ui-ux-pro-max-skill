@@ -47,6 +47,14 @@ namespace Ahmed.World
         private int _bossSite = -1;
 
         private readonly List<GameObject> _scenery = new List<GameObject>();
+        /// <summary>The district's structures, streamed in around him.</summary>
+        private Scenery _landmarks;
+        /// <summary>The district on the other side of the door he is walking
+        /// towards, built early so the crossing is a step rather than a
+        /// stall. Thrown away if he turns round.</summary>
+        private int _preparedArea = -1;
+        private District _prepared;
+        private Scenery _preparedScenery;
         private readonly Dictionary<int, List<EnemyFighter>> _liveBySite =
             new Dictionary<int, List<EnemyFighter>>();
         private readonly HashSet<int> _awake = new HashSet<int>();
@@ -66,9 +74,16 @@ namespace Ahmed.World
         {
             Unload();
 
-            WorldArea area = GameData.Area(areaIndex);
-            StageRow stage = GameData.Stage(areaIndex);
-            District = District.Build(areaIndex, area, stage, GameData.Strata(areaIndex));
+            if (_preparedArea == areaIndex && _prepared != null)
+            {
+                District = _prepared;
+                _landmarks = _preparedScenery;
+            }
+            else
+            {
+                District = Prepare(areaIndex, out _landmarks);
+            }
+            _preparedArea = -1; _prepared = null; _preparedScenery = null;
             WorldState.CurrentArea = areaIndex;
 
             BuildScenery();
@@ -87,7 +102,9 @@ namespace Ahmed.World
             Debug.Log("[Ahmed] " + District.DisplayName + " — "
                 + (District.Extent * 2f).ToString("0") + " m across, "
                 + District.Floors.Count + " floors, "
-                + District.Sites.Count + " sites");
+                + District.Sites.Count + " sites, "
+                + _landmarks.Planned + " structures in "
+                + _landmarks.CellCount + " cells");
         }
 
         /// <summary>The floor's own loop, unless a title fight is on.</summary>
@@ -98,8 +115,24 @@ namespace Ahmed.World
             music.Play(_bossSite >= 0 ? "Music_Boss" : Game.MusicDirector.CueForLevel(CurrentLevel));
         }
 
+        /// <summary>
+        /// A district and everything standing in it, worked out without
+        /// touching the scene. That is the whole trick of the prefetch: the
+        /// expensive half of arriving somewhere is deciding what is there,
+        /// and it can be done while he is still on the other side of the door.
+        /// </summary>
+        private static District Prepare(int areaIndex, out Scenery scenery)
+        {
+            District d = District.Build(areaIndex, GameData.Area(areaIndex),
+                                        GameData.Stage(areaIndex), GameData.Strata(areaIndex));
+            scenery = new Scenery(d);
+            return d;
+        }
+
         private void Unload()
         {
+            if (_landmarks != null) { _landmarks.Clear(); _landmarks = null; }
+
             foreach (KeyValuePair<int, List<EnemyFighter>> pair in _liveBySite)
             {
                 for (int i = 0; i < pair.Value.Count; i++)
@@ -177,6 +210,9 @@ namespace Ahmed.World
 
             _exitCooldown = Mathf.Max(0f, _exitCooldown - Time.deltaTime);
             Vector3 here = player.transform.position;
+
+            // The place itself: only what is near him is in the scene.
+            if (_landmarks != null) { _landmarks.Update(here, CurrentLevel); }
 
             int level = District.LevelAt(here.y);
             if (level != CurrentLevel)
@@ -464,10 +500,24 @@ namespace Ahmed.World
 
         private void TickExit(Site s, float distance)
         {
+            WorldLink link = LinkFor(s);
+
+            // Coming up on a door he can use: build the far side now, while he
+            // is still walking. A district is a few hundred structures and a
+            // layout, and none of that wants doing on the frame he steps
+            // through. He may well turn round, and then it is thrown away --
+            // one district's worth of work, once, is the price of never
+            // stalling in a doorway.
+            if (distance <= s.Radius * 4f && _preparedArea != s.ToArea
+                && s.ToArea >= 0 && WorldState.CanUse(link))
+            {
+                _prepared = Prepare(s.ToArea, out _preparedScenery);
+                _preparedArea = s.ToArea;
+            }
+
             if (distance > s.Radius) { _refusing.Remove(s.Id); return; }
             if (_exitCooldown > 0f) { return; }
 
-            WorldLink link = LinkFor(s);
             if (!WorldState.CanUse(link))
             {
                 // Sealed. There is no HUD yet, so this is the only thing that
@@ -480,7 +530,9 @@ namespace Ahmed.World
 
             // Arrive at the far side of the district you came from, so walking
             // east and then west puts you back where you started.
-            District next = District.Build(s.ToArea, GameData.Area(s.ToArea),
+            District next = _preparedArea == s.ToArea && _prepared != null
+                          ? _prepared
+                          : District.Build(s.ToArea, GameData.Area(s.ToArea),
                                            GameData.Stage(s.ToArea), null);
             Vector3 arrive;
             if (s.ExitLabel == "WEST") { arrive = new Vector3(next.Extent - 6f, 0f, 0f); }

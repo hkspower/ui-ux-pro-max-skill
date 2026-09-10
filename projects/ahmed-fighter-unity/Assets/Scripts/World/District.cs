@@ -332,12 +332,8 @@ namespace Ahmed.World
         /// </summary>
         private Vector3 Spiral(float t, int salt, int level)
         {
-            const float turns = 1.35f;
-            // Each floor turns the spiral by its own phase, so the cellar's
-            // fights are not directly under the street's.
-            float phase = Hash01(AreaIndex * 977 + 13 + level * 389) * Mathf.PI * 2f;
-            float angle = phase + t * turns * Mathf.PI * 2f;
-            float radius = Extent * (0.18f + 0.68f * t);
+            float angle, radius;
+            PathPolar(t, level, out angle, out radius);
 
             float jitterA = (Hash01(AreaIndex * 131 + salt * 17 + level * 71) - 0.5f) * 0.55f;
             float jitterR = (Hash01(AreaIndex * 419 + salt * 53 + level * 29) - 0.5f) * 0.22f * Extent;
@@ -347,9 +343,34 @@ namespace Ahmed.World
             return new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
         }
 
+        /// <summary>
+        /// The spiral before the jitter: the curve the sites are nudged off.
+        ///
+        /// It is the district's one thoroughfare, and <see cref="Landmarks"/>
+        /// lays the street along it — which is why the curve is separate from
+        /// the placement. Walk it from the middle outward and you meet the
+        /// stage's content in the order the stage intended.
+        /// </summary>
+        internal Vector3 PathPoint(float t, int level)
+        {
+            float angle, radius;
+            PathPolar(t, level, out angle, out radius);
+            return new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+        }
+
+        private void PathPolar(float t, int level, out float angle, out float radius)
+        {
+            const float turns = 1.35f;
+            // Each floor turns the spiral by its own phase, so the cellar's
+            // fights are not directly under the street's.
+            float phase = Hash01(AreaIndex * 977 + 13 + level * 389) * Mathf.PI * 2f;
+            angle = phase + t * turns * Mathf.PI * 2f;
+            radius = Extent * (0.18f + 0.68f * t);
+        }
+
         /// <summary>A cheap integer hash in 0..1. Deterministic everywhere,
         /// unlike Random, which depends on when it was last seeded.</summary>
-        private static float Hash01(int n)
+        internal static float Hash01(int n)
         {
             uint x = (uint)n;
             x ^= x >> 16; x *= 2246822519u;
