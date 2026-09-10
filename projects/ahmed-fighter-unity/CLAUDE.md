@@ -25,9 +25,9 @@ writing story text, naming anything, or deciding what a place looks like.
   verified against the browser assets, but nothing has been pressed play on.
   Do not describe any of it as working until it has been.
 - **Materials, the render pipeline and the quality settings need an editor.**
-  They are not written here and cannot be. The mesh arrives with its fifteen
-  material slots named and carrying colour, roughness and metallic only; do
-  not describe the look as done.
+  They are not written here and cannot be. The mesh arrives with six
+  materials named and its baked textures beside it, and nothing here wires
+  them into a Unity material; do not describe the look as done.
 
 ## The world
 
@@ -115,9 +115,10 @@ writing story text, naming anything, or deciding what a place looks like.
   purpose: it is the geometry, and keeping it free of Transforms is what lets
   it be executed and checked without an editor. Do not put scene access in it.
 - **The character mesh is generated, not authored.**
-  `../ahmed-fighter-ue5/Tools/blender/build_ahmed.py` is the game's only mesh
-  generator and writes `Assets/Resources/Models/Ahmed.fbx` itself, in metres
-  and Y-up, alongside the Unreal one. Do not edit the FBX and do not copy the
+  `../ahmed-fighter-ue5/Tools/blender/build_ahmed.py` (the pipeline under
+  `hero/` beside it) is the game's only mesh generator and writes
+  `Assets/Resources/Models/Ahmed.fbx` and its textures itself, in metres and
+  Y-up, alongside the Unreal one. Do not edit the FBX and do not copy the
   Unreal build's — its units and bone axes are that engine's, not this one's.
   Resources rather than a folder of your choosing, because `Bootstrap` has no
   scene to place a model in and `Resources.Load` is the only way it can reach

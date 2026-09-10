@@ -253,15 +253,16 @@ worse than one that says where it stops:
   `levels.json` are still exported and unread — nothing calls Ahmed a
   CONTENDER.
 - **No HUD.** Health, stamina, rage and mana are tracked and never drawn.
-- **No materials in the editor.** The mesh arrives with its fifteen material
-  slots named and carrying base colour, roughness and metallic from the
-  generator — a material is a Unity asset and there is no editor here to
-  author the rest (the skin's subsurface and the cloth weave are render-only
-  in the generator). The same goes for the render pipeline and the quality
-  settings: this port has never had either set.
+- **No materials in the editor.** The mesh arrives with six materials named
+  and their textures beside it in `Ahmed.fbm` — base colour, normal and
+  roughness for skin, hair, tee, trousers and trainers, a colour for the
+  eye — and a material is a Unity asset there is no editor here to author,
+  so nothing wires those maps up. The same goes for the render pipeline and
+  the quality settings: this port has never had either set.
 - **The mesh has no avatar and no animation, so its pose is computed.**
-  `Assets/Resources/Models/Ahmed.fbx` is the real body — about 8.7k verts, 32 bones
-  counting `root` and the mannequin's seven IK targets, 1.802 m. `FighterIK`
+  `Assets/Resources/Models/Ahmed.fbx` is the real body — about 52k triangles,
+  62 bones counting the fingers, `root` and the mannequin's seven IK targets,
+  1.818 m. `FighterIK`
   moves it: every frame it puts the eight limb bones back to rest, plants each
   foot on the nearest thing under it that is not another fighter (which is
   defensive rather than a fix — measured across twelve spacings from 0.05 to
