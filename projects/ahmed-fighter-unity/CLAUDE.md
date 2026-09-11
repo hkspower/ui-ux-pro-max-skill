@@ -105,6 +105,20 @@ writing story text, naming anything, or deciding what a place looks like.
   turn every jab into a kick.
 - **Enemy strikes go through `Fighter.StartAttack`**, the same door the player
   uses. A fight style decides; it does not add reach, damage or moves.
+- **Hit stop is a freeze on two fighters, never `Time.timeScale`.** The
+  camera, the streaming and every other fight keep running; only the pair on
+  the contact frame stop, and their own clocks stop with them. Anything that
+  must keep ticking through an impact does not belong inside
+  `Fighter.Update`.
+- **Feel is arithmetic, and it lives in a pure function.** `HitStopFor`,
+  `HitStunFor`, `WindUp`, `FlinchOffset`, `GuardSag`, `MayPlay` — each is
+  static, takes numbers and returns one, and is executed in the harness. Tune
+  the constant inside it; do not scatter a feel decision through a tick.
+- **Sound is measured from the listener.** `AudioLibrary` culls past
+  `FarDistance` and lets a nearer instance of a cue take it off a further
+  one. A district is 260 m across: anything that plays a positioned cue
+  without a position, or reaches for `Play` from a place that does not know
+  where it is, is audible across the whole world.
 - **The music is cues, like every other sound.** `MusicDirector.Play` takes a
   cue name off `sounds.json`; the world tells it the floor and whether a
   title fight is live, and it decides nothing itself. Do not play music from

@@ -171,6 +171,40 @@ door you can actually use and the far side is built — its layout, its sites,
 its structures, all of it off-scene — so stepping through is a step. Turn
 round and it is thrown away.
 
+### What a blow feels like
+
+Added 2026-09-11. The fight resolved correctly and communicated almost
+nothing: a jab and a haymaker held a fighter for the same 0.22 s, the push
+was spent in the frame it arrived, a fighter took a hook without moving, and
+an enemy's arm travelled straight out from the first frame of its wind-up so
+there was nothing to react to. All of it is arithmetic, so all of it is
+executed in the harness (`Tools/harness/tests/Feel.cs`) rather than looked at.
+
+- **Hit stop.** Both fighters freeze on the contact frame — 1.5 frames for a
+  block, 2 for a jab, 3.6 for a heavy, 5.4 for a knockdown, at 60 Hz, and a
+  parry is the longest of all because it is the biggest read in the game.
+  It is a freeze on the two fighters, not `Time.timeScale`: the camera keeps
+  moving, the district keeps streaming, and only the pair hang there. Their
+  own clocks stop with them — stun, recovery, stamina and the guard blend all
+  resume exactly where they were.
+- **Stun by the blow.** `HitStunFor` scales with the damage as a share of the
+  victim's own health, capped at 0.55 s so nothing can be stunlocked and
+  floored at 0.12 s so every hit registers. The same punch holds a 46 hp thug
+  longer than a 430 hp boss, which is what having 430 hp should feel like.
+- **A recoil that lasts.** The knockback is carried and bled off over the
+  stun instead of being spent in one frame, so a heavy blow visibly shoves a
+  man backwards while he is stunned.
+- **A wind-up you can see.** `FighterIK.WindUp` draws the striking limb back
+  22 cm over the first two thirds of the row's startup and releases it into
+  the strike. A jab's 0.06 s startup is a twitch; the finisher's 0.18 s is a
+  cocked arm you can step out of. Separate from `StrikeWeight`, which is the
+  reach and keeps its tested 0..1 invariants — they are two motions.
+- **A flinch.** A struck fighter's hands are thrown the way the blow pushed
+  him and dropped, bounded so a big knockback cannot throw them off the body.
+- **And how hurt he is shows.** The guard sags from full to 72% as health
+  falls. With no HUD in this build it is the only thing in the world that
+  says how much an enemy has left.
+
 ### Three floors
 
 Every district has a cellar and roofs. This is the world getting bigger
@@ -245,6 +279,39 @@ clip on the way through, so the swish peaks on the first active frame. A
 swing interrupted before then never sounds. The finisher passes `Rage` as its
 swing cue instead of the heavy whoosh; a sealed exit refuses you once per
 approach rather than every cooldown you stand in it.
+
+**How it carries, since 2026-09-11.** Three things were wrong with the way
+the port heard itself, and the first one meant it did not.
+
+- **There were no ears.** Unity plays a positioned sound into whichever
+  `AudioListener` is in the scene, and nothing in the project had one. Every
+  3D cue in the game — every punch, every whoosh, every sealed door — was
+  played into nothing. It goes on the camera now, in `Bootstrap`, and the
+  sound layer measures distance from the same transform, so what it culls is
+  what you could not have heard.
+- **Nothing fell off.** The voices never set a rolloff, so Unity's defaults
+  applied: full volume to 1 m, audible to 500 m. In a district 260 m across
+  that is every fight in the world arriving at once, all of it about as loud
+  as the one you are in. A cue is now at full strength inside 6 m, falls off
+  logarithmically, and past 70 m is not played at all — not quietly, not at
+  all, so it does not take a voice off the fight you are in either. Doppler
+  is off: a whoosh is a man's arm, not a passing car.
+- **The wrong instance won.** The per-cue cooldown — the thing that stops six
+  enemies turning every punch into one continuous noise — handed the cue to
+  whoever swung first, so a blow landing on Ahmed went silent because
+  something across the district connected 40 ms earlier. A nearer instance
+  takes the cue off a further one now (`AudioLibrary.MayPlay`), and a voice
+  is stolen from the most distant sound playing rather than the oldest.
+
+**And the floor colours it.** `AudioLibrary.SetSpace` is called when Ahmed
+changes floor: the cellar is low-passed to 3.2 kHz and rings like a stone
+room, the street is open, the roofs are dry. Three floors that sounded
+identical now sound like three places.
+
+**Footsteps are a stride, not a timer.** Ground covered, not seconds elapsed,
+so they keep time with the legs at any speed and stop dead when he does —
+which matters in a build where crossing a district on foot is most of what
+you do. `Land` sounds when a knockdown ends in getting up rather than a KO.
 
 Never hand-edit the JSON. Change the assets — the control panel at
 `../ahmed-fighter/panel/` is the comfortable way — and re-run the export.
@@ -352,11 +419,12 @@ worse than one that says where it stops:
   measure clean and the levels match, and that is all anyone knows about
   them. See `../ahmed-fighter-ue5/Content/Audio/README.md`. `Music_Menu`
   has no file; this build has no menu.
-- **Twenty of the thirty-nine sounds are never fired.** Every cue resolves to a
-  real clip, and the nineteen the port can actually reach are wired. The rest
-  belong to systems that are not ported: weapons, pickups, breakable crates and
-  gates, the interface, the level-up, and the footstep, which wants an
-  animation event this build has no animation for.
+- **Sixteen of the forty-four cues are never fired.** Every one resolves to a
+  real clip, and the twenty-eight the port can reach are wired. The rest
+  belong to systems that are not ported: weapons, pickups, breakable crates,
+  struck gates (this build's gates open by walking up to them), HAWK FIST's
+  fire, the level ladder, and a menu. Nothing is waiting on an animation any
+  more — the footstep was, and is a stride now.
 - **None of this has run in Unity.** There is no editor in the environment it
   was written in, and no way to get one: every `unity3d.com` host is blocked
   here, download and licensing alike. What *is* earned is in `Tools/harness`,

@@ -98,6 +98,7 @@ namespace Ahmed.World
             _exitCooldown = 0.75f;      // do not bounce straight back out again
             _bossSite = -1;
             PlayMusicForFloor();
+            Game.AudioLibrary.SetSpace(CurrentLevel);
 
             Debug.Log("[Ahmed] " + District.DisplayName + " — "
                 + (District.Extent * 2f).ToString("0") + " m across, "
@@ -219,6 +220,9 @@ namespace Ahmed.World
             {
                 CurrentLevel = level;
                 PlayMusicForFloor();
+                // The cellar rings and the roofs are dry. The sound follows
+                // the floor the way the music does.
+                Game.AudioLibrary.SetSpace(level);
             }
 
             for (int i = 0; i < District.Sites.Count; i++)

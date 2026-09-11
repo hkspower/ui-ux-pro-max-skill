@@ -39,8 +39,32 @@ namespace Ahmed.Game
     public static class AudioLibrary
     {
         /// <summary>How many sounds may overlap. A crowd fight throws a lot at
-        /// once and the oldest voice is the right one to lose.</summary>
+        /// once, and the one to lose is the furthest away.</summary>
         private const int Voices = 24;
+
+        /// <summary>
+        /// How sound carries. Inside <see cref="NearDistance"/> a cue is at
+        /// its own volume — that is a fight, and a fight should be at full
+        /// strength. Past <see cref="FarDistance"/> it is not played at all:
+        /// a district is 260 m across and a punch thrown at the far rim of it
+        /// is not something you can hear, let alone act on.
+        ///
+        /// Unity's own defaults are 1 m and 500 m, which in a field this size
+        /// means every fight in the district arrives at once, all of it
+        /// roughly as loud as the one you are in.
+        /// </summary>
+        public const float NearDistance = 6f;
+        public const float FarDistance = 70f;
+
+        /// <summary>Where the ears are. Set by whatever owns the camera; a
+        /// zero listener just means everything is measured from the origin,
+        /// which is wrong rather than broken.</summary>
+        public static Transform Listener;
+
+        private static Vector3 ListenerAt
+        {
+            get { return Listener != null ? Listener.position : Vector3.zero; }
+        }
 
         [System.Serializable]
         private class Table { public SoundRow[] items; }
@@ -49,12 +73,20 @@ namespace Ahmed.Game
             new Dictionary<string, SoundRow>();
         private static readonly Dictionary<string, AudioClip> Clips =
             new Dictionary<string, AudioClip>();
+        /// <summary>When a cue last played, and how far from the ears it was.
+        /// Both, because a cooldown that only knows the time silences the
+        /// punch landing on your face for one thrown across the district.</summary>
         private static readonly Dictionary<string, float> LastPlayed =
+            new Dictionary<string, float>();
+        private static readonly Dictionary<string, float> LastDistance =
             new Dictionary<string, float>();
         private static readonly HashSet<string> Warned = new HashSet<string>();
 
         private static AudioSource[] _pool;
-        private static int _next;
+        private static AudioLowPassFilter[] _lowPass = new AudioLowPassFilter[Voices];
+        private static AudioReverbFilter[] _reverb = new AudioReverbFilter[Voices];
+        private static readonly float[] _playingAt = new float[Voices];
+        private static int _space;
         private static bool _loaded;
 
         public static void Load()
@@ -88,9 +120,45 @@ namespace Ahmed.Game
                 voice.transform.SetParent(root.transform, false);
                 AudioSource src = voice.AddComponent<AudioSource>();
                 src.playOnAwake = false;
+                src.rolloffMode = AudioRolloffMode.Logarithmic;
+                src.minDistance = NearDistance;
+                src.maxDistance = FarDistance;
+                // No doppler. A whoosh is a fighter's arm, not a passing car,
+                // and pitching it by closing speed makes every exchange warble.
+                src.dopplerLevel = 0f;
+                src.spread = 25f;
                 _pool[i] = src;
+                _lowPass[i] = voice.AddComponent<AudioLowPassFilter>();
+                _reverb[i] = voice.AddComponent<AudioReverbFilter>();
             }
+            SetSpace(0);
         }
+
+        /// <summary>
+        /// What the place does to a sound. A cellar is not a street: the same
+        /// punch under a district is duller and rings, and on the roofs it is
+        /// dry and open. The world calls this when Ahmed changes floor, and
+        /// the sound changes with the place rather than the place being a
+        /// change of scenery with the same audio over it.
+        /// </summary>
+        public static void SetSpace(int level)
+        {
+            Load();
+            if (_pool == null) { return; }
+            float cutoff = level < 0 ? 3200f : level > 0 ? 22000f : 12000f;
+            AudioReverbPreset preset = level < 0 ? AudioReverbPreset.StoneRoom
+                                     : level > 0 ? AudioReverbPreset.Plain
+                                                 : AudioReverbPreset.City;
+            for (int i = 0; i < _pool.Length; i++)
+            {
+                if (_lowPass[i] != null) { _lowPass[i].cutoffFrequency = cutoff; }
+                if (_reverb[i] != null) { _reverb[i].reverbPreset = preset; }
+            }
+            _space = level;
+        }
+
+        /// <summary>The floor the sound is currently coloured for.</summary>
+        public static int Space { get { return _space; } }
 
         /// <summary>A cue at a place in the world.</summary>
         public static void Play(string cue, Vector3 at)
@@ -143,22 +211,23 @@ namespace Ahmed.Game
                 return;
             }
 
-            // The cooldown is what stops a six-enemy fight turning every punch
-            // into one continuous noise.
-            float last;
-            if (row.cooldown > 0f && LastPlayed.TryGetValue(cue, out last)
-                && Time.time - last < row.cooldown)
-            {
-                return;
-            }
+            bool spatial = positioned && row.spatial;
+            float distance = spatial ? Flat(at, ListenerAt) : 0f;
+
+            // Too far to hear. Not "played quietly" -- not played, so it does
+            // not take a voice off a fight that is actually happening.
+            if (spatial && distance > FarDistance) { return; }
+
+            if (!Claims(cue, row.cooldown, distance)) { return; }
 
             AudioClip clip = Resolve(row);
             if (clip == null) { return; }
 
             LastPlayed[cue] = Time.time;
+            LastDistance[cue] = distance;
 
-            AudioSource src = _pool[_next];
-            _next = (_next + 1) % _pool.Length;
+            AudioSource src = Voice(distance);
+            if (src == null) { return; }
 
             src.Stop();
             src.clip = clip;
@@ -168,9 +237,67 @@ namespace Ahmed.Game
             src.pitch = row.pitchMin >= row.pitchMax
                 ? row.pitchMin
                 : Random.Range(row.pitchMin, row.pitchMax);
-            src.spatialBlend = (positioned && row.spatial) ? 1f : 0f;
+            src.spatialBlend = spatial ? 1f : 0f;
+            // Nearer is more important, and a voice is stolen by priority.
+            src.priority = spatial ? Mathf.Clamp(64 + Mathf.RoundToInt(distance), 0, 255) : 32;
             src.transform.position = at;
             src.Play();
+            _playingAt[System.Array.IndexOf(_pool, src)] = spatial ? distance : 0f;
+        }
+
+        /// <summary>Distance on the ground plane. Height is not how far away
+        /// a thing sounds in a game where a fighter is two metres tall and a
+        /// district is two hundred across.</summary>
+        private static float Flat(Vector3 a, Vector3 b)
+        {
+            float dx = a.x - b.x, dz = a.z - b.z;
+            return Mathf.Sqrt(dx * dx + dz * dz);
+        }
+
+        /// <summary>
+        /// Whether a cue may sound, given how recently it last did and from
+        /// how far away.
+        ///
+        /// The cooldown is what stops a six-enemy fight turning every punch
+        /// into one continuous noise. On its own, though, it hands the cue to
+        /// whichever fighter happened to swing first — so a blow landing on
+        /// Ahmed goes silent because something across the district connected
+        /// forty milliseconds earlier. A closer instance takes the cue off a
+        /// further one; an equally distant one waits its turn.
+        ///
+        /// Pure, so the rule can be checked without a scene.
+        /// </summary>
+        public static bool MayPlay(float sinceLast, float cooldown,
+                                   float distance, float lastDistance)
+        {
+            if (cooldown <= 0f || sinceLast >= cooldown) { return true; }
+            return distance < lastDistance - NearDistance;
+        }
+
+        private static bool Claims(string cue, float cooldown, float distance)
+        {
+            float last, lastDistance;
+            if (!LastPlayed.TryGetValue(cue, out last)) { return true; }
+            if (!LastDistance.TryGetValue(cue, out lastDistance)) { lastDistance = 0f; }
+            return MayPlay(Time.time - last, cooldown, distance, lastDistance);
+        }
+
+        /// <summary>
+        /// A voice for a sound this far off. A free one first; failing that
+        /// the one carrying the most distant sound, and only if this one is
+        /// nearer than that. Round-robin stealing cut whatever was oldest,
+        /// which in a crowd is reliably the blow you are standing next to.
+        /// </summary>
+        private static AudioSource Voice(float distance)
+        {
+            int furthest = -1;
+            float worst = distance;
+            for (int i = 0; i < _pool.Length; i++)
+            {
+                if (!_pool[i].isPlaying) { return _pool[i]; }
+                if (_playingAt[i] > worst) { worst = _playingAt[i]; furthest = i; }
+            }
+            return furthest >= 0 ? _pool[furthest] : null;
         }
 
         private static AudioClip Resolve(SoundRow row)

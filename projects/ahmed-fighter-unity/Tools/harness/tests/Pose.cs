@@ -172,6 +172,21 @@ public static class Pose {
         Check(upL > restL + 0.15f, "blocking lifts the left hand (" + restL.ToString("0.00") + " -> " + upL.ToString("0.00") + ")");
         Check(Math.Abs(upL - FighterIK.GuardHeight) < 0.05f, "to about chin height");
         Check(Math.Abs(upL - upR) < 1e-3f, "both hands to the same height");
+        // Hurt, the same guard is carried lower. It is the only thing in the
+        // world that says how much an enemy has left. The rig carries no
+        // vitals of its own, so it is given a thug's before it is hurt.
+        ((Ahmed.Combat.EnemyFighter)g.Fighter).ConfigureFrom(
+            new Ahmed.Data.FighterRow { name = "Thug", maxHealth = 46f, moves = new string[] { "Jab" } },
+            0, 1f, 1f);
+        Scene.Step(2);
+        upL = g.Bones["hand_l"].position.y;
+        g.Fighter.SetCondition(g.Fighter.MaxHealth * 0.15f, g.Fighter.MaxStamina);
+        Scene.Step(2);
+        float hurtL = g.Bones["hand_l"].position.y;
+        Check(hurtL < upL - 0.02f, "a hurt fighter carries the guard lower ("
+              + upL.ToString("0.00") + " -> " + hurtL.ToString("0.00") + ")");
+        g.Fighter.SetCondition(g.Fighter.MaxHealth, g.Fighter.MaxStamina);
+        Scene.Step(2);
         // Facing defaults to +X, not +Z, so "in front" is along the facing.
         Vector3 ahead = g.Fighter.Facing;
         float reach = Vector3.Dot(g.Bones["hand_l"].position - g.Root.transform.position, ahead);

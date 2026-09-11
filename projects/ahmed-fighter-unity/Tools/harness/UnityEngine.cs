@@ -122,14 +122,24 @@ namespace UnityEngine
         }
     }
     public class AudioClip : Object { public float length { get { return 0f; } } }
+    public enum AudioRolloffMode { Logarithmic, Linear, Custom }
     public class AudioSource : Behaviour {
         public AudioClip clip;
         public float volume, pitch, spatialBlend, minDistance, maxDistance;
+        public float dopplerLevel, spread, time;
+        public int priority;
+        public AudioRolloffMode rolloffMode;
         public bool playOnAwake, loop;
-        public bool isPlaying { get { return false; } }
-        public void Play() { } public void Stop() { }
+        bool _playing;
+        public bool isPlaying { get { return _playing; } }
+        public void Play() { _playing = true; } public void Stop() { _playing = false; }
         public void PlayOneShot(AudioClip c, float v) { }
     }
+    public class AudioListener : Behaviour { }
+    public class AudioLowPassFilter : Behaviour { public float cutoffFrequency = 22000f, lowpassResonanceQ = 1f; }
+    public class AudioReverbFilter : Behaviour {
+        public AudioReverbPreset reverbPreset; public float dryLevel, room, decayTime; }
+    public enum AudioReverbPreset { Off, Generic, Room, Cave, StoneRoom, Hangar, City, Plain, Arena }
     public class Camera : Behaviour { public float fieldOfView, farClipPlane, nearClipPlane;
         public static Camera main { get { return null; } } }
     public enum LightType { Spot, Directional, Point, Area }

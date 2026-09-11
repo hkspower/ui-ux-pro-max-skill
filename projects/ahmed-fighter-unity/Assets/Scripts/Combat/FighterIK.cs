@@ -124,8 +124,13 @@ namespace Ahmed.Combat
             // Guard first, strike over the top. A strike re-solves from
             // wherever the guard left the arm, so the two compose rather than
             // fight, and the hand that is not throwing stays up.
-            _guard = Mathf.Clamp01(_guard + (_fighter.Blocking ? 1f : -1f)
-                                            * GuardBlend * Time.deltaTime);
+            // The guard does not blend through hit stop either: the pair are
+            // frozen on the contact frame, hands included.
+            if (!_fighter.Frozen)
+            {
+                _guard = Mathf.Clamp01(_guard + (_fighter.Blocking ? 1f : -1f)
+                                                * GuardBlend * Time.deltaTime);
+            }
             Guard();
             Strike();
         }
@@ -231,7 +236,10 @@ namespace Ahmed.Combat
         /// </summary>
         private void Guard()
         {
-            if (_guard <= 0.001f) { return; }
+            // Still solved while stunned even with the guard down: that is
+            // when the hands are thrown, and a fighter who wears a hook
+            // without moving read as one who did not feel it.
+            if (_guard <= 0.001f && _fighter.State != FighterState.Hit) { return; }
             Vector3 facing = _fighter.Facing;
             Vector3 side = Vector3.Cross(Vector3.up, facing);
             GuardHand(ref _armL, facing, -side);
@@ -243,7 +251,15 @@ namespace Ahmed.Combat
             if (!arm.Ok) { return; }
             Vector3 rest = transform.TransformPoint(arm.EndRestLocal);
             Vector3 up = GuardTarget(transform.position, facing, side);
-            Vector3 target = Vector3.Lerp(rest, up, _guard);
+            // Tired and hurt: the hands come down as the health does. A
+            // fighter with no vitals set is not a dying one -- it is one
+            // nobody has told yet -- so it guards fully.
+            float health = _fighter.MaxHealth > 0f ? _fighter.HealthFraction : 1f;
+            Vector3 target = Vector3.Lerp(rest, up, _guard * GuardSag(health));
+            if (_fighter.State == FighterState.Hit)
+            {
+                target += FlinchOffset(_fighter.Recoil);
+            }
             Vector3 pole = (arm.Root.position + target) * 0.5f - Vector3.up * 0.6f;
             TwoBoneIK.Apply(arm.Root, arm.Mid, arm.End, target, pole);
         }
@@ -304,6 +320,62 @@ namespace Ahmed.Combat
             return 0f;
         }
 
+        /// <summary>
+        /// How far the limb is drawn *back* before it goes out.
+        ///
+        /// The reach blend alone sends the fist out from the first frame of
+        /// the startup, so a punch and a haymaker look the same right up to
+        /// the moment one of them lands — there is nothing to read and
+        /// nothing to react to, which is the whole complaint about fighting
+        /// something that never tells you what it is doing. This pulls the
+        /// hand back over the first two thirds of the startup and releases it
+        /// into the strike, so the wind-up is visible for exactly as long as
+        /// the row says the wind-up lasts. A jab's 0.06 s startup is a twitch;
+        /// a heavy's 0.18 s is a cocked arm you can step out of.
+        ///
+        /// Separate from <see cref="StrikeWeight"/> on purpose: that is the
+        /// reach, stays 0..1, and its invariants are tested. This is the
+        /// other motion. Pure, for the same reason.
+        /// </summary>
+        public static float WindUp(float elapsed, float startup)
+        {
+            if (startup <= 0f || elapsed <= 0f || elapsed >= startup) { return 0f; }
+            float t = elapsed / startup;
+            const float peak = 0.62f;           // where the arm is furthest back
+            return t < peak
+                ? Smooth(t / peak)
+                : 1f - Smooth((t - peak) / (1f - peak));
+        }
+
+        /// <summary>How far back a cocked limb travels, in metres.</summary>
+        public const float WindUpDraw = 0.22f;
+
+        /// <summary>
+        /// Where a struck fighter's hands are thrown. The blow that is
+        /// pushing him is pushing them too, and the guard is not up while it
+        /// does: a fighter who takes a hook and keeps a perfect guard reads
+        /// as a fighter who did not feel it.
+        /// </summary>
+        public static Vector3 FlinchOffset(Vector3 recoil)
+        {
+            Vector3 flat = new Vector3(recoil.x, 0f, recoil.z);
+            float m = flat.magnitude;
+            if (m < 0.01f) { return Vector3.zero; }
+            // Bounded: a big knockback must not throw the hands off the body.
+            return flat / m * Mathf.Min(m * 0.05f, 0.22f) - Vector3.up * Mathf.Min(m * 0.03f, 0.14f);
+        }
+
+        /// <summary>
+        /// How high the hands are carried, as a fraction of the full guard.
+        /// A fighter who has taken most of a health bar carries them lower,
+        /// which is the only thing in the world that says how hurt an enemy
+        /// is — there is no bar over their head.
+        /// </summary>
+        public static float GuardSag(float healthFraction)
+        {
+            return Mathf.Lerp(0.72f, 1f, Mathf.Clamp01(healthFraction));
+        }
+
         private static float Smooth(float t)
         {
             t = Mathf.Clamp01(t);
@@ -336,6 +408,8 @@ namespace Ahmed.Combat
                                         arm ? ShoulderHeight : HipHeight);
             Vector3 rest = transform.TransformPoint(limb.EndRestLocal);
             Vector3 target = Vector3.Lerp(rest, full, weight);
+            // Cocked before it is thrown. This is the tell.
+            target -= facing * (WindUp(_fighter.AttackTime, row.startup) * WindUpDraw);
 
             // Elbows hang under the punch; the kicking knee leads the foot.
             Vector3 pole = arm

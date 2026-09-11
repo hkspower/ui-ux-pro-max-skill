@@ -101,6 +101,15 @@ namespace Ahmed.Game
             cam.farClipPlane = 600f;    // a district is 260 m across
             FollowCamera follow = go.AddComponent<FollowCamera>();
             follow.Target = player != null ? player.transform : null;
+
+            // The ears. Unity plays a positioned sound into whichever
+            // AudioListener is in the scene, and there was not one -- which
+            // is not a quiet game, it is a silent one. It goes on the camera
+            // because that is where the player is listening from, and the
+            // sound layer measures distance from the same place so that what
+            // it culls is what you could not have heard.
+            go.AddComponent<AudioListener>();
+            AudioLibrary.Listener = go.transform;
         }
 
         private PlayerFighter BuildPlayer()

@@ -79,6 +79,69 @@ namespace Ahmed.Combat
         private bool _swingFired;
         protected readonly List<Fighter> HitThisSwing = new List<Fighter>();
 
+        /// <summary>
+        /// The push a blow left on this fighter, decaying over the stun.
+        ///
+        /// It used to be spent in the frame it arrived, which is one frame of
+        /// movement and nothing to see: a heavy hook and a jab shoved a
+        /// fighter by the same invisible amount. Carried and bled off, the
+        /// body is still going backwards while he is stunned, which is what
+        /// makes a heavy blow read as heavy.
+        /// </summary>
+        public Vector3 Recoil { get; private set; }
+
+        /// <summary>
+        /// Seconds this fighter is frozen for. Hit stop: on a landed blow
+        /// both fighters stop dead for a few frames, which is the oldest
+        /// trick in the genre and most of why a punch feels like contact
+        /// rather than an overlap test. It sits outside the fight's clock --
+        /// stun, recovery and stamina do not tick through it.
+        /// </summary>
+        public float FreezeRemaining { get; private set; }
+        public bool Frozen { get { return FreezeRemaining > 0f; } }
+
+        /// <summary>Ground covered since the last footstep.</summary>
+        private float _stride;
+        /// <summary>A pace. Ahmed is 1.82 m and walks at 3.4 m/s, so this is
+        /// about two and a half steps a second at a walk.</summary>
+        public const float StrideLength = 1.35f;
+
+        /// <summary>How fast a recoil bleeds off, per second.</summary>
+        public const float RecoilDecay = 7f;
+
+        /// <summary>
+        /// How long a landed blow freezes both fighters.
+        ///
+        /// Two frames at 60 Hz for a jab, twice that for something that puts
+        /// a man down. Long enough to read as contact, short enough that a
+        /// chain still flows -- past about a tenth of a second it stops
+        /// feeling like impact and starts feeling like the game stuttering.
+        /// Pure, so the curve can be checked without a scene.
+        /// </summary>
+        public static float HitStopFor(bool heavy, bool knockdown, bool blocked)
+        {
+            if (blocked) { return 0.025f; }
+            if (knockdown) { return 0.09f; }
+            return heavy ? 0.06f : 0.035f;
+        }
+
+        /// <summary>
+        /// How long a blow stuns, by what it was. It was a flat 0.22 s for
+        /// everything, so a jab and a haymaker held a fighter for exactly as
+        /// long and there was nothing to read in being hit hard.
+        /// </summary>
+        public static float HitStunFor(float damage, float maxHealth, bool heavy)
+        {
+            float share = maxHealth > 0f ? Mathf.Clamp01(damage / maxHealth) : 0f;
+            return Mathf.Clamp((heavy ? 0.26f : 0.16f) + share * 0.9f, 0.12f, 0.55f);
+        }
+
+        /// <summary>Freeze this fighter where he stands.</summary>
+        public void Freeze(float seconds)
+        {
+            FreezeRemaining = Mathf.Max(FreezeRemaining, seconds);
+        }
+
         protected float HitStunRemaining;
         protected float DownRemaining;
         protected float InvulnerableRemaining;
@@ -133,6 +196,15 @@ namespace Ahmed.Combat
         {
             float dt = Time.deltaTime;
 
+            // Frozen on impact. Nothing else in the fighter moves -- not the
+            // swing, not the stun, not the stamina -- so the pair hang on the
+            // contact frame and then carry on from exactly where they were.
+            if (FreezeRemaining > 0f)
+            {
+                FreezeRemaining = Mathf.Max(0f, FreezeRemaining - dt);
+                return;
+            }
+
             TickTimers(dt);
             if (State == FighterState.Attack) { TickAttack(dt); }
 
@@ -154,10 +226,34 @@ namespace Ahmed.Combat
         {
             if (Body == null) { return; }
 
+            if (FreezeRemaining > 0f) { return; }
+
+            // The blow keeps pushing while he is stunned, and dies away.
+            if (Recoil.sqrMagnitude > 0.0004f)
+            {
+                _pendingMove += Recoil * Time.deltaTime;
+                Recoil = Recoil * Mathf.Clamp01(1f - RecoilDecay * Time.deltaTime);
+            }
+            else { Recoil = Vector3.zero; }
+
             Vector3 step = _pendingMove;
             _pendingMove = Vector3.zero;
             step.y = Body.isGrounded ? -0.5f * Time.deltaTime : -9.81f * Time.deltaTime;
             Body.Move(step);
+
+            // A stride, not a timer. Walking a district was silent, and a
+            // world you cross on foot is the one place a footstep matters
+            // most; measuring it by ground covered means it keeps time with
+            // the legs at any speed and stops dead when he does.
+            _stride += Flat(step);
+            if (_stride >= StrideLength)
+            {
+                _stride -= StrideLength;
+                if (IsAlive && State != FighterState.Down)
+                {
+                    Game.AudioLibrary.Play("Footstep", transform.position);
+                }
+            }
 
             // Bounds are a rectangle now, not a strip with a fixed depth
             // band. A district sets them when the player walks into it.
@@ -165,6 +261,11 @@ namespace Ahmed.Combat
             p.x = Mathf.Clamp(p.x, Bounds.MinX, Bounds.MaxX);
             p.z = Mathf.Clamp(p.z, Bounds.MinZ, Bounds.MaxZ);
             transform.position = p;
+        }
+
+        private static float Flat(Vector3 v)
+        {
+            return Mathf.Sqrt(v.x * v.x + v.z * v.z);
         }
 
         /// <summary>Ask for movement this frame. Scale is -1..1 per axis.</summary>
@@ -196,6 +297,9 @@ namespace Ahmed.Combat
                     {
                         State = FighterState.Idle;
                         InvulnerableRemaining = 0.6f;   // brief mercy on getting up
+                        // Back on his feet: the one sound that says a
+                        // knockdown ended in getting up rather than in a KO.
+                        Game.AudioLibrary.Play("Land", transform.position);
                     }
                 }
             }
@@ -386,6 +490,10 @@ namespace Ahmed.Combat
                 result.parried = true;
                 result.blocked = true;
                 InvulnerableRemaining = 0.25f;
+                // A parry is the biggest read in the game, so it is the
+                // longest stop: the pair hang there and the crowd hears it.
+                Freeze(0.12f);
+                attacker.Freeze(0.12f);
                 Game.AudioLibrary.Play("Parry", result.impactPoint);
                 OnParried(attacker);
                 if (Damaged != null) { Damaged(this, result); }
@@ -398,6 +506,9 @@ namespace Ahmed.Combat
             {
                 result.blocked = true;
                 result.damage = damage * Playfield.BlockDamageMultiplier;
+                float blockStop = HitStopFor(attack.heavy, false, true);
+                Freeze(blockStop);
+                attacker.Freeze(blockStop);
                 Game.AudioLibrary.Play("Block", result.impactPoint);
                 Health = Mathf.Max(0f, Health - result.damage);
                 Stamina = Mathf.Max(0f, Stamina - 14f);
@@ -416,7 +527,13 @@ namespace Ahmed.Combat
             // difference.
             Game.AudioLibrary.Play(wentDown ? "Hit_Knockdown"
                 : attack.heavy ? "Hit_Heavy" : "Hit_Light", result.impactPoint);
-            ReceiveKnockback(attacker.Facing * attack.knockback, wentDown);
+            // Both of them stop on the contact frame. The attacker too:
+            // freezing only the victim reads as the victim lagging.
+            float stop = HitStopFor(attack.heavy, wentDown, false);
+            Freeze(stop);
+            attacker.Freeze(stop);
+            ReceiveKnockback(attacker.Facing * attack.knockback, wentDown,
+                             HitStunFor(damage, MaxHealth, attack.heavy));
             result.knockdown = knockdown;
             result.killed = Health <= 0f;
 
@@ -427,8 +544,14 @@ namespace Ahmed.Combat
         /// <summary>Take the blow's push, and go down if it was heavy enough.</summary>
         public void ReceiveKnockback(Vector3 impulse, bool knockdown)
         {
+            ReceiveKnockback(impulse, knockdown, 0.16f);
+        }
+
+        /// <summary>The blow's push, and how long it holds him.</summary>
+        public void ReceiveKnockback(Vector3 impulse, bool knockdown, float stun)
+        {
             if (!IsAlive) { return; }
-            _pendingMove += impulse * Time.deltaTime;
+            Recoil = impulse;
 
             // Either way the swing this fighter was in is over. A whoosh that
             // has not started yet must not start now for a punch that was
@@ -439,12 +562,13 @@ namespace Ahmed.Combat
             {
                 State = FighterState.Down;
                 DownRemaining = 0.85f;
+                HitStunRemaining = 0f;
                 OnKnockedDown();
             }
             else
             {
                 State = FighterState.Hit;
-                HitStunRemaining = 0.22f;
+                HitStunRemaining = stun;
             }
         }
 
