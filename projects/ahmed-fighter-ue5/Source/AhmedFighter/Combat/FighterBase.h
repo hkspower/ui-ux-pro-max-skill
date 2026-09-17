@@ -66,9 +66,16 @@ public:
 		Stamina = FMath::Clamp(NewStamina, 0.f, MaxStamina);
 	}
 
-	/** +1 facing right along +X, -1 facing left. */
+	/**
+	 * Which way this fighter is looking, as a unit vector on the ground.
+	 *
+	 * It was a sign on X until 2026-09-16, because the playfield was a strip
+	 * and there were only two directions to face. Every reach, lunge,
+	 * knockback and guard test below is measured along this now; anything
+	 * that reaches for X to mean "forward" is a bug left from the corridor.
+	 */
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	float GetFacingSign() const { return FacingSign; }
+	FVector GetFacing() const { return Facing; }
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void FaceTowards(const FVector& WorldLocation);
@@ -235,7 +242,7 @@ protected:
 	float HitStunRemaining = 0.f;
 	float DownRemaining = 0.f;
 	float InvulnerableRemaining = 0.f;
-	float FacingSign = 1.f;
+	FVector Facing = FVector(1.f, 0.f, 0.f);
 
 	/** Set the frame block is pressed; a hit inside this window is a parry. */
 	float ParryWindowRemaining = 0.f;

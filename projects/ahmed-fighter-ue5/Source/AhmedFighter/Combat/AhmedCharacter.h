@@ -76,23 +76,47 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> RageAction = nullptr;
 
+	/** Right stick or mouse: the boom the player swings and pitches. On the
+	    strip there was nothing to bind this to — the camera looked one way
+	    for the whole game. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> LookAction = nullptr;
+
 	// ---------------------------------------------------------------- camera
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-	TObjectPtr<UCameraComponent> SideViewCamera = nullptr;
+	TObjectPtr<UCameraComponent> FollowCamera = nullptr;
 
-	/** The arena clamps the player so fights never drift under the touch
-	    controls. X is the strip's ends, Y its walkable depth; the depth
-	    defaults to the strip at the world origin, which is where a generated
-	    stage map puts it. */
-	UFUNCTION(BlueprintCallable, Category = "Arena")
-	void SetArenaBounds(float InMinX, float InMaxX);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera")
+	float CameraTurnRate = 150.f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera")
+	float CameraPitchRate = 90.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera")
+	float CameraMinPitch = -55.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera")
+	float CameraMaxPitch = 8.f;
+
+	/** Which way the boom is looking. Movement is measured against this, so
+	    pushing the stick away from the player means away on screen. */
+	UFUNCTION(BlueprintPure, Category = "Camera")
+	float GetCameraYaw() const { return CameraYaw; }
+
+	/**
+	 * Where this fighter may stand: a circle, since 2026-09-16.
+	 *
+	 * It was two numbers on X with the depth fixed for the whole game,
+	 * because a corridor has a near end and a far end and nothing else. An
+	 * arena in the open is the same size in every direction — any other
+	 * shape tells the player which way the level used to run.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Arena")
-	void SetArenaFrame(float InMinX, float InMaxX, float InMinY, float InMaxY);
+	void SetArenaCircle(const FVector& InCentre, float InRadius);
 
 protected:
 	virtual void OnHitLanded(AFighterBase* Victim, const FHitResultData& Hit) override;
@@ -102,6 +126,7 @@ protected:
 	virtual void ResolveAttackHits(const FAttackDef& Attack) override;
 
 	void Input_Move(const FInputActionValue& Value);
+	void Input_Look(const FInputActionValue& Value);
 	void Input_Punch();
 	void Input_Kick();
 	void Input_BlockStarted();
@@ -125,6 +150,7 @@ protected:
 
 private:
 	FVector2D MoveInput = FVector2D::ZeroVector;
+	FVector2D LookInput = FVector2D::ZeroVector;
 
 	/** Gates already struck by the current swing. */
 	TArray<TWeakObjectPtr<class AAbilityGate>> StruckGatesThisSwing;
@@ -134,10 +160,11 @@ private:
 	float ComboWindowRemaining = 0.f;
 	float DashRemaining = 0.f;
 
-	float ArenaMinX = -FLT_MAX;
-	float ArenaMaxX =  FLT_MAX;
-	float ArenaMinY = AhmedGameplay::DepthMin;
-	float ArenaMaxY = AhmedGameplay::DepthMax;
+	FVector ArenaCentre = FVector::ZeroVector;
+	float ArenaRadius = FLT_MAX;
+
+	float CameraYaw = 0.f;
+	float CameraPitch = -18.f;
 
 	float BaseWalkSpeed = 520.f;
 };

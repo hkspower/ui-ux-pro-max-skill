@@ -38,23 +38,24 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Fighter")
 	bool bEnraged = false;
 
-	/** Which side of the player this one tries to occupy: +1 ahead, -1 behind. */
+	/**
+	 * The bearing this one holds around the player, in degrees off the line
+	 * from him to it. It was a side on X — `+1 ahead, -1 behind` — which is a
+	 * fact about a corridor: in a district it lined the whole wave up east
+	 * and west of the player however he turned. `AhmedArena::CrowdSlot`
+	 * assigns it, and `PushApart` stops two of them wanting one spot.
+	 */
 	UPROPERTY(BlueprintReadWrite, Category = "AI")
-	float FlankSide = 1.f;
+	float CrowdBearing = 22.f;
 
 	/** Extra stand-off distance so several enemies do not share one spot. */
 	UPROPERTY(BlueprintReadWrite, Category = "AI")
 	float LaneOffset = 0.f;
 
-	/** Depth offset from the player, so they spread across the strip. */
-	UPROPERTY(BlueprintReadWrite, Category = "AI")
-	float DepthOffset = 0.f;
-
 	UFUNCTION(BlueprintCallable, Category = "Arena")
-	void SetArenaBounds(float InMinX, float InMaxX);
+	void SetArenaCircle(const FVector& InCentre, float InRadius);
 
-	UFUNCTION(BlueprintCallable, Category = "Arena")
-	void SetArenaFrame(float InMinX, float InMaxX, float InMinY, float InMaxY);
+
 
 	/** How this one fights. When the archetype names a style asset this takes
 	    over the decisions entirely and TickAI below never runs; when it does
@@ -98,8 +99,6 @@ private:
 	float GuardRoll = 1.f;
 	float RetreatRemaining = 0.f;
 
-	float ArenaMinX = -FLT_MAX;
-	float ArenaMaxX =  FLT_MAX;
-	float ArenaMinY = AhmedGameplay::DepthMin;
-	float ArenaMaxY = AhmedGameplay::DepthMax;
+	FVector ArenaCentre = FVector::ZeroVector;
+	float ArenaRadius = FLT_MAX;
 };

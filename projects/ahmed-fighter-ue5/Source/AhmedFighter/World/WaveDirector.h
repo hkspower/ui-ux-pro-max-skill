@@ -125,7 +125,8 @@ private:
 	bool bArenaLocked = false;
 	bool bFinished = false;
 
-	float ArenaOriginX = 0.f;
+	/** Where the wave woke. A locked fight is a circle around it. */
+	FVector ArenaCentre = FVector::ZeroVector;
 
 	UPROPERTY() TArray<TObjectPtr<AEnemyFighter>> LiveEnemies;
 	UPROPERTY() TArray<TObjectPtr<AEnemyFighter>> AttackTokenHolders;

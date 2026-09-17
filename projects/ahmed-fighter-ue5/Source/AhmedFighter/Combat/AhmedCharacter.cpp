@@ -1,4 +1,5 @@
 #include "Combat/AhmedCharacter.h"
+#include "Combat/AhmedArena.h"
 #include "Game/AhmedAudioSubsystem.h"
 
 #include "Camera/CameraComponent.h"
@@ -19,19 +20,28 @@ AAhmedCharacter::AAhmedCharacter()
 	// of the playfield. Lag keeps it from snapping during dashes.
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 1250.f;
-	CameraBoom->SetRelativeRotation(FRotator(-12.f, -90.f, 0.f));
-	CameraBoom->bDoCollisionTest = false;
+	CameraBoom->TargetArmLength = 640.f;
+	CameraBoom->SocketOffset = FVector(0.f, 0.f, 90.f);
+	CameraBoom->SetRelativeRotation(FRotator(-18.f, 0.f, 0.f));
+	// Swept now. On the strip the camera was outside the level looking in and
+	// nothing could get between it and Ahmed; in a district full of buildings
+	// a boom that ignores them spends half of a fight inside a wall.
+	CameraBoom->bDoCollisionTest = true;
+	CameraBoom->ProbeSize = 16.f;
 	CameraBoom->bUsePawnControlRotation = false;
 	CameraBoom->bInheritPitch = false;
 	CameraBoom->bInheritYaw = false;
 	CameraBoom->bInheritRoll = false;
 	CameraBoom->bEnableCameraLag = true;
-	CameraBoom->CameraLagSpeed = 6.f;
+	CameraBoom->CameraLagSpeed = 12.f;
 
-	SideViewCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("SideViewCamera"));
-	SideViewCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
-	SideViewCamera->bUsePawnControlRotation = false;
+	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	FollowCamera->bUsePawnControlRotation = false;
+
+	// The body turns to face where it is going rather than snapping between
+	// two directions; the controller does not steer it.
+	bUseControllerRotationYaw = false;
 
 	MaxHealth = 100.f;
 	MaxStamina = 100.f;
@@ -108,6 +118,11 @@ void AAhmedCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 		if (PunchAction) Input->BindAction(PunchAction, ETriggerEvent::Started, this, &AAhmedCharacter::Input_Punch);
 		if (KickAction)  Input->BindAction(KickAction,  ETriggerEvent::Started, this, &AAhmedCharacter::Input_Kick);
 		if (RageAction)  Input->BindAction(RageAction,  ETriggerEvent::Started, this, &AAhmedCharacter::Input_Rage);
+		if (LookAction)
+		{
+			Input->BindAction(LookAction, ETriggerEvent::Triggered, this, &AAhmedCharacter::Input_Look);
+			Input->BindAction(LookAction, ETriggerEvent::Completed, this, &AAhmedCharacter::Input_Look);
+		}
 		if (BlockAction)
 		{
 			Input->BindAction(BlockAction, ETriggerEvent::Started,   this, &AAhmedCharacter::Input_BlockStarted);
@@ -119,6 +134,11 @@ void AAhmedCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 void AAhmedCharacter::Input_Move(const FInputActionValue& Value)
 {
 	MoveInput = Value.Get<FVector2D>();
+}
+
+void AAhmedCharacter::Input_Look(const FInputActionValue& Value)
+{
+	LookInput = Value.Get<FVector2D>();
 }
 
 void AAhmedCharacter::Tick(float DeltaSeconds)
@@ -143,18 +163,37 @@ void AAhmedCharacter::Tick(float DeltaSeconds)
 		}
 	}
 
+	// The boom is the player's. It is swung and pitched before movement is
+	// read, because movement is measured against where it ends up.
+	if (!LookInput.IsNearlyZero())
+	{
+		CameraYaw += LookInput.X * CameraTurnRate * DeltaSeconds;
+		CameraPitch = FMath::Clamp(CameraPitch - LookInput.Y * CameraPitchRate * DeltaSeconds,
+		                           CameraMinPitch, CameraMaxPitch);
+	}
+	if (CameraBoom)
+	{
+		CameraBoom->SetWorldRotation(FRotator(CameraPitch, CameraYaw, 0.f));
+	}
+
 	// Movement is only accepted from a neutral state — commitment is the point.
 	if (!IsBusy() && State != EFighterState::Dash)
 	{
 		const float SpeedScale = bBlocking ? 0.38f : 1.f;
 		if (!MoveInput.IsNearlyZero())
 		{
-			AddMovementInput(FVector(1.f, 0.f, 0.f), MoveInput.X * SpeedScale);
-			AddMovementInput(FVector(0.f, 1.f, 0.f), MoveInput.Y * SpeedScale);
+			// Against the camera, not the world. A camera that swings makes
+			// "push the stick away from you" mean something different every
+			// second otherwise, and a district becomes unnavigable the first
+			// time you turn a corner.
+			const FVector Wish = AhmedArena::CameraRelative(MoveInput.X, MoveInput.Y, CameraYaw);
+			AddMovementInput(Wish, SpeedScale);
 
-			if (FMath::Abs(MoveInput.X) > 0.16f)
+			// Face where you are going. It used to be a sign on X, which is
+			// why he could only ever look two ways.
+			if (Wish.SizeSquared2D() > 0.03f)
 			{
-				FaceTowards(GetActorLocation() + FVector(MoveInput.X, 0.f, 0.f));
+				FaceTowards(GetActorLocation() + Wish);
 			}
 			State = EFighterState::Walk;
 		}
@@ -164,24 +203,14 @@ void AAhmedCharacter::Tick(float DeltaSeconds)
 		}
 	}
 
-	// Keep Ahmed inside the strip: the arena along X, the walkable depth in Y.
-	FVector Loc = GetActorLocation();
-	Loc.X = FMath::Clamp(Loc.X, ArenaMinX, ArenaMaxX);
-	Loc.Y = FMath::Clamp(Loc.Y, ArenaMinY, ArenaMaxY);
-	SetActorLocation(Loc);
+	// Keep Ahmed inside the place he is fighting in.
+	SetActorLocation(AhmedArena::ClampToCircle(GetActorLocation(), ArenaCentre, ArenaRadius));
 }
 
-void AAhmedCharacter::SetArenaBounds(float InMinX, float InMaxX)
+void AAhmedCharacter::SetArenaCircle(const FVector& InCentre, float InRadius)
 {
-	SetArenaFrame(InMinX, InMaxX, AhmedGameplay::DepthMin, AhmedGameplay::DepthMax);
-}
-
-void AAhmedCharacter::SetArenaFrame(float InMinX, float InMaxX, float InMinY, float InMaxY)
-{
-	ArenaMinX = InMinX;
-	ArenaMaxX = InMaxX;
-	ArenaMinY = InMinY;
-	ArenaMaxY = InMaxY;
+	ArenaCentre = InCentre;
+	ArenaRadius = InRadius;
 }
 
 void AAhmedCharacter::GatherTargets(TArray<AFighterBase*>& OutTargets) const
@@ -212,13 +241,10 @@ void AAhmedCharacter::ResolveAttackHits(const FAttackDef& Attack)
 		{
 			continue;
 		}
-		const FVector Delta = Gate->GetActorLocation() - Origin;
-		const float Forward = Delta.X * FacingSign;
-		if (Forward < -80.f || Forward > Attack.Reach + 120.f)
-		{
-			continue;
-		}
-		if (FMath::Abs(Delta.Y) > 320.f)
+		// A gate is wider than a man and forgiving to line up with, so it
+		// takes the same box with more slack rather than a rule of its own.
+		if (!AhmedArena::InHitbox(Origin, Facing, Gate->GetActorLocation(),
+		                          Attack.Reach, 320.f, 80.f, 120.f))
 		{
 			continue;
 		}

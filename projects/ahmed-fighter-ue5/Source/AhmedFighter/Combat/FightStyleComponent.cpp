@@ -1,4 +1,5 @@
 #include "Combat/FightStyleComponent.h"
+#include "Combat/AhmedArena.h"
 
 #include "Combat/EnemyFighter.h"
 #include "Combat/FighterBase.h"
@@ -151,7 +152,12 @@ void UFightStyleComponent::TickFootwork(float DeltaTime, const FVector& To, floa
 		return;
 	}
 
-	const float Facing = FMath::Sign(To.X);
+	// Towards the opponent, and across that line. On the strip these were
+	// the sign of X and the world's Y — footwork that only worked because
+	// every fight happened along one axis.
+	const FVector Towards = AhmedArena::Direction(FVector::ZeroVector, To,
+	                                              Fighter->GetFacing());
+	const FVector Across(-Towards.Y, Towards.X, 0.f);
 
 	// 1. The distance it wants right now.
 	float Wanted = Style->PreferredRange;
@@ -172,44 +178,31 @@ void UFightStyleComponent::TickFootwork(float DeltaTime, const FVector& To, floa
 	float Forward = 0.f;
 	if (FMath::Abs(Error) > 18.f)
 	{
-		Forward = FMath::Clamp(Error / 120.f, -1.f, 1.f) * Urgency * Facing;
+		Forward = FMath::Clamp(Error / 120.f, -1.f, 1.f) * Urgency;
 	}
 
-	// 3. Circling, towards the opponent's depth line as well as around it --
-	//    a strike that misses on depth is not a decision anyone can read.
+	// 3. Circling: around him, at whatever angle the two of them are at.
 	CircleTimer -= DeltaTime;
 	if (CircleTimer <= 0.f)
 	{
 		CircleTimer = Style->CircleSwitchTime * FMath::FRandRange(0.6f, 1.5f);
 		CircleDirection = FMath::RandBool() ? 1.f : -1.f;
 	}
-	float Sideways = Style->CircleTendency * CircleDirection;
-	if (FMath::Abs(To.Y) > 60.f)
-	{
-		// Too far off the line to circle: get on it first.
-		Sideways = FMath::Sign(To.Y);
-	}
-	else
-	{
-		// Do not circle out of the playable strip.
-		const float Y = Fighter->GetActorLocation().Y;
-		if ((Y < AhmedGameplay::DepthMin + 60.f && Sideways < 0.f)
-			|| (Y > AhmedGameplay::DepthMax - 60.f && Sideways > 0.f))
-		{
-			Sideways = -Sideways;
-			CircleDirection = -CircleDirection;
-		}
-	}
+	// Circling is around him now, not along a depth band. On the strip there
+	// was a line to get back onto and two walls to avoid; in the open the
+	// only thing to stay off is the other fighters, which the enemy's own
+	// approach handles, so this is the tendency and nothing else.
+	const float Sideways = Style->CircleTendency * CircleDirection;
 
 	// Guarding halves the pace, the way it does for a person.
 	const float Scale = Fighter->bBlocking ? 0.45f : 1.f;
-	if (!FMath::IsNearlyZero(Forward))
+	// Summed into one call: two calls are two sweeps, and the second starts
+	// where the first left off, which quietly makes a circling step faster
+	// than a straight one.
+	const FVector Step = Towards * Forward + Across * Sideways;
+	if (!Step.IsNearlyZero())
 	{
-		Fighter->AddMovementInput(FVector(1.f, 0.f, 0.f), Forward * Scale);
-	}
-	if (!FMath::IsNearlyZero(Sideways))
-	{
-		Fighter->AddMovementInput(FVector(0.f, 1.f, 0.f), Sideways * Scale);
+		Fighter->AddMovementInput(Step.GetSafeNormal2D(), Step.Size2D() * Scale);
 	}
 
 	Fighter->State = (FMath::IsNearlyZero(Forward) && FMath::IsNearlyZero(Sideways))

@@ -71,6 +71,34 @@ anything to this project:
   hand-author one, and do not write to a style asset at runtime — it is shared
   by every fighter of that archetype for the rest of the session.
 
+## The fight is not on a strip any more
+
+Since 2026-09-16 this build is a 3D game rather than a 2.5 D corridor, and
+the rules that came out of that are load-bearing:
+
+- **A facing is a vector, never a sign.** `AFighterBase::Facing` is a unit
+  direction on the ground. Reach, lateral tolerance, the lunge, the
+  knockback and whether a guard covers a blow are all measured along and
+  across it. Anything that reaches for `X` to mean "forward" or `Y` to mean
+  "sideways" is a bug left from the corridor.
+- **The geometry lives in `Combat/AhmedArena.h`, with no engine in it.** The
+  hitbox, the guard's hemisphere, the stick-to-world mapping, the arena
+  clamp, the crowd's slots and the district spiral are free functions over
+  `FVector`. That is what makes them testable: `Tools/harness/run.sh` builds
+  that header with g++ against a stub and property-tests it, and it is the
+  only part of this project that has ever run. Put a new piece of fight
+  geometry there and check it; do not put actors, components or a world in
+  it.
+- **An arena is a circle.** Any other shape tells the player which way the
+  level used to run. `AhmedGameplay::ArenaRadius`, around wherever the wave
+  woke — not two numbers on X.
+- **Movement is measured against the camera.** The boom is the player's to
+  swing and pitch. A camera that turns makes world-axis input meaningless.
+- **A crowd spreads around him and pushes off itself.** `CrowdSlot` gives
+  each fighter a bearing and a ring; `PushApart` stops two of them wanting
+  the same ground. Both were found to be necessary by the harness, not
+  guessed.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
@@ -85,7 +113,9 @@ anything to this project:
 - **This project has never been compiled.** It was written without an engine
   to build against. The C++ is idiomatic UE 5.4 and the data is complete, but
   expect to fix a compile error or two on a first build, and do not describe
-  any of it as verified until it has actually built.
+  any of it as verified until it has actually built. The one exception is
+  `Combat/AhmedArena.h`, which `Tools/harness/run.sh` compiles and executes
+  — that file's arithmetic is checked, and nothing else here is.
 - **iOS is Mac-only.** There is no cross-compile. `Tools/ios/build-ios.sh`
   checks for this and says so rather than failing halfway through a cook.
 

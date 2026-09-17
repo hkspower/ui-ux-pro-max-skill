@@ -484,12 +484,20 @@ struct FHitResultData
 /** Static gameplay constants shared across the module. */
 namespace AhmedGameplay
 {
-	/** The playfield is a strip: X runs along the stage, Y is depth. */
-	constexpr float DepthMin = -420.f;
-	constexpr float DepthMax = 420.f;
+	/**
+	 * The place a locked fight happens in.
+	 *
+	 * It was a strip — 22 m along X, 8.4 m of depth in Y — because the
+	 * playfield was a corridor and the camera never turned. Since 2026-09-16
+	 * it is a circle around wherever the wave woke: the same size in every
+	 * direction, because any other shape tells the player which way the
+	 * level used to run. 11 m of radius is the old strip's width as a
+	 * diameter, so the spacing every fight was tuned around is unchanged.
+	 */
+	constexpr float ArenaRadius = 1100.f;
 
-	/** How much of the arena is reserved so fights never happen under the HUD. */
-	constexpr float ArenaWidth = 2200.f;
+	/** How far outside it a wave walks in from. */
+	constexpr float SpawnRing = 1500.f;
 
 	constexpr float StaminaRegenPerSecond = 24.f;
 	constexpr float BlockDamageMultiplier = 0.20f;

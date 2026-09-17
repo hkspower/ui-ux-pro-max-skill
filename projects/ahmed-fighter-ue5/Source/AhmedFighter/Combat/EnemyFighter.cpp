@@ -1,4 +1,5 @@
 #include "Combat/EnemyFighter.h"
+#include "Combat/AhmedArena.h"
 #include "Game/AhmedAudioSubsystem.h"
 
 #include "Combat/AhmedCharacter.h"
@@ -54,17 +55,10 @@ void AEnemyFighter::ConfigureFromDefinition(const FFighterDef& Def, int32 Tier,
 	}
 }
 
-void AEnemyFighter::SetArenaBounds(float InMinX, float InMaxX)
+void AEnemyFighter::SetArenaCircle(const FVector& InCentre, float InRadius)
 {
-	SetArenaFrame(InMinX, InMaxX, AhmedGameplay::DepthMin, AhmedGameplay::DepthMax);
-}
-
-void AEnemyFighter::SetArenaFrame(float InMinX, float InMaxX, float InMinY, float InMaxY)
-{
-	ArenaMinX = InMinX;
-	ArenaMaxX = InMaxX;
-	ArenaMinY = InMinY;
-	ArenaMaxY = InMaxY;
+	ArenaCentre = InCentre;
+	ArenaRadius = InRadius;
 }
 
 void AEnemyFighter::GatherTargets(TArray<AFighterBase*>& OutTargets) const
@@ -102,10 +96,7 @@ void AEnemyFighter::Tick(float DeltaSeconds)
 		}
 	}
 
-	FVector Loc = GetActorLocation();
-	Loc.X = FMath::Clamp(Loc.X, ArenaMinX, ArenaMaxX);
-	Loc.Y = FMath::Clamp(Loc.Y, ArenaMinY, ArenaMaxY);
-	SetActorLocation(Loc);
+	SetActorLocation(AhmedArena::ClampToCircle(GetActorLocation(), ArenaCentre, ArenaRadius));
 }
 
 void AEnemyFighter::EnterPhaseTwo()
@@ -186,37 +177,40 @@ void AEnemyFighter::TickAI(float DeltaSeconds, AAhmedCharacter* Player)
 		return;
 	}
 
-	// Hold a spot on one side of the player, in your own lane and depth.
-	float DesiredX = Target.X + FlankSide * (PreferredRange * 0.70f + LaneOffset);
-	if (RetreatRemaining > 0.f)
+	// Hold a spot around the player, at a bearing off the line he is already
+	// on. It used to be a side on X, which in a district means the whole wave
+	// lines up east and west of him however he turns, and closing from behind
+	// could not happen at all.
+	const float Range = RetreatRemaining > 0.f ? 660.f : PreferredRange * 0.70f;
+	FVector Desired = AhmedArena::FlankSpot(Target, Self, CrowdBearing, Range, LaneOffset);
+
+	// Far away, forget the bearing and just close.
+	if (AhmedArena::Flat(Delta) > 950.f)
 	{
-		DesiredX = Target.X + FlankSide * 660.f;		// back off after committing
+		Desired = Target;
 	}
 
-	// Never try to stand where the arena will not let you — flip sides instead.
-	if (DesiredX < ArenaMinX + 50.f || DesiredX > ArenaMaxX - 50.f)
+	// Push off anyone already standing where this one wants to be. Six
+	// fighters picking their spots independently will otherwise pile onto
+	// the same ground; on a strip they queued along one axis and it never
+	// came up.
+	for (TActorIterator<AEnemyFighter> It(GetWorld()); It; ++It)
 	{
-		FlankSide = -FlankSide;
-		DesiredX = Target.X + FlankSide * (PreferredRange * 0.70f + LaneOffset);
+		AEnemyFighter* Other = *It;
+		if (Other == this || !IsValid(Other) || !Other->IsAlive()) { continue; }
+		Desired = AhmedArena::PushApart(Desired, Other->GetActorLocation(), 140.f);
 	}
-	// Far away, forget the lane and just close.
-	if (FMath::Abs(Delta.X) > 950.f)
-	{
-		DesiredX = Target.X;
-	}
+	Desired = AhmedArena::ClampToCircle(FVector(Desired.X, Desired.Y, Self.Z),
+	                                    ArenaCentre, ArenaRadius);
 
-	const float DesiredY = FMath::Clamp(Target.Y + DepthOffset,
-		AhmedGameplay::DepthMin, AhmedGameplay::DepthMax);
-
-	const FVector Desired(DesiredX, DesiredY, Self.Z);
 	const FVector ToDesired = Desired - Self;
 
 	if (ToDesired.Size2D() > 20.f)
 	{
+		// One call, not one per axis: two calls are two sweeps and the second
+		// starts where the first left off, which doubles a diagonal.
 		const FVector Dir = ToDesired.GetSafeNormal2D();
-		const float Scale = bBlocking ? 0.4f : 1.f;
-		AddMovementInput(FVector(Dir.X, 0.f, 0.f), Scale);
-		AddMovementInput(FVector(0.f, Dir.Y, 0.f), Scale);
+		AddMovementInput(Dir, bBlocking ? 0.4f : 1.f);
 		State = EFighterState::Walk;
 	}
 	else if (State == EFighterState::Walk)

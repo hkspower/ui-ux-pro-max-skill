@@ -1,4 +1,5 @@
 #include "Gameplay/Abilities/AhmedAttackAbility.h"
+#include "Combat/AhmedArena.h"
 
 #include "Combat/AhmedTypes.h"
 #include "Combat/FighterBase.h"
@@ -208,7 +209,7 @@ void UAhmedAttackAbility::ResolveHits()
 
 	const UAhmedAttributeSet* Attr = GetAttributes();
 	const float Reach = Attack->Reach + (Attr ? Attr->GetBonusReach() : 0.f);
-	const float Facing = Fighter->GetFacingSign();
+	const FVector Facing = Fighter->GetFacing();
 	const FVector Origin = Fighter->GetActorLocation();
 
 	TArray<AFighterBase*> Candidates;
@@ -232,13 +233,11 @@ void UAhmedAttackAbility::ResolveHits()
 			continue;
 		}
 
-		const FVector Delta = Target->GetActorLocation() - Origin;
-		// In front, in reach, and in the same depth lane.
-		if (Delta.X * Facing <= 0.f || FMath::Abs(Delta.X) > Reach)
-		{
-			continue;
-		}
-		if (FMath::Abs(Delta.Y) > Attack->DepthTolerance)
+		// In front along the facing, in reach, inside the band either side.
+		// The ability system and the legacy state machine must agree about
+		// what a strike reaches, so both ask the same function.
+		if (!AhmedArena::InHitbox(Origin, Facing, Target->GetActorLocation(),
+		                          Reach, Attack->DepthTolerance, 0.f, 0.f))
 		{
 			continue;
 		}

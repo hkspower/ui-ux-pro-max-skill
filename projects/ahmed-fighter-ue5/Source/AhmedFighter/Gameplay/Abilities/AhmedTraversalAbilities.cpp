@@ -256,7 +256,7 @@ bool UAhmedClimbAbility::FindLedge(FVector& OutLedge) const
 	}
 
 	const FVector Origin = Fighter->GetActorLocation();
-	const FVector Forward = FVector(Fighter->GetFacingSign(), 0.f, 0.f);
+	const FVector Forward = Fighter->GetFacing();
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(AhmedClimb), false, Fighter);
 

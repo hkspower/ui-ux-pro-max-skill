@@ -1,4 +1,5 @@
 #include "Combat/FighterBase.h"
+#include "Combat/AhmedArena.h"
 #include "Game/AhmedAudioSubsystem.h"
 
 #include "Engine/DataTable.h"
@@ -140,9 +141,7 @@ FVector AFighterBase::GetIntendedMoveDirection() const
 	// rather than where the character happens to be drifting.
 	const FVector Vel = GetVelocity();
 	const FVector Flat(Vel.X, Vel.Y, 0.f);
-	return Flat.IsNearlyZero()
-		? FVector(GetFacingSign(), 0.f, 0.f)
-		: Flat.GetSafeNormal();
+	return Flat.IsNearlyZero() ? Facing : Flat.GetSafeNormal();
 }
 
 void AFighterBase::ReceiveKnockback(const FVector& Impulse, bool bKnockdown)
@@ -331,7 +330,7 @@ void AFighterBase::TickAttack(float DeltaSeconds)
 	{
 		// Step into the strike, the way a fighter closes distance on a committed blow.
 		const float Lunge = CurrentAttack->bHeavy ? 165.f : 120.f;
-		AddMovementInput(FVector(FacingSign, 0.f, 0.f), Lunge * DeltaSeconds, /*bForce*/ true);
+		AddMovementInput(Facing, Lunge * DeltaSeconds, /*bForce*/ true);
 
 		if (!bAttackHitFired || CurrentAttack->bMultiHit)
 		{
@@ -385,15 +384,11 @@ void AFighterBase::ResolveAttackHits(const FAttackDef& Attack)
 			continue;
 		}
 
-		const FVector Delta = Target->GetActorLocation() - Origin;
-
-		// Forward of the attacker, within reach, and roughly on the same depth line.
-		const float Forward = Delta.X * FacingSign;
-		if (Forward < -60.f || Forward > Attack.Reach + 60.f)
-		{
-			continue;
-		}
-		if (FMath::Abs(Delta.Y) > Attack.DepthTolerance)
+		// Forward along the facing, within reach, inside the band either side
+		// of that line. Same two numbers the strip used, taken along and
+		// across a vector instead of along X and Y.
+		if (!AhmedArena::InHitbox(Origin, Facing, Target->GetActorLocation(),
+		                          Attack.Reach, Attack.DepthTolerance))
 		{
 			continue;
 		}
@@ -426,9 +421,10 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 		return Result;
 	}
 
-	// A guard only counts if it is facing the blow.
+	// A guard only counts if it is facing the blow. The front hemisphere,
+	// not a sign: a guard must not cover your back.
 	const FVector ToAttacker = Attacker->GetActorLocation() - GetActorLocation();
-	const bool bFacingAttacker = (ToAttacker.X * FacingSign) > 0.f;
+	const bool bFacingAttacker = AhmedArena::Covers(Facing, ToAttacker);
 	const bool bGuarding = bBlocking && bFacingAttacker && State != EFighterState::Attack;
 
 	// Perfect parry: the guard went up inside the window before the blow landed.
@@ -442,7 +438,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 		Attacker->State            = EFighterState::Hit;
 		Attacker->HitStunRemaining = 0.46f;
 		Attacker->CurrentAttack    = nullptr;
-		Attacker->LaunchCharacter(FVector(FacingSign * 260.f, 0.f, 0.f), true, false);
+		Attacker->LaunchCharacter(Facing * 260.f, true, false);
 
 		Result.bParried = true;
 		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->Play(TEXT("Parry"), this); }
@@ -464,7 +460,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 	if (bGuarding)
 	{
 		Stamina = FMath::Max(0.f, Stamina - 14.f);
-		LaunchCharacter(FVector(Attacker->GetFacingSign() * Attack.Knockback * 0.30f, 0.f, 0.f), true, false);
+		LaunchCharacter(Attacker->GetFacing() * (Attack.Knockback * 0.30f), true, false);
 		if (UAhmedAudioSubsystem* Audio = UAhmedAudioSubsystem::Get(this)) { Audio->Play(TEXT("Block"), this); }
 		OnDamaged.Broadcast(Health, Result);
 		BP_OnHitReceived(Result);
@@ -476,7 +472,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 	HitStunRemaining = Attack.bHeavy ? 0.34f : 0.22f;
 	CurrentAttack = nullptr;
 	bSwingFired = true;		// the swing this blow interrupted never happened
-	LaunchCharacter(FVector(Attacker->GetFacingSign() * Attack.Knockback, 0.f, 0.f), true, false);
+	LaunchCharacter(Attacker->GetFacing() * Attack.Knockback, true, false);
 
 	// Knockdown: always on a killing blow, sometimes on a heavy one, always on
 	// the finisher. Bosses shrug most of them off so they cannot be stunlocked.
@@ -516,12 +512,15 @@ void AFighterBase::PlayFootstep()
 
 void AFighterBase::FaceTowards(const FVector& WorldLocation)
 {
-	const float Sign = (WorldLocation.X >= GetActorLocation().X) ? 1.f : -1.f;
-	if (!FMath::IsNearlyEqual(Sign, FacingSign))
+	// Any direction, not one of two. Somewhere too close to turn towards
+	// leaves the facing alone rather than snapping it to a default.
+	const FVector Wanted = AhmedArena::Direction(GetActorLocation(), WorldLocation, Facing);
+	if (FVector::DotProduct(Wanted, Facing) > 0.99995f)
 	{
-		FacingSign = Sign;
-		SetActorRotation(FRotator(0.f, FacingSign > 0.f ? 0.f : 180.f, 0.f));
+		return;
 	}
+	Facing = Wanted;
+	SetActorRotation(FRotator(0.f, FMath::RadiansToDegrees(FMath::Atan2(Facing.Y, Facing.X)), 0.f));
 }
 
 void AFighterBase::OnDeath()

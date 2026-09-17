@@ -1,4 +1,5 @@
 #include "World/WaveDirector.h"
+#include "Combat/AhmedArena.h"
 #include "Game/AhmedAudioSubsystem.h"
 
 #include "Combat/AhmedCharacter.h"
@@ -60,15 +61,12 @@ float AWaveDirector::GetStageLength() const
 
 bool AWaveDirector::Contains(const FVector& WorldLocation) const
 {
-	// The margin is the doorway: an exit sits EXIT_MARGIN inside the strip
-	// and the arriving step lands a little past it, and both are still ours.
+	// A district is a round place, not a strip with two ends. The margin is
+	// the doorway: an exit sits just inside the rim and the arriving step
+	// lands a little past it, and both are still ours.
 	constexpr float Margin = 400.f;
-	const FVector Origin = GetActorLocation();
-	const float X = WorldLocation.X - Origin.X;
-	const float Y = WorldLocation.Y - Origin.Y;
 	const float Length = Stage ? Stage->Length : 100000.f;
-	return X >= -Margin && X <= Length + Margin
-		&& Y >= AhmedGameplay::DepthMin - Margin && Y <= AhmedGameplay::DepthMax + Margin;
+	return AhmedArena::InCircle(WorldLocation, GetActorLocation(), Length + Margin);
 }
 
 void AWaveDirector::BeginPlay()
@@ -187,7 +185,10 @@ void AWaveDirector::BeginWave(const FWaveDef& Wave)
 	}
 
 	bArenaLocked = true;
-	ArenaOriginX = Player->GetActorLocation().X - 400.f;
+	// The fight happens where he is standing when it starts, not at an offset
+	// back down the corridor from him.
+	ArenaCentre = FVector(Player->GetActorLocation().X, Player->GetActorLocation().Y,
+	                      GetActorLocation().Z);
 	ApplyArenaBounds();
 
 	const int32 Tier = (Wave.TierOverride >= 0) ? Wave.TierOverride : Stage->Tier;
@@ -202,24 +203,23 @@ void AWaveDirector::BeginWave(const FWaveDef& Wave)
 
 void AWaveDirector::ApplyArenaBounds()
 {
-	// ArenaOriginX is already world (it came from the player); the stage's
-	// own ends and the walkable depth are local to the district.
-	const FVector Origin = GetActorLocation();
-	const float MinX = bArenaLocked ? ArenaOriginX : Origin.X;
-	const float MaxX = bArenaLocked ? ArenaOriginX + AhmedGameplay::ArenaWidth
-									: Origin.X + (Stage ? Stage->Length : 100000.f);
-	const float MinY = Origin.Y + AhmedGameplay::DepthMin;
-	const float MaxY = Origin.Y + AhmedGameplay::DepthMax;
+	// A locked fight is a circle around where the wave woke. Unlocked, the
+	// district is the whole of it, which is a circle big enough to hold the
+	// stage rather than a pair of ends on X.
+	const FVector Centre = bArenaLocked ? ArenaCentre : GetActorLocation();
+	const float Radius = bArenaLocked
+		? AhmedGameplay::ArenaRadius
+		: (Stage ? Stage->Length : 100000.f);
 
 	if (AAhmedCharacter* Player = Cast<AAhmedCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
 	{
-		Player->SetArenaFrame(MinX, MaxX, MinY, MaxY);
+		Player->SetArenaCircle(Centre, Radius);
 	}
 	for (AEnemyFighter* E : LiveEnemies)
 	{
 		if (IsValid(E))
 		{
-			E->SetArenaFrame(MinX, MaxX, MinY, MaxY);
+			E->SetArenaCircle(Centre, Radius);
 		}
 	}
 }
@@ -245,19 +245,21 @@ void AWaveDirector::SpawnFighter(FName Row, int32 Tier, int32 IndexInWave, int32
 		return;
 	}
 
-	// Alternate the side they walk in from so waves surround rather than queue.
-	const bool bFromRight = (IndexInWave % 3) != 2;
-	const float SpawnX = bFromRight
-		? ArenaOriginX + AhmedGameplay::ArenaWidth + 200.f + IndexInWave * 90.f
-		: ArenaOriginX - 200.f - IndexInWave * 70.f;
-	const float SpawnY = GetActorLocation().Y
-		+ FMath::FRandRange(AhmedGameplay::DepthMin * 0.8f, AhmedGameplay::DepthMax * 0.8f);
+	// In from around the ring rather than from one of two ends: a wave that
+	// can only arrive from east and west is a wave in a corridor. Spread by
+	// index so six of them do not walk in shoulder to shoulder, and jittered
+	// so it is not a parade.
+	const float Angle = (WaveSize > 0 ? (IndexInWave / (float)WaveSize) : 0.f) * 360.f
+	                  + FMath::FRandRange(-18.f, 18.f);
+	const float Radians = FMath::DegreesToRadians(Angle);
+	const FVector Spawn = ArenaCentre
+		+ FVector(FMath::Cos(Radians), FMath::Sin(Radians), 0.f) * AhmedGameplay::SpawnRing;
 
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
 	AEnemyFighter* Enemy = GetWorld()->SpawnActor<AEnemyFighter>(
-		PawnClass, FVector(SpawnX, SpawnY, GetActorLocation().Z), FRotator::ZeroRotator, Params);
+		PawnClass, FVector(Spawn.X, Spawn.Y, GetActorLocation().Z), FRotator::ZeroRotator, Params);
 	if (!Enemy)
 	{
 		return;
@@ -268,9 +270,9 @@ void AWaveDirector::SpawnFighter(FName Row, int32 Tier, int32 IndexInWave, int32
 
 	Enemy->AttackTable = AttackTable;
 	Enemy->ConfigureFromDefinition(*Def, Tier, Diff.EnemyHealth, Diff.EnemyDamage);
-	Enemy->FlankSide   = (IndexInWave % 2 == 0) ? 1.f : -1.f;
-	Enemy->LaneOffset  = (IndexInWave / 2) * 60.f;
-	Enemy->DepthOffset = FMath::FRandRange(-190.f, 190.f);
+	// The slot it holds in the crowd, so a wave spreads round him instead of
+	// piling onto one spot. The numbers used to be here, ad hoc.
+	AhmedArena::CrowdSlot(IndexInWave, Enemy->CrowdBearing, Enemy->LaneOffset);
 	Enemy->OnDefeated.AddDynamic(this, &AWaveDirector::HandleEnemyDefeated);
 
 	LiveEnemies.Add(Enemy);
