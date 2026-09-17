@@ -35,7 +35,8 @@ format and unheard in content. Play a stage before trusting any of them.
 Each was converted to the spec above: levelled so the Volume column in
 `DT_Sounds.csv` is the thing setting the level rather than whatever the model
 happened to render, 48 kHz, mono where the cue is spatial and stereo where it
-is not.
+is not. **That levelling did not survive the cut below** -- see *Then they
+were mastered*.
 
 **Then they were cut to their timing (2026-09-09).** The first pass had
 trimmed silence, not sound: most clips still carried the model's generation
@@ -62,6 +63,71 @@ the Unity build's `AudioLibrary.Lead` reads the same number. **Re-measure
 Lead whenever a clip is recast**; a wrong lead is a swing that sounds early
 or late by exactly the error.
 
+**Then they were mastered (2026-09-17).** The cut above says "nothing was
+re-levelled", and that is exactly what went wrong with it: the first pass
+levelled the *renders*, then the cut took a window out of each render and
+kept whatever level that window happened to have. So the level of a clip
+became the level of the part of the render that survived, and by the time
+anyone measured, peaks ran from 0.002 to 0.85 -- a factor of four hundred,
+with the Volume column sitting on top of it and multiplying the mess.
+
+Six cues were effectively silent: `UI_Tap` peaked at 0.002, which is -54
+dBFS, times a Volume of 0.60. `Weapon_Hit`, `Dash_Leap`, `Land`,
+`Exit_Travel` and `UI_Denied` were the others. A KO -- the loudest moment a
+fight has -- peaked 14 dB *under* a footstep.
+
+`Tools/audio/master.py` fixes what can be measured, and only that:
+
+- **DC offset off each channel.** `S_Whoosh_Light` sat 0.0106 off centre and
+  `S_Hit_Light` 0.0081. That is headroom spent on nothing and a click on the
+  first sample. Per channel, not one figure for both -- taking a stereo
+  clip's overall mean off both sides leaves each side off centre.
+- **Peak to -1 dBFS, up as readily as down.** Not 0: a full-scale sample can
+  still overshoot once an engine resamples or encodes it, and a fight plays
+  a lot of these at once. The *file* now carries the headroom and the
+  *table* carries the mix, so a cue's loudness is the Volume column and
+  nothing else. Lifts ran from +0.4 dB to +51 dB.
+- **2 ms in, 8 ms out, on edges that are not silent.** Only where the edge is
+  hot, so a hit whose crack is its first frame is not softened for nothing.
+  `S_Wave_Start` ended on a sample at 0.029, which is a click on every play.
+
+The levels are the whole of it. **Gain is not free**: `UI_Tap` came up 51 dB
+and everything underneath it came up 51 dB too. Nobody has heard the result,
+so if a quiet cue now hisses, that is the clip to re-roll rather than
+re-level.
+
+**Lead was not touched, and the first version of that tool was wrong to think
+it should be.** It measured the transient as the first sample reaching a tenth
+of the peak, decided twenty-six of forty rows were wrong by up to 489 ms, and
+would have written `Whoosh_Heavy` down to 0.001 s -- landing every heavy
+swing's swish 99 ms *after* the punch. A tenth of the peak finds where a
+whoosh starts winding up; this column holds where the sound lands. Measured
+the way the cut measured it, off a 5 ms RMS envelope, the committed values are
+right to within 2-3 ms nearly everywhere, and the four cues the game actually
+schedules off Lead -- `Whoosh_Light`, `Whoosh_Heavy`, `Weapon_Swing`, `Rage`
+-- agree to within 1 ms after mastering. Mastering cannot move them anyway:
+gain is uniform, so where a clip peaks is where it peaked.
+
+The tool prints the five rows that do disagree by more than 10 ms rather than
+changing them, because they are judgement rather than error -- `Hit_Knockdown`
+(0.056 against 0.102) and `Dash` (0.074 against 0.030) are cues with two bangs
+in them, and which one is "the" transient is a decision, not a measurement.
+None of the five is a swing cue, so none of them changes when a sound plays.
+
+Run it from the Unreal project root:
+
+    python3 Tools/audio/master.py            # master both ports in place
+    python3 Tools/audio/master.py --check    # measure what is on disk; fails if unmastered
+
+It is idempotent -- a second pass writes byte-identical files -- it mirrors
+every clip into the Unity port's `Assets/Resources/Audio` so the two builds
+cannot disagree about what a punch sounds like, and it does not write
+`DT_Sounds.csv`. An earlier version did, and threw partway through on a row
+whose description was written with commas and without quotes, truncating the
+table and taking the four music rows with it. The music is not touched
+either: those loops were cut to measured seams and levelled against each
+other, and peak-normalising a loop is the wrong operation on one.
+
 **To recast one**, open the flow, re-roll that node with a different prompt,
 drop the new take in over the file, and set its Lead. Nothing in code names a
 file, so nothing else has to change.
@@ -74,8 +140,10 @@ file, so nothing else has to change.
   the leap the first 0.8 s, which is a cut of the right sound, not a
   recording of it — they are still the two most likely to want re-rolling.
 - `S_UI_Tap.wav` was quiet enough that the silence trim removed the entire
-  file on the first pass. It is now 90 ms long. Check it is audible at all in
-  the mix.
+  file on the first pass. It is now 90 ms long. It was also the quietest clip
+  in the game by a distance -- 0.002 peak, -54 dBFS -- which is measured, not
+  a guess, and mastering has since brought it up 51 dB. Whether it is *right*
+  at 90 ms is still unheard.
 - `S_Whoosh_Light.wav` is 0.11 s: the only swish in the render was at the
   very end of the file and there is nothing after it, so the clip has no
   tail at all. It is right for a jab. Re-roll it if it reads as a click.

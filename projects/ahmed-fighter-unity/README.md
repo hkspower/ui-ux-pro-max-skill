@@ -270,7 +270,12 @@ export, or the tests run against yesterday's world.
 `sounds.json` is the one table that does not come from the browser build — it
 has no audio at all. Its rows come from `../ahmed-fighter-ue5/Content/Data/
 DT_Sounds.csv`, and the clips under `Assets/Resources/Audio` are the same
-recordings the Unreal build plays, so a punch sounds the same in both.
+recordings the Unreal build plays, so a punch sounds the same in both. Since
+2026-09-17 they are the same *mastered* recordings: `Tools/audio/master.py`
+in the Unreal project levels every effect to -1 dBFS, takes the DC offset off
+each channel and fades edges that would click, and writes both ports at once
+so they cannot drift apart. It leaves `lead` alone -- see that project's
+`Content/Audio/README.md` for why measuring it again was a mistake.
 
 Each row carries a `lead`: how far into its clip the transient sits. A swing
 is not played when the button is pressed; `Fighter.StartAttack` schedules its

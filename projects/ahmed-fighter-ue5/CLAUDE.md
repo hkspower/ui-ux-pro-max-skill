@@ -113,9 +113,10 @@ the rules that came out of that are load-bearing:
 - **This project has never been compiled.** It was written without an engine
   to build against. The C++ is idiomatic UE 5.4 and the data is complete, but
   expect to fix a compile error or two on a first build, and do not describe
-  any of it as verified until it has actually built. The one exception is
+  any of it as verified until it has actually built. The two exceptions are
   `Combat/AhmedArena.h`, which `Tools/harness/run.sh` compiles and executes
-  — that file's arithmetic is checked, and nothing else here is.
+  — that file's arithmetic is checked, and no other C++ here is — and
+  `Tools/audio/master.py`, which is Python, runs, and has.
 - **iOS is Mac-only.** There is no cross-compile. `Tools/ios/build-ios.sh`
   checks for this and says so rather than failing halfway through a cook.
 
