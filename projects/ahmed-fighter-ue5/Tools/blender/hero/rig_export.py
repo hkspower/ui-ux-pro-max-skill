@@ -47,14 +47,6 @@ def bind_all(body, garments, arm):
             if vg.name not in g.vertex_groups: g.vertex_groups.new(name=vg.name)
         bpy.ops.object.datalayout_transfer(modifier="Weights")
         bpy.ops.object.modifier_apply(modifier="Weights")
-        # Interpolated weights come back a few thousandths over one on a
-        # handful of verts, and the FBX exporter calls the mesh invalid for
-        # it. Clamped, not normalised: the body's weights are heat's and
-        # sum to one already.
-        for v in g.data.vertices:
-            for ge in v.groups:
-                if ge.weight > 1.0:
-                    g.vertex_groups[ge.group].add([v.index], 1.0, "REPLACE")
         # the armature modifier must come first for the join to keep it
         while g.modifiers.find("Skin") > 0: bpy.ops.object.modifier_move_up(modifier="Skin")
 
@@ -63,6 +55,17 @@ def join_all(body, others):
     for o in others: o.select_set(True)
     body.select_set(True); bpy.context.view_layer.objects.active = body
     bpy.ops.object.join()
+    # Heat leaves a handful of the body's weights a few thousandths over
+    # one (up to 1.011 on Ahmed at full resolution), and the garments'
+    # interpolated weights do the same; the exporters call the mesh invalid
+    # for it. Clamped, not normalised, once, on the one mesh that leaves.
+    over = 0
+    for v in body.data.vertices:
+        for ge in v.groups:
+            if ge.weight > 1.0:
+                body.vertex_groups[ge.group].add([v.index], 1.0, "REPLACE"); over += 1
+    if over:
+        print("clamped %d weights that heat or the transfer left over 1.0" % over)
     return body
 
 def curl_fingers(arm, degrees):

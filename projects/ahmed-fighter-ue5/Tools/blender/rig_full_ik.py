@@ -298,6 +298,19 @@ def build(rig, mesh):
         _prop(pb[hand], "fist", 0.0, 0.0, 1.0, "0: fingers as built; 1: a closed fist")
         _prop(pb[foot], "fk", 0.0, 0.0, 1.0, "0: the leg reaches for this control (IK); 1: the leg bones are posed directly (FK)")
         _prop(pb[foot], "roll", 0.0, -1.0, 1.0, "-1: back on the heel; +1: up on the toes")
+        # the IK constraints add_ik made: pole to the bone, influence to the
+        # switch. Retargeted FIRST: while the solver still reaches for
+        # ik_hand_*, the Copy Transforms below (ik_hand_* following hand_*)
+        # closes a cycle through the arm, and the depsgraph said so fourteen
+        # times per build until the order was this.
+        for ctrl, (bone, empty, target) in POLES.items():
+            ik = pb["%s_%s" % (bone, s)].constraints["IK"]
+            # the solver reaches for the control (the reverse foot's ankle
+            # for a leg), not for the mannequin's ik bone, which now follows
+            ik.subtarget = hand if ctrl == "CTRL_elbow" else "MCH_ankle_%s" % s
+            ik.pole_target = rig; ik.pole_subtarget = "%s_%s" % (ctrl, s)
+            _driver(ik, "influence", "1 - fk", rig, {"fk": (hand if ctrl == "CTRL_elbow" else foot, "fk")})
+            bpy.data.objects.remove(bpy.data.objects["%s_%s" % (empty, s)], do_unlink=True)
         # The mannequin's own IK bones carry where the hand and the foot ARE,
         # in the export and in either mode -- that is the convention an
         # engine's IK retargeting reads them by. They follow the deform
@@ -310,15 +323,6 @@ def build(rig, mesh):
         _driver(c, "influence", "1 - fk", rig, {"fk": (foot, "fk")})
         c = con("ball_%s" % s, "COPY_ROTATION", "MCH_toes_%s" % s, name="CTRL")
         _driver(c, "influence", "1 - fk", rig, {"fk": (foot, "fk")})
-        # the IK constraints add_ik made: pole to the bone, influence to the switch
-        for ctrl, (bone, empty, target) in POLES.items():
-            ik = pb["%s_%s" % (bone, s)].constraints["IK"]
-            # the solver reaches for the control (the reverse foot's ankle
-            # for a leg), not for the mannequin's ik bone, which now follows
-            ik.subtarget = hand if ctrl == "CTRL_elbow" else "MCH_ankle_%s" % s
-            ik.pole_target = rig; ik.pole_subtarget = "%s_%s" % (ctrl, s)
-            _driver(ik, "influence", "1 - fk", rig, {"fk": (hand if ctrl == "CTRL_elbow" else foot, "fk")})
-            bpy.data.objects.remove(bpy.data.objects["%s_%s" % (empty, s)], do_unlink=True)
         # the fist: every finger bone curls with the slider; the thumb half.
         # Which sign closes the hand is found by turning the index finger
         # and measuring, as the roll signs are: it depends on the bones'
