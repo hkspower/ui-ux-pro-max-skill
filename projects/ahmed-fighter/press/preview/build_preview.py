@@ -46,6 +46,7 @@ from datetime import datetime, timedelta, timezone
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import figures as F                                            # noqa: E402
+import levels                                                  # noqa: E402
 
 BROWSER = os.path.normpath(os.path.join(HERE, "..", ".."))
 UE5 = os.path.normpath(os.path.join(BROWSER, "..", "ahmed-fighter-ue5"))
@@ -64,12 +65,27 @@ W, H = 1920, 1080
 
 # ---------------------------------------------------------------- the numbers
 
+# Where each token of the game's scheme sits on the booklet's own print
+# ladder. A token not named here is paint, and paint takes the straight
+# black-point lift.
+SCHEME_ROLES = {"void": "page", "screen": "panel", "deep": "panel",
+                "panel": "card", "raised": "raised"}
+
+
 def colours():
-    """The scheme, read out of the browser build's own colours.js.
+    """The scheme, read out of the browser build's own colours.js, and put
+    through the booklet's print levels on the way in.
 
     Not copied. `../../assets/colors.js` is the single answer for what colour
     anything in this game is, and a press sheet that invented its own would
-    be the tenth place the palette lived.
+    be the tenth place the palette lived. But a screen palette is not a print
+    palette. Measured on the finished pages, 55 to 80 per cent of every sheet
+    sat below L* 6, where a press has no ink left to tell one thing from
+    another, and the sheet and the figures standing on it were 0.3 of an L*
+    apart -- the same disease as the visors, one layer down. `levels.to_print`
+    raises the black point, pulls the white point off bare paper, and puts
+    the four structural greys on rungs four and a half L* apart. The game's
+    own file is untouched: the game is not printed.
     """
     src = open(os.path.join(BROWSER, "assets", "colors.js"), encoding="utf-8").read()
     want = {
@@ -88,7 +104,7 @@ def colours():
         m = re.search(pat, src)
         if not m:
             sys.exit(f"colors.js has no {k} -- the scheme moved; fix this script.")
-        out[k] = m.group(1)
+        out[k] = levels.to_print(m.group(1), SCHEME_ROLES.get(k))
     return out
 
 
@@ -309,7 +325,7 @@ def grain(seed=1, n=520, op=0.05):
         h2 = math.sin((i + 1) * 78.233 + seed * 12.9898) * 43758.5453
         j2 = h2 - math.floor(h2)
         out.append(f'<circle cx="{j1 * W:.0f}" cy="{j2 * H:.0f}" '
-                   f'r="{0.8 + 1.8 * j2:.1f}" fill="#f4f1e8" opacity="{op:.3f}"/>')
+                   f'r="{0.8 + 1.8 * j2:.1f}" fill="#e7e4db" opacity="{op:.3f}"/>')
     return "".join(out)
 
 
@@ -319,11 +335,11 @@ def page_cover(C, S, stamp):
     sx, sy, sr = 1180, 430, 430
     svg = f"""<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}">
 <defs>
-  {F.screentone('tone-sun', 11, 3.4, '#ffdca0', 0.55, 24)}
-  {F.screentone('tone-dark', 9, 2.2, '#05070b', 0.5, -12)}
+  {F.screentone('tone-sun', 11, 3.4, '#f4d196', 0.55, 24)}
+  {F.screentone('tone-dark', 9, 2.2, '#17191b', 0.5, -12)}
   <radialGradient id="dusk" cx="62%" cy="42%" r="72%">
-    <stop offset="0%" stop-color="#3a2418"/>
-    <stop offset="46%" stop-color="#150f18"/>
+    <stop offset="0%" stop-color="#452e21"/>
+    <stop offset="46%" stop-color="#252028"/>
     <stop offset="100%" stop-color="{C['void']}"/>
   </radialGradient>
   <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
@@ -338,17 +354,17 @@ def page_cover(C, S, stamp):
   </linearGradient>
 </defs>
 <rect width="{W}" height="{H}" fill="url(#dusk)"/>
-{F.speed_lines(sx, sy, sr * 1.02, 1800, n=190, seed=4, colour='#d8a866', op=0.22,
+{F.speed_lines(sx, sy, sr * 1.02, 1800, n=190, seed=4, colour='#d3a362', op=0.22,
                wmin=1.0, wmax=7.0)}
-<circle cx="{sx}" cy="{sy}" r="{sr}" fill="#d79a44" opacity="0.92"/>
+<circle cx="{sx}" cy="{sy}" r="{sr}" fill="#d39741" opacity="0.92"/>
 <circle cx="{sx}" cy="{sy}" r="{sr}" fill="url(#tone-sun)"/>
-<circle cx="{sx}" cy="{sy}" r="{sr - 26}" fill="#e8b45c" opacity="0.55"/>
+<circle cx="{sx}" cy="{sy}" r="{sr - 26}" fill="#e1ae56" opacity="0.55"/>
 <path d="M{sx - sr},{sy + 150} a{sr},{sr} 0 0,0 {2 * sr},0 Z"
       fill="{C['void']}" opacity="0.18"/>
-{F.speed_lines(sx, sy, sr * 0.42, sr * 0.98, n=70, seed=9, colour='#fff0cf', op=0.16,
+{F.speed_lines(sx, sy, sr * 0.42, sr * 0.98, n=70, seed=9, colour='#f2e3c3', op=0.16,
                wmin=1.0, wmax=4.0)}
 {F.impact_star(944, 664, 340, points=20, inner=0.26, seed=12,
-               fill='#ffe6b0', op=0.30)}
+               fill='#f3daa5', op=0.30)}
 {F.ahmed_cross()}
 <rect x="0" y="{H - 300}" width="{W}" height="300" fill="url(#floor)"/>
 <rect x="0" y="0" width="980" height="{H}" fill="url(#left)"/>
@@ -360,7 +376,7 @@ def page_cover(C, S, stamp):
     flag = "".join(
         f'<div class="abs" style="left:96px;top:{150 + i * 74}px;width:16px;'
         f'height:74px;background:{c};outline:1px solid rgba(244,241,232,.12)"></div>'
-        for i, c in enumerate(("#101216", C['green'], "#f3f5f8", C['red'])))
+        for i, c in enumerate(("#080b10", C['green'], "#e6e8eb", C['red'])))
 
     return f"""<section class="page">{svg}{flag}
 <div class="abs kick" style="left:136px;top:152px;font-size:18px;
@@ -392,7 +408,7 @@ def page_cover(C, S, stamp):
 <div class="abs" style="right:92px;top:700px;width:150px;height:150px;
      border-radius:50%;background:{C['red']};display:flex;align-items:center;
      justify-content:center">
-  <span class="jp" style="font-size:52px;color:#fdfaf2;letter-spacing:.06em">予告</span>
+  <span class="jp" style="font-size:52px;color:#efece4;letter-spacing:.06em">予告</span>
 </div>
 <div class="abs kick" style="right:92px;top:864px;width:150px;text-align:center;
      font-size:13px;color:rgba(244,241,232,.62)">PREVIEW</div>
@@ -436,7 +452,7 @@ def page_fall(C, S, stamp):
                                       (374, 98, 208), (478, 132, 170), (616, 94, 244),
                                       (716, 140, 150))):
         blocks += (f'<rect x="{ax + bx}" y="{ay + 196 - bh}" width="{bw}" height="{bh}" '
-                   f'fill="#0f1420"/>')
+                   f'fill="#050b19"/>')
         for wy in range(int(bh // 46)):
             if (i * 7 + wy * 5) % 3 == 0:
                 continue
@@ -445,10 +461,10 @@ def page_fall(C, S, stamp):
                        f'height="9" fill="{gold}" '
                        f'opacity="{0.10 + 0.06 * ((i + wy) % 3)}"/>')
     a = f"""
-<rect x="{ax}" y="{ay}" width="{aw}" height="{ah}" fill="#141a26"/>
+<rect x="{ax}" y="{ay}" width="{aw}" height="{ah}" fill="#1c222e"/>
 <rect x="{ax}" y="{ay}" width="{aw}" height="{ah}" fill="url(#tone-b)"/>
 {blocks}
-<rect x="{ax}" y="{ay + 196}" width="{aw}" height="{ah - 196}" fill="#0a0e16"/>
+<rect x="{ax}" y="{ay + 196}" width="{aw}" height="{ah - 196}" fill="#1f2228"/>
 <path d="M{ax},{ay + 250} L{ax + aw},{ay + 236}" stroke="{cream}" stroke-width="3"
       opacity="0.22"/>
 {"".join(f'<rect x="{ax + 30 + i * 96}" y="{ay + 296}" width="52" height="7" fill="{cream}" opacity="0.30"/>' for i in range(8))}
@@ -475,7 +491,7 @@ def page_fall(C, S, stamp):
     # B -- the hole, looked into
     bx, by, bw, bh = 872, 232, 400, 352
     b = f"""
-<rect x="{bx}" y="{by}" width="{bw}" height="{bh}" fill="#0a0e16"/>
+<rect x="{bx}" y="{by}" width="{bw}" height="{bh}" fill="#1f2228"/>
 {F.speed_lines(bx + bw / 2, by + bh / 2, 30, 420, n=120, seed=33, colour=cream, op=0.22)}
 <ellipse cx="{bx + bw / 2}" cy="{by + bh / 2}" rx="150" ry="118" fill="#000"/>
 <ellipse cx="{bx + bw / 2}" cy="{by + bh / 2}" rx="150" ry="118" fill="none"
@@ -489,9 +505,9 @@ def page_fall(C, S, stamp):
     # C -- going down it
     cx0, cy0, cw, ch = 1288, 232, 520, 612
     c = f"""
-<rect x="{cx0}" y="{cy0}" width="{cw}" height="{ch}" fill="#05070b"/>
-<ellipse cx="{cx0 + cw / 2}" cy="{cy0 + 30}" rx="150" ry="44" fill="#e8b45c" opacity="0.5"/>
-<ellipse cx="{cx0 + cw / 2}" cy="{cy0 + 30}" rx="104" ry="28" fill="#ffe6b0" opacity="0.7"/>
+<rect x="{cx0}" y="{cy0}" width="{cw}" height="{ch}" fill="#17191b"/>
+<ellipse cx="{cx0 + cw / 2}" cy="{cy0 + 30}" rx="150" ry="44" fill="#e1ae56" opacity="0.5"/>
+<ellipse cx="{cx0 + cw / 2}" cy="{cy0 + 30}" rx="104" ry="28" fill="#f3daa5" opacity="0.7"/>
 {F.rain_lines(cx0 - 40, cy0, cw + 80, ch, n=110, seed=7, colour=cream, op=0.34,
               lean=0.05, lmin=140, lmax=520)}
 {F.ahmed_falling(cx0 + cw / 2 + 16, cy0 + 344, 0.70, rot=66)}
@@ -501,20 +517,20 @@ def page_fall(C, S, stamp):
     # D -- the landing
     dx, dy, dw, dh = 112, 600, 560, 340
     d = f"""
-<rect x="{dx}" y="{dy}" width="{dw}" height="{dh}" fill="#191420"/>
+<rect x="{dx}" y="{dy}" width="{dw}" height="{dh}" fill="#251f2c"/>
 <rect x="{dx}" y="{dy}" width="{dw}" height="{dh}" fill="url(#tone-b)"/>
 {F.impact_star(dx + dw / 2, dy + dh - 118, 190, points=22, inner=0.22, seed=44,
-               fill='#ffe6b0', op=0.42)}
+               fill='#f3daa5', op=0.42)}
 {F.speed_lines(dx + dw / 2, dy + dh - 96, 120, 520, n=64, seed=51, colour=cream,
                op=0.30, wmax=6, spread=3.14159, a0=3.14159)}
-<ellipse cx="{dx + dw / 2}" cy="{dy + dh - 60}" rx="210" ry="40" fill="#0a0e16"/>
+<ellipse cx="{dx + dw / 2}" cy="{dy + dh - 60}" rx="210" ry="40" fill="#1f2228"/>
 <g transform="translate({dx + dw / 2 - 10},{dy + dh - 48}) scale(0.84)">
   <path d="M-96,0 C-84,-46 -50,-78 -8,-86 L14,-40 C-14,-30 -38,-14 -52,6 Z" fill="{ink}"/>
   <path d="M14,-108 L54,-108 L58,-70 L10,-70 Z" fill="{ink}"/>
   <ellipse cx="34" cy="-142" rx="40" ry="44" fill="{ink}"/>
   <clipPath id="landface"><ellipse cx="34" cy="-142" rx="40" ry="44"/></clipPath>
-  <g clip-path="url(#landface)">{F.face(34, -140, 40, 44, tone="#241c22",
-     rim=gold, iris="#e8c46a", mood="set", lit=-1, turn=0.28, catch=True)}</g>
+  <g clip-path="url(#landface)">{F.face(34, -140, 40, 44, tone="#2f272d",
+     rim=gold, iris="#e0bc63", mood="set", lit=-1, turn=0.28, catch=True)}</g>
   <path d="M-6,-92 C22,-110 66,-108 88,-88 C104,-46 106,4 96,36
            C58,50 14,48 -16,32 C-22,-8 -16,-58 -6,-92 Z" fill="{ink}"/>
   <path d="M88,-88 C132,-74 170,-40 190,4 L146,28 C130,-6 106,-32 76,-46 Z" fill="{ink}"/>
@@ -529,8 +545,8 @@ def page_fall(C, S, stamp):
     # E -- and the ring closes
     ex, ey, ew, eh = 688, 600, 584, 340
     e = f"""
-<rect x="{ex}" y="{ey}" width="{ew}" height="{eh}" fill="#120f18"/>
-{F.speed_lines(ex + ew / 2, ey + eh, 60, 620, n=90, seed=61, colour='#e8b45c', op=0.16,
+<rect x="{ex}" y="{ey}" width="{ew}" height="{eh}" fill="#232029"/>
+{F.speed_lines(ex + ew / 2, ey + eh, 60, 620, n=90, seed=61, colour='#e1ae56', op=0.16,
                spread=3.14159, a0=3.14159)}
 {F.crowd(ex - 30, ey + eh, ew + 60, n=13, seed=17, rim=gold, h=170)}
 <rect x="{ex}" y="{ey}" width="{ew}" height="{eh}" fill="url(#tone-b)" opacity="0.5"/>
@@ -539,10 +555,10 @@ def page_fall(C, S, stamp):
     return f"""<section class="page">
 <svg width="{W}" height="{H}" viewBox="0 0 {W} {H}">
 <defs>
-  {F.screentone('tone-b', 10, 2.4, '#f4f1e8', 0.14, 30)}
+  {F.screentone('tone-b', 10, 2.4, '#e7e4db', 0.14, 30)}
   <linearGradient id="fade-b" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0%" stop-color="rgba(5,7,11,0)"/>
-    <stop offset="100%" stop-color="#05070b"/>
+    <stop offset="100%" stop-color="#17191b"/>
   </linearGradient>
 </defs>
 <rect width="{W}" height="{H}" fill="{C['void']}"/>
@@ -557,7 +573,7 @@ def page_fall(C, S, stamp):
         'أول دقيقة في اللعبة')}
 
 <div class="abs ar" style="left:{ax + 18}px;top:{ay + 18}px;width:400px;font-size:25px;
-     font-weight:700;color:{C['bright']};text-shadow:0 2px 10px #05070b">
+     font-weight:700;color:{C['bright']};text-shadow:0 2px 10px #17191b">
   يمشي. لا شيء يحدث.</div>
 <div class="abs lat" style="left:{ax + 20}px;top:{ay + 56}px;width:380px;font-size:19px;
      color:rgba(244,241,232,.72)">He is walking. Nothing is happening.</div>
@@ -586,7 +602,7 @@ def page_fall(C, S, stamp):
   He comes out somewhere nobody above has heard of.</div>
 
 <div class="abs arh" style="left:{ex + 30}px;top:{ey + 22}px;font-size:96px;
-     line-height:1.1;color:{C['gold']};text-shadow:0 4px 18px #05070b">الحلقة</div>
+     line-height:1.1;color:{C['gold']};text-shadow:0 4px 18px #17191b">الحلقة</div>
 <div class="abs dsp" style="left:{ex + 32}px;top:{ey + 142}px;font-size:46px;
      color:{C['bright']}">AL-HALQA</div>
 <div class="abs lat" style="left:{ex + 34}px;top:{ey + 196}px;width:520px;font-size:19px;
@@ -678,7 +694,7 @@ def page_ring(C, S, stamp):
             f'stroke-width="5" stroke-dasharray="14 10" opacity="0.9"/>')
 
     svg = f"""<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}">
-<defs>{F.screentone('tone-r', 12, 2.6, '#edbe57', 0.16, 16)}
+<defs>{F.screentone('tone-r', 12, 2.6, '#e5b750', 0.16, 16)}
   <radialGradient id="hubglow" cx="50%" cy="50%" r="50%">
     <stop offset="0%" stop-color="rgba(224,92,240,.34)"/>
     <stop offset="100%" stop-color="rgba(224,92,240,0)"/>
@@ -800,10 +816,10 @@ def district_card(C, st, x, y, w, h, tal, gates):
     badge = ""
     if boss:
         badge = (f'<div class="abs tag" style="right:18px;top:{vh - 34}px;'
-                 f'background:{C["red"]};color:#fdfaf2;padding:5px 12px">BOSS</div>')
+                 f'background:{C["red"]};color:#efece4;padding:5px 12px">BOSS</div>')
     elif survival:
         badge = (f'<div class="abs tag" style="right:18px;top:{vh - 34}px;'
-                 f'background:{C["rageFull"]};color:#1a0a1e;padding:5px 12px">'
+                 f'background:{C["rageFull"]};color:#2a1d2f;padding:5px 12px">'
                  f'ENDLESS</div>')
 
     tier = "".join(
@@ -820,7 +836,7 @@ def district_card(C, st, x, y, w, h, tal, gates):
           fill="url(#cardfade)"/>
   </svg>
   <div class="abs num" style="left:18px;top:12px;font-size:62px;
-       color:rgba(244,241,232,.90);text-shadow:0 3px 12px #05070b">
+       color:rgba(244,241,232,.90);text-shadow:0 3px 12px #17191b">
        {st["Index"] + 1:02d}</div>
   {badge}
   <div class="abs" style="left:20px;right:20px;top:{vh + 14}px">
@@ -864,7 +880,7 @@ def page_districts(C, S, stamp, half, n):
 <defs><linearGradient id="cardfade" x1="0" y1="0" x2="0" y2="1">
   <stop offset="0%" stop-color="rgba(21,27,40,0)"/>
   <stop offset="100%" stop-color="rgba(21,27,40,.96)"/>
-</linearGradient>{F.screentone('tone-d', 13, 2.2, '#edbe57', 0.10, 40)}</defs>
+</linearGradient>{F.screentone('tone-d', 13, 2.2, '#e5b750', 0.10, 40)}</defs>
 <rect width="{W}" height="{H}" fill="{C['void']}"/>
 <rect width="{W}" height="{H}" fill="url(#tone-d)" opacity="0.5"/>
 {grain(20 + n, 240, 0.03)}
@@ -900,9 +916,9 @@ BOSS_LINES = {
               "A boxing monster — gloves, a body half again the size of any man "
               "in the Halqa, long arms, slow. He only punches."),
 }
-BOSS_ART = {"Zayos": ("zayos", "#ff9a3c", "#2a1f10"),
-            "Saqr": ("saqr", "#59b6ff", "#0d2430"),
-            "Boss": ("wahsh", "#e05cf0", "#2a1030")}
+BOSS_ART = {"Zayos": ("zayos", "#f99537", "#35291b"),
+            "Saqr": ("saqr", "#53b1fa", "#192f3b"),
+            "Boss": ("wahsh", "#de5aee", "#361b3c")}
 
 
 def page_cast(C, S, stamp):
@@ -1116,15 +1132,15 @@ def page_back(C, S, stamp):
 
     return f"""<section class="page">
 <svg width="{W}" height="{H}" viewBox="0 0 {W} {H}">
-<defs>{F.screentone('tone-k', 12, 2.6, '#edbe57', 0.14, 22)}
+<defs>{F.screentone('tone-k', 12, 2.6, '#e5b750', 0.14, 22)}
   <radialGradient id="back" cx="50%" cy="34%" r="66%">
-    <stop offset="0%" stop-color="#241a12"/>
+    <stop offset="0%" stop-color="#2f251d"/>
     <stop offset="100%" stop-color="{C['void']}"/>
   </radialGradient></defs>
 <rect width="{W}" height="{H}" fill="url(#back)"/>
-<circle cx="{W / 2}" cy="330" r="250" fill="#d79a44" opacity="0.14"/>
+<circle cx="{W / 2}" cy="330" r="250" fill="#d39741" opacity="0.14"/>
 <circle cx="{W / 2}" cy="330" r="250" fill="url(#tone-k)"/>
-{F.speed_lines(W / 2, 330, 252, 1200, n=150, seed=8, colour='#d8a866', op=0.13)}
+{F.speed_lines(W / 2, 330, 252, 1200, n=150, seed=8, colour='#d3a362', op=0.13)}
 {F.crowd(-40, H - 40, W + 80, n=34, seed=29, rim=gold, op=0.85, h=110)}
 {grain(41, 320, 0.04)}
 </svg>

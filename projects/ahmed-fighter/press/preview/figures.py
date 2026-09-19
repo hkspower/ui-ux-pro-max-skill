@@ -57,7 +57,7 @@ def ellipse(cx, cy, rx, ry, rot=0, **a):
 
 # ------------------------------------------------------------- anime devices
 
-def speed_lines(cx, cy, r0, r1, n=120, seed=7, colour="#f4f1e8", op=0.5,
+def speed_lines(cx, cy, r0, r1, n=120, seed=7, colour="#e7e4db", op=0.5,
                 wmin=1.2, wmax=9.0, spread=math.tau, a0=0.0):
     """The burst behind an impact. Radial, uneven, thicker at the outside.
 
@@ -82,7 +82,7 @@ def speed_lines(cx, cy, r0, r1, n=120, seed=7, colour="#f4f1e8", op=0.5,
     return "".join(out)
 
 
-def rain_lines(x, y, w, h, n=70, seed=3, colour="#f4f1e8", op=0.35,
+def rain_lines(x, y, w, h, n=70, seed=3, colour="#e7e4db", op=0.35,
                lean=-0.16, lmin=90, lmax=420):
     """Vertical speed lines -- falling, and the page that says so."""
     out = []
@@ -100,7 +100,7 @@ def rain_lines(x, y, w, h, n=70, seed=3, colour="#f4f1e8", op=0.35,
     return "".join(out)
 
 
-def screentone(sid, spacing=9, r=2.0, colour="#f4f1e8", op=0.5, angle=18):
+def screentone(sid, spacing=9, r=2.0, colour="#e7e4db", op=0.5, angle=18):
     """Halftone. The dot is the shading; there is no gradient in a cel."""
     return (f'<pattern id="{sid}" width="{spacing}" height="{spacing}" '
             f'patternUnits="userSpaceOnUse" patternTransform="rotate({angle})">'
@@ -108,14 +108,14 @@ def screentone(sid, spacing=9, r=2.0, colour="#f4f1e8", op=0.5, angle=18):
             f'fill="{colour}" opacity="{op}"/></pattern>')
 
 
-def hatch(sid, spacing=7, w=1.6, colour="#05070b", op=0.55, angle=-38):
+def hatch(sid, spacing=7, w=1.6, colour="#090b0f", op=0.55, angle=-38):
     return (f'<pattern id="{sid}" width="{spacing}" height="{spacing}" '
             f'patternUnits="userSpaceOnUse" patternTransform="rotate({angle})">'
             f'<path d="M0,0 L0,{spacing}" stroke="{colour}" stroke-width="{w}" '
             f'opacity="{op}"/></pattern>')
 
 
-def impact_star(cx, cy, r, points=14, inner=0.34, seed=5, fill="#fdfaf2", op=1.0):
+def impact_star(cx, cy, r, points=14, inner=0.34, seed=5, fill="#efece4", op=1.0):
     """The flash at the contact frame. Jagged, never regular."""
     pts = []
     for i in range(points * 2):
@@ -173,7 +173,7 @@ MOODS = {
 _FACE_N = [0]
 
 
-def face(cx, cy, rx, ry, ink="#05070b", tone="#1b2030", rim="#edbe57",
+def face(cx, cy, rx, ry, ink="#090b0f", tone="#262b3b", rim="#e5b750",
          iris=None, mood="set", lit=1, turn=0.0, catch=False, open_mouth=False,
          plane=True, gaze=(0.0, 0.0), tilt=0.0):
     """One face, built plane-first. Returns SVG.
@@ -255,7 +255,7 @@ def face(cx, cy, rx, ry, ink="#05070b", tone="#1b2030", rim="#edbe57",
                       f"C{ex + ew * 0.5:.1f},{eyey + eh * 0.84:.1f} "
                       f"{ex - ew * 0.5:.1f},{eyey + eh * 0.84:.1f} "
                       f"{ex - ew:.1f},{eyey + eh * 0.16:.1f} Z",
-                      fill="#e7e2d4", op=0.72))
+                      fill="#dcd7c9", op=0.72))
         # 3c. the iris, sitting ON the lower lid, the one place the accent
         #     colour is allowed on a face
         ix = ex + max(-0.52, min(0.52, gaze[0])) * ew
@@ -264,7 +264,7 @@ def face(cx, cy, rx, ry, ink="#05070b", tone="#1b2030", rim="#edbe57",
         g.append(ellipse(ix, iy, ew * 0.18, eh * 0.32, fill=dark))
         if catch:
             g.append(ellipse(ix - ew * 0.18, iy - eh * 0.26,
-                             ew * 0.13, eh * 0.20, fill="#fdfaf2"))
+                             ew * 0.13, eh * 0.20, fill="#efece4"))
         # 3d. the upper lid, dropped by the mood, and heavier than the lower
         if lid > 0.01:
             # the lid IS the socket, slid down over the eye. Drawing it as a
@@ -329,7 +329,7 @@ def face(cx, cy, rx, ry, ink="#05070b", tone="#1b2030", rim="#edbe57",
                  f"C{cx + mwx * 0.28:.1f},{my + ry * 0.04:.1f} "
                  f"{cx - mwx * 0.28:.1f},{my + ry * 0.04:.1f} "
                  f"{cx - mwx * 0.66:.1f},{my - ry * 0.02:.1f} Z")
-        g.append(path(mouth, fill="#120c10"))
+        g.append(path(mouth, fill="#1e1a1d"))
         g.append(path(mouth, stroke=dark, w=max(1.2, ry * 0.034)))
         g.append(path(f"M{cx - mwx * 0.40:.1f},{my + ry * 0.175:.1f} "
                       f"C{cx - mwx * 0.14:.1f},{my + ry * 0.225:.1f} "
@@ -357,8 +357,8 @@ def face(cx, cy, rx, ry, ink="#05070b", tone="#1b2030", rim="#edbe57",
 
 # --------------------------------------------------------------------- AHMED
 
-def ahmed_cross(ink="#06080d", cloth="#161d33", tone="#232a3e", rim="#edbe57",
-                cool="#4f79ad", wrap="#c8102e"):
+def ahmed_cross(ink="#090b0f", cloth="#21283f", tone="#2d3448", rim="#e5b750",
+                cool="#517baf", wrap="#cd1932"):
     """The lead, throwing a cross at the camera. Backlit.
 
     The pose is the one frame an anime picks for a poster: the arm already
@@ -410,7 +410,7 @@ def ahmed_cross(ink="#06080d", cloth="#161d33", tone="#232a3e", rim="#edbe57",
              '1318,418 C1292,398 1274,364 1272,322 C1270,270 1290,232 '
              '1300,228 Z"/></clipPath>')
     g.append('<g clip-path="url(#ahface)">')
-    g.append(face(1318, 320, 47, 68, tone="#242031", rim=rim, iris="#e8c46a",
+    g.append(face(1318, 320, 47, 68, tone="#2f2a3c", rim=rim, iris="#e0bc63",
                   mood="set", lit=1, turn=0.50, catch=True, gaze=(0.0, 0.0)))
     g.append("</g>")
     g.append(path("M1352,300 C1372,304 1384,318 1388,338", stroke=rim, w=4, op=0.62))
@@ -486,10 +486,10 @@ def ahmed_cross(ink="#06080d", cloth="#161d33", tone="#232a3e", rim="#edbe57",
                   "C1092,646 1096,700 1090,754 C1066,772 1034,774 1010,758 "
                   "C998,706 996,648 1004,600 Z", fill=wrap))
     g.append(path("M1080,606 C1092,646 1096,700 1090,754 L1062,766 "
-                  "C1072,708 1070,650 1056,602 Z", fill="#8c0b20"))
+                  "C1072,708 1070,650 1056,602 Z", fill="#951927"))
     for yy in (638, 682, 726):
         g.append(path(f"M1006,{yy} C1034,{yy - 10} 1062,{yy - 8} 1088,{yy + 2}",
-                      stroke="#05070b", w=3.5, op=0.5))
+                      stroke="#090b0f", w=3.5, op=0.5))
 
     # --- the fist, nearest the lens and out of scale on purpose.
     g.append(path("M958,548 C884,534 812,566 782,626 C752,688 774,760 836,796 "
@@ -541,7 +541,7 @@ def ahmed_cross(ink="#06080d", cloth="#161d33", tone="#232a3e", rim="#edbe57",
 
 # ------------------------------------------------------- the rest of the cast
 
-def ahmed_falling(x, y, s=1.0, rot=24, ink="#06080d", rim="#edbe57", wrap="#c8102e"):
+def ahmed_falling(x, y, s=1.0, rot=24, ink="#090b0f", rim="#e5b750", wrap="#cd1932"):
     """Him, going down the hole. Limbs out, nothing to hold.
 
     Drawn small and tumbling: the page it sits on is mostly empty air, and a
@@ -554,7 +554,7 @@ def ahmed_falling(x, y, s=1.0, rot=24, ink="#06080d", rim="#edbe57", wrap="#c810
     g.append('<g clip-path="url(#flface)">')
     # his eyes are turned back up toward the light he is falling away from.
     # He is looking at the hole. That is the whole page.
-    g.append(face(0, -118, 42, 46, tone="#1e2436", rim=rim, iris="#e8c46a",
+    g.append(face(0, -118, 42, 46, tone="#282e41", rim=rim, iris="#e0bc63",
                   mood="wide", lit=1, turn=0.12, catch=True, open_mouth=True,
                   gaze=(0.0, -0.46)))
     g.append("</g>")
@@ -584,7 +584,7 @@ def ahmed_falling(x, y, s=1.0, rot=24, ink="#06080d", rim="#edbe57", wrap="#c810
     return "".join(g)
 
 
-def wahsh(x, y, s=1.0, ink="#05070b", tone="#221a22", rim="#e05cf0"):
+def wahsh(x, y, s=1.0, ink="#090b0f", tone="#2d252d", rim="#de5aee"):
     """AL-WAHSH. Not a monster -- what staying looks like when you are
     very good at it. Read as mass: the shoulders arrive before the head."""
     g = [f'<g transform="translate({x},{y}) scale({s})">']
@@ -597,7 +597,7 @@ def wahsh(x, y, s=1.0, ink="#05070b", tone="#221a22", rim="#e05cf0"):
     g.append('<g clip-path="url(#whface)">')
     # he is not a monster -- the brow is heavy and the eyes are half shut
     # because he is unbothered, not because he is snarling
-    g.append(face(0, 24, 60, 66, tone="#2e2330", rim=rim, iris="#ef8dff",
+    g.append(face(0, 24, 60, 66, tone="#382d3a", rim=rim, iris="#ea88fa",
                   mood="heavy", lit=1, turn=0.0, gaze=(0.0, 0.0)))
     g.append("</g>")
     g.append(path("M-84,-4 C-76,-86 -40,-132 0,-132 C40,-132 76,-86 84,-4 "
@@ -622,7 +622,7 @@ def wahsh(x, y, s=1.0, ink="#05070b", tone="#221a22", rim="#e05cf0"):
     return "".join(g)
 
 
-def saqr(x, y, s=1.0, ink="#05070b", tone="#0d2430", rim="#59b6ff"):
+def saqr(x, y, s=1.0, ink="#090b0f", tone="#192f3b", rim="#53b1fa"):
     """AL-SAQR. All legs, no patience -- so he is caught at the top of a head
     kick, where the leg is the whole drawing.
 
@@ -650,7 +650,7 @@ def saqr(x, y, s=1.0, ink="#05070b", tone="#0d2430", rim="#59b6ff"):
              'transform="rotate(14 96 -392)"/></clipPath>')
     g.append('<g clip-path="url(#sqface)">')
     # he looks down the line of the kick, at the target, never at us
-    g.append(face(86, -390, 40, 50, tone="#17303c", rim=rim, iris="#7fd0ff",
+    g.append(face(86, -390, 40, 50, tone="#213a46", rim=rim, iris="#77c8f7",
                   mood="narrow", lit=1, turn=0.52, gaze=(-0.42, 0.22),
                   tilt=14))
     g.append("</g>")
@@ -682,7 +682,7 @@ def saqr(x, y, s=1.0, ink="#05070b", tone="#0d2430", rim="#59b6ff"):
                   "C110,-260 78,-276 44,-282 Z", fill=ink))
     g.append(ellipse(196, -216, 30, 27, rot=-18, fill=ink))
     g.append(path("M172,-236 C186,-246 208,-244 218,-232 L214,-214 "
-                  "C204,-226 186,-228 170,-220 Z", fill="#c8102e", op=0.9))
+                  "C204,-226 186,-228 170,-220 Z", fill="#cd1932", op=0.9))
     # near arm, tucked across the ribs
     g.append(path("M42,-300 C14,-282 -2,-252 -4,-220 "
                   "C-6,-196 8,-180 28,-182 C46,-184 56,-200 54,-222 "
@@ -701,7 +701,7 @@ def saqr(x, y, s=1.0, ink="#05070b", tone="#0d2430", rim="#59b6ff"):
     return "".join(g)
 
 
-def zayos(x, y, s=1.0, ink="#05070b", tone="#1c1a16", rim="#ff9a3c"):
+def zayos(x, y, s=1.0, ink="#090b0f", tone="#272521", rim="#f99537"):
     """ZAYOS, in the cellar. A boxing monster: gloves, long arms, slow, and
     a body half again the size of any man in the Halqa. He only punches."""
     g = [f'<g transform="translate({x},{y}) scale({s})">']
@@ -717,7 +717,7 @@ def zayos(x, y, s=1.0, ink="#05070b", tone="#1c1a16", rim="#ff9a3c"):
     # the heaviest brow in the booklet and the smallest eyes under it: he is
     # enormous, he is slow, and he only punches. Straight ahead and slightly
     # through the reader -- a man with one idea.
-    g.append(face(0, 18, 52, 56, tone="#2a2318", rim=rim, iris="#ffb877",
+    g.append(face(0, 18, 52, 56, tone="#352d22", rim=rim, iris="#f7b170",
                   mood="dull", lit=1, turn=0.0, gaze=(0.0, 0.10)))
     g.append("</g>")
     g.append(path("M-70,-2 C-64,-64 -34,-100 0,-100 C34,-100 64,-64 70,-2 "
@@ -745,7 +745,7 @@ def zayos(x, y, s=1.0, ink="#05070b", tone="#1c1a16", rim="#ff9a3c"):
     return "".join(g)
 
 
-def crowd(x, y, w, n=26, seed=11, ink="#05070b", rim=None, op=1.0, h=90):
+def crowd(x, y, w, n=26, seed=11, ink="#090b0f", rim=None, op=1.0, h=90):
     """The ring of onlookers that closes around a fight in a marketplace.
     Halqa means that too, so the crowd is never decoration on this page.
 
@@ -818,7 +818,7 @@ def crowd(x, y, w, n=26, seed=11, ink="#05070b", rim=None, op=1.0, h=90):
 
 # --------------------------------------------------------------- the places
 
-def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
+def vignette(theme, x, y, w, h, gold="#e5b750", ink="#090b0f", cream="#e7e4db"):
     """One district, in the smallest number of shapes that still says which.
 
     Nine themes, nine skylines. Each is the one thing the stage's own
@@ -836,9 +836,9 @@ def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
     gy = y + h                                       # the ground line
 
     if theme == "Souq":
-        g.append(R(x, y, w, h, "#241a14"))
+        g.append(R(x, y, w, h, "#2f251f"))
         g.append(f'<circle cx="{x + w * .74:.0f}" cy="{y + h * .34:.0f}" '
-                 f'r="{h * .30:.0f}" fill="#e8b45c" opacity="0.8"/>')
+                 f'r="{h * .30:.0f}" fill="#e1ae56" opacity="0.8"/>')
         for i in range(5):
             ax = x + 12 + i * (w - 24) / 5
             aw = (w - 24) / 5 - 8
@@ -850,7 +850,7 @@ def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
             sw = (w - 32) / 4 - 6
             g.append(f'<path d="M{sx:.0f},{gy - h * .40:.0f} l{sw:.0f},0 '
                      f'l-10,{h * .11:.0f} l{-(sw - 20):.0f},0 Z" '
-                     f'fill="{"#c8102e" if i % 2 else gold}" opacity="0.85"/>')
+                     f'fill="{"#cd1932" if i % 2 else gold}" opacity="0.85"/>')
             g.append(f'<path d="M{sx:.0f},{gy - h * .40:.0f} l{sw:.0f},0" '
                      f'stroke="{ink}" stroke-width="3"/>')
         for i in range(3):
@@ -864,8 +864,8 @@ def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
                        rim=gold))
 
     elif theme == "Gym":
-        g.append(R(x, y, w, h, "#1a1620"))
-        g.append(R(x, gy - h * .18, w, h * .18, "#0d0b10"))
+        g.append(R(x, y, w, h, "#25212c"))
+        g.append(R(x, gy - h * .18, w, h * .18, "#1b1a1d"))
         for i, ry in enumerate((.34, .46, .58)):
             g.append(f'<path d="M{x + 10},{gy - h * ry:.0f} L{x + w - 10},'
                      f'{gy - h * ry:.0f}" stroke="{cream}" stroke-width="4" '
@@ -882,13 +882,13 @@ def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
                  f'stroke-width="3" opacity="0.7"/>')
 
     elif theme == "Fishmarket":
-        g.append(R(x, y, w, h, "#16202c"))
+        g.append(R(x, y, w, h, "#212b37"))
         g.append(f'<circle cx="{x + w * .30:.0f}" cy="{gy - h * .40:.0f}" '
-                 f'r="{h * .22:.0f}" fill="#f0b45c" opacity="0.85"/>')
-        g.append(R(x, gy - h * .40, w, h * .40, "#0d1620"))
+                 f'r="{h * .22:.0f}" fill="#e9ae56" opacity="0.85"/>')
+        g.append(R(x, gy - h * .40, w, h * .40, "#19212c"))
         for i in range(6):
             g.append(f'<path d="M{x},{gy - h * (0.34 - i * 0.05):.0f} '
-                     f'L{x + w},{gy - h * (0.34 - i * 0.05):.0f}" stroke="#f0b45c" '
+                     f'L{x + w},{gy - h * (0.34 - i * 0.05):.0f}" stroke="#e9ae56" '
                      f'stroke-width="3" opacity="{0.30 - i * 0.04}"/>')
         g.append(f'<path d="M{x + w * .66:.0f},{gy - h * .40:.0f} '
                  f'L{x + w * .66:.0f},{y + h * .10:.0f}" stroke="{ink}" '
@@ -903,7 +903,7 @@ def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
                  f'L{x + w * .58:.0f},{gy - h * .26:.0f} Z" fill="{ink}"/>')
 
     elif theme == "Towers":
-        g.append(R(x, y, w, h, "#0d1020"))
+        g.append(R(x, y, w, h, "#191d2c"))
         for i in range(22):
             sx = x + ((i * 97) % int(w))
             sy = y + ((i * 53) % int(h * 0.6))
@@ -919,27 +919,27 @@ def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
             g.append(f'<ellipse cx="{tx:.0f}" cy="{gy - h * fh + 10:.0f}" '
                      f'rx="{fr}" ry="{fr * 0.52:.0f}" fill="none" stroke="{gold}" '
                      f'stroke-width="2.5" opacity="0.8"/>')
-        g.append(R(x, gy - h * .12, w, h * .12, "#080b14"))
+        g.append(R(x, gy - h * .12, w, h * .12, "#181a20"))
 
     elif theme == "Marina":
-        g.append(R(x, y, w, h, "#0a1020"))
+        g.append(R(x, y, w, h, "#171d2c"))
         mcx, mcy, mr = x + w * .50, y + h * .44, min(w, h) * .30
         g.append(f'<circle cx="{mcx:.0f}" cy="{mcy:.0f}" r="{mr:.0f}" '
-                 f'fill="#59b6ff" opacity="0.95"/>')
+                 f'fill="#53b1fa" opacity="0.95"/>')
         g.append(f'<circle cx="{mcx + mr * .46:.0f}" cy="{mcy - mr * .26:.0f}" '
-                 f'r="{mr * .88:.0f}" fill="#0a1020"/>')
+                 f'r="{mr * .88:.0f}" fill="#171d2c"/>')
         g.append(f'<circle cx="{mcx:.0f}" cy="{mcy:.0f}" r="{mr * 1.22:.0f}" '
-                 f'fill="#59b6ff" opacity="0.10"/>')
-        g.append(R(x, gy - h * .32, w, h * .32, "#060c18"))
+                 f'fill="#53b1fa" opacity="0.10"/>')
+        g.append(R(x, gy - h * .32, w, h * .32, "#161a24"))
         for i in range(9):
             lx = x + 12 + i * (w - 24) / 9
             g.append(f'<rect x="{lx:.0f}" y="{gy - h * .30:.0f}" width="5" '
                      f'height="{h * (0.06 + 0.04 * (i % 3)):.0f}" '
-                     f'fill="{"#ff9a3c" if i % 2 else "#59b6ff"}" opacity="0.8"/>')
+                     f'fill="{"#f99537" if i % 2 else "#53b1fa"}" opacity="0.8"/>')
 
     elif theme == "Failaka":
-        g.append(R(x, y, w, h, "#131a20"))
-        g.append(R(x, gy - h * .30, w, h * .30, "#0a1218"))
+        g.append(R(x, y, w, h, "#1e252b"))
+        g.append(R(x, gy - h * .30, w, h * .30, "#181e24"))
         for i, (bx, bw2, bh2) in enumerate(((.10, .16, .30), (.30, .10, .46),
                                             (.46, .20, .24), (.70, .12, .40),
                                             (.86, .14, .20))):
@@ -949,14 +949,14 @@ def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
                      f'stroke="{gold}" stroke-width="3" opacity="0.5"/>')
         for i in range(4):
             g.append(f'<path d="M{x},{gy - h * (0.24 - i * 0.06):.0f} '
-                     f'L{x + w},{gy - h * (0.24 - i * 0.06):.0f}" stroke="#59b6ff" '
+                     f'L{x + w},{gy - h * (0.24 - i * 0.06):.0f}" stroke="#53b1fa" '
                      f'stroke-width="2" opacity="{0.22 - i * 0.04}"/>')
 
     elif theme == "Highway":
-        g.append(R(x, y, w, h, "#2a1c16"))
+        g.append(R(x, y, w, h, "#352720"))
         g.append(f'<circle cx="{x + w * .50:.0f}" cy="{gy - h * .40:.0f}" '
-                 f'r="{h * .26:.0f}" fill="#e2703a" opacity="0.85"/>')
-        g.append(R(x, gy - h * .40, w, h * .40, "#100c12"))
+                 f'r="{h * .26:.0f}" fill="#e16f39" opacity="0.85"/>')
+        g.append(R(x, gy - h * .40, w, h * .40, "#1d1a1f"))
         for i in range(5):
             g.append(f'<rect x="{x + 8 + i * (w - 16) / 5:.0f}" '
                      f'y="{gy - h * .10:.0f}" width="{(w - 16) / 5 - 20:.0f}" '
@@ -969,7 +969,7 @@ def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
                      f'stroke-width="3" opacity="0.55"/>')
 
     elif theme == "Desert":
-        g.append(R(x, y, w, h, "#1b1420"))
+        g.append(R(x, y, w, h, "#271f2c"))
         for i in range(18):
             sx = x + ((i * 131) % int(w))
             g.append(f'<circle cx="{sx}" cy="{y + ((i * 61) % int(h * .5))}" '
@@ -977,7 +977,7 @@ def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
         g.append(f'<path d="M{x},{gy} L{x},{gy - h * .22:.0f} '
                  f'Q{x + w * .3:.0f},{gy - h * .40:.0f} {x + w * .58:.0f},'
                  f'{gy - h * .20:.0f} Q{x + w * .82:.0f},{gy - h * .04:.0f} '
-                 f'{x + w:.0f},{gy - h * .26:.0f} L{x + w:.0f},{gy} Z" fill="#241b16"/>')
+                 f'{x + w:.0f},{gy - h * .26:.0f} L{x + w:.0f},{gy} Z" fill="#2f2621"/>')
         for i, (fx, fs) in enumerate(((.20, 1.0), (.46, 1.4), (.74, 0.8))):
             fx2 = x + w * fx
             fy = gy - h * (.14 + 0.03 * i)
@@ -987,18 +987,18 @@ def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
                      f'{fx2 + 2 * fs:.0f},{fy - 52 * fs:.0f} '
                      f'C{fx2 + 20 * fs:.0f},{fy - 30 * fs:.0f} '
                      f'{fx2 + 18 * fs:.0f},{fy - 12 * fs:.0f} '
-                     f'{fx2:.0f},{fy:.0f} Z" fill="#ff9a3c" opacity="0.9"/>')
+                     f'{fx2:.0f},{fy:.0f} Z" fill="#f99537" opacity="0.9"/>')
             g.append(f'<ellipse cx="{fx2 + 2:.0f}" cy="{fy + 3:.0f}" '
                      f'rx="{22 * fs:.0f}" ry="{6 * fs:.0f}" fill="{gold}" '
                      f'opacity="0.22"/>')
 
     else:                                                        # Arena
-        g.append(R(x, y, w, h, "#150f1c"))
+        g.append(R(x, y, w, h, "#201c28"))
         g.append(f'<path d="M{x + w * .5:.0f},{y - 20} L{x - 40},{gy} '
-                 f'L{x + w + 40:.0f},{gy} Z" fill="#e05cf0" opacity="0.13"/>')
+                 f'L{x + w + 40:.0f},{gy} Z" fill="#de5aee" opacity="0.13"/>')
         g.append(f'<ellipse cx="{x + w * .5:.0f}" cy="{gy - h * .12:.0f}" '
                  f'rx="{w * .40:.0f}" ry="{h * .12:.0f}" fill="none" '
-                 f'stroke="#e05cf0" stroke-width="4" opacity="0.8"/>')
+                 f'stroke="#de5aee" stroke-width="4" opacity="0.8"/>')
         g.append(crowd(x - 20, gy, w + 40, n=9, seed=23, h=h * 0.34, ink=ink,
                        rim=gold))
     g.append("</g>")
@@ -1007,7 +1007,7 @@ def vignette(theme, x, y, w, h, gold="#edbe57", ink="#05070b", cream="#f4f1e8"):
 
 # --------------------------------------------------------------- the talents
 
-def talent_mark(name, colour="#edbe57", size=72):
+def talent_mark(name, colour="#e5b750", size=72):
     """A drawn mark for each talent, not a typed one.
 
     `DT_Talents.csv` carries a glyph per talent for the in-game HUD, and on a
@@ -1031,8 +1031,8 @@ def talent_mark(name, colour="#edbe57", size=72):
               "C60,55 50,62 37,62 C25,62 18,54 18,44 Z", fill=colour)
             + "".join(P(f"M{22 + i * 10},22 a5,5 0 0,1 10,0", fill=colour)
                       for i in range(4))
-            + P("M20,44 L56,41", stroke="#05070b", w=4)
-            + P("M22,53 L54,51", stroke="#05070b", w=3.4)
+            + P("M20,44 L56,41", stroke="#090b0f", w=4)
+            + P("M22,53 L54,51", stroke="#090b0f", w=3.4)
             + P("M10,50 C9,40 12,33 18,30 L20,58 C13,58 10,55 10,50 Z",
                 fill=colour, stroke=None))
 
