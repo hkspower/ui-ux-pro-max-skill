@@ -1,5 +1,25 @@
 # AHMED — Kuwait Fighter (Unity)
 
+> ## FROZEN — 2026-09-19
+>
+> **The game's engine is Epic's Unreal Engine 5, and only that.** This port
+> is not a target any more. It is kept rather than deleted because it works:
+> it compiles clean under Mono with warnings as errors, its eight suites and
+> 223 assertions all pass, and it holds a complete open world — nine
+> districts on three floors, a derived place on each, streamed. None of that
+> is thrown away by leaving it here.
+>
+> **Do not develop it, and do not keep it in step.** It will drift from
+> `../ahmed-fighter/assets/*.js` the moment a number changes there, and that
+> is expected now rather than a bug to fix. The two Unreal tools that used to
+> write into this tree — `../ahmed-fighter-ue5/Tools/audio/master.py` and the
+> hero pipeline — only do so with `--unity` now.
+>
+> Everything below describes the port as it stood when it was frozen, and is
+> accurate as of that date. If this port is ever unfrozen, start by running
+> `Tools/harness/run.sh` and `node Tools/export/export.mjs --check`: the first
+> still passes, the second will tell you how far the data has drifted since.
+
 Guidance for anyone — person or assistant — working in this directory.
 
 ## The story

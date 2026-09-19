@@ -177,10 +177,15 @@ just off the road. What stands either side is a polar lattice of plots thinned
 by a per-theme density, with anything that would stand in the street, inside a
 fight, or off the edge dropped. That derivation is the Unity port's
 `Assets/Scripts/World/Landmarks.cs` in centimetres -- the same vocabulary per
-theme, spacing, drop rules and hash -- so the two open worlds are recognisably
-one place. **Change a vocabulary number in one and change it in the other**;
-a Python file cannot import C#, and that is the whole reason the duplication
-is deliberate rather than accidental.
+theme, spacing, drop rules and hash -- so the two open worlds were
+recognisably one place when both were live.
+
+**Since 2026-09-19 the Unreal copy is the only live one.** The Unity port is
+frozen (`../CLAUDE.md`), so the instruction that used to sit here -- change a
+vocabulary number in both -- no longer applies: change it here. The C# is
+left where it is as the record of where these numbers came from, and the two
+were verified identical, table for table and field for field, on the day the
+port was frozen.
 
 Not ported: the Unity port's three floors. Its districts have a cellar and a
 roof; this build's have a street and nothing else, because porting floors is

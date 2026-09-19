@@ -91,12 +91,16 @@ def export_all(arm, mesh, out_ue5, out_unity, textures_ue5, textures_unity):
                              primary_bone_axis="Y", secondary_bone_axis="X", object_types={"ARMATURE", "MESH"},
                              mesh_smooth_type="FACE", bake_space_transform=False,
                              path_mode='RELATIVE', embed_textures=False)
-    ufbx = os.path.join(out_unity, "Ahmed.fbx")
-    bpy.ops.export_scene.fbx(filepath=ufbx, use_selection=True, apply_unit_scale=True, global_scale=1.0,
-                             apply_scale_options="FBX_SCALE_NONE", add_leaf_bones=False,
-                             primary_bone_axis="Y", secondary_bone_axis="X", object_types={"ARMATURE", "MESH"},
-                             mesh_smooth_type="FACE", axis_forward="-Z", axis_up="Y", bake_space_transform=True,
-                             path_mode='COPY', embed_textures=False)
+    # Metres, Y up: a Unity export, and a different file from the Unreal one
+    # above rather than a copy of it. Skipped when that port is not asked for.
+    ufbx = None
+    if out_unity:
+        ufbx = os.path.join(out_unity, "Ahmed.fbx")
+        bpy.ops.export_scene.fbx(filepath=ufbx, use_selection=True, apply_unit_scale=True, global_scale=1.0,
+                                 apply_scale_options="FBX_SCALE_NONE", add_leaf_bones=False,
+                                 primary_bone_axis="Y", secondary_bone_axis="X", object_types={"ARMATURE", "MESH"},
+                                 mesh_smooth_type="FACE", axis_forward="-Z", axis_up="Y", bake_space_transform=True,
+                                 path_mode='COPY', embed_textures=False)
     return gltf, fbx, ufbx
 
 def verify_gltf(path):

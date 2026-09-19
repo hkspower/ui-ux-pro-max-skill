@@ -1,5 +1,11 @@
 # AHMED — Kuwait Fighter (Unity)
 
+> **FROZEN, 2026-09-19.** The game's engine is Epic's Unreal Engine 5 and
+> only that; see `../CLAUDE.md`. This port is kept, not deleted — it still
+> compiles clean and its 223 checks still pass — but nothing new goes into it
+> and it is not kept in step with the browser build's numbers. Everything
+> below was true on the day it was frozen.
+
 The third build of the game, in Unity and C#. The browser game in
 `../ahmed-fighter` is the source of truth for every number; `../ahmed-fighter-ue5`
 is the Unreal port of the same thing.

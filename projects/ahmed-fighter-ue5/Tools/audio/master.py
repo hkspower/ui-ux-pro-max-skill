@@ -67,12 +67,15 @@ RUN IT from the Unreal project root:
 
     python3 Tools/audio/master.py              # master the clips in place
     python3 Tools/audio/master.py --check      # measure only; fails if unmastered
+    python3 Tools/audio/master.py --unity      # mirror into the frozen Unity port too
     python3 Tools/audio/master.py --quiet      # no table, just the verdict
 
-Both ports get the same files: the clips are mirrored into the Unity port's
-Resources, because the two builds must not disagree about what a punch sounds
-like. `DT_Sounds.csv` is hand-authored and stays that way; nothing here
-writes it.
+Unreal only, since 2026-09-19. The clips used to be mirrored into the Unity
+port's Resources so the two builds could not disagree about what a punch
+sounds like; that port is frozen now (see ../CLAUDE.md) and writing into it
+on every run only makes diffs in a tree nobody develops. `--unity` mirrors
+them anyway, for the day it is unfrozen. `DT_Sounds.csv` is hand-authored and
+stays that way; nothing here writes it.
 ==============================================================================
 """
 
@@ -295,6 +298,7 @@ def cue_of(path, data):
 def main():
     check = "--check" in sys.argv
     quiet = "--quiet" in sys.argv
+    mirror = "--unity" in sys.argv
     _, data = rows()
     found = clips()
 
@@ -340,8 +344,9 @@ def main():
             continue
 
         write(path, fixed, channels, rate)
-        os.makedirs(os.path.dirname(twin), exist_ok=True)
-        write(twin, fixed, channels, rate)
+        if mirror:
+            os.makedirs(os.path.dirname(twin), exist_ok=True)
+            write(twin, fixed, channels, rate)
 
     print()
     if drifted:
@@ -359,7 +364,9 @@ def main():
     print("%d clips mastered to -1 dBFS, DC removed, edges faded; %d moved."
           % (len(found), changed))
     print("Loudest lift %+.0f dB -- whatever was under that clip came up with it." % most_gain)
-    print("Both ports written. DT_Sounds.csv untouched: Lead still measures true.")
+    print("Unreal written%s. DT_Sounds.csv untouched: Lead still measures true."
+          % (" and mirrored into the frozen Unity port" if mirror else
+             "; Unity not touched (--unity mirrors it)"))
     print("Nothing here has been listened to: what is fixed is what can be measured.")
     return 0
 

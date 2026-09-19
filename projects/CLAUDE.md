@@ -61,13 +61,31 @@ That decides things that would otherwise be guesses:
 
 ---
 
+## The engine is Unreal Engine 5, and only Unreal Engine 5
+
+Decided 2026-09-19. **Epic's Unreal Engine 5 is the engine this game ships
+on.** There is no second engine and no evaluation running between two.
+
+- `ahmed-fighter-ue5/` is where engine work goes. All of it.
+- `ahmed-fighter-unity/` is **frozen**. It is not deleted -- it compiles, its
+  223 checks pass, and it holds a working open world -- but nothing new goes
+  into it, it is not kept in step, and it is not a target any more. Read its
+  own CLAUDE.md before touching it at all.
+- `ahmed-fighter/` is **not an engine port** and is not affected. It is the
+  browser game and the source of truth for every number in the project; the
+  Unreal build is generated from it and would stop working without it.
+
+The two Unreal tools that used to write into the Unity tree -- the audio
+masterer and the hero pipeline -- now need `--unity` to do it. By default
+they build for Unreal only.
+
 ## The three builds
 
 | | `ahmed-fighter/` | `ahmed-fighter-ue5/` | `ahmed-fighter-unity/` |
 | --- | --- | --- | --- |
 | What it is | The playable game. One HTML file, canvas 2D, no external assets, PWA with a versioned service worker. | The Unreal Engine 5 port. **3D and open since 2026-09-16** — the camera is a boom the player swings, movement is measured against it, the arena is a circle and a wave spreads around him. | The Unity port, in C#. **The open-world one** — nine districts rather than nine corridors, since 2026-09-10 each on three floors (under / street / up), with ZAYOS in the cellar under the striking house and music, and since 2026-09-11 a derived place on every floor — street, buildings, rim — streamed in around the player. |
 | Art direction | Stylised **on purpose** — it draws every pixel in code, and stylisation is what makes that possible. | **Not cartoonish.** Adult action game, highest graphics the hardware carries. See its own CLAUDE.md. | Console and PC grade. Was capsules; the real mesh and the sound are in now. |
-| State | Runs. Verified in headless Chromium across phone/tablet/desktop, all ten stages, all three graphics tiers. | **Has never been compiled.** No engine has ever been run against it. | **Has never run in Unity.** Compiles, and its pure logic is executed and checked under Mono; nothing has been pressed play on. |
+| State | Runs. Verified in headless Chromium across phone/tablet/desktop, all ten stages, all three graphics tiers. | **Has never been compiled.** No engine has ever been run against it. | **FROZEN 2026-09-19 — Unreal is the engine.** Still compiles and its 223 checks still pass under Mono; nothing has been pressed play on, and nothing new goes in. |
 | Units | Canvas pixels. | Centimetres, Z up. Was a strip — X along, Y depth — until 2026-09-16; now no direction is a world axis and a fighter faces any way. | Metres. X and Z are the ground plane, Y up. No depth axis — a fighter faces any direction. |
 | Balance data | `assets/*.js` — **the source of truth for every number in all three builds**, since 2026-09-09 for the colour scheme too (`assets/colors.js`), and since 2026-09-10 for the Unity floors (`assets/strata.js`, which the browser build itself does not read). | Generated. Never hand-edit `Content/Data`. | Generated. Never hand-edit `Assets/Resources/Data`. |
 

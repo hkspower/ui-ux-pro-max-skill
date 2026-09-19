@@ -41,7 +41,13 @@ def run(argv=None):
         OUT = os.path.join(HERE, "build")
         UE5_MODELS = os.path.join(PROJECT, "Content", "Models"); UE5_TEX = os.path.join(PROJECT, "Content", "Textures", "Ahmed")
         UNITY_MODELS = os.path.join(UNITY, "Assets", "Resources", "Models"); RENDERS = os.path.join(PROJECT, "Docs", "renders")
-    for d in (OUT, UE5_MODELS, UE5_TEX, UNITY_MODELS, RENDERS): os.makedirs(d, exist_ok=True)
+    # Unreal only unless asked: the Unity port is frozen (see ../../CLAUDE.md),
+    # and rebuilding the hero should not drop a second FBX into a tree nobody
+    # develops. `--unity` puts it back.
+    if "--unity" not in argv:
+        UNITY_MODELS = None
+    for d in (OUT, UE5_MODELS, UE5_TEX, RENDERS): os.makedirs(d, exist_ok=True)
+    if UNITY_MODELS: os.makedirs(UNITY_MODELS, exist_ok=True)
 
     t0 = time.time()
     def stamp(msg): print("%6.1fs  %s" % (time.time() - t0, msg))
@@ -231,10 +237,13 @@ def run(argv=None):
     gltf, fbx, ufbx = R.export_all(rig, mesh, UE5_MODELS, UNITY_MODELS, UE5_TEX, None)
     summary = dict(tris=total, verts=len(mesh.data.vertices), bones=len(rig.data.bones), finger_bones=nf,
                    materials=[m.name for m in mesh.data.materials], textures=sorted(os.listdir(UE5_TEX)),
-                   gltf=os.path.getsize(gltf), fbx=os.path.getsize(fbx), unity_fbx=os.path.getsize(ufbx))
-    stamp("exported: %d tris, %d bones" % (total, summary["bones"]))
+                   gltf=os.path.getsize(gltf), fbx=os.path.getsize(fbx),
+                   unity_fbx=os.path.getsize(ufbx) if ufbx else None)
+    stamp("exported: %d tris, %d bones%s" % (total, summary["bones"],
+                                             "" if ufbx else "  (Unreal only; --unity adds the Unity FBX)"))
     summary["roundtrip_gltf"] = R.verify_roundtrip(gltf)
-    summary["roundtrip_fbx_unity"] = R.verify_roundtrip(ufbx)
+    if ufbx:
+        summary["roundtrip_fbx_unity"] = R.verify_roundtrip(ufbx)
     json.dump(summary, open(os.path.join(OUT, "summary.json"), "w"), indent=1)
     print(json.dumps(summary, indent=1))
     stamp("done")
