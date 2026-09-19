@@ -104,7 +104,12 @@ def body_charts():
         wr = mirror(Jp("hand_l"), s); he = mirror(Jp("hand_end_l"), s); d = (he - wr).normalized()
         w = d.cross(F).normalized()
         o = wr + d * 0.10
-        charts.append((lambda c, wr=wr, he=he, s=s: near(c, wr, he + (he - wr).normalized() * 0.12, 0.075) and c.y >= -0.006 * 0, "planar", (o, w, d, 0.26), rect_b))
+        # 0.10, not 0.075: the thumb's outer faces lie up to 0.096 from the
+        # segment and were unowned -- half of thumb_02 baked black on every
+        # man. The along-axis clause keeps the forearm above the wrist on
+        # its cylinder, which the wider radius would otherwise pull onto
+        # the planar rect's edge.
+        charts.append((lambda c, wr=wr, he=he, d=d: near(c, wr, he + (he - wr).normalized() * 0.12, 0.10) and (c - wr).dot(d) > -0.03 and c.y >= 0, "planar", (o, w, d, 0.26), rect_b))
     # arms: cylinder from the shoulder to the wrist
     for s, rect in ((1, (0.50, 0.50, 0.75, 1.00)), (-1, (0.75, 0.50, 1.00, 1.00))):
         a = mirror(Jp("upperarm_l"), s); b = mirror(Jp("hand_l"), s)
@@ -289,7 +294,7 @@ def shader(name, kind, roughness, sheen=0.0, metallic=0.0, subsurface=0.0, pores
     return mat
 
 # ------------------------------------------------------------------ bake
-def bake_set(obj, mat, size, out_dir, base, maps=("albedo", "normal", "roughness"), source=None, normal_size=None):
+def bake_set(obj, mat, size, out_dir, base, maps=("albedo", "normal", "roughness"), source=None, normal_size=None, images=None):
     """Bake one material's maps through the object's UVs. With `source` --
     the same surface before decimation, painted -- the colour and the
     normal come from it: the tape's edges, the patch, the sculpted face and
@@ -300,7 +305,12 @@ def bake_set(obj, mat, size, out_dir, base, maps=("albedo", "normal", "roughness
     the sculpt put in is low-frequency and survives it; the pore and weave
     bump is finer than a texel at the colour's resolution, so at full size
     it is stored as per-pixel dither the first mip level averages away --
-    17.7 MB of it on the skin alone, against 3.2 MB at half."""
+    17.7 MB of it on the skin alone, against 3.2 MB at half.
+
+    `images` -- the maps an earlier call of this made -- bakes INTO them
+    without clearing, so a second object of the same material lands in its
+    own charts of the same textures: the soles, which were painted and
+    never baked, and shipped as black mirrors."""
     nt = mat.node_tree
     tex = nt.nodes.new("ShaderNodeTexImage"); nt.nodes.active = tex
     # the image node must be active in every material the bake touches
@@ -325,14 +335,26 @@ def bake_set(obj, mat, size, out_dir, base, maps=("albedo", "normal", "roughness
     written = {}
     for m in maps:
         px = normal_size if (m == "normal" and normal_size) else size
-        img = bpy.data.images.new("%s_%s" % (base, m), px, px, alpha=False, float_buffer=False)
-        img.colorspace_settings.name = 'sRGB' if m == "albedo" else 'Non-Color'
-        img.filepath_raw = os.path.join(out_dir, "T_%s_%s.png" % (base, {"albedo": "BaseColor", "normal": "Normal", "roughness": "Roughness"}[m]))
-        img.file_format = 'PNG'
+        if images is not None:
+            img = images[m]
+        else:
+            img = bpy.data.images.new("%s_%s" % (base, m), px, px, alpha=False, float_buffer=False)
+            img.colorspace_settings.name = 'sRGB' if m == "albedo" else 'Non-Color'
+            img.filepath_raw = os.path.join(out_dir, "T_%s_%s.png" % (base, {"albedo": "BaseColor", "normal": "Normal", "roughness": "Roughness"}[m]))
+            img.file_format = 'PNG'
         tex.image = img
         for sm, t2 in src_nodes: t2.image = img
         s2a = source is not None
-        if m == "albedo": bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'}, margin=8, use_selected_to_active=s2a, cage_extrusion=0.02, max_ray_distance=0.05)
+        if m == "albedo":
+            # Cycles' diffuse colour pass includes the sheen closure's
+            # albedo, which lifted every dark roster colour: Ahmed's tee
+            # #15171c baked as (32,33,37) -- more than double in linear
+            # light. The sheen is off for this one pass and put back.
+            sheen = [(n, n.inputs["Sheen Weight"].default_value) for t in [nt] + [sm.node_tree for sm, _ in src_nodes]
+                     for n in t.nodes if n.type == "BSDF_PRINCIPLED"]
+            for n, _ in sheen: n.inputs["Sheen Weight"].default_value = 0.0
+            bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'}, margin=8, use_selected_to_active=s2a, cage_extrusion=0.02, max_ray_distance=0.05)
+            for n, v in sheen: n.inputs["Sheen Weight"].default_value = v
         elif m == "normal": bpy.ops.object.bake(type='NORMAL', margin=8, use_selected_to_active=s2a, cage_extrusion=0.02, max_ray_distance=0.05)
         else: bpy.ops.object.bake(type='ROUGHNESS', margin=8, use_selected_to_active=s2a, cage_extrusion=0.02, max_ray_distance=0.05)
         img.save()

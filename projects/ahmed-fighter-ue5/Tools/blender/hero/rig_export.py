@@ -36,6 +36,23 @@ def bind_all(body, garments, arm):
     which is what a shell 5 mm off the skin should do -- heat on a shell
     finds its own answer and it is not the body's."""
     legacy.bind(body, arm)
+    # The toe box belongs to ball_*: heat gives everything ahead of the ball
+    # joint two thirds to foot_*, so a toe roll pitched the whole shoe with
+    # the foot bone and its toe went 35 mm through the floor while the bones
+    # said the toes stayed flat. Every vertex ahead of the ball joint that
+    # the two bones between them hold takes the foot's share on the ball.
+    moved = 0
+    for s in ("l", "r"):
+        gf, gb = body.vertex_groups.get("foot_" + s), body.vertex_groups.get("ball_" + s)
+        ball_y = legacy.J["ball_" + s][0].y
+        if gf is None or gb is None: continue
+        for v in body.data.vertices:
+            if v.co.y >= ball_y: continue
+            w = {g.group: g.weight for g in v.groups}
+            wf, wb = w.get(gf.index, 0.0), w.get(gb.index, 0.0)
+            if wf > 0.0 and wf + wb >= 0.3:
+                gb.add([v.index], wf + wb, "REPLACE"); gf.remove([v.index]); moved += 1
+    print("toe boxes: %d vertices' foot weight moved onto the ball" % moved)
     for g in garments:
         g.parent = arm
         mod = g.modifiers.new("Skin", "ARMATURE"); mod.object = arm

@@ -550,13 +550,18 @@ the script's docstring so nobody mistakes them for canon. Materials are
 procedural, made periodic on a torus and baked once to tileable maps;
 every mesh carries box-projected UVs in metres per tile.
 
-**Fourteen checks over the plan, each proved to bite** by breaking the one
+**Fifteen checks over the plan, each proved to bite** by breaking the one
 thing it guards: the agreement with `build_levels.py`, nothing solid in the
 street, in a fight or off the edge, every door a gap in the rim, the way
 through staying inside, the crate the browser's crate and not the distance
-constant's, every prop at the kerb and out of every fight, the gate beside
-the road in the AbilityGate's own box, one minaret and it the tallest, no
-variant far from its plot. The static meshes bake centimetres and the
+constant's, every prop at the kerb, out of every fight and standing ON the
+street's 3 cm rather than in it, the gate beside the road in the
+AbilityGate's own box, one minaret and it the tallest, no variant far from
+its plot. A stall's banner is an instance row of its own, placed once
+through the stall's yaw and scale, so the manifest, the glTF and the editor
+carry the same 558 objects (342 of them stalls, warehouses, walls, props
+and the gate; 216 banners); the banner and the gate wall's crack are wound
+to face the street, which a one-sided engine material needs. The static meshes bake centimetres and the
 Z-up-to-Y-up change into their vertices (FBX scale 1.0, a file every
 importer reads the same; the hero and the clips keep their shared
 metres-at-scale-100 convention because a rigged mesh cannot bake its
@@ -605,8 +610,10 @@ mannequin in three bone collections -- DEF is what ships, CTRL is what is
 touched, MCH the mechanism between -- and every control is a real control:
 four limbs with IK and pole targets and a per-limb `fk` switch; a reverse
 foot with `roll` (heel pivot on the floor under the heel, toe pivot on the
-floor under the BALL, so the toes stay flat while the heel comes up, which
-is what a kicker's support foot does); a spine that follows the chest
+floor under the BALL, so the toes stay on the floor to within a centimetre
+at full roll while the heel comes up, which is what a kicker's support foot
+does -- measured on the shoe's lowest vertex, not only on the bones); a
+spine that follows the chest
 control a third a bone; a head that tracks `CTRL_look` by `look` along
 its Z, which is the face; a `fist` on each hand that tightens all fifteen
 finger bones. `verify()` measures each -- the hand reaches, the elbow bends
@@ -621,8 +628,23 @@ poses a man through the controls, bakes that onto the deform bones,
 strips, exports, reads the FBX back and compares every bone: 0.00 mm on
 all three.
 
-**What it got wrong first, every one caught by measuring:**
+**What it got wrong first, every one caught by measuring** -- the last
+eleven by an adversarial review of the built files, each finding
+reproduced by a second, independent pass before it was accepted:
 
+- Every aimed pose twisted the spine, the neck, the head and the feet half
+  a turn about their own length. `_aim` (and `build_ahmed.pose`, which
+  every guard and kick render goes through) built each bone's frame with
+  `to_track_quat("Y", "Z")`, whose Z is world up; a bone whose rest Z is
+  world -Y (the spine, the neck, the head) or straight down (a foot) came
+  out turned 180 degrees about itself. The chest faced backwards, the nose
+  sat 69 mm behind the head's centre, the soles were above the insteps, the
+  reverse foot's floor pivots stood 20 cm in the air, and the "tee pinches
+  to a point at the waist" was this twist between the unturned pelvis and
+  the turned spine, not a garment. The frame is now the bone's own, swung
+  onto the aim with no twist. `Tools/blender/build_motion.py:515` builds
+  the boss clips' frames the same way and carries the same twist; it is
+  not in this ask and is not touched -- said here, waiting to be told.
 - `stance()` read joint positions in world space and wrote the hand and
   foot targets back into `PoseBone.matrix`, which is armature space. The
   two agree with the rig at the origin, where every render of the pipeline
@@ -667,6 +689,41 @@ all three.
 - The brawler's heavier nose put the profile's peak at 30.1 mm against the
   20-30 `sculpt.check_profile` holds every man to (a real male nose). His
   tip is 1.05, not 1.10: 29.3 mm.
+- The toe box was two thirds foot and one third ball, so a toe roll pitched
+  the whole shoe with the foot bone and its toe went 35 mm through the
+  floor while the bones said the toes stayed flat. Everything ahead of the
+  ball joint that the two bones hold now belongs to the ball, and
+  `verify()` reads the shoe's lowest vertex as well as the bones.
+- Cycles' diffuse colour pass includes the sheen closure's albedo, so every
+  dark roster colour baked lighter: Ahmed's tee `#15171c` came out (32,33,37),
+  more than double in linear light. The sheen is off for the colour pass.
+- The soles were painted and never baked: their quadrant of the shoe's
+  maps stayed black, and black roughness is a mirror. They bake into the
+  shoe's own images now.
+- Half of each thumb's middle segment lay outside the hand's chart and
+  baked black; the chart's radius is 0.10 with an along-axis clause that
+  keeps the forearm on its cylinder.
+- The body was stripped under the tee up to 1.53, above the collar ring's
+  lowest point at 1.507, so the 26 mm between ring and neck looked into
+  the tee's black inside. The strip stops at 1.50.
+- The banners were a Blender-side afterthought: parented to their stall
+  and multiplied by its scale twice, 43 of 216 hung in front of the piers,
+  and none was in the manifest or the editor. They are rows.
+- The banner quad and the gate wall's crack were wound to face into the
+  building. Cycles does not cull; an engine's default material does.
+- The men, the crates and the barrel stood at z = 0, 3 cm inside the
+  street that stands 3 cm proud of the sand. One constant, `STREET_Z_CM`,
+  the props carry it, a check asserts it, and the scene asserts every man's
+  lowest vertex is at the flagstones.
+- The animator's file was saved before the render made its camera and
+  deleted it, so F12 had no camera. The cameras stay and the file is saved
+  after the render.
+- `verify()`'s hand probes pushed the control along world -Y and read the
+  reach and the bend along world Y, so a correct rig turned 180 degrees
+  failed them. They work in his own frame, like the look probe.
+- The control widgets were scaled by bone length as well as by the metres
+  written for them: 2.4 mm pole spheres on 6 cm bones. The size is the
+  metres.
 
 And two in the souq: a spur that begins on the street's centre line lies on
 the ribbon, coplanar, and a renderer's shadow ray off one face strikes the
@@ -689,10 +746,13 @@ the browser's own formation (index.html:3597, :3998: each enemy at his
 reach x 0.70 plus his lane from Ahmed, in front of him for even, behind
 for odd, browser pixels at 2.4 cm), posed through their controls: guard,
 fists, every man squared up to Ahmed and looking at him, Ahmed at the
-first of them. It saves that and renders it. That file is the deliverable
-an animator opens. A `--scene` run rebuilds and re-exports the district
-first, so the 34 FBX files come out again with a new header timestamp and
-the same content.
+first of them, every man standing on the flagstones. It renders that and
+saves it with its cameras. That file is the deliverable an animator opens.
+A `--scene` run rebuilds and re-exports the district first, so the 34 FBX
+files come out again with the same geometry, materials and texture
+references but new object ids throughout (Blender's exporter derives every
+id from Python's per-process string hash) and a new header timestamp:
+every `--scene` run leaves all 34 tracked FBX files changed in git.
 
 **Known, not fixed, found on the way:** every editor script that places a
 rotated actor -- `build_levels.py:374`, `build_world.py:641,707`,
@@ -760,11 +820,12 @@ Don't re-discover them; don't fix them without being told to.
   the size, which is his whole identity -- and `DT_Fighters.csv` has no
   column for either. `build_motion.py` reads them out of `enemies.js`
   directly because it needs them; anything else that needs them cannot.
-- **The tee pinches to a point at the waist in the fight poses.** It is a
-  shell off the body surface (`garments.dress`) taking the body's vertex
-  weights by proximity, and where the torso twists the two hems converge.
-  It predates the hero work -- it is in every render of this model -- and it
-  is a skinning job on the garment, not a shape one.
+- **The tee pinched to a point at the waist in the fight poses** -- and it
+  was not the garment. It was the half-turn twist every aimed pose put on
+  the spine above an unturned pelvis (see "The first area is built": the
+  aim), and it went with that fix: the posed mesh's slice at z 1.04 was
+  35 x 52 mm and is 220 x 209. The entry stays so the misdiagnosis is on
+  record; `build_motion.py`'s clips still carry the twist.
 - **The trainers read as pointed dress heels.** The shoe loft's last two rows
   drop the toe box to half the height of the heel, so the topline slopes
   down to a point instead of holding level.

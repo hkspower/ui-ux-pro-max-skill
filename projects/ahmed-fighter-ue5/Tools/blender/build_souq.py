@@ -100,6 +100,7 @@ LENGTH_TO_EXTENT = 1.7
 MIN_EXTENT, MAX_EXTENT = 6000.0, 13000.0
 EXIT_MARGIN = 200.0
 STREET_HALF_WIDTH = 320.0      # cm, build_world.STREET_HALF_WIDTH
+STREET_Z_CM = 3.0              # cm, the flagstones stand this proud of the sand; what stands on them stands at it
 CLEARANCE = 160.0
 SPUR_TUCK = 0.05                # m, how far a spur runs on under the ribbon at its join
 PATH_SAMPLES = 140
@@ -196,6 +197,30 @@ def _leaves_ribbon(p, u, edge, j, reach=8):
             if sd > 1e-6 and -1e-6 <= r <= 1.0 + 1e-6 and (best is None or sd < best):
                 best = sd
     return best if best is not None else STREET_HALF_WIDTH / 100.0
+
+
+def banner_of(r, m):
+    """A stall's banner as an instance row of its own: the browser's banner
+    hung in the arcade bay (THEME.souq), sized to the stall in the stall's
+    frame and taken to the world through the stall's yaw and scale ONCE.
+    The first version parented it to the stall in Blender and multiplied
+    by the scale as well, so 43 of 216 hung in front of the piers -- and it
+    was never a row, so the manifest and the editor had no banners at all.
+    Centimetres, degrees, and a scale that is the banner's own metres on a
+    one-metre quad."""
+    A = BROWSER_ART
+    w, d, h = m["w"], m["d"], m["h"]
+    pier_h = h * A["pier_h"] / A["arch_outer"]
+    bw = w * A["banner_w"] / A["bay_w"]; bh = h * A["banner_h"] / A["arch_outer"]
+    bx = -w * 0.5 + w * (A["banner_x"] + A["banner_w"] * 0.5) / A["bay_w"]
+    bz = pier_h + (h * A["arch_peak"] / A["arch_outer"] - pier_h) * 0.5 - bh * 0.5
+    by = -d * 0.5 + RECESS * 100.0 * 0.45
+    sx, sy, sz = r["scale"]
+    lx, ly, lz = bx * sx, by * sy, bz * sz
+    a = math.radians(r["yaw"]); c, s_ = math.cos(a), math.sin(a)
+    return dict(slot="Structures", mesh="SM_Souq_Banner%d" % r["banner"], kind="banner",
+                x=r["x"] + lx * c - ly * s_, y=r["y"] + lx * s_ + ly * c, z=lz, yaw=r["yaw"],
+                scale=(bw / 100.0 * sx, 1.0, bh / 100.0 * sz))
 
 
 def facing(x, y, tx, ty):
@@ -335,7 +360,7 @@ def plan():
             dl = math.hypot(dx, dy) or 1.0; lx, ly = -dy / dl, dx / dl           # the left normal
             side = -1.0 if z < 0.5 else 1.0
             across = side * (STREET_HALF_WIDTH - 40.0)
-            props.append(dict(kind=kind, x=cx - lx * across, y=cy - ly * across,
+            props.append(dict(kind=kind, x=cx - lx * across, y=cy - ly * across, z=STREET_Z_CM,
                               yaw=math.degrees(math.atan2(dy, dx)) + (hashv(x_px, seed + 35) - 0.5) * 30.0, t=t))
         x_px += 265.0
 
@@ -384,6 +409,8 @@ def plan():
     meshes["SM_Souq_Crate"] = dict(kind="crate", w=cw, d=cw, h=ch)
     meshes["SM_Souq_Barrel"] = dict(kind="barrel", w=bw, d=bw, h=bh)
     meshes["SM_Souq_Ground"] = dict(kind="ground", w=E * 2, d=E * 2, h=0.0)
+    for i in range(3):      # the three banner colours: a one-metre quad each, scaled per stall
+        meshes["SM_Souq_Banner%d" % i] = dict(kind="banner", w=100.0, d=0.0, h=100.0)
     meshes["SM_Souq_Street"] = dict(kind="street", w=E * 2, d=E * 2, h=3.0)
     for p in props:
         p["mesh"] = "SM_Souq_Crate" if p["kind"] == "crate" else "SM_Souq_Barrel"; p["scale"] = (1.0, 1.0, 1.0)
@@ -405,10 +432,12 @@ def instances(P):
     for b in P["blocks"]:
         out.append(dict(slot="Structures" if b["kind"] != "minaret" else "Landmark", mesh=b["mesh"],
                         x=b["x"], y=b["y"], z=0.0, yaw=b["yaw"], scale=b["scale"], kind=b["kind"], banner=b.get("banner", 0)))
+        if b["kind"] == "stall":
+            out.append(banner_of(out[-1], P["meshes"][b["mesh"]]))
     for w in P["rim"]:
         out.append(dict(slot="Rim", mesh=w["mesh"], x=w["x"], y=w["y"], z=0.0, yaw=w["yaw"], scale=w["scale"], kind="wall"))
     for p in P["props"]:
-        out.append(dict(slot="Props", mesh=p["mesh"], x=p["x"], y=p["y"], z=0.0, yaw=p["yaw"], scale=p["scale"], kind=p["kind"]))
+        out.append(dict(slot="Props", mesh=p["mesh"], x=p["x"], y=p["y"], z=p["z"], yaw=p["yaw"], scale=p["scale"], kind=p["kind"]))
     if P["gate"]:
         g = P["gate"]
         out.append(dict(slot="Gates", mesh=g["mesh"], x=g["x"], y=g["y"], z=0.0, yaw=g["yaw"], scale=g["scale"], kind="gate"))
@@ -472,6 +501,7 @@ def check(P, against_levels=True):
         m = P["meshes"][p["mesh"]]; half = max(m["w"], m["d"]) * 0.5
         for s in sites:
             assert math.hypot(s["x"] - p["x"], s["y"] - p["y"]) > SITE_RADIUS + half, "a %s stands in a fight (%s %d)" % (p["kind"], s["kind"], s.get("i", 0))
+        assert p["z"] == STREET_Z_CM, "a %s stands %.0f cm under the street" % (p["kind"], STREET_Z_CM - p["z"])
         d = dist_to_path(path, p["x"], p["y"])
         assert d + half <= STREET_HALF_WIDTH + 1.0, "a %s stands %.0f cm off the street's centre line" % (p["kind"], d)
         assert d - half >= STREET_HALF_WIDTH * 0.5, "a %s stands in the middle of the street, %.0f cm from its centre line" % (p["kind"], d)
@@ -520,6 +550,7 @@ def bite():
     def wall_door(P): dx, dy = P["doors"]["East"]; P["rim"].append(dict(x=dx, y=dy, yaw=0.0, h=300.0, mesh="SM_Souq_Wall_H32", scale=(1, 1, 1)))
     def crate_off(P): p = P["props"][0]; p["x"] += 900.0
     def crate_in_fight(P): s = next(s for s in P["sites"] if s["kind"] == "wave"); p = P["props"][0]; p["x"], p["y"] = s["x"] + 200.0, s["y"]
+    def crate_sunk(P): P["props"][0]["z"] = 0.0
     def crate_in_lane(P): p = P["props"][0]; p["x"], p["y"] = nearest_on_path(P["path"], p["x"], p["y"])
     def gate_on_street(P): g = P["gate"]; nx, ny = nearest_on_path(P["path"], g["x"], g["y"]); g["x"], g["y"] = nx, ny
     def gate_box(P): P["meshes"]["SM_Souq_GateWall"]["w"] = 200.0
@@ -541,6 +572,7 @@ def bite():
     case("variant too far from plot", bad_variant, "scaled")
     case("crate sized by distance", crate_by_distance, "browser's crate")
     case("crate in a fight", crate_in_fight, "in a fight")
+    case("crate under the street", crate_sunk, "under the street")
     print("\n%-28s %s" % ("check", "when the plan is broken"))
     for label, ok, msg in cases:
         print("  %-26s %s  %s" % (label, "BITES " if ok else "SILENT", msg))
@@ -1039,7 +1071,7 @@ class Souq:
                 verts.append((sx * L, sz * 0.03))
             face_pts = [bm.verts.new((cx + vx * math.cos(math.radians(ang)) - vz * math.sin(math.radians(ang)), -d * 0.5 - 0.002,
                                       cz + vx * math.sin(math.radians(ang)) + vz * math.cos(math.radians(ang)))) for vx, vz in verts]
-            f = bm.faces.new(list(reversed(face_pts))); f.material_index = 1
+            f = bm.faces.new(face_pts); f.material_index = 1          # wound to -Y, the wall's front; reversed() faced into the wall
         o = self._new(name, bm, [wall, crack]); self.kinds[name] = o; return o
 
     def build_crate(self, name, s, h):
@@ -1093,7 +1125,7 @@ class Souq:
         import bmesh
         flag = self.material("M_Souq_Flagstone", "flagstone")
         bm = bmesh.new()
-        z = 0.03
+        z = STREET_Z_CM / 100.0
         # the spiral as one strip, so its edges are continuous
         pts = [(x / 100.0, y / 100.0) for x, y in P["path"]]
         hw = STREET_HALF_WIDTH / 100.0
@@ -1124,6 +1156,17 @@ class Souq:
             bm.faces.new(vs); self.spurs["built"] += 1
         o = self._new(name, bm, [flag]); self.kinds[name] = o; return o
 
+    def build_banner(self, name, i):
+        """A one-metre quad of cloth, its front -Y like every kind, scaled to
+        the banner's size per stall by its row. Wound so its normal is -Y:
+        the first version faced the shutter."""
+        import bmesh
+        cloth = self.material("M_Souq_Cloth%d" % i, "cloth%d" % i)
+        bm = bmesh.new()
+        vs = [bm.verts.new((-0.5, 0, -0.5)), bm.verts.new((0.5, 0, -0.5)), bm.verts.new((0.5, 0, 0.5)), bm.verts.new((-0.5, 0, 0.5))]
+        bm.faces.new(vs)
+        o = self._new(name, bm, [cloth]); self.kinds[name] = o; return o
+
     def build_kinds(self):
         P = self.P
         for name, m in P["meshes"].items():
@@ -1138,16 +1181,7 @@ class Souq:
             elif k == "barrel":    self.build_barrel(name, w, h)
             elif k == "ground":    self.build_ground(name, P["E"] / 100.0)
             elif k == "street":    self.build_street(name, P)
-        # the three banner colours: a stall variant per colour is three times
-        # the meshes for a rectangle of cloth, so the banner is its own small
-        # mesh kind placed with each stall, coloured by the plot's index
-        import bmesh
-        for i in range(3):
-            cloth = self.material("M_Souq_Cloth%d" % i, "cloth%d" % i)
-            bm = bmesh.new()
-            vs = [bm.verts.new((-0.5, 0, 0.5)), bm.verts.new((0.5, 0, 0.5)), bm.verts.new((0.5, 0, -0.5)), bm.verts.new((-0.5, 0, -0.5))]
-            bm.faces.new(vs)
-            o = self._new("SM_Souq_Banner%d" % i, bm, [cloth]); self.kinds[o.name] = o
+            elif k == "banner":    self.build_banner(name, int(name[-1]))
         return self.kinds
 
     # ------------------------------------------------------------ placement
@@ -1165,19 +1199,6 @@ class Souq:
             o.location = (r["x"] / 100.0, r["y"] / 100.0, r["z"] / 100.0)
             o.rotation_euler = (0, 0, math.radians(r["yaw"])); o.scale = tuple(r["scale"])
             r["object"] = o.name; self.placed.append(o)
-            # a stall's banner, coloured by the plot's index round its ring
-            if r.get("kind") == "stall":
-                m = self.P["meshes"][r["mesh"]]; w, h = m["w"] / 100.0, m["h"] / 100.0
-                A = BROWSER_ART
-                pier_w, pier_h, _ = self._arch_profile(w, h)
-                bw = w * A["banner_w"] / A["bay_w"]; bh = h * A["banner_h"] / A["arch_outer"]
-                bx = -w * 0.5 + w * (A["banner_x"] + A["banner_w"] * 0.5) / A["bay_w"]
-                bz = pier_h + (h * A["arch_peak"] / A["arch_outer"] - pier_h) * 0.5 - bh * 0.5
-                b = bpy.data.objects.new("SM_Souq_Banner%d_%03d" % (r["banner"], i), self.kinds["SM_Souq_Banner%d" % r["banner"]].data)
-                coll.objects.link(b); b.parent = o
-                b.location = (bx * r["scale"][0], (-m["d"] / 100.0 * 0.5 + RECESS * 0.45) * r["scale"][1], bz * r["scale"][2])
-                b.scale = (bw * r["scale"][0], 1.0, bh * r["scale"][2])
-                self.placed.append(b)
         # the kinds themselves stay at the origin, out of the way and hidden
         for name, o in self.kinds.items():
             if o.name not in coll.objects:
@@ -1300,8 +1321,7 @@ class Souq:
         sc.render.resolution_x, sc.render.resolution_y = res; sc.render.image_settings.file_format = "PNG"
         sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "None"
         sc.render.filepath = os.path.join(self.renders, name); bpy.ops.render.render(write_still=True)
-        bpy.data.objects.remove(cam, do_unlink=True)
-        return sc.render.filepath
+        return sc.render.filepath           # the camera stays: the .blend is opened and rendered from
 
     def renders_of_the_place(self):
         P = self.P; E = P["E"] / 100.0
@@ -1358,7 +1378,7 @@ class Souq:
             # every man squares up to Ahmed; Ahmed squares up to the first of them
             f0 = men[1][1][0]
             face_x, face_y = (cx + fx * f0, cy + fy * f0) if kind == "Ahmed" else (cx, cy)
-            rig.location = (x, y, 0.0); rig.rotation_euler = (0, 0, math.radians(facing(x, y, face_x, face_y)))
+            rig.location = (x, y, STREET_Z_CM / 100.0); rig.rotation_euler = (0, 0, math.radians(facing(x, y, face_x, face_y)))
             bpy.context.view_layer.update()
             CR.stance(rig, legacy.GUARD, mesh)
             for s in ("l", "r"):
@@ -1370,10 +1390,17 @@ class Souq:
             other = next(r for k, r, _ in rigs if (k == "Ahmed") != (kind == "Ahmed"))
             CR.set_world_translation(rig, "CTRL_look", heads[other.name])
             CR.set_prop(rig, "CTRL_head", "look", 1.0)
-        os.makedirs(os.path.dirname(blend_out), exist_ok=True)
-        bpy.ops.wm.save_as_mainfile(filepath=blend_out)
+        # every man stands ON the street: his lowest evaluated vertex at the
+        # flagstones, not in them
+        dg = bpy.context.evaluated_depsgraph_get()
+        for kind, rig, mesh in rigs:
+            ev = mesh.evaluated_get(dg)
+            low = min((mesh.matrix_world @ v.co).z for v in ev.data.vertices)
+            assert low >= STREET_Z_CM / 100.0 - 0.001, "%s stands %.0f mm into the street" % (kind, (STREET_Z_CM / 100.0 - low) * 1000)
         cam = (cx - fx * 2.2 + lx * 4.8, cy - fy * 2.2 + ly * 4.8, 1.7)
         out = self.render(render_name, cam, (cx, cy, 1.15), lens=40, res=(1600, 900), samples=24 if self.fast else 96)
+        os.makedirs(os.path.dirname(blend_out), exist_ok=True)
+        bpy.ops.wm.save_as_mainfile(filepath=blend_out)     # after the render, so the camera it framed is in the file
         return out, blend_out
 
 
@@ -1397,7 +1424,7 @@ def build_in_editor(P):
     models = os.path.join(PROJECT, "Content", "Models", "Souq")
     # --- import every kind once
     tasks = []
-    for name in list(P["meshes"]) + ["SM_Souq_Banner%d" % i for i in range(3)]:
+    for name in P["meshes"]:
         t = unreal.AssetImportTask()
         t.filename = os.path.join(models, name + ".fbx"); t.destination_path = MESH_DIR
         t.automated = True; t.save = True; t.replace_existing = True
@@ -1406,8 +1433,6 @@ def build_in_editor(P):
         t.options = ui; tasks.append(t)
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
     mesh = {name: unreal.load_asset("%s/%s" % (MESH_DIR, name)) for name in P["meshes"]}
-    for i in range(3):
-        mesh["SM_Souq_Banner%d" % i] = unreal.load_asset("%s/SM_Souq_Banner%d" % (MESH_DIR, i))
     # --- the level build_levels.py made, as it left it
     path = "%s/%s" % (MAPS_DIR, LEVEL_NAME)
     assert EAL.does_asset_exist(path), "%s is not built: run Tools/levels/build_levels.py in the editor first" % path

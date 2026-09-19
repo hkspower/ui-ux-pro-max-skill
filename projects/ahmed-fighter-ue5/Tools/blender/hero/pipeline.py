@@ -155,7 +155,10 @@ def build_fighter(spec, argv=None):
     # ---- the body under the garments is never seen and pokes through after
     # decimation, so it goes; a band is kept inside every hem.
     def under_garments(c):
-        if 1.10 <= c.z <= 1.53 and abs(c.x) < 0.24 and G.tee_region(c): return True
+        # to 1.50, not 1.53: the collar ring's lowest point is at 1.507, and a
+        # strip that ran to 1.53 left the tee's black inside showing through
+        # the 26 mm between the ring and the neck in every face render
+        if 1.10 <= c.z <= 1.50 and abs(c.x) < 0.24 and G.tee_region(c): return True
         if 0.16 <= c.z <= 1.04 and G.pants_region(c): return True
         for s in (1, -1):
             sh = Vector((A.Jp("upperarm_l").x * s, A.Jp("upperarm_l").y, A.Jp("upperarm_l").z))
@@ -257,7 +260,7 @@ def build_fighter(spec, argv=None):
                            ("shoe", None, max(512, TEX // 4)), ("tee", tee, TEX), ("pants", pants, TEX), ("eye", eyes[0], 512)):
         if key == "shoe":
             obj = only(body, slots["shoe"])
-            # the soles bake into the same image afterwards: same material, own charts
+            # the soles bake into the same images below: same material, own charts
         source = {"skin": hi["body"], "hair": hi["body"], "shoe": hi["body"], "tee": hi["tee"], "pants": hi["pants"]}.get(key)
         baked[key] = F.bake_set(obj, mats[key], size, UE5_TEX, base_of[key],
                                 maps=("albedo", "normal", "roughness") if key != "eye" else ("albedo", "roughness"), source=source,
@@ -269,6 +272,14 @@ def build_fighter(spec, argv=None):
                                 # half for everything else, where the comment in bake_set
                                 # about dither still holds.
                                 normal_size=(size if key == "skin" else max(512, size // 2)))
+        if key == "shoe":
+            # the soles: the same material, their own charts (u > 0.5, v < 0.5),
+            # baked into the same three images from their own paint. Without
+            # this that quadrant stayed black -- colour black, roughness 0 --
+            # and every sole shipped as a mirror.
+            for o in soles:
+                F.bake_set(o, mats["shoe"], size, UE5_TEX, base_of["shoe"], source=None, images=baked["shoe"],
+                           normal_size=max(512, size // 2))
         if key == "eye":
             # Same reason as the face: the iris is 11 mm across and the limbal
             # ring 0.4 mm, against 2.8 degrees between the globe's vertices.

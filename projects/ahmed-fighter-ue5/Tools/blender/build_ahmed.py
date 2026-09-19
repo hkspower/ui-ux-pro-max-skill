@@ -584,7 +584,14 @@ def pose(arm_obj, directions, targets=None, poles=None):
             continue
         pbone = arm_obj.pose.bones[name]
         aim = Vector(directions[name]).normalized()
-        matrix = aim.to_track_quat("Y", "Z").to_matrix().to_4x4()
+        # the bone's current frame swung onto the aim with no twist about
+        # its length: to_track_quat("Y", "Z") re-made the frame with world
+        # up as its Z, which turns a bone whose rest Z is world -Y (spine,
+        # neck, head) or down (a foot) half a turn about itself -- the chest
+        # faced backwards and the soles came up in every posed render
+        cur = pbone.matrix.to_3x3()
+        y = Vector((cur[0][1], cur[1][1], cur[2][1])).normalized()
+        matrix = (y.rotation_difference(aim).to_matrix() @ cur).to_4x4()
         matrix.translation = pbone.matrix.translation
         pbone.matrix = matrix
         bpy.context.view_layer.update()

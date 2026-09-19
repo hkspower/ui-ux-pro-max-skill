@@ -42,7 +42,7 @@ one it always saw.
     CTRL_elbow_l/r            the pole, a bone where the Empty was
     CTRL_foot_l/r             the effector for a reverse foot:
         MCH_heel_l/r            pivot at the heel, turns for roll < 0
-        MCH_toe_l/r             pivot at the toe tip, turns for roll > 0
+        MCH_toe_l/r             pivot on the floor under the BALL, turns for roll > 0
         MCH_ankle_l/r           where the ankle ends up; ik_foot_* copies it
         MCH_toes_l/r            under the heel pivot only, so ball_* stays
                                 flat on the ground through a toe roll
@@ -53,8 +53,9 @@ Which way a pivot turns is not asserted; it is found by turning it and
 looking, the same way build_ahmed._limit_hinge finds a hinge's side, and
 the sign that lifts the ankle is the sign the driver keeps. In FK (fk=1)
 the deform bones themselves are the FK controls: they are the mannequin's
-bones, they are visible, and an FK layer on top of them would be a second
-copy of the same 62 names.
+bones, in the DEF collection, which is hidden by default (show DEF to pose
+them), and an FK layer on top of them would be a second copy of the same
+62 names.
 
 Numbers here that nothing else owns, all of them chosen: a heel roll of 35
 degrees and a toe roll of 55 at the ends of the slider, the fist's 10
@@ -357,6 +358,7 @@ def build(rig, mesh):
                        "CTRL_elbow_%s" % s: ("sphere", 0.04), "CTRL_knee_%s" % s: ("sphere", 0.04)})
     for name, (kind, size) in shapes.items():
         b = pb[name]; b.custom_shape = _widget("WGT_" + kind, kind); b.custom_shape_scale_xyz = (size, size, size)
+        b.use_custom_shape_bone_size = False      # the size IS the metres above, not a multiple of a 6 cm bone
         if name == "CTRL_root":
             b.custom_shape_rotation_euler = (math.radians(90.0), 0.0, 0.0)     # the bone points up; the circle lies flat
         b.color.palette = "THEME01" if name.endswith("_l") else ("THEME04" if name.endswith("_r") else "THEME09")
@@ -467,7 +469,17 @@ def _aim(rig, directions):
             continue
         pbone = rig.pose.bones[name]
         aim = Vector(directions[name]).normalized()
-        m = aim.to_track_quat("Y", "Z").to_matrix().to_4x4()
+        # the bone's CURRENT frame swung onto the aim, no twist about its
+        # length. to_track_quat("Y", "Z") built a frame whose Z is world up
+        # projected, which for a bone whose rest Z is world -Y (the spine,
+        # the neck, the head) or straight down (a foot) is a 180 degree turn
+        # about the bone: every stance had the chest facing backwards, the
+        # nose behind the head, the soles up and the reverse foot's pivots
+        # 20 cm in the air, and the tee "pinched at the waist" between the
+        # unturned pelvis and the turned spine.
+        cur = pbone.matrix.to_3x3()
+        y = Vector((cur[0][1], cur[1][1], cur[2][1])).normalized()
+        m = (y.rotation_difference(aim).to_matrix() @ cur).to_4x4()
         m.translation = pbone.matrix.translation
         pbone.matrix = m
         _update()
@@ -554,9 +566,11 @@ def verify(rig, mesh):
     pb = rig.pose.bones
     reset(rig)
     # 1 the hand reaches its control, and the elbow bends toward its pole
-    tip0 = _world(rig, "hand_end_l"); wrist0 = _world(rig, "CTRL_hand_l")
-    set_world_translation(rig, "CTRL_hand_l", wrist0 + Vector((0, -0.20, 0)))
-    tip1 = _world(rig, "hand_end_l")
+    # in HIS frame (PoseBone.matrix), like the look probe: forward is his -Y
+    # wherever he stands
+    tip0 = pb["hand_end_l"].matrix.translation.copy(); wrist0 = pb["CTRL_hand_l"].matrix.translation.copy()
+    set_translation(rig, "CTRL_hand_l", wrist0 + Vector((0, -0.20, 0)))
+    tip1 = pb["hand_end_l"].matrix.translation.copy()
     reach = (tip0.y - tip1.y)
     if reach < 0.18:
         fails.append("hand IK: CTRL_hand_l went 20 cm forward and hand_end_l went %.1f cm" % (reach * 100))
@@ -567,23 +581,28 @@ def verify(rig, mesh):
     # above, is the wrong probe for this: a straight arm swings forward
     # from the shoulder and bends almost nothing.
     reset(rig)
-    sh = _world(rig, "upperarm_l"); wr0 = _world(rig, "CTRL_hand_l")
-    set_world_translation(rig, "CTRL_hand_l", sh + (wr0 - sh) * 0.66)
-    el, wr = _world(rig, "lowerarm_l"), rig.matrix_world @ pb["lowerarm_l"].tail
+    sh = pb["upperarm_l"].matrix.translation.copy(); wr0 = pb["CTRL_hand_l"].matrix.translation.copy()
+    set_translation(rig, "CTRL_hand_l", sh + (wr0 - sh) * 0.66)
+    el, wr = pb["lowerarm_l"].matrix.translation.copy(), pb["lowerarm_l"].tail.copy()
     bend = el - (sh + wr) * 0.5
     if bend.y < 0.03:
         fails.append("hand IK: the elbow did not bend toward its pole (bend %+.1f cm along Y)" % (bend.y * 100))
     # 2 the switch: in FK the same move does nothing to the arm
     reset(rig); set_prop(rig, "CTRL_hand_l", "fk", 1.0)
     tip0 = _world(rig, "hand_end_l")
-    set_world_translation(rig, "CTRL_hand_l", _world(rig, "CTRL_hand_l") + Vector((0, -0.20, 0)))
+    set_translation(rig, "CTRL_hand_l", pb["CTRL_hand_l"].matrix.translation + Vector((0, -0.20, 0)))
     if (_world(rig, "hand_end_l") - tip0).length > 0.001:
         fails.append("fk switch: with fk=1 the hand still followed the control by %.1f mm" % ((_world(rig, "hand_end_l") - tip0).length * 1000))
     # 3 the reverse foot
+    import build_ahmed as legacy
     reset(rig)
-    toes0, heel0 = _toe_and_heel(rig, mesh, "l"); ankle0 = _world(rig, "foot_l")
+    toes0, heel0 = _toe_and_heel(rig, mesh, "l"); ankle0 = _world(rig, "foot_l"); floor0 = legacy._foot_floor(mesh, rig, "l")
     set_prop(rig, "CTRL_foot_l", "roll", 1.0)
-    toes1, heel1 = _toe_and_heel(rig, mesh, "l"); ankle1 = _world(rig, "foot_l")
+    toes1, heel1 = _toe_and_heel(rig, mesh, "l"); ankle1 = _world(rig, "foot_l"); floor1 = legacy._foot_floor(mesh, rig, "l")
+    # and the SHOE, evaluated: the bones carried their points but the toe
+    # box was weighted to foot_* and went 35 mm through the floor with it
+    if floor0 - floor1 > 0.015:
+        fails.append("toe roll: the shoe's lowest vertex went %.1f mm through the floor" % ((floor0 - floor1) * 1000))
     # 1.5 cm: the ball joint sits 2.4 cm above the floor pivot, so a full
     # roll lifts it 2.4 * (1 - cos 55) = 1.0 cm, and the toes with it
     # STAY: not up (they left the floor) and not down (a rigid foot pivoting
