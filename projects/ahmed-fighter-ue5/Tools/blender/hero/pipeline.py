@@ -197,7 +197,14 @@ def run(argv=None):
         source = {"skin": hi["body"], "hair": hi["body"], "shoe": hi["body"], "tee": hi["tee"], "pants": hi["pants"]}.get(key)
         baked[key] = F.bake_set(obj, mats[key], size, UE5_TEX, {"skin": "Ahmed_Skin", "hair": "Ahmed_Hair", "shoe": "Ahmed_Shoe", "tee": "Ahmed_Tee", "pants": "Ahmed_Pants", "eye": "Ahmed_Eye"}[key],
                                 maps=("albedo", "normal", "roughness") if key != "eye" else ("albedo", "roughness"), source=source,
-                                normal_size=max(512, size // 2))
+                                # The skin's normal is the only one carrying authored
+                                # structure rather than pore dither, and at half size a
+                                # face texel is 1.36 x 2.00 mm -- the mouthline is 0.9 mm
+                                # and the lash bar 1.6, so both sat at or under one texel
+                                # in the direction that matters. Full size for the skin,
+                                # half for everything else, where the comment in bake_set
+                                # about dither still holds.
+                                normal_size=(size if key == "skin" else max(512, size // 2)))
         if key == "eye":
             # Same reason as the face: the iris is 11 mm across and the limbal
             # ring 0.4 mm, against 2.8 degrees between the globe's vertices.
@@ -208,7 +215,9 @@ def run(argv=None):
             # The bake can only carry what the vertices hold, and the head has
             # 3.1 mm between vertices against a 0.9 mm texel. Repaint the face
             # from hero.face at the texture's own resolution.
-            stamp("repainted %d face texels" % F.repaint_head(obj, baked[key], size))
+            painted, relief = F.repaint_head(obj, baked[key], size)
+            assert painted > 0, "the face repaint wrote nothing -- the head chart did not rasterise"
+            stamp("repainted %d face texels, relief %.2f coherent levels in the normal" % (painted, relief))
         if obj not in (tee, pants) and obj not in eyes: bpy.data.objects.remove(obj, do_unlink=True)
         stamp("baked %s at %d" % (key, size))
     for k, m in mats.items(): F.wire_textures(m, baked[k])

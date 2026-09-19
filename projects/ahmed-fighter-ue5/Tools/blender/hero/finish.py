@@ -398,9 +398,10 @@ def repaint_head(obj, imgs, size):
     vermilion border, a nostril rim, the edge of a brow -- exists only here.
     """
     from . import face as FA
+    coherent = 0.0
     pos, cov = rasterise(obj, size, lambda c: c[2] > 1.535)
     if not cov.any():
-        return 0
+        return 0, coherent
     P = pos[cov]
     skin = FA.hex_lin('f0d8c4'); hair = FA.hex_lin('1e150f')
     beard = FA.hex_lin('2a1d13') * 0.9
@@ -417,7 +418,7 @@ def repaint_head(obj, imgs, size):
     rgb, rel, on = FA.shade(P, skin, hair, beard, base_rgb=lin[cov])
     live = on > 0.002
     if not live.any():
-        return 0
+        return 0, coherent
     buf = np.zeros(pos.shape); buf[cov] = rgb
     m = np.zeros(cov.shape, bool); m[cov] = live
     lin[m] = buf[m]
@@ -461,6 +462,15 @@ def repaint_head(obj, imgs, size):
         use = good & (Hm > 0.002)
         nrm[..., :3] = np.where(use[..., None], n * 0.5 + 0.5, nrm[..., :3])
         _img_write(imgs["normal"], _dilate(nrm, use, 3))
+        # Did the relief actually land? Structure finer than a texel averages
+        # to noise, and noise and a flat map look the same in a histogram --
+        # so measure what SURVIVES a 4x4 box mean. Pure per-texel dither of
+        # standard deviation s falls to s/4; anything coherent does not.
+        fb = (nrm[..., 1] * 255.0)[use.any(1)][:, use.any(0)]
+        if fb.size > 64:
+            k = 4; hh, ww = (fb.shape[0] // k) * k, (fb.shape[1] // k) * k
+            if hh and ww:
+                coherent = float(fb[:hh, :ww].reshape(hh // k, k, ww // k, k).mean((1, 3)).std())
 
     # ---- roughness: a face is not one finish. The T-zone is oily and the
     # cheeks are not; lips are wetter than either; a brow is matt.
@@ -479,7 +489,7 @@ def repaint_head(obj, imgs, size):
         buf = np.zeros(cov.shape); buf[cov] = r
         rough[..., :3] = np.where(m[..., None], buf[..., None], rough[..., :3])
         _img_write(imgs["roughness"], _dilate(rough, m, 3))
-    return int(m.sum())
+    return int(m.sum()), coherent
 
 
 # --------------------------------------------------------------- the eye
