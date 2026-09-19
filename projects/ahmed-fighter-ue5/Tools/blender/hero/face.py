@@ -146,7 +146,8 @@ def shade(P, skin, hair, beard, base_rgb=None):
     P        (N,3) positions, metres, in the build's frame
     skin     the base skin colour, linear -- the browser build's number
     hair     hair colour, linear
-    beard    beard colour, linear
+    beard    beard colour, linear -- or None for a clean-shaven man, which
+             skips the beard, the moustache and the sideburns together
     base_rgb (N,3) colour to start from, or None to start from `skin`
 
     returns  (rgb (N,3) linear, relief (N,) metres, on_face (N,) 0..1)
@@ -281,6 +282,14 @@ def shade(P, skin, hair, beard, base_rgb=None):
     # of the mouth back to the ear, not a band filling the cheek -- the cheek
     # above it is bare, which is what makes it read as kept rather than as
     # dirt on the face.
+    if beard is None:
+        # ---- 10, early: the grain, and out. No beard on this man.
+        pore = fbm(P, 1100.0, 3, 23.0) - 0.5
+        blotch = fbm(P, 90.0, 3, 41.0) - 0.5
+        col[:] = np.clip(col * (1.0 + (0.085 * blotch + 0.030 * pore) * on_face)[:, None], 0.0, 1.0)
+        rel += (0.00010 * pore + 0.00022 * blotch) * on_face
+        rel *= on_face
+        return col, rel, on_face
     jaw_top = MOUTH_Z - 0.0117 + 0.052 * smooth(np.clip((lat - 0.18) / 0.72, 0, 1)) ** 1.35
     top = ramp(z, jaw_top + 0.0045, jaw_top - 0.0045)
     bottom = ramp(z, 1.5560, 1.5660)

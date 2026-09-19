@@ -134,8 +134,13 @@ def eyeballs():
         out.append(e)
     return out
 
-def hair_parts():
-    """A cap over the skull cut at the hairline, and hair over the crown."""
+def hair_parts(style="quiff"):
+    """A cap over the skull cut at the hairline, and hair over the crown.
+
+    `style`: "quiff" is Ahmed's -- the cap and some length left on top
+    (assets/ahmed.js: `quiff: true`). "crop" is the cap alone, a close cut,
+    for a man the roster gives a hair colour and nothing else.
+    """
     # The skull crown is at 1.796 and the chin at 1.570: 0.226 m a head, and
     # 8.04 heads tall, which is the figure the art direction asks for. But
     # the cap used to top out at 1.806 and the quiff at 1.814, so the head a
@@ -176,6 +181,8 @@ def hair_parts():
     # forward off the top of the skull, which is a bun, not a haircut: it
     # rendered as a topknot. Flattened and set back over the whole crown, it
     # reads as a short crop with some length left on top.
+    if style != "quiff":
+        return [cap]
     crown = ellipsoid("crownhair", (0, -0.004, 1.7680), (0.0680, 0.0800, 0.0260),
                       (0, -0.14, 1.0), segs=48, rings=32)
     return [cap, crown]
@@ -183,8 +190,10 @@ def hair_parts():
 def union_remesh(parts, voxel, name):
     return A.union_remesh(parts, voxel, name)
 
-def build(voxel_scale=1.0):
-    """voxel_scale > 1 is a coarse, quick body for checking the stages after this one."""
+def build(voxel_scale=1.0, face_scale=None, hair_style="quiff"):
+    """voxel_scale > 1 is a coarse, quick body for checking the stages after
+    this one. `face_scale` and `hair_style` are one man's differences from
+    another on the same skull -- see sculpt.sculpt_face and hair_parts."""
     vs = voxel_scale
     t = time.time()
     legacy.reset_scene()
@@ -210,7 +219,7 @@ def build(voxel_scale=1.0):
     hl, jl = A.hand(); hr = [mirror_x(o) for o in hl]
     hands = union_remesh(hl + hr, 0.0025 * vs, "Hands"); A.smooth(hands, 0.5, 3)
     face = face_parts() + ear(1) + ear(-1)
-    hair = hair_parts()
+    hair = hair_parts(hair_style)
     groups = {"skin": [base, hands] + face, "hair": hair}
     # remember the sources for material assignment: BVH per group
     trees = {}
@@ -222,7 +231,7 @@ def build(voxel_scale=1.0):
     body = union_remesh([base, hands] + face + hair, 0.0035 * vs, "Body")
     A.smooth(body, 0.5, 2)
     from . import sculpt
-    peak, moved = sculpt.sculpt_face(body, A.head_surface_y)
+    peak, moved = sculpt.sculpt_face(body, A.head_surface_y, scale=face_scale)
     A.smooth(body, 0.3, 1)
     bpy.ops.object.shade_smooth()
     print("body      : %d verts  %.1fs   face sculpt peak %.1f mm over %d verts" % (len(body.data.vertices), time.time() - t, peak * 1000, moved))

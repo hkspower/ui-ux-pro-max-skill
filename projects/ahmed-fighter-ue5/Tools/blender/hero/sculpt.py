@@ -114,8 +114,16 @@ def lids(P, eye, orbit=(0.0158, 0.0128), up_margin=0.0038, dn_margin=0.0048,
     lo = step((-dz - dn_margin * close) / 0.0030) * close
     return within * fy * (up * hi + down * lo)
 
-def sculpt_face(body, surface_y, z_min=1.556):
-    """Displace the head's vertices by the feature field."""
+def sculpt_face(body, surface_y, z_min=1.556, scale=None):
+    """Displace the head's vertices by the feature field.
+
+    `scale` is {feature name: factor} on the amplitudes -- how one man's
+    face differs from another's on the same skull: a heavier brow, a wider
+    jaw, a smaller chin. The layout (where the features ARE) is shared; it
+    is the eight-heads layout every face here is drawn to, and the browser
+    build draws every fighter's head from the one skull too.
+    """
+    scale = scale or {}
     me = body.data
     n = len(me.vertices)
     P = np.empty(n * 3); me.vertices.foreach_get("co", P); P = P.reshape(n, 3)
@@ -129,6 +137,7 @@ def sculpt_face(body, surface_y, z_min=1.556):
         d = ((Ph[:, 0] - x) / sx) ** 2 + ((Ph[:, 1] - y) / sy) ** 2 + ((Ph[:, 2] - z) / sz) ** 2
         return amp * np.exp(-0.5 * d)
     for name, x, z, sx, sy, sz, amp, mirror in FACE:
+        amp = amp * scale.get(name, 1.0)
         D += add(x, z, sx, sy, sz, amp)
         if mirror: D += add(-x, z, sx, sy, sz, amp)
     for s in (1, -1):
@@ -140,19 +149,21 @@ def sculpt_face(body, surface_y, z_min=1.556):
     P[idx] += N[idx] * (D * front)[:, None]
     me.vertices.foreach_set("co", P.reshape(-1))
     me.update()
-    check_profile()
+    check_profile(scale)
     return float(np.abs(D).max()), int((np.abs(D) > 0.0005).sum())
 
-def midline(lo=1.590, hi=1.740, step=0.001):
+def midline(lo=1.590, hi=1.740, step=0.001, scale=None):
     """The face's profile down the midline, as the field would build it."""
+    scale = scale or {}
     zs = np.arange(lo, hi, step)
     d = np.zeros_like(zs)
     for name, fx, fz, sx, sy, sz, amp, mirror in FACE:
+        amp = amp * scale.get(name, 1.0)
         for sgn in ((1, -1) if mirror else (1,)):
             d += amp * np.exp(-0.5 * (((0.0 - sgn * fx) / sx) ** 2 + ((zs - fz) / sz) ** 2))
     return zs, d
 
-def check_profile():
+def check_profile(scale=None):
     """The two things about the profile that a render will not tell you
     until it is too late, and that both went wrong before:
 
@@ -163,7 +174,7 @@ def check_profile():
     minimum between the glabella and the bridge. Without one the midline is
     a single convex ramp from the hairline to the tip.
     """
-    zs, d = midline()
+    zs, d = midline(scale=scale)
     peak = float(d.max()); at = float(zs[int(d.argmax())])
     assert 0.020 <= peak <= 0.030, "nose field peak %.1f mm, want 20-30" % (peak * 1000)
     assert abs(at - NOSE_TIP) < 0.008, "nose peaks at %.3f, not at the tip %.3f" % (at, NOSE_TIP)

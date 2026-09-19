@@ -4,6 +4,7 @@ a belly, a head is a stack of skull sections; only the masses that really
 sit on top of the form -- deltoid, pec, trap, glute -- are separate blobs.
 Ahmed faces -Y; +X is his left; Z up."""
 import bpy, bmesh, math, sys, os, time
+import numpy as np
 from mathutils import Vector, Matrix
 import build_ahmed as legacy
 J = legacy.J
@@ -377,3 +378,126 @@ def build(stage_render=True):
     measure(body)
     return body, jl
 
+
+
+# ================================================================== the build
+# How one man's body differs from another's, the way the browser build says
+# it does. index.html draws every fighter from ONE figure and then scales
+# it: `sc` scales the whole sprite (:1379), and `build` -- "limb thickness:
+# 1 is lean" (:1567) -- multiplies the limb radii and widens the torso by
+# 1 + (build - 1) * 0.7, "widen chest, keep height" (:1600). The head and
+# the hands are not touched by `build`. The body this module builds IS
+# Ahmed, whose own entry is sc 1.05, build 1.12 (assets/ahmed.js), so every
+# other man is that body taken through the same three numbers relative to
+# his. It is applied to the finished, painted, baked mesh and to the joint
+# table together, after the bake and before the armature, so that every
+# absolute constant upstream -- EYE_Z, HAIRLINE, the tee's hem, the UV
+# charts -- is evaluated once, at the one set of coordinates it was written
+# for.
+
+def _smooth(t):
+    t = np.clip(t, 0.0, 1.0); return t * t * (3.0 - 2.0 * t)
+
+def build_field(sc, build):
+    """The three factors and the field, for a man of (sc, build).
+
+    Returns (h, l, t, F) where F maps (N,3) canonical positions to the
+    man's own. h is the uniform stature factor, l the limb-thickness
+    factor, t the torso-width factor; all relative to Ahmed's own entry,
+    read from the roster rather than typed here. Everything the field
+    needs of the joint table is captured HERE, at canon, so the field is
+    the same function whether it is applied to a mesh before the joints
+    or after them.
+    """
+    from . import roster
+    a = roster.spec("ahmed")
+    h = sc / a["sc"]
+    l = build / a["look"]["build"]
+    t = (1.0 + 0.7 * (build - 1.0)) / (1.0 + 0.7 * (a["look"]["build"] - 1.0))
+
+    def seg(p, q, s):
+        return (np.array(Jp(p)) * np.array([s, 1, 1]), np.array(Jp(q)) * np.array([s, 1, 1]))
+    limbs = []          # (polyline, radius of influence, end blends as fractions of arc length, is_arm)
+    arms = []           # the arm polylines with the hand, for the rigid shift
+    for s in (1, -1):
+        sh, el = seg("upperarm_l", "lowerarm_l", s); wr = seg("lowerarm_l", "hand_l", s)[1]; tip = seg("hand_l", "hand_end_l", s)[1]
+        hip, kn = seg("thigh_l", "calf_l", s); an = seg("calf_l", "foot_l", s)[1]
+        limbs.append(([sh, el, wr], 0.115, (0.12, 0.90)))
+        limbs.append(([hip, kn, an], 0.150, (0.15, 0.93)))
+        arms.append(([sh, el, wr, tip + (tip - wr) * 0.6], 0.16))
+    shoulder_x = abs(Jp("upperarm_l").x)
+
+    def along(P, pts):
+        """distance to a polyline, the fraction along it, and the foot of the perpendicular"""
+        total = sum(np.linalg.norm(pts[i + 1] - pts[i]) for i in range(len(pts) - 1))
+        best_d = np.full(len(P), np.inf); best_u = np.zeros(len(P)); best_foot = np.zeros_like(P)
+        acc = 0.0
+        for i in range(len(pts) - 1):
+            a_, b_ = pts[i], pts[i + 1]; ab = b_ - a_; L = np.linalg.norm(ab); d = ab / L
+            q = P - a_; tt = np.clip(q @ d, 0.0, L)
+            foot = a_ + np.outer(tt, d); dist = np.linalg.norm(P - foot, axis=1)
+            closer = dist < best_d
+            best_d[closer] = dist[closer]; best_u[closer] = (acc + tt[closer]) / total; best_foot[closer] = foot[closer]
+            acc += L
+        return best_d, best_u, best_foot
+
+    def F(P):
+        P0 = np.array(P, dtype=float).reshape(-1, 3)
+        P = P0.copy()
+        if abs(l - 1.0) > 1e-9:
+            # limb thickness: radial about each limb's own axis, fading to
+            # nothing at the joint it hangs from and at the wrist or ankle,
+            # so the hands, the feet and the shoulder stay the size they are.
+            # Every limb's weight is taken off the ORIGINAL positions and a
+            # point belongs to the limb whose field is strongest on it, so
+            # the inner thighs are thinned once, the same on both sides.
+            best_w = np.zeros(len(P)); best_foot = P0.copy()
+            for pts, R, (u0, u1) in limbs:
+                d, u, foot = along(P0, pts)
+                w = _smooth((u - u0) / 0.10) * (1.0 - _smooth((u - u1) / 0.07))
+                w = w * (1.0 - _smooth((d - R * 0.75) / (R * 0.25)))
+                take = w > best_w
+                best_w[take] = w[take]; best_foot[take] = foot[take]
+            P = best_foot + (P0 - best_foot) * (1.0 + (l - 1.0) * best_w)[:, None]
+        if abs(t - 1.0) > 1e-9:
+            # torso width: x scaled about the midline through the trunk, and
+            # each arm carried inward, WHOLE and rigidly -- hand included --
+            # by the shoulder's own displacement, so the two rules agree at
+            # the joint and nothing between the wrist and the knuckles is
+            # sheared. An arm point is one within reach of the arm's
+            # polyline, wrist to fingertip included; everything else takes
+            # the trunk rule, faded out below the hips and at the neck.
+            x, z = P0[:, 0], P0[:, 2]
+            band = _smooth((z - 0.96) / 0.04) * (1.0 - _smooth((z - 1.49) / 0.03))
+            shift = np.sign(x) * np.minimum(np.abs(x), shoulder_x) * (t - 1.0) * band
+            arm_w = np.zeros(len(P))
+            for pts, R in arms:
+                d, u, foot = along(P0, pts)
+                arm_w = np.maximum(arm_w, 1.0 - _smooth((d - R * 0.7) / (R * 0.3)))
+            rigid = np.sign(x) * shoulder_x * (t - 1.0)
+            P[:, 0] = P[:, 0] + shift * (1.0 - arm_w) + rigid * arm_w
+        return P * np.array([h, h, h])
+    return h, l, t, F
+
+def scale_to(objects, joints_l, sc, build):
+    """Take the built man to (sc, build): every mesh in `objects`, the joint
+    table J and the hand joints `joints_l`, through one field. Returns the
+    three factors. Ahmed's own numbers leave everything exactly as it is."""
+    h, l, t, F = build_field(sc, build)
+    if abs(h - 1) < 1e-9 and abs(l - 1) < 1e-9 and abs(t - 1) < 1e-9:
+        return dict(h=1.0, l=1.0, t=1.0)
+    for o in objects:
+        me = o.data; n = len(me.vertices)
+        P = np.empty(n * 3); me.vertices.foreach_get("co", P)
+        me.vertices.foreach_set("co", F(P.reshape(n, 3)).reshape(-1)); me.update()
+    # the joints: the same field, so the bones are where the body is
+    names = list(J.keys())
+    Q = F(np.array([list(J[k][0]) for k in names]))
+    for k, q in zip(names, Q):
+        J[k][0].x, J[k][0].y, J[k][0].z = float(q[0]), float(q[1]), float(q[2])
+    for key, pts in joints_l.items():
+        Q = F(np.array([list(p) for p in pts]))
+        for p, q in zip(pts, Q):
+            p.x, p.y, p.z = float(q[0]), float(q[1]), float(q[2])
+    print("build     : h %.3f (stature %.3f m)  limbs x%.3f  torso x%.3f" % (h, legacy.HEIGHT * h, l, t))
+    return dict(h=h, l=l, t=t)

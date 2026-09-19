@@ -118,17 +118,62 @@ def body_charts():
     return charts
 
 # --------------------------------------------------------------- colour
-def paint(obj, kind, joints_l):
-    """A colour attribute per vertex, from position. The albedo bake reads it."""
+def srgb(h): h = h.lstrip('#'); return np.array([int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)])
+def lin(c): return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+# What was typed in paint() for Ahmed, before the roster read it out of the
+# browser build instead: kept as the record of where the derived palette
+# has to land for him (see palette_for and the test in build_fighters.py).
+_AHMED_PAINT = dict(skin='f0d8c4', hair='1e150f', tee='15171c', pants='0e1014', band='c8102e', shoe='101216')
+
+def palette_for(spec):
+    """Linear colours and the kit for one fighter, from his roster entry.
+
+    The browser build draws the beard as a translucent wash over the skin
+    (`beard: 'rgba(24,17,12,.94)'`); a bake wants one colour, so it is
+    composited over the skin here. The shoe is a touch off the trousers,
+    as build_ahmed.PALETTE had it. Nothing in here is a colour somebody
+    chose: it is the roster, read.
+    """
+    from . import roster
+    c, look = spec["col"], spec["look"]
+    beard = look.get("beard")
+    if beard and not look.get("bald"):
+        beard = roster.rgba_over(beard, c["skin"])
+    else:
+        beard = None
+    hair = None if look.get("bald") else look.get("hair", "#1e150f")
+    return dict(
+        skin=lin(srgb(c["skin"])), hair=lin(srgb(hair)) if hair else None,
+        beard=lin(srgb(beard)) if beard else None,
+        tee=lin(srgb(c["top"])), pants=lin(srgb(c["bottom"])), band=lin(srgb(c["band"])),
+        shoe=lin(srgb('101216')),
+        lip=lin(srgb('c98a78')), tape=lin(srgb('e8e2d4')), nail=lin(srgb('f4dccb')),
+        # the kit: what the browser lists for him and nothing it does not
+        tape_on=(look.get("hands") == "wraps"), patch=bool(look.get("patch")),
+        stripe=bool(look.get("stripe")), watch=bool(look.get("watch")),
+        name=spec["name"])
+
+def ahmed_palette():
+    """Today's Ahmed, exactly as paint() used to spell him."""
+    return dict(skin=lin(srgb(_AHMED_PAINT['skin'])), hair=lin(srgb(_AHMED_PAINT['hair'])),
+                beard=lin(srgb('2a1d13')) * 0.9,
+                tee=lin(srgb(_AHMED_PAINT['tee'])), pants=lin(srgb(_AHMED_PAINT['pants'])),
+                band=lin(srgb(_AHMED_PAINT['band'])), shoe=lin(srgb(_AHMED_PAINT['shoe'])),
+                lip=lin(srgb('c98a78')), tape=lin(srgb('e8e2d4')), nail=lin(srgb('f4dccb')),
+                tape_on=True, patch=True, stripe=True, watch=True, name="Ahmed")
+
+def paint(obj, kind, joints_l, pal=None):
+    """A colour attribute per vertex, from position. The albedo bake reads it.
+    `pal` is palette_for(spec); None is Ahmed as he was always painted."""
+    pal = pal or ahmed_palette()
     me = obj.data
     n = len(me.vertices)
     P = np.empty(n * 3); me.vertices.foreach_get("co", P); P = P.reshape(n, 3)
     col = np.zeros((n, 4)); col[:, 3] = 1.0
-    def srgb(h): h = h.lstrip('#'); return np.array([int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)])
-    def lin(c): return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
-    skin = lin(srgb('f0d8c4')); hair = lin(srgb('1e150f')); beard = lin(srgb('2a1d13')) * 0.9
-    lip = lin(srgb('c98a78')); tape = lin(srgb('e8e2d4')); nail = lin(srgb('f4dccb'))
-    tee = lin(srgb('15171c')); pants = lin(srgb('0e1014')); band = lin(srgb('c8102e')); shoe = lin(srgb('101216'))
+    skin = pal["skin"]; hair = pal["hair"] if pal["hair"] is not None else skin; beard = pal["beard"]
+    lip = pal["lip"]; tape = pal["tape"]; nail = pal["nail"]
+    tee = pal["tee"]; pants = pal["pants"]; band = pal["band"]; shoe = pal["shoe"]
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
     if kind == "skin":
         col[:, :3] = skin
@@ -149,7 +194,7 @@ def paint(obj, kind, joints_l):
         col[:, :3] = FA.body_grain(P, col[:, :3])
         col[:, :3], _rel, _on = FA.shade(P, skin, hair, beard, base_rgb=col[:, :3])
         # hand wraps: tape from the wrist over the back of the hand and the knuckles
-        for s in (1, -1):
+        for s in ((1, -1) if pal["tape_on"] else ()):
             wr = np.array(Jp("hand_l")) * np.array([s, 1, 1]); he = np.array(Jp("hand_end_l")) * np.array([s, 1, 1])
             d = (he - wr) / np.linalg.norm(he - wr)
             t = (P - wr) @ d; perp = np.linalg.norm((P - wr) - np.outer(t, d), axis=1)
@@ -158,6 +203,7 @@ def paint(obj, kind, joints_l):
             turns = ((t + 0.045) / 0.011) % 1.0
             band_on = wrap & ((turns < 0.82) | (t < 0.0))
             col[band_on, :3] = tape
+        for s in (1, -1):
             # nails: the last 9 mm of each fingertip, the back side
             for fi in range(4):
                 tip = np.array(joints_l["f%d" % fi][-1]) * np.array([s, 1, 1])
@@ -181,6 +227,7 @@ def paint(obj, kind, joints_l):
         # the flag patch on the left breast, 48 x 30 mm, four bands
         px, pz, w, h = 0.044, 1.352, 0.048, 0.030
         inpatch = (np.abs(x - px) < w / 2) & (np.abs(z - pz) < h / 2) & (y < -0.06)
+        if not pal["patch"]: inpatch[:] = False
         hoist = inpatch & (x > px + w / 2 - w * 0.27)
         rest = inpatch & ~hoist
         col[rest & (z > pz + h / 6), :3] = lin(srgb('007a3d'))
@@ -193,8 +240,8 @@ def paint(obj, kind, joints_l):
     elif kind == "pants":
         col[:, :3] = pants
         wb = (z > 1.050) & (z < 1.076); col[wb, :3] = band
-        # the red stripe down the outer seam of each leg
-        for s in (1, -1):
+        # the stripe down the outer seam of each leg: track pants, not jeans
+        for s in ((1, -1) if pal["stripe"] else ()):
             th = np.array(Jp("thigh_l")) * np.array([s, 1, 1]); ft = np.array(Jp("foot_l")) * np.array([s, 1, 1])
             d = (ft - th) / np.linalg.norm(ft - th); t = (P - th) @ d
             outer = (x * s > th[0] * s + 0.05) & (t > 0.02) & (t < 0.97) & (np.abs(y - (th[1] + (ft[1] - th[1]) * t)) < 0.016)
@@ -392,19 +439,21 @@ def _dilate(a, cov, rounds=3):
     return out
 
 
-def repaint_head(obj, imgs, size):
+def repaint_head(obj, imgs, size, pal=None):
     """Repaint the head's texels from hero.face, and turn its relief into
     normal and roughness. Everything below 3 mm -- the lash line, the
     vermilion border, a nostril rim, the edge of a brow -- exists only here.
+    `pal` is palette_for(spec); None is Ahmed.
     """
     from . import face as FA
+    pal = pal or ahmed_palette()
     coherent = 0.0
     pos, cov = rasterise(obj, size, lambda c: c[2] > 1.535)
     if not cov.any():
         return 0, coherent
     P = pos[cov]
-    skin = FA.hex_lin('f0d8c4'); hair = FA.hex_lin('1e150f')
-    beard = FA.hex_lin('2a1d13') * 0.9
+    skin = pal["skin"]; hair = pal["hair"] if pal["hair"] is not None else skin
+    beard = pal["beard"]
     # ---- albedo
     # A byte image's `pixels` are the stored bytes over 255 -- sRGB-encoded,
     # not linear (checked: writing 0.5 stores 128).

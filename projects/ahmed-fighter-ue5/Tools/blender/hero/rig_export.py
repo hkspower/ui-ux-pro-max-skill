@@ -47,6 +47,14 @@ def bind_all(body, garments, arm):
             if vg.name not in g.vertex_groups: g.vertex_groups.new(name=vg.name)
         bpy.ops.object.datalayout_transfer(modifier="Weights")
         bpy.ops.object.modifier_apply(modifier="Weights")
+        # Interpolated weights come back a few thousandths over one on a
+        # handful of verts, and the FBX exporter calls the mesh invalid for
+        # it. Clamped, not normalised: the body's weights are heat's and
+        # sum to one already.
+        for v in g.data.vertices:
+            for ge in v.groups:
+                if ge.weight > 1.0:
+                    g.vertex_groups[ge.group].add([v.index], 1.0, "REPLACE")
         # the armature modifier must come first for the join to keep it
         while g.modifiers.find("Skin") > 0: bpy.ops.object.modifier_move_up(modifier="Skin")
 
@@ -76,7 +84,7 @@ def curl_fingers(arm, degrees):
             pb.rotation_mode = 'XYZ'; pb.rotation_euler = (math.radians(-degrees * 0.5), 0, 0)
     bpy.context.view_layer.update()
 
-def export_all(arm, mesh, out_ue5, out_unity, textures_ue5, textures_unity):
+def export_all(arm, mesh, out_ue5, out_unity, textures_ue5, textures_unity, name="Ahmed"):
     # out_unity is None when the frozen Unity port is not asked for, which
     # is the default -- see ../../../CLAUDE.md. Making a directory called
     # None is how the pipeline used to end.
@@ -95,10 +103,10 @@ def export_all(arm, mesh, out_ue5, out_unity, textures_ue5, textures_unity):
     # of their own anyway, so an embedded copy is a second and a third 34 MB
     # of the same sixteen files -- inside a container, where git cannot even
     # see that they are the same. Both formats reference them instead.
-    gltf = os.path.join(out_ue5, "Ahmed.gltf")
+    gltf = os.path.join(out_ue5, name + ".gltf")
     bpy.ops.export_scene.gltf(filepath=gltf, export_format="GLTF_SEPARATE", use_selection=True,
                               export_yup=True, export_apply=True, export_keep_originals=True)
-    fbx = os.path.join(out_ue5, "Ahmed.fbx")
+    fbx = os.path.join(out_ue5, name + ".fbx")
     bpy.ops.export_scene.fbx(filepath=fbx, use_selection=True, apply_unit_scale=True, global_scale=1.0,
                              apply_scale_options="FBX_SCALE_UNITS", add_leaf_bones=False,
                              primary_bone_axis="Y", secondary_bone_axis="X", object_types={"ARMATURE", "MESH"},
@@ -108,7 +116,7 @@ def export_all(arm, mesh, out_ue5, out_unity, textures_ue5, textures_unity):
     # above rather than a copy of it. Skipped when that port is not asked for.
     ufbx = None
     if out_unity:
-        ufbx = os.path.join(out_unity, "Ahmed.fbx")
+        ufbx = os.path.join(out_unity, name + ".fbx")
         bpy.ops.export_scene.fbx(filepath=ufbx, use_selection=True, apply_unit_scale=True, global_scale=1.0,
                                  apply_scale_options="FBX_SCALE_NONE", add_leaf_bones=False,
                                  primary_bone_axis="Y", secondary_bone_axis="X", object_types={"ARMATURE", "MESH"},
@@ -134,6 +142,13 @@ def verify_gltf(path):
                 meshes=[m["name"] for m in j["meshes"]], tris=tris, materials=len(j.get("materials", [])),
                 images=len(j.get("images", [])), images_resolve=True,
                 height=max(z[1] for z in zs) - min(z[0] for z in zs))
+
+def gltf_bone_names(path):
+    """The joint names the glTF's own JSON carries: what an engine reads."""
+    import json
+    j = json.load(open(path))
+    return {j["nodes"][i]["name"] for s in j.get("skins", []) for i in s["joints"]}
+
 
 def verify_roundtrip(path):
     """Import into a fresh scene and count what came back."""
