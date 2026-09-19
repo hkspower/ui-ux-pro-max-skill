@@ -700,7 +700,10 @@ def roundtrip(blend, out=None):
     bpy.context.scene.frame_set(1); _update()
     baked = {b.name: (rig.matrix_world @ b.matrix).translation.copy() for b in rig.pose.bones if b.bone.use_deform}
     bake_err = max((baked[k] - want[k]).length for k in want)
-    out = out or os.path.join(os.path.dirname(blend), "roundtrip.fbx")
+    # the FBX is evidence, not a deliverable: it goes with the build's
+    # checkpoints (hero/build is out of the tree), not beside the rig
+    out = out or os.path.join(HERE, "hero", "build", "roundtrip_%s.fbx" % os.path.splitext(os.path.basename(blend))[0])
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     bpy.ops.object.select_all(action="DESELECT"); rig.select_set(True); mesh.select_set(True)
     bpy.context.view_layer.objects.active = rig
     bpy.ops.export_scene.fbx(filepath=out, use_selection=True, apply_unit_scale=True, global_scale=1.0,

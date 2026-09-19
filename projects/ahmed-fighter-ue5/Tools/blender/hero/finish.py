@@ -125,6 +125,8 @@ def lin(c): return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.
 # browser build instead: kept as the record of where the derived palette
 # has to land for him (see palette_for and the test in build_fighters.py).
 _AHMED_PAINT = dict(skin='f0d8c4', hair='1e150f', tee='15171c', pants='0e1014', band='c8102e', shoe='101216')
+from . import face as FA
+assert '#' + _AHMED_PAINT['skin'] == FA.AHMED_SKIN, "face.py's tones are written on a skin that is not Ahmed's"
 
 def palette_for(spec):
     """Linear colours and the kit for one fighter, from his roster entry.

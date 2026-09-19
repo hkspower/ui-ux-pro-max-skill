@@ -130,6 +130,14 @@ def hex_lin(h): return _lin(_srgb(h))
 # because the beard is under the skin. These are the SAME skin, moved in hue
 # and value, so the face still averages to the browser build's #f0d8c4 -- that
 # number belongs to ahmed-fighter/assets/ahmed.js and is not ours to change.
+#
+# They are written as the colours they come to on Ahmed's skin, and they are
+# applied to any other man as that same move on HIS skin: shade() carries
+# each one as its ratio to AHMED_SKIN in linear light. The thug's face was
+# Ahmed's face on a brown neck until it did -- the zones were laid over his
+# #b8794c at 0.85 as the absolute #efd6b8 / #eecbb4 / #e2c7b4 they are here.
+# On Ahmed the ratio is one and the number is the number.
+AHMED_SKIN = '#f0d8c4'    # assets/ahmed.js col.skin, the skin these were written on
 ZONE_BROW = '#efd6b8'     # forehead and temples, yellower
 ZONE_MID  = '#eecbb4'     # nose, cheeks, the blood zone
 ZONE_JAW  = '#e2c7b4'     # jaw, chin, upper lip -- cooler
@@ -157,6 +165,10 @@ def shade(P, skin, hair, beard, base_rgb=None):
     fwd = forwardness(P)
     lat = lateral(P)
     col = (np.tile(skin, (len(P), 1)) if base_rgb is None else base_rgb.copy())
+    _ahmed = hex_lin(AHMED_SKIN)
+    def tone(h):
+        """A tone written for Ahmed's skin, as the same move on this man's."""
+        return np.asarray(skin, dtype=float) * (hex_lin(h) / _ahmed)
     rel = np.zeros(len(P))
 
     # Everything below is a head, and nothing may touch the nape. The gate
@@ -176,22 +188,22 @@ def shade(P, skin, hair, beard, base_rgb=None):
 
     def darken(mask, k):
         w = np.clip(mask, 0, 1) * k * on_face
-        col[:] = col * (1 - w[:, None]) + hex_lin(SHADOW)[None, :] * w[:, None]
+        col[:] = col * (1 - w[:, None]) + tone(SHADOW)[None, :] * w[:, None]
 
     # ---- 1. the three zones -------------------------------------------
     zone_w = ramp(fwd, -0.15, 0.25)
     brow_zone = ramp(z, BROW_Z - 0.009, BROW_Z + 0.031) * zone_w
     jaw_zone = ramp(z, MOUTH_Z + 0.032, MOUTH_Z - 0.016) * zone_w
     mid_zone = np.clip(zone_w - brow_zone - jaw_zone, 0.0, 1.0)
-    over(brow_zone, hex_lin(ZONE_BROW), 0.85)
-    over(mid_zone, hex_lin(ZONE_MID), 0.85)
-    over(jaw_zone, hex_lin(ZONE_JAW), 0.85)
+    over(brow_zone, tone(ZONE_BROW), 0.85)
+    over(mid_zone, tone(ZONE_MID), 0.85)
+    over(jaw_zone, tone(ZONE_JAW), 0.85)
 
     # ---- 2. blood at the thin places ----------------------------------
-    over(blob(P, 0.0785, EAR_Z, 0.013, 0.024), hex_lin(BLOOD), 0.30)    # the ear
-    over(blob(P, 0.014, NOSE_Z + 0.001, 0.007, 0.006), hex_lin(BLOOD), 0.26)  # nostril rim
-    over(blob(P, 0.031, EYE_Z - 0.0060, 0.016, 0.005), hex_lin(BLOOD), 0.18)  # lower lid
-    over(blob(P, 0.000, 1.586, 0.020, 0.012, mirror=False), hex_lin(ZONE_MID), 0.20)  # chin
+    over(blob(P, 0.0785, EAR_Z, 0.013, 0.024), tone(BLOOD), 0.30)    # the ear
+    over(blob(P, 0.014, NOSE_Z + 0.001, 0.007, 0.006), tone(BLOOD), 0.26)  # nostril rim
+    over(blob(P, 0.031, EYE_Z - 0.0060, 0.016, 0.005), tone(BLOOD), 0.18)  # lower lid
+    over(blob(P, 0.000, 1.586, 0.020, 0.012, mirror=False), tone(ZONE_MID), 0.20)  # chin
 
     # ---- 3. the creases: where light does not reach -------------------
     # A face is read by its shadows more than its colours. None of these
@@ -258,11 +270,11 @@ def shade(P, skin, hair, beard, base_rgb=None):
     upper = ramp(z, mid - f, mid + f) * ramp(z, mid + t_up + f, mid + t_up - f)
     lower = ramp(z, mid - t_lo - f, mid - t_lo + f) * ramp(z, mid + f, mid - f)
     lips = np.clip((upper + lower) * ramp(u, 1.02, 0.93), 0, 1) * ramp(fwd, 0.35, 0.65)
-    over(lips, hex_lin(LIP), 0.92)
-    over(np.clip(upper, 0, 1) * lips, hex_lin(LIP_DEEP), 0.26)           # the upper lip reads darker
+    over(lips, tone(LIP), 0.92)
+    over(np.clip(upper, 0, 1) * lips, tone(LIP_DEEP), 0.26)           # the upper lip reads darker
     rel += (upper * 0.0007 + lower * 0.0012) * np.clip(taper, 0, 1)
     mouthline = ramp(z, mid - 0.0009, mid) * ramp(z, mid + 0.0009, mid) * ramp(u, 1.00, 0.90)
-    over(mouthline * ramp(fwd, 0.35, 0.65), hex_lin(LIP_DEEP), 0.80)
+    over(mouthline * ramp(fwd, 0.35, 0.65), tone(LIP_DEEP), 0.80)
     rel -= mouthline * 0.0012
     # philtrum: two ridges and the groove between them
     rel += (bar(P, 0.0035, 0.0085, 1.6265, 0.0055) * 0.0007

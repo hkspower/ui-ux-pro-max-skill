@@ -55,8 +55,10 @@ assert len(MANNEQUIN) == 62
 # on the one it calls the smallest man on screen. Ahmed is the skull as
 # sculpted.
 FACES = {
+    # tip 1.05, not 1.10: at 1.10 the nose field peaks at 30.1 mm and
+    # sculpt.check_profile holds every man to 20-30 (a real male nose)
     "brawler": dict(brow=1.35, glabella=1.20, jaw1=1.30, jaw2=1.30, jaw3=1.30, chin=1.25,
-                    masseter=1.50, cheekbone=1.15, tip=1.10, hollow=0.60),
+                    masseter=1.50, cheekbone=1.15, tip=1.05, hollow=0.60),
     "thug":    dict(chin=0.85, brow=0.90, cheekbone=0.90, tip=0.95, masseter=0.80),
 }
 
