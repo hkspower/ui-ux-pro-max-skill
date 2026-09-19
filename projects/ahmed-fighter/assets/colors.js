@@ -100,5 +100,80 @@ window.ASSET_COLORS = {
 
   /* Edges. Gold at a fifth for anything that matters, plain white at almost
      nothing for a seam that only needs to exist. */
-  line: { accent:'rgba(237,190,87,.20)', soft:'rgba(255,255,255,.07)' }
+  line: { accent:'rgba(237,190,87,.20)', soft:'rgba(255,255,255,.07)' },
+
+  /* ------------------------------------------------------------------------
+     The six groups below are the same job as the ones above, done later. Each
+     one was found the way the original four were: by reading the value off
+     the call sites that already draw it, not by choosing a colour. The counts
+     quoted are what was in index.html before they moved here.
+     --------------------------------------------------------------------- */
+
+  /* The dark wash -- putting a readout on top of a fight without losing
+     either. One job, spelled eleven ways across drawHUD, drawMap, drawPause
+     and uiButton: four different near-blacks (8,10,16 / 6,8,14 / 4,6,11 /
+     10,13,20, and plain black) at eight opacities between .55 and .92, on
+     shapes all doing the same thing. The tint is ink.void for every one of
+     them -- the four are within five levels of each other and of it, which
+     is below what anyone can see through a wash -- and the four steps are
+     the opacities actually in use, each literal moved to its nearest. Same
+     rule as UI.bw and UI.r in index.html: a small scale, and nothing
+     between its steps. */
+  scrim: {
+    chip:   'rgba(5,7,11,.62)',    // a HUD readout sitting over the fight
+    panel:  'rgba(5,7,11,.72)',    // a band drawn across it
+    screen: 'rgba(5,7,11,.82)',    // the pause wash, over everything
+    solid:  'rgba(5,7,11,.92)'     // a map node; a wash only in name
+  },
+
+  /* A mark that sits ON a bright ground -- the letter inside a gold rank
+     badge, the ! on a map pin. Every colour in `fg` above assumes a dark
+     ground and none of them is legible here, so this was typed at two call
+     sites instead. It is the gold's own hue taken almost to black rather
+     than a neutral, so a badge reads as one object and not as a black chip
+     dropped on a gold disc. */
+  onBrand: { ink: '#1a1408' },
+
+  /* A screen's own ground. ink.screen is the neutral one; these are the
+     three tints the menu, the map and the achievements list each typed at
+     the top of their own draw function. They are a hue apart on purpose --
+     it is part of how you know at a glance which screen you are on -- but
+     that makes them scheme, not painting. */
+  ground: { menu:'#1a2233', map:'#131b2a', awards:'#191426' },
+
+  /* Nothing there yet: a slot with no award in it, a stage never visited, a
+     plate with nothing on it. The player reads absence off these, which
+     makes them states like any other. White at a low alpha rather than
+     three greys, for the same reason the muted text steps are -- a grey
+     shifts hue against a tinted ground and a veil does not. A veil is a
+     fill; the one seam that is a STROKE stays line.soft above. */
+  veil: {
+    empty: 'rgba(255,255,255,.05)',
+    dim:   'rgba(255,255,255,.08)',
+    idle:  'rgba(255,255,255,.10)'
+  },
+
+  /* The map, the one screen that reports on the whole game at once: a stage
+     cleared, a stage still standing, a way that is open and one that is
+     shut. The first two are brand.green and brand.red at the alpha the map
+     draws them at; naming them here is what stops the next screen that
+     needs "done" inventing a fourth green. */
+  progress: {
+    done:   'rgba(0,122,61,.85)',
+    todo:   'rgba(200,16,46,.9)',
+    open:   'rgba(237,190,87,.55)',
+    shut:   'rgba(150,158,172,.42)',
+    unseen: 'rgba(21,27,40,.92)',    // ink.panel: a place not yet reached
+    marker: 'rgba(237,190,87,.92)'   // the pin that says you are here
+  },
+
+  /* Menu buttons, as against the four fight controls above. `off` is a
+     control that cannot be pressed, `danger` one that throws work away, and
+     `label` the cream a primary button's word is set in -- warmer than
+     fg.bright because it sits on gold, where a neutral white goes blue. */
+  button: {
+    off:    'rgba(14,18,26,.72)',
+    danger: 'rgba(74,18,26,.9)',
+    label:  'rgba(255,236,206,.92)'
+  }
 };

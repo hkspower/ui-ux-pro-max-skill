@@ -4246,7 +4246,7 @@ function drawHUD(){
   // mid-fight, so the bars are labelled in the gutter rather than inside, and
   // the level sits in the badge where a portrait would go.
   var px = 16, py = 14, pw = 404, ph = 122;
-  ctx.fillStyle = 'rgba(8,10,16,.62)';
+  ctx.fillStyle = COL.scrim.chip;
   roundRect(px, py, pw, ph, 12); ctx.fill();
   edge(px, py, pw, ph, UI.r.md, 'line', UI.bw.line, true);
 
@@ -4287,7 +4287,7 @@ function drawHUD(){
 
   // Career progress, hairline along the panel's own bottom edge.
   var xf = levelProgress();
-  ctx.fillStyle = 'rgba(255,255,255,.08)';
+  ctx.fillStyle = COL.veil.dim;
   roundRect(px + 12, py + ph - 8, pw - 24, 3, 1.5); ctx.fill();
   if(xf > 0){
     ctx.fillStyle = UI.gold;
@@ -4305,7 +4305,7 @@ function drawHUD(){
   if(p.weapon){
     var WD = ASSET_WEAPONS[p.weapon.key];
     var wx = 16, wy = stackY;
-    ctx.fillStyle = 'rgba(8,10,16,.62)';
+    ctx.fillStyle = COL.scrim.chip;
     roundRect(wx, wy, 214, 44, UI.r.md); ctx.fill();
     edge(wx, wy, 214, 44, UI.r.md, 'line', UI.bw.line);
     ctx.save(); ctx.translate(wx + 32, wy + 22); ctx.scale(0.78, 0.78);
@@ -4320,7 +4320,7 @@ function drawHUD(){
 
   // stage progress
   var st = F.st;
-  ctx.fillStyle = 'rgba(8,10,16,.55)';
+  ctx.fillStyle = COL.scrim.chip;
   roundRect(W/2-200, 12, 400, 62, 12); ctx.fill();
   txt(st.name, W/2, 30, UI.t.sub, C.gold, 'center', 900);
   txt(st.ar, W/2, 51, 16, 'rgba(255,255,255,.8)', 'center', 700);
@@ -4340,13 +4340,13 @@ function drawHUD(){
     if(e.kind === 'boss' || e.kind === 'saqr') boss = e;
   }
   if(boss){
-    ctx.fillStyle = 'rgba(8,10,16,.62)';
+    ctx.fillStyle = COL.scrim.chip;
     roundRect(W-406, 14, 390, 62, 12); ctx.fill();
     txt(boss.name, W-26, 34, UI.t.sub, C.bad, 'right', 900);
     txt(boss.ar, W-330, 34, UI.t.body, C.gold, 'left', 700);
     bar(W-396, 50, 370, 16, boss.hp, boss.maxHp, C.bad);
   } else if(alive > 0){
-    ctx.fillStyle = 'rgba(8,10,16,.62)';
+    ctx.fillStyle = COL.scrim.chip;
     roundRect(W-190, 14, 174, 50, 12); ctx.fill();
     txt('ENEMIES', W-176, 30, UI.t.label, C.dim, 'left', 800);
     txt(String(alive), W-30, 40, UI.t.head, C.bad, 'right', 900);
@@ -4363,7 +4363,7 @@ function drawHUD(){
   // objective banner
   if(F.lockX !== null){
     ctx.globalAlpha = 0.55 + Math.sin(gameTime*5)*0.2;
-    ctx.fillStyle = 'rgba(6,8,14,.9)';
+    ctx.fillStyle = COL.scrim.solid;
     roundRect(W/2-190, 174, 380, 44, UI.r.md); ctx.fill();
     ctx.globalAlpha = 1;
     txt('DEFEAT ALL — اهزم الجميع', W/2, 196, UI.t.head, '#ff8f8c', 'center', 900,
@@ -4385,7 +4385,7 @@ function drawHUD(){
     else if(F.waveIdx === 0 && F.time < 14) tip = ['Drag anywhere on the left half to move', 'اسحب من اليسار للحركة'];
     else if(F.props.length && F.time < 26)  tip = ['Smash crates for food and rage orbs', 'حطّم الصناديق'];
     if(tip){
-      ctx.fillStyle = 'rgba(6,8,14,.72)';
+      ctx.fillStyle = COL.scrim.panel;
       roundRect(W/2-300, H-92, 600, 52, UI.r.md); ctx.fill();
       txt(tip[0], W/2, H-74, UI.t.body, C.sand, 'center', 700);
       txt(tip[1], W/2, H-54, UI.t.body, C.gold, 'center', 700);
@@ -4393,7 +4393,7 @@ function drawHUD(){
   }
 
   // pause button
-  ctx.fillStyle = 'rgba(8,10,16,.6)';
+  ctx.fillStyle = COL.scrim.chip;
   roundRect(W-68, 84, 52, 44, UI.r.md); ctx.fill();
   ctx.fillStyle = C.white;
   ctx.fillRect(W-53, 94, 7, 25); ctx.fillRect(W-39, 94, 7, 25);
@@ -4404,7 +4404,7 @@ function drawHUD(){
     var k = clamp(G.intro/2.2, 0, 1);
     var al = G.intro > 1.6 ? (2.2-G.intro)/0.6 : Math.min(1, G.intro/0.6);
     ctx.globalAlpha = clamp(al, 0, 1);
-    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    ctx.fillStyle = COL.scrim.chip;
     ctx.fillRect(0, H/2-90, W, 180);
     txt(F.st.name, W/2, H/2-24, UI.t.screen, C.gold, 'center', 900);
     txt(F.st.ar, W/2, H/2+22, UI.t.head, C.white, 'center', 700);
@@ -4732,9 +4732,9 @@ function uiButton(x, y, w, h, label, sub, fn, style){
   var r = UI.r.md;
   // Only one control on a screen is red. Everything else is a dark panel with
   // a hairline, so the eye lands on the action without hunting for it.
-  ctx.fillStyle = off ? 'rgba(14,18,26,.72)'
+  ctx.fillStyle = off ? COL.button.off
                 : primary ? UI.red
-                : danger ? 'rgba(74,18,26,.9)' : UI.ink2;
+                : danger ? COL.button.danger : UI.ink2;
   roundRect(x, y, w, h, r); ctx.fill();
   if(primary){
     var pg = ctx.createLinearGradient(0, y, 0, y + h);      // a little depth
@@ -4751,7 +4751,7 @@ function uiButton(x, y, w, h, label, sub, fn, style){
   txtLS(label, x + w/2, y + (sub ? h/2 - 9 : h/2), fitSize(base, w - UI.sp[5], label, 900, 1.8),
         off ? UI.fgFaint : UI.fg, 'center', 900, 1.8);
   if(sub) txt(sub, x + w/2, y + h/2 + 13, UI.t.label,
-              off ? UI.fgFaint : primary ? 'rgba(255,236,206,.92)' : UI.gold, 'center', 700);
+              off ? UI.fgFaint : primary ? COL.button.label : UI.gold, 'center', 700);
 }
 /* A setting you flip. Both pause and settings had hand-rolled these at two
    different sizes; the metric comes from UI.btn now. */
@@ -4844,7 +4844,7 @@ function drawDemoAhmed(dt){
 /* ------------------------------------------------------------------- title */
 function drawMenu(dt){
   checkAchievements();
-  screenBg('#1a2233');
+  screenBg(COL.ground.menu);
   drawDemoAhmed(dt);
 
   var x = UI.pad, lg = UI.btn.lg, md = UI.btn.md;
@@ -4854,7 +4854,7 @@ function drawMenu(dt){
   flagBar(x - 30, 128, 116, 8);
   txtLS('AHMED', x, 176, UI.t.display, UI.gold, 'left', 900, 4);
   ctx.fillStyle = UI.red;   ctx.fillRect(x, 232, 300, 7);
-  ctx.fillStyle = '#007a3d'; ctx.fillRect(x, 243, 196, 7);
+  ctx.fillStyle = UI.green; ctx.fillRect(x, 243, 196, 7);
   txtLS('KUWAIT FIGHTER', x, 282, UI.t.head, UI.fg, 'left', 800, 5);
   txt('مقاتل الكويت — قتال حر وكيك بوكسينغ', x, 318, UI.t.sub, UI.fgMut, 'left', 700);
 
@@ -4933,7 +4933,7 @@ function drawHelp(){
 
 /* --------------------------------------------------------------------- map */
 function drawMap(){
-  screenBg('#131b2a');
+  screenBg(COL.ground.map);
   screenHead('THE WORLD', 'الخريطة');
   statLine(W - UI.pad, UI.headY - 12, 'CAREER XP', String(save.xp), UI.gold);
 
@@ -4943,7 +4943,7 @@ function drawMap(){
   for(var ai=0; ai<order.length; ai++){
     var A = ABILITIES[order[ai]], got = hasAbility(order[ai]);
     var ic = 38, ax = UI.pad + 84 + ai*(ic + UI.sp[2]), ay = UI.bodyY - ic/2 + UI.sp[2];
-    ctx.fillStyle = got ? 'rgba(237,190,87,.20)' : 'rgba(255,255,255,.05)';
+    ctx.fillStyle = got ? COL.line.accent : COL.veil.empty;
     roundRect(ax, ay, ic, ic, UI.r.sm); ctx.fill();
     edge(ax, ay, ic, ic, UI.r.sm, got ? 'gold' : 'off', UI.bw.line);
     txt(got ? A.icon : '·', ax+ic/2, ay+ic/2, UI.t.sub, got ? UI.gold : UI.fgFaint, 'center', 900);
@@ -4974,15 +4974,15 @@ function drawMap(){
       var open = linkOpen(link);
       ctx.save();
       ctx.lineWidth = open ? UI.bw.bold : UI.bw.line;
-      ctx.strokeStyle = !seen ? 'rgba(255,255,255,.07)'
-                      : open ? 'rgba(237,190,87,.55)' : 'rgba(150,158,172,.42)';
+      ctx.strokeStyle = !seen ? COL.line.soft
+                      : open ? COL.progress.open : COL.progress.shut;
       if(!open) ctx.setLineDash([9, 8]);
       ctx.beginPath(); ctx.moveTo(A1.x, A1.y); ctx.lineTo(A2.x, A2.y); ctx.stroke();
       ctx.restore();
       if(seen && !open && link.needs){
         var mx = (A1.x + A2.x)/2, my = (A1.y + A2.y)/2;
         var tal = ABILITIES[link.needs];
-        ctx.fillStyle = 'rgba(10,13,20,.92)';
+        ctx.fillStyle = COL.scrim.solid;
         roundRect(mx-15, my-15, 30, 30, 8); ctx.fill();
         edge(mx-15, my-15, 30, 30, UI.r.sm, 'cool', UI.bw.hair);
         txt(tal ? tal.icon : '?', mx, my, UI.t.body, 'rgba(198,206,220,.85)', 'center', 900);
@@ -5000,8 +5000,8 @@ function drawMap(){
       ctx.strokeStyle = 'rgba(237,190,87,' + (0.35 + Math.sin(gameTime*3)*0.22) + ')';
       ctx.lineWidth = UI.bw.bold; circle(px, py, 50); ctx.stroke();
     }
-    ctx.fillStyle = !seenIt ? 'rgba(24,28,38,.92)'
-                  : done ? 'rgba(0,122,61,.85)' : 'rgba(200,16,46,.9)';
+    ctx.fillStyle = !seenIt ? COL.progress.unseen
+                  : done ? COL.progress.done : COL.progress.todo;
     circle(px, py, 38); ctx.fill();
     edgeCircle(px, py, 38, seenIt ? 'gold' : 'off', UI.bw.bold);
     txt(seenIt ? String(i+1) : '?', px, py, seenIt ? UI.t.head : UI.t.sub,
@@ -5019,9 +5019,9 @@ function drawMap(){
       var spec = GATES[gs[gi].type];
       var can = !spec.need || hasAbility(spec.need);
       if(!can) continue;
-      ctx.fillStyle = 'rgba(237,190,87,.92)';
+      ctx.fillStyle = COL.progress.marker;
       circle(px - 30, py - 30, 14); ctx.fill();
-      txt('!', px - 30, py - 29, UI.t.sub, '#1a1408', 'center', 900);
+      txt('!', px - 30, py - 29, UI.t.sub, COL.onBrand.ink, 'center', 900);
     }
 
     if(seenIt){
@@ -5221,7 +5221,7 @@ function toggleFullscreen(){
 /* -------------------------------------------------------------- achievements */
 function drawAchievements(){
   checkAchievements();
-  screenBg('#191426');
+  screenBg(COL.ground.awards);
   var got = save.achieved.length;
   screenHead('ACHIEVEMENTS', 'الإنجازات');
   // keep the count in its own LTR run — mixed into the Arabic string the bidi
@@ -5239,10 +5239,10 @@ function drawAchievements(){
     var cy = UI.bodyY + Math.floor(i / cols) * (cardH + UI.sp[3]);
     panel(cx, cy, cardW, cardH, { r:UI.r.md, accent:have, raised:have });
 
-    ctx.fillStyle = have ? C.gold : 'rgba(255,255,255,.10)';
+    ctx.fillStyle = have ? C.gold : COL.veil.idle;
     circle(cx + pin + dot, cy + pin + dot, dot); ctx.fill();
     txt(have ? '★' : '?', cx + pin + dot, cy + pin + dot, UI.t.sub,
-        have ? '#1a1408' : C.dim, 'center', 900);
+        have ? COL.onBrand.ink : C.dim, 'center', 900);
 
     var tx = cx + pin + dot*2 + UI.sp[3];
     txt(a.n, tx, cy + UI.sp[5] + 2, UI.t.body, have ? C.gold : C.dim, 'left', 900);
@@ -5315,7 +5315,7 @@ function drawUpgrade(){
 
 /* -------------------------------------------------------------- pause/end */
 function drawPause(){
-  ctx.fillStyle = 'rgba(4,6,11,.82)';
+  ctx.fillStyle = COL.scrim.screen;
   ctx.fillRect(0, 0, W, H);
   txtLS('PAUSED', W/2, 190, UI.t.screen, UI.gold, 'center', 900, 8);
   txt('إيقاف مؤقت', W/2, 236, UI.t.sub, C.white, 'center', 700);

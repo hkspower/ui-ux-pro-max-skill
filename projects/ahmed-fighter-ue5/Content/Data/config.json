@@ -1999,6 +1999,226 @@
       "G": 1,
       "B": 1,
       "A": 0.07
+    },
+    {
+      "Name": "Scrim_Chip",
+      "Group": "Scrim",
+      "Key": "Scrim.Chip",
+      "Css": "rgba(5,7,11,.62)",
+      "Hex": "#05070b",
+      "R": 0.0196,
+      "G": 0.0275,
+      "B": 0.0431,
+      "A": 0.62
+    },
+    {
+      "Name": "Scrim_Panel",
+      "Group": "Scrim",
+      "Key": "Scrim.Panel",
+      "Css": "rgba(5,7,11,.72)",
+      "Hex": "#05070b",
+      "R": 0.0196,
+      "G": 0.0275,
+      "B": 0.0431,
+      "A": 0.72
+    },
+    {
+      "Name": "Scrim_Screen",
+      "Group": "Scrim",
+      "Key": "Scrim.Screen",
+      "Css": "rgba(5,7,11,.82)",
+      "Hex": "#05070b",
+      "R": 0.0196,
+      "G": 0.0275,
+      "B": 0.0431,
+      "A": 0.82
+    },
+    {
+      "Name": "Scrim_Solid",
+      "Group": "Scrim",
+      "Key": "Scrim.Solid",
+      "Css": "rgba(5,7,11,.92)",
+      "Hex": "#05070b",
+      "R": 0.0196,
+      "G": 0.0275,
+      "B": 0.0431,
+      "A": 0.92
+    },
+    {
+      "Name": "OnBrand_Ink",
+      "Group": "OnBrand",
+      "Key": "OnBrand.Ink",
+      "Css": "#1a1408",
+      "Hex": "#1a1408",
+      "R": 0.102,
+      "G": 0.0784,
+      "B": 0.0314,
+      "A": 1
+    },
+    {
+      "Name": "Ground_Menu",
+      "Group": "Ground",
+      "Key": "Ground.Menu",
+      "Css": "#1a2233",
+      "Hex": "#1a2233",
+      "R": 0.102,
+      "G": 0.1333,
+      "B": 0.2,
+      "A": 1
+    },
+    {
+      "Name": "Ground_Map",
+      "Group": "Ground",
+      "Key": "Ground.Map",
+      "Css": "#131b2a",
+      "Hex": "#131b2a",
+      "R": 0.0745,
+      "G": 0.1059,
+      "B": 0.1647,
+      "A": 1
+    },
+    {
+      "Name": "Ground_Awards",
+      "Group": "Ground",
+      "Key": "Ground.Awards",
+      "Css": "#191426",
+      "Hex": "#191426",
+      "R": 0.098,
+      "G": 0.0784,
+      "B": 0.149,
+      "A": 1
+    },
+    {
+      "Name": "Veil_Empty",
+      "Group": "Veil",
+      "Key": "Veil.Empty",
+      "Css": "rgba(255,255,255,.05)",
+      "Hex": "#ffffff",
+      "R": 1,
+      "G": 1,
+      "B": 1,
+      "A": 0.05
+    },
+    {
+      "Name": "Veil_Dim",
+      "Group": "Veil",
+      "Key": "Veil.Dim",
+      "Css": "rgba(255,255,255,.08)",
+      "Hex": "#ffffff",
+      "R": 1,
+      "G": 1,
+      "B": 1,
+      "A": 0.08
+    },
+    {
+      "Name": "Veil_Idle",
+      "Group": "Veil",
+      "Key": "Veil.Idle",
+      "Css": "rgba(255,255,255,.10)",
+      "Hex": "#ffffff",
+      "R": 1,
+      "G": 1,
+      "B": 1,
+      "A": 0.1
+    },
+    {
+      "Name": "Progress_Done",
+      "Group": "Progress",
+      "Key": "Progress.Done",
+      "Css": "rgba(0,122,61,.85)",
+      "Hex": "#007a3d",
+      "R": 0,
+      "G": 0.4784,
+      "B": 0.2392,
+      "A": 0.85
+    },
+    {
+      "Name": "Progress_Todo",
+      "Group": "Progress",
+      "Key": "Progress.Todo",
+      "Css": "rgba(200,16,46,.9)",
+      "Hex": "#c8102e",
+      "R": 0.7843,
+      "G": 0.0627,
+      "B": 0.1804,
+      "A": 0.9
+    },
+    {
+      "Name": "Progress_Open",
+      "Group": "Progress",
+      "Key": "Progress.Open",
+      "Css": "rgba(237,190,87,.55)",
+      "Hex": "#edbe57",
+      "R": 0.9294,
+      "G": 0.7451,
+      "B": 0.3412,
+      "A": 0.55
+    },
+    {
+      "Name": "Progress_Shut",
+      "Group": "Progress",
+      "Key": "Progress.Shut",
+      "Css": "rgba(150,158,172,.42)",
+      "Hex": "#969eac",
+      "R": 0.5882,
+      "G": 0.6196,
+      "B": 0.6745,
+      "A": 0.42
+    },
+    {
+      "Name": "Progress_Unseen",
+      "Group": "Progress",
+      "Key": "Progress.Unseen",
+      "Css": "rgba(21,27,40,.92)",
+      "Hex": "#151b28",
+      "R": 0.0824,
+      "G": 0.1059,
+      "B": 0.1569,
+      "A": 0.92
+    },
+    {
+      "Name": "Progress_Marker",
+      "Group": "Progress",
+      "Key": "Progress.Marker",
+      "Css": "rgba(237,190,87,.92)",
+      "Hex": "#edbe57",
+      "R": 0.9294,
+      "G": 0.7451,
+      "B": 0.3412,
+      "A": 0.92
+    },
+    {
+      "Name": "Button_Off",
+      "Group": "Button",
+      "Key": "Button.Off",
+      "Css": "rgba(14,18,26,.72)",
+      "Hex": "#0e121a",
+      "R": 0.0549,
+      "G": 0.0706,
+      "B": 0.102,
+      "A": 0.72
+    },
+    {
+      "Name": "Button_Danger",
+      "Group": "Button",
+      "Key": "Button.Danger",
+      "Css": "rgba(74,18,26,.9)",
+      "Hex": "#4a121a",
+      "R": 0.2902,
+      "G": 0.0706,
+      "B": 0.102,
+      "A": 0.9
+    },
+    {
+      "Name": "Button_Label",
+      "Group": "Button",
+      "Key": "Button.Label",
+      "Css": "rgba(255,236,206,.92)",
+      "Hex": "#ffecce",
+      "R": 1,
+      "G": 0.9255,
+      "B": 0.8078,
+      "A": 0.92
     }
   ],
   "Sounds": [
@@ -2531,6 +2751,6 @@
       "Description": "The roofs. The stage loop opened out: wind, wide reverb, oud and qanun high above the street."
     }
   ],
-  "Revision": "5ea75c8d47305c7f",
-  "GeneratedAt": "2026-09-19T08:03:20.711Z"
+  "Revision": "225b9ad2462252f4",
+  "GeneratedAt": "2026-09-19T20:08:20.977Z"
 }
