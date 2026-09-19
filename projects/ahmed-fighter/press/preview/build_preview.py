@@ -510,7 +510,11 @@ def page_fall(C, S, stamp):
 <ellipse cx="{dx + dw / 2}" cy="{dy + dh - 60}" rx="210" ry="40" fill="#0a0e16"/>
 <g transform="translate({dx + dw / 2 - 10},{dy + dh - 48}) scale(0.84)">
   <path d="M-96,0 C-84,-46 -50,-78 -8,-86 L14,-40 C-14,-30 -38,-14 -52,6 Z" fill="{ink}"/>
-  <ellipse cx="34" cy="-116" rx="40" ry="44" fill="{ink}"/>
+  <path d="M14,-108 L54,-108 L58,-70 L10,-70 Z" fill="{ink}"/>
+  <ellipse cx="34" cy="-142" rx="40" ry="44" fill="{ink}"/>
+  <clipPath id="landface"><ellipse cx="34" cy="-142" rx="40" ry="44"/></clipPath>
+  <g clip-path="url(#landface)">{F.face(34, -140, 40, 44, tone="#241c22",
+     rim=gold, iris="#e8c46a", mood="set", lit=-1, turn=0.28, catch=True)}</g>
   <path d="M-6,-92 C22,-110 66,-108 88,-88 C104,-46 106,4 96,36
            C58,50 14,48 -16,32 C-22,-8 -16,-58 -6,-92 Z" fill="{ink}"/>
   <path d="M88,-88 C132,-74 170,-40 190,4 L146,28 C130,-6 106,-32 76,-46 Z" fill="{ink}"/>

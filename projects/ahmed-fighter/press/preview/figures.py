@@ -22,6 +22,16 @@ import math
 
 # --------------------------------------------------------------- ink helpers
 
+def mix(a, b, t):
+    """Step one colour toward another. Used to keep the character's accent
+    off everything on a face except the iris: a nose ridge or a lip edge
+    wants a desaturated cousin of the rim, not the rim itself."""
+    a, b = a.lstrip("#"), b.lstrip("#")
+    return "#" + "".join(
+        f"{round(int(a[i:i+2], 16) * (1 - t) + int(b[i:i+2], 16) * t):02x}"
+        for i in (0, 2, 4))
+
+
 def poly(pts, **a):
     d = "M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in pts) + " Z"
     return path(d, **a)
@@ -117,6 +127,234 @@ def impact_star(cx, cy, r, points=14, inner=0.34, seed=5, fill="#fdfaf2", op=1.0
     return poly(pts, fill=fill, op=op)
 
 
+# ----------------------------------------------------------------- the face
+
+# WHY THERE IS A GRAMMAR HERE AT ALL. Every face in the first booklet was two
+# coloured bars on a black oval, and every one of them read as a VISOR rather
+# than a face -- goggles on the bosses, a cyclops slit on Ahmed. The cause was
+# not the bars. It was that the figure ink (#06080d) and the page ground
+# (#05070b) are the same colour to within 1.01:1 contrast, so a head had no
+# SURFACE: the only marks a reader could see were the ones that glowed, and a
+# glowing mark with nothing around it is hardware, not anatomy.
+#
+# So a face is built in this order, and the order is the whole trick:
+#
+#   1. a CEL PLANE -- one hard-edged shape in `tone`, a step above ink, on the
+#      side the light comes from. This is the surface. Without it nothing
+#      below can be read as sitting ON anything.
+#   2. the BROW, the heaviest mark on the face and the one that carries the
+#      character's temper. Ink, so it reads as a shadow on the plane.
+#   3. the EYE, which is FOUR marks and not one: a socket shadow, a lit sliver
+#      of sclera, an iris in the character's own colour, and -- only for the
+#      one character who still hopes -- a catchlight. An eye this size cannot
+#      be more than about a fifth of the head's width. The old bars were very
+#      nearly half, which is exactly the width of a pair of goggles.
+#   4. a NOSE tick and a MOUTH line, one stroke each.
+#   5. the RIM, which was already there, running the lit contour.
+#
+# The character's accent colour is allowed on the IRIS and nowhere else on the
+# face. Menace in anime is a small bright iris under a heavy brow, never a
+# wide bright band -- the band is a welding mask.
+#
+# Everything is expressed as a fraction of the head's own radii, so the same
+# call works on ZAYOS's 62-unit skull and on the falling Ahmed's 42-unit one.
+
+MOODS = {
+    # brow angle (+ = inner end low, the set brow), brow weight, lid drop,
+    # mouth angle, mouth width
+    "set":    (0.13, 1.05, 0.24, -0.01, 0.30),    # young, level, still asking
+    "narrow": (0.21, 1.10, 0.46, -0.16, 0.24),    # impatient, done asking
+    "heavy":  (0.10, 1.34, 0.40, 0.00, 0.28),     # settled, unbothered
+    "dull":   (0.02, 1.42, 0.44, 0.03, 0.20),     # slow, and only one idea
+    "wide":   (-0.14, 0.85, -0.12, 0.00, 0.28),   # falling
+}
+
+
+_FACE_N = [0]
+
+
+def face(cx, cy, rx, ry, ink="#05070b", tone="#1b2030", rim="#edbe57",
+         iris=None, mood="set", lit=1, turn=0.0, catch=False, open_mouth=False,
+         plane=True, gaze=(0.0, 0.0), tilt=0.0):
+    """One face, built plane-first. Returns SVG.
+
+    cx, cy, rx, ry  the skull this face belongs to.
+    lit             +1 if the light is on our right, -1 if on our left.
+    turn            -1 full profile away from us, 0 front on, +1 toward us.
+                    Shifts and compresses the far eye the way a turned head
+                    does, so one function draws front, three-quarter and
+                    near-profile without three sets of coordinates.
+    iris            the character's accent. None leaves the eye unlit, which
+                    is what a face in full shadow actually looks like. It is
+                    the ONLY place on a face the accent is allowed; a nose
+                    ridge or a lip edge gets a stepped-back cousin of it.
+    gaze            (x, y) in eye-widths, ONE value for both eyes. Where a
+                    person is looking is a single fact about them; the first
+                    draft offset each iris by its own side and they ended up
+                    looking in opposite directions.
+    tilt            degrees, for a head that is not upright -- AL-SAQR's is
+                    drawn at 14 and the crowd's lean up to 11.
+
+    Sizes worth knowing, because they are what stops this becoming a visor
+    again: an eye is 0.24 of the head's half-width, the pair plus the gap
+    comes to a little over half the face, and the sclera never runs the full
+    width of the socket. The bars this replaced were 0.45 each and ran edge
+    to edge -- the proportions of goggles, which is what they looked like.
+    """
+    ba, bw, lid, ma, mw = MOODS[mood]
+    g = []
+    # a facial mark has to be darker than the head it is on, or it is a hole
+    # in the silhouette rather than a shadow on a face
+    dark = mix(ink, "#000000", 0.45)
+    soft = mix(rim, tone, 0.62)      # the accent, stepped most of the way back
+    near = -lit                      # the eye on the shadow side is the near one
+    eyey = cy + 0.07 * ry
+    # --- 1. the cel plane: a crescent of lit cheek down the outer third of
+    #        the face. Wider than this and it reads as a half-mask.
+    if plane:
+        L = lit
+        # an ambient pass over the whole face first. Without it the brow, the
+        # nose and the mouth sit on ink at 1.01:1 against the page and simply
+        # are not there -- which is the failure this whole grammar exists to
+        # undo, reintroduced one layer lower down.
+        g.append(ellipse(cx, cy + ry * 0.04, rx * 0.94, ry * 0.92,
+                         fill=tone, op=0.10))
+        g.append(path(
+            f"M{cx + L * rx * 0.34:.1f},{cy - ry * 0.82:.1f} "
+            f"C{cx + L * rx * 0.92:.1f},{cy - ry * 0.60:.1f} "
+            f"{cx + L * rx * 1.00:.1f},{cy - ry * 0.06:.1f} "
+            f"{cx + L * rx * 0.86:.1f},{cy + ry * 0.44:.1f} "
+            f"C{cx + L * rx * 0.68:.1f},{cy + ry * 0.86:.1f} "
+            f"{cx + L * rx * 0.34:.1f},{cy + ry * 1.02:.1f} "
+            f"{cx + L * rx * 0.04:.1f},{cy + ry * 1.00:.1f} "
+            f"C{cx + L * rx * 0.30:.1f},{cy + ry * 0.66:.1f} "
+            f"{cx + L * rx * 0.42:.1f},{cy + ry * 0.12:.1f} "
+            f"{cx + L * rx * 0.34:.1f},{cy - ry * 0.82:.1f} Z", fill=tone))
+    # --- the eyes. Near eye full size, far eye compressed by the turn.
+    for side, wide in ((near, 1.0), (-near, 1.0 - 0.52 * abs(turn))):
+        if wide < 0.22:
+            continue                                  # turned too far to see
+        ex = cx + side * rx * (0.40 - 0.14 * turn * side * lit)
+        ew, eh = rx * 0.24 * wide, ry * 0.145
+        # 3a. socket shadow -- the eye sits IN the head, not on it, and
+        #     everything in the socket is clipped TO the socket so a heavy
+        #     lid cannot escape past the brow as a dark lump
+        _FACE_N[0] += 1
+        eid = f"eye{_FACE_N[0]}"
+        g.append(f'<clipPath id="{eid}"><ellipse cx="{ex:.1f}" '
+                 f'cy="{eyey + ry * 0.01:.1f}" rx="{ew * 1.30:.1f}" '
+                 f'ry="{eh * 1.44:.1f}"/></clipPath>')
+        g.append(ellipse(ex, eyey + ry * 0.01, ew * 1.30, eh * 1.44,
+                         fill=dark, op=0.92))
+        g.append(f'<g clip-path="url(#{eid})">')
+        # 3b. the lit sclera, an almond, never the whole socket
+        g.append(path(f"M{ex - ew:.1f},{eyey + eh * 0.16:.1f} "
+                      f"C{ex - ew * 0.52:.1f},{eyey - eh * 0.96:.1f} "
+                      f"{ex + ew * 0.52:.1f},{eyey - eh * 0.96:.1f} "
+                      f"{ex + ew:.1f},{eyey + eh * 0.06:.1f} "
+                      f"C{ex + ew * 0.5:.1f},{eyey + eh * 0.84:.1f} "
+                      f"{ex - ew * 0.5:.1f},{eyey + eh * 0.84:.1f} "
+                      f"{ex - ew:.1f},{eyey + eh * 0.16:.1f} Z",
+                      fill="#e7e2d4", op=0.72))
+        # 3c. the iris, sitting ON the lower lid, the one place the accent
+        #     colour is allowed on a face
+        ix = ex + max(-0.52, min(0.52, gaze[0])) * ew
+        iy = eyey + eh * (0.16 + max(-0.5, min(0.5, gaze[1])) * 0.7)
+        g.append(ellipse(ix, iy, ew * 0.34, eh * 0.62, fill=iris or dark))
+        g.append(ellipse(ix, iy, ew * 0.18, eh * 0.32, fill=dark))
+        if catch:
+            g.append(ellipse(ix - ew * 0.18, iy - eh * 0.26,
+                             ew * 0.13, eh * 0.20, fill="#fdfaf2"))
+        # 3d. the upper lid, dropped by the mood, and heavier than the lower
+        if lid > 0.01:
+            # the lid IS the socket, slid down over the eye. Drawing it as a
+            # capped band instead left a square corner above the brow on the
+            # heavier moods, which read as a notch cut out of the head.
+            # placed so that at lid=0 its lower edge just grazes the top of
+            # the sclera, and at lid=0.46 it has come down to the iris
+            g.append(ellipse(ex, eyey - eh * (2.40 - 1.70 * lid),
+                             ew * 1.32, eh * 1.44, fill=dark))
+        g.append("</g>")
+        g.append(path(f"M{ex - ew * 1.06:.1f},{eyey + eh * 0.20:.1f} "
+                      f"C{ex - ew * 0.52:.1f},{eyey - eh * (1.02 - lid * 1.7):.1f} "
+                      f"{ex + ew * 0.52:.1f},{eyey - eh * (1.02 - lid * 1.7):.1f} "
+                      f"{ex + ew * 1.06:.1f},{eyey + eh * 0.06:.1f}",
+                      stroke=dark, w=max(1.3, eh * 0.46)))
+        # --- 2. the brow, the heaviest thing on the face, and the only mark
+        #        with a lit top edge -- a brow ridge is what catches a rim
+        by = eyey - ry * 0.30
+        rise = -side * ba * ry
+        brow = (f"M{ex - ew * 1.34:.1f},{by - rise:.1f} "
+                f"C{ex - ew * 0.4:.1f},{by - ry * 0.075 - rise * 0.4:.1f} "
+                f"{ex + ew * 0.5:.1f},{by - ry * 0.065 + rise * 0.5:.1f} "
+                f"{ex + ew * 1.28:.1f},{by + rise:.1f} "
+                f"L{ex + ew * 1.20:.1f},{by + rise + ry * 0.026 * bw:.1f} "
+                f"C{ex + ew * 0.4:.1f},{by + ry * 0.015 + rise * 0.5:.1f} "
+                f"{ex - ew * 0.4:.1f},{by + ry * 0.005 - rise * 0.4:.1f} "
+                f"{ex - ew * 1.28:.1f},{by - rise + ry * 0.095 * bw:.1f} Z")
+        g.append(path(brow, fill=dark))
+        if side == lit:
+            # a brow ridge catches light along its own crest and nowhere
+            # else; the first pass swept this arc the width of the face and
+            # it read as a scar
+            g.append(path(f"M{ex - ew * 0.18:.1f},"
+                          f"{by - ry * 0.058 - rise * 0.18:.1f} "
+                          f"C{ex + ew * 0.16:.1f},{by - ry * 0.072:.1f} "
+                          f"{ex + ew * 0.46:.1f},{by - ry * 0.066 + rise * 0.2:.1f} "
+                          f"{ex + ew * 0.70:.1f},{by + rise * 0.34 - ry * 0.030:.1f}",
+                          stroke=soft, w=max(1.0, ry * 0.022), op=0.52))
+    # --- 4. nose: one short line down the bridge, and the light on its ridge
+    nx = cx + lit * rx * 0.05
+    g.append(path(f"M{nx:.1f},{cy - ry * 0.10:.1f} "
+                  f"C{nx + lit * rx * 0.06:.1f},{cy + ry * 0.14:.1f} "
+                  f"{nx + lit * rx * 0.09:.1f},{cy + ry * 0.30:.1f} "
+                  f"{nx + lit * rx * 0.07:.1f},{cy + ry * 0.38:.1f} "
+                  f"C{nx + lit * rx * 0.05:.1f},{cy + ry * 0.43:.1f} "
+                  f"{nx - lit * rx * 0.02:.1f},{cy + ry * 0.44:.1f} "
+                  f"{nx - lit * rx * 0.05:.1f},{cy + ry * 0.42:.1f}",
+                  stroke=dark, w=max(1.2, ry * 0.040), op=0.85))
+    g.append(path(f"M{nx + lit * rx * 0.08:.1f},{cy + ry * 0.22:.1f} "
+                  f"C{nx + lit * rx * 0.11:.1f},{cy + ry * 0.31:.1f} "
+                  f"{nx + lit * rx * 0.10:.1f},{cy + ry * 0.36:.1f} "
+                  f"{nx + lit * rx * 0.06:.1f},{cy + ry * 0.39:.1f}",
+                  stroke=soft, w=max(1.0, ry * 0.024), op=0.62))
+    # --- 4b. mouth: one thin line, or a jaw opened
+    my = cy + ry * 0.64
+    mwx = rx * mw
+    if open_mouth:
+        mouth = (f"M{cx - mwx * 0.66:.1f},{my - ry * 0.02:.1f} "
+                 f"C{cx - mwx * 0.28:.1f},{my + ry * 0.22:.1f} "
+                 f"{cx + mwx * 0.28:.1f},{my + ry * 0.22:.1f} "
+                 f"{cx + mwx * 0.66:.1f},{my - ry * 0.02:.1f} "
+                 f"C{cx + mwx * 0.28:.1f},{my + ry * 0.04:.1f} "
+                 f"{cx - mwx * 0.28:.1f},{my + ry * 0.04:.1f} "
+                 f"{cx - mwx * 0.66:.1f},{my - ry * 0.02:.1f} Z")
+        g.append(path(mouth, fill="#120c10"))
+        g.append(path(mouth, stroke=dark, w=max(1.2, ry * 0.034)))
+        g.append(path(f"M{cx - mwx * 0.40:.1f},{my + ry * 0.175:.1f} "
+                      f"C{cx - mwx * 0.14:.1f},{my + ry * 0.225:.1f} "
+                      f"{cx + mwx * 0.14:.1f},{my + ry * 0.225:.1f} "
+                      f"{cx + mwx * 0.40:.1f},{my + ry * 0.175:.1f}",
+                      stroke=soft, w=max(1.0, ry * 0.026), op=0.60))
+    else:
+        g.append(path(f"M{cx - mwx:.1f},{my - ma * ry:.1f} "
+                      f"C{cx - mwx * 0.3:.1f},{my + ry * 0.025:.1f} "
+                      f"{cx + mwx * 0.3:.1f},{my + ry * 0.025:.1f} "
+                      f"{cx + mwx:.1f},{my + ma * ry:.1f}",
+                      stroke=dark, w=max(1.2, ry * 0.038), op=0.95))
+    # --- 5. the lit edge of the lower lip, so the chin has a front
+    if not open_mouth:
+        g.append(path(f"M{cx + lit * mwx * 0.78:.1f},{my + ry * 0.05:.1f} "
+                      f"C{cx + lit * mwx * 0.24:.1f},{my + ry * 0.09:.1f} "
+                      f"{cx - lit * mwx * 0.16:.1f},{my + ry * 0.085:.1f} "
+                      f"{cx - lit * mwx * 0.42:.1f},{my + ry * 0.05:.1f}",
+                      stroke=soft, w=max(1.0, ry * 0.028), op=0.52))
+    body = "".join(g)
+    if tilt:
+        return f'<g transform="rotate({tilt} {cx:.1f} {cy:.1f})">{body}</g>'
+    return body
+
+
 # --------------------------------------------------------------------- AHMED
 
 def ahmed_cross(ink="#06080d", cloth="#161d33", tone="#232a3e", rim="#edbe57",
@@ -165,6 +403,17 @@ def ahmed_cross(ink="#06080d", cloth="#161d33", tone="#232a3e", rim="#edbe57",
         "C1272,482 1296,468 1318,460 C1326,448 1326,432 1318,418 "
         "C1292,398 1274,364 1272,322 C1270,270 1290,232 1300,228 Z",
         fill=ink))
+    # --- the face. He is the only one in the booklet with a catchlight,
+    #     because he is the only one still asking where the hole is.
+    g.append('<clipPath id="ahface"><path d="M1300,228 C1358,228 1394,272 '
+             '1392,326 C1390,366 1374,398 1352,418 C1340,430 1326,432 '
+             '1318,418 C1292,398 1274,364 1272,322 C1270,270 1290,232 '
+             '1300,228 Z"/></clipPath>')
+    g.append('<g clip-path="url(#ahface)">')
+    g.append(face(1318, 320, 47, 68, tone="#242031", rim=rim, iris="#e8c46a",
+                  mood="set", lit=1, turn=0.50, catch=True, gaze=(0.0, 0.0)))
+    g.append("</g>")
+    g.append(path("M1352,300 C1372,304 1384,318 1388,338", stroke=rim, w=4, op=0.62))
 
     # --- the vest. Cloth is the one thing on him with a straight edge.
     g.append(path("M1330,462 C1374,472 1416,490 1444,516 "
@@ -285,14 +534,7 @@ def ahmed_cross(ink="#06080d", cloth="#161d33", tone="#232a3e", rim="#edbe57",
                       ("M1216,782 C1206,740 1202,690 1208,640", 3, 0.38)):
         g.append(path(d, stroke=cool, w=wdt, op=o))
 
-    # --- the face. One eye, and the light that finds it. Nothing else.
-    g.append(path("M1276,332 C1282,372 1300,402 1324,418 L1318,432 "
-                  "C1288,414 1270,378 1266,334 Z", fill=tone, op=0.7))
-    g.append(path("M1284,330 L1338,322 L1334,346 L1288,350 Z", fill="#03050a"))
-    g.append(path("M1294,336 L1326,331 L1324,343 L1296,345 Z", fill=rim, op=0.95))
-    g.append(ellipse(1310, 338, 6, 6.5, fill="#fdfaf2"))
-    g.append(path("M1352,300 C1372,304 1384,318 1388,338", stroke=rim, w=4, op=0.75))
-    g.append(path("M1296,404 L1330,398", stroke=rim, w=3, op=0.40))
+
 
     return "".join(g)
 
@@ -307,6 +549,15 @@ def ahmed_falling(x, y, s=1.0, rot=24, ink="#06080d", rim="#edbe57", wrap="#c810
     """
     g = [f'<g transform="translate({x},{y}) scale({s}) rotate({rot})">']
     g.append(ellipse(0, -120, 42, 46, fill=ink))
+    g.append('<clipPath id="flface"><ellipse cx="0" cy="-120" rx="42" ry="46"/>'
+             '</clipPath>')
+    g.append('<g clip-path="url(#flface)">')
+    # his eyes are turned back up toward the light he is falling away from.
+    # He is looking at the hole. That is the whole page.
+    g.append(face(0, -118, 42, 46, tone="#1e2436", rim=rim, iris="#e8c46a",
+                  mood="wide", lit=1, turn=0.12, catch=True, open_mouth=True,
+                  gaze=(0.0, -0.46)))
+    g.append("</g>")
     g.append(path("M-30,-160 C-10,-196 46,-194 64,-160 C40,-172 4,-174 -20,-162 Z", fill=ink))
     g.append(path("M-34,-84 C-6,-96 28,-94 50,-80 C64,-30 66,34 52,84 "
                   "C20,96 -14,94 -38,82 C-48,30 -48,-34 -34,-84 Z", fill=ink))
@@ -341,6 +592,14 @@ def wahsh(x, y, s=1.0, ink="#05070b", tone="#221a22", rim="#e05cf0"):
                   "C-136,126 -86,96 -46,88 C-30,116 30,116 46,88 "
                   "C86,96 136,126 176,182 C232,262 260,380 250,520 Z", fill=ink))
     g.append(ellipse(0, 16, 72, 80, fill=ink))
+    g.append('<clipPath id="whface"><ellipse cx="0" cy="16" rx="72" ry="80"/>'
+             '</clipPath>')
+    g.append('<g clip-path="url(#whface)">')
+    # he is not a monster -- the brow is heavy and the eyes are half shut
+    # because he is unbothered, not because he is snarling
+    g.append(face(0, 24, 60, 66, tone="#2e2330", rim=rim, iris="#ef8dff",
+                  mood="heavy", lit=1, turn=0.0, gaze=(0.0, 0.0)))
+    g.append("</g>")
     g.append(path("M-84,-4 C-76,-86 -40,-132 0,-132 C40,-132 76,-86 84,-4 "
                   "C62,-42 34,-60 0,-60 C-34,-60 -62,-42 -84,-4 Z", fill=ink))
     g.append(path("M-46,88 C-30,116 30,116 46,88 C22,100 -22,100 -46,88 Z",
@@ -353,8 +612,7 @@ def wahsh(x, y, s=1.0, ink="#05070b", tone="#221a22", rim="#e05cf0"):
     g.append(ellipse(272, 452, 62, 56, rot=-14, fill=ink))
     g.append(path("M-120,190 C-60,224 60,224 120,190 C142,290 148,404 140,520 L-140,520 "
                   "C-148,404 -142,290 -120,190 Z", fill=tone, op=0.85))
-    g.append(path("M-52,4 L-6,-6 L-8,18 L-54,22 Z", fill=rim, op=0.95))
-    g.append(path("M52,4 L6,-6 L8,18 L54,22 Z", fill=rim, op=0.95))
+
     for d, w, o in (("M-88,-2 C-80,-82 -42,-126 0,-126", 7, 0.9),
                     ("M176,182 C232,262 258,376 250,510", 8, 0.95),
                     ("M194,172 C248,216 286,300 300,400", 6, 0.8),
@@ -388,6 +646,14 @@ def saqr(x, y, s=1.0, ink="#05070b", tone="#0d2430", rim="#59b6ff"):
                   "C130,-254 132,-210 122,-178 C94,-166 58,-172 40,-192 "
                   "C26,-240 22,-292 24,-330 Z", fill=ink))
     g.append(ellipse(96, -392, 44, 50, rot=14, fill=ink))
+    g.append('<clipPath id="sqface"><ellipse cx="96" cy="-392" rx="44" ry="50" '
+             'transform="rotate(14 96 -392)"/></clipPath>')
+    g.append('<g clip-path="url(#sqface)">')
+    # he looks down the line of the kick, at the target, never at us
+    g.append(face(86, -390, 40, 50, tone="#17303c", rim=rim, iris="#7fd0ff",
+                  mood="narrow", lit=1, turn=0.52, gaze=(-0.42, 0.22),
+                  tilt=14))
+    g.append("</g>")
     g.append(path("M52,-420 C78,-456 142,-456 162,-418 "
                   "C134,-434 96,-436 64,-424 Z", fill=ink))
     for d in ("M150,-450 C184,-462 218,-450 232,-426 C204,-440 178,-442 156,-436 Z",
@@ -429,7 +695,8 @@ def saqr(x, y, s=1.0, ink="#05070b", tone="#0d2430", rim="#59b6ff"):
                     ("M44,-204 C34,-146 34,-70 38,0", 5, 0.8),
                     ("M182,-282 C204,-264 206,-238 188,-224", 4, 0.7)):
         g.append(path(d, stroke=rim, w=w, op=o))
-    g.append(path("M64,-404 L104,-412 L102,-390 L64,-386 Z", fill=rim, op=0.95))
+    # half-lidded and turned almost away: he stopped asking years ago
+
     g.append("</g>")
     return "".join(g)
 
@@ -440,7 +707,19 @@ def zayos(x, y, s=1.0, ink="#05070b", tone="#1c1a16", rim="#ff9a3c"):
     g = [f'<g transform="translate({x},{y}) scale({s})">']
     g.append(path("M-210,480 C-224,344 -196,232 -144,158 C-96,90 -34,56 0,56 "
                   "C34,56 96,90 144,158 C196,232 224,344 210,480 Z", fill=ink))
-    g.append(ellipse(0, 10, 62, 66, fill=ink))
+    g.append(path("M-62,-8 C-62,-58 -34,-92 0,-92 C34,-92 62,-58 62,-8 "
+                  "C62,28 58,52 48,66 C30,80 -30,80 -48,66 "
+                  "C-58,52 -62,28 -62,-8 Z", fill=ink))
+    g.append('<clipPath id="zyface"><path d="M-62,-8 C-62,-58 -34,-92 0,-92 '
+             'C34,-92 62,-58 62,-8 C62,28 58,52 48,66 C30,80 -30,80 -48,66 '
+             'C-58,52 -62,28 -62,-8 Z"/></clipPath>')
+    g.append('<g clip-path="url(#zyface)">')
+    # the heaviest brow in the booklet and the smallest eyes under it: he is
+    # enormous, he is slow, and he only punches. Straight ahead and slightly
+    # through the reader -- a man with one idea.
+    g.append(face(0, 18, 52, 56, tone="#2a2318", rim=rim, iris="#ffb877",
+                  mood="dull", lit=1, turn=0.0, gaze=(0.0, 0.10)))
+    g.append("</g>")
     g.append(path("M-70,-2 C-64,-64 -34,-100 0,-100 C34,-100 64,-64 70,-2 "
                   "C50,-32 26,-46 0,-46 C-26,-46 -50,-32 -70,-2 Z", fill=ink))
     # arms long enough to be the point of him
@@ -456,8 +735,7 @@ def zayos(x, y, s=1.0, ink="#05070b", tone="#1c1a16", rim="#ff9a3c"):
                   "C268,448 330,446 364,482 Z", fill=tone))
     g.append(path("M-104,176 C-52,206 52,206 104,176 C124,268 128,376 122,480 L-122,480 "
                   "C-128,376 -124,268 -104,176 Z", fill=tone, op=0.8))
-    g.append(path("M-44,2 L-4,-6 L-6,14 L-46,18 Z", fill=rim, op=0.95))
-    g.append(path("M44,2 L4,-6 L6,14 L46,18 Z", fill=rim, op=0.95))
+
     for d, w, o in (("M-72,0 C-66,-62 -36,-98 0,-98", 6, 0.85),
                     ("M144,158 C196,232 222,340 210,470", 7, 0.9),
                     ("M162,156 C238,196 304,288 332,402", 6, 0.8),
@@ -469,31 +747,71 @@ def zayos(x, y, s=1.0, ink="#05070b", tone="#1c1a16", rim="#ff9a3c"):
 
 def crowd(x, y, w, n=26, seed=11, ink="#05070b", rim=None, op=1.0, h=90):
     """The ring of onlookers that closes around a fight in a marketplace.
-    Halqa means that too, so the crowd is never decoration on this page."""
+    Halqa means that too, so the crowd is never decoration on this page.
+
+    No faces, on purpose -- they are backlit and behind the fight, and a ring
+    of tiny expressions would pull the eye off the one face that matters.
+    What they DO need is to stop being identical: the first draft was a row
+    of perfect circles on perfect domes, which reads as balloons on a stick
+    rather than as people. Each one now gets its own head shape, a tilt, a
+    neck, shoulders that are not a mirror of themselves, and one head in
+    three turned to the side with the nose and chin that implies.
+    """
     g = [f'<g opacity="{op}">']
     for i in range(n):
-        hh = math.sin((i + 1) * 13.7 + seed * 9.1) * 6112.3
-        j = hh - math.floor(hh)
-        hh2 = math.sin((i + 1) * 4.31 + seed * 27.7) * 2213.9
-        j2 = hh2 - math.floor(hh2)
+        def hash01(a, b):
+            v = math.sin((i + 1) * a + seed * b) * 6112.3
+            return v - math.floor(v)
+        j, j2 = hash01(13.7, 9.1), hash01(4.31, 27.7)
+        j3, j4 = hash01(27.13, 3.77), hash01(9.77, 17.31)
         px = x + w * (i + 0.5 * j) / n
         sc = 0.72 + 0.6 * j2
         hd = 17 * sc
         py = y - 4 * j
-        g.append(ellipse(px, py - h * sc - hd, hd, hd * 1.08, fill=ink))
-        g.append(path(f"M{px - 46 * sc:.1f},{py} "
-                      f"C{px - 44 * sc:.1f},{py - h * sc * 0.82:.1f} "
-                      f"{px - 22 * sc:.1f},{py - h * sc:.1f} "
-                      f"{px:.1f},{py - h * sc:.1f} "
-                      f"C{px + 22 * sc:.1f},{py - h * sc:.1f} "
-                      f"{px + 44 * sc:.1f},{py - h * sc * 0.82:.1f} "
-                      f"{px + 46 * sc:.1f},{py} Z", fill=ink))
-        if rim and j > 0.62:
-            g.append(path(f"M{px + 20 * sc:.1f},{py - h * sc * 0.94:.1f} "
-                          f"C{px + 40 * sc:.1f},{py - h * sc * 0.84:.1f} "
-                          f"{px + 46 * sc:.1f},{py - h * sc * 0.4:.1f} "
-                          f"{px + 46 * sc:.1f},{py}",
-                          stroke=rim, w=3, op=0.5))
+        tilt = (j3 - 0.5) * 22                      # nobody stands square on
+        facing = -1 if j3 < 0.5 else 1   # its own hash: gating this
+                                         # on j4, which also decides
+                                         # WHO turns, made every
+                                         # turned head face right
+        hy = py - h * sc - hd * 0.92
+
+        # neck first, so the head sits on top of it rather than beside it
+        g.append(path(f"M{px - 7 * sc:.1f},{hy + hd * 0.7:.1f} "
+                      f"L{px + 7 * sc:.1f},{hy + hd * 0.7:.1f} "
+                      f"L{px + 10 * sc:.1f},{py - h * sc + 6 * sc:.1f} "
+                      f"L{px - 10 * sc:.1f},{py - h * sc + 6 * sc:.1f} Z", fill=ink))
+        # the skull: taller than wide, and never the same ratio twice
+        g.append(ellipse(px, hy, hd * (0.90 + 0.14 * j3), hd * (1.02 + 0.16 * j4),
+                         rot=tilt, fill=ink))
+        if j4 > 0.62:                               # turned away: nose and chin
+            g.append(path(f"M{px + facing * hd * 0.80:.1f},{hy - hd * 0.10:.1f} "
+                          f"L{px + facing * hd * 1.24:.1f},{hy + hd * 0.16:.1f} "
+                          f"L{px + facing * hd * 0.86:.1f},{hy + hd * 0.40:.1f} Z",
+                          fill=ink))
+        # shoulders, leaning the way the head is turned
+        lw, rw = 46 * sc * (1.0 + 0.16 * j3), 46 * sc * (1.0 - 0.12 * j3)
+        drop = h * sc * (0.86 + 0.10 * j)
+        g.append(path(f"M{px - lw:.1f},{py} "
+                      f"C{px - lw * 0.96:.1f},{py - drop * 0.80:.1f} "
+                      f"{px - lw * 0.44:.1f},{py - h * sc:.1f} "
+                      f"{px + facing * 3 * sc:.1f},{py - h * sc:.1f} "
+                      f"C{px + rw * 0.46:.1f},{py - h * sc:.1f} "
+                      f"{px + rw * 0.94:.1f},{py - drop * 0.84:.1f} "
+                      f"{px + rw:.1f},{py} Z", fill=ink))
+        if rim and j > 0.58:
+            # the rim hugs the skull it is on; a light that bulges off the
+            # head reads as a stray mark, which is what the first pass did
+            rx, ry = hd * (0.90 + 0.14 * j3), hd * (1.02 + 0.16 * j4)
+            g.append(path(f"M{px + rx * 0.30:.1f},{hy - ry * 0.94:.1f} "
+                          f"C{px + rx * 0.80:.1f},{hy - ry * 0.74:.1f} "
+                          f"{px + rx:.1f},{hy - ry * 0.28:.1f} "
+                          f"{px + rx * 0.94:.1f},{hy + ry * 0.24:.1f}",
+                          stroke=rim, w=2.2 * sc, op=0.50))
+            g.append(path(f"M{px + rw * 0.58:.1f},{py - h * sc * 0.90:.1f} "
+                          f"C{px + rw * 0.90:.1f},{py - drop * 0.70:.1f} "
+                          f"{px + rw * 0.99:.1f},{py - drop * 0.28:.1f} "
+                          f"{px + rw:.1f},{py:.1f}",
+                          stroke=rim, w=2.4 * sc, op=0.40))
     g.append("</g>")
     return "".join(g)
 
