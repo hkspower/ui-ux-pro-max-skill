@@ -371,6 +371,67 @@ grid's own noise), and `anatomy.measure` on stature and on heads-tall.
 textures and the FBX are written by Blender and read back by Blender, and
 that is all that has been checked.
 
+## The bosses move now
+
+Since 2026-09-19. `Tools/blender/build_motion.py` writes seventeen animation
+clips for AL-WAHSH, AL-SAQR and ZAYOS into `Content/Animation/Bosses/`, on the
+same 62-bone skeleton the hero exports.
+
+**There was no animation in this build at all.** Not a montage, not an
+AnimSequence, not an animated FBX, not a `.uasset` of any kind. AhmedTypes.h
+says the montage is "Optional -- the game is fully playable without
+animation" and it meant it. The art direction asks for weight,
+follow-through and contact frames that land; the three title fights were
+three men sliding at each other.
+
+**Every number comes from somewhere.** `DT_Attacks.csv` gives the timing, so
+a clip is exactly startup + active + recovery long and its contact frame is
+exactly where startup ends. `DT_Fighters.csv` gives each boss his move list.
+The browser build's own `attackPose()` (index.html:1347) gives the shape --
+which limb throws, how far the torso tips, how far the hip lifts, how many
+turns the spin kick takes -- because it draws every fighter procedurally and
+is therefore the canonical motion. `enemies.js` gives `sc` and `look.build`,
+which the UE5 export drops, and which are the only numbers that say ZAYOS
+should commit further past his guard than AL-SAQR. The canon gives who they
+are: ZAYOS only ever punches, so he has no leg clip and a check fails if one
+ever appears.
+
+**What does not cross over** is length. The browser draws two-bone limbs at
+26/25 px for an arm and 34/32 for a leg; this build's proportions are
+measured off Winter's tables. Angles and timings are dimensionless and do
+cross; pixel lengths do not and are not used.
+
+**Four things it got wrong first, all caught by measuring rather than
+looking.** The root bone points UP, so its local Y is world Z -- the forward
+shift was being written into the vertical and drove him into the floor. An
+aim is a WORLD direction, so rotating the torso afterwards dragged the
+already-aimed arm off target and turned the hook 10 cm BACKWARDS. A spine
+bone's local X runs along world +X, so the obvious sign for a lean tips him
+away from the man he is hitting. And the browser's `shift` moves the
+SHOULDERS, not the feet: mapped to the root it walked the whole man forward
+34 cm on a cross, which is a lunge and not a punch. It is now one torso
+inclination derived from the browser's own shoulder offset.
+
+`verify()` puts the fist or the foot where the frame says it is and measures
+how far forward of the guard it got. It is what caught all four. Nine checks
+guard the plan and each has been made to fail; the one that decides which
+bosses have a phase two reads the browser's `isBoss` line rather than a
+constant copied out of it, because a copy goes stale quietly.
+
+**Not wired, and there is nothing to wire it to.** The only line that plays a
+montage is `AhmedAttackAbility.cpp:85`, and nothing in C++ ever calls
+`PressInput`, so that path never runs. The bosses strike through
+`AFighterBase::StartAttack` (EnemyFighter.cpp:169, FightStyleComponent.cpp:297),
+which fires a sound and a Blueprint event and advances a float in Tick.
+`Attack->Montage` is per-ATTACK anyway, and a boss's jab is not Ahmed's jab.
+Making that seam is engine work on a project that has never compiled.
+
+**Not verified.** No engine has imported a single one of these clips. They
+were authored in Blender, exported to FBX, read back into Blender and
+measured there, and that is the whole of the proof. `Content/Animation/Bosses/boss-motion.png`
+is a contact sheet of every clip drawn as the skeleton itself, which is how
+they were judged.
+
 ## L_Prologue -- Ahmed's life before he fell
 
 Since 2026-09-19, and **only in this build**: the game opens on a level that
@@ -458,6 +519,17 @@ Don't re-discover them; don't fix them without being told to.
   so the meter never spends and nothing happens. One word to fix. The same
   bug on the enraged boss *was* fixed, because that one was inside the fight
   style work.
+- **ZAYOS has no legal strike at Long range.** His style carries no Kick and
+  no Knee, so `ChooseStrike` finds nothing in the 186.6-328.7 cm band and he
+  has no answer there. The canon says the fight is "learning to be somewhere
+  else when it lands", so this may well be the point -- but nothing in the
+  code says it is deliberate, and a fighter with an empty band is usually a
+  bug. Left alone because deciding it is a design call.
+- **The UE5 fighter table drops how big each man is.** The browser carries
+  `sc` and `look.build` per archetype -- ZAYOS is 1.55 and 1.60, half again
+  the size, which is his whole identity -- and `DT_Fighters.csv` has no
+  column for either. `build_motion.py` reads them out of `enemies.js`
+  directly because it needs them; anything else that needs them cannot.
 - **The tee pinches to a point at the waist in the fight poses.** It is a
   shell off the body surface (`garments.dress`) taking the body's vertex
   weights by proximity, and where the torso twists the two hems converge.
