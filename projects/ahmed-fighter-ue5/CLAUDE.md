@@ -518,6 +518,205 @@ without an engine has been: `build_prologue.py --check`-equivalent logic
 plane it was given and that the exit sits outside the fight circle, the same
 discipline `Tools/fab/lay_out_world.py` holds its own layout to.
 
+## The first area is built, and the men in it are rigged
+
+Since 2026-09-19. Three tools in `Tools/blender/`, and what they leave:
+
+| | tool | leaves |
+| --- | --- | --- |
+| The place | `build_souq.py` | `Content/Models/Souq/SM_Souq_*.fbx` (34 static meshes), `SouqAlDawar.gltf` (the district placed, 558 instances), `SouqAlDawar_placement.json`, `Content/Textures/Souq/` (13 materials, 39 maps), `Docs/souq-map.png`, `Docs/renders/souq-*.png` |
+| The men | `build_fighters.py` (+ `hero/roster.py`, `hero/pipeline.build_fighter`) | `Content/Models/{Ahmed,Thug,Brawler}.{fbx,gltf}`, `Content/Textures/<Name>/`, `Docs/renders/<name>-*-3d.png`, `Tools/blender/rigs/<Name>.blend` (the animator's file) |
+| The rig | `rig_full_ik.py` | the control layer inside each `rigs/<Name>.blend`; nothing of it in the exports |
+| The fight | `build_souq.py --scene` | `Tools/blender/scenes/SouqAlDawar_fight.blend`, `Docs/renders/souq-fight.png` |
+
+**SOUQ AL-DAWAR is derived, never authored, and it is the same souq as the
+map's.** `build_souq.py` runs the three derivations every other tool
+duplicates -- `DistrictExtent`, `SpiralPoint`, `Hash01` -- and then runs
+`Tools/levels/build_levels.py`'s own plan for stage 0 in a subprocess and
+asserts that every wave, the gate and the three doors land at the SAME
+centimetre. What stands on the plots is `build_world.py`'s Souq vocabulary
+verbatim (stalls 2.6-5.5 m on a 10 m lattice at 72 per cent, warehouses
+one in eight, the rim 2.4-3.2 m gapped at every way out); what it looks
+like is the browser build's own painting of the souq (`THEME.souq`: the
+arcade bay of two piers and a parabolic arch with a banner and a lantern,
+mud-brick blocks with a dome or crenellations, one minaret, the cracked
+gate wall of `drawGate`, crates and barrels down the street), with pixels
+taken to metres through the 148 px figure. The minaret is the browser's
+`minaret(x, y, h)` -- `h` is its SHAFT and the finial reaches 1.22 h -- at
+the far layer's own ratio over a warehouse roof: shaft 14.78 m, 18.03 m to
+the finial. The numbers the browser does not own -- brick 40 x 20,
+flagstone 50, batter 4 cm, recess 60 cm, rim 1.2 m thick -- are listed in
+the script's docstring so nobody mistakes them for canon. Materials are
+procedural, made periodic on a torus and baked once to tileable maps;
+every mesh carries box-projected UVs in metres per tile.
+
+**Fourteen checks over the plan, each proved to bite** by breaking the one
+thing it guards: the agreement with `build_levels.py`, nothing solid in the
+street, in a fight or off the edge, every door a gap in the rim, the way
+through staying inside, the crate the browser's crate and not the distance
+constant's, every prop at the kerb and out of every fight, the gate beside
+the road in the AbilityGate's own box, one minaret and it the tallest, no
+variant far from its plot. The static meshes bake centimetres and the
+Z-up-to-Y-up change into their vertices (FBX scale 1.0, a file every
+importer reads the same; the hero and the clips keep their shared
+metres-at-scale-100 convention because a rigged mesh cannot bake its
+transform), and the minaret's FBX is read back at 18.03 m and 473 vertices
+to prove it. The glTF is held to exactly what was placed: 34 meshes, 558
+nodes, 10,388 triangles.
+
+**Run inside the editor it furnishes `L_SouqAlDawar`**, the level
+`build_levels.py` made: the Ground cube goes, the sand disc and the street
+stand where it stood, the AbilityGate keeps its class, rows and trigger and
+carries the gate wall instead of a cube, and every other actor is left
+where that script put it. It does not build a second level and it does not
+spawn a director twice. It uses the level and actor subsystems, not the
+`EditorLevelLibrary` deprecated since 5.0 that the other level scripts
+still call.
+
+**The men are the first area's men.** `DT_Stages` stage 0 is three waves of
+thugs and brawlers, and Ahmed walks into them; those are the three built.
+Everything that says what one of them looks like -- colours, kit, `sc`,
+`build`, `reach` -- is read out of `assets/ahmed.js` and `assets/enemies.js`
+by `hero/roster.py`, because `DT_Fighters.csv` carries none of it ("Known,
+not fixed", above). `hero/pipeline.build_fighter` runs the hero pipeline
+for a spec at Ahmed's coordinates up to the bake, then takes the finished
+mesh and its joints to the man's own size through the browser's own
+mapping (index.html:1379, 1567, 1600): height by `sc`, limb girth by
+`build`, torso width by `1 + 0.7(build - 1)`. The arms are carried rigidly
+out with the shoulder, hand included -- that rule is this build's, for a
+mesh that cannot leave a gap at the shoulder; the browser draws its arms
+outside the torso's scale and needs none. The thug is 1.714 m with limbs
+at 0.80 and a torso at 0.86 of Ahmed's; the brawler is Ahmed's size with a
+heavier face -- the face amplitude factors in `pipeline.FACES` are the one
+set of numbers here the browser does not own, and they are labelled so.
+One body, three men; one skeleton, the mannequin's 62 bones, asserted
+identical for all three and exported under `Ahmed_Rig` for all three, or
+the boss clips would not play on them.
+
+**Ahmed himself was stale.** `Content/Models/Ahmed.fbx` and
+`Content/Textures/Ahmed/` were last written 2026-09-10; the hero tools were
+rewritten 2026-09-19 (the face as a texture, the measured body) and those
+commits touched no `Content/` file, so the shipped hero was still the old
+model. He is rebuilt here from the current tools.
+
+**The control rig is what an animator poses; the engine never sees it.**
+`rig_full_ik.py` puts 13 control bones and 8 mechanism bones over the
+mannequin in three bone collections -- DEF is what ships, CTRL is what is
+touched, MCH the mechanism between -- and every control is a real control:
+four limbs with IK and pole targets and a per-limb `fk` switch; a reverse
+foot with `roll` (heel pivot on the floor under the heel, toe pivot on the
+floor under the BALL, so the toes stay flat while the heel comes up, which
+is what a kicker's support foot does); a spine that follows the chest
+control a third a bone; a head that tracks `CTRL_look` by `look` along
+its Z, which is the face; a `fist` on each hand that tightens all fifteen
+finger bones. `verify()` measures each -- the hand reaches, the elbow bends
+toward its pole, FK really disconnects, the ankle rises and the toes do
+not, the head turns the right way and stops, the fist tightens, the export
+set is exactly the mannequin's, the mesh is weighted to deform bones only
+-- and `--bite` proves all nine fail when the thing they guard is broken,
+on each man's own rig. It holds with the man at the origin and with him
+50 m away turned 90 degrees. `strip_for_export` then removes every
+control, constraint and driver and leaves the 62 bones; `--roundtrip`
+poses a man through the controls, bakes that onto the deform bones,
+strips, exports, reads the FBX back and compares every bone: 0.00 mm on
+all three.
+
+**What it got wrong first, every one caught by measuring:**
+
+- `stance()` read joint positions in world space and wrote the hand and
+  foot targets back into `PoseBone.matrix`, which is armature space. The
+  two agree with the rig at the origin, where every render of the pipeline
+  had it, so the first man to stand 56 m out in the souq reached 56 m back
+  for his own hands and the whole fight lay on the floor. `stance()` works
+  in the man's own frame now, the world setter converts, and a self-check
+  fails any stance that leaves a target 3 m from him. The guard posed at
+  the origin and posed 50 m away turned 90 degrees differ by 0.01 mm.
+- A custom-property write from Python does not tag the depsgraph. Drivers
+  read `fk`, `roll`, `look`, `fist` and every one measured 0.0 until the
+  write was followed by `update_tag()`; `set_prop` exists for that reason.
+- `nla.bake` bakes the SELECTED bones, and a bone in a hidden collection
+  cannot be selected. DEF and MCH are hidden for the animator, so the first
+  bake wrote the controls -- which are then stripped -- and the deform
+  bones fell back to rest the moment their constraints went: 807 mm on the
+  hands. The bake shows every collection first.
+- The IK solvers were retargeted to the controls AFTER `ik_hand_*` was made
+  to follow `hand_*`, so for a moment the solver reached for a bone that
+  followed its own result: a cycle the depsgraph reported fourteen times a
+  build. The order is the other way now; the saved rig never carried it.
+- The pole positions were read from wherever the KICK pose had left the
+  Empties, 1.47 cm off rest. They are recomputed from the chains.
+- A control that drives a deform bone through Copy Transforms must share
+  that bone's rest exactly; `CTRL_root` along +Y rotated the hierarchy and
+  put `ik_hand_gun` 1.2 off.
+- The toe pivot under the toe TIP lifted the ball; it is under the ball.
+- The fist at 78 degrees a joint corkscrewed the fingers; it is 10, with
+  the sign probed on the built hand rather than assumed.
+- The size field sheared the hands: a limb thinning applied to a hand that
+  was also being carried out with the shoulder. The arms move rigidly with
+  the shoulder now, hand included, and every field is evaluated on the
+  canonical positions.
+- Bone heat leaves a handful of weights a few thousandths over one (35 on
+  Ahmed, up to 1.011) and the exporters call the mesh invalid for it. They
+  are clamped once, on the joined mesh.
+- The face's tonal zones, blood, shadow and lips in `hero/face.py` were
+  written as the colours they come to on Ahmed's `#f0d8c4` and laid over
+  any face as those absolutes: the thug had Ahmed's face on a brown neck.
+  Each is now the same move applied to the man's own skin -- its ratio to
+  `AHMED_SKIN` in linear light -- and on Ahmed that is the number as
+  written, checked to 1e-9.
+- The brawler's heavier nose put the profile's peak at 30.1 mm against the
+  20-30 `sculpt.check_profile` holds every man to (a real male nose). His
+  tip is 1.05, not 1.10: 29.3 mm.
+
+And two in the souq: a spur that begins on the street's centre line lies on
+the ribbon, coplanar, and a renderer's shadow ray off one face strikes the
+other at zero distance -- the overlap rendered black under any light (and
+would z-fight in the engine); each spur is cut where it leaves the ribbon,
+tucked 5 cm under it and 1 mm lower. And the plan carried the minaret's
+shaft as its height, which the FBX read-back caught the first time it ran.
+
+**Seen, reported, not touched.** The trousers carry a web between the
+thighs from the crotch down to z = 0.70 -- 218 vertices within 15 mm of the
+midline, the same 218 on Ahmed and on the thug -- because the body's crotch
+is welded shut ("The crotch is 54 mm too low", Known, not fixed) and the
+garment is a shell off it. In the guard, with the legs staggered, the web
+stretches between them; on the thug's thinner legs it shows plainly. It is
+that item, not the size mapping, and it is left as that item is.
+
+**The scene.** `build_souq.py --scene` appends the three rigged men into the
+built souq at the second wave -- Ahmed, two thugs and the brawler -- in
+the browser's own formation (index.html:3597, :3998: each enemy at his
+reach x 0.70 plus his lane from Ahmed, in front of him for even, behind
+for odd, browser pixels at 2.4 cm), posed through their controls: guard,
+fists, every man squared up to Ahmed and looking at him, Ahmed at the
+first of them. It saves that and renders it. That file is the deliverable
+an animator opens. A `--scene` run rebuilds and re-exports the district
+first, so the 34 FBX files come out again with a new header timestamp and
+the same content.
+
+**Known, not fixed, found on the way:** every editor script that places a
+rotated actor -- `build_levels.py:374`, `build_world.py:641,707`,
+`build_island.py:904,1001`, `build_prologue.py:206,247` -- calls
+`unreal.Rotator(pitch, yaw, 0)` or `unreal.Rotator(0, yaw, 0)` positionally.
+The Python `unreal.Rotator`'s positional order is `(roll, pitch, yaw)`, not
+C++'s `FRotator(Pitch, Yaw, Roll)`, so a sun's pitch lands in its roll and
+an actor's yaw in its pitch. `build_souq.py` names its arguments; the others
+are left as they were because fixing them was not what was asked. And the
+glTF exporter keeps four influences a vertex where heat gives some verts
+five or more; the FBX, which is what Unreal imports, keeps them all.
+
+**Unverified, like everything else here.** No engine has imported a mesh, a
+texture or a rig from this work; the FBX and glTF are written by Blender and
+read back by Blender, and that is the whole proof. The editor half is
+read-reviewed, not run. Three things that will need an engine to settle:
+the three men share one `USkeleton` with different bone lengths, so the
+boss clips play on the thug only with per-bone Translation Retargeting set
+-- `root` and the seven `ik_*` bones from the animation, `pelvis`
+animation-scaled, the rest from the skeleton -- or his feet slide; the
+street and ground are given `QUERY_AND_PHYSICS` collision and rely on the
+importer's generated collision; and the glTF is a viewer artefact --
+Unreal imports the per-kind FBX, not the glTF.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
@@ -581,6 +780,13 @@ Don't re-discover them; don't fix them without being told to.
   moving the joint table, and the arm's segment lengths are correct and would
   have to move with it -- a rig change, not a mesh change. The trunk's
   shoulder SHELF has been raised to 1.478; the bone under it has not.
+- **The editor scripts pass `unreal.Rotator` its arguments in the wrong
+  order.** `build_levels.py:374`, `build_world.py:641,707`,
+  `build_island.py:904,1001` and `build_prologue.py:206,247` call
+  `unreal.Rotator(pitch, yaw, 0)` or `unreal.Rotator(0, yaw, 0)`; the Python
+  constructor's positional order is `(roll, pitch, yaw)`, so a sun's pitch
+  lands in its roll and an actor's yaw in its pitch. Found while writing
+  `build_souq.py`, which names its arguments; the four are left as they are.
 - **Enemy strikes do not go through the ability system.** Enemies (and the
   player) still throw via the legacy `AFighterBase::StartAttack` state
   machine; the GAS layer exists beside it rather than under it. Moving combat
