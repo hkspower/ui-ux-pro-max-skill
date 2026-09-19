@@ -115,10 +115,10 @@ def spec(kind):
         a = ahmed()
         look = dict(a["look"])
         return dict(kind="ahmed", name="Ahmed", display=a["name"], ar=a["ar"],
-                    sc=float(a["spawn"]["sc"]), col=dict(a["col"]), look=look)
+                    sc=float(a["spawn"]["sc"]), col=dict(a["col"]), look=look, reach=float(a["base"]["reach"]))
     e = enemies()[kind]
     return dict(kind=kind, name=kind.capitalize(), display=e["name"], ar=e["ar"],
-                sc=float(e["sc"]), col=dict(e["col"]), look=dict(e["look"]))
+                sc=float(e["sc"]), col=dict(e["col"]), look=dict(e["look"]), reach=float(e["reach"]))
 
 
 if __name__ == "__main__":

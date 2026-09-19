@@ -430,9 +430,18 @@ def _probe_roll(rig, mch, which, side):
 
 
 # =================================================================== posing
-def set_world_translation(rig, name, where):
+def set_translation(rig, name, where):
+    """Put a bone at `where` in the ARMATURE's own space, PoseBone.matrix's."""
     pb = rig.pose.bones[name]
     m = pb.matrix.copy(); m.translation = Vector(where); pb.matrix = m; _update()
+
+def set_world_translation(rig, name, where):
+    """Put a bone at `where` in WORLD space. The first version wrote the
+    world position straight into PoseBone.matrix, which is armature space;
+    the two agree only with the rig at the origin, where every render of
+    the pipeline had it, and the first man to stand 56 m from the origin in
+    the souq reached 56 m back for his own hands."""
+    set_translation(rig, name, rig.matrix_world.inverted() @ Vector(where))
 
 def reset(rig):
     """Every control home, every switch at its default."""
@@ -477,11 +486,16 @@ def stance(rig, fk, mesh=None, plant=("l", "r")):
     for s in SIDES:
         set_prop(rig, "CTRL_hand_%s" % s, "fk", 1.0); set_prop(rig, "CTRL_foot_%s" % s, "fk", 1.0)
     _aim(rig, fk)
-    world = rig.matrix_world
+    # Everything here is in the armature's own space: the man faces his
+    # own -Y, the poles go out along his own bends, and PoseBone.matrix is
+    # read and written in that space -- so the stance is his wherever and
+    # however he stands. The first version read these through
+    # rig.matrix_world and wrote them back as if that were the same space,
+    # which it is only at the origin.
     targets, poles = {}, {}
     for s in SIDES:
-        hip, knee, ankle = world @ pb["thigh_" + s].head, world @ pb["calf_" + s].head, world @ pb["calf_" + s].tail
-        shoulder, elbow, wrist = world @ pb["upperarm_" + s].head, world @ pb["lowerarm_" + s].head, world @ pb["lowerarm_" + s].tail
+        hip, knee, ankle = pb["thigh_" + s].head.copy(), pb["calf_" + s].head.copy(), pb["calf_" + s].tail.copy()
+        shoulder, elbow, wrist = pb["upperarm_" + s].head.copy(), pb["lowerarm_" + s].head.copy(), pb["lowerarm_" + s].tail.copy()
         targets["CTRL_foot_" + s] = (ankle.copy(), pb["foot_" + s].matrix.copy())
         targets["CTRL_hand_" + s] = (wrist.copy(), pb["hand_" + s].matrix.copy())
         poles["CTRL_knee_" + s] = knee + Vector((0, -0.6, 0)) if s in plant else legacy._pole_from(hip, knee, ankle, Vector((0, -1, 0)))
@@ -491,7 +505,7 @@ def stance(rig, fk, mesh=None, plant=("l", "r")):
     for name, (where, mat) in targets.items():
         m = mat.copy(); m.translation = where; pb[name].matrix = m; _update()
     for name, where in poles.items():
-        set_world_translation(rig, name, where)
+        set_translation(rig, name, where)
     if mesh is not None:
         rest = {s: legacy._foot_floor(mesh, rig, s) for s in SIDES}
         # rest was measured in THIS pose; measure the true rest first
@@ -505,13 +519,15 @@ def stance(rig, fk, mesh=None, plant=("l", "r")):
         for name, m in cur.items():
             pb[name].matrix = m; _update()
         for name, where in poles.items():
-            set_world_translation(rig, name, where)
+            set_translation(rig, name, where)
         for s in plant:
             for _ in range(3):
                 drop = legacy._foot_floor(mesh, rig, s) - floor[s]
                 m = pb["CTRL_foot_" + s].matrix.copy(); m.translation.z -= drop; pb["CTRL_foot_" + s].matrix = m; _update()
                 if abs(drop) < 0.0005:
                     break
+    far = max((pb[n].matrix.translation.length, n) for n in list(targets) + list(poles))
+    assert far[0] < 3.0, "stance: %s ended up %.1f m from the man -- a world position written in armature space" % (far[1], far[0])
     _object_mode(rig)
 
 
@@ -590,14 +606,18 @@ def verify(rig, mesh):
         f = Vector((m[0][2], m[1][2], 0.0))          # the head's Z, its forward, flattened
         return math.degrees(math.atan2(f.x, -f.y))   # 0 = straight ahead (-Y)
     y0 = yaw()
-    set_world_translation(rig, "CTRL_look", _world(rig, "CTRL_look") + Vector((1.0, 0, 0)))
+    # a metre to HIS left, in his own frame, since yaw() reads his own frame
+    set_translation(rig, "CTRL_look", pb["CTRL_look"].matrix.translation + Vector((1.0, 0, 0)))
     y_off = yaw()
     set_prop(rig, "CTRL_head", "look", 1.0)
     y_on = yaw()
     if abs(y_off - y0) > 0.5:
         fails.append("look: with look=0 the head turned %.1f deg toward CTRL_look" % (y_off - y0))
-    if abs(y_on - y0) < 20.0:
-        fails.append("look: with look=1 the head turned only %.1f deg toward CTRL_look" % (y_on - y0))
+    # signed: the control went to his LEFT (+X), so the yaw must be positive.
+    # abs() here passed a head that turned the wrong way, which is what the
+    # default TRACK_Y did (-30 degrees, the crown at the target).
+    if y_on - y0 < 20.0:
+        fails.append("look: with look=1 the head turned only %+.1f deg toward CTRL_look" % (y_on - y0))
     # 5 the fist
     reset(rig)
     def grip():

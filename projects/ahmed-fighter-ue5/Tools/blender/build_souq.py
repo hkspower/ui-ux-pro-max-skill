@@ -374,7 +374,9 @@ def plan():
         meshes.setdefault(w["mesh"], dict(kind="wall", w=RIM_SEGMENT * 0.92, d=WALL_THICK * 100.0, h=vh))
     tall_mid = 0.5 * (v["tall_min"] + v["tall_max"])
     minaret_h = tall_mid * BROWSER_ART["minaret_px"] / BROWSER_ART["far_building_px"]
-    meshes["SM_Souq_Minaret"] = dict(kind="minaret", w=minaret_h * 0.164, d=minaret_h * 0.164, h=minaret_h)
+    # the browser's minaret(x, y, h) takes h as the SHAFT and draws the cap
+    # to 1.16 h and the finial to 1.22 h; the mesh's own height is the whole
+    meshes["SM_Souq_Minaret"] = dict(kind="minaret", w=minaret_h * 0.164, d=minaret_h * 0.164, h=minaret_h * 1.22, shaft=minaret_h)
     if minaret: minaret["h"] = minaret_h
     meshes["SM_Souq_GateWall"] = dict(kind="gate", w=GATE_BOX[0], d=GATE_BOX[1], h=GATE_BOX[2])
     cw, ch = (p * CM_PER_DRAWN_PX for p in BROWSER_ART["crate_px"])
@@ -385,6 +387,10 @@ def plan():
     meshes["SM_Souq_Street"] = dict(kind="street", w=E * 2, d=E * 2, h=3.0)
     for p in props:
         p["mesh"] = "SM_Souq_Crate" if p["kind"] == "crate" else "SM_Souq_Barrel"; p["scale"] = (1.0, 1.0, 1.0)
+    # a crate in a fight is a wall in it: dropped by build_world's own block
+    # test (a site's radius plus the thing's half-width), like a plot would be
+    props = [p for p in props if all(math.hypot(s["x"] - p["x"], s["y"] - p["y"]) > SITE_RADIUS + max(meshes[p["mesh"]]["w"], meshes[p["mesh"]]["d"]) * 0.5
+                                     for s in sites)]
     if gate:
         gate["mesh"], gate["scale"] = "SM_Souq_GateWall", (1.0, 1.0, 1.0)
 
@@ -461,9 +467,11 @@ def check(P, against_levels=True):
     # 5. the sizes drawn in the browser came through the figure, not the distance constant
     m = P["meshes"]["SM_Souq_Crate"]
     assert abs(m["w"] - BROWSER_ART["crate_px"][0] * CM_PER_DRAWN_PX) < 1e-6, "the crate is not the browser's crate"
-    # 6. every prop is at the kerb -- on the street, and out of its middle lane
+    # 6. every prop is at the kerb -- on the street, out of its middle lane, and out of every fight
     for p in P["props"]:
         m = P["meshes"][p["mesh"]]; half = max(m["w"], m["d"]) * 0.5
+        for s in sites:
+            assert math.hypot(s["x"] - p["x"], s["y"] - p["y"]) > SITE_RADIUS + half, "a %s stands in a fight (%s %d)" % (p["kind"], s["kind"], s.get("i", 0))
         d = dist_to_path(path, p["x"], p["y"])
         assert d + half <= STREET_HALF_WIDTH + 1.0, "a %s stands %.0f cm off the street's centre line" % (p["kind"], d)
         assert d - half >= STREET_HALF_WIDTH * 0.5, "a %s stands in the middle of the street, %.0f cm from its centre line" % (p["kind"], d)
@@ -511,6 +519,7 @@ def bite():
     def off_edge(P): b = P["blocks"][2]; b["x"] = P["E"] + 10.0; b["y"] = 0.0
     def wall_door(P): dx, dy = P["doors"]["East"]; P["rim"].append(dict(x=dx, y=dy, yaw=0.0, h=300.0, mesh="SM_Souq_Wall_H32", scale=(1, 1, 1)))
     def crate_off(P): p = P["props"][0]; p["x"] += 900.0
+    def crate_in_fight(P): s = next(s for s in P["sites"] if s["kind"] == "wave"); p = P["props"][0]; p["x"], p["y"] = s["x"] + 200.0, s["y"]
     def crate_in_lane(P): p = P["props"][0]; p["x"], p["y"] = nearest_on_path(P["path"], p["x"], p["y"])
     def gate_on_street(P): g = P["gate"]; nx, ny = nearest_on_path(P["path"], g["x"], g["y"]); g["x"], g["y"] = nx, ny
     def gate_box(P): P["meshes"]["SM_Souq_GateWall"]["w"] = 200.0
@@ -531,6 +540,7 @@ def bite():
     case("minaret not tallest", short_minaret, "tallest")
     case("variant too far from plot", bad_variant, "scaled")
     case("crate sized by distance", crate_by_distance, "browser's crate")
+    case("crate in a fight", crate_in_fight, "in a fight")
     print("\n%-28s %s" % ("check", "when the plan is broken"))
     for label, ok, msg in cases:
         print("  %-26s %s  %s" % (label, "BITES " if ok else "SILENT", msg))
@@ -1122,7 +1132,7 @@ class Souq:
             if k == "stall":       self.build_stall(name, w, d, h)
             elif k == "warehouse": self.build_warehouse(name, w, d, h, m["dome"])
             elif k == "wall":      self.build_wall(name, w, d, h)
-            elif k == "minaret":   self.build_minaret(name, h)
+            elif k == "minaret":   self.build_minaret(name, m["shaft"] / 100.0)
             elif k == "gate":      self.build_gate(name, w, d, h)
             elif k == "crate":     self.build_crate(name, w, h)
             elif k == "barrel":    self.build_barrel(name, w, h)
@@ -1182,13 +1192,32 @@ class Souq:
             o.hide_viewport = False; o.hide_render = False; loc = tuple(o.location); o.location = (0, 0, 0)
             bpy.ops.object.select_all(action="DESELECT"); o.select_set(True); bpy.context.view_layer.objects.active = o
             path = os.path.join(self.models, name + ".fbx")
+            # Centimetres and the Z-up-to-Y-up change baked into the vertex
+            # data, FBX scale 1.0: a file every importer reads the same. The
+            # hero and the clips keep FBX_SCALE_UNITS (metres, scale 100) on
+            # a shared skeleton, and a rigged mesh cannot bake its transform;
+            # a static one can, and then nothing depends on how an importer
+            # treats UnitScaleFactor. The read-back below holds it to that.
             bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={"MESH"}, apply_unit_scale=True, global_scale=1.0,
-                                     apply_scale_options="FBX_SCALE_UNITS", mesh_smooth_type="FACE", use_mesh_modifiers=True,
-                                     path_mode="RELATIVE", embed_textures=False, bake_anim=False)
+                                     apply_scale_options="FBX_SCALE_NONE", bake_space_transform=True, mesh_smooth_type="FACE",
+                                     use_mesh_modifiers=True, path_mode="RELATIVE", embed_textures=False, bake_anim=False)
             written[name] = os.path.getsize(path)
             o.location = loc
             if name not in ("SM_Souq_Ground", "SM_Souq_Street"):
                 o.hide_viewport = True; o.hide_render = True
+        # one of them read back: the minaret comes in at its own height
+        # and vertex count, or the export is not what it says
+        before = set(bpy.data.objects); tall = self.P["meshes"]["SM_Souq_Minaret"]
+        bpy.ops.import_scene.fbx(filepath=os.path.join(self.models, "SM_Souq_Minaret.fbx"))
+        back = [o for o in bpy.data.objects if o not in before and o.type == "MESH"]
+        assert len(back) == 1, "the minaret's FBX read back as %d meshes" % len(back)
+        zs = [(back[0].matrix_world @ v.co).z for v in back[0].data.vertices]
+        got_h, got_n = max(zs) - min(zs), len(back[0].data.vertices)
+        want_n = len(self.kinds["SM_Souq_Minaret"].data.vertices)
+        for o in back: bpy.data.objects.remove(o, do_unlink=True)
+        assert abs(got_h - tall["h"] / 100.0) < 0.01, "the minaret's FBX reads back %.2f m tall, not %.2f" % (got_h, tall["h"] / 100.0)
+        assert got_n == want_n, "the minaret's FBX reads back with %d vertices, not %d" % (got_n, want_n)
+        self.fbx_readback = dict(height_m=got_h, verts=got_n)
         # the whole district, placed, as one glTF
         bpy.ops.object.select_all(action="DESELECT")
         for o in self.placed: o.select_set(True)
@@ -1299,7 +1328,16 @@ class Souq:
         cx, cy = site["x"] / 100.0, site["y"] / 100.0
         ax, ay = spiral(min(1.0, site["t"] + 0.01), P["E"], P["phase"]); dx, dy = ax / 100.0 - cx, ay / 100.0 - cy
         dl = math.hypot(dx, dy) or 1.0; fx, fy = dx / dl, dy / dl; lx, ly = -fy, fx
-        men = [("Ahmed", (-0.9, 0.0))] + [(k, pos) for k, pos in zip(site["fighters"], ((0.9, 0.0), (1.6, 1.3), (1.6, -1.3)))]
+        # The browser's own formation, index.html:3597 and :3998-3999: enemy
+        # j stands at his own reach * 0.70 plus a lane of (j >> 1) * 30 px from
+        # Ahmed, in front of him for even j and behind for odd, in browser
+        # pixels taken to centimetres by PX. Ahmed is at the wave. Nothing
+        # here is chosen.
+        from hero import roster
+        men = [("Ahmed", (0.0, 0.0))]
+        for j, kind in enumerate(site["fighters"]):
+            d = (roster.spec(kind.lower())["reach"] * 0.70 + (j >> 1) * 30.0) * PX / 100.0
+            men.append((kind, (d if j % 2 == 0 else -d, 0.0)))
         rigs = []
         for i, (kind, (fwd, side)) in enumerate(men):
             blend = os.path.join(fighters_dir, "%s.blend" % kind)
@@ -1317,7 +1355,9 @@ class Souq:
                     bpy.context.scene.collection.objects.link(o)
             rig.name = "%s_%d_Rig" % (kind, i); mesh.name = "%s_%d" % (kind, i)
             x, y = cx + fx * fwd + lx * side, cy + fy * fwd + ly * side
-            face_x, face_y = (cx + fx * 0.9, cy + fy * 0.9) if kind == "Ahmed" else (cx - fx * 0.9, cy - fy * 0.9)
+            # every man squares up to Ahmed; Ahmed squares up to the first of them
+            f0 = men[1][1][0]
+            face_x, face_y = (cx + fx * f0, cy + fy * f0) if kind == "Ahmed" else (cx, cy)
             rig.location = (x, y, 0.0); rig.rotation_euler = (0, 0, math.radians(facing(x, y, face_x, face_y)))
             bpy.context.view_layer.update()
             CR.stance(rig, legacy.GUARD, mesh)
@@ -1328,7 +1368,7 @@ class Souq:
         heads = {r.name: (r.matrix_world @ r.pose.bones["head"].matrix).translation.copy() for _, r, _ in rigs}
         for kind, rig, mesh in rigs:
             other = next(r for k, r, _ in rigs if (k == "Ahmed") != (kind == "Ahmed"))
-            CR.set_world_translation(rig, "CTRL_look", rig.matrix_world.inverted() @ heads[other.name])
+            CR.set_world_translation(rig, "CTRL_look", heads[other.name])
             CR.set_prop(rig, "CTRL_head", "look", 1.0)
         os.makedirs(os.path.dirname(blend_out), exist_ok=True)
         bpy.ops.wm.save_as_mainfile(filepath=blend_out)
@@ -1349,7 +1389,10 @@ def build_in_editor(P):
     waves, the gate and the doors where that level has them, so nothing is
     spawned twice and nothing moves."""
     import unreal  # noqa: E402  (only importable inside the editor)
-    ELL = unreal.EditorLevelLibrary
+    # the subsystems: EditorLevelLibrary is deprecated since 5.0 and the
+    # other level scripts' calls to it are theirs to change, not this one's
+    EAS = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    LES = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
     EAL = unreal.EditorAssetLibrary
     models = os.path.join(PROJECT, "Content", "Models", "Souq")
     # --- import every kind once
@@ -1368,15 +1411,15 @@ def build_in_editor(P):
     # --- the level build_levels.py made, as it left it
     path = "%s/%s" % (MAPS_DIR, LEVEL_NAME)
     assert EAL.does_asset_exist(path), "%s is not built: run Tools/levels/build_levels.py in the editor first" % path
-    unreal.log("Furnishing %s" % path); ELL.load_level(path)
-    have = ELL.get_all_level_actors()
+    unreal.log("Furnishing %s" % path); LES.load_level(path)
+    have = EAS.get_all_level_actors()
     ground = next((a for a in have if a.get_actor_label() == "Ground"), None)
     if ground is not None:
-        ELL.destroy_actor(ground)          # the engine cube; the sand disc and the street replace it
+        EAS.destroy_actor(ground)          # the engine cube; the sand disc and the street replace it
     # unreal.Rotator's positional order is (roll, pitch, yaw); named, so a
     # yaw cannot land in the pitch
     def spawn(cls, name, x, y, z, yaw=0.0, folder="World"):
-        a = ELL.spawn_actor_from_class(cls, unreal.Vector(x, y, z), unreal.Rotator(roll=0.0, pitch=0.0, yaw=yaw))
+        a = EAS.spawn_actor_from_class(cls, unreal.Vector(x, y, z), unreal.Rotator(roll=0.0, pitch=0.0, yaw=yaw))
         a.set_actor_label(name); a.set_folder_path("%s/%s" % (FOLDER, folder)); return a
     for i, r in enumerate(instances(P)):
         if r["slot"] == "Gates":
@@ -1393,7 +1436,7 @@ def build_in_editor(P):
         gate.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=0.0, yaw=g["yaw"]), False)
         gate.set_actor_scale3d(unreal.Vector(*g["scale"]))
         gate.get_component_by_class(unreal.StaticMeshComponent).set_static_mesh(mesh["SM_Souq_GateWall"])
-    if not ELL.save_current_level():
+    if not LES.save_current_level():
         unreal.log_error("Could not save %s" % path)
 
 
@@ -1429,7 +1472,9 @@ def main():
     written, gltf = S.export(); stamp("exported %d files, %.1f MB" % (len(written), sum(written.values()) / 1e6))
     rt = S.verify_gltf(gltf); stamp("glTF read back: %d meshes, %d nodes, %d tris, %d images, tallest %.1f m" % (
         rt["meshes"], rt["nodes"], rt["tris"], rt["images"], rt["tallest_m"]))
-    assert rt["nodes"] >= len(instances(P)), "the glTF has fewer nodes than the plan has instances"
+    assert rt["nodes"] == len(S.placed), "the glTF has %d nodes for %d placed objects" % (rt["nodes"], len(S.placed))
+    assert rt["meshes"] == len({o.data.name for o in S.placed}), "the glTF has %d meshes for %d kinds placed" % (rt["meshes"], len({o.data.name for o in S.placed}))
+    stamp("the minaret's FBX read back: %.2f m, %d vertices" % (S.fbx_readback["height_m"], S.fbx_readback["verts"]))
     if "--no-render" not in a:
         for r in S.renders_of_the_place(): stamp("rendered %s" % os.path.basename(r))
     if "--scene" in a:
