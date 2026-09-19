@@ -272,6 +272,105 @@ most likely to need correcting is `Actor.attach_to_actor` with three
 fails, the animals will build as loose parts in the right places rather than
 as parented actors.
 
+## Ahmed is a man, and his face is a texture
+
+Since 2026-09-19. `Tools/blender/` builds the hero. The art direction above
+asks for "eight heads tall, real muscle insertion, hands that are hands", and
+the model did not have any of the three. What it had instead is written down
+here, because almost none of it was visible in a render -- it came out of
+slicing the built mesh and substituting real coordinates into the masks.
+
+**The face is painted per texel now, not per vertex.** `hero/face.py` is new
+and it is the whole reason the head reads as a head. The mesh has 3.1 mm
+between vertices in the face; the skin texture has 0.9 mm between texels.
+Everything that says "a young man" rather than "a mannequin" is smaller than
+3.1 mm -- the vermilion border of a lip, the rim of a nostril, the edge of a
+brow, the lash line, the crease of an upper lid -- so painted into a vertex
+colour they were averaged away before the bake ever saw them. `face.py`
+describes the face once as functions of position and it is evaluated twice:
+per vertex for the colour the bake starts from, and per texel afterwards by
+`finish.repaint_head`, which rasterises the head's own UV chart to find where
+each texel sits in space. It returns a relief as well as a colour, and the
+relief becomes a normal map, so a lip has an edge that catches light without
+costing a triangle. `repaint_eye` does the same for the iris, which is 11 mm
+across against 2.8 degrees between the globe's vertices.
+
+**The layout is in one place.** `hero/sculpt.py` holds it -- `EYE_Z`,
+`BROW_Z`, `NOSE_Z`, `MOUTH_Z`, `EAR_Z`, `CHIN_Z`, `HAIRLINE` -- because the
+sculpt, the globes, the hair cut and every region in `face.py` all key off
+it, and when they each carried their own copy they disagreed.
+
+**What was actually wrong.** Each of these was measured, and most of them had
+a comment beside them saying they were something else:
+
+- The eye line sat at 1.666 where the midpoint between the chin and the crown
+  is 1.677. Eyes low in an over-tall cranium is the single thing that makes a
+  head read as a puppet.
+- The hairline sat at 1.738, leaving a 34 mm forehead where the other two
+  thirds of the face were 62 and 59 mm.
+- The hair cap was cut by a box rotated about its own centre, and the
+  vertical distance from a centre to a TILTED plane is 0.25/cos(t), not 0.25.
+  It cut 7.4 mm above the hairline the skin is painted to, so the band
+  between them was bare skull painted hair-black. That ring was in every
+  build of this model.
+- The beard's mask asked `|x| < 0.088` on a skull 0.079 wide, so it never
+  bit: 28 per cent of the beard was painted round the back of his head.
+- The two brow Gaussians had sigma 26 mm at x = +-31 mm and summed to 0.96 at
+  the midline. It was not two brows, it was one bar across the forehead.
+- The moustache was a hard rectangle reaching z = 1.636, which is over the
+  nostrils, and 56 mm wide against a 34 mm nose.
+- The four nose Gaussians sit 12 mm apart with a 10 mm sigma, so each gave
+  its neighbours half its amplitude. They summed to 35 mm and measured 27 mm
+  of projection, against 19-22 on a real male nose.
+- There was no nasion. The midline ran in one unbroken convex ramp from the
+  hairline to the nose tip -- the shop-dummy profile.
+- The orbit was cut twice, a 4.5 mm boolean dish and a 5 mm Gaussian on the
+  same spot, and the globe sat at the bottom of it with its cornea behind the
+  lid margin. Both eyes rendered shut or as a loose bead.
+- The globes were never shade-smoothed, and at roughness 0.08 under a full
+  clearcoat the specular lobe is smaller than one facet, so the catchlight
+  took the facet's outline: a square highlight.
+- `tube()`'s `shift_front` is positive FORWARD. Every belly in the file was
+  authored with the opposite sign under a comment saying what it meant to do,
+  so the biceps sat on the triceps, the quadriceps behind the femur and the
+  gastrocnemius on the shin.
+- Every joint was the narrowest point of its limb. A joint is a local maximum
+  across and a minimum through.
+- The hand built the index finger where the pinky belongs and the thumb on
+  the outside, and curled the fingers 24 degrees a joint toward the BACK of
+  the hand. Wrist to fingertip measured 0.193 m, which is the canonical OPEN
+  hand: the fist the joint table describes was never built. Fitted against
+  that table the curl is 72 / 109 / 36 and the fingers run the other way.
+- The trunk's shoulder shelf was 0.352 m and its iliac row 0.316 -- a ratio
+  of 1.11 where a young athletic male is 1.45 to 1.55. The V everyone could
+  see was not the ribcage: 193 mm of the 545 mm bideltoid came from the
+  deltoid ellipsoid, which was 2.76 times as proud of the acromion as a real
+  deltoid. The tee is a shell off this surface, so the shirt reproduced it as
+  a puffed sleeve.
+- `smooth(base, 0.7, 8)` on a 6 mm mesh diffuses over about 17 mm, one line
+  after the union makes the muscle boundaries.
+- And the hair was the whole heads-tall deficit. The skull crown is 1.796
+  over a chin at 1.572: 8.04 heads, the figure the art direction asks for.
+  But the cap topped out at 1.806 and the quiff at 1.814, so the head a
+  player sees was 0.248 m and he read as 7.33.
+
+**One that did not work.** The hairline's temple recession was also cut in
+geometry, with an ellipsoid at each temple. At x = 0.063 the front of the
+skull is at y = -0.027, not the -0.09 the hairline is quoted at, so cutters
+placed for a forehead went through the crown and left a ridge of bare skull.
+It is painted only. If it is ever cut, it has to be a scoop at the front
+corner of the hairline, not a hole near the vertex.
+
+**Four things the build now asserts**, each proved to fail when its fix is
+reverted: `sculpt.check_profile` on the nose's peak and the nasion,
+`assembly.check_eye` on the cornea against the lid margin (2 mm, because the
+head is remeshed at a 3.5 mm voxel and anything under that is inside the
+grid's own noise), and `anatomy.measure` on stature and on heads-tall.
+
+**Not verified.** No engine has compiled or imported any of this. The
+textures and the FBX are written by Blender and read back by Blender, and
+that is all that has been checked.
+
 ## L_Prologue -- Ahmed's life before he fell
 
 Since 2026-09-19, and **only in this build**: the game opens on a level that
@@ -359,6 +458,26 @@ Don't re-discover them; don't fix them without being told to.
   so the meter never spends and nothing happens. One word to fix. The same
   bug on the enraged boss *was* fixed, because that one was inside the fight
   style work.
+- **The tee pinches to a point at the waist in the fight poses.** It is a
+  shell off the body surface (`garments.dress`) taking the body's vertex
+  weights by proximity, and where the torso twists the two hems converge.
+  It predates the hero work -- it is in every render of this model -- and it
+  is a skinning job on the garment, not a shape one.
+- **The trainers read as pointed dress heels.** The shoe loft's last two rows
+  drop the toe box to half the height of the heel, so the topline slopes
+  down to a point instead of holding level.
+- **The crotch is 54 mm too low**, at 0.855 where mid-height is 0.909. The
+  trunk loft's bottom cap is at 0.900 and the thigh tubes run up to 0.978, so
+  the pelvis and the thighs overlap through 78 mm with no groin geometry
+  between them and the 3.5 mm voxel union welds the 16 mm slot shut wherever
+  it happens to close. Nothing in the code decides where his crotch is. Long
+  torso over short legs is the most age-coded proportion there is, and it is
+  under the trousers, which is the only reason it is here rather than fixed.
+- **The shoulder line is about 30 mm low.** The clavicle joint is at 1.448
+  and the canonical acromion at this stature is near 1.478. Raising it means
+  moving the joint table, and the arm's segment lengths are correct and would
+  have to move with it -- a rig change, not a mesh change. The trunk's
+  shoulder SHELF has been raised to 1.478; the bone under it has not.
 - **Enemy strikes do not go through the ability system.** Enemies (and the
   player) still throw via the legacy `AFighterBase::StartAttack` state
   machine; the GAS layer exists beside it rather than under it. Moving combat

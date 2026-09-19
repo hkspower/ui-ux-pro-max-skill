@@ -196,8 +196,19 @@ def run(argv=None):
             # the soles bake into the same image afterwards: same material, own charts
         source = {"skin": hi["body"], "hair": hi["body"], "shoe": hi["body"], "tee": hi["tee"], "pants": hi["pants"]}.get(key)
         baked[key] = F.bake_set(obj, mats[key], size, UE5_TEX, {"skin": "Ahmed_Skin", "hair": "Ahmed_Hair", "shoe": "Ahmed_Shoe", "tee": "Ahmed_Tee", "pants": "Ahmed_Pants", "eye": "Ahmed_Eye"}[key],
-                                maps=("albedo", "normal", "roughness") if key != "eye" else ("albedo",), source=source,
+                                maps=("albedo", "normal", "roughness") if key != "eye" else ("albedo", "roughness"), source=source,
                                 normal_size=max(512, size // 2))
+        if key == "eye":
+            # Same reason as the face: the iris is 11 mm across and the limbal
+            # ring 0.4 mm, against 2.8 degrees between the globe's vertices.
+            import numpy as _np
+            ctr = _np.array([v.co[:] for v in obj.data.vertices]).mean(axis=0)
+            stamp("repainted %d eye texels" % F.repaint_eye(obj, baked[key], size, ctr, B.EYE_R))
+        if key == "skin":
+            # The bake can only carry what the vertices hold, and the head has
+            # 3.1 mm between vertices against a 0.9 mm texel. Repaint the face
+            # from hero.face at the texture's own resolution.
+            stamp("repainted %d face texels" % F.repaint_head(obj, baked[key], size))
         if obj not in (tee, pants) and obj not in eyes: bpy.data.objects.remove(obj, do_unlink=True)
         stamp("baked %s at %d" % (key, size))
     for k, m in mats.items(): F.wire_textures(m, baked[k])
@@ -217,12 +228,12 @@ def run(argv=None):
     legacy.build_studio()
     targets, poles, report = legacy.limb_targets(rig, mesh, legacy.GUARD, plant=("l", "r"))
     legacy.print_pose_report("guard", ("l", "r"), report)
-    legacy.pose(rig, legacy.GUARD, targets, poles); R.curl_fingers(rig, 78)
+    legacy.pose(rig, legacy.GUARD, targets, poles); R.curl_fingers(rig, 10)
     legacy.add_camera((1.55, -3.35, 1.24), look_at=Vector((0, 0, 0.90)), lens=62)
     legacy.render(os.path.join(RENDERS, "ahmed-guard-3d.png"), samples=24 if FAST else 64)
     targets, poles, report = legacy.limb_targets(rig, mesh, legacy.KICK, plant=("l",))
     legacy.print_pose_report("kick", ("l",), report)
-    legacy.pose(rig, legacy.KICK, targets, poles); R.curl_fingers(rig, 78)
+    legacy.pose(rig, legacy.KICK, targets, poles); R.curl_fingers(rig, 10)
     legacy.add_camera((3.00, -2.45, 1.22), look_at=Vector((0.14, 0, 0.96)), lens=58)
     legacy.render(os.path.join(RENDERS, "ahmed-kick-3d.png"), samples=24 if FAST else 64)
     legacy.mute_ik(rig, True); legacy.pose(rig, {}); R.curl_fingers(rig, 0)

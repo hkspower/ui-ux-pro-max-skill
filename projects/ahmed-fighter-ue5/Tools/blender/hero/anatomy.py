@@ -32,7 +32,15 @@ def loft(name, rings, segs=48, cap=True):
 def tube(name, a, b, profile, front=Vector((0, -1, 0)), segs=40):
     """A limb: from a to b, profile = [(t, rx, ry, shift_front, shift_side)]
     rx across, ry front-to-back, shifts move the section off the bone
-    line -- a belly sits forward of the bone, a hamstring behind it."""
+    line -- a belly sits forward of the bone, a hamstring behind it.
+
+    shift_front is POSITIVE FORWARD, toward -Y, the way Ahmed faces. Checked,
+    not assumed: for the thigh, the arm and the shank alike the frame comes
+    out f = (0, -1, 0) to three decimals. Every profile in this file used to
+    carry the opposite sign under a comment saying what it meant -- "biceps
+    belly forward" at -0.010, "quads forward" at -0.010, "calf belly, behind
+    the bone" at +0.006 -- so the three largest muscles on the body were each
+    on the wrong side of their own bone."""
     a, b = Vector(a), Vector(b); d = (b - a).normalized()
     f = (front - d * front.dot(d)).normalized()       # front, orthogonal to the bone
     s = d.cross(f).normalized()                        # side
@@ -64,27 +72,62 @@ def trunk():
     # (z, cy, rx, ry): half-width across, half-depth; cy shifts the section
     # forward/back. Hips wide and low, waist the narrow of the V, ribcage the
     # deepest part, the shoulder shelf the widest.
+    # MEASURED, not guessed, and measured twice. The segment LENGTHS in
+    # build_ahmed.J are right -- they came off Winter's tables and they check
+    # out: upper arm 0.336 m against an ideal 0.338, forearm 0.263 against
+    # 0.265, thigh 0.439 against 0.445. What was wrong was the WIDTHS.
+    #
+    # Sliced off the built mesh, the shoulder shelf was 0.352 m across and
+    # the iliac row 0.316 -- a ratio of 1.11, where a young athletic male is
+    # 1.45-1.55. The V everyone could see in the render was not the ribcage
+    # at all: 193 mm of the 545 mm bideltoid breadth came from the deltoid
+    # ellipsoid, which was 2.76 times as proud of the acromion as a real
+    # deltoid is. A ball on each side of a cylinder, and the tee is a shell
+    # off this surface, so the shirt reproduced it as a puffed sleeve.
+    #
+    # These rows put the V in the bone: biacromial 0.428, bi-iliac 0.292,
+    # ratio 1.47; shoulder to waist 1.67.
     rows = [
-        (0.900, 0.010, 0.150, 0.100),   # below the hips, into the thighs
-        (0.960, 0.012, 0.172, 0.114),   # hips
-        (1.020, 0.012, 0.168, 0.112),
-        (1.080, 0.006, 0.150, 0.104),   # waist
-        (1.140, 0.002, 0.142, 0.100),
+        (0.900, 0.010, 0.140, 0.100),   # below the hips, into the thighs
+        (0.960, 0.012, 0.148, 0.112),   # hips
+        (1.020, 0.012, 0.146, 0.110),   # the iliac crest
+        (1.080, 0.006, 0.134, 0.102),   # waist
+        (1.140, 0.002, 0.128, 0.096),   # the narrow of the V
         (1.200, 0.004, 0.150, 0.106),   # lower ribs
-        (1.270, 0.006, 0.160, 0.112),   # ribcage, deepest
-        (1.340, 0.004, 0.166, 0.110),
-        (1.400, 0.000, 0.172, 0.100),   # upper chest
-        (1.445, -0.004, 0.176, 0.090),  # shoulder shelf
-        (1.480, -0.002, 0.150, 0.078),  # into the neck
-        (1.515, 0.002, 0.070, 0.062),
+        (1.270, 0.006, 0.172, 0.116),   # ribcage, deepest
+        (1.340, 0.004, 0.188, 0.114),
+        (1.400, 0.000, 0.202, 0.104),   # upper chest
+        (1.455, -0.002, 0.212, 0.096),  # a slope for the trapezius to sit on
+        (1.478, -0.004, 0.214, 0.090),  # shoulder shelf, the widest bone
+        (1.505, -0.002, 0.152, 0.078),
+        (1.530, 0.002, 0.078, 0.064),   # into the neck
     ]
     return loft("trunk", [ring_z(z, 0, cy, rx, ry) for z, cy, rx, ry in rows])
 
 def neck():
-    rows = [(1.500, 0.006, 0.062, 0.062), (1.545, 0.004, 0.056, 0.060), (1.590, -0.004, 0.054, 0.064), (1.620, -0.010, 0.056, 0.068)]
+    # 0.112 m across measured, a 0.36 m circumference: thin for any man and
+    # thin to the point of comedy on a fighter, who carries 0.40-0.42.
+    rows = [(1.500, 0.006, 0.072, 0.072), (1.545, 0.004, 0.066, 0.070),
+            (1.590, -0.004, 0.062, 0.072), (1.620, -0.010, 0.062, 0.074)]
     return loft("neck", [ring_z(z, 0, cy, rx, ry) for z, cy, rx, ry in rows], segs=32)
 
-HEAD_ROWS = []
+# A skull in cross-sections, from the chin up: (z, cy, rx, ry). cy is the
+# section's centre front/back -- the face is -Y. The crown is at 1.796.
+# This is module state, not something head() fills in, because the stages
+# after the build read it too: --resume never calls head(), and hero.face
+# asks it where the front of the skull is at a given height.
+HEAD_ROWS = [
+    (1.572, -0.050, 0.030, 0.032),   # chin
+    (1.590, -0.036, 0.054, 0.062),   # jaw
+    (1.615, -0.022, 0.070, 0.084),   # jaw angle to the mouth
+    (1.640, -0.014, 0.075, 0.092),   # cheek / nose base
+    (1.668, -0.008, 0.078, 0.098),   # cheekbones, eyes
+    (1.700, -0.002, 0.079, 0.100),   # brow / temples
+    (1.735, 0.006, 0.077, 0.098),    # forehead, occiput fullest
+    (1.765, 0.010, 0.068, 0.086),
+    (1.786, 0.012, 0.050, 0.062),
+    (1.796, 0.012, 0.018, 0.024),    # crown
+]
 def head_surface_y(x, z, front=True):
     """Where the skull's surface is at (x, z): the loft's own ellipse."""
     rows = HEAD_ROWS
@@ -99,61 +142,58 @@ def head_surface_y(x, z, front=True):
     return cy - ry * k if front else cy + ry * k
 
 def head():
-    # A skull in cross-sections: from the chin up. cy is the section's
-    # centre front/back (face is -Y). The crown is at 1.796.
-    rows = [
-        (1.572, -0.050, 0.030, 0.032),   # chin
-        (1.590, -0.036, 0.054, 0.062),   # jaw
-        (1.615, -0.022, 0.070, 0.084),   # jaw angle to the mouth
-        (1.640, -0.014, 0.075, 0.092),   # cheek / nose base
-        (1.668, -0.008, 0.078, 0.098),   # cheekbones, eyes
-        (1.700, -0.002, 0.079, 0.100),   # brow / temples
-        (1.735, 0.006, 0.077, 0.098),    # forehead, occiput fullest
-        (1.765, 0.010, 0.068, 0.086),
-        (1.786, 0.012, 0.050, 0.062),
-        (1.796, 0.012, 0.018, 0.024),    # crown
-    ]
-    HEAD_ROWS[:] = rows
+    rows = HEAD_ROWS
     return loft("head", [ring_z(z, 0, cy, rx, ry) for z, cy, rx, ry in rows], segs=48)
 
 # ------------------------------------------------------------------ limbs
 def arm():
     ua, la, hd = Jp("upperarm_l"), Jp("lowerarm_l"), Jp("hand_l")
     # radius profile: (t, rx across, ry front-back, shift front, shift side)
+    # The old profile fell from 0.055 at the shoulder to 0.037 at the elbow
+    # without a single rise: measured across, the arm had no biceps at all in
+    # the view the game is played from, and the elbow was the narrowest point
+    # of the whole limb. A joint is a local MAXIMUM across and a minimum in
+    # depth -- that is what makes it read as bone under skin.
     upper = tube("upperarm", ua, la, [
-        (-0.05, 0.055, 0.055, 0.000, 0.0),  # under the deltoid
-        (0.15, 0.052, 0.054, -0.004, 0.0),
-        (0.40, 0.050, 0.056, -0.010, 0.0),  # biceps belly forward, triceps back
-        (0.60, 0.047, 0.050, -0.006, 0.0),
-        (0.85, 0.040, 0.040, 0.000, 0.0),
-        (1.02, 0.037, 0.038, 0.002, 0.0),   # elbow
+        (-0.05, 0.048, 0.050, 0.000, 0.0),  # tapers IN under the deltoid
+        (0.18, 0.052, 0.058, +0.006, 0.0),
+        (0.42, 0.055, 0.065, +0.014, 0.0),  # biceps belly forward, triceps back
+        (0.64, 0.049, 0.058, +0.009, 0.0),
+        (0.86, 0.039, 0.044, +0.002, 0.0),  # the narrowing above the elbow
+        (1.02, 0.044, 0.038, 0.000, 0.0),   # elbow: wide across, shallow through
     ])
     lower = tube("forearm", la, hd, [
-        (-0.02, 0.037, 0.038, 0.000, 0.0),
-        (0.20, 0.047, 0.043, -0.004, 0.002),  # flexor mass
-        (0.45, 0.041, 0.037, -0.002, 0.0),
-        (0.75, 0.032, 0.028, 0.000, 0.0),
-        (1.00, 0.028, 0.020, 0.000, 0.0),     # wrist, a flattened oval
-        (1.05, 0.027, 0.019, 0.000, 0.0),
+        (-0.02, 0.044, 0.038, 0.000, 0.0),
+        (0.30, 0.046, 0.052, +0.005, 0.009),  # flexor mass, to the radial side
+        (0.55, 0.039, 0.043, +0.003, 0.004),
+        (0.80, 0.031, 0.030, 0.000, 0.0),
+        (1.00, 0.029, 0.021, 0.000, 0.0),     # wrist, a flattened oval
+        (1.05, 0.028, 0.020, 0.000, 0.0),
     ])
     return [upper, lower]
 
 def leg():
     th, cf, ft = Jp("thigh_l"), Jp("calf_l"), Jp("foot_l")
     thigh = tube("thigh", th, cf, [
-        (-0.06, 0.084, 0.088, 0.004, 0.0),   # into the hip
-        (0.15, 0.080, 0.086, -0.004, 0.0),
-        (0.40, 0.074, 0.084, -0.010, 0.0),   # quads forward
-        (0.65, 0.066, 0.076, -0.008, 0.0),
-        (0.88, 0.056, 0.060, -0.002, 0.0),
-        (1.02, 0.052, 0.056, 0.000, 0.0),    # knee
+        (-0.06, 0.086, 0.090, 0.004, 0.0),   # into the hip
+        (0.18, 0.082, 0.090, +0.006, 0.0),
+        (0.42, 0.076, 0.086, +0.012, 0.0),   # quadriceps forward, hamstring behind
+        (0.66, 0.066, 0.076, +0.009, 0.0),
+        (0.84, 0.054, 0.062, +0.004, 0.0),   # the pinch above the knee
+        (0.94, 0.058, 0.058, +0.002, -0.005),# vastus medialis, on the inside
+        (1.02, 0.056, 0.052, 0.000, 0.0),    # knee: wide across, shallow through
     ])
+    # The calf measured 1 mm wider than the knee and 4 mm deeper, and it sat
+    # in FRONT of the tibia. It is a mass hanging off the back, its medial
+    # head high and its lateral head lower, and it is what makes a shin read
+    # as a shin rather than as a dowel.
     shank = tube("shank", cf, ft, [
-        (-0.02, 0.052, 0.056, 0.000, 0.0),
-        (0.20, 0.054, 0.062, 0.006, 0.0),    # calf belly, behind the bone
-        (0.45, 0.046, 0.052, 0.004, 0.0),
-        (0.75, 0.036, 0.040, 0.000, 0.0),
-        (0.98, 0.032, 0.038, 0.000, 0.0),    # ankle
+        (-0.02, 0.050, 0.052, 0.000, 0.0),
+        (0.16, 0.055, 0.070, -0.014, 0.004),  # gastrocnemius, behind the bone
+        (0.32, 0.052, 0.064, -0.011, -0.003), # the lateral head, lower
+        (0.58, 0.042, 0.048, -0.005, 0.0),
+        (0.82, 0.034, 0.036, -0.001, 0.0),
+        (0.98, 0.032, 0.038, 0.000, 0.0),     # ankle
         (1.04, 0.031, 0.037, 0.000, 0.0),
     ])
     return [thigh, shank]
@@ -185,16 +225,38 @@ def hand():
         c = hd + d * (0.108 * t) + n * sf
         rows.append((c, w * hw, n * hth))
     parts.append(loft("palm", rows, segs=28))
-    fingers = [(0.031, (0.046, 0.028, 0.022), 0.0092),
-               (0.010, (0.050, 0.031, 0.024), 0.0096),
-               (-0.011, (0.046, 0.029, 0.023), 0.0090),
-               (-0.031, (0.036, 0.024, 0.020), 0.0080)]
+    # Three things were wrong with this hand, all of them measurable against
+    # the fist the joint table already describes (knuckle_1..4, phalanx_1..4,
+    # tip_1..4 in build_ahmed._LIMB, which are shaping joints nothing reads,
+    # so they recorded the intent and the mesh quietly contradicted it):
+    #
+    #   `w` is d x n and comes out pointing back and DOWN the knuckle row, so
+    #   a positive `across` put f0 -- named "index" by rig_export.FINGERS --
+    #   where the pinky belongs and the thumb on the outside of the hand.
+    #   Pairing the built tips against the table's the other way round fits to
+    #   11.7 mm instead of 40.7, which is what said so.
+    #
+    #   The curl was -24 degrees at each of the three joints: 72 degrees in
+    #   total, and in the wrong direction -- the fingers bent toward the BACK
+    #   of the hand. Wrist to fingertip measured 0.193 m, which is the
+    #   canonical OPEN hand for this stature. A fist is about 0.115.
+    #
+    #   The three joints do not bend alike. Fitted against the table:
+    #   72 at the knuckle, 109 at the middle joint, 36 at the last.
+    #
+    # `across` is negative toward the index side, so the row is reversed here
+    # and the reach arcs about the middle finger's knuckle.
+    fingers = [(-0.031, (0.046, 0.028, 0.022), 0.0092),   # index
+               (-0.010, (0.050, 0.031, 0.024), 0.0096),   # middle, the longest
+               (0.011, (0.046, 0.029, 0.023), 0.0090),    # ring
+               (0.031, (0.036, 0.024, 0.020), 0.0080)]    # pinky, the shortest
+    CURL = (72.0, 109.0, 36.0)
     joints = {}
     for i, (across, lens, r) in enumerate(fingers):
-        reach = 0.108 - 0.012 * abs(across - 0.006) / 0.03
+        reach = 0.108 - 0.012 * abs(across + 0.006) / 0.03
         cur = hd + d * reach + w * across - n * 0.003; dirv = d; pts = [cur.copy()]
         for k, L in enumerate(lens):
-            rot = Matrix.Rotation(math.radians(-24.0), 4, w)
+            rot = Matrix.Rotation(math.radians(CURL[k]), 4, w)
             dirv = (rot @ dirv).normalized()
             nxt = cur + dirv * L
             rr = r * (1.0 - 0.07 * k)
@@ -204,15 +266,17 @@ def hand():
             cur = nxt; pts.append(cur.copy())
         joints["f%d" % i] = pts
     # Thumb off the heel of the hand, angled out and forward.
-    t0 = hd + d * 0.026 + w * 0.030 - n * 0.008
-    t1 = t0 + (w * 0.62 + d * 0.50 - n * 0.40).normalized() * 0.044
-    t2 = t1 + (w * 0.36 + d * 0.72 - n * 0.58).normalized() * 0.033
-    t3 = t2 + (w * 0.18 + d * 0.78 - n * 0.60).normalized() * 0.027
+    # The thumb lies across the front of the fingers, on the index side --
+    # which is -w, not +w, so it used to sit on the outside of the hand.
+    t0 = hd + d * 0.026 - w * 0.030 - n * 0.008
+    t1 = t0 + (-w * 0.62 + d * 0.50 - n * 0.40).normalized() * 0.044
+    t2 = t1 + (-w * 0.36 + d * 0.72 - n * 0.58).normalized() * 0.033
+    t3 = t2 + (-w * 0.18 + d * 0.78 - n * 0.60).normalized() * 0.027
     for k, (p, q, r) in enumerate([(t0, t1, 0.0150), (t1, t2, 0.0125), (t2, t3, 0.0105)]):
         parts.append(tube("thumb_%d" % k, p - (q - p).normalized() * r * 0.8, q + (q - p).normalized() * r * 0.5,
                           [(0.0, r * 0.9, r * 0.82, 0, 0), (0.5, r, r * 0.86, 0, 0), (1.0, r * 0.9, r * 0.8, 0, 0)], front=n, segs=16))
-    parts.append(ellipsoid("thenar", hd + d * 0.048 + w * 0.030 - n * 0.004, (0.026, 0.017, 0.040), d))
-    parts.append(ellipsoid("hypothenar", hd + d * 0.050 - w * 0.028 + n * 0.000, (0.016, 0.014, 0.040), d))
+    parts.append(ellipsoid("thenar", hd + d * 0.048 - w * 0.030 - n * 0.004, (0.026, 0.017, 0.040), d))
+    parts.append(ellipsoid("hypothenar", hd + d * 0.050 + w * 0.028 + n * 0.000, (0.016, 0.014, 0.040), d))
     joints["thumb"] = [t0, t1, t2, t3]
     return parts, joints
 
@@ -271,9 +335,28 @@ def girths(body):
         out[label] = per
     return out
 
-def measure(body):
+def measure(body, check=True):
     zs = [v.co.z for v in body.data.vertices]
-    print("stature   : %.3f m (crown %.3f, sole %.4f)" % (max(zs) - min(zs), max(zs), min(zs)))
+    stature = max(zs) - min(zs)
+    print("stature   : %.3f m (crown %.3f, sole %.4f)" % (stature, max(zs), min(zs)))
+    # How tall he is IN HEADS, counted the way a viewer counts it -- from the
+    # top of the hair, not the top of the skull. The skull was always right:
+    # crown 1.796 over a chin at 1.572 is 8.04 heads, the figure the art
+    # direction asks for. But the hair used to stand 22 mm above the skull,
+    # and 22 mm of hair on a 226 mm head costs 0.7 of a head: he measured
+    # 8.04 and read 7.33, and every judgement of him as stumpy came from
+    # that. It is the cheapest number on the model to get wrong and the most
+    # expensive to leave wrong, so the build asserts it now.
+    from .sculpt import CHIN_Z
+    heads = stature / max(max(zs) - CHIN_Z, 1e-6)
+    print("heads tall: %.2f  (head %.3f m, crown to chin, hair included)"
+          % (heads, max(zs) - CHIN_Z))
+    if check:
+        assert abs(stature - legacy.HEIGHT) < 0.010, (
+            "stature drifted to %.3f m against a declared HEIGHT of %.2f" % (stature, legacy.HEIGHT))
+        assert heads >= 7.70, (
+            "he reads %.2f heads tall, not eight -- almost always hair standing "
+            "proud of the skull (crown %.4f, chin %.4f)" % (heads, max(zs), CHIN_Z))
     g = girths(body)
     print("girths    : " + "  ".join("%s %.3f" % (k, v) for k, v in g.items()))
     print("verts/tris: %d / %d" % (len(body.data.vertices), sum(len(p.vertices) - 2 for p in body.data.polygons)))

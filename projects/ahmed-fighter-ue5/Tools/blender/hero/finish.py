@@ -132,38 +132,22 @@ def paint(obj, kind, joints_l):
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
     if kind == "skin":
         col[:, :3] = skin
-        # The hair is painted, not a material edge: the cap's cut plane
-        # (assembly.HAIRLINE) tested per vertex with a 3 mm soft edge, so the
-        # hairline is a line in the texture and not a staircase of faces.
-        from . import assembly
-        z0, z1 = assembly.HAIRLINE
-        plane = z0 + (z1 - z0) * (y + 0.09) / 0.18
-        hair_w = np.clip((z - plane) / 0.003 + 0.5, 0.0, 1.0) * (z > 1.66)
-        col[:, :3] = col[:, :3] * (1 - hair_w[:, None]) + hair[None, :] * hair_w[:, None]
-        # warmth: cheeks, nose tip, knuckles a shade redder; the skin is not one colour
-        for (cx, cz, r, k) in [(0.05, 1.645, 0.03, 0.18), (-0.05, 1.645, 0.03, 0.18), (0.0, 1.641, 0.02, 0.22)]:
-            w = np.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (2 * r * r)) * (y < 0)
-            col[:, :3] = col[:, :3] * (1 - k * w[:, None]) + (lin(srgb('d9a08a')) * k)[None, :] * w[:, None]
-        # beard: jaw, chin, upper lip, up to the sideburn -- the browser's beard region
-        # A beard has no hard edge: its top runs up the cheek toward the ear
-        # and fades over 8 mm, its bottom fades out down the neck.
-        jaw_z = 1.616 + 0.045 * np.clip(np.abs(x) / 0.072, 0, 1)      # rises toward the ear
-        top = np.clip((jaw_z - z) / 0.008, 0, 1)
-        bottom = np.clip((z - 1.556) / 0.012, 0, 1)
-        side = np.clip((0.088 - np.abs(x)) / 0.006, 0, 1)
-        in_beard = top * bottom * side * (y < 0.03)
-        moustache = ((z > 1.618) & (z < 1.636) & (np.abs(x) < 0.028) & (y < -0.07)) * np.clip((0.028 - np.abs(x)) / 0.005, 0, 1)
-        mouth = (z > 1.603) & (z < 1.622) & (np.abs(x) < 0.024) & (y < -0.08)
-        beard_w = np.maximum(in_beard, moustache) * (~mouth)
-        # stubble density falls off toward the cheek
-        dens = np.clip(1.0 - (np.abs(x) - 0.045) / 0.045, 0.45, 1.0)
-        bw = 0.92 * beard_w * dens
-        col[:, :3] = col[:, :3] * (1 - bw[:, None]) + beard[None, :] * bw[:, None]
-        col[mouth, :3] = col[mouth, :3] * 0.35 + lip * 0.65
-        # brows
-        for s in (1, -1):
-            bw = np.exp(-(((x - 0.031 * s) / 0.026) ** 2 + ((z - 1.694) / 0.006) ** 2) * 0.5) * (y < -0.06)
-            col[:, :3] = col[:, :3] * (1 - 0.9 * bw[:, None]) + hair[None, :] * 0.9 * bw[:, None]
+        # The head is painted by hero.face, which is also what repaint_head
+        # evaluates per texel after the bake. One description, two
+        # resolutions: this is the base the bake starts from, and at 3.1 mm
+        # between vertices it can only carry the broad shapes -- the hairline,
+        # the beard, the zones. The features finer than that arrive later.
+        #
+        # What this replaced was a set of masks that did not select what they
+        # named. `|x| < 0.088` never bit at all, because the skull is 0.079
+        # wide, so the beard ran round the back of his head; the two brow
+        # Gaussians had sigma 26 mm at x = +-31 mm and summed to 0.96 at the
+        # midline, so they were one bar across the forehead; and the
+        # moustache was a hard rectangle reaching z = 1.636, which is over
+        # the nostrils. See hero/face.py.
+        from . import face as FA
+        col[:, :3] = FA.body_grain(P, col[:, :3])
+        col[:, :3], _rel, _on = FA.shade(P, skin, hair, beard, base_rgb=col[:, :3])
         # hand wraps: tape from the wrist over the back of the hand and the knuckles
         for s in (1, -1):
             wr = np.array(Jp("hand_l")) * np.array([s, 1, 1]); he = np.array(Jp("hand_end_l")) * np.array([s, 1, 1])
@@ -216,14 +200,17 @@ def paint(obj, kind, joints_l):
             outer = (x * s > th[0] * s + 0.05) & (t > 0.02) & (t < 0.97) & (np.abs(y - (th[1] + (ft[1] - th[1]) * t)) < 0.016)
             col[outer, :3] = band
     elif kind == "eye":
-        # sclera with an iris and a pupil looking forward (-Y)
+        # The broad strokes only. The iris is 11 mm across and the limbal ring
+        # is 0.4 mm; the globe has 64 x 40 vertices, which is 2.8 by 4.5 deg,
+        # so per vertex the pupil is about nine points and the limbus cannot
+        # close into a ring at all. repaint_eye() does it in texels, the same
+        # way the face is done. This is the base that bake starts from.
         c = P.mean(axis=0)
         f = np.array([0, -1, 0]); q = P - c; r = np.linalg.norm(q, axis=1) + 1e-9
         cosang = (q @ f) / r
         col[:, :3] = lin(srgb('f2efe8'))
         iris = cosang > 0.86; pupil = cosang > 0.975
-        col[iris, :3] = lin(srgb('3a2a1c')); col[pupil, :3] = lin(srgb('070606'))
-        rim = (cosang > 0.84) & (cosang <= 0.86); col[rim, :3] = lin(srgb('1c130c'))
+        col[iris, :3] = lin(srgb('6d4a2a')); col[pupil, :3] = lin(srgb('050405'))
     attr = me.color_attributes.get("Col") or me.color_attributes.new("Col", 'FLOAT_COLOR', 'POINT')
     attr.data.foreach_set("color", col.reshape(-1))
     return col
@@ -318,3 +305,243 @@ def wire_textures(mat, imgs):
     if "normal" in imgs:
         nrm = nt.nodes.new("ShaderNodeTexImage"); nrm.image = imgs["normal"]
         nm = nt.nodes.new("ShaderNodeNormalMap"); nt.links.new(nrm.outputs["Color"], nm.inputs["Color"]); nt.links.new(nm.outputs["Normal"], bsdf.inputs["Normal"])
+
+
+# ------------------------------------------------- the face, in texel space
+def rasterise(obj, size, keep):
+    """Where every texel of `obj`'s chart sits in space.
+
+    The bake carries a vertex colour through the UVs, so the finest thing it
+    can express is the distance between two vertices -- 3.1 mm on the head,
+    against a 0.9 mm texel. Rasterising the chart ourselves gives the texel's
+    own position, and the face can then be painted at the texture's
+    resolution instead of the mesh's.
+
+    Returns (pos[size, size, 3], covered[size, size]) in Blender's row order,
+    so row 0 is v = 0, matching image.pixels.
+    """
+    me = obj.data
+    me.calc_loop_triangles()
+    uvl = me.uv_layers.active.data
+    nv = len(me.vertices)
+    V = np.empty(nv * 3); me.vertices.foreach_get("co", V); V = V.reshape(nv, 3)
+    pos = np.zeros((size, size, 3)); cov = np.zeros((size, size), dtype=bool)
+    for tri in me.loop_triangles:
+        vi = tri.vertices; li = tri.loops
+        p = V[list(vi)]
+        if not keep(p.mean(axis=0)):
+            continue
+        uv = np.array([uvl[i].uv[:] for i in li]) * size
+        x0 = max(0, int(np.floor(uv[:, 0].min())) - 1); x1 = min(size, int(np.ceil(uv[:, 0].max())) + 2)
+        y0 = max(0, int(np.floor(uv[:, 1].min())) - 1); y1 = min(size, int(np.ceil(uv[:, 1].max())) + 2)
+        if x1 <= x0 or y1 <= y0:
+            continue
+        ys, xs = np.mgrid[y0:y1, x0:x1]
+        px = xs + 0.5; py = ys + 0.5
+        (ax, ay), (bx, by), (cx, cy) = uv
+        den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
+        if abs(den) < 1e-12:
+            continue
+        w0 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den
+        w1 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den
+        w2 = 1.0 - w0 - w1
+        inside = (w0 >= 0.0) & (w1 >= 0.0) & (w2 >= 0.0)
+        if not inside.any():
+            continue
+        q = (w0[..., None] * p[0] + w1[..., None] * p[1] + w2[..., None] * p[2])
+        sel = inside & ~cov[y0:y1, x0:x1]
+        blk = pos[y0:y1, x0:x1]; blk[sel] = q[sel]
+        cov[y0:y1, x0:x1] |= inside
+    return pos, cov
+
+
+def _srgb_to_linear(c):
+    c = np.clip(c, 0.0, 1.0)
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+
+def _linear_to_srgb(c):
+    c = np.clip(c, 0.0, 1.0)
+    return np.where(c <= 0.0031308, c * 12.92, 1.055 * c ** (1 / 2.4) - 0.055)
+
+
+def _img_array(img):
+    a = np.empty(len(img.pixels), dtype=np.float32)
+    img.pixels.foreach_get(a)
+    return a.reshape(img.size[1], img.size[0], 4)
+
+
+def _img_write(img, a):
+    img.pixels.foreach_set(a.astype(np.float32).reshape(-1))
+    img.update()
+    img.save()
+
+
+def _dilate(a, cov, rounds=3):
+    """Grow the painted region outward, so a texel the rasteriser missed at a
+    chart's edge does not show as a hole when the mip levels average it."""
+    out = a.copy(); have = cov.copy()
+    for _ in range(rounds):
+        nxt = have.copy()
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            sh = np.roll(have, (dy, dx), (0, 1))
+            sv = np.roll(out, (dy, dx), (0, 1))
+            fill = sh & ~nxt
+            out[fill] = sv[fill]; nxt |= sh
+        have = nxt
+    return out
+
+
+def repaint_head(obj, imgs, size):
+    """Repaint the head's texels from hero.face, and turn its relief into
+    normal and roughness. Everything below 3 mm -- the lash line, the
+    vermilion border, a nostril rim, the edge of a brow -- exists only here.
+    """
+    from . import face as FA
+    pos, cov = rasterise(obj, size, lambda c: c[2] > 1.535)
+    if not cov.any():
+        return 0
+    P = pos[cov]
+    skin = FA.hex_lin('f0d8c4'); hair = FA.hex_lin('1e150f')
+    beard = FA.hex_lin('2a1d13') * 0.9
+    # ---- albedo
+    # A byte image's `pixels` are the stored bytes over 255 -- sRGB-encoded,
+    # not linear (checked: writing 0.5 stores 128).
+    alb = _img_array(imgs["albedo"])
+    lin = _srgb_to_linear(alb[..., :3])
+    # Start from what the bake put there rather than from flat skin. Where
+    # shade() feathers out -- down the neck, round the back of the head --
+    # it lays a fraction of the face over its base, and if that base were
+    # flat skin the body's own grain would be wiped out across exactly the
+    # band where the head and the body have to meet.
+    rgb, rel, on = FA.shade(P, skin, hair, beard, base_rgb=lin[cov])
+    live = on > 0.002
+    if not live.any():
+        return 0
+    buf = np.zeros(pos.shape); buf[cov] = rgb
+    m = np.zeros(cov.shape, bool); m[cov] = live
+    lin[m] = buf[m]
+    alb[..., :3] = _linear_to_srgb(lin)
+    _img_write(imgs["albedo"], _dilate(alb, m, 3))
+
+    # ---- relief -> normal, at the normal map's own size
+    if "normal" in imgs:
+        nsz = imgs["normal"].size[0]
+        H = np.zeros(cov.shape); H[cov] = rel
+        Hm = np.zeros(cov.shape); Hm[cov] = on
+        if nsz != size:
+            # Averaged over the COVERED texels only. A plain box mean folds
+            # the zeros of uncovered texels into the block, which at a
+            # chart's edge drags the position toward the origin and invents
+            # a cliff in the normal map.
+            k = size // nsz
+            w = cov.reshape(nsz, k, nsz, k).astype(np.float64)
+            n = w.sum((1, 3))
+            safe = np.maximum(n, 1.0)
+            H = (H.reshape(nsz, k, nsz, k) * w).sum((1, 3)) / safe
+            Hm = (Hm.reshape(nsz, k, nsz, k) * w).sum((1, 3)) / safe
+            Pn = (pos.reshape(nsz, k, nsz, k, 3) * w[..., None]).sum((1, 3)) / safe[..., None]
+            Cn = n >= (k * k)                 # only blocks that are wholly inside
+        else:
+            Pn, Cn = pos, cov
+        # world metres per texel, from the chart itself
+        du = np.gradient(Pn, axis=1); dv = np.gradient(Pn, axis=0)
+        su = np.linalg.norm(du, axis=2); sv = np.linalg.norm(dv, axis=2)
+        good = Cn & (su > 1e-5) & (sv > 1e-5) & (su < 0.02) & (sv < 0.02)
+        dhu = np.gradient(H, axis=1); dhv = np.gradient(H, axis=0)
+        slope_u = np.where(good, dhu / np.maximum(su, 1e-6), 0.0)
+        slope_v = np.where(good, dhv / np.maximum(sv, 1e-6), 0.0)
+        nrm = _img_array(imgs["normal"])
+        n0 = nrm[..., :3] * 2.0 - 1.0
+        nz = np.where(np.abs(n0[..., 2]) < 1e-3, 1e-3, n0[..., 2])
+        s0u = -n0[..., 0] / nz; s0v = -n0[..., 1] / nz
+        tu = s0u + np.clip(slope_u, -6.0, 6.0); tv = s0v + np.clip(slope_v, -6.0, 6.0)
+        n = np.stack([-tu, -tv, np.ones_like(tu)], axis=-1)
+        n /= np.maximum(np.linalg.norm(n, axis=-1, keepdims=True), 1e-9)
+        use = good & (Hm > 0.002)
+        nrm[..., :3] = np.where(use[..., None], n * 0.5 + 0.5, nrm[..., :3])
+        _img_write(imgs["normal"], _dilate(nrm, use, 3))
+
+    # ---- roughness: a face is not one finish. The T-zone is oily and the
+    # cheeks are not; lips are wetter than either; a brow is matt.
+    if "roughness" in imgs:
+        rough = _img_array(imgs["roughness"])
+        z = P[:, 2]; ax = np.abs(P[:, 0])
+        tzone = FA.ramp(z, FA.EYE_Z + 0.003, FA.EYE_Z + 0.041) + FA.blob(P, 0.0, FA.NOSE_Z + 0.016, 0.013, 0.016, mirror=False)
+        cheek = FA.blob(P, 0.050, FA.NOSE_Z + 0.019, 0.026, 0.022)
+        lipw = FA.ramp(z, FA.MOUTH_Z - 0.0143, FA.MOUTH_Z - 0.0093) * FA.ramp(z, FA.MOUTH_Z + 0.0097, FA.MOUTH_Z + 0.0057) * FA.ramp(ax, 0.028, 0.022)
+        r = (0.56
+             - 0.16 * np.clip(tzone, 0, 1)
+             + 0.07 * np.clip(cheek, 0, 1)
+             - 0.26 * np.clip(lipw, 0, 1)
+             + 0.05 * (FA.fbm(P, 700.0, 3, 61.0) - 0.5))
+        r = np.clip(r, 0.18, 0.80)
+        buf = np.zeros(cov.shape); buf[cov] = r
+        rough[..., :3] = np.where(m[..., None], buf[..., None], rough[..., :3])
+        _img_write(imgs["roughness"], _dilate(rough, m, 3))
+    return int(m.sum())
+
+
+# --------------------------------------------------------------- the eye
+# A brown Gulf iris, its dark limbal ring, and the fibres in it. All of it is
+# finer than the globe's vertex grid, so like the face it is painted per
+# texel after the bake rather than per vertex before it.
+IRIS_R = 0.00565       # 11.3 mm across, which is a human iris
+PUPIL_R = 0.00205      # 4.1 mm, an iris-to-pupil ratio of about 2.8
+LIMBUS = 0.00042       # the dark ring at the iris's edge
+
+def repaint_eye(obj, imgs, size, centre, radius):
+    """Sclera, limbus, iris and pupil, at the texture's resolution."""
+    from . import face as FA
+    pos, cov = rasterise(obj, size, lambda c: True)
+    if not cov.any():
+        return 0
+    P = pos[cov]
+    q = P - np.asarray(centre)
+    r = np.maximum(np.linalg.norm(q, axis=1), 1e-9)
+    cosang = np.clip((q @ np.array([0.0, -1.0, 0.0])) / r, -1.0, 1.0)
+    # distance from the corneal pole, along the sphere, in metres
+    d = radius * np.arccos(np.clip(cosang, -1.0, 1.0))
+    ang = np.arctan2(q[:, 2], q[:, 0])
+
+    sclera = FA.hex_lin('f0ece3')
+    iris_c = FA.hex_lin('6d4a2a')
+    iris_hi = FA.hex_lin('9a6c3c')
+    limb = FA.hex_lin('2a1c12')
+    rgb = np.tile(sclera, (len(P), 1))
+    # the sclera is not white: it is warmer and darker toward the corners,
+    # and carries a faint vascular tint
+    corner = np.clip((d - IRIS_R) / 0.008, 0.0, 1.0)
+    rgb *= (1.0 - 0.22 * corner)[:, None]
+    rgb = rgb * (1 - (0.10 * corner)[:, None]) + FA.hex_lin('d9b6a6')[None, :] * (0.10 * corner)[:, None]
+
+    # iris: radial fibre, brighter toward the limbus, darker at the pupil
+    t = np.clip(d / IRIS_R, 0.0, 1.0)
+    fibre = 0.86 + 0.28 * np.cos(17.0 * ang) * (0.35 + 0.65 * t)
+    iris = iris_c[None, :] * fibre[:, None] + (iris_hi - iris_c)[None, :] * (t ** 2.2)[:, None] * 0.55
+    iris *= (0.55 + 0.45 * FA.smooth((t - 0.16) / 0.22))[:, None]      # dark collarette
+    w = FA.ramp(d, IRIS_R + 0.00030, IRIS_R - 0.00030)[:, None]
+    rgb = rgb * (1 - w) + np.clip(iris, 0, 1) * w
+    # the limbal ring
+    lw = (np.exp(-0.5 * ((d - (IRIS_R - LIMBUS * 0.5)) / LIMBUS) ** 2) * 0.85)[:, None]
+    rgb = rgb * (1 - lw) + limb[None, :] * lw
+    # the pupil, genuinely black so the eye has a direction
+    pw = FA.ramp(d, PUPIL_R + 0.00022, PUPIL_R - 0.00022)[:, None]
+    rgb = rgb * (1 - pw) + FA.hex_lin('040305')[None, :] * pw
+
+    alb = _img_array(imgs["albedo"])
+    buf = np.zeros(pos.shape); buf[cov] = np.clip(rgb, 0.0, 1.0)
+    lin_ = _srgb_to_linear(alb[..., :3])
+    lin_[cov] = buf[cov]
+    alb[..., :3] = _linear_to_srgb(lin_)
+    _img_write(imgs["albedo"], _dilate(alb, cov, 3))
+
+    # Only the cornea is wet. The sclera is matt tissue sitting in the upper
+    # lid's shadow; one gloss over the whole ball is why it read as a bead.
+    if "roughness" in imgs:
+        rough = _img_array(imgs["roughness"])
+        rr = np.where(d < IRIS_R + 0.0013, 0.05, 0.38)
+        buf = np.zeros(cov.shape); buf[cov] = rr
+        rough[..., :3] = np.where(cov[..., None], buf[..., None], rough[..., :3])
+        _img_write(imgs["roughness"], _dilate(rough, cov, 3))
+    return int(cov.sum())

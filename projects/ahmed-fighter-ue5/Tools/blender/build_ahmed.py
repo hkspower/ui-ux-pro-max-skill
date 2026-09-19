@@ -97,44 +97,44 @@ _LIMB = [
     # blockout look like a blockout however good its proportions are. Real
     # limbs have a belly and a joint: wide through the muscle, narrow across
     # the elbow, wide again below it, narrow at the wrist.
-    ("clavicle",  Vector((0.046, -0.012, 1.448)),  "spine_03",   0.100),
+    ("clavicle",  Vector((0.052, -0.012, 1.448)),  "spine_03",   0.100),
     # The two masses an athlete's shoulder has and a tube does not: the
     # trapezius sloping from the neck out to the shoulder, and the deltoid
     # capping it. Both shaping joints; neither is a mannequin bone.
-    ("trap",      Vector((0.062,  0.012, 1.488)),  "spine_03",   0.056),
-    ("delt",      Vector((0.200, -0.005, 1.450)),  "clavicle",   0.060),
-    ("upperarm",  Vector((0.178, -0.006, 1.442)),  "clavicle",   0.055),
-    ("biceps",    Vector((0.285, -0.003, 1.335)),  "upperarm",   0.060),
+    ("trap",      Vector((0.068,  0.012, 1.488)),  "spine_03",   0.056),
+    ("delt",      Vector((0.222, -0.005, 1.450)),  "clavicle",   0.060),
+    ("upperarm",  Vector((0.200, -0.006, 1.442)),  "clavicle",   0.055),
+    ("biceps",    Vector((0.307, -0.003, 1.335)),  "upperarm",   0.060),
     # The elbow sits 1.2 cm behind the shoulder-to-wrist line and the knee
     # 1.2 cm in front of the hip-to-ankle line. A perfectly straight limb has
     # no bend direction, and an IK solver asked to shorten one picks a side
     # at random -- sideways, or backwards. The pre-bend is the answer every
     # rig gives: it tells the solver which way the joint goes before it has
     # to decide, and it is far too small to see in the mesh.
-    ("lowerarm",  Vector((0.415,  0.012, 1.205)),  "biceps",     0.043),
-    ("forearm",   Vector((0.471,  0.000, 1.149)),  "lowerarm",   0.053),
-    ("hand",      Vector((0.601,  0.000, 1.019)),  "forearm",    0.032),
-    ("hand_end",  Vector((0.654,  0.000, 0.966)),  "hand",       0.042),
+    ("lowerarm",  Vector((0.437,  0.012, 1.205)),  "biceps",     0.043),
+    ("forearm",   Vector((0.493,  0.000, 1.149)),  "lowerarm",   0.053),
+    ("hand",      Vector((0.623,  0.000, 1.019)),  "forearm",    0.032),
+    ("hand_end",  Vector((0.676,  0.000, 0.966)),  "hand",       0.042),
     # A fist, not a mitt. Four fingers curl off the knuckle row -- out along
     # the arm to the knuckle, down into the palm, back toward the wrist --
     # and the thumb lies across them. All shaping joints: the mannequin has
     # finger bones but a closed fist never opens in this game, so the mesh
     # carries the fingers and the skeleton stays the 24 that retarget.
     # Palm faces -Y, the way Ahmed faces; the back of the fist is +Y.
-    ("knuckle_1", Vector((0.664,  0.000, 0.978)),  "hand_end",   0.0090),
-    ("knuckle_2", Vector((0.672,  0.000, 0.960)),  "hand_end",   0.0095),
-    ("knuckle_3", Vector((0.664,  0.000, 0.943)),  "hand_end",   0.0090),
-    ("knuckle_4", Vector((0.652,  0.000, 0.928)),  "hand_end",   0.0082),
-    ("phalanx_1", Vector((0.668, -0.024, 0.982)),  "knuckle_1",  0.0080),
-    ("phalanx_2", Vector((0.676, -0.025, 0.963)),  "knuckle_2",  0.0085),
-    ("phalanx_3", Vector((0.668, -0.024, 0.946)),  "knuckle_3",  0.0080),
-    ("phalanx_4", Vector((0.655, -0.022, 0.931)),  "knuckle_4",  0.0072),
-    ("tip_1",     Vector((0.651, -0.026, 0.996)),  "phalanx_1",  0.0068),
-    ("tip_2",     Vector((0.658, -0.027, 0.979)),  "phalanx_2",  0.0072),
-    ("tip_3",     Vector((0.650, -0.026, 0.963)),  "phalanx_3",  0.0068),
-    ("tip_4",     Vector((0.638, -0.024, 0.949)),  "phalanx_4",  0.0062),
-    ("thumb_1",   Vector((0.626, -0.024, 1.000)),  "hand",       0.0092),
-    ("thumb_2",   Vector((0.648, -0.036, 0.984)),  "thumb_1",    0.0080),
+    ("knuckle_1", Vector((0.686,  0.000, 0.978)),  "hand_end",   0.0090),
+    ("knuckle_2", Vector((0.694,  0.000, 0.960)),  "hand_end",   0.0095),
+    ("knuckle_3", Vector((0.686,  0.000, 0.943)),  "hand_end",   0.0090),
+    ("knuckle_4", Vector((0.674,  0.000, 0.928)),  "hand_end",   0.0082),
+    ("phalanx_1", Vector((0.690, -0.024, 0.982)),  "knuckle_1",  0.0080),
+    ("phalanx_2", Vector((0.698, -0.025, 0.963)),  "knuckle_2",  0.0085),
+    ("phalanx_3", Vector((0.690, -0.024, 0.946)),  "knuckle_3",  0.0080),
+    ("phalanx_4", Vector((0.677, -0.022, 0.931)),  "knuckle_4",  0.0072),
+    ("tip_1",     Vector((0.673, -0.026, 0.996)),  "phalanx_1",  0.0068),
+    ("tip_2",     Vector((0.680, -0.027, 0.979)),  "phalanx_2",  0.0072),
+    ("tip_3",     Vector((0.672, -0.026, 0.963)),  "phalanx_3",  0.0068),
+    ("tip_4",     Vector((0.660, -0.024, 0.949)),  "phalanx_4",  0.0062),
+    ("thumb_1",   Vector((0.648, -0.024, 1.000)),  "hand",       0.0092),
+    ("thumb_2",   Vector((0.670, -0.036, 0.984)),  "thumb_1",    0.0080),
     # Legs taper inward from hip to ankle, the way a person's do. They used to
     # splay -- ankles wider apart than hips -- which reads as bow-legged from
     # the front and is the first thing wrong with a blockout's stance.

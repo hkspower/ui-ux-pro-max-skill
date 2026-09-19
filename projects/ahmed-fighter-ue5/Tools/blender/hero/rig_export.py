@@ -58,8 +58,16 @@ def join_all(body, others):
     return body
 
 def curl_fingers(arm, degrees):
-    """Close the fists for the fight poses: every finger joint bends toward
-    the palm by the same angle, the thumb by less."""
+    """Tighten the fists for the fight poses.
+
+    The MESH is the fist -- anatomy.hand() builds the fingers already curled
+    72 / 109 / 36 degrees, fitted to the fist the joint table describes, and
+    the finger bones are made from that same chain, so the rest pose is a
+    closed hand. This only squeezes it further, so the angle is small: the
+    78 degrees a joint it used to take was written for a mesh whose fingers
+    were nearly straight, and applied to a hand that is already closed it
+    folds them through the palm.
+    """
     for pb in arm.pose.bones:
         n = pb.name
         if any(n.startswith(f + "_") for f, _ in FINGERS):
@@ -69,7 +77,12 @@ def curl_fingers(arm, degrees):
     bpy.context.view_layer.update()
 
 def export_all(arm, mesh, out_ue5, out_unity, textures_ue5, textures_unity):
-    os.makedirs(out_ue5, exist_ok=True); os.makedirs(out_unity, exist_ok=True)
+    # out_unity is None when the frozen Unity port is not asked for, which
+    # is the default -- see ../../../CLAUDE.md. Making a directory called
+    # None is how the pipeline used to end.
+    os.makedirs(out_ue5, exist_ok=True)
+    if out_unity:
+        os.makedirs(out_unity, exist_ok=True)
     # Only the rig and the mesh leave. The IK pole targets are children of
     # the rig and glTF takes a selected object's children along, so they go
     # first -- the constraints are muted for export and do not travel anyway.
