@@ -64,9 +64,16 @@ bool AWaveDirector::Contains(const FVector& WorldLocation) const
 	// A district is a round place, not a strip with two ends. The margin is
 	// the doorway: an exit sits just inside the rim and the arriving step
 	// lands a little past it, and both are still ours.
+	//
+	// Its size is DistrictExtent(Length), not Length itself -- the same
+	// derivation Tools/fab/lay_out_world.py lays a district's ground out
+	// with. Length alone was a strip measurement, and a round place built to
+	// hold it can be twice that across; checking against the smaller,
+	// unscaled number said a player standing on his own district's floor was
+	// not in it.
 	constexpr float Margin = 400.f;
-	const float Length = Stage ? Stage->Length : 100000.f;
-	return AhmedArena::InCircle(WorldLocation, GetActorLocation(), Length + Margin);
+	const float Extent = Stage ? AhmedArena::DistrictExtent(Stage->Length) : 100000.f;
+	return AhmedArena::InCircle(WorldLocation, GetActorLocation(), Extent + Margin);
 }
 
 void AWaveDirector::BeginPlay()
@@ -204,12 +211,14 @@ void AWaveDirector::BeginWave(const FWaveDef& Wave)
 void AWaveDirector::ApplyArenaBounds()
 {
 	// A locked fight is a circle around where the wave woke. Unlocked, the
-	// district is the whole of it, which is a circle big enough to hold the
-	// stage rather than a pair of ends on X.
+	// district is the whole of it: DistrictExtent(Length), not Length --
+	// the district's floor is built to that size, and clamping a player to
+	// the smaller, unscaled number left him unable to reach ground his own
+	// district actually has.
 	const FVector Centre = bArenaLocked ? ArenaCentre : GetActorLocation();
 	const float Radius = bArenaLocked
 		? AhmedGameplay::ArenaRadius
-		: (Stage ? Stage->Length : 100000.f);
+		: (Stage ? AhmedArena::DistrictExtent(Stage->Length) : 100000.f);
 
 	if (AAhmedCharacter* Player = Cast<AAhmedCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
 	{

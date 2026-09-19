@@ -225,4 +225,25 @@ namespace AhmedArena
 		const float Radius = Extent * (0.18f + 0.68f * T);
 		return FVector(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius, 0.f);
 	}
+
+	/**
+	 * How far a district reaches from its middle, in centimetres, given the
+	 * stage's own Length.
+	 *
+	 * The same derivation `Tools/fab/lay_out_world.py` lays the open world
+	 * out with and the Unity port's `District.LengthToExtent` uses -- three
+	 * copies of one number for the same reason SpiralPoint is: the game, the
+	 * open-world map and the per-stage blockout all have to agree on how big
+	 * a district is, and none of them can include another's source file.
+	 * A short stage is not a cupboard and a long one is not a county: the
+	 * clamp keeps every district walkable at the scale a fighter and a
+	 * camera actually read.
+	 */
+	inline float DistrictExtent(float Length)
+	{
+		constexpr float LengthToExtent = 1.7f;
+		constexpr float MinExtent = 6000.f;
+		constexpr float MaxExtent = 13000.f;
+		return FMath::Clamp(Length * LengthToExtent, MinExtent, MaxExtent);
+	}
 }

@@ -499,6 +499,13 @@ namespace AhmedGameplay
 	/** How far outside it a wave walks in from. */
 	constexpr float SpawnRing = 1500.f;
 
+	/** How far in from a district's rim a door or gate stands, so neither
+	    sits exactly on the edge AhmedArena::DistrictExtent draws. Shared
+	    with Tools/fab/lay_out_world.py's EXIT_MARGIN and, since 2026-09-19,
+	    Tools/levels/build_levels.py's -- the same number in three places
+	    rather than one place two of them cannot include. */
+	constexpr float ExitMargin = 200.f;
+
 	constexpr float StaminaRegenPerSecond = 24.f;
 	constexpr float BlockDamageMultiplier = 0.20f;
 	constexpr float ParryWindow = 0.20f;

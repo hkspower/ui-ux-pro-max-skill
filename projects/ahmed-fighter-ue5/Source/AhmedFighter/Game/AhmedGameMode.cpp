@@ -1,5 +1,6 @@
 #include "Game/AhmedGameMode.h"
 
+#include "Combat/AhmedArena.h"
 #include "Combat/AhmedCharacter.h"
 #include "Game/AhmedGameInstance.h"
 #include "Kismet/GameplayStatics.h"
@@ -46,6 +47,14 @@ void AAhmedGameMode::BeginPlay()
  * The other half of AAreaExit. An exit opens the next level with options that
  * say which edge to appear at and what condition to arrive in, so walking
  * between areas is a step through a doorway rather than a fresh run.
+ *
+ * Since 2026-09-19 this reads a bearing, not an offset along X. A district
+ * is round -- Tools/levels/build_levels.py and Tools/fab/lay_out_world.py
+ * both put its West door on the rim at 180 degrees, its East door at 0, and
+ * a Door link at 90 -- and PlayerStart already stands at the West door, so
+ * arriving there needs nothing done to him. Arriving at East or Door means
+ * finding that OTHER door on this district's own rim and stepping him onto
+ * it, facing back toward the middle.
  */
 void AAhmedGameMode::PlaceArrivingPlayer()
 {
@@ -55,32 +64,34 @@ void AAhmedGameMode::PlaceArrivingPlayer()
 		return;
 	}
 	const FString Arrive = UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt"));
-	if (Arrive.IsEmpty())
+	if (Arrive.IsEmpty() || Arrive == TEXT("West"))
 	{
-		return;		// a normal start: PlayerStart already placed him
+		return;		// PlayerStart already stands at the West door
 	}
 
-	if (Arrive == TEXT("East") && Director)
+	if (Director)
 	{
-		// Arriving from the east means the far end, facing back the way the
-		// world runs. The director knows the stage length; the level does not.
 		if (const UDataTable* Table = Director->StageTable)
 		{
 			static const FString Context(TEXT("AAhmedGameMode::PlaceArrivingPlayer"));
 			if (const FStageDef* Stage = Table->FindRow<FStageDef>(Director->StageRow, Context, false))
 			{
+				const float BearingDeg = (Arrive == TEXT("East")) ? 0.f : 90.f;	// Door
+				const float Radians = FMath::DegreesToRadians(BearingDeg);
+				const float Radius = AhmedArena::DistrictExtent(Stage->Length) - AhmedGameplay::ExitMargin;
+				const FVector Origin = Director->GetActorLocation();
+
 				FVector Loc = Player->GetActorLocation();
-				Loc.X = FMath::Max(300.f, Stage->Length - 360.f);
+				Loc.X = Origin.X + FMath::Cos(Radians) * Radius;
+				Loc.Y = Origin.Y + FMath::Sin(Radians) * Radius;
 				Player->SetActorLocation(Loc);
-				Player->SetActorRotation(FRotator(0.f, 180.f, 0.f));
+
+				// Facing back the way he came: inward, toward the middle.
+				const float FacingYaw = FMath::RadiansToDegrees(
+					FMath::Atan2(-FMath::Sin(Radians), -FMath::Cos(Radians)));
+				Player->SetActorRotation(FRotator(0.f, FacingYaw, 0.f));
 			}
 		}
-	}
-	else
-	{
-		FVector Loc = Player->GetActorLocation();
-		Loc.X = 300.f;
-		Player->SetActorLocation(Loc);
 	}
 
 	const FString H = UGameplayStatics::ParseOption(OptionsString, TEXT("Health"));

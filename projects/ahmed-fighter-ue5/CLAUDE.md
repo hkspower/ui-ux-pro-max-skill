@@ -83,12 +83,13 @@ the rules that came out of that are load-bearing:
   "sideways" is a bug left from the corridor.
 - **The geometry lives in `Combat/AhmedArena.h`, with no engine in it.** The
   hitbox, the guard's hemisphere, the stick-to-world mapping, the arena
-  clamp, the crowd's slots and the district spiral are free functions over
-  `FVector`. That is what makes them testable: `Tools/harness/run.sh` builds
-  that header with g++ against a stub and property-tests it, and it is the
-  only part of this project that has ever run. Put a new piece of fight
-  geometry there and check it; do not put actors, components or a world in
-  it.
+  clamp, the crowd's slots, the district spiral and (since 2026-09-19) how
+  big a district is at all -- `DistrictExtent` -- are free functions over
+  `FVector` and floats. That is what makes them testable: `Tools/harness/
+  run.sh` builds that header with g++ against a stub and property-tests it,
+  and it is the only part of this project that has ever run. Put a new piece
+  of fight geometry there and check it; do not put actors, components or a
+  world in it.
 - **An arena is a circle.** Any other shape tells the player which way the
   level used to run. `AhmedGameplay::ArenaRadius`, around wherever the wave
   woke — not two numbers on X.
@@ -98,6 +99,54 @@ the rules that came out of that are load-bearing:
   each fighter a bearing and a ring; `PushApart` stops two of them wanting
   the same ground. Both were found to be necessary by the harness, not
   guessed.
+
+## The nine stages are round, and the map has to agree with the code
+
+Since 2026-09-19. `Tools/levels/build_levels.py`, which blocks out the nine
+per-stage levels, went 2026-09-16 to 2026-09-19 not believing its own file's
+opening line any more: it still put down a corridor -- depth walls, a back
+wall gates sat into, exits at two ends of a line -- three days after
+`Combat/AhmedArena.h` stopped believing a fight was ever on one. It now
+matches `Tools/fab/lay_out_world.py`'s model exactly: each level is a round
+district of `AhmedArena::DistrictExtent(Length)`, waves and gates sit on the
+spiral `SpiralPoint` already draws, and doors stand on the rim. The one real
+difference from the open-world script -- a standalone level never coexists
+with its neighbours, so there is no real position to aim a door's bearing at
+-- is handled by fixing the three roles instead: West at 180 degrees, East at
+0, Door at 90, the same three for every stage. See that script's own
+docstring, "A LEVEL HERE IS ONE DISTRICT, ALONE," for why.
+
+**This was not only a blockout gap.** `AWaveDirector::Contains()` and
+`ApplyArenaBounds()` were clamping an unlocked player to a circle of radius
+`Stage->Length` -- the strip's own, unscaled measurement -- while every
+district, on both the per-stage maps and the ALREADY-SHIPPED open world, is
+built to `DistrictExtent(Length)`, a bigger, differently-scaled number for
+anything longer than about 3.5 km of the old strip's units. A player on the
+open-world map was already being clamped tighter than the ground under him.
+Both now read `DistrictExtent`, which fixes that everywhere the class is
+used, not only in the new blockout.
+
+`AAhmedGameMode::PlaceArrivingPlayer()` changed the same way: it used to
+reposition an "East" arrival along X by a strip formula (`Stage->Length -
+360`) that has nothing to do with a round district's actual size, and never
+handled a "Door" arrival at all. It now finds the correct door on the
+arriving district's own rim, at that role's fixed bearing, using the same
+`DistrictExtent`/`ExitMargin` the level was built with -- so the game and the
+map cannot disagree about where a doorway is, the property `AhmedArena::
+SpiralPoint`'s own comment already asks for.
+
+New: `AhmedGameplay::ExitMargin` (`Combat/AhmedTypes.h`), matching
+`Tools/fab/lay_out_world.py`'s `EXIT_MARGIN` and now also this script's.
+`Tools/harness/tests/arena.cpp` gained a `District()` test: `DistrictExtent`
+is checked against the nine real stage lengths, cross-checked against
+`Tools/fab/lay_out_world.py`'s own `extent_of()` over the same numbers.
+
+**Unverified, the same way `Tools/fab/lay_out_world.py` always has been**:
+`build_levels.py`'s own `check()` (mirroring that script's three assertions)
+passes outside the editor, `DistrictExtent` is compiled and executed by the
+harness, and the harness as a whole still passes -- but `WaveDirector.cpp`
+and `AhmedGameMode.cpp` cannot be compiled by anything here, so the two C++
+changes to them are read-reviewed, not run.
 
 ## L_Prologue -- Ahmed's life before he fell
 

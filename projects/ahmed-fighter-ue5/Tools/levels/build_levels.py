@@ -3,14 +3,59 @@
 Makes the nine levels (ten with survival) from Content/Data/DT_Stages.json and
 DT_World.json, so the maps are generated from the same tables the game runs on
 rather than placed by hand and left to drift. Every actor a level needs to be
-playable is put down: the ground, the back wall, the player start, the wave
-director, every sealed route, every exit to a neighbouring area, and a
-lighting rig matched to the browser build's per-stage rig.
+playable is put down: the ground, the player start, the wave director, every
+sealed route, every exit to a neighbouring area, and a lighting rig matched to
+the browser build's per-stage rig.
+
+Since 2026-09-19 this is a ROUND blockout, not a strip. Until then this file
+put down 8.4 m of depth either side of a corridor along X, a back wall gates
+sat into, and exits at the two ends -- because the game was a corridor and the
+camera never turned. Both stopped being true on 2026-09-16
+(Source/AhmedFighter/Combat/AhmedArena.h): a locked fight became a circle, and
+Tools/fab/lay_out_world.py started laying the open-world map out as a ring of
+round districts to match. This file did not follow it for three years of
+in-game time and one real day: `WaveDirector::Contains()` and
+`ApplyArenaBounds()` were still clamping a player to a circle of radius
+Stage->Length -- an unscaled strip measurement -- while the open-world map
+built its districts to DistrictExtent(Length), a bigger, differently-scaled
+number, which meant even the ALREADY-SHIPPED open world was clamping players
+tighter than the ground they were standing on. That is fixed alongside this
+file, in the same commit: AhmedArena::DistrictExtent is now the one place the
+1.7x-clamped-to-60-130m derivation lives, `Contains()`/`ApplyArenaBounds()`
+read it, and this script and Tools/fab/lay_out_world.py both duplicate it
+rather than share it, for the same reason AhmedArena::SpiralPoint already is
+duplicated across languages: three runtimes, and none of them can include
+another's source file.
+
+A LEVEL HERE IS ONE DISTRICT, ALONE.
+
+Tools/fab/lay_out_world.py works out a door's bearing from where its
+destination district actually sits on the shared map -- it can, because every
+district coexists in that one map. A level here never coexists with its
+neighbours; there is no real position to point a bearing at. So this script
+fixes them by role instead, the same three for every stage: West at 180
+degrees (the way back the way he came), East at 0 (the way on), Door at 90
+(the one link that is not a street -- see ../ahmed-fighter/CLAUDE.md). Every
+level uses the same three, which is fine precisely because no two levels are
+ever open at once to disagree with each other.
+
+Everything else follows Tools/fab/lay_out_world.py's model directly: a
+district is a disc of DistrictExtent(Length), "how far along the stage"
+becomes "how far around the district" via AhmedArena::SpiralPoint (Waves on
+the spiral itself, Gates a half-turn off it, both duplicated from that file
+verbatim), and a door sits on the rim at DistrictExtent(Length)-EXIT_MARGIN.
+PlayerStart stands at the West door -- where he would have walked in from --
+so AAhmedGameMode::PlaceArrivingPlayer only has work to do for an East or
+Door arrival, exactly the two doors PlayerStart is not already standing at.
 
 It is a blockout. Geometry is engine cubes; the art pass that replaces them is
-described in CLAUDE.md. What is NOT a blockout is the data: distances, gates,
-exits and their requirements are exact, and regenerating after a balance
-change keeps them exact.
+described in CLAUDE.md. The old strip had one flat wall, "something for the
+light to fall on" rather than a boundary the code enforced -- nothing here
+enforces a boundary either, AAhmedCharacter::SetArenaCircle already does that,
+so this round version has no wall at all rather than a ring of them standing
+in for one, which was not asked for. What is NOT a blockout is the data:
+distances, gates, exits and their requirements are exact, and regenerating
+after a balance change keeps them exact.
 
 RUN IT INSIDE THE EDITOR (it needs the editor's world to make maps):
 
@@ -30,15 +75,17 @@ RUN IT INSIDE THE EDITOR (it needs the editor's world to make maps):
 Existing maps of the same name are overwritten: this script owns them.
 
 OUTSIDE THE EDITOR it prints the plan -- every level and every actor it would
-place, with positions -- and exits. That is how it was checked without an
-engine, and it is the quickest way to read what a data change does to a map
-before opening anything.
+place, with positions -- and checks it: every actor stands on the floor it was
+given, every door sits on its own district's rim at its role's bearing, and
+the way through (the spiral) stays clear of the middle and the rim, the same
+three things Tools/fab/lay_out_world.py checks about its own layout. That is
+how it was checked without an engine.
 ==============================================================================
 """
 
 import json
+import math
 import os
-import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -46,16 +93,24 @@ DATA = os.path.join(PROJECT, "Content", "Data")
 MAPS_DIR = "/Game/Maps"
 DATA_DIR = "/Game/Data"
 
-# The playfield strip, from AhmedTypes.h. X runs along the stage, Y is depth,
-# the camera sits at -Y looking toward +Y, so +Y is the back wall.
-DEPTH_MIN, DEPTH_MAX = -420.0, 420.0
 FLOOR_TOP_Z = 0.0
-# Gates sit into the back wall, past the walkable strip, so they never block
-# the critical path -- the rule every version of this game has kept.
-GATE_Y = DEPTH_MAX + 360.0
-WALL_Y = DEPTH_MAX + 620.0
-EXIT_MARGIN = 60.0
-SPAWN_X = 300.0
+
+# The same derivation as AhmedArena::DistrictExtent and
+# Tools/fab/lay_out_world.py's extent_of() -- duplicated on purpose, see the
+# docstring above.
+LENGTH_TO_EXTENT = 1.7
+MIN_EXTENT, MAX_EXTENT = 6000.0, 13000.0
+# Matches AhmedGameplay::ExitMargin. A door stands this far in from the rim
+# DistrictExtent draws, so it is never standing exactly on the edge.
+EXIT_MARGIN = 200.0
+# Clearance the floor keeps past the furthest door, so nothing built here
+# stands over empty ground.
+FLOOR_MARGIN = 600.0
+SPAWN_RADIUS = 300.0     # fallback for the one stage with no West door
+
+# Fixed by role, not by geometry -- see "A LEVEL HERE IS ONE DISTRICT, ALONE"
+# above. Degrees, standard math convention: 0 is +X, 90 is +Y.
+BEARING = {"West": 180.0, "East": 0.0, "Door": 90.0}
 
 # --------------------------------------------------------------- lighting
 # One rig per theme, carried across from the browser build's THEME[x].rig.
@@ -86,73 +141,162 @@ def level_name(stage):
     return "L_" + stage["Name"]
 
 
+def extent_of(stage):
+    """How far a district reaches from its middle, in centimetres. Must agree
+    with AhmedArena::DistrictExtent -- see the module docstring."""
+    return max(MIN_EXTENT, min(MAX_EXTENT, float(stage["Length"]) * LENGTH_TO_EXTENT))
+
+
+def spiral(t, extent, phase):
+    """Where a fraction along the old stage falls in a round district. Copied
+    verbatim from Tools/fab/lay_out_world.py, which copied it from
+    AhmedArena::SpiralPoint -- one derivation, in three places because none of
+    them can include another's source file."""
+    angle = phase + t * 1.35 * 2.0 * math.pi
+    radius = extent * (0.18 + 0.68 * t)
+    return (math.cos(angle) * radius, math.sin(angle) * radius)
+
+
+def hash01(n):
+    """The layout's jitter. Same integer hash as Tools/fab/lay_out_world.py's,
+    so a given stage's phase agrees whether it is standing alone or merged
+    into the open world."""
+    x = n & 0xFFFFFFFF
+    x ^= x >> 16; x = (x * 2246822519) & 0xFFFFFFFF
+    x ^= x >> 13; x = (x * 3266489917) & 0xFFFFFFFF
+    x ^= x >> 16
+    return (x & 0xFFFFFF) / 16777215.0
+
+
 def plan_level(stage, world, stages):
     """Everything one level needs, as plain data. The editor half of this file
     only walks the list; the plan is what gets read and checked."""
-    L = float(stage["Length"])
+    L = max(1.0, float(stage["Length"]))
+    E = extent_of(stage)
+    idx = stage.get("Index", -1)
+    phase = hash01(idx * 977 + 13) * 2.0 * math.pi
     rig = RIGS.get(stage["Theme"], RIGS["Souq"])
     actors = []
 
     def add(kind, name, x=0.0, y=0.0, z=0.0, **props):
         actors.append(dict(kind=kind, name=name, x=x, y=y, z=z, props=props))
 
-    # ground: covers the strip with a margin either end so an exit is never
-    # standing over nothing
-    add("Floor", "Ground", x=L / 2, y=0, z=FLOOR_TOP_Z - 50,
-        scale=((L + 2400) / 100, (DEPTH_MAX - DEPTH_MIN + 2000) / 100, 1.0))
-    # back wall the gates are set into, and something for the light to fall on
-    add("Wall", "BackWall", x=L / 2, y=WALL_Y, z=300,
-        scale=((L + 2400) / 100, 1.2, 7.0))
+    add("WaveDirector", "WaveDirector", x=0.0, y=0.0, z=FLOOR_TOP_Z, StageRow=stage["Name"])
 
-    add("PlayerStart", "PlayerStart", x=SPAWN_X, y=0, z=FLOOR_TOP_Z + 110)
-    add("WaveDirector", "WaveDirector", x=0, y=0, z=FLOOR_TOP_Z, StageRow=stage["Name"])
-
+    # "How far along the stage" becomes "how far around the district".
     for wi, w in enumerate(stage.get("Waves", [])):
         if w["TriggerDistance"] < 0:
             continue                      # fires on the previous clear; no place
-        add("WaveMarker", "Wave_%d_trigger" % (wi + 1), x=w["TriggerDistance"], y=0, z=FLOOR_TOP_Z + 2,
+        t = min(1.0, max(0.0, w["TriggerDistance"] / L))
+        sx, sy = spiral(t, E, phase)
+        add("WaveMarker", "Wave_%d_trigger" % (wi + 1), x=sx, y=sy, z=FLOOR_TOP_Z + 2,
             fighters=len(w["Fighters"]))
 
     for gi, g in enumerate(stage.get("Gates", [])):
-        add("Gate", "Gate_%d_%s" % (gi + 1, g["Type"]), x=g["Distance"], y=GATE_Y, z=FLOOR_TOP_Z + 150,
+        t = min(1.0, max(0.0, g["Distance"] / L))
+        # A half turn off the way through: a sealed route is beside the road
+        # and never standing on it, the rule every version of this game keeps.
+        sx, sy = spiral(t, E, phase + 0.5)
+        add("Gate", "Gate_%d_%s" % (gi + 1, g["Type"]), x=sx, y=sy, z=FLOOR_TOP_Z + 150,
             GateType=g["Type"], RewardAbility=g["RewardAbility"],
             RewardExperience=g["RewardExperience"],
             GateId="%s_gate%d" % (stage["Name"], gi + 1))
 
-    # exits, from the world graph
-    area = next((a for a in world["Areas"] if a["Index"] == stage.get("Index", -1)), None)
+    # Doors, on the rim at each role's fixed bearing -- see the module
+    # docstring for why a bearing is fixed here rather than aimed at anything.
+    area = next((a for a in world["Areas"] if a["Index"] == idx), None)
+    exits_by_side = {}
     if area:
         for side, key, back in (("West", "West", "East"), ("East", "East", "West"), ("Door", "Door", "West")):
             link = area.get(key)
             if not link:
                 continue
             dest = stages[link["To"]]
-            x = {"West": EXIT_MARGIN, "East": L - EXIT_MARGIN}.get(side, float(link["Distance"]))
+            rad = math.radians(BEARING[side])
+            r = E - EXIT_MARGIN
+            x, y = math.cos(rad) * r, math.sin(rad) * r
             after = stages[link["AfterCleared"]]["Name"] if link["AfterCleared"] >= 0 else ""
-            add("Exit", "Exit_%s_to_%s" % (side, dest["Name"]), x=x, y=0, z=FLOOR_TOP_Z + 300,
+            exits_by_side[side] = dict(
+                name="Exit_%s_to_%s" % (side, dest["Name"]), x=x, y=y,
                 Side=side, DestinationLevel=level_name(dest), DestinationStage=dest["Name"],
                 RequiredAbility=link["RequiredAbility"], AfterClearedStage=after, ArriveAt=back)
 
-    add("Sun", "Sun", x=L / 2, y=0, z=1500, pitch=rig["pitch"], yaw=rig["yaw"], color=rig["sun"], lux=rig["lux"])
-    add("SkyLight", "SkyLight", x=L / 2, y=0, z=1200, intensity=rig["sky"])
-    add("SkyAtmosphere", "Sky", x=L / 2, y=0, z=0)
-    add("Fog", "Fog", x=L / 2, y=0, z=0, color=rig["fog"], density=rig["fogd"])
-    add("PostProcess", "Post", x=L / 2, y=0, z=0, exposure=rig["expo"])
-    return actors
+    for side, e in exits_by_side.items():
+        add("Exit", e["name"], x=e["x"], y=e["y"], z=FLOOR_TOP_Z + 300,
+            Side=e["Side"], DestinationLevel=e["DestinationLevel"], DestinationStage=e["DestinationStage"],
+            RequiredAbility=e["RequiredAbility"], AfterClearedStage=e["AfterClearedStage"], ArriveAt=e["ArriveAt"])
+
+    # PlayerStart stands at the West door: the common case, coming from the
+    # previous area, needs no repositioning at all on arrival -- see
+    # AAhmedGameMode::PlaceArrivingPlayer. The one stage with no West door at
+    # all (BilaNihaya, survival, not on the ring) falls back to a step out
+    # from the middle instead.
+    if "West" in exits_by_side:
+        sx, sy = exits_by_side["West"]["x"], exits_by_side["West"]["y"]
+    else:
+        sx, sy = SPAWN_RADIUS, 0.0
+    add("PlayerStart", "PlayerStart", x=sx, y=sy, z=FLOOR_TOP_Z + 110)
+
+    # Ground: a square big enough to hold the whole disc plus every door,
+    # with FLOOR_MARGIN to spare -- checked below, not eyeballed.
+    half = E + FLOOR_MARGIN
+    add("Floor", "Ground", x=0.0, y=0.0, z=FLOOR_TOP_Z - 50,
+        scale=(half * 2.0 / 100.0, half * 2.0 / 100.0, 1.0))
+
+    add("Sun", "Sun", x=0.0, y=0.0, z=1500, pitch=rig["pitch"], yaw=rig["yaw"], color=rig["sun"], lux=rig["lux"])
+    add("SkyLight", "SkyLight", x=0.0, y=0.0, z=1200, intensity=rig["sky"])
+    add("SkyAtmosphere", "Sky", x=0.0, y=0.0, z=0)
+    add("Fog", "Fog", x=0.0, y=0.0, z=0, color=rig["fog"], density=rig["fogd"])
+    add("PostProcess", "Post", x=0.0, y=0.0, z=0, exposure=rig["expo"])
+    return actors, E, phase
 
 
 def plan(stages, world):
-    return [(level_name(s), s, plan_level(s, world, stages)) for s in stages]
+    return [(level_name(s), s) + plan_level(s, world, stages) for s in stages]
+
+
+def check(levels):
+    """The same three things Tools/fab/lay_out_world.py asserts about its own
+    layout, over each standalone level instead of one shared map."""
+    for name, stage, actors, extent, phase in levels:
+        ground = next(a for a in actors if a["name"] == "Ground")
+        half = ground["props"]["scale"][0] * 100.0 / 2.0
+        for a in actors:
+            if a["kind"] in ("Sun", "SkyLight", "SkyAtmosphere", "Fog", "PostProcess", "Floor"):
+                continue
+            assert abs(a["x"]) <= half and abs(a["y"]) <= half, \
+                "%s: %s at (%.0f, %.0f) is off the ground (half-extent %.0f)" \
+                % (name, a["name"], a["x"], a["y"], half)
+
+        for a in actors:
+            if a["kind"] != "Exit":
+                continue
+            r = math.hypot(a["x"], a["y"])
+            assert abs(r - (extent - EXIT_MARGIN)) < 1.0, "%s: %s is not on the rim" % (name, a["name"])
+            bearing = math.degrees(math.atan2(a["y"], a["x"])) % 360.0
+            wanted = BEARING[a["props"]["Side"]] % 360.0
+            off = min(abs(bearing - wanted), 360.0 - abs(bearing - wanted))
+            assert off < 1.0, "%s: %s sits at %.0f degrees, not its side's %.0f" \
+                % (name, a["name"], bearing, wanted)
+
+        for k in range(0, 101):
+            r = math.hypot(*spiral(k / 100.0, extent, phase))
+            assert 0.17 * extent < r < 0.87 * extent, \
+                "%s: the way through leaves the district at t=%.2f" % (name, k / 100.0)
+    print("checked: every actor stands on its ground, every door is on its rim at its own")
+    print("bearing, and the way through every district stays clear of the middle and the rim.")
 
 
 def describe(levels):
-    for name, stage, actors in levels:
-        print("\n%s  (%s, %d cm, theme %s)" % (name, stage["DisplayName"], stage["Length"], stage["Theme"]))
+    for name, stage, actors, extent, phase in levels:
+        print("\n%s  (%s, %d cm long, %.0f m district, theme %s)" %
+              (name, stage["DisplayName"], stage["Length"], extent / 100.0, stage["Theme"]))
         for a in actors:
             extra = ", ".join("%s=%s" % (k, v) for k, v in a["props"].items()
                               if k in ("StageRow", "GateType", "RewardAbility", "RewardExperience",
-                                       "DestinationLevel", "RequiredAbility", "AfterClearedStage", "fighters"))
-            print("   %-12s %-28s x=%7.0f y=%6.0f z=%5.0f  %s" % (a["kind"], a["name"], a["x"], a["y"], a["z"], extra))
+                                       "DestinationLevel", "RequiredAbility", "AfterClearedStage",
+                                       "Side", "fighters"))
+            print("   %-12s %-28s x=%7.0f y=%7.0f z=%5.0f  %s" % (a["kind"], a["name"], a["x"], a["y"], a["z"], extra))
 
 
 # ----------------------------------------------------------------- editor
@@ -182,14 +326,14 @@ def build(levels):
         comp.set_static_mesh(cube)
         actor.set_actor_scale3d(unreal.Vector(*scale))
 
-    for name, stage, actors in levels:
+    for name, stage, actors, extent, phase in levels:
         path = "%s/%s" % (MAPS_DIR, name)
         unreal.log("Building %s" % path)
         ELL.new_level(path)
 
         for a in actors:
             k, p = a["kind"], a["props"]
-            if k in ("Floor", "Wall"):
+            if k == "Floor":
                 actor = spawn(unreal.StaticMeshActor, a)
                 mesh_cube(actor, p["scale"])
                 actor.set_mobility(unreal.ComponentMobility.STATIC)
@@ -202,11 +346,11 @@ def build(levels):
                 if tables["DT_Fighters"]: actor.set_editor_property("fighter_table", tables["DT_Fighters"])
                 if tables["DT_Attacks"]:  actor.set_editor_property("attack_table", tables["DT_Attacks"])
             elif k == "WaveMarker":
-                # A thin line across the strip where the ambush fires. The
-                # director triggers on X, not on this; it is here so the map
-                # shows where the fights are.
+                # A flat disc where the ambush fires. The director triggers on
+                # X, not on this; it is here so the map shows where the fights
+                # are.
                 actor = spawn(unreal.StaticMeshActor, a)
-                mesh_cube(actor, (0.06, (DEPTH_MAX - DEPTH_MIN) / 100, 0.04))
+                mesh_cube(actor, (1.2, 1.2, 0.04))
                 actor.set_folder_path("Markers")
             elif k == "Gate":
                 actor = spawn(unreal.AbilityGate, a)
@@ -288,6 +432,7 @@ def _enum_name(s):
 if __name__ == "__main__" or True:
     _stages, _world = load()
     _levels = plan(_stages, _world)
+    check(_levels)
     try:
         import unreal  # noqa: F401
         _in_editor = True

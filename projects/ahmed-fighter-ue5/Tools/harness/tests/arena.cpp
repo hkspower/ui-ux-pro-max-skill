@@ -302,6 +302,42 @@ static void Spiral()
     Check((A - B).Size2D() > Extent * 0.2f, "another floor's phase moves it somewhere else");
 }
 
+// -------------------------------------------------------------- district
+
+static void District()
+{
+    std::printf("\nDISTRICT EXTENT  (how big a district is, from its stage's Length)\n");
+    // The three numbers Tools/fab/lay_out_world.py and the Unity port's
+    // District.LengthToExtent both carry too: 1.7x, clamped to 60-130 m.
+    Check(FMath::Abs(AhmedArena::DistrictExtent(0.f) - 6000.f) < 1e-2f,
+          "a stage with no length still gets the floor");
+    Check(FMath::Abs(AhmedArena::DistrictExtent(100000.f) - 13000.f) < 1e-2f,
+          "a very long stage is still capped");
+    Check(FMath::Abs(AhmedArena::DistrictExtent(6000.f) - 10200.f) < 1e-2f,
+          "in between, it is exactly 1.7x");
+
+    // The nine real stage lengths, cross-checked against
+    // Tools/fab/lay_out_world.py's extent_of() over the same numbers --
+    // the game and the map cannot disagree about how big a place is.
+    struct { float Length, Extent; } Stages[] = {
+        { 7200.f, 12240.f },   // SouqAlDawar
+        { 6240.f, 10608.f },   // BaytAlDarb
+        { 8640.f, 13000.f },   // MarsaAlFajr (clamped)
+        { 6720.f, 11424.f },   // AbrajAlMalih
+        { 5280.f,  8976.f },   // AlHilal
+        { 6000.f, 10200.f },   // JaziratAlHajar
+        { 8160.f, 13000.f },   // AlTariqAlMasdud (clamped)
+        { 7200.f, 12240.f },   // MukhayyamAlNiran
+        { 3840.f,  6528.f },   // AlHalqa
+    };
+    int Mismatches = 0;
+    for (const auto& S : Stages)
+    {
+        if (FMath::Abs(AhmedArena::DistrictExtent(S.Length) - S.Extent) > 1.f) { ++Mismatches; }
+    }
+    Check(Mismatches == 0, "every real stage's extent matches lay_out_world.py's");
+}
+
 int main()
 {
     Hitbox();
@@ -310,6 +346,7 @@ int main()
     Arena();
     Crowd();
     Spiral();
+    District();
     std::printf(Fails == 0 ? "\nall checks passed\n" : "\n%d FAILURES\n", Fails);
     return Fails == 0 ? 0 : 1;
 }

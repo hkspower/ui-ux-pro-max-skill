@@ -383,11 +383,21 @@ Simulators* window.
 
 The nine levels (ten with survival) are **generated**, the same way the data
 is. `Tools/levels/build_levels.py` reads `DT_Stages.json` and `DT_World.json`
-and puts down every actor a level needs to be playable — the ground, the back
-wall, the player start, the wave director wired to its stage row, every sealed
-route as an `AAbilityGate`, every way out as an `AAreaExit`, and a lighting rig
-per theme carried across from the browser build's. Regenerate after a balance
+and puts down every actor a level needs to be playable — the ground, the
+player start, the wave director wired to its stage row, every sealed route as
+an `AAbilityGate`, every way out as an `AAreaExit`, and a lighting rig per
+theme carried across from the browser build's. Regenerate after a balance
 change and the gates and exits move with it.
+
+Since 2026-09-19 each one is a **round district**, `AhmedArena::DistrictExtent
+(Length)` across, built the same way `Tools/fab/lay_out_world.py` builds the
+open world's: waves and gates on the spiral `AhmedArena::SpiralPoint` draws,
+doors on the rim. A standalone level cannot aim a door's bearing at a
+neighbour the way the open-world script does — there is no shared map for the
+two to coexist on — so the three roles are fixed instead: West at 180°, East
+at 0°, Door at 90°, the same three on every stage. `PlayerStart` always stands
+at the West door, so `AAhmedGameMode::PlaceArrivingPlayer()` only has to find
+the *other* one on arrival.
 
 It has to run inside the editor, because only the editor can make a map:
 
@@ -410,10 +420,19 @@ Run outside the editor it prints the plan — every level, every actor, every
 position — and stops. That is how it was checked here, and it is the quickest
 way to see what a data change does to a map before opening anything.
 
-What it makes is a **blockout**: engine cubes for ground, wall and gates, one
-thin marker across the strip where each ambush fires. The distances, gates,
-exits and their requirements are exact; the art that replaces the cubes is
+What it makes is a **blockout**: engine cubes for ground, gates and the
+markers a fight fires from. There is no wall — a round room has no single
+back wall the way a corridor did, and a ring of them standing in for one was
+not asked for; `AAhmedCharacter::SetArenaCircle` is what actually keeps
+anyone inside a district, same as it always was. The distances, gates, exits
+and their requirements are exact; the art that replaces the cubes is
 described in `CLAUDE.md`.
+
+`build_levels.py`'s own `check()` -- outside the editor, before anything is
+built -- confirms every actor stands on the ground it was given, every door
+sits on its own district's rim at its role's fixed bearing, and the way
+through (the spiral) stays clear of the middle and the rim, the same three
+things `Tools/fab/lay_out_world.py` checks about its own layout.
 
 ### L_Prologue -- not one of the nine
 
