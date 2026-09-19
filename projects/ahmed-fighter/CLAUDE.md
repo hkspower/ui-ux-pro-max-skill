@@ -162,6 +162,25 @@ it up.
 
 ---
 
+## An exception to "we never see above" -- Unreal only
+
+Recorded 2026-09-19. The section above says the game never shows the world
+Ahmed fell out of, and that this is deliberate: "If the player never sees
+home, the player cannot miss it either." That is still true of this file,
+the browser build and the Unity build.
+
+**The Unreal build is the one exception**, and it was asked for on purpose,
+after being told plainly that it runs against this canon. It opens on
+`L_Prologue`: a title bout in Ahmed's own gym, then a short walk to the hole
+in the street. It is not on the ring map, it is not named anywhere in
+`AL-HALQA`, nobody in the Halqa ever refers to it, and it plays exactly once
+per profile -- see `ahmed-fighter-ue5/CLAUDE.md` for what that build actually
+built. It shows the very end of the life Ahmed had, not the world he thinks
+about missing once he has fallen; the game he falls into is unchanged.
+
+Do not read this as the canon changing. The browser build and the Unity
+build still show nothing before the fall, and still should not.
+
 ## What this does not cover yet
 
 Written down honestly rather than smoothed over:

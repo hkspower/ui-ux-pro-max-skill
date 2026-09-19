@@ -99,6 +99,61 @@ the rules that came out of that are load-bearing:
   the same ground. Both were found to be necessary by the harness, not
   guessed.
 
+## L_Prologue -- Ahmed's life before he fell
+
+Since 2026-09-19, and **only in this build**: the game opens on a level that
+is not one of the nine districts. `L_Prologue` is a title bout in Ahmed's own
+gym, followed by a short walk to the hole in the street. It plays once --
+`AAhmedPrologueGameMode` marks it seen on entry and sends every later launch
+straight to `L_SouqAlDawar`, exactly where the game has always begun.
+
+This is a deliberate exception to the canon in `../ahmed-fighter/CLAUDE.md`:
+"we never see above, it is never named ... If the player never sees home, the
+player cannot miss it either." Requested, not assumed. It does not touch the
+browser build or the Unity build, and the canon file itself, not this one, is
+where that exception is recorded so a future reader does not take it as
+general.
+
+What is actually new:
+
+- `Source/AhmedFighter/Prologue/AhmedPrologueGameMode.{h,cpp}` -- the level's
+  own Game Mode, set on `L_Prologue`'s World Settings, not the project
+  default. It does not touch `AAhmedGameMode`; the duel pays no XP, earns no
+  rank and writes no row into `ClearedStages` or `StageRanks`, because it is
+  not a stage in that economy.
+- `Content/Data/DT_Prologue.json` -- hand-authored, one row, `Champ` (the
+  Contender archetype already in `DT_Fighters`) as the opponent. Like
+  `DT_Sounds.csv`, this is not exported from the browser build and
+  `Tools/export/export.mjs --check` does not know it exists.
+- `Tools/levels/build_prologue.py` -- builds `L_Prologue`, run inside the
+  editor the same way as `build_levels.py`. Written to the circular-arena
+  model this file describes above, not the strip `build_levels.py` still
+  blocks out in -- see that script's own docstring for why the two were kept
+  separate rather than teaching one file both.
+- `FAhmedProgress::bSeenPrologue` in `Game/AhmedSaveGame.h` -- the one field
+  on that struct that does not mirror the browser build's save schema, since
+  the browser build has no prologue for it to mirror.
+- `Config/DefaultEngine.ini` -- `GameDefaultMap` and `EditorStartupMap` now
+  point at `L_Prologue` instead of `L_SouqAlDawar`.
+
+The duel itself needed no new combat code: it is one `AWaveDirector` with a
+single wave and no gates, and the fall is one ordinary `AAreaExit`. Losing
+the bout is handled exactly like losing a real stage -- a Blueprint event
+fires and nothing forces a restart -- because that is how `AAhmedGameMode`
+handles it too; the story ("he wins") is not a rule enforced in code any more
+than any other stage's ending is.
+
+**Unverified like everything else here, and more than most of it.** Nothing
+Unreal has ever built this project, so `build_prologue.py`'s Python Editor
+Scripting calls are the same kind of best-effort, checked-by-reading code as
+`build_levels.py`'s always were. One line is flagged in the script itself as
+the most likely to need correcting: the property name for a level's Game Mode
+Override, which has moved between engine versions before. What can be checked
+without an engine has been: `build_prologue.py --check`-equivalent logic
+(its own `check()` function) confirms every placed actor stands on the ground
+plane it was given and that the exit sits outside the fight circle, the same
+discipline `Tools/fab/lay_out_world.py` holds its own layout to.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

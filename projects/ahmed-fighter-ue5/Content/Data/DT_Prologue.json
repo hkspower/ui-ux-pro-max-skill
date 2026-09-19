@@ -1,0 +1,21 @@
+[
+  {
+    "Name": "Prologue",
+    "DisplayName": "TITLE NIGHT",
+    "DisplayNameArabic": "ليلة اللقب",
+    "Briefing": "One more win and he is a name. The kid is fast, everyone says so, and tonight the kid finds out how fast he really is.",
+    "BriefingArabic": "فوز واحد بعد ويصبح اسمًا يُعرف",
+    "Length": 2800,
+    "Tier": 0,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "Waves": [
+      {
+        "TriggerDistance": -1,
+        "Fighters": ["Champ"],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": []
+  }
+]

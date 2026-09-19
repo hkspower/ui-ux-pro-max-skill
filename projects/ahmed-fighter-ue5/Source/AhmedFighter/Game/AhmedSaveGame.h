@@ -60,6 +60,12 @@ struct FAhmedProgress
 	UPROPERTY(BlueprintReadWrite, Category = "Settings") bool bSound = true;
 	UPROPERTY(BlueprintReadWrite, Category = "Settings") bool bMusic = true;
 	UPROPERTY(BlueprintReadWrite, Category = "Settings") bool bVibration = true;
+
+	/** Whether L_Prologue -- Ahmed's life before he fell -- has already played.
+	    The one field on this struct that does NOT mirror the browser build's
+	    schema: the browser has no prologue, so there is nothing on the other
+	    side for this to travel with. See AAhmedPrologueGameMode. */
+	UPROPERTY(BlueprintReadWrite, Category = "Progress") bool bSeenPrologue = false;
 };
 
 UCLASS()
