@@ -104,6 +104,11 @@ PX = 0.024          # one browser pixel, in metres. The project's constant.
 TORSO_PX = 44.0
 LEAN_PX = 22.0
 BASE_LEAN = 0.06    # P_GUARD.lean, index.html:1345
+# index.html:1515, verbatim:  Math.sin(t*2.4)*1.1  -- standing. (Moving it
+# is sin(t*11)*2.2, which is a walk cycle and not what a guard clip is.)
+IDLE_RATE = 2.4
+IDLE_PX = 1.1
+IDLE_SECONDS = 2.0 * math.pi / IDLE_RATE
 
 
 def inclination(move):
@@ -125,6 +130,9 @@ def inclination(move):
 # to_track_quat, so a torso cannot be rotated about its own length -- and a
 # cross with no hip in it is a cartoon. Each entry is extra radians about the
 # bone's own axis, positive turning his left shoulder forward.
+
+SUPPORT_FOOT = (0.05, -0.55, -0.83)     # heel up, weight over the ball
+
 
 def _strikes():
     import build_ahmed as L
@@ -174,7 +182,13 @@ def _strikes():
     ), {"pelvis": 0.34, "spine_01": 0.30, "spine_02": 0.36, "spine_03": 0.42})
 
     # ---- the round kick build_ahmed already had, kept verbatim
-    S["Kick"] = (dict(L.KICK), {"pelvis": 0.30, "spine_01": 0.26, "spine_02": 0.22})
+    # The support foot pivots onto its ball, heel up, which is what a kicker
+    # does and which is also the only honest way the hip gets any height: the
+    # legs cannot be longer than straight, so a flat-footed support leg buys
+    # 4.8 cm and this buys 10.2. The browser cheats it by lifting hipY and
+    # drawing the feet from the hip; a skeleton has to earn it.
+    S["Kick"] = (dict(L.KICK, foot_l=SUPPORT_FOOT),
+                 {"pelvis": 0.30, "spine_01": 0.26, "spine_02": 0.22})
 
     # ---- rear knee, straight up the middle, both hands pulling down
     S["Knee"] = (over(
@@ -183,7 +197,7 @@ def _strikes():
         foot_r=(-0.06, -0.40, -0.91),
         thigh_l=(0.10, 0.04, -0.99),           # support leg straightens
         calf_l=(0.02, -0.02, -1.00),
-        foot_l=(0.08, -0.88, -0.47),
+        foot_l=SUPPORT_FOOT,
         upperarm_l=(0.34, -0.50, -0.79),       # hands pull the head down
         lowerarm_l=(0.10, -0.80, -0.59),
         upperarm_r=(-0.34, -0.50, -0.79),
@@ -199,7 +213,7 @@ def _strikes():
         foot_r=(-0.20, -0.96, 0.18),
         thigh_l=(0.08, 0.16, -0.98),
         calf_l=(0.02, 0.00, -1.00),
-        foot_l=(0.12, -0.84, -0.53),
+        foot_l=SUPPORT_FOOT,
         upperarm_l=(0.62, -0.42, -0.66),       # arms in, the way a turn needs
         lowerarm_l=(0.20, -0.56, 0.80),
         upperarm_r=(-0.70, 0.30, -0.65),
@@ -346,8 +360,12 @@ def plan():
                 amp=who["amp"], stance=who["stance"], settle=who["settle"],
                 speed=float(row["MoveSpeed"]), interval=float(row["AttackInterval"]),
                 name="A_%s_%s" % (key, mv)))
-        # what he does when he is not throwing anything
-        cyc = 2.4 if key == "Zayos" else (1.6 if key == "Saqr" else 2.0)
+        # What he does when he is not throwing anything. The browser bobs a
+        # standing fighter at Math.sin(f.anim * 2.4) * 1.1 (index.html:1515)
+        # and that 2.4 is a constant -- every fighter in the game breathes at
+        # the same rate whatever his speed. Three different cycle lengths
+        # here, one per boss, was a number with no source behind it.
+        cyc = IDLE_SECONDS
         clips.append(dict(boss=key, display=row["DisplayName"], arabic=row["DisplayNameArabic"],
                           move="Guard", su=0.0, ac=0.0, rc=0.0, seconds=cyc,
                           frames=int(round(cyc * FPS)), contact=-1, limb=None,
@@ -441,12 +459,17 @@ def describe(clips):
 
 # ================================================================== the build
 def ease(t):
-    """The browser's own ease, index.html -- smoothstep. The strike ramps in
-    over startup on this curve, holds flat through the active window and
-    falls back over recovery. Copying it is why a clip lands where the
-    hitbox does."""
+    """The browser's own ease, index.html:111 -- easeInOutQuad, verbatim:
+
+        t < .5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2
+
+    Not smoothstep, which the first version of this used and which is a
+    different curve: they part company by three points of travel at the
+    quarters. The strike ramps in over startup on this, holds flat through
+    the active window and falls back over recovery, and copying it exactly
+    is the reason a clip lands where the hitbox does."""
     t = max(0.0, min(1.0, t))
-    return t * t * (3.0 - 2.0 * t)
+    return 2.0 * t * t if t < 0.5 else 1.0 - ((-2.0 * t + 2.0) ** 2) / 2.0
 
 
 def blend_k(t, su, ac, rc):
@@ -525,6 +548,7 @@ def build(clips, out_dir, sheet=False):
         rig.animation_data_create()
         rig.animation_data.action = act
 
+        ground = None
         for f in range(c["frames"]):
             t = f / float(FPS)
             if c["move"] == "Guard":
@@ -533,7 +557,7 @@ def build(clips, out_dir, sheet=False):
                 # that amplitude, in metres.
                 k = 0.0
                 ph = 2.0 * math.pi * t / c["seconds"]
-                bob = math.sin(ph) * 1.1 * PX
+                bob = math.sin(ph) * IDLE_PX * PX
                 sway = math.sin(ph * 0.5) * 0.9 * PX
             else:
                 k = blend_k(t, c["su"], c["ac"], c["rc"]) * c["amp"]
@@ -554,6 +578,10 @@ def build(clips, out_dir, sheet=False):
                         aims[nm] = tuple(v.normalized())
 
             L.pose(rig, aims)
+            if ground is None:      # the height the guard stands at
+                bpy.context.view_layer.update()
+                ground = min((rig.matrix_world @ rig.pose.bones[b].matrix).translation.z
+                             for b in ("ball_l", "ball_r"))
 
             # ---- the torso, from the browser's own lean / hip / shift
             bpy.context.view_layer.objects.active = rig
@@ -584,10 +612,20 @@ def build(clips, out_dir, sheet=False):
             # The root bone points UP: its local Y is world +Z and its local
             # Z is world -Y, which is forward. Writing the forward shift into
             # .y drives him into the floor, which is what it did.
-            # The root carries only what really moves the whole man: the hip
-            # rising off a kick, and the breathing. The reach into a strike
-            # is in the torso, above.
-            pb["root"].location = (sway, -hip * PX * k + bob, 0.0)
+            # The root carries only the breathing and the sway. The hip's
+            # rise off a kick is NOT written here: the browser lifts hipY and
+            # draws the legs from the hip, so its feet come up with it, which
+            # is a flat drawing's cheat. Done here it levitated him -- the
+            # support foot left the ground by 12 cm on a round kick and 30 on
+            # the spinning one. Instead the lowest foot is PLANTED: the root
+            # is offset by however much it takes to keep it at the height it
+            # stands at in the guard, and the hip rise is then whatever the
+            # leg geometry really implies rather than a number imposed on it.
+            pb["root"].location = (sway, bob, 0.0)
+            bpy.context.view_layer.update()
+            low = min((rig.matrix_world @ pb[b].matrix).translation.z
+                      for b in ("ball_l", "ball_r"))
+            pb["root"].location = (sway, bob + (ground - low), 0.0)
             if turns:
                 pb["root"].rotation_quaternion = mathutils.Quaternion(
                     (0, 1, 0), turns * 2.0 * math.pi * (t / c["seconds"]))
@@ -683,7 +721,19 @@ def verify(rig, made):
         # and it has to come back, or the next one starts from nowhere
         if settle > 22.0:
             fails.append("%s ends %.1f cm from its own guard" % (c["name"], settle))
-        # a knee and a kick lift the hip; a punch does not
+        # he does not levitate. The browser can lift a hip and let the feet
+        # follow because it is a drawing; a skeleton cannot.
+        for f in (1, c["contact"] + 1, c["frames"]):
+            lowest = min(at(f, "ball_l").z, at(f, "ball_r").z)
+            if lowest > 0.045:
+                fails.append("%s has both feet %.0f cm off the ground on frame %d"
+                             % (c["name"], lowest * 100, f))
+        # a knee and a kick lift the hip; a punch does not. 8 cm, unchanged:
+        # the support foot pivoting onto its ball buys the rise back honestly
+        # -- it measures 9.9 to 10.7 cm and 3.0 to 3.7 with the foot left
+        # flat -- so nothing here had to be relaxed to accommodate planting
+        # the feet, and relaxing it would only have hidden the next
+        # regression.
         if c["limb"] == "rear_leg" and rise < 8.0:
             fails.append("%s is a leg strike that lifts the hip %.1f cm" % (c["name"], rise))
         # and he leans the way the browser says he leans. A spine bone's

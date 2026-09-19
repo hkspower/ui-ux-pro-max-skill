@@ -401,7 +401,7 @@ ever appears.
 measured off Winter's tables. Angles and timings are dimensionless and do
 cross; pixel lengths do not and are not used.
 
-**Four things it got wrong first, all caught by measuring rather than
+**Seven things it got wrong first, all caught by measuring rather than
 looking.** The root bone points UP, so its local Y is world Z -- the forward
 shift was being written into the vertical and drove him into the floor. An
 aim is a WORLD direction, so rotating the torso afterwards dragged the
@@ -412,11 +412,39 @@ SHOULDERS, not the feet: mapped to the root it walked the whole man forward
 34 cm on a cross, which is a lunge and not a punch. It is now one torso
 inclination derived from the browser's own shoulder offset.
 
+The other three were found after the first version had already been
+committed, by reading it back against the browser rather than against
+itself:
+
+- **He kicked while levitating.** The browser's `hipY` was mapped to the
+  root, and the browser can do that because it lifts the hip and then draws
+  the legs FROM the hip -- a flat drawing's cheat. On a skeleton the feet
+  come up with it: the support foot left the ground by 12 cm on a round
+  knee and 30 cm on the spinning kick. The lowest foot is now PLANTED by
+  construction -- the root is offset by whatever keeps it at the height it
+  stands at in the guard -- and the hip rise is whatever the leg geometry
+  then implies. It comes back honestly because the support foot pivots onto
+  its ball, heel up, which is what a kicker's does: 9.9 to 10.7 cm, against
+  3.0 to 3.7 with the foot left flat. Nothing had to be relaxed to allow
+  it; the 8 cm threshold `verify()` already held is unchanged.
+- **The ease was the wrong curve.** It was a smoothstep under a comment
+  claiming it was the browser's own. The browser's (index.html:111) is
+  easeInOutQuad, `t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2`, and the two part
+  company by three points of travel at the quarters.
+- **The idle cycles were invented.** Three of them, one per boss. The
+  browser bobs every standing fighter at `Math.sin(t*2.4)*1.1`
+  (index.html:1515) and that 2.4 is a constant -- a fighter's speed does not
+  change how he breathes. One cycle, 2.618 s, for all three.
+
 `verify()` puts the fist or the foot where the frame says it is and measures
-how far forward of the guard it got. It is what caught all four. Nine checks
-guard the plan and each has been made to fail; the one that decides which
-bosses have a phase two reads the browser's `isBoss` line rather than a
-constant copied out of it, because a copy goes stale quietly.
+how far forward of the guard it got, how far the hip rose, and whether
+either foot is still on the ground. It is what caught five of the seven.
+Sixteen checks guard this tool -- ten assertions over the plan, six
+conditions over the motion itself -- and every one of the sixteen has been
+made to fail by breaking the one thing it guards. The one that decides
+which bosses have a phase two reads the browser's `isBoss` line rather than
+a constant copied out of it, because a copy goes stale quietly, and it was
+proved by changing the browser's answer rather than the tool's.
 
 **Not wired, and there is nothing to wire it to.** The only line that plays a
 montage is `AhmedAttackAbility.cpp:85`, and nothing in C++ ever calls
@@ -428,7 +456,10 @@ Making that seam is engine work on a project that has never compiled.
 
 **Not verified.** No engine has imported a single one of these clips. They
 were authored in Blender, exported to FBX, read back into Blender and
-measured there, and that is the whole of the proof. `Content/Animation/Bosses/boss-motion.png`
+measured there, and that is the whole of the proof. The read-back now
+compares the round-tripped pose against the authored one bone by bone and
+it agrees to 0.2 mm -- with the keys shifted one frame, which is Blender's
+own FBX importer's convention and not something in the file. `Content/Animation/Bosses/boss-motion.png`
 is a contact sheet of every clip drawn as the skeleton itself, which is how
 they were judged.
 

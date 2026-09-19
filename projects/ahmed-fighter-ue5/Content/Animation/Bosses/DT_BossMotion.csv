@@ -5,14 +5,14 @@ A_Boss_Hook,Boss,Hook,A_Boss_Hook.fbx,0.480,14,4,rear_arm,false,false
 A_Boss_Kick,Boss,Kick,A_Boss_Kick.fbx,0.530,16,5,rear_leg,false,false
 A_Boss_Knee,Boss,Knee,A_Boss_Knee.fbx,0.470,14,4,rear_leg,false,false
 A_Boss_Special,Boss,Special,A_Boss_Special.fbx,0.780,23,5,rear_leg,false,true
-A_Boss_Guard,Boss,,A_Boss_Guard.fbx,2.000,60,-1,,true,false
+A_Boss_Guard,Boss,,A_Boss_Guard.fbx,2.618,79,-1,,true,false
 A_Saqr_Kick,Saqr,Kick,A_Saqr_Kick.fbx,0.530,16,5,rear_leg,false,false
 A_Saqr_Jab,Saqr,Jab,A_Saqr_Jab.fbx,0.260,8,2,lead_arm,false,false
 A_Saqr_Cross,Saqr,Cross,A_Saqr_Cross.fbx,0.360,11,3,rear_arm,false,false
 A_Saqr_Knee,Saqr,Knee,A_Saqr_Knee.fbx,0.470,14,4,rear_leg,false,false
 A_Saqr_Special,Saqr,Special,A_Saqr_Special.fbx,0.780,23,5,rear_leg,false,true
-A_Saqr_Guard,Saqr,,A_Saqr_Guard.fbx,1.600,48,-1,,true,false
+A_Saqr_Guard,Saqr,,A_Saqr_Guard.fbx,2.618,79,-1,,true,false
 A_Zayos_Jab,Zayos,Jab,A_Zayos_Jab.fbx,0.260,8,2,lead_arm,false,false
 A_Zayos_Cross,Zayos,Cross,A_Zayos_Cross.fbx,0.360,11,3,rear_arm,false,false
 A_Zayos_Hook,Zayos,Hook,A_Zayos_Hook.fbx,0.480,14,4,rear_arm,false,false
-A_Zayos_Guard,Zayos,,A_Zayos_Guard.fbx,2.400,72,-1,,true,false
+A_Zayos_Guard,Zayos,,A_Zayos_Guard.fbx,2.618,79,-1,,true,false
