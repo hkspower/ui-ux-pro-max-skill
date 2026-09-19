@@ -148,6 +148,57 @@ harness, and the harness as a whole still passes -- but `WaveDirector.cpp`
 and `AhmedGameMode.cpp` cannot be compiled by anything here, so the two C++
 changes to them are read-reviewed, not run.
 
+## The open world is built, not bought
+
+Since 2026-09-19 there are two ways to get AL-HALQA as one map, and they
+build the same world:
+
+- `Tools/fab/lay_out_world.py` lays the game over a map you have imported
+  from Fab. The ground, the buildings and the sky are the map's; this only
+  adds directors, gates, doorways and a player start at positions worked out
+  from the tables. It is the better-looking of the two and always will be,
+  because a bought map is real art.
+- `Tools/levels/build_world.py` builds the place as well as the game in it:
+  the ground, the street through each district, the blocks either side, the
+  rim with a gap at every way out, the roads between districts, one sun over
+  all of it -- and then the same gameplay actors. **It exists because until
+  it did, there was no way to get an open world out of this project without
+  buying a map first.**
+
+They agree by construction: same ring placement, same `DistrictExtent`, same
+`AhmedArena::SpiralPoint`, so a district is in the same place and the same
+size either way. Build this one, and replacing it later with a Fab map is an
+upgrade rather than a migration.
+
+**The place is derived, never authored.** The street IS the spiral the sites
+are placed along, so the way through a district passes everything the stage
+meant you to meet, in the order the browser build tuned, and a fight is always
+just off the road. What stands either side is a polar lattice of plots thinned
+by a per-theme density, with anything that would stand in the street, inside a
+fight, or off the edge dropped. That derivation is the Unity port's
+`Assets/Scripts/World/Landmarks.cs` in centimetres -- the same vocabulary per
+theme, spacing, drop rules and hash -- so the two open worlds are recognisably
+one place. **Change a vocabulary number in one and change it in the other**;
+a Python file cannot import C#, and that is the whole reason the duplication
+is deliberate rather than accidental.
+
+Not ported: the Unity port's three floors. Its districts have a cellar and a
+roof; this build's have a street and nothing else, because porting floors is
+a job and inventing them here would be scope nobody asked for.
+
+Checked without an engine, by the script itself: no district overlaps
+another, nothing solid stands in a street or a fight or off an edge, every
+way out is a gap in its own rim, every doorway opens onto the one that
+answers it, and nothing walkable is laid over a hole. That last one is there
+because the first draft failed it -- the roads between districts were paved
+across the gap between two ground discs, which is to say across nothing, and
+drawing `Docs/world-map.png` and looking at it is what caught it. Roads carry
+their own ground now.
+
+**Still unverified, like the rest of this directory**: no engine has built
+the map. The Python Editor Scripting calls are read-reviewed, not run, the
+same as `build_levels.py`'s and `lay_out_world.py`'s always have been.
+
 ## L_Prologue -- Ahmed's life before he fell
 
 Since 2026-09-19, and **only in this build**: the game opens on a level that

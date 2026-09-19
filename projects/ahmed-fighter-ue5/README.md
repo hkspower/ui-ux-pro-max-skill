@@ -495,6 +495,34 @@ project-wide, sends anyone who has already played it straight to
 here instead. See `CLAUDE.md`'s own section on it for why this is a deliberate
 exception to the story canon, and only in this build.
 
+### Building the open world without buying one
+
+`Tools/levels/build_world.py` makes the whole of AL-HALQA as one map, ground
+and all — no Fab purchase, no imported terrain:
+
+```bash
+python3 Tools/levels/build_world.py     # prints the plan, checks it, draws Docs/world-map.png
+# then inside the editor:
+#   exec(open(r"/path/to/Tools/levels/build_world.py").read())
+```
+
+It puts down 2,816 pieces of place and 65 gameplay actors: nine round
+districts (the arena at the hub, eight in a ring), the ground under each, the
+street running along the spiral the fights are placed on, blocks either side
+of it drawn from the district's theme, a rim with a gap at every way out,
+paved roads between neighbours with their own ground carried under them, and
+one sun over the lot.
+
+The place is **derived, not authored** — it is the Unity port's
+`Landmarks.cs` in centimetres, same vocabulary per theme, same drop rules,
+same hash, so the two open worlds are the same place. A souq is the densest
+thing in the game and the desert is nearly empty because those tables say so,
+not because anyone placed a stall.
+
+`Docs/world-map.png` is drawn on every run, which is how the first draft's
+real bug was found: the roads between districts were paved across the gap
+between two ground discs. They carry ground now, and `check()` asserts it.
+
 ### Importing an open-world map from Fab
 
 The nine blockout levels are one way to hold the world. The other, since
