@@ -58,14 +58,25 @@ window.ASSET_COLORS = {
 
   /* What a player reads off a bar, a badge or a glow. Each of these means one
      thing and is used nowhere else -- that is what makes a colour legible at
-     a glance instead of decorative. */
+     a glance instead of decorative.
+
+     HP, MP and RG are three thin bars stacked in one place with no numeral
+     and no icon -- fill colour is the only thing that says which is which,
+     so any two of them sitting close under a colour-vision simulation is a
+     real bug, not a palette nitpick. hurt and rage were both measured too
+     close to a neighbour this way and were moved: hurt away from mana (they
+     used to sit within a tenth of each other under every simulated
+     deficiency), rage brightened until it also clears WCAG's 3:1 floor
+     against a panel, which the un-mixed fill colour of a bar has to. Ranks
+     were checked the same way and left alone: S/A/B/C always draw the
+     letter itself over the colour, so a badge is never colour-only. */
   state: {
     health:    '#37c26b',   // HP, and a good result
     critical:  '#e2413f',   // under a quarter health, and anything refused
-    hurt:      '#ff9a97',   // the far end of the critical pulse
+    hurt:      '#f9cee9',   // the far end of the critical pulse
     mana:      '#ff9a3c',   // MP
     stamina:   '#59b6ff',   // ST
-    rage:      '#7a4a90',   // RG, filling
+    rage:      '#9160a8',   // RG, filling
     rageFull:  '#e05cf0',   // RG at 100, and the finisher
     rageText:  '#e9a7ff'    // the READY flash beside it
   },

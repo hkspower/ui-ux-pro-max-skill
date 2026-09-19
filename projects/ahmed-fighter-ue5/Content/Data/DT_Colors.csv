@@ -15,10 +15,10 @@ Brand_Green,Brand,Brand.Green,#007a3d,#007a3d,0,0.4784,0.2392,1
 Brand_Gold,Brand,Brand.Gold,#edbe57,#edbe57,0.9294,0.7451,0.3412,1
 State_Health,State,State.Health,#37c26b,#37c26b,0.2157,0.7608,0.4196,1
 State_Critical,State,State.Critical,#e2413f,#e2413f,0.8863,0.2549,0.2471,1
-State_Hurt,State,State.Hurt,#ff9a97,#ff9a97,1,0.6039,0.5922,1
+State_Hurt,State,State.Hurt,#f9cee9,#f9cee9,0.9765,0.8078,0.9137,1
 State_Mana,State,State.Mana,#ff9a3c,#ff9a3c,1,0.6039,0.2353,1
 State_Stamina,State,State.Stamina,#59b6ff,#59b6ff,0.349,0.7137,1,1
-State_Rage,State,State.Rage,#7a4a90,#7a4a90,0.4784,0.2902,0.5647,1
+State_Rage,State,State.Rage,#9160a8,#9160a8,0.5686,0.3765,0.6588,1
 State_RageFull,State,State.RageFull,#e05cf0,#e05cf0,0.8784,0.3608,0.9412,1
 State_RageText,State,State.RageText,#e9a7ff,#e9a7ff,0.9137,0.6549,1,1
 Rank_S,Rank,Rank.S,#e05cf0,#e05cf0,0.8784,0.3608,0.9412,1

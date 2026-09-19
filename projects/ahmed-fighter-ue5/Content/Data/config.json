@@ -1762,11 +1762,11 @@
       "Name": "State_Hurt",
       "Group": "State",
       "Key": "State.Hurt",
-      "Css": "#ff9a97",
-      "Hex": "#ff9a97",
-      "R": 1,
-      "G": 0.6039,
-      "B": 0.5922,
+      "Css": "#f9cee9",
+      "Hex": "#f9cee9",
+      "R": 0.9765,
+      "G": 0.8078,
+      "B": 0.9137,
       "A": 1
     },
     {
@@ -1795,11 +1795,11 @@
       "Name": "State_Rage",
       "Group": "State",
       "Key": "State.Rage",
-      "Css": "#7a4a90",
-      "Hex": "#7a4a90",
-      "R": 0.4784,
-      "G": 0.2902,
-      "B": 0.5647,
+      "Css": "#9160a8",
+      "Hex": "#9160a8",
+      "R": 0.5686,
+      "G": 0.3765,
+      "B": 0.6588,
       "A": 1
     },
     {
@@ -2531,6 +2531,6 @@
       "Description": "The roofs. The stage loop opened out: wind, wide reverb, oud and qanun high above the street."
     }
   ],
-  "Revision": "b1ede1aa78744532",
-  "GeneratedAt": "2026-09-09T22:20:49.873Z"
+  "Revision": "5ea75c8d47305c7f",
+  "GeneratedAt": "2026-09-19T08:03:20.711Z"
 }
