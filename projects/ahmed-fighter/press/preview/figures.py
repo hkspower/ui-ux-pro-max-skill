@@ -164,8 +164,8 @@ MOODS = {
     # mouth angle, mouth width
     "set":    (0.13, 1.05, 0.24, -0.01, 0.30),    # young, level, still asking
     "narrow": (0.21, 1.10, 0.46, -0.16, 0.24),    # impatient, done asking
-    "heavy":  (0.10, 1.34, 0.40, 0.00, 0.28),     # settled, unbothered
-    "dull":   (0.02, 1.42, 0.44, 0.03, 0.20),     # slow, and only one idea
+    "heavy":  (0.14, 1.30, 0.34, 0.00, 0.30),     # settled, unbothered
+    "dull":   (-0.05, 1.50, 0.56, 0.02, 0.15),    # slow, and only one idea
     "wide":   (-0.14, 0.85, -0.12, 0.00, 0.28),   # falling
 }
 
@@ -217,8 +217,12 @@ def face(cx, cy, rx, ry, ink="#090b0f", tone="#262b3b", rim="#e5b750",
         # nose and the mouth sit on ink at 1.01:1 against the page and simply
         # are not there -- which is the failure this whole grammar exists to
         # undo, reintroduced one layer lower down.
-        g.append(ellipse(cx, cy + ry * 0.04, rx * 0.94, ry * 0.92,
-                         fill=tone, op=0.10))
+        # Measured: at 0.10 a brow on the SHADOW side of a face sat 2.4 L*
+        # from the face under it, which is a just-visible edge on coated
+        # stock and nothing at all on uncoated. The sky fills the shadow side
+        # of anything standing outdoors, and this is that fill.
+        g.append(ellipse(cx, cy + ry * 0.04, rx * 0.96, ry * 0.94,
+                         fill=tone, op=0.22))
         g.append(path(
             f"M{cx + L * rx * 0.34:.1f},{cy - ry * 0.82:.1f} "
             f"C{cx + L * rx * 0.92:.1f},{cy - ry * 0.60:.1f} "
@@ -273,7 +277,7 @@ def face(cx, cy, rx, ry, ink="#090b0f", tone="#262b3b", rim="#e5b750",
             # placed so that at lid=0 its lower edge just grazes the top of
             # the sclera, and at lid=0.46 it has come down to the iris
             g.append(ellipse(ex, eyey - eh * (2.40 - 1.70 * lid),
-                             ew * 1.32, eh * 1.44, fill=dark))
+                             ew * 1.62, eh * 1.44, fill=dark))
         g.append("</g>")
         g.append(path(f"M{ex - ew * 1.06:.1f},{eyey + eh * 0.20:.1f} "
                       f"C{ex - ew * 0.52:.1f},{eyey - eh * (1.02 - lid * 1.7):.1f} "
@@ -342,13 +346,16 @@ def face(cx, cy, rx, ry, ink="#090b0f", tone="#262b3b", rim="#e5b750",
                       f"{cx + mwx * 0.3:.1f},{my + ry * 0.025:.1f} "
                       f"{cx + mwx:.1f},{my + ma * ry:.1f}",
                       stroke=dark, w=max(1.2, ry * 0.038), op=0.95))
-    # --- 5. the lit edge of the lower lip, so the chin has a front
+    # --- 5. the lit edge of the lower lip. Only on the lit side of the
+    #        centreline, and only when the mouth is shut -- run across the
+    #        whole mouth it bulges downward under the lip line and every
+    #        character in the booklet reads as quietly amused.
     if not open_mouth:
-        g.append(path(f"M{cx + lit * mwx * 0.78:.1f},{my + ry * 0.05:.1f} "
-                      f"C{cx + lit * mwx * 0.24:.1f},{my + ry * 0.09:.1f} "
-                      f"{cx - lit * mwx * 0.16:.1f},{my + ry * 0.085:.1f} "
-                      f"{cx - lit * mwx * 0.42:.1f},{my + ry * 0.05:.1f}",
-                      stroke=soft, w=max(1.0, ry * 0.028), op=0.52))
+        g.append(path(f"M{cx + lit * mwx * 0.86:.1f},{my + ry * 0.04:.1f} "
+                      f"C{cx + lit * mwx * 0.52:.1f},{my + ry * 0.065:.1f} "
+                      f"{cx + lit * mwx * 0.26:.1f},{my + ry * 0.065:.1f} "
+                      f"{cx + lit * mwx * 0.06:.1f},{my + ry * 0.04:.1f}",
+                      stroke=soft, w=max(1.0, ry * 0.026), op=0.46))
     body = "".join(g)
     if tilt:
         return f'<g transform="rotate({tilt} {cx:.1f} {cy:.1f})">{body}</g>'
@@ -411,7 +418,7 @@ def ahmed_cross(ink="#090b0f", cloth="#21283f", tone="#2d3448", rim="#e5b750",
              '1300,228 Z"/></clipPath>')
     g.append('<g clip-path="url(#ahface)">')
     g.append(face(1318, 320, 47, 68, tone="#2f2a3c", rim=rim, iris="#e0bc63",
-                  mood="set", lit=1, turn=0.50, catch=True, gaze=(0.0, 0.0)))
+                  mood="set", lit=1, turn=0.50, catch=True, gaze=(0.20, 0.0)))
     g.append("</g>")
     g.append(path("M1352,300 C1372,304 1384,318 1388,338", stroke=rim, w=4, op=0.62))
 
@@ -548,6 +555,11 @@ def ahmed_falling(x, y, s=1.0, rot=24, ink="#090b0f", rim="#e5b750", wrap="#cd19
     figure that filled it would stop the fall reading as a fall.
     """
     g = [f'<g transform="translate({x},{y}) scale({s}) rotate({rot})">']
+    g.append(path("M-30,-160 C-10,-196 46,-194 64,-160 C40,-172 4,-174 -20,-162 Z", fill=ink))
+    g.append(path("M-34,-84 C-6,-96 28,-94 50,-80 C64,-30 66,34 52,84 "
+                  "C20,96 -14,94 -38,82 C-48,30 -48,-34 -34,-84 Z", fill=ink))
+    # the head goes on AFTER the trunk: tumbling, he comes at us face
+    # first, and drawn the other way round his own chest covered his mouth
     g.append(ellipse(0, -120, 42, 46, fill=ink))
     g.append('<clipPath id="flface"><ellipse cx="0" cy="-120" rx="42" ry="46"/>'
              '</clipPath>')
@@ -558,9 +570,6 @@ def ahmed_falling(x, y, s=1.0, rot=24, ink="#090b0f", rim="#e5b750", wrap="#cd19
                   mood="wide", lit=1, turn=0.12, catch=True, open_mouth=True,
                   gaze=(0.0, -0.46)))
     g.append("</g>")
-    g.append(path("M-30,-160 C-10,-196 46,-194 64,-160 C40,-172 4,-174 -20,-162 Z", fill=ink))
-    g.append(path("M-34,-84 C-6,-96 28,-94 50,-80 C64,-30 66,34 52,84 "
-                  "C20,96 -14,94 -38,82 C-48,30 -48,-34 -34,-84 Z", fill=ink))
     g.append(path("M-34,-78 C-78,-52 -124,-4 -152,52 L-118,78 "
                   "C-92,26 -54,-14 -22,-38 Z", fill=ink))
     g.append(ellipse(-140, 70, 26, 24, rot=20, fill=ink))
@@ -613,7 +622,7 @@ def wahsh(x, y, s=1.0, ink="#090b0f", tone="#2d252d", rim="#de5aee"):
     g.append(path("M-120,190 C-60,224 60,224 120,190 C142,290 148,404 140,520 L-140,520 "
                   "C-148,404 -142,290 -120,190 Z", fill=tone, op=0.85))
 
-    for d, w, o in (("M-88,-2 C-80,-82 -42,-126 0,-126", 7, 0.9),
+    for d, w, o in (("M88,-2 C80,-82 42,-126 0,-126", 7, 0.9),
                     ("M176,182 C232,262 258,376 250,510", 8, 0.95),
                     ("M194,172 C248,216 286,300 300,400", 6, 0.8),
                     ("M-176,182 C-226,254 -252,352 -250,470", 5, 0.45)):
@@ -705,23 +714,23 @@ def zayos(x, y, s=1.0, ink="#090b0f", tone="#272521", rim="#f99537"):
     """ZAYOS, in the cellar. A boxing monster: gloves, long arms, slow, and
     a body half again the size of any man in the Halqa. He only punches."""
     g = [f'<g transform="translate({x},{y}) scale({s})">']
-    g.append(path("M-210,480 C-224,344 -196,232 -144,158 C-96,90 -34,56 0,56 "
-                  "C34,56 96,90 144,158 C196,232 224,344 210,480 Z", fill=ink))
-    g.append(path("M-62,-8 C-62,-58 -34,-92 0,-92 C34,-92 62,-58 62,-8 "
-                  "C62,28 58,52 48,66 C30,80 -30,80 -48,66 "
-                  "C-58,52 -62,28 -62,-8 Z", fill=ink))
-    g.append('<clipPath id="zyface"><path d="M-62,-8 C-62,-58 -34,-92 0,-92 '
-             'C34,-92 62,-58 62,-8 C62,28 58,52 48,66 C30,80 -30,80 -48,66 '
-             'C-58,52 -62,28 -62,-8 Z"/></clipPath>')
+    g.append(path("M-276,480 C-292,336 -256,220 -190,148 C-126,78 -44,44 0,44 "
+                  "C44,44 126,78 190,148 C256,220 292,336 276,480 Z", fill=ink))
+    g.append(path("M-74,-10 C-74,-68 -40,-106 0,-106 C40,-106 74,-68 74,-10 "
+                  "C74,32 70,60 58,76 C36,92 -36,92 -58,76 "
+                  "C-70,60 -74,32 -74,-10 Z", fill=ink))
+    g.append('<clipPath id="zyface"><path d="M-74,-10 C-74,-68 -40,-106 0,-106 '
+             'C40,-106 74,-68 74,-10 C74,32 70,60 58,76 C36,92 -36,92 -58,76 '
+             'C-70,60 -74,32 -74,-10 Z"/></clipPath>')
     g.append('<g clip-path="url(#zyface)">')
     # the heaviest brow in the booklet and the smallest eyes under it: he is
     # enormous, he is slow, and he only punches. Straight ahead and slightly
     # through the reader -- a man with one idea.
-    g.append(face(0, 18, 52, 56, tone="#352d22", rim=rim, iris="#f7b170",
+    g.append(face(0, 16, 62, 64, tone="#352d22", rim=rim, iris="#f7b170",
                   mood="dull", lit=1, turn=0.0, gaze=(0.0, 0.10)))
     g.append("</g>")
-    g.append(path("M-70,-2 C-64,-64 -34,-100 0,-100 C34,-100 64,-64 70,-2 "
-                  "C50,-32 26,-46 0,-46 C-26,-46 -50,-32 -70,-2 Z", fill=ink))
+    g.append(path("M-82,-4 C-76,-74 -40,-116 0,-116 C40,-116 76,-74 82,-4 "
+                  "C58,-38 30,-54 0,-54 C-30,-54 -58,-38 -82,-4 Z", fill=ink))
     # arms long enough to be the point of him
     g.append(path("M-156,150 C-236,190 -304,286 -332,404 L-268,430 "
                   "C-244,330 -190,244 -130,206 Z", fill=ink))
@@ -733,11 +742,11 @@ def zayos(x, y, s=1.0, ink="#090b0f", tone="#272521", rim="#f99537"):
                   "C-268,448 -330,446 -364,482 Z", fill=tone))
     g.append(path("M372,448 C334,404 262,406 230,452 L238,486 "
                   "C268,448 330,446 364,482 Z", fill=tone))
-    g.append(path("M-104,176 C-52,206 52,206 104,176 C124,268 128,376 122,480 L-122,480 "
-                  "C-128,376 -124,268 -104,176 Z", fill=tone, op=0.8))
+    g.append(path("M-124,168 C-62,202 62,202 124,168 C148,264 152,376 146,480 L-146,480 "
+                  "C-152,376 -148,264 -124,168 Z", fill=tone, op=0.8))
 
-    for d, w, o in (("M-72,0 C-66,-62 -36,-98 0,-98", 6, 0.85),
-                    ("M144,158 C196,232 222,340 210,470", 7, 0.9),
+    for d, w, o in (("M72,0 C66,-62 36,-98 0,-98", 6, 0.85),
+                    ("M190,148 C256,220 288,336 276,470", 7, 0.9),
                     ("M162,156 C238,196 304,288 332,402", 6, 0.8),
                     ("M-346,436 C-310,400 -252,404 -226,444", 6, 0.85)):
         g.append(path(d, stroke=rim, w=w, op=o))
