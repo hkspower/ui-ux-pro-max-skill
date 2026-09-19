@@ -204,6 +204,74 @@ their own ground now.
 the map. The Python Editor Scripting calls are read-reviewed, not run, the
 same as `build_levels.py`'s and `lay_out_world.py`'s always have been.
 
+## The stone island is an island, and there are animals on it
+
+Since 2026-09-19. `Tools/levels/build_island.py` builds
+`L_JaziratAlHajar_Island`: the sixth district of the ring with water round
+it rather than as another flat disc.
+
+**Why a separate script.** `build_world.py` lays the whole ring down as nine
+ground discs, because a ring of nine discs is what the open world is. One of
+those nine is called the stone island in its own briefing -- "They fall back
+to the stone island ... There is nowhere to run out here" -- and a disc does
+not say that. Teaching the world builder about water would put a seabed under
+eight districts that do not want one, so this builds the one that does, the
+same way `build_prologue.py` builds the one level that is not a district.
+
+**It does not move the map.** The island is stage index 5, it is already on
+the ring, and its extent, street, wave positions, gate and two ways out come
+out of `DT_Stages.json` and `DT_World.json` through the same three
+derivations everything else uses -- `DistrictExtent`, `SpiralPoint`,
+`Hash01`. Nothing here adds a tenth place or opens the wheel.
+
+**What is new is the animals, and they were asked for.** There are no animals
+anywhere else in this game, in any build, in any table. Seven species live on
+the island, each tied to a band of it rather than scattered over it: gulls on
+the tide line, terns and cormorants on the rocks offshore, a heron standing
+in the shallows, cats among the ruins, a herd of goats inland, crabs on the
+wet sand. Failaka's own feral cats and left-behind goats are why those two
+are there.
+
+They are **ambient only**. They have no health, no team and no fight; they are
+not in `DT_Fighters` and `check()` asserts they never get in; nothing in the
+combat code knows they exist. Each carries a flee radius, which is a number
+for a Blueprint that has not been written -- the behaviour is not there and is
+not pretended at.
+
+**3D modelling, in the sense this project has always meant it.** There is no
+DCC tool in this repository and no mesh library, and `build_world.py`
+assembles a city out of engine primitives -- so a gull is assembled the same
+way: a body, a neck, a head, a beak, two wings and two legs, each a scaled
+sphere, cube, cone or cylinder in the animal's own local centimetres. Ninety-
+four animals, 1,102 parts. Every part carries the slot name an artist would
+replace it through, and each animal is one parent actor with its parts
+attached, so replacing a gull is deleting seven cubes and dropping a mesh on
+the parent.
+
+**A way out of an island is a jetty.** The exit trigger still sits on the
+district rim at `E - ExitMargin` at its role's fixed bearing, where
+`AAhmedGameMode::PlaceArrivingPlayer` and `AWaveDirector` both expect it; the
+jetty is what you walk along to reach it, and `check()` proves it is
+continuous from the stone to the rim -- the same assertion that caught the
+open world's roads being paved across nothing.
+
+**Checked without an engine, by the script itself**, and every check was
+proved to bite by breaking the island on purpose: nothing stands off the
+ground it is on, nothing is under the sea, no animal is outside its band, in
+the road, in a fight, in a doorway or inside another animal, every bird on a
+rock is on a rock that exists, no ruin stands on the street or off the stone,
+every way out has an unbroken jetty, and every exit is on the rim at its own
+bearing. `Docs/island-map.png` is a plan and a section -- the section is the
+half that matters, because a top-down map of an island cannot show whether
+the stone is above the water.
+
+**Unverified, like the rest of this directory.** No engine has built the
+level. The Python Editor Scripting calls are read-reviewed, not run. The one
+most likely to need correcting is `Actor.attach_to_actor` with three
+`AttachmentRule` arguments, which has moved between engine versions; if it
+fails, the animals will build as loose parts in the right places rather than
+as parented actors.
+
 ## L_Prologue -- Ahmed's life before he fell
 
 Since 2026-09-19, and **only in this build**: the game opens on a level that
