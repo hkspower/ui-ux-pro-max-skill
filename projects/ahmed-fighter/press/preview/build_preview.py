@@ -126,6 +126,16 @@ def table(name):
 # variable file per family, came out of the PDF as Liberation Serif while
 # looking perfect in an on-screen proof. `font_css` refuses to build if a
 # family ever ships one file for two weights again.
+# The Japanese is a handful of katakana and two kanji, so it is fetched as a
+# subset of exactly the characters the booklet sets -- one 3 KB file instead
+# of the 120 slices a whole CJK family ships as. Until this was here the
+# Japanese was the only type in the booklet resolving from the BUILD
+# MACHINE's fonts, which meant the PDF printed differently anywhere else --
+# and the stray-font check below was written whitelisting IPAGothic, so it
+# could never have told anyone.
+JP_FAMILY = "Noto Sans JP"
+JP_SPEC = "Noto Sans JP:wght@500"
+
 GF = {
     "Almarai": "Almarai:wght@400;700;800",
     "Tajawal": "Tajawal:wght@400;500;700;900",
@@ -193,6 +203,28 @@ def font_css():
                          f"{f['weight']} -- it is a variable font and will not "
                          f"embed. Choose a static family.")
             seen[key] = f["weight"]
+        # the Japanese, subset to the glyphs this booklet actually sets
+        src_all = "".join(open(os.path.join(HERE, f), encoding="utf-8").read()
+                          for f in ("build_preview.py", "figures.py"))
+        jp = "".join(sorted({c for c in src_all
+                             if "\u3040" <= c <= "\u30ff" or "\u4e00" <= c <= "\u9fff"}))
+        if jp:
+            import urllib.parse
+            q = urllib.parse.urlencode({"family": JP_SPEC, "text": jp,
+                                        "display": "block"})
+            css = fetch("https://fonts.googleapis.com/css2?" + q).decode()
+            for blk in re.findall(r"@font-face\s*\{(.*?)\}", css, re.S):
+                m = re.search(r"url\((https://[^)]+)\)", blk)
+                if not m:
+                    continue
+                data = fetch(m.group(1))
+                if not data.startswith(b"wOF2"):
+                    sys.exit("the Japanese subset did not come back as a font")
+                ur = re.search(r"unicode-range:\s*([^;]+);", blk)
+                faces.append({"family": JP_FAMILY, "weight": 500,
+                              "range": ur.group(1).strip() if ur else "",
+                              "url": m.group(1),
+                              "b64": base64.b64encode(data).decode()})
         json.dump(faces, open(cache, "w", encoding="utf-8"))
     out = []
     for f in faces:
@@ -229,15 +261,17 @@ html, body {{ margin: 0; padding: 0; background: {C['void']};
 .page > svg {{ position: absolute; left: 0; top: 0; }}
 
 /* --- type. Latin is condensed and shouting; Arabic is not asked to shout
-       in a face that was not drawn for it, so headings are Reem Kufi and
-       running text is Cairo. */
+       in a face that was not drawn for it, so headings are Almarai ExtraBold
+       and running text is Tajawal. NOT Reem Kufi and Cairo: those are
+       variable fonts, Chromium will not embed a variable font in a PDF, and
+       the booklet printed in Liberation Serif for a while because of it. */
 .dsp  {{ font-family: 'Bebas Neue', 'Barlow Condensed', 'Tajawal', sans-serif;
          font-weight: 400; letter-spacing: .02em; }}
 .lat  {{ font-family: 'Barlow Condensed', 'Tajawal', sans-serif; }}
 .ar   {{ font-family: 'Tajawal', 'Almarai', sans-serif; direction: rtl; }}
 .arh  {{ font-family: 'Almarai', 'Tajawal', sans-serif; direction: rtl;
          font-weight: 800; }}
-.jp   {{ font-family: 'IPAGothic', 'Noto Sans JP', 'WenQuanYi Zen Hei', sans-serif; }}
+.jp   {{ font-family: 'Noto Sans JP', 'IPAGothic', sans-serif; }}
 .jpv  {{ writing-mode: vertical-rl; text-orientation: upright; }}
 
 .kick {{ font-family: 'Barlow Condensed', 'Tajawal', sans-serif;
@@ -625,6 +659,24 @@ def page_fall(C, S, stamp):
 
 # ------------------------------------------------------------ 03 · the ring
 
+def counts(S):
+    """How many places there are, counted rather than typed.
+
+    The booklet said "nine places, and the ninth in the middle" on page 3,
+    "eight districts, one arena" in the same page's footer, and "ten places,
+    nine on the ring" on page 8 -- three different answers to one question,
+    in a document whose whole claim is that its numbers come from the game.
+    The truth: eight districts on the ring, the arena at the hub, and
+    survival, which is not on the map at all.
+    """
+    ring = [x for x in S if not x["bSurvival"] and not x["bIsBossStage"]
+            or (x["bIsBossStage"] and x["Index"] < 8)]
+    hub = [x for x in S if x["Index"] == 8]
+    off = [x for x in S if x["bSurvival"]]
+    return dict(ring=len(ring), hub=len(hub), off=len(off),
+                on_map=len(ring) + len(hub), total=len(S))
+
+
 def page_ring(C, S, stamp):
     """The map, drawn from the table that the game walks.
 
@@ -723,8 +775,9 @@ def page_ring(C, S, stamp):
 </svg>"""
 
     return f"""<section class="page">{svg}
-{header(C, 'الحلقة', 'THE RING', 3, 'NINE PLACES, AND THE ONE IN THE MIDDLE',
-        'تسعة أماكن، والتاسع في المنتصف')}
+{header(C, 'الحلقة', 'THE RING', 3,
+        f'{counts(S)["ring"]} ON THE RING, AND THE ONE IN THE MIDDLE',
+        f'ثمانية على الحلقة، وواحد في المنتصف')}
 {''.join(labels)}
 <div class="abs arh" style="left:{cx - 150}px;top:{cy - 92}px;width:300px;
      text-align:center;font-size:52px;color:{C['rageFull']};line-height:1.2">
@@ -776,11 +829,27 @@ def page_ring(C, S, stamp):
     Every link is sealed until Ahmed learns the thing that opens it, and the
     thing that opens it is always behind a fight.</div>
 </div>
-{foot(C, 'AL-HALQA — THE RING', 'EIGHT DISTRICTS · ONE ARENA · ONE DOOR', 3)}
+{foot(C, 'AL-HALQA — THE RING',
+      f'{counts(S)["ring"]} DISTRICTS · {counts(S)["hub"]} ARENA · ONE DOOR', 3)}
 </section>"""
 
 
 # --------------------------------------------------- 04 & 05 · the districts
+
+# Survival has no wave count, and the mark for that is a lemniscate -- which
+# none of the four families this booklet embeds carries. Set as text it fell
+# back to the machine's Liberation Sans for one glyph, which is exactly what
+# the font guard exists to catch, and it caught it. So it is drawn, like
+# everything else in here: 20 x 11 at a 30 px line, sitting on the numerals'
+# own baseline.
+INFINITY = (
+    '<svg viewBox="0 0 40 22" width="30" height="16.5" style="vertical-align:-2px" '
+    'xmlns="http://www.w3.org/2000/svg">'
+    '<path d="M20,11 C15,2 8,2 5,5 C1,8 1,14 5,17 C8,20 15,20 20,11 '
+    'C25,2 32,2 35,5 C39,8 39,14 35,17 C32,20 25,20 20,11 Z" '
+    'fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg>'
+)
+
 
 def district_card(C, st, x, y, w, h, tal, gates):
     gold, cream = C['gold'], C['bright']
@@ -794,7 +863,15 @@ def district_card(C, st, x, y, w, h, tal, gates):
                    if g["RewardAbility"] != "None"), None)
 
     vh = 296
-    rows = [("WAVES", waves), ("FIGHTERS", foes), ("WALK", f"{metres:.0f} m")]
+    def plural(n, one, many):
+        return one if n == 1 else many
+
+    # Survival's table holds one wave because it repeats; the card shows the
+    # lemniscate, so the label has to agree with what is printed beside it.
+    rows = [("WAVE" if (waves == 1 and not survival) else "WAVES",
+             INFINITY if survival else waves),
+            (plural(foes, "FIGHTER", "FIGHTERS"), foes),
+            ("WALK", f"{metres:.0f} m")]
     stat = "".join(
         f'<div style="flex:1"><div class="num gold" style="font-size:30px">{v}</div>'
         f'<div class="tag" style="font-size:11px;letter-spacing:.14em;'
@@ -1117,9 +1194,12 @@ def page_ladder(C, S, stamp):
 
 def page_back(C, S, stamp):
     gold, cream = C['gold'], C['bright']
+    K = counts(S)
     facts = [
-        ("الحكاية", "STORY", "عشرة أماكن · تسعة على الحلقة وواحد في المنتصف",
-         "Ten places · nine on the ring and one at the hub"),
+        ("الحكاية", "STORY",
+         f"{K['on_map']} أماكن على الخريطة · ثمانية على الحلقة وواحد في المنتصف",
+         f"{K['on_map']} places on the map · {K['ring']} on the ring and "
+         f"{K['hub']} at the hub, and one that is on neither"),
         ("المحرّك", "ENGINE", "أنريل إنجن 5 من إيبك",
          "Epic's Unreal Engine 5"),
         ("المنصّات", "PLATFORM", "حاسب ومنصّات — لا هاتف",
@@ -1204,7 +1284,9 @@ def render(html, out_pdf, pngs=None):
         blob = open(out_pdf, "rb").read()
         used = sorted({m.decode().split("+")[-1] for m in
                        re.findall(rb"/BaseFont\s*/([A-Za-z0-9+\-]+)", blob)})
-        ours = ("Almarai", "Tajawal", "BebasNeue", "BarlowCondensed", "IPAGothic")
+        # IPAGothic is NOT in this list, and that is the point: it is the
+        # build machine's own font. If it appears, the Japanese fell back.
+        ours = ("Almarai", "Tajawal", "BebasNeue", "BarlowCondensed", "NotoSansJP")
         stray = [u for u in used if not u.startswith(ours)]
         print("  fonts: " + ", ".join(used))
         if stray:

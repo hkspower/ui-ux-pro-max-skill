@@ -341,10 +341,11 @@ def face(cx, cy, rx, ry, ink="#090b0f", tone="#262b3b", rim="#e5b750",
                       f"{cx + mwx * 0.40:.1f},{my + ry * 0.175:.1f}",
                       stroke=soft, w=max(1.0, ry * 0.026), op=0.60))
     else:
-        g.append(path(f"M{cx - mwx:.1f},{my - ma * ry:.1f} "
+        tilt_y = ma * mwx * 1.15
+        g.append(path(f"M{cx - mwx:.1f},{my - tilt_y:.1f} "
                       f"C{cx - mwx * 0.3:.1f},{my + ry * 0.025:.1f} "
                       f"{cx + mwx * 0.3:.1f},{my + ry * 0.025:.1f} "
-                      f"{cx + mwx:.1f},{my + ma * ry:.1f}",
+                      f"{cx + mwx:.1f},{my + tilt_y:.1f}",
                       stroke=dark, w=max(1.2, ry * 0.038), op=0.95))
     # --- 5. the lit edge of the lower lip. Only on the lit side of the
     #        centreline, and only when the mouth is shut -- run across the
@@ -566,9 +567,16 @@ def ahmed_falling(x, y, s=1.0, rot=24, ink="#090b0f", rim="#e5b750", wrap="#cd19
     g.append('<g clip-path="url(#flface)">')
     # his eyes are turned back up toward the light he is falling away from.
     # He is looking at the hole. That is the whole page.
+    # He is looking UP THE PAGE, at the hole he is falling away from -- and
+    # the whole figure is inside a rotate(rot), so a gaze written in the
+    # face's own coordinates points somewhere else entirely once it is drawn.
+    # Turn it back by the figure's own rotation.
+    _a = math.radians(rot)
+    _gx = 0.0 * math.cos(_a) + (-0.46) * math.sin(_a)
+    _gy = -0.0 * math.sin(_a) + (-0.46) * math.cos(_a)
     g.append(face(0, -118, 42, 46, tone="#282e41", rim=rim, iris="#e0bc63",
                   mood="wide", lit=1, turn=0.12, catch=True, open_mouth=True,
-                  gaze=(0.0, -0.46)))
+                  gaze=(_gx, _gy)))
     g.append("</g>")
     g.append(path("M-34,-78 C-78,-52 -124,-4 -152,52 L-118,78 "
                   "C-92,26 -54,-14 -22,-38 Z", fill=ink))
@@ -760,11 +768,24 @@ def crowd(x, y, w, n=26, seed=11, ink="#090b0f", rim=None, op=1.0, h=90):
 
     No faces, on purpose -- they are backlit and behind the fight, and a ring
     of tiny expressions would pull the eye off the one face that matters.
-    What they DO need is to stop being identical: the first draft was a row
-    of perfect circles on perfect domes, which reads as balloons on a stick
-    rather than as people. Each one now gets its own head shape, a tilt, a
-    neck, shoulders that are not a mirror of themselves, and one head in
-    three turned to the side with the nose and chin that implies.
+    What they DO need is to stop being identical: each gets its own head
+    shape, a tilt, a neck that is actually visible, shoulders that are not a
+    mirror of themselves, and one head in three turned to the side.
+
+    Three things were wrong with the first attempt at that, all found by
+    measuring the rendered pages rather than by reading this:
+
+    - The shoulder rim light was stroked along a curve that was NOT the
+      shoulder, so 80 to 98 per cent of its pixels fell on the page behind
+      the figure. The outline is built once now and the fill and the rim are
+      the same path.
+    - The head sat lower than the shoulder line, so the neck was inside the
+      union of the two and no crowd figure had one. The head is lifted clear
+      of the shoulders by a fifth of its own width.
+    - `facing` was drawn from the same hash as the tilt, so the crowd had
+      two poses rather than many, and the head size was a hard-coded
+      constant, so the same call gave heads 1.55x larger relative to the
+      body in one vignette than in another. Both come off their own numbers.
     """
     g = [f'<g opacity="{op}">']
     for i in range(n):
@@ -773,53 +794,61 @@ def crowd(x, y, w, n=26, seed=11, ink="#090b0f", rim=None, op=1.0, h=90):
             return v - math.floor(v)
         j, j2 = hash01(13.7, 9.1), hash01(4.31, 27.7)
         j3, j4 = hash01(27.13, 3.77), hash01(9.77, 17.31)
+        j5 = hash01(41.9, 7.13)                  # facing: its own hash
         px = x + w * (i + 0.5 * j) / n
         sc = 0.72 + 0.6 * j2
-        hd = 17 * sc
+        # Head AND shoulders both come off h. Before, the head was a hard
+        # constant and the shoulders were another one, so the two only
+        # agreed at the one height the numbers were tuned at -- which is
+        # why the crowd was 1.55x closer in one vignette than in another.
+        # A head is about 0.44 of a shoulder width; these two keep that.
+        hd = h * sc * 0.135
         py = y - 4 * j
-        tilt = (j3 - 0.5) * 22                      # nobody stands square on
-        facing = -1 if j3 < 0.5 else 1   # its own hash: gating this
-                                         # on j4, which also decides
-                                         # WHO turns, made every
-                                         # turned head face right
-        hy = py - h * sc - hd * 0.92
+        tilt = (j3 - 0.5) * 22
+        facing = -1 if j5 < 0.5 else 1
+        rx, ry = hd * (0.90 + 0.14 * j3), hd * (1.02 + 0.16 * j4)
+        shoulder_top = py - h * sc
+        hy = shoulder_top - hd * 0.22 - ry       # clear of the shoulders
 
-        # neck first, so the head sits on top of it rather than beside it
-        g.append(path(f"M{px - 7 * sc:.1f},{hy + hd * 0.7:.1f} "
-                      f"L{px + 7 * sc:.1f},{hy + hd * 0.7:.1f} "
-                      f"L{px + 10 * sc:.1f},{py - h * sc + 6 * sc:.1f} "
-                      f"L{px - 10 * sc:.1f},{py - h * sc + 6 * sc:.1f} Z", fill=ink))
-        # the skull: taller than wide, and never the same ratio twice
-        g.append(ellipse(px, hy, hd * (0.90 + 0.14 * j3), hd * (1.02 + 0.16 * j4),
-                         rot=tilt, fill=ink))
-        if j4 > 0.62:                               # turned away: nose and chin
-            g.append(path(f"M{px + facing * hd * 0.80:.1f},{hy - hd * 0.10:.1f} "
-                          f"L{px + facing * hd * 1.24:.1f},{hy + hd * 0.16:.1f} "
-                          f"L{px + facing * hd * 0.86:.1f},{hy + hd * 0.40:.1f} Z",
-                          fill=ink))
-        # shoulders, leaning the way the head is turned
-        lw, rw = 46 * sc * (1.0 + 0.16 * j3), 46 * sc * (1.0 - 0.12 * j3)
+        lw = h * sc * 0.30 * (1.0 + 0.16 * j3)
+        rw = h * sc * 0.30 * (1.0 - 0.12 * j3)
         drop = h * sc * (0.86 + 0.10 * j)
-        g.append(path(f"M{px - lw:.1f},{py} "
+        # the right-hand half of the shoulder, built once so the rim light
+        # can be the same curve as the edge it is supposed to be lighting
+        right = (f"C{px + rw * 0.46:.1f},{shoulder_top:.1f} "
+                 f"{px + rw * 0.94:.1f},{py - drop * 0.84:.1f} "
+                 f"{px + rw:.1f},{py:.1f}")
+        neck_top = hy + ry - 2.0
+        g.append(path(f"M{px - hd * 0.42:.1f},{neck_top:.1f} "
+                      f"L{px + hd * 0.42:.1f},{neck_top:.1f} "
+                      f"L{px + hd * 0.58:.1f},{shoulder_top + 4:.1f} "
+                      f"L{px - hd * 0.58:.1f},{shoulder_top + 4:.1f} Z", fill=ink))
+        g.append(ellipse(px, hy, rx, ry, rot=tilt, fill=ink))
+        if j4 > 0.62:
+            # a nose and a chin, anchored ON the skull at both ends. The
+            # first version spiked a triangle off the widest point of the
+            # ellipse and five of the thirty in the booklet had a base
+            # vertex outside the head, cutting a notch under the barb.
+            g.append(path(f"M{px + facing * rx * 0.88:.1f},{hy - ry * 0.20:.1f} "
+                          f"C{px + facing * rx * 1.16:.1f},{hy - ry * 0.04:.1f} "
+                          f"{px + facing * rx * 1.14:.1f},{hy + ry * 0.16:.1f} "
+                          f"{px + facing * rx * 0.94:.1f},{hy + ry * 0.30:.1f} "
+                          f"C{px + facing * rx * 0.99:.1f},{hy + ry * 0.52:.1f} "
+                          f"{px + facing * rx * 0.72:.1f},{hy + ry * 0.74:.1f} "
+                          f"{px + facing * rx * 0.44:.1f},{hy + ry * 0.80:.1f} Z",
+                          fill=ink))
+        g.append(path(f"M{px - lw:.1f},{py:.1f} "
                       f"C{px - lw * 0.96:.1f},{py - drop * 0.80:.1f} "
-                      f"{px - lw * 0.44:.1f},{py - h * sc:.1f} "
-                      f"{px + facing * 3 * sc:.1f},{py - h * sc:.1f} "
-                      f"C{px + rw * 0.46:.1f},{py - h * sc:.1f} "
-                      f"{px + rw * 0.94:.1f},{py - drop * 0.84:.1f} "
-                      f"{px + rw:.1f},{py} Z", fill=ink))
+                      f"{px - lw * 0.44:.1f},{shoulder_top:.1f} "
+                      f"{px + facing * 3 * sc:.1f},{shoulder_top:.1f} "
+                      f"{right} Z", fill=ink))
         if rim and j > 0.58:
-            # the rim hugs the skull it is on; a light that bulges off the
-            # head reads as a stray mark, which is what the first pass did
-            rx, ry = hd * (0.90 + 0.14 * j3), hd * (1.02 + 0.16 * j4)
             g.append(path(f"M{px + rx * 0.30:.1f},{hy - ry * 0.94:.1f} "
                           f"C{px + rx * 0.80:.1f},{hy - ry * 0.74:.1f} "
                           f"{px + rx:.1f},{hy - ry * 0.28:.1f} "
                           f"{px + rx * 0.94:.1f},{hy + ry * 0.24:.1f}",
                           stroke=rim, w=2.2 * sc, op=0.50))
-            g.append(path(f"M{px + rw * 0.58:.1f},{py - h * sc * 0.90:.1f} "
-                          f"C{px + rw * 0.90:.1f},{py - drop * 0.70:.1f} "
-                          f"{px + rw * 0.99:.1f},{py - drop * 0.28:.1f} "
-                          f"{px + rw:.1f},{py:.1f}",
+            g.append(path(f"M{px + facing * 3 * sc:.1f},{shoulder_top:.1f} {right}",
                           stroke=rim, w=2.4 * sc, op=0.40))
     g.append("</g>")
     return "".join(g)
