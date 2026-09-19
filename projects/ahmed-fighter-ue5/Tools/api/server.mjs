@@ -31,6 +31,15 @@
 
                GET /health                 for whatever is watching the process
 
+     Portal.   GET /portal                 a person's way in: sign in, then
+                                           see the live revision, browse the
+                                           tables, and list, read or delete
+                                           the saved profiles. Its own login
+                                           and session cookie, never the
+                                           SAVE_TOKEN -- see portal.mjs, which
+                                           holds all of it. Off unless
+                                           PORTAL_USER and a password are set.
+
    Run:  node Tools/api/server.mjs                  (port 8787)
          PORT=9000 node Tools/api/server.mjs
          node Tools/api/server.mjs --watch          (re-read on every request too)
@@ -47,6 +56,13 @@
    not want to ship, and a save endpoint with no token is a save endpoint
    anyone can write to. Put it behind a TLS terminator, set SAVE_TOKEN, and
    point the game at the https:// and wss:// addresses.
+
+   The portal is the same story twice over: its session cookie is marked
+   Secure, which a browser will simply not return over plain HTTP, so in
+   front of a terminator nobody can stay signed in (PORTAL_INSECURE_COOKIE=1
+   exists for a laptop and is not for anything else). Behind one, it is a
+   login on the public internet: use PORTAL_PASSWORD_HASH rather than
+   PORTAL_PASSWORD.
    ========================================================================== */
 
 import { createServer } from 'node:http';
@@ -55,6 +71,7 @@ import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync, unlinkSyn
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { handlePortal, portalEnabled, portalStatusLine } from './portal.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CONFIG = process.env.AHMED_CONFIG || resolve(HERE, '../../Content/Data/config.json');
@@ -154,10 +171,26 @@ function validSave(text){
   return null;
 }
 
+const STARTED_AT = new Date().toISOString();
+
 async function handle(req, res){
   const head = req.method === 'HEAD';
   const url = new URL(req.url, 'http://localhost');
   const path = url.pathname.replace(/\/+$/, '') || '/';
+
+  // The portal answers for itself, before anything here can. It is a
+  // different realm with a different credential; what it is handed is what
+  // the server owns rather than what the module can reach for on its own.
+  if(path === '/portal' || path.startsWith('/portal/')){
+    const answered = await handlePortal(req, res, {
+      payload, reload, sockets, broadcast,
+      revision: () => (cache ? cache.revision : null),
+      savesDir: SAVES,
+      saveTokenSet: !!SAVE_TOKEN,
+      startedAt: STARTED_AT
+    });
+    if(answered) return;
+  }
 
   if(req.method === 'OPTIONS'){
     return send(res, 204, '', { allow: 'GET, HEAD, PUT, DELETE, OPTIONS' });
@@ -233,7 +266,7 @@ async function handle(req, res){
   return send(res, 404, json({
     error: 'not found',
     endpoints: ['/v1/revision', '/v1/config', '/v1/tables', '/v1/tables/{Name}',
-                '/v1/saves/{id}', '/v1/live (websocket)', '/health']
+                '/v1/saves/{id}', '/v1/live (websocket)', '/health', '/portal']
   }), {}, head);
 }
 
@@ -350,7 +383,9 @@ server.listen(PORT, HOST, () => {
   console.log(`AHMED live API on http://${HOST}:${PORT}   ws://${HOST}:${PORT}/v1/live`);
   console.log(`  revision ${rev}${WATCH ? '   [--watch: re-reads every request]' : ''}`);
   console.log(`  saves in ${SAVES}${SAVE_TOKEN ? '  (token required)' : '  (NO TOKEN — development only)'}`);
-  console.log('  GET /v1/revision  /v1/config  /v1/tables[/{Name}]   GET|PUT|DELETE /v1/saves/{id}   GET /health');
+  console.log(portalStatusLine());
+  console.log('  GET /v1/revision  /v1/config  /v1/tables[/{Name}]   GET|PUT|DELETE /v1/saves/{id}   GET /health'
+              + (portalEnabled() ? '   GET /portal' : ''));
 });
 
 // Let a test stop it cleanly.

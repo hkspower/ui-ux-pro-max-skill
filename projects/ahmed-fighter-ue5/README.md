@@ -290,6 +290,54 @@ handshake, unmasking, text frames, ping/pong, close) rather than installed.
 | `GET /v1/live` *(WebSocket)* | says `{"Type":"hello","Revision":…}` on connect, pushes `{"Type":"revision",…}` whenever `config.json` on disk changes, answers `{"Type":"ping"}` with a pong, pings every 25 s |
 | `GET /health` | `{ ok, revision, live }` — `live` is how many games are connected |
 
+### The backend portal
+
+`GET /portal` is the other audience: a person, rather than a game. Sign in and
+it shows what the live API is holding — the revision it is serving, every
+table with its row count, the profiles that have been saved (read them, delete
+them), and how many games are connected to the socket right now.
+
+```bash
+PORTAL_USER=almuhallab \
+PORTAL_PASSWORD_HASH="$(node Tools/api/portal.mjs --hash)" \
+  node Tools/api/server.mjs          # then open http://localhost:8787/portal
+
+node Tools/api/test-portal.mjs       # 51 checks, mostly of what it refuses
+```
+
+`--hash` reads the password from **stdin**, not from the command line, because
+argv is world-readable on most systems. `PORTAL_PASSWORD` in clear also works
+and the startup log calls it what it is; use the hash anywhere real.
+
+**It is a second auth realm, not a wider one.** The game's `/v1/*` endpoints
+keep taking `SAVE_TOKEN` and nothing else; `/portal/*` takes a session cookie
+and nothing else. Neither credential is spendable as the other — there are
+tests for both directions — so the portal cannot widen what a shipped game
+binary is already allowed to do.
+
+**With no `PORTAL_USER` set the portal is closed**, and every route under it
+answers `503` saying how to open it. There is deliberately no default account.
+
+| | |
+| --- | --- |
+| `GET /portal` | the page: one document, no build step, no CDN, and a per-response CSP nonce |
+| `POST /portal/login` | `{user, password}` → a session cookie. `HttpOnly`, `SameSite=Strict`, `Secure` unless `PORTAL_INSECURE_COOKIE=1`, `Path=/portal` |
+| `POST /portal/logout` | ends the session server-side, not just in the browser |
+| `GET /portal/api/session` | who you are, and the CSRF token every write needs |
+| `GET /portal/api/overview` | revision, tables and row counts, saves, live socket count |
+| `GET /portal/api/tables/{Name}` | one table's rows |
+| `GET` / `DELETE /portal/api/saves/{id}` | read or delete a profile |
+| `POST /portal/api/reload` | re-read `config.json` from disk and push the new revision |
+
+What it defends against, and how, is written out at the top of
+`Tools/api/portal.mjs`: rate-limited login (a lockout, and the IP is the
+socket's unless `PORTAL_TRUST_PROXY=1`, because a header anyone can set is a
+limiter anyone can step around), a fresh session id per login, CSRF on every
+write on top of `SameSite`, `timingSafeEqual` on every secret, and a CSP that
+allows exactly the page's own nonce'd script and style. **TLS is still not its
+job** — the `Secure` cookie means a browser will not even return a session
+over plain HTTP, so put it behind a terminator.
+
 Three subsystems on the Unreal side, each `Config = Game` and switched off
 in `DefaultGame.ini` until you have a server:
 
