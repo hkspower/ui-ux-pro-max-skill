@@ -588,13 +588,17 @@ def build(clips, out_dir, sheet=False):
             bpy.ops.object.mode_set(mode="POSE")
             pb = rig.pose.bones
             if k or bob or sway:
-                # Negated: a spine bone's local X runs along world +X, and a
-                # positive turn about it takes the chest BACKWARDS -- checked,
-                # +0.5 rad carried the head 25 cm behind him. The browser's
-                # lean is positive FORWARD, so the sign flips here or a jab
-                # leans away from the man it is aimed at.
+                # A spine bone's local X runs along world +X, and a positive
+                # turn about it carries the chest FORWARD -- checked, +0.5
+                # rad carries the head 34 cm ahead of him. Not negated: that
+                # was the sign for a spine still carrying the twist _aim()
+                # put on every torso bone before it was fixed (see
+                # rig_full_ik.py's _aim and CLAUDE.md); on the untwisted
+                # frame pose() builds now, the old minus sign leaned a jab
+                # 36 cm AWAY from the man it is aimed at. The browser's lean
+                # is positive forward, and so is this one now.
                 for nm, share in (("spine_01", 0.30), ("spine_02", 0.36), ("spine_03", 0.34)):
-                    q = mathutils.Quaternion((1, 0, 0), -tip * k * share)
+                    q = mathutils.Quaternion((1, 0, 0), tip * k * share)
                     pb[nm].rotation_quaternion = pb[nm].rotation_quaternion @ q
                 for nm, amt in twist.items():
                     q = mathutils.Quaternion((0, 1, 0), amt * k)
