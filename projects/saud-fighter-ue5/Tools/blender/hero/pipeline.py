@@ -60,6 +60,16 @@ FACES = {
     "brawler": dict(brow=1.35, glabella=1.20, jaw1=1.30, jaw2=1.30, jaw3=1.30, chin=1.25,
                     masseter=1.50, cheekbone=1.15, tip=1.05, hollow=0.60),
     "thug":    dict(chin=0.85, brow=0.90, cheekbone=0.90, tip=0.95, masseter=0.80),
+    # Saud is eighteen. The baseline face (every amplitude at 1.0, no entry
+    # here until now) was sculpted to a grown man's fully set bone structure;
+    # the masseter, the brow ridge and the width of the jaw are the three
+    # that go on developing into a man's mid-twenties, so those are down the
+    # furthest -- more than thug's, which was never about age. Cheekbone and
+    # nose are set well before eighteen and are left alone. Chosen, the way
+    # thug's and brawler's amplitudes are; nothing here is measured off a
+    # specific eighteen-year-old.
+    "saud":    dict(brow=0.75, glabella=0.80, jaw1=0.85, jaw2=0.85, jaw3=0.85, chin=0.85,
+                    masseter=0.65, hollow=0.85),
 }
 
 

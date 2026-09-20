@@ -15,7 +15,8 @@ Recorded 2026-09-07 (Riyadh), from the game's author.
 
 He grows up on it and he is good at it. Young — younger than anyone expects —
 he turns professional. That is the whole first act: a kid who fights, and
-wins, and is somebody.
+wins, and is somebody. Eighteen, given 2026-09-20 — young enough that
+"turned pro" still surprises people, not so young the belt reads as a joke.
 
 **Then he falls.**
 
@@ -113,7 +114,7 @@ He wins. He does not leave.
 
 | | |
 | --- | --- |
-| **SAUD / سعود** | The one who fell. Spelled *Saud* in the game's text and code. |
+| **SAUD / سعود** | The one who fell. Eighteen. Spelled *Saud* in the game's text and code. |
 | **ZAYOS / زايوس** | The first title fight, and the only one that is not on the ring: he is *under* it, in the cellar of the striking house. A boxing monster — gloves, a body half again the size of any man in the Halqa, long arms, slow. He only punches. Nobody who went down to him has needed the stairs back up. He is what the house keeps to see whether a stranger is worth the six rounds upstairs. (Unity build only, 2026-09-10; see *Floors* below.) |
 | **AL-SAQR / الصقر** — the Falcon | All legs, no patience. Runs the neon crescent. He fell too, years back, and gave up asking about it — which is where the impatience comes from. He is what Saud becomes in a year, and he says so, and it does not land. |
 | **AL-WAHSH / الوحش** — the Beast | Champion of the Halqa, and the one who has been down here longest. He is not a monster; he is what staying looks like when you are very good at it. Beating him is not defeating him. It is replacing him. |
@@ -126,11 +127,14 @@ That is why it works on him.
 `../saud-fighter-ue5/Docs/references/saud-reference-young-sparring.png` — two
 boys sparring at an MMA gym, gloves up in a guard, shin guards, branded gym
 tees and shorts. Kept on file as what "young — younger than anyone expects"
-(above) is meant to look like, and as a reference for real gym kit. Not yet
-acted on: the built 3D model (`../saud-fighter-ue5`, "Saud is a man") is an
-adult, eight heads tall, and this photo is a boy closer to ten years old --
-a real difference in age and proportions, not a styling note. Flagging it
-here rather than changing anything, since it was not asked.
+(above) is meant to look like, and as a reference for real gym kit. Given
+his age the same day (eighteen, above), the model stayed an adult build --
+eight heads tall, the art direction's own figure, and right for a fighter
+who has already turned pro -- but his FACE moved toward it: less jaw and
+brow than the fully set adult the sculpt was tuned to (`pipeline.FACES
+["saud"]`, `../saud-fighter-ue5`), and stubble in place of the groomed
+beard he had (`assets/saud.js`). The photo's own subject, a boy closer to
+ten, was never the target; his age was.
 
 ---
 

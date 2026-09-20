@@ -38,6 +38,9 @@ window.ASSET_SAUD = {
     hands:  'wraps',       // taped fists — nobody wears gloves with jeans
     build:  1.12,          // thicker limbs: the shirt is a muscle fit
     hair:   '#1e150f',
-    beard:  'rgba(24,17,12,.94)'
+    // Light stubble, not a filled-in beard -- he is eighteen. Same colour as
+    // the hair, alpha down from .94 to .30: a shadow of growth, not a groomed
+    // beard a grown man would have.
+    beard:  'rgba(24,17,12,.30)'
   }
 };
