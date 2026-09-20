@@ -151,7 +151,7 @@
     {
       "Name": "Kicker",
       "DisplayName": "Kickboxer",
-      "DisplayNameArabic": "ملاكم",
+      "DisplayNameArabic": "ركّال",
       "MaxHealth": 60,
       "PowerMultiplier": 1.15,
       "MoveSpeed": 389,
@@ -213,7 +213,7 @@
     },
     {
       "Name": "Runner",
-      "DisplayName": "Runner",
+      "DisplayName": "Snatcher",
       "DisplayNameArabic": "خطّاف",
       "MaxHealth": 42,
       "PowerMultiplier": 0.85,
@@ -1033,7 +1033,7 @@
       "Theme": "Fishmarket",
       "Briefing": "Dawn on the water. The stone is wet and the runners will not stand still. The next rung sits behind a fight. So will the one after.",
       "BriefingArabic": "فجر على الماء، وخصوم لا يثبتون",
-      "Hint": "Dawn. Runners who will not stand still.",
+      "Hint": "Dawn. Snatchers who will not stand still.",
       "Length": 8640,
       "Tier": 1,
       "bIsBossStage": false,
@@ -2751,6 +2751,6 @@
       "Description": "The roofs. The stage loop opened out: wind, wide reverb, oud and qanun high above the street."
     }
   ],
-  "Revision": "225b9ad2462252f4",
-  "GeneratedAt": "2026-09-19T20:08:20.977Z"
+  "Revision": "36341d0d1ffa3f74",
+  "GeneratedAt": "2026-09-20T06:35:09.961Z"
 }

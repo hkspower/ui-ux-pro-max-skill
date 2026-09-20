@@ -44,7 +44,7 @@ window.ASSET_STAGES = [
             {at:2250, e:[['kicker',1],['brawler',2]]} ] },
 
   { name:'MARSA AL-FAJR', ar:'مرسى الفجر', theme:'fishmarket', len:3600, tier:1,
-    hint:'Dawn. Runners who will not stand still.',
+    hint:'Dawn. Snatchers who will not stand still.',
     gates:[{at:1050, type:'ledge', reward:{ability:'dashleap'}}],
     story:['Dawn on the water. The stone is wet and the runners will not stand still.',
            'The next rung sits behind a fight. So will the one after.'],
