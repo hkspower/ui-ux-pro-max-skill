@@ -1,8 +1,8 @@
-# AHMED — how this work is done
+# SAUD — how this work is done
 
 Guidance for anyone — person or assistant — working on either build of the
-game. The story canon is in `ahmed-fighter/CLAUDE.md`; the Unreal build's own
-rules are in `ahmed-fighter-ue5/CLAUDE.md`. This file is the things that are
+game. The story canon is in `saud-fighter/CLAUDE.md`; the Unreal build's own
+rules are in `saud-fighter-ue5/CLAUDE.md`. This file is the things that are
 true of both, and of the way the author wants to be worked with.
 
 Recorded 2026-09-07 (Riyadh), from the game's author.
@@ -42,7 +42,7 @@ These are standing instructions, not preferences for one task.
 
 ## Platform
 
-**AHMED is a console and PC game. It is not a mobile game.**
+**SAUD is a console and PC game. It is not a mobile game.**
 
 That decides things that would otherwise be guesses:
 
@@ -66,12 +66,12 @@ That decides things that would otherwise be guesses:
 Decided 2026-09-19. **Epic's Unreal Engine 5 is the engine this game ships
 on.** There is no second engine and no evaluation running between two.
 
-- `ahmed-fighter-ue5/` is where engine work goes. All of it.
+- `saud-fighter-ue5/` is where engine work goes. All of it.
 - `ahmed-fighter-unity/` is **frozen**. It is not deleted -- it compiles, its
   223 checks pass, and it holds a working open world -- but nothing new goes
   into it, it is not kept in step, and it is not a target any more. Read its
   own CLAUDE.md before touching it at all.
-- `ahmed-fighter/` is **not an engine port** and is not affected. It is the
+- `saud-fighter/` is **not an engine port** and is not affected. It is the
   browser game and the source of truth for every number in the project; the
   Unreal build is generated from it and would stop working without it.
 
@@ -81,7 +81,7 @@ they build for Unreal only.
 
 ## The three builds
 
-| | `ahmed-fighter/` | `ahmed-fighter-ue5/` | `ahmed-fighter-unity/` |
+| | `saud-fighter/` | `saud-fighter-ue5/` | `ahmed-fighter-unity/` |
 | --- | --- | --- | --- |
 | What it is | The playable game. One HTML file, canvas 2D, no external assets, PWA with a versioned service worker. | The Unreal Engine 5 port. **3D and open since 2026-09-16** — the camera is a boom the player swings, movement is measured against it, the arena is a circle and a wave spreads around him. | The Unity port, in C#. **The open-world one** — nine districts rather than nine corridors, since 2026-09-10 each on three floors (under / street / up), with ZAYOS in the cellar under the striking house and music, and since 2026-09-11 a derived place on every floor — street, buildings, rim — streamed in around the player. |
 | Art direction | Stylised **on purpose** — it draws every pixel in code, and stylisation is what makes that possible. | **Not cartoonish.** Adult action game, highest graphics the hardware carries. See its own CLAUDE.md. | Console and PC grade. Was capsules; the real mesh and the sound are in now. |
@@ -90,11 +90,11 @@ they build for Unreal only.
 | Balance data | `assets/*.js` — **the source of truth for every number in all three builds**, since 2026-09-09 for the colour scheme too (`assets/colors.js`), and since 2026-09-10 for the Unity floors (`assets/strata.js`, which the browser build itself does not read). | Generated. Never hand-edit `Content/Data`. | Generated. Never hand-edit `Assets/Resources/Data`. |
 
 **The browser project owns the numbers.** Change them in `assets/*.js` — the
-control panel at `ahmed-fighter/panel/` is the comfortable way — then re-export
+control panel at `saud-fighter/panel/` is the comfortable way — then re-export
 into whichever ports you care about:
 
 ```
-ahmed-fighter-ue5    node Tools/export/export.mjs --api
+saud-fighter-ue5    node Tools/export/export.mjs --api
 ahmed-fighter-unity  node Tools/export/export.mjs
 ```
 
