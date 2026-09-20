@@ -237,5 +237,36 @@ The names, kept to the shapes the stages already are:
 | 8 | Kuwait Arena | **AL-HALQA** / الحلقة — the ring itself |
 | 9 | Survival | **BILA NIHAYA** / بلا نهاية — no end |
 
+### The hero was renamed too, 2026-09-20
+
+**AHMED / أحمد is SAUD / سعود now** — the player character, the product
+title, and every place either named him: the browser build's own name and
+stats, the story text above, the press kit, the control panel; the Unreal
+port's C++ module and every class in it (`Source/SaudFighter/`, was
+`AhmedFighter`), its `.uproject`, its generated data tables, and the
+exported skeleton every man and every boss clip shares (`Saud_Rig` /
+`SaudSkeleton`, was `Ahmed_Rig`); the folders themselves,
+`ahmed-fighter/` → `saud-fighter/` and `ahmed-fighter-ue5/` →
+`saud-fighter-ue5/`. Every case of the name, in both languages, replaced
+the same way this file's own English and Arabic go together everywhere
+else. Latin spelling is *Saud*, the author's own call absent one given.
+
+Two things kept the old name on purpose: the frozen Unity port,
+`ahmed-fighter-unity/`, which is not touched at all any more; and this
+session's own branch name, an identifier assigned outside the game.
+
+The rename forced a full rebuild of everything that carries the shared
+skeleton's name inside its own binary data, since a filename change alone
+does not reach it: the three fighters, the seventeen boss motion clips,
+and the souq's fight scene. Rebuilding the clips surfaced a real bug from
+earlier the same day, unrelated to the rename itself — `build_motion.py`'s
+torso lean composed on top of `build_saud.pose()`'s output, and that
+function's frame convention had changed (the twist fix under "The first
+area is built") without this tool being re-run since. Every punch leaned
+away from the man it was aimed at until the sign was corrected; see that
+commit for the measurement. `Tools/blender/build_motion.py:515`'s own
+separate copy of the old twisted-frame code, flagged there already, is
+still untouched — a second, cosmetic-only issue, not this one.
+
 The arena carries the world's name because the world is named after the room
 at its centre. That is the joke the map has been telling all along.
