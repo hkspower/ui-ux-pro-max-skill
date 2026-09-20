@@ -122,6 +122,16 @@ The rank ladder — ROOKIE, AMATEUR, PROSPECT, RANKED, CONTENDER, CHAMPION — i
 the Halqa's own, and it is what the place offers Saud *instead* of a door.
 That is why it works on him.
 
+**A reference photo for Saud, given 2026-09-20:**
+`../saud-fighter-ue5/Docs/references/saud-reference-young-sparring.png` — two
+boys sparring at an MMA gym, gloves up in a guard, shin guards, branded gym
+tees and shorts. Kept on file as what "young — younger than anyone expects"
+(above) is meant to look like, and as a reference for real gym kit. Not yet
+acted on: the built 3D model (`../saud-fighter-ue5`, "Saud is a man") is an
+adult, eight heads tall, and this photo is a boy closer to ten years old --
+a real difference in age and proportions, not a styling note. Flagging it
+here rather than changing anything, since it was not asked.
+
 ---
 
 ## What that means for the game
