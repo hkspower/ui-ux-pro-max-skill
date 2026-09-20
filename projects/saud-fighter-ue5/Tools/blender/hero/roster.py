@@ -109,6 +109,12 @@ def rgba_over(rgba, base_hex):
     return "#%02x%02x%02x" % tuple(int(round(c * a + bc * (1 - a))) for c, bc in ((r, br), (g, bg), (b, bb)))
 
 
+def rgba_alpha(colour):
+    """The alpha of an 'rgba(r,g,b,a)' string; 1.0 for a hex or an rgb()."""
+    m = re.match(r"rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+))?\s*\)", colour)
+    return float(m.group(1)) if m and m.group(1) else 1.0
+
+
 def spec(kind):
     """One fighter, in one shape, whoever he is."""
     if kind == "saud":

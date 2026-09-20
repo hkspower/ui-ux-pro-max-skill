@@ -129,7 +129,8 @@ def lin(c): return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.
 # What was typed in paint() for Saud, before the roster read it out of the
 # browser build instead: kept as the record of where the derived palette
 # has to land for him (see palette_for and the test in build_fighters.py).
-_SAUD_PAINT = dict(skin='f0d8c4', hair='1e150f', tee='15171c', pants='0e1014', band='c8102e', shoe='101216')
+# band c8102e -> ff1a3c 2026-09-20, with assets/saud.js: the record moves with him.
+_SAUD_PAINT = dict(skin='f0d8c4', hair='1e150f', tee='15171c', pants='0e1014', band='ff1a3c', shoe='101216')
 from . import face as FA
 assert '#' + _SAUD_PAINT['skin'] == FA.SAUD_SKIN, "face.py's tones are written on a skin that is not Saud's"
 
@@ -145,6 +146,12 @@ def palette_for(spec):
     from . import roster
     c, look = spec["col"], spec["look"]
     beard = look.get("beard")
+    # The wash's alpha, kept beside the composited colour: the colour is
+    # what a .30 wash lands on the skin, but the shadow a beard casts and
+    # the relief it adds are painted separately in hero.face, and at full
+    # strength they gave light stubble a full beard's darkness under it --
+    # a pencil moustache and a goatee on a man drawn with a shadow of growth.
+    beard_k = roster.rgba_alpha(beard) if beard else 1.0
     if beard and not look.get("bald"):
         beard = roster.rgba_over(beard, c["skin"])
     else:
@@ -152,7 +159,7 @@ def palette_for(spec):
     hair = None if look.get("bald") else look.get("hair", "#1e150f")
     return dict(
         skin=lin(srgb(c["skin"])), hair=lin(srgb(hair)) if hair else None,
-        beard=lin(srgb(beard)) if beard else None,
+        beard=lin(srgb(beard)) if beard else None, beard_k=beard_k,
         tee=lin(srgb(c["top"])), pants=lin(srgb(c["bottom"])), band=lin(srgb(c["band"])),
         shoe=lin(srgb('101216')),
         lip=lin(srgb('c98a78')), tape=lin(srgb('e8e2d4')), nail=lin(srgb('f4dccb')),
@@ -164,7 +171,7 @@ def palette_for(spec):
 def saud_palette():
     """Today's Saud, exactly as paint() used to spell him."""
     return dict(skin=lin(srgb(_SAUD_PAINT['skin'])), hair=lin(srgb(_SAUD_PAINT['hair'])),
-                beard=lin(srgb('2a1d13')) * 0.9,
+                beard=lin(srgb('2a1d13')) * 0.9, beard_k=1.0,
                 tee=lin(srgb(_SAUD_PAINT['tee'])), pants=lin(srgb(_SAUD_PAINT['pants'])),
                 band=lin(srgb(_SAUD_PAINT['band'])), shoe=lin(srgb(_SAUD_PAINT['shoe'])),
                 lip=lin(srgb('c98a78')), tape=lin(srgb('e8e2d4')), nail=lin(srgb('f4dccb')),
@@ -199,7 +206,7 @@ def paint(obj, kind, joints_l, pal=None):
         # the nostrils. See hero/face.py.
         from . import face as FA
         col[:, :3] = FA.body_grain(P, col[:, :3])
-        col[:, :3], _rel, _on = FA.shade(P, skin, hair, beard, base_rgb=col[:, :3])
+        col[:, :3], _rel, _on = FA.shade(P, skin, hair, beard, base_rgb=col[:, :3], beard_k=pal.get("beard_k", 1.0))
         # hand wraps: tape from the wrist over the back of the hand and the knuckles
         for s in ((1, -1) if pal["tape_on"] else ()):
             wr = np.array(Jp("hand_l")) * np.array([s, 1, 1]); he = np.array(Jp("hand_end_l")) * np.array([s, 1, 1])
@@ -488,7 +495,7 @@ def repaint_head(obj, imgs, size, pal=None):
     # it lays a fraction of the face over its base, and if that base were
     # flat skin the body's own grain would be wiped out across exactly the
     # band where the head and the body have to meet.
-    rgb, rel, on = FA.shade(P, skin, hair, beard, base_rgb=lin[cov])
+    rgb, rel, on = FA.shade(P, skin, hair, beard, base_rgb=lin[cov], beard_k=pal.get("beard_k", 1.0))
     live = on > 0.002
     if not live.any():
         return 0, coherent

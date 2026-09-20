@@ -147,8 +147,16 @@ def head():
     return loft("head", [ring_z(z, 0, cy, rx, ry) for z, cy, rx, ry in rows], segs=48)
 
 # ------------------------------------------------------------------ limbs
-def arm():
+def arm(scale=1.0):
+    """scale > 1 thickens the muscle bellies -- the biceps, the forearm's
+    flexor mass -- and leaves the elbow and wrist close to their own width,
+    since those read as bone and tendon under the skin and do not grow with
+    the muscle around them. Weighted per ring, 1.0 at a belly fading to
+    near 0 at a joint, not a flat multiply of the whole limb."""
     ua, la, hd = Jp("upperarm_l"), Jp("lowerarm_l"), Jp("hand_l")
+    def bulk(rx, ry, sf, ss, w):
+        k = 1.0 + (scale - 1.0) * w
+        return (rx * k, ry * k, sf * k, ss * k)
     # radius profile: (t, rx across, ry front-back, shift front, shift side)
     # The old profile fell from 0.055 at the shoulder to 0.037 at the elbow
     # without a single rise: measured across, the arm had no biceps at all in
@@ -156,20 +164,20 @@ def arm():
     # of the whole limb. A joint is a local MAXIMUM across and a minimum in
     # depth -- that is what makes it read as bone under skin.
     upper = tube("upperarm", ua, la, [
-        (-0.05, 0.048, 0.050, 0.000, 0.0),  # tapers IN under the deltoid
-        (0.18, 0.052, 0.058, +0.006, 0.0),
-        (0.42, 0.055, 0.065, +0.014, 0.0),  # biceps belly forward, triceps back
-        (0.64, 0.049, 0.058, +0.009, 0.0),
-        (0.86, 0.039, 0.044, +0.002, 0.0),  # the narrowing above the elbow
-        (1.02, 0.044, 0.038, 0.000, 0.0),   # elbow: wide across, shallow through
+        (-0.05,) + bulk(0.048, 0.050, 0.000, 0.0, 0.50),  # tapers IN under the deltoid
+        (0.18,) + bulk(0.052, 0.058, +0.006, 0.0, 0.85),
+        (0.42,) + bulk(0.055, 0.065, +0.014, 0.0, 1.00),  # biceps belly forward, triceps back
+        (0.64,) + bulk(0.049, 0.058, +0.009, 0.0, 0.80),
+        (0.86,) + bulk(0.039, 0.044, +0.002, 0.0, 0.35),  # the narrowing above the elbow
+        (1.02,) + bulk(0.044, 0.038, 0.000, 0.0, 0.05),   # elbow: wide across, shallow through
     ])
     lower = tube("forearm", la, hd, [
-        (-0.02, 0.044, 0.038, 0.000, 0.0),
-        (0.30, 0.046, 0.052, +0.005, 0.009),  # flexor mass, to the radial side
-        (0.55, 0.039, 0.043, +0.003, 0.004),
-        (0.80, 0.031, 0.030, 0.000, 0.0),
-        (1.00, 0.029, 0.021, 0.000, 0.0),     # wrist, a flattened oval
-        (1.05, 0.028, 0.020, 0.000, 0.0),
+        (-0.02,) + bulk(0.044, 0.038, 0.000, 0.0, 0.25),
+        (0.30,) + bulk(0.046, 0.052, +0.005, 0.009, 1.00),  # flexor mass, to the radial side
+        (0.55,) + bulk(0.039, 0.043, +0.003, 0.004, 0.60),
+        (0.80,) + bulk(0.031, 0.030, 0.000, 0.0, 0.25),
+        (1.00,) + bulk(0.029, 0.021, 0.000, 0.0, 0.0),      # wrist, a flattened oval
+        (1.05,) + bulk(0.028, 0.020, 0.000, 0.0, 0.0),
     ])
     return [upper, lower]
 

@@ -367,6 +367,57 @@ reverted: `sculpt.check_profile` on the nose's peak and the nasion,
 head is remeshed at a 3.5 mm voxel and anything under that is inside the
 grid's own noise), and `anatomy.measure` on stature and on heads-tall.
 
+**A second pass, 2026-09-20, from looking at the renders.** Asked for as
+"make arm full strong manly, fix position and angles" and then "fix all
+design issues". Each of these was measured before it was changed, on the
+built body or the posed rig, and the number is beside it:
+
+- **His arms.** `anatomy.arm(scale)` and `pipeline.LIMBS = {"saud": 1.18}`,
+  the same shape as `FACES`: one man's difference, Thug and Brawler unlisted
+  and unchanged. Weighted per ring -- 1.0 at the biceps belly and the
+  forearm's flexor mass, 0.05 at the elbow, 0 at the wrist -- because a
+  stronger arm grows its bellies and keeps its joints, and a flat multiply
+  would have thickened the elbow with them. Biceps girth 0.376 -> 0.442 m.
+- **The guard.** `build_saud.GUARD` said "fists to the chin" and put them at
+  chest height, 1.36-1.40 m against a chin near 1.57: with the upper arm
+  hanging straight down (z -0.98) the elbow lands 0.461 m below the chin and
+  forearm + hand are 0.338 m long, so no aim of the forearm could get there.
+  The elbow's drop now goes into -Y, forward, not sideways -- the first
+  attempt with x 0.42 got the height and read as a chicken wing -- and the
+  fist is at 1.51 m, by the jaw. `KICK` carries its own arm aims and was
+  not touched. **This is shared code: Thug's and Brawler's guard and kick
+  renders were struck with the old aims and are stale until they are
+  rebuilt** (not done -- only Saud was asked for).
+- **The eyes rendered as slits.** `sculpt.lids` had margins 3.8 + 4.8 =
+  8.6 mm against the 10 mm its own docstring quotes for a human aperture,
+  and the 3.5 mm remesh ate the rest. Now 4.8 + 5.2, which is also the 5 mm
+  half-aperture `check_eye` already assumed. They open; whether 10 mm
+  still reads heavy-lidded at full quality is judged on the render, and
+  the next step if it does is 11 (the human range is 9-12), not a guess.
+- **The stubble was a pencil moustache and a goatee.** The browser's beard
+  is a wash with an alpha (.30 for him); the bake composited its COLOUR
+  over the skin and then painted the shadow a beard casts and the relief it
+  adds at full-beard strength regardless. `palette_for` now keeps the alpha
+  as `beard_k` and `face.shade` scales the shadow and the relief by it.
+- **The hair was a helmet with a brim.** `hair_parts`' cap was a solve
+  against an older skull; measured on this one (`hair_probe`, on the built
+  checkpoint) it was 26 mm thick in the single 5 mm row above the front
+  hairline, 22-24 mm down the whole back and an 11 mm step at the ear
+  line. Re-solved with the head loft, the hairline cut and the 3.5 mm
+  remesh, exactly as the body is built: 6 mm at the front hairline
+  building to 19 mm at the crown (the quiff), 5-7 mm at the back, 3-4 mm
+  at the sides (a fade, under the voxel), crown still at 1.800. **Also
+  shared: the "crop" style Thug and Brawler wear is this cap alone, so
+  their hair is thinner too once rebuilt** (not done, as above).
+- **His accent colour.** `assets/saud.js` `col.band` `#c8102e` -> `#ff1a3c`:
+  Kuwait's red, brighter and more saturated, for the "more vibrant" half of
+  a "Hi-Fi Rush" ask. It is the one colour every draw of him reads
+  (waistband, trouser stripe, dash trail, gloves, his UI swatch), which is
+  why that alone is the change. The other half of that ask -- the
+  cel-shaded look -- is an engine material (stepped diffuse, rim, an
+  outline pass), not anything this pipeline bakes, and no engine has ever
+  been run against this project; it is in "Known, not fixed".
+
 **Not verified.** No engine has compiled or imported any of this. The
 textures and the FBX are written by Blender and read back by Blender, and
 that is all that has been checked.
@@ -852,3 +903,16 @@ Don't re-discover them; don't fix them without being told to.
   player) still throw via the legacy `AFighterBase::StartAttack` state
   machine; the GAS layer exists beside it rather than under it. Moving combat
   onto abilities for both sides is a separate job, and a large one.
+- **Thug and Brawler are built against the old guard aims and the old hair
+  cap.** Both are shared code (`build_saud.GUARD`, `assembly.hair_parts`)
+  and both changed 2026-09-20 for Saud (see "A second pass"); their models,
+  renders and the fight scene's copies of them are as they were. One
+  `python3 build_fighters.py thug brawler` and a `build_souq.py --scene`
+  brings them level. Not run, because only Saud was asked for.
+- **Saud in a cel-shaded, "Hi-Fi Rush" look -- asked 2026-09-20, Saud only.**
+  That look is a real-time material: a stepped diffuse ramp, a Fresnel rim,
+  an inverted-hull or post-process outline. It lives in the engine, not in
+  the PBR bake this pipeline writes, and no engine has ever been run against
+  this project, so nothing of it can be built or looked at here. The
+  palette half of the ask was done (`col.band`). The material is for
+  whoever first opens this project in the editor.

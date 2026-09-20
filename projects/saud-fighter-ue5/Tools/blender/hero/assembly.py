@@ -146,13 +146,19 @@ def hair_parts(style="quiff"):
     # the cap used to top out at 1.806 and the quiff at 1.814, so the head a
     # player SEES was 0.248 m and he read as 7.33 heads. The whole deficit
     # was hair. Nothing here may stand above 1.800.
-    # Solved, not guessed: the smallest ellipsoid that clears the skull by
-    # 2.4 to 11.4 mm everywhere above the hairline AND tops out at exactly
-    # 1.800. The previous shapes either topped out at 1.806-1.814 -- which is
-    # the whole heads-tall deficit, see the note above -- or sank INSIDE the
-    # occiput, where the skull bulges further back than a cap centred over
-    # the crown can follow, so the hair vanished at the back of his head.
-    cap = ellipsoid("haircap", (0, 0.002, 1.7275), (0.0880, 0.1240, 0.0725), segs=64, rings=40)
+    # Measured on the built body, not on the solve that put it here: the
+    # previous (0.088, 0.124, 0.0725) was a solve against an older skull, and
+    # on this one it was a helmet -- 26 mm thick at the front hairline in one
+    # 5 mm row, 22-24 mm down the whole back, an 11 mm step at the ear line.
+    # That step is what read as a cap with a brim in every face render. A
+    # short crop with a quiff is a fade at the sides, a few mm at the back and
+    # the volume on top, so this one is 4 mm off the skull at the sides and
+    # 5-7 mm at the back, 6 mm at the front hairline building to 19 mm at the
+    # crown with the quiff below, and still tops out at exactly 1.800 --
+    # measured with the head loft, the cut and the 3.5 mm remesh, the way the
+    # body is built (front / back / side, mm, z 1.74 -> 1.79: 1.5 6 10 12 19 /
+    # 5 5 3 3 13 / 3 4 3 4 10). Nothing sinks inside the occiput.
+    cap = ellipsoid("haircap", (0, 0.006, 1.7275), (0.0800, 0.1030, 0.0725), segs=64, rings=40)
     # Everything below the hairline plane goes. The plane passes through
     # HAIRLINE[0] at the brow (y -0.09) and HAIRLINE[1] at the nape: the
     # box's top face is that plane, so its centre sits half a box below.
@@ -190,16 +196,17 @@ def hair_parts(style="quiff"):
 def union_remesh(parts, voxel, name):
     return A.union_remesh(parts, voxel, name)
 
-def build(voxel_scale=1.0, face_scale=None, hair_style="quiff"):
+def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0):
     """voxel_scale > 1 is a coarse, quick body for checking the stages after
-    this one. `face_scale` and `hair_style` are one man's differences from
-    another on the same skull -- see sculpt.sculpt_face and hair_parts."""
+    this one. `face_scale`, `hair_style` and `arm_scale` are one man's
+    differences from another on the same skull and limbs -- see
+    sculpt.sculpt_face, hair_parts and anatomy.arm."""
     vs = voxel_scale
     t = time.time()
     legacy.reset_scene()
     # ---- pass one: the base at 6 mm, smoothed hard
     base_parts = [A.trunk(), A.neck(), A.head()]
-    left = A.arm() + A.leg() + [A.shoe()] + masses()
+    left = A.arm(arm_scale) + A.leg() + [A.shoe()] + masses()
     right = [mirror_x(o) for o in left]
     base = union_remesh(base_parts + left + right, 0.006 * vs, "Base")
     A.smooth(base, 0.40, 3)

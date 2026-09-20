@@ -83,7 +83,7 @@ FACE = [
     ("jaw3",      0.068, 1.6100, 0.013, 0.020, 0.012,  +0.0038, True),
 ]
 
-def lids(P, eye, orbit=(0.0158, 0.0128), up_margin=0.0038, dn_margin=0.0048,
+def lids(P, eye, orbit=(0.0158, 0.0128), up_margin=0.0048, dn_margin=0.0052,
          up=0.0042, down=0.0031):
     """The eyelids: two covers over the eye, not a ring around it.
 
@@ -95,7 +95,10 @@ def lids(P, eye, orbit=(0.0158, 0.0128), up_margin=0.0038, dn_margin=0.0048,
     left between the two margins is the aperture.
 
     The old version bumped a ring of radius 14.5 mm evenly all the way round,
-    which is a washer, not a pair of lids.
+    which is a washer, not a pair of lids. The margins were then 3.8 + 4.8 =
+    8.6 mm against the 10 mm quoted above, and after the 3.5 mm remesh and
+    the smoothing the eye rendered as a slit; 4.8 + 5.2 is the 10 mm, and it
+    is also the 5 mm half-aperture assembly.check_eye already assumes.
     """
     dx = (P[:, 0] - eye[0]) / orbit[0]
     dz = P[:, 2] - eye[2]

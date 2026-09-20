@@ -72,6 +72,16 @@ FACES = {
                     masseter=0.65, hollow=0.85),
 }
 
+# How thick a man's arm muscle reads, against anatomy.arm's own numbers --
+# the biceps and forearm flexor mass, not the elbow or wrist (see arm()'s
+# own per-ring weights, which is where a change here actually lands). Saud
+# only: requested 2026-09-20, alongside his face -- eighteen and still a
+# working pro fighter's arms, not a stripped-down teenager's. Thug and
+# Brawler are unlisted and stay at the plain 1.0 anatomy.arm already had.
+LIMBS = {
+    "saud": 1.18,
+}
+
 
 def run(argv=None):
     """The hero, as build_saud.py has always built him."""
@@ -89,6 +99,7 @@ def build_fighter(spec, argv=None):
     pal = F.palette_for(spec)
     assert pal["hair"] is not None, "%s is bald and this pipeline has no bald head yet" % name
     face_scale = FACES.get(spec["kind"])
+    arm_scale = LIMBS.get(spec["kind"], 1.0)
     hair_style = "quiff" if spec["look"].get("quiff") else "crop"
     if "--out" in argv:
         OUT = os.path.abspath(argv[argv.index("--out") + 1])
@@ -138,7 +149,7 @@ def build_fighter(spec, argv=None):
         stamp("resumed from %s" % CHECK)
     else:
         body, trees, eyes, jl = B.build(voxel_scale=3.0 if "--coarse" in argv else 1.0,
-                                        face_scale=face_scale, hair_style=hair_style)
+                                        face_scale=face_scale, hair_style=hair_style, arm_scale=arm_scale)
         slots = {}
         mats = {"skin": F.shader("%s_Skin" % name, "skin", 0.52, subsurface=0.28, pores=PORES["skin"]),
                 # the hair's roughness matches the skin's: the material edge

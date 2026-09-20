@@ -136,6 +136,17 @@ brow than the fully set adult the sculpt was tuned to (`pipeline.FACES
 beard he had (`assets/saud.js`). The photo's own subject, a boy closer to
 ten, was never the target; his age was.
 
+Later the same day, two more things about how he looks. His arms are a
+working fighter's -- eighteen is an age, not a build -- and the Unreal
+model carries that as its own number (`pipeline.LIMBS["saud"]`,
+`../saud-fighter-ue5`), not this file's; nothing here changed for it. His
+accent red did change here: `col.band` `#c8102e` -> `#ff1a3c`, the flag's
+red pushed brighter, because it is the one colour every drawing of him
+reads (waistband, trouser stripe, dash trail, gloves, his swatch in the
+shop) and "more vivid" for him means that colour. Asked as "Hi-Fi Rush";
+the cel-shaded half of that is an engine material and is recorded in
+`../saud-fighter-ue5/CLAUDE.md` under "Known, not fixed".
+
 ---
 
 ## What that means for the game

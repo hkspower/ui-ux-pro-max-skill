@@ -148,7 +148,7 @@ LIP_DEEP  = '#8d4f45'
 LASH      = '#120c08'
 
 
-def shade(P, skin, hair, beard, base_rgb=None):
+def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0):
     """Colour and relief for points on the head.
 
     P        (N,3) positions, metres, in the build's frame
@@ -156,6 +156,10 @@ def shade(P, skin, hair, beard, base_rgb=None):
     hair     hair colour, linear
     beard    beard colour, linear -- or None for a clean-shaven man, which
              skips the beard, the moustache and the sideburns together
+    beard_k  how much beard there is, 0..1: the alpha of the browser's wash.
+             The colour already carries it (it is composited over the skin
+             before it gets here); this scales the shadow the beard casts
+             and the relief it adds, which the colour cannot carry.
     base_rgb (N,3) colour to start from, or None to start from `skin`
 
     returns  (rgb (N,3) linear, relief (N,) metres, on_face (N,) 0..1)
@@ -319,8 +323,8 @@ def shade(P, skin, hair, beard, base_rgb=None):
     dens = dens * np.clip(0.70 + 0.55 * ramp(z, MOUTH_Z - 0.010, MOUTH_Z - 0.044), 0, 1.0)  # fullest on the chin
     bw = np.clip(beard_w * dens * grain, 0, 1)
     over(bw, beard, 0.90)
-    rel += bw * 0.0006
-    darken(np.clip(beard_w * dens, 0, 1) * 0.5, 0.20)                     # the shadow a beard casts on skin
+    rel += bw * 0.0006 * beard_k
+    darken(np.clip(beard_w * dens, 0, 1) * 0.5, 0.20 * beard_k)           # the shadow a beard casts on skin
     # a sideburn running down in front of the ear, joining the hair
     side = bar(P, 0.058, 0.075, lambda t: HAIRLINE[0] - 0.062 - 1.55 * (t - 0.058), 0.0060, feather=0.0035)
     over(np.clip(side * ramp(fwd, 0.10, 0.40) * grain, 0, 1), beard, 0.72)

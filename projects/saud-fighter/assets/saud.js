@@ -25,8 +25,13 @@ window.ASSET_SAUD = {
   // rewards staying in the fight rather than hoarding.
   mpRegen:  { idle: 5, onHit: 4 },
 
-  // Street clothes: black fitted tee, black track pants, trainers.
-  col: { skin:'#f0d8c4', top:'#15171c', bottom:'#0e1014', band:'#c8102e' },
+  // Street clothes: black fitted tee, black track pants, trainers. The
+  // accent is Kuwait's own red, pushed brighter and more saturated than a
+  // flag-swatch red -- requested 2026-09-20 for more vibrancy/pop in his
+  // kit; it is the one colour every draw call reads (waistband, trouser
+  // stripe, dash trail, glove, his UI swatch -- see index.html's uses of
+  // col.band), so this alone is what makes him read as more vivid.
+  col: { skin:'#f0d8c4', top:'#15171c', bottom:'#0e1014', band:'#ff1a3c' },
 
   look: {
     tee:    true,          // sleeves over the upper arms

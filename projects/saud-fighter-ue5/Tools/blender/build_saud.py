@@ -714,9 +714,19 @@ def _mirror(spec):
 # the asymmetry that makes it a fighting stance is layered on top.
 GUARD = dict(
     _mirror({
-        "upperarm": (0.16, -0.10, -0.98),   # elbows down, tight to the ribs
-        "lowerarm": (-0.20, -0.26, 0.94),   # forearms up, fists to the chin
-        "hand":     (-0.14, -0.20, 0.97),
+        # Elbows down and forward, not hanging straight from the shoulder:
+        # upper arm 0.336 m and forearm+hand 0.338 m together cannot reach a
+        # chin 0.461 m above a shoulder-drop elbow (checked -- with the old
+        # (0.16,-0.10,-0.98) the fist bottomed out at chest height, 1.36-1.40 m
+        # against a chin near 1.57-1.67 m). The old numbers also read as
+        # correct on paper -- "elbows down, tight to the ribs" is still true
+        # of these -- the fix was moving the elbow's drop into -Y, forward,
+        # not sideways: a forward elbow still reads as tucked, a sideways one
+        # reads as flared (checked -- x .42 got the height but looked like a
+        # chicken wing). This puts the fist at 1.51 m, by the jaw.
+        "upperarm": (0.16, -0.60, -0.80),   # elbows down, tight to the ribs
+        "lowerarm": (-0.20, -0.05, 0.98),   # forearms up, fists to the chin
+        "hand":     (-0.10, -0.05, 0.99),
         "thigh":    (0.16, 0.00, -0.98),
         "calf":     (0.02, 0.00, -1.00),
         "foot":     (0.05, -0.90, -0.42),
