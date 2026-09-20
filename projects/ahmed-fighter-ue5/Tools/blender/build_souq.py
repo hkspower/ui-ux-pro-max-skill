@@ -1273,7 +1273,7 @@ class Souq:
         """What a mesh has to be to leave: UVs, a material, a footprint that
         is its plot's, a triangle count under budget, no loose geometry."""
         import bmesh
-        budget = {"ground": 400, "street": 2000, "stall": 6000, "warehouse": 6000, "wall": 1500, "minaret": 4000,
+        budget = {"ground": 400, "street": 2000, "stall": 6000, "warehouse": 6000, "wall": 1500, "minaret": 4000, "banner": 2,
                   "gate": 200, "crate": 400, "barrel": 600}
         report = {}
         for name, m in self.P["meshes"].items():
