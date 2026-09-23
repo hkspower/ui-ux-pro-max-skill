@@ -278,6 +278,9 @@ void AWaveDirector::SpawnFighter(FName Row, int32 Tier, int32 IndexInWave, int32
 	const FDifficultyDef Diff = GI ? GI->GetDifficulty() : FDifficultyDef();
 
 	Enemy->AttackTable = AttackTable;
+	// His clips are his row's: A_Boss_*, A_Saqr_*, A_Zayos_*, and Saud's
+	// for everything a row has none of.
+	Enemy->MotionSet = Row;
 	Enemy->ConfigureFromDefinition(*Def, Tier, Diff.EnemyHealth, Diff.EnemyDamage);
 	// The slot it holds in the crowd, so a wave spreads round him instead of
 	// piling onto one spot. The numbers used to be here, ad hoc.

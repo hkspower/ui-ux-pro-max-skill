@@ -9,6 +9,7 @@
 class UDataTable;
 class USaudAbilitySystemComponent;
 class USaudAttributeSet;
+class USaudMotionComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnFighterDamaged, float, NewHealth, const FHitResultData&, Hit);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFighterDefeated, AFighterBase*, Fighter);
@@ -197,6 +198,32 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	TObjectPtr<UDataTable> AttackTable = nullptr;
 
+	// ---------------------------------------------------------------- motion
+
+	/** Whose clips this fighter plays: A_<MotionSet>_* in Content/Animation.
+	    The DT_Fighters row for an enemy (AWaveDirector sets it); anything
+	    without clips of its own plays Saud's. See USaudMotionComponent. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motion")
+	FName MotionSet = TEXT("Saud");
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Motion")
+	TObjectPtr<USaudMotionComponent> Motion = nullptr;
+
+	/** Whether the blow that put this fighter in Hit was heavy: it picks
+	    Hit_Heavy over Hit_Light. */
+	bool bLastHitHeavy = false;
+
+	/** Seconds left of getting up after Down -- the same 0.6 s as the
+	    invulnerability, and the length of A_Saud_GetUp. */
+	float GetUpRemaining = 0.f;
+
+	/** Moves on every start of something that must play from its first
+	    frame even when the clip is already the one playing: a second jab, a
+	    second hit, a second dash. */
+	uint32 MotionSerial = 0;
+
+	FName GetCurrentAttackRow() const { return CurrentAttackRow; }
+
 protected:
 	/** Advances startup -> active -> recovery and fires the hitbox once. */
 	void TickAttack(float DeltaSeconds);
@@ -251,4 +278,11 @@ protected:
 
 	/** Set the frame block is pressed; a hit inside this window is a parry. */
 	float ParryWindowRemaining = 0.f;
+
+	/** The victim's white flash on a clean hit (the browser's f.flash), in
+	    game time, so it holds through the freeze as the browser's does. It
+	    drives the body's HitFlash material parameter; FlashShown is what was
+	    last sent, so the parameter is set only when it changes. */
+	float FlashRemaining = 0.f;
+	float FlashShown = 0.f;
 };

@@ -1,7 +1,11 @@
 #include "Combat/FighterBase.h"
 #include "Combat/SaudArena.h"
+#include "Combat/SaudFeel.h"
+#include "Combat/SaudMotionComponent.h"
 #include "Game/SaudAudioSubsystem.h"
+#include "Game/SaudFeelSubsystem.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/DataTable.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -30,6 +34,10 @@ AFighterBase::AFighterBase()
 	// that every fighter in the game has them whatever it was spawned from.
 	AbilitySystem = CreateDefaultSubobject<USaudAbilitySystemComponent>(TEXT("AbilitySystem"));
 	Attributes = CreateDefaultSubobject<USaudAttributeSet>(TEXT("Attributes"));
+
+	// The clips, played by state. Made here for the same reason: a fighter
+	// spawned from any Blueprint moves the way its state says.
+	Motion = CreateDefaultSubobject<USaudMotionComponent>(TEXT("Motion"));
 }
 
 void AFighterBase::BeginPlay()
@@ -152,6 +160,9 @@ void AFighterBase::ReceiveKnockback(const FVector& Impulse, bool bKnockdown)
 	}
 	LaunchCharacter(Impulse, true, false);
 	bSwingFired = true;		// whatever was being thrown is over
+	bLastHitHeavy = bKnockdown;
+	GetUpRemaining = 0.f;
+	++MotionSerial;
 
 	if (bKnockdown && !bResistsKnockdown)
 	{
@@ -200,12 +211,25 @@ void AFighterBase::Tick(float DeltaSeconds)
 	// Blocking drains stamina; everything else refills it.
 	const float Regen = bBlocking ? -13.f : SaudGameplay::StaminaRegenPerSecond;
 	Stamina = FMath::Clamp(Stamina + Regen * DeltaSeconds, 0.f, MaxStamina);
+
+	// The white flash of a clean hit. A material without HitFlash ignores it.
+	FlashRemaining = FMath::Max(0.f, FlashRemaining - DeltaSeconds);
+	const float Flash = SaudFeel::FlashAmount(FlashRemaining);
+	if (Flash != FlashShown)
+	{
+		FlashShown = Flash;
+		if (USkeletalMeshComponent* Body = GetMesh())
+		{
+			Body->SetScalarParameterValueOnMaterials(TEXT("HitFlash"), Flash);
+		}
+	}
 }
 
 void AFighterBase::TickTimers(float DeltaSeconds)
 {
 	InvulnerableRemaining = FMath::Max(0.f, InvulnerableRemaining - DeltaSeconds);
 	ParryWindowRemaining  = FMath::Max(0.f, ParryWindowRemaining  - DeltaSeconds);
+	GetUpRemaining        = FMath::Max(0.f, GetUpRemaining        - DeltaSeconds);
 
 	if (State == EFighterState::Hit)
 	{
@@ -228,6 +252,7 @@ void AFighterBase::TickTimers(float DeltaSeconds)
 			{
 				State = EFighterState::Idle;
 				InvulnerableRemaining = 0.6f;	// brief mercy on getting up
+				GetUpRemaining = SaudFeel::GetUpSeconds;
 			}
 		}
 	}
@@ -278,6 +303,7 @@ bool AFighterBase::StartAttack(FName AttackRow)
 	bBlocking        = false;
 	HitThisSwing.Reset();
 	State = EFighterState::Attack;
+	++MotionSerial;
 
 	// The swing is heard before it lands; whether it lands is the next sound.
 	// The clip is not started here: its swish sits some way into the file,
@@ -439,9 +465,14 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 		Attacker->HitStunRemaining = 0.46f;
 		Attacker->CurrentAttack    = nullptr;
 		Attacker->LaunchCharacter(Facing * 260.f, true, false);
+		// A parry's stagger is longer than either hit clip; the heavy one is
+		// the nearer, and the reel reads as the bigger thing it is.
+		Attacker->bLastHitHeavy    = true;
+		++Attacker->MotionSerial;
 
 		Result.bParried = true;
 		if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this)) { Audio->Play(TEXT("Parry"), this); }
+		if (USaudFeelSubsystem* Feel = USaudFeelSubsystem::Get(this)) { Feel->OnBlow(this, Attacker, Result, Attack.bHeavy); }
 		BP_OnHitReceived(Result);
 		return Result;
 	}
@@ -463,6 +494,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 		LaunchCharacter(Attacker->GetFacing() * (Attack.Knockback * SaudGameplay::BlockPushShare * GetBlockCostMultiplier(true)),
 		                true, false);
 		if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this)) { Audio->Play(TEXT("Block"), this); }
+		if (USaudFeelSubsystem* Feel = USaudFeelSubsystem::Get(this)) { Feel->OnBlow(this, Attacker, Result, Attack.bHeavy); }
 		OnDamaged.Broadcast(Health, Result);
 		BP_OnHitReceived(Result);
 		return Result;
@@ -474,6 +506,10 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 	CurrentAttack = nullptr;
 	bSwingFired = true;		// the swing this blow interrupted never happened
 	LaunchCharacter(Attacker->GetFacing() * Attack.Knockback, true, false);
+	bLastHitHeavy = Attack.bHeavy;
+	GetUpRemaining = 0.f;
+	FlashRemaining = SaudFeel::FlashSeconds;
+	++MotionSerial;
 
 	// Knockdown: always on a killing blow, sometimes on a heavy one, always on
 	// the finisher. Bosses shrug most of them off so they cannot be stunlocked.
@@ -497,6 +533,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 		Audio->Play(bKnockdown ? TEXT("Hit_Knockdown")
 			: Attack.bHeavy ? TEXT("Hit_Heavy") : TEXT("Hit_Light"), this);
 	}
+	if (USaudFeelSubsystem* Feel = USaudFeelSubsystem::Get(this)) { Feel->OnBlow(this, Attacker, Result, Attack.bHeavy); }
 	OnDamaged.Broadcast(Health, Result);
 	BP_OnHitReceived(Result);
 	return Result;

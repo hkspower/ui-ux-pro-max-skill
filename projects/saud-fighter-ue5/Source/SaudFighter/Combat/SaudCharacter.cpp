@@ -377,6 +377,7 @@ void ASaudCharacter::Input_BlockStarted()
 		Stamina -= 14.f;
 		State = EFighterState::Dash;
 		DashRemaining = bLeap ? 0.32f : 0.24f;
+		++MotionSerial;
 		InvulnerableRemaining = bLeap ? 0.34f : 0.26f;
 
 		const FVector Dir = FVector(MoveInput.X, MoveInput.Y, 0.f).GetSafeNormal();

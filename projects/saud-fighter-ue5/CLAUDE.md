@@ -1219,6 +1219,84 @@ street and ground are given `QUERY_AND_PHYSICS` collision and rely on the
 importer's generated collision; and the glTF is a viewer artefact --
 Unreal imports the per-kind FBX, not the glTF.
 
+## A blow has weight, and the clips play -- 2026-09-23
+
+Until today a clean hit here did three things: a sound, a push, a stun. The
+freeze frame and the camera shake existed only in `FSaudCueParameters` on
+the ability path, which nothing fires a blow down (see "Known, not fixed":
+strikes go through `AFighterBase::StartAttack`). And none of the twenty Saud
+clips or seventeen boss clips had ever been played by anything: there is no
+Animation Blueprint, so every fighter stood in his bind pose through every
+punch.
+
+**The feel.** `Combat/SaudFeel.h` holds the browser's own numbers, quoted
+with their lines in `applyHit()` (index.html:3362-3440) because they live in
+the HTML, not the assets folder: hitstop 0.040 / 0.075 s, parry 0.09; shake 7 /
+13 px, knockdown 16, block 5, parry 12, fading at 46 px/s; camera punch-in
+0.45 / 1.0 fading at 3.4/s; the victim's 0.09 s white flash; buzz 24 / 48 ms
+when the player is hit, 10 / 20 when he lands it, 30 on a parry.
+`Game/SaudFeelSubsystem` applies them. `AFighterBase::ReceiveHit` calls it on
+every parry, block and clean hit.
+
+- **The freeze** holds global time dilation at 0.001 (the browser stops its
+  fight outright; Unreal takes no zero) and gives back whatever dilation was
+  there before. Everything the subsystem runs -- the freeze's own countdown
+  included -- runs on the frame's real length, as the browser keeps drawing
+  its shake while the fight stands still. The flash is the fighter's and runs
+  in game time, so, as in the browser, it holds through the freeze.
+- **The shake** is the browser's share of its 720-pixel canvas turned into
+  degrees of the camera's vertical field of view: 13 px is 1.8 % of the
+  picture however it is drawn. The browser's fresh random offset every frame
+  is noise at 120 Hz; this is two incommensurate sines per axis, the same
+  size. It is put on whatever camera the player is looking through, and the
+  camera is left exactly as found when it ends.
+- **The punch-in** narrows the field of view by the factor the browser
+  scales its frame by, 1 + ease(k) x 0.045.
+- **The buzz** goes to all four motors, only on a blow the player is in, only
+  when the profile's `bVibration` is on. A pad motor needs tens of
+  milliseconds to spin up and a 10 ms pulse is not felt, so nothing under
+  60 ms is sent; the browser's lengths still order which blows buzz longer.
+- **The flash** is a `HitFlash` scalar (0..1) on the body's materials: held
+  for the first half of 0.09 s and falling away over the second, because a
+  lit 3D body snapping to white and back reads as a rendering fault.
+
+**The clips.** `Combat/SaudMotionComponent`, made on every fighter, puts the
+mesh in single-node mode and plays the clip `SaudFeel::Pick` names for the
+state: attack row (A_Saud_Jab), Hit Light / Heavy by the blow that caused it
+(a parry's 0.46 s stagger plays Heavy), Down (death reuses it and holds the
+last frame), GetUp for the 0.6 s after Down, Block, the four Walks and Dashes
+by heading against facing (the stick decides one, the opponent the other),
+Guard. A fighter plays `A_<MotionSet>_<clip>` and falls back to Saud's for
+anything he has none of: the bosses have their strikes and guards, the
+street men have nothing of their own. `AWaveDirector` sets `MotionSet` to the
+fighter's row. `MotionSerial` restarts a clip already playing -- a second jab,
+a second hit, a second dash.
+
+`Tools/harness/tests/feel.cpp` checks every number above against the
+browser's, that peaks are kept (a jab never cuts a heavy's freeze short),
+that the decay is real time, that `SIdle..SDead` are `EFighterState`'s order
+read out of `SaudTypes.h`, that every heading at every facing picks the same
+clip, and that every Saud clip the names point at is on disk. It was made to
+fail on a 0.07 hitstop and on swapped left/right before it was trusted.
+
+**Not verified -- none of this has been compiled or played.** Beyond that:
+
+- **The clips must be imported** to `/Game/Animation/Saud/` and
+  `/Game/Animation/Bosses/` under the names the FBX files already have. A
+  clip that is not there is looked for once and skipped.
+- **Every fighter must share Saud's skeleton** (or be marked compatible) for
+  Saud's clips to play on him. They share the 62-bone export strip, so this
+  is an import setting, but the men are different sizes, so the skeleton
+  needs per-bone translation retargeting (Skeleton, not Animation) or a
+  boss's shoulders will be set to Saud's.
+- **`HitFlash` needs a material parameter**, like `IronArmLevel`: lerp the
+  base colour and emissive towards white by it. Without it the flash does
+  nothing and nothing breaks.
+- **No sparks.** The browser's impact burst and ring are particles; there is
+  no Niagara asset in this project to fire, and none was made.
+- **A Blueprint that sets an Animation Blueprint** loses it to single-node
+  mode; set `Motion->bDriveMesh` false on that fighter to keep it.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
@@ -1233,10 +1311,10 @@ Unreal imports the per-kind FBX, not the glTF.
 - **This project has never been compiled.** It was written without an engine
   to build against. The C++ is idiomatic UE 5.4 and the data is complete, but
   expect to fix a compile error or two on a first build, and do not describe
-  any of it as verified until it has actually built. The two exceptions are
-  `Combat/SaudArena.h`, which `Tools/harness/run.sh` compiles and executes
-  — that file's arithmetic is checked, and no other C++ here is — and
-  `Tools/audio/master.py`, which is Python, runs, and has.
+  any of it as verified until it has actually built. The exceptions are
+  `Combat/SaudArena.h` and `Combat/SaudFeel.h`, which `Tools/harness/run.sh`
+  compiles and executes — those files' arithmetic is checked, and no other
+  C++ here is — and `Tools/audio/master.py`, which is Python, runs, and has.
 - **iOS is Mac-only.** There is no cross-compile. `Tools/ios/build-ios.sh`
   checks for this and says so rather than failing halfway through a cook.
 
