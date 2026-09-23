@@ -492,13 +492,17 @@ def build_field(sc, build):
 
     def seg(p, q, s):
         return (np.array(Jp(p)) * np.array([s, 1, 1]), np.array(Jp(q)) * np.array([s, 1, 1]))
-    limbs = []          # (polyline, radius of influence, end blends as fractions of arc length, is_arm)
+    limbs = []          # (polyline, radius of influence, end blends as fractions of arc length, ramp in)
     arms = []           # the arm polylines with the hand, for the rigid shift
     for s in (1, -1):
         sh, el = seg("upperarm_l", "lowerarm_l", s); wr = seg("lowerarm_l", "hand_l", s)[1]; tip = seg("hand_l", "hand_end_l", s)[1]
         hip, kn = seg("thigh_l", "calf_l", s); an = seg("calf_l", "foot_l", s)[1]
-        limbs.append(([sh, el, wr], 0.115, (0.12, 0.90)))
-        limbs.append(([hip, kn, an], 0.150, (0.15, 0.93)))
+        limbs.append(([sh, el, wr], 0.115, (0.12, 0.90), 0.10))
+        # The thigh comes in over 40 % of the leg, not 10: over 4 cm of
+        # thigh, x1.43 on ZAYOS stepped the trouser legs out from under the
+        # pelvis as two open-topped tubes, rim and all, the moment there was
+        # no tee over the waist to hide it.
+        limbs.append(([hip, kn, an], 0.150, (0.02, 0.93), 0.40))
         arms.append(([sh, el, wr, tip + (tip - wr) * 0.6], 0.16))
     shoulder_x = abs(Jp("upperarm_l").x)
     hip_x = abs(Jp("thigh_l").x)
@@ -528,9 +532,9 @@ def build_field(sc, build):
             # point belongs to the limb whose field is strongest on it, so
             # the inner thighs are thinned once, the same on both sides.
             best_w = np.zeros(len(P)); best_foot = P0.copy()
-            for pts, R, (u0, u1) in limbs:
+            for pts, R, (u0, u1), ramp in limbs:
                 d, u, foot = along(P0, pts)
-                w = _smooth((u - u0) / 0.10) * (1.0 - _smooth((u - u1) / 0.07))
+                w = _smooth((u - u0) / ramp) * (1.0 - _smooth((u - u1) / 0.07))
                 w = w * (1.0 - _smooth((d - R * 0.75) / (R * 0.25)))
                 take = w > best_w
                 best_w[take] = w[take]; best_foot[take] = foot[take]
