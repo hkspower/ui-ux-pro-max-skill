@@ -240,7 +240,7 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     # rig; see anatomy.glove for why the union hides them cleanly.
     glove_parts = []
     if gloves:
-        gl = A.glove(); glove_parts = gl + [mirror_x(o) for o in gl]
+        gl = A.glove(thumb=jl["thumb"]); glove_parts = gl + [mirror_x(o) for o in gl]
     hands = union_remesh(hl + hr + glove_parts, 0.0025 * vs, "Hands"); A.smooth(hands, 0.5, 3)
     face = face_parts() + ear(1) + ear(-1)
     hair = hair_parts(hair_style)

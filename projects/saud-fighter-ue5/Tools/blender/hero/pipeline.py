@@ -189,8 +189,13 @@ def build_fighter(spec, argv=None):
                 he = Vector((A.Jp("hand_end_l").x * s, A.Jp("hand_end_l").y, A.Jp("hand_end_l").z))
                 d = (he - hd).normalized()
                 lo = hd + d * (-0.42 * L); hi_ = hd + d * (1.02 * L)
+                # ...and the sleeve over the thumb (anatomy.glove), which
+                # reaches past that cylinder: its tip is 0.100 off the axis
+                th = [Vector((q.x * s, q.y, q.z)) for q in jl["thumb"]]
+                reach = 0.0150 + A.GLOVE_THUMB_PAD + 0.012
                 for p in body.data.polygons:
-                    if G._pt_seg(p.center, lo, hi_) < 0.075:
+                    if G._pt_seg(p.center, lo, hi_) < 0.075 or \
+                       any(G._pt_seg(p.center, a, b) < reach for a, b in zip(th[:-1], th[1:])):
                         p.material_index = slots["glove"]
         tee, pants, soles = G.dress(body, tee=not no_tee)
         mats["tee"] = F.shader("%s_Tee" % name, "tee", 0.88, sheen=0.35, weave=0.22)
@@ -238,6 +243,11 @@ def build_fighter(spec, argv=None):
     # ---- 4: the budget. Face and hands keep their density.
     def precious(co):
         if co.z > 1.556 and co.y < 0.03: return True                      # the face
+        # A glove is a smooth pad and needs none of a hand's density. Kept
+        # anyway, ZAYOS's two gloves were 62,720 triangles of the 469,576,
+        # the rest of him went into the collapse at 3 % to pay for them, and
+        # at 3 % both shoes collapsed to no faces at all.
+        if gloves: return False
         for s in (1, -1):
             wr = Vector((A.Jp("hand_l").x * s, A.Jp("hand_l").y, A.Jp("hand_l").z))
             if (co - wr).length < 0.22 and co.z < 1.10: return True         # the hands
@@ -249,6 +259,11 @@ def build_fighter(spec, argv=None):
     tris["pants"] = F.decimate(pants, budget["pants"], lambda c: False, boundary_rings=2)
     for o in soles + eyes: tris[o.name] = sum(len(p.vertices) - 2 for p in o.data.polygons)
     stamp("decimated: " + "  ".join("%s %d" % kv for kv in tris.items()))
+    # every material the body carries still has faces to bake -- said here,
+    # rather than as a bake that finds nothing ten minutes later
+    left = {k: sum(1 for p in body.data.polygons if p.material_index == i) for k, i in slots.items()}
+    empty = [k for k, n in left.items() if n == 0 and not (k == "hair" and bald)]
+    assert not empty, "decimation left no %s faces on %s (%s)" % ("/".join(empty), name, left)
     # The faces under the garments, decided HERE, at the canonical
     # coordinates every region test was written for. They are deleted after
     # the bind (bone heat wants the closed body), by which time the body has
@@ -425,7 +440,7 @@ def build_fighter(spec, argv=None):
         bpy.data.objects.remove(ref, do_unlink=True)
         stamp("skeleton identical to the boss clips' (drift %.1e m)" % worst)
     nf = R.add_finger_bones(rig, jl)
-    R.bind_all(body, [tee, pants] + soles + eyes, rig)
+    R.bind_all(body, [tee, pants] + soles + eyes, rig, factors.get("crotch"))
     stamp("stripped %d body faces under the garments" % strip_body(body, hidden_faces))
     mesh = R.join_all(body, [tee, pants] + soles + eyes); mesh.name = mesh.data.name = name
     legacy.weight_orphans(mesh, rig)

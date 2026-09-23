@@ -289,7 +289,12 @@ def hand():
     joints["thumb"] = [t0, t1, t2, t3]
     return parts, joints
 
-def glove(scale=1.0):
+# How far a glove's thumb stands off the thumb inside it: the padding. A
+# thumb segment is 10.5-15 mm in radius; with this it is 22.5-27.
+GLOVE_THUMB_PAD = 0.012
+
+
+def glove(scale=1.0, thumb=None):
     """A boxing glove, over the fist -- ZAYOS (`look.hands: 'gloves'`).
 
     Not a padded fist: its own shape, unioned OVER hand()'s fingers rather
@@ -327,11 +332,28 @@ def glove(scale=1.0):
         c = hd + d * (L * t * scale) + n * (sf * scale)
         rows.append((c, w * (hw * scale), n * (hth * scale)))
     parts = [loft("glove", rows, segs=32)]
-    # the thumb lobe: one rounded pad, not an articulated thumb -- a glove
-    # does not have knuckles in it
-    ta = (-w * 0.55 + d * 0.62 - n * 0.35).normalized()
-    tc = hd + d * (L * 0.14 * scale) - w * (0.055 * scale) - n * (0.006 * scale)
-    parts.append(ellipsoid("glovethumb", tc + ta * (0.032 * scale), (0.024 * scale, 0.021 * scale, 0.038 * scale), ta))
+    if thumb is None:
+        # the thumb lobe: one rounded pad, not an articulated thumb -- a glove
+        # does not have knuckles in it
+        ta = (-w * 0.55 + d * 0.62 - n * 0.35).normalized()
+        tc = hd + d * (L * 0.14 * scale) - w * (0.055 * scale) - n * (0.006 * scale)
+        parts.append(ellipsoid("glovethumb", tc + ta * (0.032 * scale), (0.024 * scale, 0.021 * scale, 0.038 * scale), ta))
+        return parts
+    # The thumb's sleeve, over the thumb hand() actually built (its joints,
+    # `thumb`): a padded tube down each segment and a round cap on the tip.
+    # The fixed lobe above was drawn for where a thumb might be, and the
+    # hand's thumb is not there -- measured, its middle joint 0.086 and its
+    # tip 0.100 off the hand's axis where the lobe ends at 0.103 and misses
+    # both (a lobe metric of 2.4 and 5.6, inside is under 1): ZAYOS's bare
+    # thumb, nail and all, stood out of the top of both gloves.
+    pad = GLOVE_THUMB_PAD * scale
+    for k, (a, b, r) in enumerate(zip(thumb[:-1], thumb[1:], (0.0150, 0.0125, 0.0105))):
+        R = r + pad
+        ax = (b - a).normalized()
+        parts.append(tube("glovethumb_%d" % k, a - ax * R * 0.6, b + ax * R * 0.3,
+                          [(0.0, R, R * 0.9, 0, 0), (0.5, R, R * 0.9, 0, 0), (1.0, R, R * 0.9, 0, 0)], front=n, segs=20))
+    tip = thumb[-1]; ax = (thumb[-1] - thumb[-2]).normalized()
+    parts.append(ellipsoid("glovethumbtip", tip, ((0.0105 + pad),) * 2 + ((0.0105 + pad) * 1.1,), ax))
     return parts
 
 def masses():
@@ -479,6 +501,7 @@ def build_field(sc, build):
         limbs.append(([hip, kn, an], 0.150, (0.15, 0.93)))
         arms.append(([sh, el, wr, tip + (tip - wr) * 0.6], 0.16))
     shoulder_x = abs(Jp("upperarm_l").x)
+    hip_x = abs(Jp("thigh_l").x)
 
     def along(P, pts):
         """distance to a polyline, the fraction along it, and the foot of the perpendicular"""
@@ -527,6 +550,19 @@ def build_field(sc, build):
             for pts, R in arms:
                 d, u, foot = along(P0, pts)
                 arm_w = np.maximum(arm_w, 1.0 - _smooth((d - R * 0.7) / (R * 0.3)))
+            # The legs: carried outward WHOLE by the hip joint's own
+            # displacement, as the arms are by the shoulder's. Until
+            # 2026-09-23 the widening stopped at the hips, so a man whose
+            # limbs thicken (ZAYOS: legs x1.43, torso x1.31) kept Saud's leg
+            # spacing under legs half again as thick: his knees met (0.2 cm
+            # apart where Saud's are 5), bone heat mixed the two legs across
+            # the touch, and the trousers tore into spikes between them the
+            # moment a pose parted the knees -- and his hips, which neither
+            # rule reached, came out pinched between a x1.20 thigh and a
+            # x1.31 waist. Tapered to nothing in the last centimetre either
+            # side of the midline, where the crotch joins the two.
+            below = 1.0 - _smooth((z - 0.96) / 0.04)
+            shift = shift + np.sign(x) * hip_x * (t - 1.0) * _smooth(np.abs(x) / 0.012) * below
             rigid = np.sign(x) * shoulder_x * (t - 1.0)
             P[:, 0] = P[:, 0] + shift * (1.0 - arm_w) + rigid * arm_w
         return P * np.array([h, h, h])
@@ -553,4 +589,8 @@ def scale_to(objects, joints_l, sc, build):
         for p, q in zip(pts, Q):
             p.x, p.y, p.z = float(q[0]), float(q[1]), float(q[2])
     print("build     : h %.3f (stature %.3f m)  limbs x%.3f  torso x%.3f" % (h, legacy.HEIGHT * h, l, t))
-    return dict(h=h, l=l, t=t)
+    # the crotch weld rig_export.pin_crotch pins, carried through the same
+    # field: its canonical 0.910 m is mid-thigh on a man half again the size
+    c = F(np.array([[0.0, 0.0, 0.910], [0.030, 0.0, 0.910], [0.0, 0.0, 0.940]]))
+    return dict(h=h, l=l, t=t, crotch=dict(z_centre=float(c[0][2]), x_reach=float(c[1][0] - c[0][0]),
+                                           z_reach=float(c[2][2] - c[0][2])))

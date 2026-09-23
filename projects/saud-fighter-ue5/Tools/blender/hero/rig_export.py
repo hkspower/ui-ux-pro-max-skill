@@ -80,12 +80,49 @@ def pin_crotch(body, x_reach=0.030, z_centre=0.910, z_reach=0.030):
     return n
 
 
-def bind_all(body, garments, arm):
+def own_the_head(body, arm):
+    """The face belongs to the head bone. Bone heat gave ZAYOS's face to
+    neck_01 -- 0 % of what stands in front of his head joint was head-held,
+    where Saud's is 99 % -- so every turn of his head sheared the face off
+    the skull into flat shards. Checked on every man: when under half of the
+    face in front of the joint is head-held, heat failed there and the head
+    is weighted here instead, the way heat weights Saud's: neck_01 fading
+    to head from 0.35 of a neck-length below the joint (Saud: none head-held
+    at -0.4, 69 % at -0.2, 99 % at the joint), head alone above it. Returns
+    how many vertices it set (0: heat was right and nothing is touched)."""
+    gh, gn = body.vertex_groups.get("head"), body.vertex_groups.get("neck_01")
+    if gh is None or gn is None:
+        return 0
+    b = arm.data.bones
+    hz, nz = b["head"].head_local.z, b["neck_01"].head_local.z
+    L = hz - nz
+    face = [v for v in body.data.vertices
+            if hz <= v.co.z < hz + 0.2 * L and v.co.y < -0.4 * L and abs(v.co.x) < 0.6 * L]
+    held = sum(1 for v in face if any(g.group == gh.index and g.weight >= 0.5 for g in v.groups))
+    if not face or held >= 0.5 * len(face):
+        return 0
+    lo = hz - 0.35 * L
+    n = 0
+    for v in body.data.vertices:
+        if v.co.z < lo: continue
+        th = _smoothstep((v.co.z - lo) / (0.35 * L))
+        for g in list(v.groups):
+            body.vertex_groups[g.group].remove([v.index])
+        gh.add([v.index], th, "REPLACE")
+        if th < 1.0: gn.add([v.index], 1.0 - th, "REPLACE")
+        n += 1
+    return n
+
+
+def bind_all(body, garments, arm, crotch=None):
     """Heat on the body; the garments take the body's weights by proximity,
     which is what a shell 5 mm off the skin should do -- heat on a shell
-    finds its own answer and it is not the body's."""
+    finds its own answer and it is not the body's. `crotch` is where the
+    weld is on this man (anatomy.scale_to); left out, Saud's own."""
     legacy.bind(body, arm)
-    print("crotch: %d vertices pinned toward the pelvis (tapered)" % pin_crotch(body))
+    n = own_the_head(body, arm)
+    if n: print("head: bone heat left the face off the head bone; %d vertices re-weighted to it" % n)
+    print("crotch: %d vertices pinned toward the pelvis (tapered)" % pin_crotch(body, **(crotch or {})))
     # The toe box belongs to ball_*: heat gives everything ahead of the ball
     # joint two thirds to foot_*, so a toe roll pitched the whole shoe with
     # the foot bone and its toe went 35 mm through the floor while the bones
