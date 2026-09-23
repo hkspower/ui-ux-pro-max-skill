@@ -19,10 +19,29 @@ struct FVector
     FVector operator+(const FVector& O) const { return FVector(X + O.X, Y + O.Y, Z + O.Z); }
     FVector operator-(const FVector& O) const { return FVector(X - O.X, Y - O.Y, Z - O.Z); }
     FVector operator*(float S) const { return FVector(X * S, Y * S, Z * S); }
+    FVector operator/(float S) const { return FVector(X / S, Y / S, Z / S); }
+    FVector operator-() const { return FVector(-X, -Y, -Z); }
+    FVector& operator+=(const FVector& O) { X += O.X; Y += O.Y; Z += O.Z; return *this; }
     float Size2D() const { return std::sqrt(X * X + Y * Y); }
+    float Size() const { return std::sqrt(X * X + Y * Y + Z * Z); }
+    float SizeSquared() const { return X * X + Y * Y + Z * Z; }
+    bool IsNearlyZero(float Tol = 1e-4f) const { return std::fabs(X) <= Tol && std::fabs(Y) <= Tol && std::fabs(Z) <= Tol; }
+    FVector GetSafeNormal(float Tol = 1e-8f) const
+    {
+        const float S = SizeSquared();
+        return S <= Tol ? FVector(0.f, 0.f, 0.f) : *this / std::sqrt(S);
+    }
+    static float DotProduct(const FVector& A, const FVector& B) { return A.X * B.X + A.Y * B.Y + A.Z * B.Z; }
+    static FVector CrossProduct(const FVector& A, const FVector& B)
+    {
+        return FVector(A.Y * B.Z - A.Z * B.Y, A.Z * B.X - A.X * B.Z, A.X * B.Y - A.Y * B.X);
+    }
+    static float Dist(const FVector& A, const FVector& B) { return (A - B).Size(); }
     static FVector ZeroVector;
+    static FVector UpVector;
 };
 inline FVector FVector::ZeroVector = FVector(0.f, 0.f, 0.f);
+inline FVector FVector::UpVector = FVector(0.f, 0.f, 1.f);
 
 namespace FMath
 {
@@ -37,4 +56,8 @@ namespace FMath
     inline float Max(float A, float B) { return A > B ? A : B; }
     inline float Clamp(float V, float A, float B) { return V < A ? A : (V > B ? B : V); }
     inline float Square(float V) { return V * V; }
+    inline float Exp(float V) { return std::exp(V); }
+    inline float Acos(float V) { return std::acos(V < -1.f ? -1.f : (V > 1.f ? 1.f : V)); }
+    inline float Lerp(float A, float B, float T) { return A + (B - A) * T; }
+    inline bool IsNearlyEqual(float A, float B, float Tol = 1e-4f) { return std::fabs(A - B) <= Tol; }
 }

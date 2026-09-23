@@ -223,6 +223,8 @@ public:
 	uint32 MotionSerial = 0;
 
 	FName GetCurrentAttackRow() const { return CurrentAttackRow; }
+	const FAttackDef* GetCurrentAttack() const { return CurrentAttack; }
+	float GetAttackElapsed() const { return AttackElapsed; }
 
 protected:
 	/** Advances startup -> active -> recovery and fires the hitbox once. */

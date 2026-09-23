@@ -1,5 +1,6 @@
 #include "Combat/SaudMotionComponent.h"
 #include "Combat/FighterBase.h"
+#include "Combat/SaudMotionAnimInstance.h"
 
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -10,6 +11,30 @@ USaudMotionComponent::USaudMotionComponent()
 	// After the fighter has moved its state on this frame, so the clip is
 	// this frame's and not last frame's.
 	PrimaryComponentTick.TickGroup = TG_PostPhysics;
+}
+
+void USaudMotionComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	AFighterBase* Fighter = Cast<AFighterBase>(GetOwner());
+	USkeletalMeshComponent* Mesh = Fighter ? Fighter->GetMesh() : nullptr;
+	if (!bDriveMesh || !Mesh)
+	{
+		return;
+	}
+	// Our instance, unless a Blueprint set an Animation Blueprint: that is
+	// its author's, and the clip goes to it the single-node way below.
+	if (!Mesh->GetAnimClass())
+	{
+		Mesh->SetAnimInstanceClass(USaudMotionAnimInstance::StaticClass());
+	}
+}
+
+USaudMotionAnimInstance* USaudMotionComponent::Driver() const
+{
+	const AFighterBase* Fighter = Cast<AFighterBase>(GetOwner());
+	const USkeletalMeshComponent* Mesh = Fighter ? Fighter->GetMesh() : nullptr;
+	return Mesh ? Cast<USaudMotionAnimInstance>(Mesh->GetAnimInstance()) : nullptr;
 }
 
 void USaudMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
@@ -51,11 +76,22 @@ void USaudMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	}
 
 	UAnimSequence* Seq = Find(Fighter->MotionSet, Name);
+	const bool bRestart = Key == PlayingName;      // the same clip, a fresh serial
 	PlayingName = Key;
 	PlayingSerial = Fighter->MotionSerial;
-	if (Seq)
+	if (!Seq)
 	{
-		// Single-node: no Animation Blueprint to author, and none to break.
+		return;
+	}
+	if (USaudMotionAnimInstance* Inst = Driver())
+	{
+		// Ours: the clip, and the IK over it (SaudMotionAnimInstance).
+		Inst->Play(Seq, SaudFeel::Loops(Clip), bRestart);
+	}
+	else
+	{
+		// A Blueprint's Animation Blueprint is on the mesh: single-node
+		// playback takes it over for this clip, without the IK.
 		Mesh->PlayAnimation(Seq, SaudFeel::Loops(Clip));
 	}
 }

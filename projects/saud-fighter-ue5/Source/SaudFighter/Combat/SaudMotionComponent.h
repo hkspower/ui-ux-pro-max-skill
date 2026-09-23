@@ -5,6 +5,8 @@
 #include "Combat/SaudFeel.h"
 #include "SaudMotionComponent.generated.h"
 
+class USaudMotionAnimInstance;
+
 class AFighterBase;
 class UAnimSequence;
 
@@ -15,9 +17,10 @@ class UAnimSequence;
  * until 2026-09-23 nothing in the build played any of them: there is no
  * Animation Blueprint, and the fighters stood in their bind pose through
  * every punch. This is the smallest thing that plays them -- no blend
- * graph, no asset to author -- by putting the mesh in single-node mode and
- * swapping the sequence when the state changes. Which clip is SaudFeel::Pick,
- * checked by the harness; this only loads and plays what it picks.
+ * graph, no asset to author: the mesh runs USaudMotionAnimInstance, which
+ * evaluates one clip and solves the runtime IK over it, and this swaps the
+ * clip when the state changes. Which clip is SaudFeel::Pick, checked by the
+ * harness; this only loads and hands over what it picks.
  *
  * Clips are found by name, the names the files already have:
  *   /Game/Animation/<Folder>/A_<MotionSet>_<Clip>
@@ -40,6 +43,7 @@ class SAUDFIGHTER_API USaudMotionComponent : public UActorComponent
 public:
 	USaudMotionComponent();
 
+	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
 	                           FActorComponentTickFunction* ThisTickFunction) override;
 
@@ -47,7 +51,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Motion")
 	FName GetPlayingClip() const { return PlayingName; }
 
-	/** Set false to leave the mesh to an Animation Blueprint instead. */
+	/** Set false to leave the mesh to an Animation Blueprint instead. With
+	    it on, the mesh runs USaudMotionAnimInstance -- the clip plus the
+	    runtime IK -- unless a Blueprint gave it an Animation Blueprint of
+	    its own, in which case that is kept and the clip goes to it through
+	    PlayAnimation's single-node path, without IK. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motion")
 	bool bDriveMesh = true;
 
@@ -59,6 +67,9 @@ private:
 
 	FName PlayingName = NAME_None;
 	uint32 PlayingSerial = 0;
+
+	/** The mesh's anim instance when it is ours; null when a Blueprint's. */
+	USaudMotionAnimInstance* Driver() const;
 
 	UAnimSequence* Find(FName MotionSet, const FString& Clip);
 	UAnimSequence* LoadOnce(const FString& Path);

@@ -1260,9 +1260,9 @@ every parry, block and clean hit.
   for the first half of 0.09 s and falling away over the second, because a
   lit 3D body snapping to white and back reads as a rendering fault.
 
-**The clips.** `Combat/SaudMotionComponent`, made on every fighter, puts the
-mesh in single-node mode and plays the clip `SaudFeel::Pick` names for the
-state: attack row (A_Saud_Jab), Hit Light / Heavy by the blow that caused it
+**The clips.** `Combat/SaudMotionComponent`, made on every fighter, plays the
+clip `SaudFeel::Pick` names for the state (through `USaudMotionAnimInstance`
+since the runtime IK, below; in single-node mode before it): attack row (A_Saud_Jab), Hit Light / Heavy by the blow that caused it
 (a parry's 0.46 s stagger plays Heavy), Down (death reuses it and holds the
 last frame), GetUp for the 0.6 s after Down, Block, the four Walks and Dashes
 by heading against facing (the stick decides one, the opponent the other),
@@ -1294,8 +1294,77 @@ fail on a 0.07 hitstop and on swapped left/right before it was trusted.
   nothing and nothing breaks.
 - **No sparks.** The browser's impact burst and ring are particles; there is
   no Niagara asset in this project to fire, and none was made.
-- **A Blueprint that sets an Animation Blueprint** loses it to single-node
-  mode; set `Motion->bDriveMesh` false on that fighter to keep it.
+- **A Blueprint that sets an Animation Blueprint** keeps it; the clip then
+  goes to it through single-node playback, without the IK. Set
+  `Motion->bDriveMesh` false to leave that mesh alone entirely.
+
+## Full IK at runtime -- 2026-09-23
+
+Asked as "make full IK", settled as runtime IK in Unreal, all three parts:
+feet on the ground, hands on contact, head look-at. The Blender rig
+(`rig_full_ik.py`) is untouched; every clip was posed on a flat floor
+against nobody, and this is what bends them to the world each frame.
+
+**The maths is `Combat/SaudIK.h`, with no engine in it**, and
+`Tools/harness/tests/ik.cpp` executes it:
+
+- **Two bones.** `TwoBone(root, mid, end, target, pole)`: the classic
+  solve, segment lengths taken from the clip's own pose and kept to the
+  millimetre, the bend in the plane of the pole, reach held to 99.5 % so a
+  knee or elbow never locks straight; a pole on the limb's line keeps the
+  clip's own bend. Checked for lengths, reach, the pole's side, and that it
+  turns with the limb at 72 angles.
+- **Feet.** A foot the clip has within 10 cm of the floor is planted and
+  goes onto the ground under it; above 28 cm it is swinging and the clip's;
+  between, the ground's say fades. The pelvis drops to the lower planted
+  foot (never rises: a step up under one foot bends that leg), no further
+  than 40 cm (a drop is the character's to fall). The foot tilts to the
+  slope, to 30 degrees. Corrections settle exponentially (18/s feet,
+  12/s pelvis), the same place at 30 and 60 Hz.
+- **Hands.** Which limb a strike is thrown with is `build_motion.py`'s
+  table -- Jab lead (left) hand, Cross and Hook rear (right), Kick, Knee
+  and Special rear leg -- and the test reads `DT_SaudMotion.csv`'s `Limb`
+  column and holds `StrikingLimb` to it for all six attacks. The fist is
+  drawn to the point of the victim's capsule on the line from the limb's
+  root to him, at the height the clip has it, or to full stretch his way
+  when he is past the arm: in over the last 60 ms of the startup, full
+  through the active frames, out over the first 100 ms of the recovery.
+- **Head.** The look is clamped to 70 degrees of yaw and 30 of pitch
+  against the body's facing, to nothing beyond 9 m; past the yaw limit the
+  head holds the limit rather than facing away. The neck takes 35 % of the
+  turn, the head the rest.
+
+The test was sabotaged before it was trusted: a wrong sign in the law of
+cosines, swapped Jab hand, no pelvis limit and no yaw limit each fail.
+
+**The engine side is `Combat/SaudMotionAnimInstance`**, a C++
+`UAnimInstance` with its own `FAnimInstanceProxy`: no Animation Blueprint,
+no asset. `USaudMotionComponent` sets it on the mesh at BeginPlay (unless a
+Blueprint gave the mesh an Animation Blueprint, which is kept) and hands it
+the clip; the proxy evaluates the clip at the time the game thread advanced
+it to (so a freeze holds it), then, in component space: the pelvis is moved
+first so every leg reads from where it is; each planted leg is solved and
+its foot tilted; the striking limb is solved to its target (a striking leg
+is the strike's, not the ground's); the neck and head are turned by the
+quaternion from the facing to the look, about their own joints, so no bone
+axis has to be known. The game thread's part (`NativeUpdateAnimation`) is
+two `ECC_WorldStatic` line traces a frame from 60 cm above the floor to 70
+below under last frame's feet, the ankle's rest height read once from the
+reference skeleton so a foot's height is measured from its sole, the
+victim found by the blow's own hitbox 40 cm wider, and the look target the
+nearest opponent's head bone. Feet are off while falling, down, dead or
+dashing; the look is off while reeling, down or dead; every alpha eases.
+
+**Not verified -- none of this has been compiled or played**, and this
+is the least certain C++ in the directory: `FCSPose` order-of-evaluation
+(a bone read before its parent is moved does not follow it, which the code
+orders around), `GetAnimationPose`'s 5.4 signature, and
+`FAnimInstanceProxy::Evaluate` returning true to mean "I wrote the pose"
+are each read from the engine's headers, not compiled against them. The
+bone names are the mannequin's 62 (`thigh_l`, `calf_l`, `foot_l`,
+`upperarm_l`, `lowerarm_l`, `hand_l`, `pelvis`, `neck_01`, `head`); a
+missing one skips that solve. The men in this project share one skeleton
+at different sizes, so the same retargeting caveat as the clips applies.
 
 ## Working rules
 
@@ -1312,9 +1381,10 @@ fail on a 0.07 hitstop and on swapped left/right before it was trusted.
   to build against. The C++ is idiomatic UE 5.4 and the data is complete, but
   expect to fix a compile error or two on a first build, and do not describe
   any of it as verified until it has actually built. The exceptions are
-  `Combat/SaudArena.h` and `Combat/SaudFeel.h`, which `Tools/harness/run.sh`
-  compiles and executes — those files' arithmetic is checked, and no other
-  C++ here is — and `Tools/audio/master.py`, which is Python, runs, and has.
+  `Combat/SaudArena.h`, `Combat/SaudFeel.h` and `Combat/SaudIK.h`, which
+  `Tools/harness/run.sh` compiles and executes — those files' arithmetic is
+  checked, and no other C++ here is — and `Tools/audio/master.py`, which is
+  Python, runs, and has.
 - **iOS is Mac-only.** There is no cross-compile. `Tools/ios/build-ios.sh`
   checks for this and says so rather than failing halfway through a cook.
 
