@@ -1704,23 +1704,23 @@
       "Name": "Fg_Muted",
       "Group": "Fg",
       "Key": "Fg.Muted",
-      "Css": "rgba(244,241,232,.62)",
+      "Css": "rgba(244,241,232,.70)",
       "Hex": "#f4f1e8",
       "R": 0.9569,
       "G": 0.9451,
       "B": 0.9098,
-      "A": 0.62
+      "A": 0.7
     },
     {
       "Name": "Fg_Faint",
       "Group": "Fg",
       "Key": "Fg.Faint",
-      "Css": "rgba(244,241,232,.32)",
+      "Css": "rgba(244,241,232,.51)",
       "Hex": "#f4f1e8",
       "R": 0.9569,
       "G": 0.9451,
       "B": 0.9098,
-      "A": 0.32
+      "A": 0.51
     },
     {
       "Name": "Fg_White",
@@ -1792,11 +1792,11 @@
       "Name": "State_Health",
       "Group": "State",
       "Key": "State.Health",
-      "Css": "#37c26b",
-      "Hex": "#37c26b",
-      "R": 0.2157,
-      "G": 0.7608,
-      "B": 0.4196,
+      "Css": "#27eea0",
+      "Hex": "#27eea0",
+      "R": 0.1529,
+      "G": 0.9333,
+      "B": 0.6275,
       "A": 1
     },
     {
@@ -1902,11 +1902,11 @@
       "Name": "Rank_B",
       "Group": "Rank",
       "Key": "Rank.B",
-      "Css": "#37c26b",
-      "Hex": "#37c26b",
-      "R": 0.2157,
-      "G": 0.7608,
-      "B": 0.4196,
+      "Css": "#27eea0",
+      "Hex": "#27eea0",
+      "R": 0.1529,
+      "G": 0.9333,
+      "B": 0.6275,
       "A": 1
     },
     {
@@ -1924,11 +1924,11 @@
       "Name": "Pickup_Health",
       "Group": "Pickup",
       "Key": "Pickup.Health",
-      "Css": "#37c26b",
-      "Hex": "#37c26b",
-      "R": 0.2157,
-      "G": 0.7608,
-      "B": 0.4196,
+      "Css": "#27eea0",
+      "Hex": "#27eea0",
+      "R": 0.1529,
+      "G": 0.9333,
+      "B": 0.6275,
       "A": 1
     },
     {
@@ -2001,11 +2001,11 @@
       "Name": "Difficulty_Rookie",
       "Group": "Difficulty",
       "Key": "Difficulty.Rookie",
-      "Css": "#37c26b",
-      "Hex": "#37c26b",
-      "R": 0.2157,
-      "G": 0.7608,
-      "B": 0.4196,
+      "Css": "#27eea0",
+      "Hex": "#27eea0",
+      "R": 0.1529,
+      "G": 0.9333,
+      "B": 0.6275,
       "A": 1
     },
     {
@@ -2803,6 +2803,6 @@
       "Description": "The roofs. The stage loop opened out: wind, wide reverb, oud and qanun high above the street."
     }
   ],
-  "Revision": "0b0558a4c76898a7",
-  "GeneratedAt": "2026-09-23T08:12:16.758Z"
+  "Revision": "6505c6f3de4008ed",
+  "GeneratedAt": "2026-09-23T10:21:38.174Z"
 }

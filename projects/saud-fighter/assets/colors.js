@@ -37,11 +37,18 @@ window.ASSET_COLORS = {
 
   /* Text, brightest first. Three steps and no more: a heading, a label, and
      something switched off. The two muted steps are the same cream at lower
-     opacity rather than three greys, so text never shifts hue as it dims. */
+     opacity rather than three greys, so text never shifts hue as it dims.
+
+     faint is not only "switched off": it sets real labels at 11-13 px --
+     CAREER XP and its siblings, the maker's credit, a locked button's word.
+     At .32 it measured 2.6:1 on the darkest ground, unreadable from a
+     couch. Raised 2026-09-23 to .51, the least alpha that clears WCAG's
+     4.5:1 for small text on every ground in this file (4.5 at worst); muted
+     went .62 -> .70 (6.1 -> 7.4:1 at worst) so the three steps stay three. */
   fg: {
     bright: '#f4f1e8',
-    muted:  'rgba(244,241,232,.62)',
-    faint:  'rgba(244,241,232,.32)',
+    muted:  'rgba(244,241,232,.70)',
+    faint:  'rgba(244,241,232,.51)',
     white:  '#fdfaf2',     // pure-ish, for the one line that has to shout
     sand:   '#e8dcc0',     // warm body text on a dark ground
     dim:    '#8a8574'      // a thing that is off, unearned or unavailable
@@ -69,9 +76,19 @@ window.ASSET_COLORS = {
      deficiency), rage brightened until it also clears WCAG's 3:1 floor
      against a panel, which the un-mixed fill colour of a bar has to. Ranks
      were checked the same way and left alone: S/A/B/C always draw the
-     letter itself over the colour, so a badge is never colour-only. */
+     letter itself over the colour, so a badge is never colour-only.
+
+     health was moved 2026-09-23, #37c26b -> #27eea0, the same green made
+     lighter and a touch cooler: it sat 0.055 from mana under a simulated
+     protanopia and 0.050 from stamina under tritanopia (OKLab, Machado
+     2009 at full severity), where every other pair of bars clears 0.10.
+     Brightening it was the smallest single move that separates it from
+     both by lightness -- the one cue no colour deficiency takes away -- and
+     every pair now clears 0.10 under all four visions. Its three copies
+     that mean "a good result" (rank.b, pickup.health, difficulty.rookie)
+     moved with it. */
   state: {
-    health:    '#37c26b',   // HP, and a good result
+    health:    '#27eea0',   // HP, and a good result
     critical:  '#e2413f',   // under a quarter health, and anything refused
     hurt:      '#f9cee9',   // the far end of the critical pulse
     mana:      '#ff9a3c',   // MP
@@ -83,10 +100,10 @@ window.ASSET_COLORS = {
 
   /* Ranks. S is the finisher's colour on purpose: the best result in the game
      and the biggest thing you can do in it read as the same achievement. */
-  rank: { s:'#e05cf0', a:'#edbe57', b:'#37c26b', c:'#8a8574' },
+  rank: { s:'#e05cf0', a:'#edbe57', b:'#27eea0', c:'#8a8574' },
 
   /* What is lying on the floor. A pickup's glow is its promise. */
-  pickup: { health:'#37c26b', weapon:'#c9d2de', rage:'#e05cf0' },
+  pickup: { health:'#27eea0', weapon:'#c9d2de', rage:'#e05cf0' },
 
   /* The four on-screen controls. Softer than the bar colours they echo --
      a 50 px circle at full saturation sits on top of the fight instead of
@@ -96,7 +113,7 @@ window.ASSET_COLORS = {
   control: { punch:'#e2413f', kick:'#edbe57', block:'#5aa9e6', rage:'#b46ce0' },
 
   /* The three difficulty rows, ramped from safe to punishing. */
-  difficulty: { rookie:'#37c26b', pro:'#edbe57', champion:'#e2413f' },
+  difficulty: { rookie:'#27eea0', pro:'#edbe57', champion:'#e2413f' },
 
   /* Edges. Gold at a fifth for anything that matters, plain white at almost
      nothing for a seam that only needs to exist. */
@@ -169,8 +186,11 @@ window.ASSET_COLORS = {
 
   /* Menu buttons, as against the four fight controls above. `off` is a
      control that cannot be pressed, `danger` one that throws work away, and
-     `label` the cream a primary button's word is set in -- warmer than
-     fg.bright because it sits on gold, where a neutral white goes blue. */
+     `label` the cream a primary button's sub-line is set in -- warmer than
+     fg.bright because it sits on the brand red (uiButton fills a primary
+     with UI.red; this comment used to say gold), where a neutral white
+     goes cold. Measured on that red's gradient: 5.9:1 at the bottom where
+     the sub-line sits, 3.8 at the very top. */
   button: {
     off:    'rgba(14,18,26,.72)',
     danger: 'rgba(74,18,26,.9)',
