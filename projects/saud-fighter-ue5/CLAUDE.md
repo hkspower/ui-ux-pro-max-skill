@@ -552,6 +552,51 @@ self-test still bites nine of nine at Saud's size.
 textures and the FBX are written by Blender and read back by Blender, and
 that is all that has been checked.
 
+**ZAYOS has a body -- 2026-09-23, and it took five pipeline fixes.** His
+first full build came out with a face of flat shards, trousers torn into
+spikes between his knees, a bare thumb standing out of each glove and shoes
+collapsed to nothing. Each was a shared-pipeline bug that only his size, his
+bare chest or his gloves exposed; each is fixed where it lives:
+
+- **The face** (`finish.decimate`). The second pass, meant to halve the
+  protected face and hands, used a flat ratio of 0.55 -- of the WHOLE mesh,
+  with only the protected vertices allowed to collapse -- so it took 45 % of
+  everything out of the face. Harmless on a man with a tee (a big budget,
+  a small protected share); on ZAYOS it left 7 vertices in front of his
+  face (head 19,352 -> 881). The ratio now takes 45 % of the protected
+  triangles and nothing else: 5,737 face vertices, 43,812 body triangles.
+  His face heat-weights to the head as Saud's does (1,038 head / 298 neck
+  in front of the joint); bone heat had given the collapsed one to the
+  neck. `rig_export.own_the_head` checks every man for that and repairs it
+  where heat fails; it fired on no one once the face was whole.
+- **The knees and the hips** (`anatomy.build_field`). The widening stopped
+  at the hips, so legs x1.43 kept Saud's spacing: knees 0.2 cm apart, heat
+  mixing the two legs across the touch. The legs are carried out whole by
+  the hip joint's own displacement now (>= 5.6 cm apart ankle to crotch),
+  and the thigh thickens over 40 % of the leg, not 10 %. Trouser stretch in
+  the kick: 90x on 311 edges -> 16x on 44 (Saud's own is 22x on 91).
+- **The crotch pin** (`rig_export.pin_crotch`) takes the man's own crotch
+  through the same field; its canonical 0.910 m was mid-thigh on him.
+- **The gloves** (`anatomy.glove`): a sleeve over the thumb the hand
+  actually has, and the glove material reaching it. The fixed lobe missed
+  the thumb (its tip 0.100 off the hand axis, painted skin past 0.075).
+- **The shoes** (`pipeline.precious`): gloves are no longer protected
+  from decimation (they were 62,720 triangles and starved the shoes to
+  zero faces), and a build now fails if any body material is left empty.
+
+The torso and limb fixes change nothing at Saud's own factors. AL-SAQR and
+AL-WAHSH were built before them and are as committed: their crotch pin sat
+at the canonical height (12 and 17 vertices, a small error at their size)
+and their faces had budgets big enough to survive the old second pass.
+Rebuilding them would bring them level; not done, not asked.
+
+**Known, not fixed, on ZAYOS:** the trousers still read as two leg tubes
+round a recessed pelvis at the hip. It is not his: the canonical body steps
+in 3 cm at the waist (0.188 -> 0.157 m half-width within 4 cm of height),
+the trousers are a shell of it, and every other man wears a tee over that
+line. He is the only one who shows it. Reshaping the shared body there is
+a job of its own.
+
 ## The bosses move now
 
 Since 2026-09-19. `Tools/blender/build_motion.py` writes seventeen animation

@@ -49,9 +49,21 @@ def decimate(obj, target_tris, protect, boundary_rings=0):
     d.vertex_group = "keep"; d.invert_vertex_group = True; d.vertex_group_factor = 10.0
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.modifier_apply(modifier="Dec")
-    # protected zones at half density: a second, gentler pass on them
+    # protected zones at half density: a second, gentler pass on them.
+    # The modifier's ratio is of the WHOLE mesh, and only the protected
+    # vertices may collapse in this pass, so the ratio is the one that takes
+    # 45 % of the protected triangles and nothing else. Until 2026-09-23 it
+    # was a flat 0.55: 45 % of everything, taken out of the face alone --
+    # harmless while the protected share was small, and on ZAYOS (no tee,
+    # so a smaller budget, so the face most of what the first pass left)
+    # it collapsed his face to 7 vertices in front and left him flat shards.
     if keep:
-        d2 = obj.modifiers.new("Dec2", "DECIMATE"); d2.ratio = 0.55; d2.vertex_group = "keep"; d2.vertex_group_factor = 10.0
+        g = obj.vertex_groups["keep"].index
+        now = sum(len(p.vertices) - 2 for p in obj.data.polygons)
+        prot = sum(len(p.vertices) - 2 for p in obj.data.polygons
+                   if all(any(e.group == g and e.weight > 0.5 for e in obj.data.vertices[i].groups) for i in p.vertices))
+        d2 = obj.modifiers.new("Dec2", "DECIMATE"); d2.ratio = max(0.02, 1.0 - 0.45 * prot / max(1, now))
+        d2.vertex_group = "keep"; d2.vertex_group_factor = 10.0
         bpy.ops.object.modifier_apply(modifier="Dec2")
     obj.vertex_groups.remove(obj.vertex_groups["keep"])
     return sum(len(p.vertices) - 2 for p in obj.data.polygons)
