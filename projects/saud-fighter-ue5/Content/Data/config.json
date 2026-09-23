@@ -684,6 +684,56 @@
       "Level": 5,
       "Cost": 640,
       "CumulativeCost": 1900
+    },
+    {
+      "Name": "Iron_1",
+      "Track": "Iron",
+      "DisplayName": "IRON ARM",
+      "DisplayNameArabic": "ذراع الحديد",
+      "Description": "-12% block stamina and push per level",
+      "Level": 1,
+      "Cost": 120,
+      "CumulativeCost": 120
+    },
+    {
+      "Name": "Iron_2",
+      "Track": "Iron",
+      "DisplayName": "IRON ARM",
+      "DisplayNameArabic": "ذراع الحديد",
+      "Description": "-12% block stamina and push per level",
+      "Level": 2,
+      "Cost": 250,
+      "CumulativeCost": 370
+    },
+    {
+      "Name": "Iron_3",
+      "Track": "Iron",
+      "DisplayName": "IRON ARM",
+      "DisplayNameArabic": "ذراع الحديد",
+      "Description": "-12% block stamina and push per level",
+      "Level": 3,
+      "Cost": 380,
+      "CumulativeCost": 750
+    },
+    {
+      "Name": "Iron_4",
+      "Track": "Iron",
+      "DisplayName": "IRON ARM",
+      "DisplayNameArabic": "ذراع الحديد",
+      "Description": "-12% block stamina and push per level",
+      "Level": 4,
+      "Cost": 510,
+      "CumulativeCost": 1260
+    },
+    {
+      "Name": "Iron_5",
+      "Track": "Iron",
+      "DisplayName": "IRON ARM",
+      "DisplayNameArabic": "ذراع الحديد",
+      "Description": "-12% block stamina and push per level",
+      "Level": 5,
+      "Cost": 640,
+      "CumulativeCost": 1900
     }
   ],
   "Levels": [
@@ -1574,7 +1624,9 @@
     "PerUpgradeLevel": {
       "Vitality": 18,
       "Stamina": 12,
-      "MoveSpeed": 22
+      "MoveSpeed": 22,
+      "IronArmBlockStamina": 0.12,
+      "IronArmBlockPush": 0.1
     },
     "ManaRegenPerSecond": 5,
     "ManaPerLandedHit": 4,
@@ -2751,6 +2803,6 @@
       "Description": "The roofs. The stage loop opened out: wind, wide reverb, oud and qanun high above the street."
     }
   ],
-  "Revision": "496d793b6e548017",
-  "GeneratedAt": "2026-09-20T06:59:37.404Z"
+  "Revision": "0b0558a4c76898a7",
+  "GeneratedAt": "2026-09-23T08:12:16.758Z"
 }

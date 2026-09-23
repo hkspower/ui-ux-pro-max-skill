@@ -24,3 +24,8 @@ Stam_2,Stam,STAMINA,لياقة,"+12 stamina, faster recovery",2,250,370
 Stam_3,Stam,STAMINA,لياقة,"+12 stamina, faster recovery",3,380,750
 Stam_4,Stam,STAMINA,لياقة,"+12 stamina, faster recovery",4,510,1260
 Stam_5,Stam,STAMINA,لياقة,"+12 stamina, faster recovery",5,640,1900
+Iron_1,Iron,IRON ARM,ذراع الحديد,-12% block stamina and push per level,1,120,120
+Iron_2,Iron,IRON ARM,ذراع الحديد,-12% block stamina and push per level,2,250,370
+Iron_3,Iron,IRON ARM,ذراع الحديد,-12% block stamina and push per level,3,380,750
+Iron_4,Iron,IRON ARM,ذراع الحديد,-12% block stamina and push per level,4,510,1260
+Iron_5,Iron,IRON ARM,ذراع الحديد,-12% block stamina and push per level,5,640,1900

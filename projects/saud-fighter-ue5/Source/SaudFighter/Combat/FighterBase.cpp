@@ -459,8 +459,9 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 
 	if (bGuarding)
 	{
-		Stamina = FMath::Max(0.f, Stamina - 14.f);
-		LaunchCharacter(Attacker->GetFacing() * (Attack.Knockback * 0.30f), true, false);
+		Stamina = FMath::Max(0.f, Stamina - SaudGameplay::BlockStaminaCost * GetBlockCostMultiplier(false));
+		LaunchCharacter(Attacker->GetFacing() * (Attack.Knockback * SaudGameplay::BlockPushShare * GetBlockCostMultiplier(true)),
+		                true, false);
 		if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this)) { Audio->Play(TEXT("Block"), this); }
 		OnDamaged.Broadcast(Health, Result);
 		BP_OnHitReceived(Result);

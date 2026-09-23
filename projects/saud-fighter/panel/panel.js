@@ -48,8 +48,8 @@ var DOMAINS = [
 
   { k:'upgrades', n:'Upgrades', ico:'▲', g:'ASSET_UPGRADES', file:'assets/upgrades.js',
     shape:'single',
-    blurb:'The five stat tracks XP is spent on. Bought, unlike talents.',
-    doc:'UPGRADES — the five stat tracks XP is spent on.\n\n   Bought, unlike talents. `cost` is per level and `maxLevel` was hardcoded\n   as a bare 5 in four places before this file existed.' },
+    blurb:'The six stat tracks XP is spent on. Bought, unlike talents.',
+    doc:'UPGRADES — the six stat tracks XP is spent on.\n\n   Bought, unlike talents. `cost` is per level and `maxLevel` was hardcoded\n   as a bare 5 in four places before this file existed.' },
 
   { k:'levels', n:'Levels & XP', ico:'◆', g:'ASSET_LEVELS', file:'assets/levels.js',
     shape:'single',

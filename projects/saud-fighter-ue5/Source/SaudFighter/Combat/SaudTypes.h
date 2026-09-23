@@ -508,6 +508,18 @@ namespace SaudGameplay
 
 	constexpr float StaminaRegenPerSecond = 24.f;
 	constexpr float BlockDamageMultiplier = 0.20f;
+	/** What a blocked hit costs the man guarding it: stamina, and a share
+	    of the blow's knockback. Both builds, the same numbers. */
+	constexpr float BlockStaminaCost = 14.f;
+	constexpr float BlockPushShare = 0.30f;
+	/** IRON ARM, per bought level: the fraction taken off BlockStaminaCost
+	    and off BlockPushShare. The browser owns these --
+	    saud-fighter/assets/saud.js, perLevel.iron -- and exports them to
+	    Content/Data/Player.json (IronArmBlockStamina / IronArmBlockPush);
+	    nothing in C++ reads that file yet, so they are repeated here like
+	    every other per-level number ApplyUpgrades uses. */
+	constexpr float IronArmBlockStaminaPerLevel = 0.12f;
+	constexpr float IronArmBlockPushPerLevel = 0.10f;
 	constexpr float ParryWindow = 0.20f;
 	constexpr float ComboWindow = 0.95f;
 	constexpr float ComboResetTime = 1.7f;

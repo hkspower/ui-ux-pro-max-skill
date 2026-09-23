@@ -20,7 +20,10 @@ window.ASSET_SAUD = {
 
   base:     { hp: 100, stam: 100, mp: 40, pow: 1, spd: 142, reach: 58 },
   // What one bought level of each upgrade track is worth.
-  perLevel: { vit: 18, stam: 12, spd: 9 },
+  // `iron` is IRON ARM: the fraction each level takes off what a BLOCKED
+  // hit costs him -- the stamina (14) and the push (a third of the blow's).
+  // A blocked hit already costs no health, in this build and the engine's.
+  perLevel: { vit: 18, stam: 12, spd: 9, iron: { stam: 0.12, push: 0.10 } },
   // MP powers the talents. It refills on its own and on landed hits, so it
   // rewards staying in the fight rather than hoarding.
   mpRegen:  { idle: 5, onHit: 4 },

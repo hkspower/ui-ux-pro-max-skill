@@ -3,6 +3,7 @@
 #include "Game/SaudAudioSubsystem.h"
 
 #include "Camera/CameraComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Combat/EnemyFighter.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -89,6 +90,16 @@ void ASaudCharacter::ApplyUpgrades()
 	{
 		Move->MaxWalkSpeed = BaseWalkSpeed + P.SpeedLevel * 34.f;
 	}
+
+	// IRON ARM's look: his right arm turns to iron a fifth of the way per
+	// level. The skin material reads IronArmLevel (0..1) against
+	// T_Saud_IronArm_Mask -- see Tools/blender/build_iron_arm.py for the
+	// blend it has to make. A material without the parameter ignores it.
+	if (USkeletalMeshComponent* Body = GetMesh())
+	{
+		Body->SetScalarParameterValueOnMaterials(TEXT("IronArmLevel"),
+			FMath::Clamp(P.IronArmLevel / 5.f, 0.f, 1.f));
+	}
 }
 
 float ASaudCharacter::GetOutgoingDamageMultiplier(const FAttackDef& Attack) const
@@ -102,6 +113,18 @@ float ASaudCharacter::GetOutgoingDamageMultiplier(const FAttackDef& Attack) cons
 		Mult *= 1.f + Level * 0.10f;
 	}
 	return Mult;
+}
+
+float ASaudCharacter::GetBlockCostMultiplier(bool bPush) const
+{
+	// IRON ARM: each bought level takes its share off what a block costs.
+	const USaudGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance<USaudGameInstance>() : nullptr;
+	if (!GI)
+	{
+		return 1.f;
+	}
+	const float PerLevel = bPush ? SaudGameplay::IronArmBlockPushPerLevel : SaudGameplay::IronArmBlockStaminaPerLevel;
+	return FMath::Max(0.f, 1.f - GI->GetProgress().IronArmLevel * PerLevel);
 }
 
 void ASaudCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

@@ -1,5 +1,5 @@
 /* SAUD — Kuwait Fighter
-   UPGRADES — the five stat tracks XP is spent on.
+   UPGRADES — the six stat tracks XP is spent on.
 
    Bought, unlike talents. `cost` is per level and `maxLevel` was hardcoded
    as a bare 5 in four places before this file existed.
@@ -19,6 +19,9 @@ window.ASSET_UPGRADES = {
   {k:'kick', n:'KICKING', ar:'ركل',    d:'+10% kick, knee and rage damage'},
   {k:'vit',  n:'VITALITY',ar:'صحة',    d:'+18 max health per level'},
   {k:'spd',  n:'SPEED',   ar:'سرعة',   d:'+9 movement speed per level'},
-  {k:'stam', n:'STAMINA', ar:'لياقة',  d:'+12 stamina, faster recovery'}
+  {k:'stam', n:'STAMINA', ar:'لياقة',  d:'+12 stamina, faster recovery'},
+  // Added 2026-09-23. In the Unreal build his arm turns to iron as the
+  // levels are bought; this build's drawing of him is unchanged.
+  {k:'iron', n:'IRON ARM',ar:'ذراع الحديد', d:'-12% block stamina and push per level'}
 ]
 };

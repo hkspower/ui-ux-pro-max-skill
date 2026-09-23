@@ -30,6 +30,7 @@ public:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	virtual float GetOutgoingDamageMultiplier(const FAttackDef& Attack) const override;
+	virtual float GetBlockCostMultiplier(bool bPush) const override;
 
 	/** Rebuilds max health, stamina and speed from the saved upgrade levels. */
 	UFUNCTION(BlueprintCallable, Category = "Progression")

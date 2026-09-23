@@ -153,6 +153,11 @@ public:
 	/** Damage this fighter deals, before the victim's defences. */
 	virtual float GetOutgoingDamageMultiplier(const FAttackDef& Attack) const;
 
+	/** What a blocked hit costs this fighter, as a multiplier on the
+	    stamina (bPush false) or the knockback (bPush true). 1 for everyone;
+	    Saud's IRON ARM upgrade lowers it. */
+	virtual float GetBlockCostMultiplier(bool bPush) const { return 1.f; }
+
 	// ---------------------------------------------------------------- events
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat")

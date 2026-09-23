@@ -34,12 +34,14 @@ struct FSaudProgress
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") int32 BestCombo = 0;
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") int32 SurvivalBest = 0;
 
-	// Five upgrade tracks. Boxing and kicking scale their own attack families.
+	// Six upgrade tracks. Boxing and kicking scale their own attack families;
+	// IRON ARM (IronArmLevel, the table's "Iron") makes a block cost less.
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") int32 BoxingLevel = 0;
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") int32 KickingLevel = 0;
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") int32 VitalityLevel = 0;
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") int32 SpeedLevel = 0;
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") int32 StaminaLevel = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Progress") int32 IronArmLevel = 0;
 
 	/** 0 rookie, 1 pro, 2 champion. */
 	UPROPERTY(BlueprintReadWrite, Category = "Progress") int32 DifficultyIndex = 1;

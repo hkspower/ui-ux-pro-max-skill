@@ -10,7 +10,9 @@
   "PerUpgradeLevel": {
     "Vitality": 18,
     "Stamina": 12,
-    "MoveSpeed": 22
+    "MoveSpeed": 22,
+    "IronArmBlockStamina": 0.12,
+    "IronArmBlockPush": 0.1
   },
   "ManaRegenPerSecond": 5,
   "ManaPerLandedHit": 4,

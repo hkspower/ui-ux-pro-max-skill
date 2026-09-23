@@ -565,6 +565,53 @@ own FBX importer's convention and not something in the file. `Content/Animation/
 is a contact sheet of every clip drawn as the skeleton itself, which is how
 they were judged.
 
+## IRON ARM -- the sixth upgrade track
+
+Since 2026-09-23, asked as "make upgrade arm iron arm for upgrade", then,
+when asked, an upgrade with a look, whose effect is a tougher block.
+
+**What it does, in both builds.** Bought with XP like the other five, five
+levels, the same costs. A blocked hit already costs no health in either
+build -- it costs 14 stamina and a third of the blow's knockback -- so each
+level takes 12 % off the stamina and 10 % off the push (5.6 and half the push
+at level 5): the guard holds longer before it breaks. The numbers are the
+browser's (`saud-fighter/assets/saud.js`, `perLevel.iron`; the track in
+`assets/upgrades.js`), exported to `DT_Upgrades.csv` (Iron_1..5) and
+`Player.json`; the C++ repeats them in `SaudGameplay` like every other
+per-level number `ApplyUpgrades` uses, and the block path in
+`AFighterBase::ReceiveHit` asks the fighter for `GetBlockCostMultiplier`.
+Checked in the browser, headless, on the real `applyHit`: level 0 blocks for
+14 stamina and 90 push, level 5 for 5.6 and 45, health untouched. The shop
+had room for five rows; its rows now share the space above the abilities
+strip, and all six fit at phone, tablet and desktop sizes (checked in
+headless Chromium).
+
+**What it looks like, in the Unreal build only.** His right arm -- the rear,
+power hand; the ask said one arm -- turns to iron a fifth of its visible
+length per level, fist first, up to his sleeve. `Tools/blender/
+build_iron_arm.py` bakes, in the skin's own UV layout, a mask of how far up
+the arm each texel is and a forged-iron set (banded plates, rivets, worn
+edges) evaluated in 3D so it runs across chart seams; which skin is the arm
+comes from the skin weights to the arm's own bones, not from distances, and
+a check holds every masked texel inside the right arm's and hand's own UV
+charts. `ASaudCharacter::ApplyUpgrades` sets the material parameter
+`IronArmLevel` (0-1). `Docs/renders/saud-ironarm-3d.png` shows levels 0, 1,
+3 and 5 through the same blend in Blender. The browser build's drawing of
+him is unchanged.
+
+**Not verified, and not built:** the engine material. Nothing here makes it
+-- Saud's materials are made by the engine's importer -- so the skin
+material has to be given the blend written in `build_iron_arm.py`'s
+docstring by whoever first opens the project. The C++ is read-reviewed, not
+compiled.
+
+**Found on the way, not touched:** `ApplyUpgrades` gives SPEED +34 cm/s a
+level where the exported table says 22 (the browser's 9 px), and
+`TryPurchaseUpgrade` expects track ids `Boxing`, `Kicking`, `Vitality`,
+`Speed`, `Stamina` where `DT_Upgrades.csv` says `Box`, `Kick`, `Vit`, `Spd`,
+`Stam` -- a shop that passes the table's own id cannot buy those five.
+IRON ARM uses the table's id, `Iron`.
+
 ## Saud moves, and every clip is posed through the IK rig
 
 Since 2026-09-23. Asked as "improve motion Saud IK", then, when asked what

@@ -62,6 +62,7 @@ bool USaudGameInstance::TryPurchaseUpgrade(FName TrackId)
 	else if (TrackId == TEXT("Vitality")) Level = &Progress.VitalityLevel;
 	else if (TrackId == TEXT("Speed"))    Level = &Progress.SpeedLevel;
 	else if (TrackId == TEXT("Stamina"))  Level = &Progress.StaminaLevel;
+	else if (TrackId == TEXT("Iron"))     Level = &Progress.IronArmLevel;	// DT_Upgrades' own Track id
 
 	if (!Level || *Level >= 5)
 	{

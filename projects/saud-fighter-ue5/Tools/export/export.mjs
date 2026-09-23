@@ -337,7 +337,9 @@ function player(A){
     BaseMoveSpeed: cm(P.base.spd), BaseReach: cm(P.base.reach),
     PerUpgradeLevel: {
       Vitality: P.perLevel.vit, Stamina: P.perLevel.stam,
-      MoveSpeed: cm(P.perLevel.spd)
+      MoveSpeed: cm(P.perLevel.spd),
+      // IRON ARM: fractions off a blocked hit's stamina and push, per level
+      IronArmBlockStamina: P.perLevel.iron.stam, IronArmBlockPush: P.perLevel.iron.push
     },
     ManaRegenPerSecond: P.mpRegen.idle,
     ManaPerLandedHit: P.mpRegen.onHit,
