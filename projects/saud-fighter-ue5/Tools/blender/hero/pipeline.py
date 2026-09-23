@@ -99,6 +99,10 @@ def build_fighter(spec, argv=None):
     # -> 0.25 with the noise now coherent (finish.shader): the old strength
     # was tuned on per-texel dither that averaged itself away.
     PORES = {"skin": 0.15, "hair": 0.25}
+    # all of the skin's diffuse light scatters under it (finish.SKIN_SCATTER_MM
+    # says how far); 0.28 was a part-diffuse compromise for a radius three
+    # times too long
+    SKIN_SSS = 1.0
     pal = F.palette_for(spec)
     bald = bool(spec["look"].get("bald"))
     no_tee = not spec["look"].get("tee", True)
@@ -149,6 +153,8 @@ def build_fighter(spec, argv=None):
         mats = {k: bpy.data.materials["%s_%s" % (name, k.capitalize())] for k in body_kinds + ("tee", "pants", "eye")}
         # the checkpoint carries the materials as they were built; the
         # pore bump is the one dial that is tuned after seeing a bake
+        # ...and the skin's scattering, which is tuned after seeing a render
+        F.skin_scatter(mats["skin"], SKIN_SSS)
         for k, strength in PORES.items():
             for n in mats[k].node_tree.nodes:
                 if n.type == 'BUMP': n.inputs["Strength"].default_value = strength
@@ -159,7 +165,7 @@ def build_fighter(spec, argv=None):
                                         face_scale=face_scale, hair_style=hair_style, arm_scale=arm_scale,
                                         gloves=gloves)
         slots = {}
-        mats = {"skin": F.shader("%s_Skin" % name, "skin", 0.52, subsurface=0.28, pores=PORES["skin"]),
+        mats = {"skin": F.shader("%s_Skin" % name, "skin", 0.52, subsurface=SKIN_SSS, pores=PORES["skin"]),
                 # the hair's roughness matches the skin's: the material edge
                 # is a staircase of faces, and a roughness step would show it
                 "hair": F.shader("%s_Hair" % name, "hair", 0.52, pores=PORES["hair"]),

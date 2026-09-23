@@ -149,7 +149,7 @@ LASH      = '#120c08'
 SCAR      = '#caa48f'    # healed scar tissue: paler than the zone it crosses, no blood in it
 
 
-def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False):
+def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None):
     """Colour and relief for points on the head.
 
     P        (N,3) positions, metres, in the build's frame
@@ -163,6 +163,8 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False):
              and the relief it adds, which the colour cannot carry.
     scar     a boxer's brow scar (`look.scar`) -- AL-WAHSH and ZAYOS.
     base_rgb (N,3) colour to start from, or None to start from `skin`
+    out      a dict, or None: given one, shade() leaves the beard's own
+             weight in out["beard"] (N,) for the roughness to read
 
     returns  (rgb (N,3) linear, relief (N,) metres, on_face (N,) 0..1)
     """
@@ -320,7 +322,7 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False):
         # ---- 10, early: the grain, and out. No beard on this man.
         pore = fbm(P, 1100.0, 3, 23.0) - 0.5
         blotch = fbm(P, 90.0, 3, 41.0) - 0.5
-        col[:] = np.clip(col * (1.0 + (0.085 * blotch + 0.030 * pore) * on_face)[:, None], 0.0, 1.0)
+        col[:] = np.clip(col * (1.0 + (0.20 * blotch + 0.10 * pore) * on_face)[:, None], 0.0, 1.0)
         rel += (0.00010 * pore + 0.00022 * blotch) * on_face
         rel *= on_face
         return col, rel, on_face
@@ -335,8 +337,22 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False):
     mous = ramp(z, NOSE_Z - 0.0022, NOSE_Z - 0.0052) * ramp(z, lip_top - 0.0008, lip_top + 0.0014) * ramp(ax, 0.0230, 0.0180)
     beard_w = np.clip(np.maximum(beard_w, mous * ramp(fwd, 0.45, 0.75)), 0, 1)
     beard_w = beard_w * (1.0 - 0.96 * np.clip(lips + mouthline, 0, 1))
-    # stubble: fine, and gappier where a beard really is thinner
-    grain = np.clip(0.30 + 1.45 * fbm(P, 1250.0, 2, 5.0), 0, 1.5)
+    # stubble: the cut ends of hairs, crisp, a follicle a cell -- gappier
+    # where a beard really is thinner. It was a smooth noise at 0.8 mm
+    # (fbm at 1250), and a smooth noise under a wash is a soft brown blur:
+    # in every face render the stubble read as a smear of dirt round the
+    # mouth. Beard density is 20-50 hairs a square centimetre, 1.4-2.2 mm
+    # apart; 1.1 mm cells with 0.45 mm dots measure 38 a square centimetre
+    # on a flat patch of jaw (10 % cover) -- two to three texels of the face
+    # chart each, sharp-edged, over a thinner even shadow.
+    foll = follicles(P, 0.0011, 0.00045, 5.0)
+    # The even shadow under the dots follows how much beard there is. On
+    # Saud's light stubble (beard_k .30) it is 0.60 of the old wash and the
+    # dots carry the rest; on AL-WAHSH's full beard (.92) it is back to the
+    # old wash's 1.02, dots on top -- a flat 0.60 on him read as a day's
+    # stubble on a man the browser draws with a beard.
+    shadow = 0.60 + 0.42 * smooth(np.clip((beard_k - 0.30) / 0.62, 0.0, 1.0))
+    grain = np.clip(shadow + 1.00 * foll + 0.25 * (fbm(P, 400.0, 2, 5.0) - 0.5), 0, 1.5)
     dens = np.clip(1.06 - 0.72 * smooth(np.clip((lat - 0.30) / 0.60, 0, 1)), 0.34, 1.0)
     dens = dens * np.clip(0.70 + 0.55 * ramp(z, MOUTH_Z - 0.010, MOUTH_Z - 0.044), 0, 1.0)  # fullest on the chin
     bw = np.clip(beard_w * dens * grain, 0, 1)
@@ -347,20 +363,33 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False):
     # rgba over whatever is beneath it, so this multiplies: beard/skin is
     # the wash's tint (beard is rgba_over(beard, skin), so it is <= 1 per
     # channel), and on plain skin the result is exactly the old lerp.
+    # The wash's tint is the browser's beard-over-skin, cooled: shaved
+    # stubble under skin reads blue-grey, not brown -- a brown tint on a
+    # light face is the other half of why it read as dirt. Half of it goes
+    # to its own luminance and the blue is lifted 6 %; on the dark skin of
+    # a man with a full beard the tint is near-neutral already and barely
+    # moves.
+    tint = np.asarray(beard) / np.asarray(skin)
+    lum = float(np.dot(tint, [0.2126, 0.7152, 0.0722]))
+    tint = 0.5 * tint + 0.5 * lum * np.array([0.98, 1.00, 1.06])
     def wash(mask, k):
         w = (np.clip(mask, 0, 1) * k * on_face)[:, None]
-        col[:] = np.clip(col * (1.0 - w + w * (np.asarray(beard) / np.asarray(skin))[None, :]), 0.0, 1.0)
+        col[:] = np.clip(col * (1.0 - w + w * tint[None, :]), 0.0, 1.0)
     wash(bw, 0.90)
     rel += bw * 0.0006 * beard_k
+    if out is not None:
+        out["beard"] = np.clip(beard_w * dens, 0, 1) * on_face
     darken(np.clip(beard_w * dens, 0, 1) * 0.5, 0.20 * beard_k)           # the shadow a beard casts on skin
     # a sideburn running down in front of the ear, joining the hair
     side = bar(P, 0.058, 0.075, lambda t: HAIRLINE[0] - 0.062 - 1.55 * (t - 0.058), 0.0060, feather=0.0035)
     wash(np.clip(side * ramp(fwd, 0.10, 0.40) * grain, 0, 1), 0.72)
 
     # ---- 10. the grain of the skin itself ------------------------------
+    # 2.4 % and 1.4 % of spread (fbm spreads 0.12 about its mean; the old
+    # 0.085 and 0.030 were 1 % and 0.4 %)
     pore = fbm(P, 1100.0, 3, 23.0) - 0.5
     blotch = fbm(P, 90.0, 3, 41.0) - 0.5
-    col[:] = np.clip(col * (1.0 + (0.085 * blotch + 0.030 * pore) * on_face)[:, None], 0.0, 1.0)
+    col[:] = np.clip(col * (1.0 + (0.20 * blotch + 0.10 * pore) * on_face)[:, None], 0.0, 1.0)
     rel += (0.00010 * pore + 0.00022 * blotch) * on_face
 
     rel *= on_face
@@ -402,7 +431,124 @@ def hair_fade(P):
     x, z = P[:, 0], P[:, 2]
     return np.clip((0.070 - (1.76 - z)) / 0.05, 0, 1) * np.clip((np.abs(x) - 0.045) / 0.03, 0, 1)
 
-def body_grain(P, col):
+# ---- the body's skin, 2026-09-23 ------------------------------------------
+# Until then the body varied in VALUE only: one multiplicative mottle, so every
+# square centimetre of him was the same hue at a slightly different brightness
+# -- measured on the shipped albedo, ZAYOS's skin spread 2-4 levels in 255 and
+# not a degree of hue -- and a surface that only changes brightness reads as
+# painted plastic. Real skin changes HUE: blood reddens it where it is thin or
+# flushed (knuckles, elbows, the tops of the shoulders, the fingertips), and
+# melanin browns it in broad soft patches. Both are written as moves on this
+# man's own skin, the way shade()'s zones are (tone()), so a dark man gets the
+# same flush a light one does rather than a pink stain.
+AREOLA = '#b58070'      # on Saud's skin; the same move on any other man's
+NIPPLE = '#9c6758'
+# 20 cm apart at the fourth rib, on the front of the lower pec: measured on the
+# canonical body, the surface there is y -0.101 and faces forward (normal
+# -0.98 in y). Everyone but ZAYOS wears a tee over it and has that skin
+# stripped (pipeline.under_garments); on him it is the difference between a
+# bare chest and a mannequin's.
+AREOLA_AT = (0.098, -0.101, 1.335)
+AREOLA_R, NIPPLE_R = 0.0135, 0.0042
+
+
+def _tone(skin, h):
+    return np.asarray(skin, dtype=float) * (hex_lin(h) / hex_lin(SAUD_SKIN))
+
+
+def _near(P, c, r, feather):
+    return ramp(np.linalg.norm(P - np.asarray(c, dtype=float)[None, :], axis=1), r + feather, r - feather)
+
+
+def body_flush(P, joints_l=None):
+    """Where blood shows through on a body, 0..1: the elbow's point, the
+    knuckles, the fingertips, the tops of the shoulders. `joints_l` are the
+    hand's own joints (anatomy.hand); without them the hand is skipped."""
+    from .anatomy import Jp
+    w = np.zeros(len(P))
+    for s in (1, -1):
+        m = np.array([s, 1.0, 1.0])
+        el = np.array(Jp("lowerarm_l")) * m
+        # the olecranon: behind the joint, where the skin is thin and creased
+        w = np.maximum(w, _near(P, el + np.array([0.0, 0.028, 0.0]), 0.020, 0.018) * 0.9)
+        sh = np.array(Jp("upperarm_l")) * m
+        w = np.maximum(w, _near(P, sh + np.array([0.0, 0.0, 0.050]), 0.045, 0.035) * 0.45)
+        if joints_l:
+            for fi in ("f0", "f1", "f2", "f3", "thumb"):
+                pts = joints_l.get(fi)
+                if not pts: continue
+                knuckle = np.array(pts[0]) * m; tip = np.array(pts[-1]) * m
+                w = np.maximum(w, _near(P, knuckle, 0.008, 0.008) * 0.8)
+                w = np.maximum(w, _near(P, tip, 0.009, 0.007) * 0.6)
+    return np.clip(w, 0.0, 1.0)
+
+
+def body_grain(P, col, skin=None, joints_l=None):
+    """The body's skin colour at P, from `col` (N,3 linear). With `skin` --
+    the man's base colour, linear -- it also carries the hue: blood and
+    melanin mottling, the flush at the thin places, and the areolae. Without
+    it, the old value-only grain (kept for callers that have no palette)."""
     blotch = fbm(P, 55.0, 3, 91.0) - 0.5
     pore = fbm(P, 950.0, 2, 107.0) - 0.5
-    return np.clip(col * (1.0 + 0.055 * blotch + 0.022 * pore)[:, None], 0.0, 1.0)
+    if skin is None:
+        return np.clip(col * (1.0 + 0.055 * blotch + 0.022 * pore)[:, None], 0.0, 1.0)
+    # Amplitudes are written as the spread they give: fbm's own spread about
+    # its mean is 0.12 (3 octaves) to 0.14 (2), measured over the body, so
+    # the old 0.055 and 0.022 were a 0.7 % and 0.3 % mottle -- 0.8 levels in
+    # 255 on Saud's shipped arm, which is nothing. Now 3 % and 1.5 %.
+    col = np.clip(col * (1.0 + 0.25 * blotch + 0.11 * pore)[:, None], 0.0, 1.0)
+    blood = _tone(skin, BLOOD)
+    # haemoglobin: 2-5 cm patches, the rosy/sallow drift across any body --
+    # a lerp toward the blood tone of 0.08 +- 0.06, and 0.30 more where the
+    # skin is thin and flushed
+    hb = fbm(P, 24.0, 3, 131.0) - 0.5
+    w = np.clip(0.08 + 0.50 * hb, 0.0, 0.25) + 0.30 * body_flush(P, joints_l)
+    col = col * (1.0 - w[:, None]) + blood[None, :] * w[:, None]
+    # melanin: broad (10 cm) and soft, 4 % either way, and it browns -- blue
+    # drops fastest -- never greys
+    mel = fbm(P, 9.0, 2, 151.0) - 0.5
+    col = col * (1.0 - 0.30 * mel[:, None] * np.array([0.80, 1.00, 1.25])[None, :])
+    # the areolae and nipples
+    for s in (1, -1):
+        c = np.array(AREOLA_AT) * np.array([s, 1.0, 1.0])
+        front = ramp(P[:, 1], -0.080, -0.090)
+        a = _near(P, c, AREOLA_R, 0.0030) * front
+        col = col * (1.0 - 0.85 * a[:, None]) + _tone(skin, AREOLA)[None, :] * (0.85 * a[:, None])
+        nip = _near(P, c, NIPPLE_R, 0.0012) * front
+        col = col * (1.0 - 0.8 * nip[:, None]) + _tone(skin, NIPPLE)[None, :] * (0.8 * nip[:, None])
+    return np.clip(col, 0.0, 1.0)
+
+
+def body_roughness(P, joints_l=None):
+    """How matt the body's skin is at P. It was one number, 0.52, over every
+    square centimetre below the face -- a single even sheen is the plastic
+    look. Skin is oiliest where the sebaceous glands are densest (the middle
+    of the chest and the upper back), driest and roughest where it is thick
+    and creased (elbows, knuckles), and it drifts between the two over a few
+    centimetres everywhere, with pore-scale variation on top."""
+    x, z = P[:, 0], P[:, 2]
+    r = np.full(len(P), 0.58)
+    r -= 0.07 * ramp(z, 1.22, 1.34) * ramp(z, 1.52, 1.44) * ramp(np.abs(x), 0.15, 0.09)   # sternum and upper back
+    r += 0.10 * body_flush(P, joints_l)                                                    # the thick, creased places
+    r += 0.42 * (fbm(P, 40.0, 3, 171.0) - 0.5)      # +-0.05 over a few centimetres
+    r += 0.18 * (fbm(P, 700.0, 2, 181.0) - 0.5)     # +-0.025 at the pores
+    return np.clip(r, 0.30, 0.85)
+
+
+def follicles(P, cell=0.0011, radius=0.00032, seed=0.0):
+    """Stubble: one hair's cut end per jittered cell of `cell` metres, as a
+    crisp dot of `radius` -- Worley F1 over the 27 neighbouring cells, so the
+    dots are sharp-edged and a cell apart, not a soft noise. 0..1."""
+    q = P / cell
+    base = np.floor(q)
+    best = np.full(len(P), 9.0)
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            for dz in (-1, 0, 1):
+                c = base + np.array([dx, dy, dz])
+                ix, iy, iz = c[:, 0].astype(np.int64), c[:, 1].astype(np.int64), c[:, 2].astype(np.int64)
+                jit = np.stack([_hash3(ix, iy, iz, seed + k) for k in (1.0, 2.0, 3.0)], axis=1)
+                d = np.linalg.norm(q - (c + jit), axis=1)
+                np.minimum(best, d, out=best)
+    rr = radius / cell
+    return ramp(best, rr, rr * 0.45)

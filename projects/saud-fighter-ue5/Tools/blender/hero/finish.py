@@ -235,11 +235,12 @@ def saud_palette():
 # between vertices.
 KIT_FEATHER = 0.0006
 
-def kit_colour(P, kind, pal, joints_l, base=None):
+def kit_colour(P, kind, pal, joints_l, base=None, parts=None):
     """Colour for positions P (N,3) of one material, linear, and how much of
     it is kit rather than the base (N,), 0..1. `base` is what to start from
     for the skin (the shaded body); the garments start from their own colour.
-    Returns (rgb (N,3), kit (N,))."""
+    Returns (rgb (N,3), kit (N,)). `parts`, a dict, gets the skin's tape
+    and nail weights apart ("tape", "nail"), for the roughness."""
     from . import face as FA
     ramp = FA.ramp; f = KIT_FEATHER
     n = len(P)
@@ -269,11 +270,16 @@ def kit_colour(P, kind, pal, joints_l, base=None):
             turns = ((t + 0.045) / 0.011) % 1.0
             on = np.maximum(ramp(turns, 0.82 + f / 0.011, 0.82 - f / 0.011), ramp(t, f, -f))
             over(wrap * on, tape)
+            if parts is not None:
+                parts["tape"] = np.maximum(parts.get("tape", np.zeros(n)), np.clip(wrap * on, 0, 1))
         for s in (1, -1):
             # nails: the last 9 mm of each fingertip, the back side
             for fi, r in [("f%d" % i, 0.0085) for i in range(4)] + [("thumb", 0.0095)]:
                 tip = np.array(joints_l[fi][-1]) * np.array([s, 1, 1])
-                over(ramp(np.linalg.norm(P - tip, axis=1), r + f, r - f) * ramp(y, tip[1] + 0.002 - f, tip[1] + 0.002 + f), nail)
+                nw = ramp(np.linalg.norm(P - tip, axis=1), r + f, r - f) * ramp(y, tip[1] + 0.002 - f, tip[1] + 0.002 + f)
+                over(nw, nail)
+                if parts is not None:
+                    parts["nail"] = np.maximum(parts.get("nail", np.zeros(n)), np.clip(nw, 0, 1))
     elif kind == "hair":
         # faded sides: lighter (skin showing through) low on the sides --
         # face.hair_fade, shared with the hairline band painted on the skin
@@ -343,7 +349,7 @@ def paint(obj, kind, joints_l, pal=None):
         # moustache was a hard rectangle reaching z = 1.636, which is over
         # the nostrils. See hero/face.py.
         from . import face as FA
-        col[:, :3] = FA.body_grain(P, col[:, :3])
+        col[:, :3] = FA.body_grain(P, col[:, :3], skin=skin, joints_l=joints_l)
         col[:, :3], _rel, _on = FA.shade(P, skin, hair, beard, base_rgb=col[:, :3], beard_k=pal.get("beard_k", 1.0), scar=pal.get("scar", False))
         col[:, :3], _kit = kit_colour(P, "skin", pal, joints_l, base=col[:, :3])     # wraps, nails
     elif kind in ("hair", "shoe", "tee", "pants", "glove"):
@@ -365,6 +371,30 @@ def paint(obj, kind, joints_l, pal=None):
     return col
 
 # --------------------------------------------------------------- shaders
+# How far light travels under skin before it comes back out, per channel:
+# Jensen, Marschner, Levoy & Hanrahan (2001), "A Practical Model for
+# Subsurface Light Transport", skin 1, diffuse mean free path 3.67 / 1.37 /
+# 0.68 mm in red / green / blue. The shader had (1.0, 0.25, 0.10) x 12 mm --
+# red travelling 12 mm, three times as far as it does in a person -- which
+# spread the red rim light across a third of his cheek as a pink glow and
+# made the whole surface translucent wax. Skin's index is ~1.4 (dielectric
+# F0 0.028), not the default 1.5. Renders only: the engine's importer makes
+# its own material, and a Subsurface Profile there is still to be built.
+SKIN_SCATTER_MM = (3.67, 1.37, 0.68)
+SKIN_IOR = 1.40
+
+
+def skin_scatter(mat, weight):
+    """Measured scattering on a Principled BSDF, `weight` of the diffuse."""
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    red = SKIN_SCATTER_MM[0]
+    bsdf.inputs["Subsurface Weight"].default_value = weight
+    bsdf.inputs["Subsurface Radius"].default_value = tuple(c / red for c in SKIN_SCATTER_MM)
+    bsdf.inputs["Subsurface Scale"].default_value = red / 1000.0
+    if "IOR" in bsdf.inputs:
+        bsdf.inputs["IOR"].default_value = SKIN_IOR
+
+
 def shader(name, kind, roughness, sheen=0.0, metallic=0.0, subsurface=0.0, pores=0.0, weave=0.0, coat=0.0):
     mat = bpy.data.materials.new(name); mat.use_nodes = True
     nt = mat.node_tree; bsdf = nt.nodes["Principled BSDF"]
@@ -374,8 +404,7 @@ def shader(name, kind, roughness, sheen=0.0, metallic=0.0, subsurface=0.0, pores
     bsdf.inputs["Metallic"].default_value = metallic
     if "Sheen Weight" in bsdf.inputs: bsdf.inputs["Sheen Weight"].default_value = sheen
     if subsurface and "Subsurface Weight" in bsdf.inputs:
-        bsdf.inputs["Subsurface Weight"].default_value = subsurface
-        bsdf.inputs["Subsurface Radius"].default_value = (1.0, 0.25, 0.10); bsdf.inputs["Subsurface Scale"].default_value = 0.012
+        skin_scatter(mat, subsurface)
     if coat and "Coat Weight" in bsdf.inputs:
         bsdf.inputs["Coat Weight"].default_value = coat; bsdf.inputs["Coat Roughness"].default_value = 0.06
     if pores or weave:
@@ -603,7 +632,8 @@ def repaint_head(obj, imgs, size, pal=None):
     # it lays a fraction of the face over its base, and if that base were
     # flat skin the body's own grain would be wiped out across exactly the
     # band where the head and the body have to meet.
-    rgb, rel, on = FA.shade(P, skin, hair, beard, base_rgb=lin[cov], beard_k=pal.get("beard_k", 1.0), scar=pal.get("scar", False))
+    extra = {}
+    rgb, rel, on = FA.shade(P, skin, hair, beard, base_rgb=lin[cov], beard_k=pal.get("beard_k", 1.0), scar=pal.get("scar", False), out=extra)
     live = on > 0.002
     if not live.any():
         return 0, coherent
@@ -679,7 +709,10 @@ def repaint_head(obj, imgs, size, pal=None):
              # there is hair to meet: a bald man has no hair material
              # anywhere, and this band would be an unexplained matte
              # horseshoe on an otherwise uniform scalp
-             + (0.12 * FA.hairline_weight(P) if pal["hair"] is not None else 0.0))
+             + (0.12 * FA.hairline_weight(P) if pal["hair"] is not None else 0.0)
+             # stubble breaks up the skin's sheen: a shaved jaw is never as
+             # glossy as the cheek above it
+             + 0.12 * extra.get("beard", 0.0))
         r = np.clip(r, 0.18, 0.80)
         buf = np.zeros(cov.shape); buf[cov] = r
         rough[..., :3] = np.where(m[..., None], buf[..., None], rough[..., :3])
@@ -709,9 +742,11 @@ def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
     # The garments rebuild whole from their own colour; the skin from its
     # grain, evaluated per texel here as paint() evaluated it per vertex,
     # so the body's pores are 0.35 mm, not 3 mm.
+    parts = {}
     if kind == "skin":
-        base = FA.body_grain(P, np.tile(np.asarray(pal["skin"], dtype=float), (len(P), 1)))
-        rgb, kit = kit_colour(P, kind, pal, joints_l, base=base)
+        base = FA.body_grain(P, np.tile(np.asarray(pal["skin"], dtype=float), (len(P), 1)),
+                             skin=pal["skin"], joints_l=joints_l)
+        rgb, kit = kit_colour(P, kind, pal, joints_l, base=base, parts=parts)
         live = np.ones(len(P), bool)
     else:
         rgb, kit = kit_colour(P, kind, pal, joints_l)
@@ -723,6 +758,19 @@ def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
     lin_[m] = buf[m]
     alb[..., :3] = _linear_to_srgb(lin_)
     _img_write(imgs["albedo"], _dilate(alb, m, 3))
+    # The skin's roughness, per texel: it was the shader's one number baked
+    # flat over the whole body (FA.body_roughness says why that is the
+    # plastic look). Cotton tape is matt and a nail is glossy keratin; both
+    # sat at the skin's 0.52. The face is refined over this by repaint_head.
+    if kind == "skin" and "roughness" in imgs:
+        r = FA.body_roughness(P, joints_l)
+        tape_w = parts.get("tape", np.zeros(len(P))); nail_w = parts.get("nail", np.zeros(len(P)))
+        r = r * (1 - tape_w) + 0.82 * tape_w
+        r = r * (1 - nail_w) + 0.30 * nail_w
+        rough = _img_array(imgs["roughness"])
+        rb = np.zeros(cov.shape); rb[cov] = r
+        rough[..., :3] = np.where(m[..., None], rb[..., None], rough[..., :3])
+        _img_write(imgs["roughness"], _dilate(rough, m, 3))
     return int(m.sum())
 
 

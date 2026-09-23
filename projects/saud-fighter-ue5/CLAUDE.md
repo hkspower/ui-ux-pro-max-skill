@@ -585,10 +585,8 @@ bare chest or his gloves exposed; each is fixed where it lives:
   zero faces), and a build now fails if any body material is left empty.
 
 The torso and limb fixes change nothing at Saud's own factors. AL-SAQR and
-AL-WAHSH were built before them and are as committed: their crotch pin sat
-at the canonical height (12 and 17 vertices, a small error at their size)
-and their faces had budgets big enough to survive the old second pass.
-Rebuilding them would bring them level; not done, not asked.
+AL-WAHSH were built before them, and were rebuilt with them later the same
+day, with the skin (see "The skin").
 
 **Known, not fixed, on ZAYOS:** the trousers still read as two leg tubes
 round a recessed pelvis at the hip. It is not his: the canonical body steps
@@ -596,6 +594,69 @@ in 3 cm at the waist (0.188 -> 0.157 m half-width within 4 cm of height),
 the trousers are a shell of it, and every other man wears a tee over that
 line. He is the only one who shows it. Reshaping the shared body there is
 a job of its own.
+
+## The skin -- 2026-09-23
+
+Asked as "improve skin", settled as the 3D skin look on all six men. What
+ships is three maps per man (`T_<Man>_Skin_{BaseColor,Normal,Roughness}`);
+the engine's importer makes the material from them. Measured first, on the
+shipped maps and the renders:
+
+- **Roughness was one number over the whole body.** 0.52, spread 0.000 on
+  Saud's arm: a single even sheen from neck to wrist is the plastic look.
+  The face alone was painted by region (`finish.repaint_head`: T-zone
+  0.40, lips 0.30, cheeks 0.63). Now `face.body_roughness`, per texel in
+  `finish.repaint_kit`: oilier down the sternum and upper back, drier and
+  rougher at the elbows and knuckles, drifting +-0.05 over a few
+  centimetres with pore-scale variation on top -- 0.48 to 0.67 (5th-95th
+  percentile) on the body, 0.58 +- 0.056 on the arm. Hand tape is matt
+  cotton (0.82) and a nail glossy keratin (0.30); both had sat at 0.52.
+  A shaved jaw is 0.12 rougher than the cheek above it.
+- **The body varied in brightness only, and barely.** The old grain's
+  amplitudes were written as if the noise spread 0-1; it spreads 0.12 about
+  its mean, so the mottle was 0.7 % -- 0.8 levels in 255 on Saud's arm, no
+  hue at all. `face.body_grain` now carries hue as real skin does: blood
+  mottling (a drift toward the man's own BLOOD tone) and a flush at the
+  thin places (`face.body_flush`: elbows, knuckles, fingertips, the tops of
+  the shoulders), broad melanin patches that brown rather than grey, and a
+  3 % / 1.5 % value mottle. Saud's arm: 0.8 -> 5-6 levels, hue spread
+  0 -> 1.5 degrees. Every move is on the man's own skin (`_tone`), so a dark
+  man gets the same flush a light one does, not a pink stain. The face's
+  own grain was rescaled the same way (1 % -> 2.4 %).
+- **The stubble was a smear.** A smooth noise under a brown wash: every
+  face render showed a soft brown blur round the mouth. Now the cut ends of
+  hairs, `face.follicles` -- Worley dots, 1.1 mm cells and 0.45 mm dots, 38
+  a square centimetre on a flat patch of jaw (real beards run 20-50) -- over
+  a shadow whose depth follows the man's beard (the browser's wash alpha):
+  0.60 on Saud's eighteen-year-old stubble (.30), the old full 1.02 on
+  AL-WAHSH's beard (.92). Its tint is cooled toward blue-grey, which is
+  what shaved stubble under skin reads as.
+- **ZAYOS's bare chest had no areolae**, the difference between a man and a
+  mannequin once there is no tee. `face.AREOLA_AT`: 20 cm apart at the
+  fourth rib, on the forward-facing surface of the lower pec, measured on
+  the canonical body. Everyone else's chest skin is under a tee and
+  stripped.
+- **The renders' scattering** (`finish.skin_scatter`): red travelled 12 mm
+  under the skin, three times the measured 3.67 mm (Jensen et al. 2001,
+  skin 1: 3.67 / 1.37 / 0.68 mm), at a 0.28 weight that compensated for
+  it; now measured radii at full weight, and skin's IOR of 1.4. **This was
+  not the pink.** The pink down the right side of every face is the studio's
+  rim light, (0.96, 0.32, 0.28) by design -- the rim cheek measured 168/90/76
+  before and 168/88/73 after. Renders only either way: the engine needs its
+  own Subsurface Profile, still not built.
+
+Rebuilt from their checkpoints: all six. The builds also carry the pipeline
+fixes made for ZAYOS earlier the same day (the decimation pass, legs carried
+by the hips, the crotch pin at the man's own size), so AL-SAQR, AL-WAHSH,
+the thug and the brawler are level with them now, and the thug and the
+brawler pick up the 2026-09-20 guard aims ("Known, not fixed" said one
+rebuild would).
+
+**Seen, not changed:** Saud's skin colour is the browser's `#f0d8c4` used
+as albedo directly, which is lighter than measured human skin reflectance;
+the colour is `assets/saud.js`'s and the author's call. **Unverified:** no
+engine has imported any of it; checked in Blender renders and by
+measuring the maps.
 
 ## The bosses move now
 
@@ -1248,12 +1309,13 @@ Don't re-discover them; don't fix them without being told to.
   player) still throw via the legacy `AFighterBase::StartAttack` state
   machine; the GAS layer exists beside it rather than under it. Moving combat
   onto abilities for both sides is a separate job, and a large one.
-- **Thug and Brawler are built against the old guard aims and the old hair
-  cap.** Both are shared code (`build_saud.GUARD`, `assembly.hair_parts`)
-  and both changed 2026-09-20 for Saud (see "A second pass"); their models,
-  renders and the fight scene's copies of them are as they were. One
-  `python3 build_fighters.py thug brawler` and a `build_souq.py --scene`
-  brings them level. Not run, because only Saud was asked for.
+- **Thug and Brawler carry the old hair cap, and the fight scene is stale.**
+  Rebuilt 2026-09-23 from their checkpoints with the skin, so their guard
+  aims (posed after the checkpoint) are now the 2026-09-20 ones. The hair
+  cap (`assembly.hair_parts`) is built before the checkpoint, so it is
+  still the old one until a full rebuild without `--resume`; and the souq
+  fight scene's copies of every man are as they were until a
+  `build_souq.py --scene`. Neither was asked for.
 - **Saud in a cel-shaded, "Hi-Fi Rush" look -- asked 2026-09-20, Saud only.**
   That look is a real-time material: a stepped diffuse ramp, a Fresnel rim,
   an inverted-hull or post-process outline. It lives in the engine, not in
