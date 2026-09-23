@@ -3,8 +3,8 @@
 The one level that is not one of the nine. Saud's life before he fell: a
 title bout, then a short walk to the hole in the street. It is never on the
 ring map and it is never revisited -- ASaudPrologueGameMode sends a player
-who has already seen it straight to L_SouqAlDawar, where every version of
-this game has always begun.
+who has already seen it straight into L_AlHalqa_World, the open world, in
+the souq where every version of this game has always begun.
 
 This is deliberately a SEPARATE script from build_levels.py rather than one
 more row it plans. Three reasons:
@@ -126,7 +126,7 @@ def plan():
     # arena lock before it opens -- the door off the cage he cannot use until
     # the bout is won, for free, because that check already exists.
     add("Exit", "Exit_TheHole", x=EXIT_X, y=0, z=FLOOR_TOP_Z + 300,
-        Side="East", DestinationLevel="L_SouqAlDawar", DestinationStage="SouqAlDawar",
+        Side="East", DestinationLevel="L_AlHalqa_World", DestinationStage="SouqAlDawar",
         RequiredAbility="None", AfterClearedStage="", ArriveAt="West")
 
     add("Sun", "Sun", x=STAGE_LENGTH / 2, y=0, z=1500,
@@ -161,7 +161,7 @@ def check(actors):
     # AWaveDirector's "stage cleared" fires at Director.X + Length - 360; the
     # exit must sit past that, or the level ends with him standing on the
     # exit before the Stage_Clear cue -- or worse than a cue out of order,
-    # AAreaExit whisks him to L_SouqAlDawar before it can ever fire at all.
+    # AAreaExit whisks him into L_AlHalqa_World before it can ever fire at all.
     director = next(a for a in actors if a["kind"] == "WaveDirector")
     clear_x = director["x"] + STAGE_LENGTH - 360.0
     assert exit_a["x"] >= clear_x, (

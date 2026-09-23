@@ -352,15 +352,21 @@ def terrain(stage, E, phase, doors, into):
 
     # --- the sea, then the shallows, then the beach, then the stone. Drawn
     #     outside in and bottom up, so each ring sits on the one before it.
-    put("sea", "disc", 0, 0, SEA_Z, SEA * E * 2, SEA * E * 2, 20, solid=False)
-    put("shallows", "disc", 0, 0, SHALLOW_Z,
-        SHALLOWS * E * 2, SHALLOWS * E * 2, 30, solid=False)
+    #     The heights above are the SURFACE of each ring; a piece's z is its
+    #     middle, which is where the engine's cylinder has its pivot, so each
+    #     disc is let down by half its own thickness. Until 2026-09-23 it was
+    #     not, and the stone stood 30 cm proud of its own street, its jetties
+    #     and the feet of every goat on it.
+    def ring(kind, r, top, thick, solid=True):
+        put(kind, "disc", 0, 0, top - thick * 0.5, r * 2, r * 2, thick, solid=solid)
+
+    ring("sea", SEA * E, SEA_Z, 20, solid=False)
+    ring("shallows", SHALLOWS * E, SHALLOW_Z, 30, solid=False)
     d = (SURF - PLATEAU) * E / BEACH_STEPS
     for k in range(BEACH_STEPS):
-        r = SURF * E - k * d
-        z = lerp(SURF_Z, SHORE_Z, (k + 1.0) / BEACH_STEPS)
-        put("beach", "disc", 0, 0, z, r * 2, r * 2, 40)
-    put("plateau", "disc", 0, 0, SHORE_Z, PLATEAU * E * 2, PLATEAU * E * 2, 60)
+        ring("beach", SURF * E - k * d,
+             lerp(SURF_Z, SHORE_Z, (k + 1.0) / BEACH_STEPS), 40)
+    ring("plateau", PLATEAU * E, SHORE_Z, 60)
 
     # --- rocks standing off the shore. They are the only thing out there a
     #     bird can stand on, so they are placed before the birds are and the
@@ -530,7 +536,11 @@ def fauna(E, phase, path, sites, doors, rocks, solids):
 
 
 # ----------------------------------------------------------------- plan
-def plan(stage, stages, area):
+def plan(stage, stages, area, bearing=None):
+    """`bearing` is where each way out faces, in degrees. Left out, this is
+    the standalone level and they are fixed by role (BEARING). The open
+    world passes the bearings its own neighbours fix instead."""
+    bearing = dict(BEARING if bearing is None else bearing)
     E = extent_of(stage)
     phase = hash01(stage["Index"] * 977 + 13) * 2.0 * math.pi
     L = float(stage["Length"])
@@ -540,7 +550,7 @@ def plan(stage, stages, area):
         link = area.get(side)
         if not link:
             continue
-        rad = math.radians(BEARING[side])
+        rad = math.radians(bearing[side])
         r = E - EXIT_MARGIN
         doors.append((math.cos(rad) * r, math.sin(rad) * r, side, link))
 
@@ -581,7 +591,7 @@ def plan(stage, stages, area):
 
     return dict(stage=stage, extent=E, phase=phase, path=path, sites=sites,
                 doors=doors, rocks=rocks, scenery=scenery, animals=animals,
-                actors=actors)
+                actors=actors, bearing=bearing)
 
 
 # ---------------------------------------------------------------- checks
@@ -646,7 +656,7 @@ def check(P):
         r = math.hypot(act["x"], act["y"])
         assert abs(r - (E - EXIT_MARGIN)) < 1.0, \
             "exit %s is not on the rim" % act["name"]
-        want = BEARING[act["props"]["Side"]] % 360.0
+        want = P.get("bearing", BEARING)[act["props"]["Side"]] % 360.0
         got = math.degrees(math.atan2(act["y"], act["x"])) % 360.0
         assert abs(((got - want + 180) % 360) - 180) < 0.5, \
             "exit %s is at the wrong bearing" % act["name"]
@@ -875,6 +885,24 @@ def draw(P, path):
 
 
 # ----------------------------------------------------------------- editor
+def animal_pieces(an):
+    """Every part of one animal, in world centimetres and degrees: the
+    animal's own local parts turned by its yaw and stood on its feet. Pure,
+    so the island level and the open world build the same gull."""
+    A = ANIMALS[an["species"]]
+    ca = math.cos(math.radians(an["yaw"]))
+    sa = math.sin(math.radians(an["yaw"]))
+    out = []
+    for j, part in enumerate(A["parts"]):
+        out.append(dict(slot="%s%d" % (part["slot"], j), shape=part["shape"],
+                        x=an["x"] + part["x"] * ca - part["y"] * sa,
+                        y=an["y"] + part["x"] * sa + part["y"] * ca,
+                        z=an["z"] + part["z"],
+                        sx=part["sx"], sy=part["sy"], sz=part["sz"],
+                        yaw=an["yaw"] + part["yaw"]))
+    return out
+
+
 MESHES = {"box": "Cube", "post": "Cylinder", "disc": "Cylinder",
           "sphere": "Sphere", "cone": "Cone"}
 
@@ -929,7 +957,6 @@ def build(P):
     #     dropping a mesh on the parent, and so a Blueprint that learns to
     #     make them flee has one thing to move.
     for i, an in enumerate(P["animals"]):
-        A = ANIMALS[an["species"]]
         label = "%s_%02d" % (an["species"], i)
         root = spawn(unreal.Actor, label, an["x"], an["y"], an["z"],
                      an["yaw"], folder="Animals/%s" % an["species"])
@@ -937,16 +964,11 @@ def build(P):
             root.set_actor_tag(0, unreal.Name("Ambient"))
         except Exception:
             pass                       # tags are set differently across versions
-        ca = math.cos(math.radians(an["yaw"]))
-        sa = math.sin(math.radians(an["yaw"]))
-        for j, part in enumerate(A["parts"]):
-            wx = an["x"] + part["x"] * ca - part["y"] * sa
-            wy = an["y"] + part["x"] * sa + part["y"] * ca
-            bit = piece("%s_%s%d" % (label, part["slot"], j), part["shape"],
-                        wx, wy, an["z"] + part["z"],
+        for part in animal_pieces(an):
+            bit = piece("%s_%s" % (label, part["slot"]), part["shape"],
+                        part["x"], part["y"], part["z"],
                         part["sx"], part["sy"], part["sz"],
-                        an["yaw"] + part["yaw"], False,
-                        "Animals/%s" % an["species"])
+                        part["yaw"], False, "Animals/%s" % an["species"])
             bit.attach_to_actor(root, "", unreal.AttachmentRule.KEEP_WORLD,
                                 unreal.AttachmentRule.KEEP_WORLD,
                                 unreal.AttachmentRule.KEEP_WORLD, False)
@@ -1033,7 +1055,11 @@ def _enum_name(s):
 
 
 # ------------------------------------------------------------------- main
-if __name__ == "__main__" or True:
+# Runs when executed -- as a script, or exec()'d inside the editor, where the
+# name is whatever the editor's is. Skipped only when build_world.py loads
+# this file as a library under its own module name, to put the island in the
+# open world.
+if __name__ != "build_island":
     _ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     _ap.add_argument("--draw", default=os.path.join(DOCS, "island-map.png"))
     try:

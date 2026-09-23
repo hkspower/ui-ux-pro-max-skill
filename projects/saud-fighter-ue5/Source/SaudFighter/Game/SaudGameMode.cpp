@@ -26,9 +26,19 @@ void ASaudGameMode::BeginPlay()
 		D->OnStageCleared.AddDynamic(this, &ASaudGameMode::HandleStageCleared);
 		D->OnStageFailed.AddDynamic(this, &ASaudGameMode::HandleStageFailed);
 	}
-	Director = AWaveDirector::Get(GetWorld());
 
 	USaudGameInstance* GI = GetGameInstance<USaudGameInstance>();
+
+	// The open world has one PlayerStart, in the souq. A save that stopped
+	// anywhere else resumes there -- read BEFORE the lines below record where
+	// he is standing, which on a fresh load is always the souq. Only on a
+	// fresh open: a step through a doorway (?ArriveAt) knows where it goes.
+	if (GI && Directors.Num() > 1 && UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt")).IsEmpty())
+	{
+		ResumeInDistrict(GI->GetProgress().CurrentStage, Directors);
+	}
+	Director = AWaveDirector::Get(GetWorld());
+
 	if (GI)
 	{
 		++GI->GetMutableProgress().Stats.FightsStarted;
@@ -105,6 +115,27 @@ void ASaudGameMode::PlaceArrivingPlayer()
 	{
 		Player->Rage = FMath::Clamp(FCString::Atof(*R), 0.f, SaudGameplay::RageMax);
 	}
+}
+
+void ASaudGameMode::ResumeInDistrict(FName Stage, const TArray<AWaveDirector*>& Directors)
+{
+	ASaudCharacter* Player = Cast<ASaudCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
+	if (!Player || Stage.IsNone())
+	{
+		return;
+	}
+	AWaveDirector* const* There = Directors.FindByPredicate([Stage](const AWaveDirector* D)
+	{
+		return D && D->StageRow == Stage;
+	});
+	if (!There || (*There)->Contains(Player->GetActorLocation()))
+	{
+		return;		// no such district on this map, or he is already in it
+	}
+	const FVector Middle = (*There)->GetActorLocation();
+	Player->SetActorLocation(Middle + FVector(SaudGameplay::ResumeOffset, 0.f, SaudGameplay::ResumeHeight));
+	Player->SetActorRotation(FRotator(0.f, 180.f, 0.f));		// toward the middle
+	(*There)->ApplyArenaBounds();
 }
 
 FName ASaudGameMode::ScoreStage(int32 Kills, int32 BestCombo, float HealthFraction, float Seconds) const

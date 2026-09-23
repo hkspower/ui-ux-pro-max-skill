@@ -16,7 +16,7 @@
  *
  * The duel itself needs no new code: it is one ordinary AWaveDirector with a
  * single wave, and the fall is one ordinary AAreaExit pointed at
- * L_SouqAlDawar. AAreaExit already refuses to open while the director it
+ * L_AlHalqa_World, the open world. AAreaExit already refuses to open while the director it
  * shares a level with is arena-locked, so "he cannot leave until he has won"
  * falls out of machinery that already exists -- see Tools/levels/
  * build_prologue.py for how the two are placed.

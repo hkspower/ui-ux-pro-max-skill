@@ -52,6 +52,10 @@ private:
 	    has one; an open-world map has one per district, and this follows him. */
 	AWaveDirector* CurrentDirector() const;
 
+	/** On the open-world map, put a resumed save back in the district it
+	    was saved in rather than at the souq's PlayerStart. */
+	void ResumeInDistrict(FName Stage, const TArray<AWaveDirector*>& Directors);
+
 	UPROPERTY()
 	TObjectPtr<AWaveDirector> Director = nullptr;
 };

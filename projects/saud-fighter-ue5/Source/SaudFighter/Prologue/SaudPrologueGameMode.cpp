@@ -1,6 +1,7 @@
 #include "Prologue/SaudPrologueGameMode.h"
 
 #include "Combat/SaudCharacter.h"
+#include "Combat/SaudTypes.h"
 #include "Game/SaudGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "World/WaveDirector.h"
@@ -22,7 +23,7 @@ void ASaudPrologueGameMode::BeginPlay()
 	// so anyone returning to the game goes straight to where he landed.
 	if (GI && GI->GetProgress().bSeenPrologue)
 	{
-		UGameplayStatics::OpenLevel(this, TEXT("L_SouqAlDawar"));
+		UGameplayStatics::OpenLevel(this, SaudGameplay::WorldLevel);
 		return;
 	}
 

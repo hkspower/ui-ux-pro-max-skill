@@ -239,7 +239,13 @@ def load():
 
 
 # ------------------------------------------------------------------- plan
-def plan():
+def plan(bearing=None, street_mesh="SM_Souq_Street"):
+    """`bearing` is where each way out faces, in degrees; left out, the
+    standalone level's BEARING. The open world (Tools/levels/build_world.py)
+    passes its own, and names its street mesh apart, because the street is
+    baked into one mesh with its spurs out to the doors and the world's
+    doors are somewhere else."""
+    bearing = dict(BEARING if bearing is None else bearing)
     stages, world, stage = load()
     idx = stage["Index"]
     L = max(1.0, float(stage["Length"]))
@@ -271,7 +277,7 @@ def plan():
     for side, back in (("West", "East"), ("East", "West"), ("Door", "West")):
         link = area.get(side) if area else None
         if not link: continue
-        dest = stages[link["To"]]; rad = math.radians(BEARING[side]); r = E - EXIT_MARGIN
+        dest = stages[link["To"]]; rad = math.radians(bearing[side]); r = E - EXIT_MARGIN
         x, y = math.cos(rad) * r, math.sin(rad) * r
         after = stages[link["AfterCleared"]]["Name"] if link["AfterCleared"] >= 0 else ""
         act("Exit", "Exit_%s_to_%s" % (side, dest["Name"]), x, y, 300.0, Side=side, DestinationLevel="L_" + dest["Name"],
@@ -334,7 +340,12 @@ def plan():
         x, y = math.cos(ang) * e, math.sin(ang) * e
         if any(math.hypot(d[0] - x, d[1] - y) < RIM_GAP for d in doors.values()): continue
         h = lerp(v["rim_min"], v["rim_max"], hash01(idx * 31 + i))
-        rim.append(dict(x=x, y=y, yaw=math.degrees(ang), h=h))
+        # The wall mesh runs along its local X and fronts -Y, like every
+        # kind here; turned a quarter less than its bearing it runs along
+        # the rim and fronts the street. Until 2026-09-23 it was turned to
+        # the bearing itself, and all 78 walls stood out from the district
+        # like fins -- check() 3 holds it now.
+        rim.append(dict(x=x, y=y, yaw=math.degrees(ang) - 90.0, h=h))
 
     # --- the props: index.html buildProps, in the browser's own pixels and
     #     hash, then along the spiral. "Crates and barrels LINE the streets"
@@ -411,7 +422,7 @@ def plan():
     meshes["SM_Souq_Ground"] = dict(kind="ground", w=E * 2, d=E * 2, h=0.0)
     for i in range(3):      # the three banner colours: a one-metre quad each, scaled per stall
         meshes["SM_Souq_Banner%d" % i] = dict(kind="banner", w=100.0, d=0.0, h=100.0)
-    meshes["SM_Souq_Street"] = dict(kind="street", w=E * 2, d=E * 2, h=3.0)
+    meshes[street_mesh] = dict(kind="street", w=E * 2, d=E * 2, h=3.0)
     for p in props:
         p["mesh"] = "SM_Souq_Crate" if p["kind"] == "crate" else "SM_Souq_Barrel"; p["scale"] = (1.0, 1.0, 1.0)
     # a crate in a fight is a wall in it: dropped by build_world's own block
@@ -422,13 +433,14 @@ def plan():
         gate["mesh"], gate["scale"] = "SM_Souq_GateWall", (1.0, 1.0, 1.0)
 
     return dict(stage=stage, idx=idx, E=E, phase=phase, path=path, sites=sites, doors=doors, actors=actors,
-                street=street, blocks=blocks, rim=rim, props=props, gate=gate, minaret=minaret, meshes=meshes, vocab=v)
+                street=street, blocks=blocks, rim=rim, props=props, gate=gate, minaret=minaret, meshes=meshes, vocab=v,
+                bearing=bearing, street_mesh=street_mesh)
 
 
 def instances(P):
     """Everything placed, one row each: what the manifest and the glTF carry."""
     out = [dict(slot="Ground", mesh="SM_Souq_Ground", x=0.0, y=0.0, z=0.0, yaw=0.0, scale=(1, 1, 1)),
-           dict(slot="Street", mesh="SM_Souq_Street", x=0.0, y=0.0, z=0.0, yaw=0.0, scale=(1, 1, 1))]
+           dict(slot="Street", mesh=P["street_mesh"], x=0.0, y=0.0, z=0.0, yaw=0.0, scale=(1, 1, 1))]
     for b in P["blocks"]:
         out.append(dict(slot="Structures" if b["kind"] != "minaret" else "Landmark", mesh=b["mesh"],
                         x=b["x"], y=b["y"], z=0.0, yaw=b["yaw"], scale=b["scale"], kind=b["kind"], banner=b.get("banner", 0)))
@@ -489,6 +501,11 @@ def check(P, against_levels=True):
         near = [w for w in P["rim"] if math.hypot(w["x"] - dx, w["y"] - dy) < 400.0]
         assert not near, "the %s door is walled up" % side
         r = math.hypot(dx, dy); assert abs(r - (E - EXIT_MARGIN)) < 1.0, "the %s door is not on the rim" % side
+    for w in P["rim"]:      # ...and a rim wall runs along the rim, facing in
+        a = math.radians(w["yaw"]); r = math.hypot(w["x"], w["y"])
+        along = abs(math.cos(a) * w["x"] + math.sin(a) * w["y"]) / r          # its length . the radial
+        front = (math.sin(a) * w["x"] - math.cos(a) * w["y"]) / r             # its -Y . the radial
+        assert along < 0.01 and front < -0.99, "a rim wall at (%.0f, %.0f) does not run along the rim facing in" % (w["x"], w["y"])
     # 4. the way through stays inside
     for k in range(101):
         r = math.hypot(*spiral(k / 100.0, E, P["phase"]))
@@ -521,7 +538,7 @@ def check(P, against_levels=True):
     for b in P["blocks"]:
         for sc in b["scale"]:
             assert 0.80 <= sc <= 1.25, "%s at (%.0f, %.0f) is scaled %.2f from its variant" % (b["kind"], b["x"], b["y"], sc)
-    print("checked: the plan agrees with build_levels.py to the centimetre, nothing solid stands in")
+    print("checked: %snothing solid stands in" % ("the plan agrees with build_levels.py to the centimetre, " if against_levels else ""))
     print("the street or a fight or off the edge, every door is a gap, the way through stays in,")
     print("every crate is on the street, the gate is beside the road in its actor's box, one minaret.")
 
@@ -548,6 +565,7 @@ def bite():
         b["w"] = b["dep"] = 300.0
     def off_edge(P): b = P["blocks"][2]; b["x"] = P["E"] + 10.0; b["y"] = 0.0
     def wall_door(P): dx, dy = P["doors"]["East"]; P["rim"].append(dict(x=dx, y=dy, yaw=0.0, h=300.0, mesh="SM_Souq_Wall_H32", scale=(1, 1, 1)))
+    def wall_fin(P): P["rim"][0]["yaw"] += 90.0
     def crate_off(P): p = P["props"][0]; p["x"] += 900.0
     def crate_in_fight(P): s = next(s for s in P["sites"] if s["kind"] == "wave"); p = P["props"][0]; p["x"], p["y"] = s["x"] + 200.0, s["y"]
     def crate_sunk(P): P["props"][0]["z"] = 0.0
@@ -563,6 +581,7 @@ def bite():
     case("block in a fight", into_fight, "fight")
     case("block off the edge", off_edge, "off the edge")
     case("door walled up", wall_door, "walled up")
+    case("rim wall as a fin", wall_fin, "run along the rim")
     case("crate off the street", crate_off, "off the street")
     case("crate in the lane", crate_in_lane, "middle of the street")
     case("gate on the street", gate_on_street, "gate stands in the street")
@@ -591,7 +610,7 @@ def describe(P):
         print("  %-5s t=%.3f at (%6.0f, %6.0f)  %s" % (s["kind"], s.get("t", 0), s["x"], s["y"],
               " ".join(s.get("fighters", [])) if s["kind"] == "wave" else s["gate"]["Type"]))
     for side, (x, y) in P["doors"].items():
-        print("  door %-5s at (%6.0f, %6.0f), bearing %.0f" % (side, x, y, BEARING[side]))
+        print("  door %-5s at (%6.0f, %6.0f), bearing %.0f" % (side, x, y, P["bearing"][side]))
     print("  plots: " + ", ".join("%s %d" % kv for kv in sorted(kinds.items())) + "; rim %d segments; props %d (%d crates, %d barrels)" % (
         len(P["rim"]), len(P["props"]), sum(1 for p in P["props"] if p["kind"] == "crate"), sum(1 for p in P["props"] if p["kind"] == "barrel")))
     if P["minaret"]:
@@ -1192,7 +1211,7 @@ class Souq:
         rows = instances(self.P)
         for i, r in enumerate(rows):
             src = self.kinds[r["mesh"]]
-            if r["mesh"] in ("SM_Souq_Ground", "SM_Souq_Street"):
+            if r["mesh"] in ("SM_Souq_Ground", self.P["street_mesh"]):
                 o = src; bpy.context.scene.collection.objects.unlink(o); coll.objects.link(o)
             else:
                 o = bpy.data.objects.new("%s_%03d" % (r["mesh"], i), src.data); coll.objects.link(o)
@@ -1206,26 +1225,32 @@ class Souq:
         return rows
 
     # --------------------------------------------------------------- export
+    def export_kind(self, name):
+        """One kind's FBX, at the origin. Returns its path."""
+        bpy = self.bpy
+        o = self.kinds[name]
+        o.hide_viewport = False; o.hide_render = False; loc = tuple(o.location); o.location = (0, 0, 0)
+        bpy.ops.object.select_all(action="DESELECT"); o.select_set(True); bpy.context.view_layer.objects.active = o
+        path = os.path.join(self.models, name + ".fbx")
+        # Centimetres and the Z-up-to-Y-up change baked into the vertex
+        # data, FBX scale 1.0: a file every importer reads the same. The
+        # hero and the clips keep FBX_SCALE_UNITS (metres, scale 100) on
+        # a shared skeleton, and a rigged mesh cannot bake its transform;
+        # a static one can, and then nothing depends on how an importer
+        # treats UnitScaleFactor. The read-back below holds it to that.
+        bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={"MESH"}, apply_unit_scale=True, global_scale=1.0,
+                                 apply_scale_options="FBX_SCALE_NONE", bake_space_transform=True, mesh_smooth_type="FACE",
+                                 use_mesh_modifiers=True, path_mode="RELATIVE", embed_textures=False, bake_anim=False)
+        o.location = loc
+        if name not in ("SM_Souq_Ground", self.P["street_mesh"]):
+            o.hide_viewport = True; o.hide_render = True
+        return path
+
     def export(self):
         bpy = self.bpy
         written = {}
-        for name, o in self.kinds.items():
-            o.hide_viewport = False; o.hide_render = False; loc = tuple(o.location); o.location = (0, 0, 0)
-            bpy.ops.object.select_all(action="DESELECT"); o.select_set(True); bpy.context.view_layer.objects.active = o
-            path = os.path.join(self.models, name + ".fbx")
-            # Centimetres and the Z-up-to-Y-up change baked into the vertex
-            # data, FBX scale 1.0: a file every importer reads the same. The
-            # hero and the clips keep FBX_SCALE_UNITS (metres, scale 100) on
-            # a shared skeleton, and a rigged mesh cannot bake its transform;
-            # a static one can, and then nothing depends on how an importer
-            # treats UnitScaleFactor. The read-back below holds it to that.
-            bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={"MESH"}, apply_unit_scale=True, global_scale=1.0,
-                                     apply_scale_options="FBX_SCALE_NONE", bake_space_transform=True, mesh_smooth_type="FACE",
-                                     use_mesh_modifiers=True, path_mode="RELATIVE", embed_textures=False, bake_anim=False)
-            written[name] = os.path.getsize(path)
-            o.location = loc
-            if name not in ("SM_Souq_Ground", "SM_Souq_Street"):
-                o.hide_viewport = True; o.hide_render = True
+        for name in self.kinds:
+            written[name] = os.path.getsize(self.export_kind(name))
         # one of them read back: the minaret comes in at its own height
         # and vertex count, or the export is not what it says
         before = set(bpy.data.objects); tall = self.P["meshes"]["SM_Souq_Minaret"]
@@ -1409,6 +1434,23 @@ class Souq:
 
 
 # =================================================================== editor
+def import_meshes(names):
+    """Inside the editor: every kind's FBX into MESH_DIR, once, and the
+    assets back by name. The open world furnishes its souq with the same."""
+    import unreal  # noqa: E402  (only importable inside the editor)
+    models = os.path.join(PROJECT, "Content", "Models", "Souq")
+    tasks = []
+    for name in names:
+        t = unreal.AssetImportTask()
+        t.filename = os.path.join(models, name + ".fbx"); t.destination_path = MESH_DIR
+        t.automated = True; t.save = True; t.replace_existing = True
+        ui = unreal.FbxImportUI(); ui.import_mesh = True; ui.import_materials = True; ui.import_textures = True
+        ui.import_as_skeletal = False; ui.mesh_type_to_import = unreal.FBXImportType.FBXIT_STATIC_MESH
+        t.options = ui; tasks.append(t)
+    unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
+    return {name: unreal.load_asset("%s/%s" % (MESH_DIR, name)) for name in names}
+
+
 def build_in_editor(P):
     """Inside the editor: the meshes go into L_SouqAlDawar, the level
     Tools/levels/build_levels.py made for this stage. Its Ground cube goes
@@ -1425,18 +1467,7 @@ def build_in_editor(P):
     EAS = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     LES = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
     EAL = unreal.EditorAssetLibrary
-    models = os.path.join(PROJECT, "Content", "Models", "Souq")
-    # --- import every kind once
-    tasks = []
-    for name in P["meshes"]:
-        t = unreal.AssetImportTask()
-        t.filename = os.path.join(models, name + ".fbx"); t.destination_path = MESH_DIR
-        t.automated = True; t.save = True; t.replace_existing = True
-        ui = unreal.FbxImportUI(); ui.import_mesh = True; ui.import_materials = True; ui.import_textures = True
-        ui.import_as_skeletal = False; ui.mesh_type_to_import = unreal.FBXImportType.FBXIT_STATIC_MESH
-        t.options = ui; tasks.append(t)
-    unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
-    mesh = {name: unreal.load_asset("%s/%s" % (MESH_DIR, name)) for name in P["meshes"]}
+    mesh = import_meshes(P["meshes"])
     # --- the level build_levels.py made, as it left it
     path = "%s/%s" % (MAPS_DIR, LEVEL_NAME)
     assert EAL.does_asset_exist(path), "%s is not built: run Tools/levels/build_levels.py in the editor first" % path
@@ -1469,9 +1500,50 @@ def build_in_editor(P):
         unreal.log_error("Could not save %s" % path)
 
 
+# ============================================================ the open world
+def world_plan():
+    """The souq as the open world has it: Tools/levels/build_world.py's own
+    plan of this district -- its doors at the bearings its neighbours fix --
+    checked by that script, which runs this file's check() on it too."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("build_world", os.path.join(LEVELS, "build_world.py"))
+    W = importlib.util.module_from_spec(spec); spec.loader.exec_module(W)
+    stages, world = W.load(); WP = W.plan(stages, world); W.check(WP)
+    return next(d for d in WP["districts"].values() if d["stage"]["Name"] == STAGE_NAME)["souq"]
+
+
+def build_world_street(out=None):
+    """Blender: the one mesh the open world's souq does not share with the
+    level -- its street, whose spurs run out to the world's doors -- built
+    exactly as the level's is, exported and read back. Every other mesh the
+    world places is the level's own, already in Content/Models/Souq."""
+    P = world_plan()
+    S = Souq(P, out=out, fast=True)
+    name = P["street_mesh"]
+    o = S.build_street(name, P)
+    path = S.export_kind(name)
+    bpy = S.bpy
+    want_n = len(o.data.vertices)
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.fbx(filepath=path)
+    back = [b for b in bpy.data.objects if b not in before and b.type == "MESH"]
+    assert len(back) == 1, "%s read back as %d meshes" % (name, len(back))
+    xs = [(back[0].matrix_world @ v.co).x for v in back[0].data.vertices]
+    ys = [(back[0].matrix_world @ v.co).y for v in back[0].data.vertices]
+    got_n = len(back[0].data.vertices)
+    assert got_n == want_n, "%s reads back with %d vertices, not %d" % (name, got_n, want_n)
+    reach = max(max(abs(v) for v in xs), max(abs(v) for v in ys))
+    assert reach <= P["E"] / 100.0, "%s reaches %.1f m, past the district's %.1f" % (name, reach, P["E"] / 100.0)
+    print("%s: %d spurs built (%d already on the street), %d vertices, read back whole, %.2f MB"
+          % (os.path.basename(path), S.spurs["built"], S.spurs["inside"], got_n, os.path.getsize(path) / 1e6))
+
+
 # ===================================================================== main
 def main():
     a = sys.argv[1:]
+    if "--world" in a:
+        build_world_street(os.path.abspath(a[a.index("--out") + 1]) if "--out" in a else None)
+        return
     P = plan()
     if "--bite" in a:
         sys.exit(0 if bite() else 1)

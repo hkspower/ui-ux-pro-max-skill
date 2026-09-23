@@ -125,6 +125,64 @@ WORLD_RIG = dict(pitch=-38, yaw=-125, sun=(1.00, 0.88, 0.70), lux=6.0,
                  sky=1.4, fog=(0.86, 0.72, 0.56), fogd=0.012, expo=1.02)
 
 
+# ------------------------------------------------------------ the island
+# JAZIRAT AL-HAJAR is built by Tools/levels/build_island.py -- shallows,
+# beach, stone, rocks, jetties and animals -- and the open world uses that
+# script's own terrain for its district rather than a second copy of it.
+# Loaded under the module name "build_island", the one name that script's
+# main block does not run under.
+def _load_island():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "build_island", os.path.join(HERE, "build_island.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+ISL = _load_island()
+
+
+# ---------------------------------------------------------------- the souq
+# SOUQ AL-DAWAR has real meshes, modelled by Tools/blender/build_souq.py from
+# the browser's own drawing of it: arcaded stalls, mud-brick warehouses, the
+# minaret, the rim wall, the gate wall, crates and barrels, a flagstone
+# street. The world places those, from that script's own plan, instead of
+# engine cubes. Its plan is plain Python; only its meshes need Blender.
+def _load_souq():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "build_souq", os.path.join(HERE, "..", "blender", "build_souq.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+SOUQ = _load_souq()
+# The level's street mesh has its spurs out to the level's doors; the world's
+# doors are elsewhere, so its street is its own mesh, made by
+#     blender -b -P Tools/blender/build_souq.py -- --world
+WORLD_STREET = "SM_Souq_Street_World"
+
+
+def is_souq(stage):
+    return stage["Name"] == SOUQ.STAGE_NAME
+
+
+def is_island(stage):
+    return stage["Name"] == ISL.STAGE_NAME
+
+
+def reach_of(stage):
+    """How far a district takes up room from its middle. Its extent, except
+    on the island, whose shallows and the rocks standing in them reach past
+    the stone the fights are on. The district is still its extent -- that is
+    what AWaveDirector bounds and where its doors stand -- but the ring has
+    to keep its neighbours off its water."""
+    E = extent_of(stage)
+    return E * ISL.SHALLOWS if is_island(stage) else E
+
+
 # ------------------------------------------------------------------- data
 def load():
     with open(os.path.join(DATA, "DT_Stages.json"), encoding="utf-8") as f:
@@ -173,9 +231,11 @@ def ring_order(world):
 
 
 def place_ring(stages, world):
-    """Exactly Tools/fab/lay_out_world.py's placement: the arena on the
-    centre, the ring districts on a circle that grows until none of them
-    touch."""
+    """Tools/fab/lay_out_world.py's placement -- the arena on the centre, the
+    ring districts on a circle that grows until none of them touch -- with
+    one difference: "touch" is measured to the island's water rather than to
+    its extent (reach_of). A Fab map brings its own ground and no sea for
+    this to keep clear of, so the circle it grows is smaller than this one."""
     order = ring_order(world)
     arena_idx = next(a["Index"] for a in world["Areas"] if a["Index"] not in order and a.get("West"))
     origins = {arena_idx: (0.0, 0.0)}
@@ -187,7 +247,7 @@ def place_ring(stages, world):
         for slot, idx in enumerate(order):
             ang = math.pi / 2.0 - 2.0 * math.pi * slot / n
             trial[idx] = (radius * math.cos(ang), radius * math.sin(ang))
-        discs = {i: (o[0], o[1], extent_of(stages[i])) for i, o in trial.items()}
+        discs = {i: (o[0], o[1], reach_of(stages[i])) for i, o in trial.items()}
         keys = list(discs)
         clash = any(math.hypot(discs[a][0] - discs[b][0], discs[a][1] - discs[b][1])
                     < discs[a][2] + discs[b][2] + GAP
@@ -324,10 +384,139 @@ def rim_of(extent, doors, v, area_index, into):
 
 
 # ------------------------------------------------------------------- plan
+def district_ground(d, idx, scenery):
+    """A district of the city: a ground disc, the street along the spiral with
+    spurs to its sites and its doors, blocks either side, a rim gapped at
+    every way out."""
+    ox, oy, E, phase = d["ox"], d["oy"], d["extent"], d["phase"]
+    v, path, sites, doors = d["vocab"], d["path"], d["sites"], d["doors"]
+
+    # --- the ground under the district
+    scenery.append(dict(kind="ground", shape="disc", solid=True,
+                        x=ox, y=oy, z=GROUND_Z - 50.0,
+                        sx=E * 2.0, sy=E * 2.0, sz=100.0, yaw=0.0, district=idx))
+
+    here = []
+    # --- the street: the spiral, then a spur out to everything on it
+    for i in range(1, len(path)):
+        paving(ox + path[i - 1][0], oy + path[i - 1][1],
+               ox + path[i][0], oy + path[i][1],
+               STREET_HALF_WIDTH * 2.0, v["paving"], here)
+    for s in sites:
+        nx, ny = nearest_on_path(path, s["x"], s["y"])
+        if math.hypot(s["x"] - nx, s["y"] - ny) < 100.0:
+            continue
+        paving(ox + nx, oy + ny, ox + s["x"], oy + s["y"],
+               STREET_HALF_WIDTH * 1.3, v["paving"], here)
+    # --- and out to each door, so a way out is on the road
+    for dx, dy, *_ in doors:
+        nx, ny = nearest_on_path(path, dx, dy)
+        paving(ox + nx, oy + ny, ox + dx, oy + dy, STREET_HALF_WIDTH * 1.6, v["paving"], here)
+
+    local = []
+    blocks_of(E, phase, idx, path, sites, v, local)
+    rim_of(E, [(dd[0], dd[1]) for dd in doors], v, idx, local)
+    for p in local:
+        p["x"] += ox; p["y"] += oy
+    here.extend(local)
+    for p in here:
+        p["district"] = idx
+    scenery.extend(here)
+
+
+def island(d, idx, scenery, animals):
+    """JAZIRAT AL-HAJAR as build_island.py builds it -- the same terrain, the
+    same rocks, the same animals -- around the doors this world gives it
+    rather than the fixed ones its standalone level has.
+
+    Two things differ from that level, both because this is one map: the
+    open sea its level draws out to three extents is left out (it would lie
+    under the neighbouring districts; the shallows are the water here, and
+    reach_of() keeps the ring off them), and the fights and the gate are on
+    the island's own spiral, where its ruins and its animals were placed to
+    keep clear of them, rather than on the half-turn the city districts put
+    their gates on."""
+    stage, E, phase = d["stage"], d["extent"], d["phase"]
+    ox, oy = d["ox"], d["oy"]
+    doors = [(dx, dy, side, link) for dx, dy, side, link, *_ in d["doors"]]
+
+    local = []
+    rocks, path, isites = ISL.terrain(stage, E, phase, doors, local)
+    local = [p for p in local if p["kind"] != "sea"]
+    solids = [(p["x"], p["y"], max(p["sx"], p["sy"]) * 0.5) for p in local
+              if p["solid"] and p["kind"] in (ISL.RUIN["block"], ISL.RUIN["tall"])]
+    beasts = ISL.fauna(E, phase, path, isites, doors, rocks, solids)
+
+    # The island's sites, in the world's form: waves then gates, as
+    # ISL.sites_of lists them, with the same radii.
+    L = float(stage["Length"])
+    sites = []
+    for wi, w in enumerate(stage.get("Waves", [])):
+        x, y = ISL.spiral(min(1.0, w["TriggerDistance"] / L), E, phase)
+        sites.append(dict(kind="wave", i=wi, x=x, y=y, r=SITE_RADIUS))
+    for gi, g in enumerate(stage.get("Gates", [])):
+        x, y = ISL.spiral(min(1.0, g["Distance"] / L), E, phase)
+        sites.append(dict(kind="gate", i=gi, x=x, y=y, r=SITE_RADIUS * 0.7, gate=g))
+    assert [(round(a["x"]), round(a["y"])) for a in sites] == \
+           [(round(b["x"]), round(b["y"])) for b in isites], "island sites disagree"
+
+    # What build_island.check() needs to prove this island the way it proves
+    # its own level, in the district's local frame.
+    d["island"] = dict(
+        stage=stage, extent=E, phase=phase, path=path, sites=isites,
+        doors=doors, rocks=rocks, scenery=[dict(p) for p in local],
+        animals=[dict(a) for a in beasts],
+        actors=[dict(kind="Exit", name="Exit_%s" % side, x=dx, y=dy,
+                     props=dict(Side=side)) for dx, dy, side, _ in doors],
+        bearing={dd[2]: math.degrees(dd[6]) for dd in d["doors"]})
+    d["path"], d["sites"] = path, sites
+    d["vocab"] = dict(d["vocab"], paving="paving", rim=None)
+
+    for p in local:
+        p["x"] += ox; p["y"] += oy; p["district"] = idx
+    scenery.extend(local)
+    for a in beasts:
+        a["x"] += ox; a["y"] += oy; a["district"] = idx
+    animals.extend(beasts)
+
+
+def souq(d, idx, scenery):
+    """SOUQ AL-DAWAR as build_souq.py models it, around this world's doors.
+    Its stalls, warehouses, minaret, props and gate are exactly the level's
+    -- none of them depends on where a door is -- and its rim is re-gapped and
+    its street re-spurred for the doors here. Its fights, its gate and its
+    ways out must land where this world puts them; souq() holds them to it
+    to the centimetre, so nothing the game reads moves."""
+    ox, oy = d["ox"], d["oy"]
+    bearing = {side: math.degrees(b) for _, _, side, _, _, _, b in d["doors"]}
+    SP = SOUQ.plan(bearing=bearing, street_mesh=WORLD_STREET)
+    assert abs(SP["E"] - d["extent"]) < 1e-6 and abs(SP["phase"] - d["phase"]) < 1e-9, \
+        "the souq's extent or phase differs from the world's"
+    for dx, dy, side, *_ in d["doors"]:
+        sx, sy = SP["doors"][side]
+        assert math.hypot(sx - dx, sy - dy) < 1.0, "the souq's %s door is not the world's" % side
+    mine = sorted((s["kind"], s["i"], round(s["x"]), round(s["y"])) for s in SP["sites"])
+    ours = sorted((s["kind"], s["i"], round(s["x"]), round(s["y"])) for s in d["sites"])
+    assert mine == ours, "the souq's fights and gate are not where the world puts them"
+    d["souq"] = SP
+    d["vocab"] = dict(d["vocab"], rim="wall")
+    M = SP["meshes"]
+    for r in SOUQ.instances(SP):
+        m = M[r["mesh"]]
+        ground = r["slot"] == "Ground"
+        scenery.append(dict(
+            kind="ground" if ground else ("street" if r["slot"] == "Street" else r.get("kind", r["slot"].lower())),
+            shape="disc" if ground else "mesh", mesh=r["mesh"], slot=r["slot"],
+            solid=r["slot"] not in ("Street", "Ground") or ground,
+            x=ox + r["x"], y=oy + r["y"], z=r["z"], yaw=r["yaw"], scale=tuple(r["scale"]),
+            sx=m["w"] * r["scale"][0], sy=max(m["d"], 1.0) * r["scale"][1],
+            sz=m["h"] * r["scale"][2], district=idx))
+
+
 def plan(stages, world):
     order, arena_idx, origins, radius = place_ring(stages, world)
     areas = {a["Index"]: a for a in world["Areas"]}
-    districts, actors, scenery = {}, [], []
+    districts, actors, scenery, animals = {}, [], [], []
 
     def act(kind, name, x, y, z=0.0, **props):
         actors.append(dict(kind=kind, name=name, x=x, y=y, z=z, props=props))
@@ -357,40 +546,15 @@ def plan(stages, world):
                 after = stages[link["AfterCleared"]]["Name"] if link["AfterCleared"] >= 0 else ""
                 doors.append((dx, dy, side, link, dest, after, bearing))
 
-        districts[idx] = dict(stage=stage, ox=ox, oy=oy, extent=E, phase=phase,
-                              path=path, sites=sites, doors=doors, vocab=v)
-
-        # --- the ground under the district
-        scenery.append(dict(kind="ground", shape="disc", solid=True,
-                            x=ox, y=oy, z=GROUND_Z - 50.0,
-                            sx=E * 2.0, sy=E * 2.0, sz=100.0, yaw=0.0, district=idx))
-
-        here = []
-        # --- the street: the spiral, then a spur out to everything on it
-        for i in range(1, len(path)):
-            paving(ox + path[i - 1][0], oy + path[i - 1][1],
-                   ox + path[i][0], oy + path[i][1],
-                   STREET_HALF_WIDTH * 2.0, v["paving"], here)
-        for s in sites:
-            nx, ny = nearest_on_path(path, s["x"], s["y"])
-            if math.hypot(s["x"] - nx, s["y"] - ny) < 100.0:
-                continue
-            paving(ox + nx, oy + ny, ox + s["x"], oy + s["y"],
-                   STREET_HALF_WIDTH * 1.3, v["paving"], here)
-        # --- and out to each door, so a way out is on the road
-        for dx, dy, *_ in doors:
-            nx, ny = nearest_on_path(path, dx, dy)
-            paving(ox + nx, oy + ny, ox + dx, oy + dy, STREET_HALF_WIDTH * 1.6, v["paving"], here)
-
-        local = []
-        blocks_of(E, phase, idx, path, sites, v, local)
-        rim_of(E, [(d[0], d[1]) for d in doors], v, idx, local)
-        for p in local:
-            p["x"] += ox; p["y"] += oy
-        here.extend(local)
-        for p in here:
-            p["district"] = idx
-        scenery.extend(here)
+        d = districts[idx] = dict(stage=stage, ox=ox, oy=oy, extent=E, phase=phase,
+                                  path=path, sites=sites, doors=doors, vocab=v)
+        if is_island(stage):
+            island(d, idx, scenery, animals)
+        elif is_souq(stage):
+            souq(d, idx, scenery)
+        else:
+            district_ground(d, idx, scenery)
+        sites = d["sites"]
 
         # --- the gameplay actors, as Tools/fab/lay_out_world.py places them
         act("WaveDirector", "Director_%s" % stage["Name"], ox, oy, GROUND_Z,
@@ -449,7 +613,8 @@ def plan(stages, world):
     for p in scenery:
         p.setdefault("district", None)
     return dict(order=order, arena=arena_idx, origins=origins, radius=radius,
-                districts=districts, actors=actors, scenery=scenery, stages=stages)
+                districts=districts, actors=actors, scenery=scenery,
+                animals=animals, stages=stages)
 
 
 # ------------------------------------------------------------------ check
@@ -461,8 +626,37 @@ def check(P):
     for i, a in enumerate(keys):
         for b in keys[i + 1:]:
             da, db = D[a], D[b]
-            gap = math.hypot(da["ox"] - db["ox"], da["oy"] - db["oy"]) - da["extent"] - db["extent"]
+            gap = (math.hypot(da["ox"] - db["ox"], da["oy"] - db["oy"])
+                   - reach_of(da["stage"]) - reach_of(db["stage"]))
             assert gap > 0, "districts %d and %d overlap" % (a, b)
+
+    # The souq is proven by build_souq.py's own check, over the plan this
+    # world made of it (souq() has already held its fights, gate and doors
+    # to this world's to the centimetre).
+    for idx, d in D.items():
+        if "souq" in d:
+            SOUQ.check(d["souq"], against_levels=False)
+
+    # The island is proven by the island's own check, in its own frame, with
+    # the bearings this world gave its doors: its ruins off the street, off
+    # the fights and on the stone; every jetty whole from the stone to its
+    # exit; every exit on the rim at its bearing; every animal on the ground
+    # it belongs to. And nothing of it stands on a neighbour.
+    for idx, d in D.items():
+        if "island" not in d:
+            continue
+        ISL.check(d["island"])
+        # Measured from the pieces themselves, water included, and held to
+        # the same clear GAP the ring keeps between any two districts.
+        for p in P["scenery"]:
+            if p["district"] != idx:
+                continue
+            half = max(p["sx"], p["sy"]) * 0.5
+            for j, o in D.items():
+                if j != idx:
+                    assert math.hypot(p["x"] - o["ox"], p["y"] - o["oy"]) >= \
+                        o["extent"] + half + GAP - 1.0, \
+                        "the island's %s is not clear of %s" % (p["kind"], o["stage"]["Name"])
 
     # Nothing solid stands on the street, in a fight, or off its district.
     on_street = in_fight = off_edge = 0
@@ -470,6 +664,8 @@ def check(P):
         if not p["solid"] or p["district"] is None or p["kind"] == "ground":
             continue
         d = D[p["district"]]
+        if "island" in d or "souq" in d:
+            continue                      # proven above, by that place's own rules
         lx, ly = p["x"] - d["ox"], p["y"] - d["oy"]
         if math.hypot(lx, ly) > d["extent"] + 1.0:
             off_edge += 1
@@ -499,11 +695,12 @@ def check(P):
     # under a road between two of them.
     grounds = [p for p in P["scenery"] if p["kind"] == "ground"]
     discs = [(p["x"], p["y"], p["sx"] * 0.5) for p in grounds if p["shape"] == "disc"]
+    discs += [(p["x"], p["y"], p["sx"] * 0.5) for p in P["scenery"] if p["kind"] == "plateau"]
     strips = [(p["x"], p["y"], p["sx"] * 0.5, p["sy"] * 0.5, math.radians(p["yaw"]))
               for p in grounds if p["shape"] == "box"]
     floating = 0
     for p in P["scenery"]:
-        if p["solid"] or p["kind"] == "ground":
+        if p["solid"] or p["kind"] in ("ground", "shallows", "sea"):
             continue                      # paving is the only walkable thing
         if any(math.hypot(p["x"] - cx, p["y"] - cy) <= r for cx, cy, r in discs):
             continue
@@ -527,7 +724,8 @@ def check(P):
 
     print("checked: no district overlaps another, nothing solid stands in a street or a")
     print("fight or off an edge, every way out is a gap in its own rim, and every")
-    print("doorway opens onto the one that answers it.")
+    print("doorway opens onto the one that answers it. The island passes its own")
+    print("checks at the bearings this world gives it, and stands on no neighbour.")
 
 
 # --------------------------------------------------------------- describe
@@ -535,15 +733,17 @@ def describe(P):
     across = P["radius"] * 2.0 + 2.0 * max(d["extent"] for d in P["districts"].values())
     print("\nAL-HALQA, one map: %d districts round the arena, %.0f m across"
           % (len(P["districts"]), across / 100.0))
-    print("%d scenery pieces, %d gameplay actors\n" % (len(P["scenery"]), len(P["actors"])))
+    print("%d scenery pieces, %d gameplay actors, %d animals on the island\n"
+          % (len(P["scenery"]), len(P["actors"]), len(P["animals"])))
     print("  district            middle                 across   street  blocks   rim")
     for idx in [P["arena"]] + P["order"]:
         d = P["districts"][idx]
         mine = [p for p in P["scenery"] if p["district"] == idx]
         rim = d["vocab"]["rim"]
-        paving_n = sum(1 for p in mine if p["kind"] == d["vocab"]["paving"])
+        paving_n = sum(1 for p in mine if p["kind"] in (d["vocab"]["paving"], "street"))
         rim_n = sum(1 for p in mine if p["kind"] == rim)
-        block_n = len(mine) - paving_n - rim_n - 1
+        block_n = sum(1 for p in mine if p["solid"] and p["kind"] not in
+                      ("ground", rim, "plateau", "beach", "jetty", "banner", "crate", "barrel"))
         print("  %-18s (%8.0f, %8.0f) %7.0f m %7d %7d %5d"
               % (d["stage"]["Name"], d["ox"], d["oy"], d["extent"] * 2.0 / 100.0,
                  paving_n, block_n, rim_n))
@@ -582,12 +782,36 @@ def draw(P, path):
         g.polygon(pts, fill=(26, 25, 22))
     for idx, d in D.items():
         ox, oy, E = d["ox"], d["oy"], d["extent"]
+        if "island" in d:
+            # water, beach and stone, outside in, as the island draws itself
+            for p in sorted((p for p in P["scenery"] if p["district"] == idx
+                             and p["shape"] == "disc"), key=lambda p: -p["sx"]):
+                r = p["sx"] * 0.5
+                col = {"shallows": (24, 52, 68), "beach": (110, 98, 76),
+                       "plateau": (74, 70, 62)}[p["kind"]]
+                g.ellipse([to(ox - r, oy + r), to(ox + r, oy - r)], fill=col)
+            continue
         # ground
         g.ellipse([to(ox - E, oy + E), to(ox + E, oy - E)], fill=(30, 28, 25),
                   outline=(70, 62, 52))
     # scenery
+    for d in D.values():                        # the souq's street is one mesh: draw its segments
+        if "souq" in d:
+            for seg in d["souq"]["street"]:
+                (ax, ay), (bx, by) = seg["a"], seg["b"]
+                n = max(1, int(math.hypot(bx - ax, by - ay) / PAVING_STEP))
+                for k in range(n + 1):
+                    g.point(to(d["ox"] + lerp(ax, bx, k / n), d["oy"] + lerp(ay, by, k / n)),
+                            fill=(120, 108, 86))
     for p in P["scenery"]:
-        if p["kind"] == "ground":
+        if p["kind"] == "ground" or p["shape"] == "disc" or p.get("slot") == "Street":
+            continue
+        if p.get("slot") == "Rim":              # a wall is a line along its local X, not a blob
+            ang = math.radians(p["yaw"])
+            h = p["sx"] * 0.5
+            g.line([to(p["x"] - math.cos(ang) * h, p["y"] - math.sin(ang) * h),
+                    to(p["x"] + math.cos(ang) * h, p["y"] + math.sin(ang) * h)],
+                   fill=(96, 92, 84), width=2)
             continue
         x, y = to(p["x"], p["y"])
         if not p["solid"]:
@@ -597,6 +821,9 @@ def draw(P, path):
             tall = p["sz"] > 1200.0
             col = (196, 154, 84) if tall else (96, 92, 84)
             g.ellipse([x - r, y - r, x + r, y + r], fill=col)
+    for an in P["animals"]:
+        x, y = to(an["x"], an["y"])
+        g.point((x, y), fill=ISL.ANIMALS[an["species"]]["col"])
     # actors
     for a in P["actors"]:
         x, y = to(a["x"], a["y"])
@@ -612,6 +839,9 @@ def draw(P, path):
     g.text((16, 16), "AL-HALQA, built rather than imported: eight districts round the arena, "
                      "street on the spiral, blocks either side, rim gapped at every way out.",
            fill=(200, 200, 200))
+    g.text((16, 32), "JAZIRAT AL-HAJAR is build_island.py's island -- shallows, beach, stone, "
+                     "rocks, jetties, animals -- round this world's doors.",
+           fill=(200, 200, 200))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im.save(path)
     print("drew", path)
@@ -623,8 +853,9 @@ def build(P):
 
     ELL = unreal.EditorLevelLibrary
     EAL = unreal.EditorAssetLibrary
-    cube = unreal.load_asset("/Engine/BasicShapes/Cube")
-    cylinder = unreal.load_asset("/Engine/BasicShapes/Cylinder")
+    mesh = {k: unreal.load_asset("/Engine/BasicShapes/%s" % v)
+            for k, v in ISL.MESHES.items()}
+    cube = mesh["box"]
 
     tables = {}
     for t in ("DT_Stages", "DT_Fighters", "DT_Attacks"):
@@ -638,24 +869,82 @@ def build(P):
     ELL.new_level(path)
 
     def spawn(cls, name, x, y, z, yaw=0.0, folder=None):
-        a = ELL.spawn_actor_from_class(cls, unreal.Vector(x, y, z), unreal.Rotator(0, yaw, 0))
+        # unreal.Rotator's positional order is (roll, pitch, yaw) -- named, so
+        # a yaw cannot land in the pitch. Until 2026-09-23 it was
+        # Rotator(0, yaw, 0), which would have tipped every turned block,
+        # wall and road of the world onto its side.
+        a = ELL.spawn_actor_from_class(cls, unreal.Vector(x, y, z),
+                                       unreal.Rotator(roll=0.0, pitch=0.0, yaw=yaw))
         a.set_actor_label(name)
         a.set_folder_path("%s/%s" % (FOLDER, folder or "World"))
         return a
 
+    def piece(name, shape, x, y, z, sx, sy, sz, yaw, solid, folder):
+        a = spawn(unreal.StaticMeshActor, name, x, y, z, yaw, folder=folder)
+        comp = a.get_component_by_class(unreal.StaticMeshComponent)
+        comp.set_static_mesh(mesh[shape])
+        a.set_actor_scale3d(unreal.Vector(sx / 100.0, sy / 100.0, sz / 100.0))
+        a.set_mobility(unreal.ComponentMobility.STATIC)
+        if not solid:
+            comp.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
+        return a
+
+    island_folder = {"shallows": "Island/Water", "beach": "Island/Ground",
+                     "plateau": "Island/Ground", "rock": "Island/Rocks",
+                     "jetty": "Island/Ways", "paving": "Island/Street"}
+
+    # --- the souq's own meshes, imported from Content/Models/Souq the way
+    #     build_souq.py imports them for its level
+    souq_names = sorted({p["mesh"] for p in P["scenery"] if p.get("mesh")})
+    if souq_names:
+        mesh.update(SOUQ.import_meshes(souq_names))
+
     # --- the place
     for i, p in enumerate(P["scenery"]):
-        mesh = cylinder if p["shape"] in ("post", "disc") else cube
-        a = spawn(unreal.StaticMeshActor, "%s_%d" % (p["kind"], i),
-                  p["x"], p["y"], p["z"], p.get("yaw", 0.0),
-                  folder="Ground" if p["kind"] == "ground" else
-                         ("Street" if not p["solid"] else "Structures"))
-        comp = a.get_component_by_class(unreal.StaticMeshComponent)
-        comp.set_static_mesh(mesh)
-        a.set_actor_scale3d(unreal.Vector(p["sx"] / 100.0, p["sy"] / 100.0, p["sz"] / 100.0))
-        a.set_mobility(unreal.ComponentMobility.STATIC)
-        if not p["solid"]:
-            comp.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
+        if p.get("mesh"):
+            if p["slot"] == "Gates":
+                continue                # the souq's AbilityGate carries its wall, below
+            a = spawn(unreal.StaticMeshActor, "%s_%d" % (p["mesh"], i), p["x"], p["y"], p["z"],
+                      p["yaw"], folder="Souq/%s" % p["slot"])
+            c = a.get_component_by_class(unreal.StaticMeshComponent)
+            c.set_static_mesh(mesh[p["mesh"]])
+            a.set_actor_scale3d(unreal.Vector(*p["scale"]))
+            a.set_mobility(unreal.ComponentMobility.STATIC)
+            if p["slot"] in ("Street", "Ground"):
+                c.set_collision_enabled(unreal.CollisionEnabled.QUERY_AND_PHYSICS)
+            continue
+        if p["district"] is not None and "island" in P["districts"][p["district"]]:
+            folder = island_folder.get(p["kind"], "Island/Ruins")
+        else:
+            folder = ("Ground" if p["kind"] == "ground" else
+                      ("Street" if not p["solid"] else "Structures"))
+        piece("%s_%d" % (p["kind"], i), p["shape"], p["x"], p["y"], p["z"],
+              p["sx"], p["sy"], p["sz"], p.get("yaw", 0.0), p["solid"], folder)
+
+    # --- the island's animals, as build_island.py makes them: one empty
+    #     actor per animal with its parts attached, ambient only
+    for i, an in enumerate(P["animals"]):
+        label = "%s_%02d" % (an["species"], i)
+        folder = "Island/Animals/%s" % an["species"]
+        root = spawn(unreal.Actor, label, an["x"], an["y"], an["z"], an["yaw"], folder=folder)
+        try:
+            root.set_actor_tag(0, unreal.Name("Ambient"))
+        except Exception:
+            pass                       # tags are set differently across versions
+        for part in ISL.animal_pieces(an):
+            bit = piece("%s_%s" % (label, part["slot"]), part["shape"],
+                        part["x"], part["y"], part["z"], part["sx"], part["sy"], part["sz"],
+                        part["yaw"], False, folder)
+            bit.attach_to_actor(root, "", unreal.AttachmentRule.KEEP_WORLD,
+                                unreal.AttachmentRule.KEEP_WORLD,
+                                unreal.AttachmentRule.KEEP_WORLD, False)
+
+    souq_gate = {}
+    for d in P["districts"].values():
+        if "souq" in d and d["souq"]["gate"]:
+            g = dict(d["souq"]["gate"])
+            g["x"] += d["ox"]; g["y"] += d["oy"]
+            souq_gate["%s_gate1" % d["stage"]["Name"]] = g
 
     # --- the game in it. These must exist wherever the player is, so they
     #     are the one thing here World Partition may not stream out.
@@ -682,6 +971,14 @@ def build(P):
             act.set_editor_property("reward_ability", getattr(unreal.Ability, _enum_name(pr["RewardAbility"])))
             act.set_editor_property("reward_experience", int(pr["RewardExperience"]))
             act.set_editor_property("gate_id", unreal.Name(pr["GateId"]))
+            wall = souq_gate.get(pr["GateId"])
+            if wall:
+                # the souq's gate is its cracked wall, not a cube: the wall's
+                # origin is its foot, where the cube's was its centre
+                act.set_actor_location(unreal.Vector(wall["x"], wall["y"], 0.0), False, False)
+                act.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=0.0, yaw=wall["yaw"]), False)
+                act.set_actor_scale3d(unreal.Vector(*wall["scale"]))
+                act.get_component_by_class(unreal.StaticMeshComponent).set_static_mesh(mesh[wall["mesh"]])
         elif k == "Exit":
             act = spawn(unreal.AreaExit, a["name"], a["x"], a["y"], a["z"], folder="Exits")
             act.set_editor_property("side", getattr(unreal.AreaSide, pr["Side"].upper()))
@@ -704,7 +1001,7 @@ def build(P):
     # --- one sun over the whole ring
     r = WORLD_RIG
     sun = spawn(unreal.DirectionalLight, "Sun", 0, 0, 20000, folder="Lighting")
-    sun.set_actor_rotation(unreal.Rotator(r["pitch"], r["yaw"], 0), False)
+    sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=r["pitch"], yaw=r["yaw"]), False)
     light = sun.get_component_by_class(unreal.DirectionalLightComponent)
     light.set_intensity(r["lux"])
     light.set_light_color(unreal.LinearColor(*r["sun"]))
@@ -722,8 +1019,8 @@ def build(P):
     if not ELL.save_current_level():
         unreal.log_error("Could not save %s" % path)
     else:
-        unreal.log("Saved %s: %d scenery, %d actors"
-                   % (path, len(P["scenery"]), len(P["actors"])))
+        unreal.log("Saved %s: %d scenery, %d animals, %d actors"
+                   % (path, len(P["scenery"]), len(P["animals"]), len(P["actors"])))
 
 
 def _enum_name(s):
@@ -736,7 +1033,10 @@ def _enum_name(s):
 
 
 # ------------------------------------------------------------------- main
-if __name__ == "__main__" or True:
+# Runs when executed -- as a script, or exec()'d inside the editor. Skipped
+# only when build_souq.py --world loads this file by its own name to read
+# the souq's plan out of it.
+if __name__ != "build_world":
     _stages, _world = load()
     _plan = plan(_stages, _world)
     check(_plan)

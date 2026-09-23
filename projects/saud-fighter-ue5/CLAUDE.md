@@ -204,6 +204,85 @@ their own ground now.
 the map. The Python Editor Scripting calls are read-reviewed, not run, the
 same as `build_levels.py`'s and `lay_out_world.py`'s always have been.
 
+## The game is played on one seamless world
+
+Since 2026-09-23 (Riyadh), asked as "make levels all open world 3d" and
+settled as: **the Unreal game plays on one continuous 3D map of all nine
+districts** -- `L_AlHalqa_World`, built by `Tools/levels/build_world.py` --
+not on nine separate levels. The browser build is untouched.
+
+**The flow.** `L_Prologue`'s fall opens `L_AlHalqa_World` at the souq, and
+every later launch opens it straight away (`SaudGameplay::WorldLevel` in
+`Combat/SaudTypes.h`; `ASaudPrologueGameMode`; `build_prologue.py`'s exit).
+Inside the world, every doorway is a same-level step: `AAreaExit` with a
+`DestinationExit` puts the player on the doorway that answers it, no load.
+The world has one `PlayerStart`, in the souq, so a save that stopped in any
+other district would wake him there; `ASaudGameMode::ResumeInDistrict` moves
+him on a fresh open to the middle of the district `CurrentStage` names (3 m
+out from its director, facing in, arena bounds applied). It runs only when
+the map has more than one director and no `?ArriveAt`, so the standalone
+levels and a step through a door are exactly as before.
+
+**Every district is its best art, in one place.**
+- **The souq is `build_souq.py`'s modelled souq** -- arcaded stalls,
+  mud-brick warehouses, the minaret, crates and barrels, the cracked gate
+  wall on its `AbilityGate` -- placed from that script's own `plan()`, not
+  engine cubes. Nothing in it depends on where a door is except the rim's
+  gaps and the street's spurs, so the world passes its door bearings in:
+  the rim is re-gapped and the street re-spurred. The street is baked into
+  one mesh with its spurs, so the world's is its own,
+  `Content/Models/Souq/SM_Souq_Street_World.fbx`, made by
+  `python3 Tools/blender/build_souq.py --world` (bpy; under a second) and
+  read back whole. Every other mesh is the level's own FBX.
+- **The island is `build_island.py`'s island** -- shallows, stepped beach,
+  stone, the 22 rocks, a jetty to each way out, and all 94 animals with
+  their parts -- built round the world's real doors. The island script's
+  open sea (drawn to three extents) is left out, since it would lie under the
+  neighbours; the shallows are the water. Its fights and gate stay on its
+  own spiral, where its ruins and animals were placed to keep clear of them.
+- The other seven are the derived city districts, as before.
+
+**The ring is 18 m wider than `lay_out_world.py`'s.** Placement measures
+the island to its water (`reach_of`: 1.34 extents) rather than its stone,
+because its shallows came within 2.7 m of the dead road's ground where the
+ring keeps 16 m between any two districts. The ring radius went 352 m ->
+370 m. A Fab map brings its own ground and no sea, so `lay_out_world.py` is
+unchanged and the two worlds now differ by that ring radius, and by nothing
+else.
+
+**Checked without an engine** (`python3 Tools/levels/build_world.py`): all
+of the above, plus the island passes `build_island.check()` at the bearings
+this world gives it and every piece of it, water included, stays the full
+16 m gap off every neighbour; the souq passes `build_souq.check()` (16 of 16
+sabotage cases still bite) and its fights, gate and doors are the world's
+to the centimetre. The new checks were sabotaged too: a ring measured to the
+island's stone, doors off by 10 degrees and a missing jetty board each fail.
+The editor build was driven against a stub `unreal` module: 4,146 actors
+spawned, no positional `Rotator` left.
+
+**Fixed on the way, because the world would have carried them:**
+- **The world builder's rotators.** `build_world.py` spawned with
+  `unreal.Rotator(0, yaw, 0)`, which puts the yaw in the pitch (the Python
+  order is roll, pitch, yaw) -- every turned block, wall and road would have
+  stood on its side. Named now. The same call in `build_levels.py`,
+  `build_island.py` and `build_prologue.py` is left as it was (see *Known,
+  not fixed*).
+- **The island's ground discs** gave their SURFACE height as the piece's z,
+  and both builders place a cylinder by its middle: the stone stood 30 cm
+  proud of its own street, jetties and every goat's feet. Each disc is let
+  down by half its thickness now.
+- **The souq's rim walls stood out like fins.** The wall mesh runs along its
+  local X and each was turned to its bearing, so all 78 pointed straight
+  out of the district. Turned a quarter less, they run along the rim and
+  front the street; `build_souq.check()` asserts it and a fin bites.
+
+**Unverified, like everything in this directory.** No engine has built the
+map, imported `SM_Souq_Street_World.fbx` (its material slot is named
+`M_Souq_Flagstone` and is expected to resolve to the level's imported
+material of that name), or run `ResumeInDistrict`, which has never been
+compiled. The standalone `L_SouqAlDawar` and `L_JaziratAlHajar_Island`
+still build; nothing in the C++ or the config opens them any more.
+
 ## The stone island is an island, and there are animals on it
 
 Since 2026-09-19. `Tools/levels/build_island.py` builds
@@ -724,7 +803,8 @@ Since 2026-09-19, and **only in this build**: the game opens on a level that
 is not one of the nine districts. `L_Prologue` is a title bout in Saud's own
 gym, followed by a short walk to the hole in the street. It plays once --
 `ASaudPrologueGameMode` marks it seen on entry and sends every later launch
-straight to `L_SouqAlDawar`, exactly where the game has always begun.
+straight to the souq -- in `L_AlHalqa_World` since 2026-09-23 (see "The game
+is played on one seamless world"), in `L_SouqAlDawar` before that.
 
 This is a deliberate exception to the canon in `../saud-fighter/CLAUDE.md`:
 "we never see above, it is never named ... If the player never sees home, the
@@ -1010,7 +1090,8 @@ id from Python's per-process string hash) and a new header timestamp:
 every `--scene` run leaves all 34 tracked FBX files changed in git.
 
 **Known, not fixed, found on the way:** every editor script that places a
-rotated actor -- `build_levels.py:374`, `build_world.py:641,707`,
+rotated actor -- `build_levels.py:374`, `build_world.py:641,707` (fixed
+2026-09-23: the open world is played on it),
 `build_island.py:904,1001`, `build_prologue.py:206,247` -- calls
 `unreal.Rotator(pitch, yaw, 0)` or `unreal.Rotator(0, yaw, 0)` positionally.
 The Python `unreal.Rotator`'s positional order is `(roll, pitch, yaw)`, not
@@ -1110,12 +1191,14 @@ Don't re-discover them; don't fix them without being told to.
   have to move with it -- a rig change, not a mesh change. The trunk's
   shoulder SHELF has been raised to 1.478; the bone under it has not.
 - **The editor scripts pass `unreal.Rotator` its arguments in the wrong
-  order.** `build_levels.py:374`, `build_world.py:641,707`,
+  order.** `build_levels.py:374`,
   `build_island.py:904,1001` and `build_prologue.py:206,247` call
   `unreal.Rotator(pitch, yaw, 0)` or `unreal.Rotator(0, yaw, 0)`; the Python
   constructor's positional order is `(roll, pitch, yaw)`, so a sun's pitch
   lands in its roll and an actor's yaw in its pitch. Found while writing
-  `build_souq.py`, which names its arguments; the four are left as they are.
+  `build_souq.py`, which names its arguments. `build_world.py` was fixed
+  2026-09-23, because the game is played on its map now; the other three
+  are left as they are.
 - **Enemy strikes do not go through the ability system.** Enemies (and the
   player) still throw via the legacy `AFighterBase::StartAttack` state
   machine; the GAS layer exists beside it rather than under it. Moving combat

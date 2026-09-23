@@ -506,6 +506,19 @@ namespace SaudGameplay
 	    rather than one place two of them cannot include. */
 	constexpr float ExitMargin = 200.f;
 
+	/** The game is played on one map since 2026-09-23: AL-HALQA whole, the
+	    nine districts on their ring with a road between each, built by
+	    Tools/levels/build_world.py. L_Prologue leads into it and nothing
+	    leads out of it; the per-stage maps build_levels.py makes are still
+	    buildable, for working on one district alone, but the game never
+	    opens them. */
+	constexpr const TCHAR* WorldLevel = TEXT("L_AlHalqa_World");
+	/** Where in a district a player is put back when a save resumes there:
+	    the same offset from its director Tools/levels/build_world.py puts
+	    the souq's PlayerStart at (SPAWN_RADIUS), clear of every block. */
+	constexpr float ResumeOffset = 300.f;
+	constexpr float ResumeHeight = 110.f;
+
 	constexpr float StaminaRegenPerSecond = 24.f;
 	constexpr float BlockDamageMultiplier = 0.20f;
 	/** What a blocked hit costs the man guarding it: stamina, and a share
