@@ -1319,7 +1319,11 @@ class Souq:
         sc = bpy.context.scene; sc.render.engine = "CYCLES"; sc.cycles.device = "CPU"
         sc.cycles.samples = samples or (16 if self.fast else 48); sc.cycles.use_denoising = True
         sc.render.resolution_x, sc.render.resolution_y = res; sc.render.image_settings.file_format = "PNG"
-        sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "None"
+        # As build_saud.render: Khronos PBR Neutral keeps the game's sRGB
+        # colours as themselves and rolls highlights off instead of clipping
+        try: sc.view_settings.view_transform = "Khronos PBR Neutral"
+        except TypeError: sc.view_settings.view_transform = "Standard"
+        sc.view_settings.look = "None"
         sc.render.filepath = os.path.join(self.renders, name); bpy.ops.render.render(write_still=True)
         return sc.render.filepath           # the camera stays: the .blend is opened and rendered from
 

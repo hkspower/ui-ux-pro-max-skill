@@ -31,11 +31,61 @@ def add_finger_bones(arm, joints_l):
     bpy.ops.object.mode_set(mode='OBJECT')
     return made
 
+def _smoothstep(t):
+    t = max(0.0, min(1.0, t)); return t * t * (3.0 - 2.0 * t)
+
+
+def pin_crotch(body, x_reach=0.030, z_centre=0.910, z_reach=0.030):
+    """The crotch is welded shut (trunk's flat pelvis floor and the two
+    thigh tubes overlap with no groin geometry between them -- CLAUDE.md,
+    "Known, not fixed"), and bone heat gives an honest answer for welded
+    geometry it should not have been asked: measured at the worst vertex,
+    pelvis 0.28 / thigh_l 0.34 / thigh_r 0.37, near-equal thirds. A vertex
+    that is a third each of two thighs is pulled toward the AVERAGE of
+    wherever they end up, and the moment a pose spreads the legs (the
+    guard, the kick) that average drags it into a stretched, jaggedly-
+    lit membrane between them -- CLAUDE.md's "trousers carry a web...
+    the web stretches between them" -- even though the unposed body and
+    the trousers built from it read fine standing neutral. Pinning it to
+    the pelvis instead removes the stretch (checked: a sample vertex moved
+    13 mm under the guard's thigh spread before this, 0 mm after), and
+    since the garments take the body's weights by proximity, the trousers'
+    own crotch is fixed by fixing the body's, with no second call needed.
+
+    Tapered, not a hard cutoff, so there is no seam where the pin meets
+    ordinary thigh weighting: 1.0 at the weld's own centre (x=0, z=0.910,
+    where the trunk's bottom row sits), fading to 0 -- unchanged -- 30 mm
+    out in x and in z, which is short of where the legs are genuinely
+    their own separate volumes again (checked: x < 0.030 covers the fused
+    band; by x = 0.030 in the render's own crop the two thighs already
+    read as distinct). Returns how many vertices it touched.
+    """
+    pelvis = body.vertex_groups.get("pelvis")
+    if pelvis is None:
+        return 0
+    n = 0
+    for v in body.data.vertices:
+        x, z = v.co.x, v.co.z
+        if abs(x) >= x_reach or abs(z - z_centre) >= z_reach:
+            continue
+        t = _smoothstep(1.0 - abs(x) / x_reach) * _smoothstep(1.0 - abs(z - z_centre) / z_reach)
+        if t <= 0.001:
+            continue
+        w = {ge.group: ge.weight for ge in v.groups}
+        for gi, wt in list(w.items()):
+            if body.vertex_groups[gi] is not pelvis:
+                body.vertex_groups[gi].add([v.index], wt * (1.0 - t), "REPLACE")
+        pelvis.add([v.index], w.get(pelvis.index, 0.0) * (1.0 - t) + t, "REPLACE")
+        n += 1
+    return n
+
+
 def bind_all(body, garments, arm):
     """Heat on the body; the garments take the body's weights by proximity,
     which is what a shell 5 mm off the skin should do -- heat on a shell
     finds its own answer and it is not the body's."""
     legacy.bind(body, arm)
+    print("crotch: %d vertices pinned toward the pelvis (tapered)" % pin_crotch(body))
     # The toe box belongs to ball_*: heat gives everything ahead of the ball
     # joint two thirds to foot_*, so a toe roll pitched the whole shoe with
     # the foot bone and its toe went 35 mm through the floor while the bones

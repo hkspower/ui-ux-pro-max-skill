@@ -95,12 +95,18 @@ def build_fighter(spec, argv=None):
     FAST = "--fast" in argv
     TEX = 1024 if FAST else 4096
     BUDGET = 60000
-    PORES = {"skin": 0.15, "hair": 0.35}     # bump strength of the pore / hair noise in the normal bake
+    # bump strength of the pore / hair noise in the normal bake. Hair 0.35
+    # -> 0.25 with the noise now coherent (finish.shader): the old strength
+    # was tuned on per-texel dither that averaged itself away.
+    PORES = {"skin": 0.15, "hair": 0.25}
     pal = F.palette_for(spec)
-    assert pal["hair"] is not None, "%s is bald and this pipeline has no bald head yet" % name
+    bald = bool(spec["look"].get("bald"))
+    no_tee = not spec["look"].get("tee", True)
+    gloves = spec["look"].get("hands") == "gloves"
+    assert bald or pal["hair"] is not None, "%s is not bald and has no hair colour" % name
     face_scale = FACES.get(spec["kind"])
     arm_scale = LIMBS.get(spec["kind"], 1.0)
-    hair_style = "quiff" if spec["look"].get("quiff") else "crop"
+    hair_style = "bald" if bald else ("quiff" if spec["look"].get("quiff") else "crop")
     if "--out" in argv:
         OUT = os.path.abspath(argv[argv.index("--out") + 1])
         UE5_MODELS = os.path.join(OUT, "ue5", "Models"); UE5_TEX = os.path.join(OUT, "ue5", "Textures", name)
@@ -139,29 +145,54 @@ def build_fighter(spec, argv=None):
         soles = [o for o in O if o.name.startswith("sole")]
         eyes = [o for o in O if o.name.startswith("eyeball")]
         jl = {k: [Vector(p) for p in v] for k, v in json.load(open(CHECK + ".json")).items()}
-        mats = {k: bpy.data.materials["%s_%s" % (name, k.capitalize())] for k in ("skin", "hair", "shoe", "tee", "pants", "eye")}
+        body_kinds = ("skin", "hair", "shoe") + (("glove",) if gloves else ())
+        mats = {k: bpy.data.materials["%s_%s" % (name, k.capitalize())] for k in body_kinds + ("tee", "pants", "eye")}
         # the checkpoint carries the materials as they were built; the
         # pore bump is the one dial that is tuned after seeing a bake
         for k, strength in PORES.items():
             for n in mats[k].node_tree.nodes:
                 if n.type == 'BUMP': n.inputs["Strength"].default_value = strength
-        slots = {k: i for i, k in enumerate(("skin", "hair", "shoe"))}
+        slots = {k: i for i, k in enumerate(body_kinds)}
         stamp("resumed from %s" % CHECK)
     else:
         body, trees, eyes, jl = B.build(voxel_scale=3.0 if "--coarse" in argv else 1.0,
-                                        face_scale=face_scale, hair_style=hair_style, arm_scale=arm_scale)
+                                        face_scale=face_scale, hair_style=hair_style, arm_scale=arm_scale,
+                                        gloves=gloves)
         slots = {}
         mats = {"skin": F.shader("%s_Skin" % name, "skin", 0.52, subsurface=0.28, pores=PORES["skin"]),
                 # the hair's roughness matches the skin's: the material edge
                 # is a staircase of faces, and a roughness step would show it
                 "hair": F.shader("%s_Hair" % name, "hair", 0.52, pores=PORES["hair"]),
                 "shoe": F.shader("%s_Shoe" % name, "shoe", 0.45, coat=0.2, weave=0.15)}
-        for k in ("skin", "hair", "shoe"):
+        if gloves:
+            # ZAYOS: leather/vinyl, not skin or fabric -- a step glossier
+            # than the shoe's own coat, no weave (a boxing glove has no weft).
+            mats["glove"] = F.shader("%s_Glove" % name, "glove", 0.40, coat=0.25)
+        body_kinds = ("skin", "hair", "shoe") + (("glove",) if gloves else ())
+        for k in body_kinds:
             body.data.materials.append(mats[k]); slots[k] = len(body.data.materials) - 1
         B.assign_by_source(body, trees, slots)
         for p in body.data.polygons:
             if p.center.z < 0.118 and abs(p.center.x) > 0.02: p.material_index = slots["shoe"]
-        tee, pants, soles = G.dress(body)
+        if gloves:
+            # The glove is unioned over the fist at the hand's own fine
+            # pass (assembly.build), so it and the fingers it hides already
+            # share the body mesh; assign_by_source only knows "skin" and
+            # "hair" and puts all of it in "skin". Reassign by the same
+            # (d, n, w) hand frame anatomy.glove() was built in: a cylinder
+            # around the hd->he segment, wide enough for the glove's own
+            # widest row (0.060 m half-width at t=0.42) plus the thumb lobe,
+            # a little past the cuff (t=-0.38) and the closed tip (t=0.96).
+            L = 0.135
+            for s in (1, -1):
+                hd = Vector((A.Jp("hand_l").x * s, A.Jp("hand_l").y, A.Jp("hand_l").z))
+                he = Vector((A.Jp("hand_end_l").x * s, A.Jp("hand_end_l").y, A.Jp("hand_end_l").z))
+                d = (he - hd).normalized()
+                lo = hd + d * (-0.42 * L); hi_ = hd + d * (1.02 * L)
+                for p in body.data.polygons:
+                    if G._pt_seg(p.center, lo, hi_) < 0.075:
+                        p.material_index = slots["glove"]
+        tee, pants, soles = G.dress(body, tee=not no_tee)
         mats["tee"] = F.shader("%s_Tee" % name, "tee", 0.88, sheen=0.35, weave=0.22)
         mats["pants"] = F.shader("%s_Pants" % name, "pants", 0.82, sheen=0.20, weave=0.16)
         mats["eye"] = F.shader("%s_Eye" % name, "eye", 0.08, coat=1.0)
@@ -178,7 +209,10 @@ def build_fighter(spec, argv=None):
     def under_garments(c):
         # to 1.50, not 1.53: the collar ring's lowest point is at 1.507, and a
         # strip that ran to 1.53 left the tee's black inside showing through
-        # the 26 mm between the ring and the neck in every face render
+        # the 26 mm between the ring and the neck in every face render.
+        # ZAYOS (no_tee) has no tee at all -- bare-chested and bare-armed --
+        # so none of this strips: the skin there is what is seen.
+        if no_tee: return 0.16 <= c.z <= 1.04 and G.pants_region(c)
         if 1.10 <= c.z <= 1.50 and abs(c.x) < 0.24 and G.tee_region(c): return True
         if 0.16 <= c.z <= 1.04 and G.pants_region(c): return True
         for s in (1, -1):
@@ -211,8 +245,8 @@ def build_fighter(spec, argv=None):
     budget = {"body": int(BUDGET * 0.66 / max(0.3, 1.0 - covered)), "tee": int(BUDGET * 0.16), "pants": int(BUDGET * 0.14)}
     tris = {}
     tris["body"] = F.decimate(body, budget["body"], precious)
-    tris["tee"] = F.decimate(tee, budget["tee"], lambda c: False)
-    tris["pants"] = F.decimate(pants, budget["pants"], lambda c: False)
+    tris["tee"] = F.decimate(tee, budget["tee"], lambda c: False, boundary_rings=2)      # the collar and the hems stay curves
+    tris["pants"] = F.decimate(pants, budget["pants"], lambda c: False, boundary_rings=2)
     for o in soles + eyes: tris[o.name] = sum(len(p.vertices) - 2 for p in o.data.polygons)
     stamp("decimated: " + "  ".join("%s %d" % kv for kv in tris.items()))
     # The faces under the garments, decided HERE, at the canonical
@@ -225,23 +259,39 @@ def build_fighter(spec, argv=None):
     # ---- UVs and paint
     charts = F.body_charts()
     for o in (body, tee, pants): F.assign_uvs(o, charts)
+    # The hair's faces sit on the head cylinder's chart, a strip across the
+    # top of it, and bake into their OWN image: measured, 527 x 87 texels of
+    # a 1024 map -- 4.4 % of it, 1.2 mm a texel, 2.3 in the normal. The
+    # crown read as 2-3 mm lumps. Stretch the hair's loops over its whole
+    # image (the same 0.02 / 0.96 inset assign_uvs leaves for the margin).
+    # Done here, before the per-material copies below, so the hair-only
+    # bake object and the exported mesh carry the same UVs.
+    uvl = body.data.uv_layers.active.data
+    hl = [li for p in body.data.polygons if p.material_index == slots["hair"] for li in p.loop_indices]
+    if hl:
+        us = [uvl[li].uv.x for li in hl]; vs = [uvl[li].uv.y for li in hl]
+        u0, u1, v0, v1 = min(us), max(us), min(vs), max(vs)
+        for li in hl:
+            u, v = uvl[li].uv
+            uvl[li].uv = (0.02 + 0.96 * (u - u0) / max(u1 - u0, 1e-9), 0.02 + 0.96 * (v - v0) / max(v1 - v0, 1e-9))
     for o in soles: F.assign_uvs(o, [(lambda c: True, "planar", (Vector((o.location.x, -0.07, 0.01)), Vector((1, 0, 0)), Vector((0, 1, 0)), 0.32), (0.5, 0.0, 1.0, 0.5))])
     for e in eyes:
         ec = sum((v.co for v in e.data.vertices), Vector()) / len(e.data.vertices)    # the primitive keeps its verts in world space
         F.assign_uvs(e, [(lambda c: True, "cyl", (ec + Vector((0, 0, -0.02)), ec + Vector((0, 0, 0.02)), Vector((0, -1, 0)), 0.0, 1.0), (0, 0, 1, 1))])
     F.paint(body, "skin", jl, pal)
     # the body has three materials but one colour attribute: hair and shoe faces repaint their verts
-    hair_verts = set(i for p in body.data.polygons if p.material_index == slots["hair"] for i in p.vertices)
-    shoe_verts = set(i for p in body.data.polygons if p.material_index == slots["shoe"] for i in p.vertices)
+    # (a fourth, glove, when ZAYOS)
+    over_kinds = ("hair", "shoe") + (("glove",) if gloves else ())
+    over_verts = {k: set(i for p in body.data.polygons if p.material_index == slots[k] for i in p.vertices) for k in over_kinds}
     import numpy as np
     attr = body.data.color_attributes["Col"]
     n = len(body.data.vertices); col = np.empty(n * 4); attr.data.foreach_get("color", col); col = col.reshape(n, 4)
     tmpb = body.copy(); tmpb.data = body.data.copy()
-    F.paint(tmpb, "hair", jl, pal); h = np.empty(n * 4); tmpb.data.color_attributes["Col"].data.foreach_get("color", h); h = h.reshape(n, 4)
-    F.paint(tmpb, "shoe", jl, pal); sh = np.empty(n * 4); tmpb.data.color_attributes["Col"].data.foreach_get("color", sh); sh = sh.reshape(n, 4)
+    for k in over_kinds:
+        F.paint(tmpb, k, jl, pal)
+        c = np.empty(n * 4); tmpb.data.color_attributes["Col"].data.foreach_get("color", c); c = c.reshape(n, 4)
+        for i in over_verts[k]: col[i] = c[i]
     bpy.data.meshes.remove(tmpb.data)
-    for i in hair_verts: col[i] = h[i]
-    for i in shoe_verts: col[i] = sh[i]
     attr.data.foreach_set("color", col.reshape(-1))
     F.paint(tee, "tee", jl, pal); F.paint(pants, "pants", jl, pal)
     for o in soles: F.paint(o, "shoe", jl, pal)
@@ -249,16 +299,15 @@ def build_fighter(spec, argv=None):
     # the high-resolution sources take the same paint
     def paint_body(b):
         F.paint(b, "skin", jl, pal)
-        hv = set(i for p in b.data.polygons if p.material_index == slots["hair"] for i in p.vertices)
-        sv = set(i for p in b.data.polygons if p.material_index == slots["shoe"] for i in p.vertices)
+        ov = {k: set(i for p in b.data.polygons if p.material_index == slots[k] for i in p.vertices) for k in over_kinds}
         at = b.data.color_attributes["Col"]; nn = len(b.data.vertices)
         c = np.empty(nn * 4); at.data.foreach_get("color", c); c = c.reshape(nn, 4)
         tb = b.copy(); tb.data = b.data.copy()
-        F.paint(tb, "hair", jl, pal); hh = np.empty(nn * 4); tb.data.color_attributes["Col"].data.foreach_get("color", hh); hh = hh.reshape(nn, 4)
-        F.paint(tb, "shoe", jl, pal); ss = np.empty(nn * 4); tb.data.color_attributes["Col"].data.foreach_get("color", ss); ss = ss.reshape(nn, 4)
+        for k in over_kinds:
+            F.paint(tb, k, jl, pal)
+            cc = np.empty(nn * 4); tb.data.color_attributes["Col"].data.foreach_get("color", cc); cc = cc.reshape(nn, 4)
+            for i in ov[k]: c[i] = cc[i]
         bpy.data.meshes.remove(tb.data)
-        for i in hv: c[i] = hh[i]
-        for i in sv: c[i] = ss[i]
         at.data.foreach_set("color", c.reshape(-1))
     paint_body(hi["body"]); F.paint(hi["tee"], "tee", jl, pal); F.paint(hi["pants"], "pants", jl, pal)
     stamp("painted and unwrapped")
@@ -276,13 +325,34 @@ def build_fighter(spec, argv=None):
         return c
     baked = {}
     base_of = {"skin": "%s_Skin" % name, "hair": "%s_Hair" % name, "shoe": "%s_Shoe" % name,
-               "tee": "%s_Tee" % name, "pants": "%s_Pants" % name, "eye": "%s_Eye" % name}
-    for key, obj, size in (("skin", only(body, slots["skin"]), TEX), ("hair", only(body, slots["hair"]), max(512, TEX // 4)),
-                           ("shoe", None, max(512, TEX // 4)), ("tee", tee, TEX), ("pants", pants, TEX), ("eye", eyes[0], 512)):
+               "tee": "%s_Tee" % name, "pants": "%s_Pants" % name, "eye": "%s_Eye" % name,
+               "glove": "%s_Glove" % name}
+    # Hair and shoe at half the skin's size, not a quarter: at TEX // 4 the
+    # hair's normal map was 512 px over a 0.041 m2 chart -- 2.3 mm a texel,
+    # with a pore-scale bump baked into it -- and the crown read as blotches
+    # in every render (measured on rigs/Saud.blend: hair 1.16 mm albedo /
+    # 2.3 mm normal, shoe 0.96 / 1.9, against the skin's 0.35). Half size
+    # puts them at 0.58 / 1.16 and 0.48 / 0.96.
+    # bald: no face is ever assigned the hair material (hair_parts returned
+    # no geometry), so only(body, slots["hair"]) is empty and baking it
+    # would be baking nothing -- skipped, not attempted and ignored.
+    bake_list = [("skin", only(body, slots["skin"]), TEX)]
+    if not bald:
+        bake_list.append(("hair", only(body, slots["hair"]), max(1024, TEX // 2)))
+    bake_list += [("shoe", None, max(1024, TEX // 2))]
+    # no_tee: the Tee object is real but empty (garments.dress's own case,
+    # the same shape as hair above) -- nothing to bake.
+    if not no_tee:
+        bake_list.append(("tee", tee, TEX))
+    bake_list += [("pants", pants, TEX), ("eye", eyes[0], 512)]
+    if gloves:
+        bake_list.append(("glove", only(body, slots["glove"]), max(1024, TEX // 2)))
+    for key, obj, size in bake_list:
         if key == "shoe":
             obj = only(body, slots["shoe"])
             # the soles bake into the same images below: same material, own charts
-        source = {"skin": hi["body"], "hair": hi["body"], "shoe": hi["body"], "tee": hi["tee"], "pants": hi["pants"]}.get(key)
+        source = {"skin": hi["body"], "hair": hi["body"], "shoe": hi["body"], "glove": hi["body"],
+                  "tee": hi["tee"], "pants": hi["pants"]}.get(key)
         baked[key] = F.bake_set(obj, mats[key], size, UE5_TEX, base_of[key],
                                 maps=("albedo", "normal", "roughness") if key != "eye" else ("albedo", "roughness"), source=source,
                                 # The skin's normal is the only one carrying authored
@@ -308,15 +378,31 @@ def build_fighter(spec, argv=None):
             ctr = _np.array([v.co[:] for v in obj.data.vertices]).mean(axis=0)
             stamp("repainted %d eye texels" % F.repaint_eye(obj, baked[key], size, ctr, B.EYE_R))
         if key == "skin":
+            # The whole skin first, per texel: the body's grain at the
+            # texture's resolution rather than the vertices' (0.35 mm pores,
+            # not 3 mm), and the kit on it -- the wraps' turns, the nails --
+            # from finish.kit_colour, the edges a texel wide. Then the head
+            # over it, so its feather down the neck lands on that grain.
+            stamp("repainted %d skin texels (grain, wraps, nails)" % F.repaint_kit(obj, "skin", baked[key], size, pal, jl))
             # The bake can only carry what the vertices hold, and the head has
-            # 3.1 mm between vertices against a 0.9 mm texel. Repaint the face
+            # 3.1 mm between vertices against a 0.28 mm texel. Repaint the face
             # from hero.face at the texture's own resolution.
             painted, relief = F.repaint_head(obj, baked[key], size, pal)
             assert painted > 0, "the face repaint wrote nothing -- the head chart did not rasterise"
             stamp("repainted %d face texels, relief %.2f coherent levels in the normal" % (painted, relief))
+        if key in ("tee", "pants", "shoe", "glove"):
+            # the garments' edges -- patch, collar, waistband, stripe, the
+            # shoe's bars -- per texel, from the same description the vertex
+            # paint came from (finish.kit_colour). The glove is a solid
+            # fill (kit_colour's kit is 1.0 everywhere for it, same as the
+            # other garments), so it rebuilds whole the same way.
+            stamp("repainted %d %s texels" % (F.repaint_kit(obj, key, baked[key], size, pal, jl), key))
         if obj not in (tee, pants) and obj not in eyes: bpy.data.objects.remove(obj, do_unlink=True)
         stamp("baked %s at %d" % (key, size))
-    for k, m in mats.items(): F.wire_textures(m, baked[k])
+    # bald: "hair" was never baked (no faces to bake), so the material
+    # keeps its procedural nodes -- harmless, since nothing is assigned it.
+    for k, m in mats.items():
+        if k in baked: F.wire_textures(m, baked[k])
     for o in hi.values(): bpy.data.objects.remove(o, do_unlink=True)
 
     # ---- his own size. Everything above ran at Saud's coordinates; from
@@ -350,7 +436,12 @@ def build_fighter(spec, argv=None):
     # print is a check); --no-render skips the four Cycles renders.
     legacy.build_studio()
     look_z = 0.90 * factors["h"]
-    def shot(filename, cam, look_at, lens, res=(760, 1000)):
+    # The documentation renders were the pixelation a viewer saw: 2.8 mm a
+    # pixel on the body shots and 0.68 on the face, over 0.28-0.55 mm
+    # texels. Twice the size at full quality (1.1 mm / 0.24 mm a pixel);
+    # --fast keeps the old size. About 3.5-4x the render time, ~15 min.
+    scale = 1 if FAST else 2
+    def shot(filename, cam, look_at, lens, res=(760 * scale, 1000 * scale)):
         if "--no-render" in argv: return
         legacy.add_camera(cam, look_at=Vector(look_at), lens=lens)
         legacy.render(os.path.join(RENDERS, "%s-%s-3d.png" % (low, filename)), samples=24 if FAST else 64, res=res)
@@ -364,7 +455,10 @@ def build_fighter(spec, argv=None):
     shot("kick", (3.00, -2.45, 1.22), (0.14, 0, 0.96 * factors["h"]), 58)
     legacy.mute_ik(rig, True); legacy.pose(rig, {}); R.curl_fingers(rig, 0)
     shot("apose", (0.35, -3.60, 1.05), (0, 0, look_z), 58)
-    shot("face", (0.62, -1.05, 1.60 * factors["h"]), (0, 0, 1.62 * factors["h"]), 85, res=(760, 760))
+    # lens 85 -> 120 at the same aim: the head fills 69 % of the frame
+    # instead of 49 (the crown's ray at 0.141 * 120 = 16.9 mm stays inside
+    # the 18 mm half-sensor), 0.24 mm a pixel at 2x -- under the texel
+    shot("face", (0.62, -1.05, 1.60 * factors["h"]), (0, 0, 1.62 * factors["h"]), 120, res=(760 * scale, 760 * scale))
     legacy.mute_ik(rig, False)
     stamp("posed" if "--no-render" in argv else "rendered")
 
@@ -378,7 +472,7 @@ def build_fighter(spec, argv=None):
         control = CR.build(rig, mesh)
         bpy.ops.wm.save_as_mainfile(filepath=blend)
         stamp("saved %s" % blend)
-        CR.verify(rig, mesh)
+        CR.verify(rig, mesh, scale=factors["h"])
         stamp("control rig: %d control bones, verified" % control["controls"])
     else:
         bpy.ops.wm.save_as_mainfile(filepath=blend)

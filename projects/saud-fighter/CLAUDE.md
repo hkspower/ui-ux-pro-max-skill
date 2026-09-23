@@ -289,9 +289,9 @@ torso lean composed on top of `build_saud.pose()`'s output, and that
 function's frame convention had changed (the twist fix under "The first
 area is built") without this tool being re-run since. Every punch leaned
 away from the man it was aimed at until the sign was corrected; see that
-commit for the measurement. `Tools/blender/build_motion.py:515`'s own
-separate copy of the old twisted-frame code, flagged there already, is
-still untouched — a second, cosmetic-only issue, not this one.
+commit for the measurement. `Tools/blender/build_motion.py`'s own
+separate copy of the old twisted-frame code was fixed 2026-09-23 (see
+`../saud-fighter-ue5/CLAUDE.md`, "Saud moves").
 
 The arena carries the world's name because the world is named after the room
 at its centre. That is the joke the map has been telling all along.

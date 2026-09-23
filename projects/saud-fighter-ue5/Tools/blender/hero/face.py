@@ -146,9 +146,10 @@ SHADOW    = '#8f6a57'     # what an occluded crease darkens toward
 LIP       = '#c07c6c'
 LIP_DEEP  = '#8d4f45'
 LASH      = '#120c08'
+SCAR      = '#caa48f'    # healed scar tissue: paler than the zone it crosses, no blood in it
 
 
-def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0):
+def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False):
     """Colour and relief for points on the head.
 
     P        (N,3) positions, metres, in the build's frame
@@ -160,6 +161,7 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0):
              The colour already carries it (it is composited over the skin
              before it gets here); this scales the shadow the beard casts
              and the relief it adds, which the colour cannot carry.
+    scar     a boxer's brow scar (`look.scar`) -- AL-WAHSH and ZAYOS.
     base_rgb (N,3) colour to start from, or None to start from `skin`
 
     returns  (rgb (N,3) linear, relief (N,) metres, on_face (N,) 0..1)
@@ -223,17 +225,13 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0):
     darken(blob(P, 0.0695, EAR_Z, 0.006, 0.026), 0.28)                   # where the ear meets
 
     # ---- 4. the hairline, feathered -----------------------------------
-    z0, z1 = HAIRLINE
-    # HAIRLINE is quoted at y = -0.09 and y = +0.09, so the divisor is 0.18:
-    # anything else puts the painted line off the cap's cut by a millimetre
-    # or two all the way round.
-    plane = z0 + (z1 - z0) * np.clip((y + 0.09) / 0.18, -0.4, 1.4)
-    edge = fbm(P, 260.0, 2, 3.0) - 0.5
-    hw = ramp(z - plane - 0.0045 * edge, -0.0035, 0.0035)
-    # a temple recession, which every young man has and a swim cap does not
-    temple = ramp(lat, 0.52, 0.86) * ramp(z, HAIRLINE[0] - 0.052, HAIRLINE[0] - 0.004) * ramp(fwd, 0.10, 0.34)
-    hw = np.clip(hw - 0.75 * temple, 0.0, 1.0)
+    hw = hairline_weight(P)
     over(hw, hair, 1.0)
+    # the faded sides, the same fade the hair material itself wears
+    # (finish.kit_colour): the material boundary sits above the hairline on
+    # the front and the sides (assembly.HAIR_MARGIN), so the band between
+    # is this paint, and it must match the hair above it
+    over(hw * 0.55 * hair_fade(P), skin, 1.0)
     rel += hw * 0.0010
     darken(hw * (1.0 - hw) * 4.0 * 0.25, 0.30)                          # shadow under the fringe
 
@@ -248,11 +246,31 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0):
     over(brow, hair, 0.94)
     rel += brow * 0.0009
 
+    # ---- 5b. a boxer's scar --------------------------------------------
+    # One side only -- a real scar is not symmetric -- running down out of
+    # the brow onto the cheekbone, the classic cut-man's cut. Paler than
+    # the skin it crosses (SCAR, no blood in healed tissue) and a shallow
+    # RIDGE, not a groove: scar tissue sits slightly proud, it does not sink.
+    if scar:
+        line = bar(P, 0.010, 0.052, lambda u: BROW_Z + 0.006 - 0.62 * (u - 0.010), 0.0017, feather=0.0022)
+        side = ramp(x, -0.006, 0.006)          # his left (+x) only
+        mask = line * side
+        over(mask, tone(SCAR), 0.60)
+        rel += mask * 0.0004
+
     # ---- 6. the eyes: lash line and lid crease ------------------------
-    lash = bar(P, 0.013, 0.048, lambda u: EYE_Z + 0.0038 - 0.10 * (u - 0.013), 0.0016, feather=0.0012)
-    over(lash * ramp(fwd, 0.30, 0.60), hex_lin(LASH), 0.85)
+    # The lash lines ride the lid margins sculpt.lids builds -- an arch
+    # LID_UP above the eye's centre at its middle, tapering to nothing at
+    # each canthus -- not a straight sloped bar. The old upper bar ran from
+    # +3.8 mm at the inner corner to +0.3 at the outer, 1.6 mm thick with
+    # squared 1.2 mm ends at 85 % black: at the eye's middle that is 2.8 mm
+    # BELOW the margin, across the white of the eye, and it read as
+    # eyeliner drawn over a slit. Thinner, softer-ended, and on the edge.
+    from .sculpt import LID_UP, LID_DOWN, lid_close
+    lash = bar(P, 0.016, 0.046, lambda u: EYE_Z + LID_UP * lid_close(u) - 0.0005, 0.0009, feather=0.0030)
+    over(lash * ramp(fwd, 0.30, 0.60), hex_lin(LASH), 0.70)
     rel -= lash * 0.0004
-    lower_lash = bar(P, 0.016, 0.044, lambda u: EYE_Z - 0.0050 + 0.06 * (u - 0.016), 0.0011, feather=0.0012)
+    lower_lash = bar(P, 0.016, 0.046, lambda u: EYE_Z - LID_DOWN * lid_close(u) + 0.0004, 0.0007, feather=0.0030)
     over(lower_lash * ramp(fwd, 0.30, 0.60), hex_lin(LASH), 0.35)
     rel += blob(P, 0.031, EYE_Z + 0.0085, 0.019, 0.0040) * 0.0011               # the lid's own fold
 
@@ -322,12 +340,22 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0):
     dens = np.clip(1.06 - 0.72 * smooth(np.clip((lat - 0.30) / 0.60, 0, 1)), 0.34, 1.0)
     dens = dens * np.clip(0.70 + 0.55 * ramp(z, MOUTH_Z - 0.010, MOUTH_Z - 0.044), 0, 1.0)  # fullest on the chin
     bw = np.clip(beard_w * dens * grain, 0, 1)
-    over(bw, beard, 0.90)
+    # A wash, not a fill. over() lerps toward the beard's own colour, and
+    # where the beard is dense that REPLACED what the creases above had
+    # painted -- measured on the shipped albedo, under the full beard about
+    # 20 % of the under-jaw shadow survived. The browser draws the beard as
+    # rgba over whatever is beneath it, so this multiplies: beard/skin is
+    # the wash's tint (beard is rgba_over(beard, skin), so it is <= 1 per
+    # channel), and on plain skin the result is exactly the old lerp.
+    def wash(mask, k):
+        w = (np.clip(mask, 0, 1) * k * on_face)[:, None]
+        col[:] = np.clip(col * (1.0 - w + w * (np.asarray(beard) / np.asarray(skin))[None, :]), 0.0, 1.0)
+    wash(bw, 0.90)
     rel += bw * 0.0006 * beard_k
     darken(np.clip(beard_w * dens, 0, 1) * 0.5, 0.20 * beard_k)           # the shadow a beard casts on skin
     # a sideburn running down in front of the ear, joining the hair
     side = bar(P, 0.058, 0.075, lambda t: HAIRLINE[0] - 0.062 - 1.55 * (t - 0.058), 0.0060, feather=0.0035)
-    over(np.clip(side * ramp(fwd, 0.10, 0.40) * grain, 0, 1), beard, 0.72)
+    wash(np.clip(side * ramp(fwd, 0.10, 0.40) * grain, 0, 1), 0.72)
 
     # ---- 10. the grain of the skin itself ------------------------------
     pore = fbm(P, 1100.0, 3, 23.0) - 0.5
@@ -344,6 +372,36 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0):
 # flat constant, which is the other half of the wax. Quieter than the face:
 # no zones, no creases, just the variation that stops a surface reading as
 # paint.
+def hairline_weight(P):
+    """How much hair is painted on the skin at P: 0 below the hairline, 1
+    above it, feathered +-3.5 mm about the cut plane and jittered, with the
+    temple recession cut into it. On its own because finish.repaint_head's
+    roughness reads it too: the skin material's band above the hairline
+    (assembly.HAIR_MARGIN) must be as matt as the hair material it meets."""
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    fwd = forwardness(P); lat = lateral(P)
+    z0, z1 = HAIRLINE
+    # HAIRLINE is quoted at y = -0.09 and y = +0.09, so the divisor is 0.18:
+    # anything else puts the painted line off the cap's cut by a millimetre
+    # or two all the way round.
+    plane = z0 + (z1 - z0) * np.clip((y + 0.09) / 0.18, -0.4, 1.4)
+    edge = fbm(P, 260.0, 2, 3.0) - 0.5
+    hw = ramp(z - plane - 0.0045 * edge, -0.0035, 0.0035)
+    # a temple recession, which every young man has and a swim cap does not.
+    # Bounded to the band under plane + 7.5 mm: the hair MATERIAL starts at
+    # plane + 8 (assembly.HAIR_MARGIN), and the paint must have reached full
+    # hair by then or the recession's corner shows as a step at the seam.
+    temple = (ramp(lat, 0.52, 0.86) * ramp(z, HAIRLINE[0] - 0.052, HAIRLINE[0] - 0.004) * ramp(fwd, 0.10, 0.34)
+              * ramp(z - plane, 0.0075, 0.0035))
+    return np.clip(hw - 0.75 * temple, 0.0, 1.0)
+
+def hair_fade(P):
+    """The faded sides of a short crop: 0 on top, 1 low on the sides, where
+    the skin shows through. One formula for the hair material's own paint
+    and for the hairline band painted on the skin, so they meet."""
+    x, z = P[:, 0], P[:, 2]
+    return np.clip((0.070 - (1.76 - z)) / 0.05, 0, 1) * np.clip((np.abs(x) - 0.045) / 0.03, 0, 1)
+
 def body_grain(P, col):
     blotch = fbm(P, 55.0, 3, 91.0) - 0.5
     pore = fbm(P, 950.0, 2, 107.0) - 0.5

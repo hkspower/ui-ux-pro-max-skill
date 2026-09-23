@@ -289,6 +289,51 @@ def hand():
     joints["thumb"] = [t0, t1, t2, t3]
     return parts, joints
 
+def glove(scale=1.0):
+    """A boxing glove, over the fist -- ZAYOS (`look.hands: 'gloves'`).
+
+    Not a padded fist: its own shape, unioned OVER hand()'s fingers rather
+    than replacing them, in the same (d, n, w) frame hand() uses. hand()
+    still runs and still returns real joints -- the mannequin skeleton is
+    the same 62 bones for every fighter, boss included, so ZAYOS gets real
+    finger bones whether or not a finger is ever separately visible -- and
+    the glove only has to be bigger than the curled fist everywhere along
+    its length, so the union's remesh takes the glove's outer envelope and
+    the fingers inside it vanish. Checked on the built hand, not assumed:
+    the palm's own widest point is 0.043 across and 0.015-0.020 through: a
+    glove half-width of 0.050-0.060 and half-thickness of 0.045-0.055 over
+    the same span clears a curled finger's ~0.019 diameter folded against
+    it with room to spare.
+
+    These numbers are chosen, not measured -- there is no reference for a
+    game glove the way there was a Winter's-tables reference for a hand --
+    the way `pipeline.FACES`' amplitudes are chosen. `scale` moves the
+    whole glove without retyping every row, for a heavier pair later.
+    """
+    hd, he = Jp("hand_l"), Jp("hand_end_l")
+    d = (he - hd).normalized(); n = Vector((0, -1, 0)); w = d.cross(n).normalized()
+    L = 0.135
+    rows = []
+    for t, hw, hth, sf in [
+        (-0.38, 0.038, 0.034, 0.000),   # the cuff, flared over the forearm
+        (-0.20, 0.032, 0.029, 0.000),   # narrows to the wrist
+        (0.00, 0.034, 0.031, 0.000),    # the wrist
+        (0.18, 0.050, 0.045, -0.004),   # the padding starts to bulge
+        (0.42, 0.060, 0.054, -0.008),   # the fist, at its fattest
+        (0.66, 0.057, 0.050, -0.010),   # the punching face
+        (0.84, 0.042, 0.036, -0.010),   # rounding off
+        (0.96, 0.020, 0.018, -0.008),   # the closed tip
+    ]:
+        c = hd + d * (L * t * scale) + n * (sf * scale)
+        rows.append((c, w * (hw * scale), n * (hth * scale)))
+    parts = [loft("glove", rows, segs=32)]
+    # the thumb lobe: one rounded pad, not an articulated thumb -- a glove
+    # does not have knuckles in it
+    ta = (-w * 0.55 + d * 0.62 - n * 0.35).normalized()
+    tc = hd + d * (L * 0.14 * scale) - w * (0.055 * scale) - n * (0.006 * scale)
+    parts.append(ellipsoid("glovethumb", tc + ta * (0.032 * scale), (0.024 * scale, 0.021 * scale, 0.038 * scale), ta))
+    return parts
+
 def masses():
     """The forms that sit on top of the lofts."""
     out = []

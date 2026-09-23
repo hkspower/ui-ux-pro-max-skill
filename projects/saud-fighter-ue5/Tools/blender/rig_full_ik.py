@@ -4,6 +4,8 @@
     import rig_full_ik as CR
     CR.build(rig, mesh)            the control layer, on a built fighter
     CR.verify(rig, mesh)           does each control do what it says
+    CR.snap_fk_to_ik(rig, "l", "hand")   take over a solved limb in FK, unmoved
+    CR.snap_ik_to_fk(rig, "l", "foot")   hand an FK limb back to IK, unmoved
     CR.strip_for_export(rig, mesh) the mannequin's 62 bones and nothing else
 
     python3 rig_full_ik.py --roundtrip hero/build/Thug.blend
@@ -32,6 +34,11 @@ deform bone through a constraint, and the hierarchy the engine sees is the
 one it always saw.
 
     CTRL_root                 the master
+    CTRL_pivot                the body turns about wherever this stands:
+        MCH_unpivot             takes the pivot's own move back out, so
+                                moving it changes nothing and turning it
+                                turns everything below about that point
+                                (a spin on the ball of the support foot)
     CTRL_hips                 pelvis follows it (Copy Transforms)
     CTRL_chest                spine_01/02/03 each take a third of its rotation
     CTRL_head, CTRL_look      neck and head split its rotation; `look` (0..1)
@@ -236,14 +243,25 @@ def build(rig, mesh):
     # did, and the mannequin's ik_hand_gun went with it. The circle widget
     # is turned flat instead.
     root = copy_of("CTRL_root", "root", None)
-    copy_of("CTRL_hips", "pelvis", "CTRL_root")
+    # The pivot: the whole body turns about wherever CTRL_pivot stands, not
+    # about the origin. Moving it changes nothing (MCH_unpivot takes the
+    # move straight back out: T(p) R T(-p) with R the identity); turning it
+    # turns the body about that point. A spinning kick turns on the ball of
+    # the support foot -- turned about the origin instead, the FK boss
+    # clips skated that foot 44-54 cm round a circle. The two bones share
+    # one rest (up from the origin, root's own direction), which is what
+    # makes MCH_unpivot's local-space inverse exactly the pivot's.
+    at("CTRL_pivot", (0, 0, 0), (0, 0, 0.25), "CTRL_root")
+    at("MCH_unpivot", (0, 0, 0), (0, 0, 0.25), "CTRL_pivot")
+    BODY = "MCH_unpivot"
+    copy_of("CTRL_hips", "pelvis", BODY)
     copy_of("CTRL_chest", "spine_03", "CTRL_hips")
     copy_of("CTRL_head", "head", "CTRL_chest")
-    at("CTRL_look", (0, -0.60, eye_z), (0, -0.50, eye_z), "CTRL_root")
+    at("CTRL_look", (0, -0.60, eye_z), (0, -0.50, eye_z), BODY)
     for s in SIDES:
-        copy_of("CTRL_hand_%s" % s, "hand_%s" % s, "CTRL_root")
-        p = poles["CTRL_elbow_%s" % s]; at("CTRL_elbow_%s" % s, p, p + Vector((0, 0.06, 0)), "CTRL_root")
-        p = poles["CTRL_knee_%s" % s]; at("CTRL_knee_%s" % s, p, p + Vector((0, -0.06, 0)), "CTRL_root")
+        copy_of("CTRL_hand_%s" % s, "hand_%s" % s, BODY)
+        p = poles["CTRL_elbow_%s" % s]; at("CTRL_elbow_%s" % s, p, p + Vector((0, 0.06, 0)), BODY)
+        p = poles["CTRL_knee_%s" % s]; at("CTRL_knee_%s" % s, p, p + Vector((0, -0.06, 0)), BODY)
         # the reverse foot: control at the ankle, heel pivot on the floor
         # under the heel, toe pivot on the floor at the toe tip, and the
         # ankle hung from the toe pivot so a toe roll lifts it
@@ -251,7 +269,7 @@ def build(rig, mesh):
         # and the hips': a control whose frame differed from the bone it
         # drives would carry that difference into the bone -- MCH_ankle hangs
         # under it, and foot_* copies MCH_ankle's rotation.
-        copy_of("CTRL_foot_%s" % s, "foot_%s" % s, "CTRL_root")
+        copy_of("CTRL_foot_%s" % s, "foot_%s" % s, BODY)
         a = ankle[s]
         # The heel pivot is on the floor under the heel joint. The toe pivot
         # is on the floor under the BALL, not the toe tip: a foot rolls up
@@ -280,6 +298,8 @@ def build(rig, mesh):
         for k, v in kw.items(): setattr(c, k, v)
         return c
     con("root", "COPY_TRANSFORMS", "CTRL_root", name="CTRL")
+    con("MCH_unpivot", "COPY_LOCATION", "CTRL_pivot", name="UNPIVOT", owner_space="LOCAL", target_space="LOCAL",
+        invert_x=True, invert_y=True, invert_z=True)
     con("pelvis", "COPY_TRANSFORMS", "CTRL_hips", name="CTRL")
     for i, sp in enumerate(("spine_01", "spine_02", "spine_03")):
         con(sp, "COPY_ROTATION", "CTRL_chest", name="CTRL", owner_space="LOCAL", target_space="LOCAL",
@@ -352,14 +372,14 @@ def build(rig, mesh):
 
     # ---- what the animator sees
     shapes = {"CTRL_root": ("circle", 0.55), "CTRL_hips": ("cube", 0.34), "CTRL_chest": ("cube", 0.30),
-              "CTRL_head": ("circle", 0.16), "CTRL_look": ("sphere", 0.05)}
+              "CTRL_head": ("circle", 0.16), "CTRL_look": ("sphere", 0.05), "CTRL_pivot": ("circle", 0.12)}
     for s in SIDES:
         shapes.update({"CTRL_hand_%s" % s: ("cube", 0.11), "CTRL_foot_%s" % s: ("cube", 0.16),
                        "CTRL_elbow_%s" % s: ("sphere", 0.04), "CTRL_knee_%s" % s: ("sphere", 0.04)})
     for name, (kind, size) in shapes.items():
         b = pb[name]; b.custom_shape = _widget("WGT_" + kind, kind); b.custom_shape_scale_xyz = (size, size, size)
         b.use_custom_shape_bone_size = False      # the size IS the metres above, not a multiple of a 6 cm bone
-        if name == "CTRL_root":
+        if name in ("CTRL_root", "CTRL_pivot"):
             b.custom_shape_rotation_euler = (math.radians(90.0), 0.0, 0.0)     # the bone points up; the circle lies flat
         b.color.palette = "THEME01" if name.endswith("_l") else ("THEME04" if name.endswith("_r") else "THEME09")
     for b in pb:
@@ -455,6 +475,50 @@ def reset(rig):
                 b[k] = 0.0
     rig.update_tag()
     _update()
+
+# limb -> (control, pole, upper, lower, end, extra end bones carried in FK)
+LIMBS = {"hand": ("CTRL_hand", "CTRL_elbow", "upperarm", "lowerarm", "hand", ()),
+         "foot": ("CTRL_foot", "CTRL_knee", "thigh", "calf", "foot", ("ball",))}
+
+def _chain(limb, side):
+    ctrl, pole, upper, lower, end, extra = LIMBS[limb]
+    return ("%s_%s" % (ctrl, side), "%s_%s" % (pole, side),
+            ["%s_%s" % (b, side) for b in (upper, lower, end) + extra])
+
+def snap_fk_to_ik(rig, side, limb):
+    """Hand a limb from IK to FK without it moving: the solved bones'
+    matrices are read, the switch goes to FK, and the same matrices are
+    written onto the bones themselves, parents first. Exact by construction
+    -- verify() holds it to half a millimetre -- and it is the move an
+    animator makes to take over a limb the solver placed."""
+    ctrl, _pole, bones = _chain(limb, side)
+    pb = rig.pose.bones
+    _pose_mode(rig); _update()
+    held = [(n, pb[n].matrix.copy()) for n in bones]
+    set_prop(rig, ctrl, "fk", 1.0)
+    for n, m in held:
+        pb[n].matrix = m; _update()
+
+def snap_ik_to_fk(rig, side, limb):
+    """Hand a limb from FK to IK without it moving: the control goes where
+    the end bone is (they share a rest, so the matrix copies straight
+    across), the pole goes out along the limb's present bend, any foot roll
+    is zeroed, and the switch goes to IK. The pole is placed from the bend
+    rather than left where it was, because a pole left behind turns the
+    whole limb about its own line the moment the solver takes over."""
+    import build_saud as legacy
+    ctrl, pole, bones = _chain(limb, side)
+    pb = rig.pose.bones
+    _pose_mode(rig); _update()
+    upper, lower, end = bones[0], bones[1], bones[2]
+    a, b, c = pb[upper].head.copy(), pb[lower].head.copy(), pb[lower].tail.copy()
+    end_m = pb[end].matrix.copy()
+    fallback = Vector((0, 1, 0)) if limb == "hand" else Vector((0, -1, 0))
+    if "roll" in pb[ctrl].keys():
+        set_prop(rig, ctrl, "roll", 0.0)
+    pb[ctrl].matrix = end_m; _update()
+    set_translation(rig, pole, legacy._pole_from(a, b, c, fallback))
+    set_prop(rig, ctrl, "fk", 0.0)
 
 def _aim(rig, directions):
     """build_saud.pose()'s aiming -- each named bone's Y put on a world
@@ -559,9 +623,21 @@ def _toe_and_heel(rig, mesh, side):
     heel = carried("foot_" + side, legacy.J["heel_" + side][0])
     return toe, heel
 
-def verify(rig, mesh):
+def verify(rig, mesh, scale=1.0):
     """Does each control do what it says. Every one of these has been made
-    to fail by breaking the piece it tests (see bite())."""
+    to fail by breaking the piece it tests (see bite()).
+
+    `scale` is the fighter's own height factor (pipeline.build_fighter's
+    `factors["h"]`, 1.0 for Saud himself) -- ONE BODY, EVERY MAN means the
+    shoe, the toe-to-floor-pivot distance and the roll it produces all grow
+    with him, but the tolerances below were measured in millimetres on
+    Saud's own build and never scaled. ZAYOS (h 1.476, the biggest man on
+    the roster) failed the toe-roll checks at his own true proportions --
+    floor clip 15.3 mm against a 15 mm ceiling measured on a man 1.5 times
+    smaller -- while AL-SAQR and AL-WAHSH (h close to 1.0) passed the same
+    rig code unchanged, which is what pins this on the tolerance rather
+    than the geometry. Passing 1.0 (bite()'s own default, checked against
+    Saud-scale sabotage) leaves every existing check exactly as it was."""
     fails = []
     pb = rig.pose.bones
     reset(rig)
@@ -601,22 +677,24 @@ def verify(rig, mesh):
     toes1, heel1 = _toe_and_heel(rig, mesh, "l"); ankle1 = _world(rig, "foot_l"); floor1 = legacy._foot_floor(mesh, rig, "l")
     # and the SHOE, evaluated: the bones carried their points but the toe
     # box was weighted to foot_* and went 35 mm through the floor with it
-    if floor0 - floor1 > 0.015:
+    if floor0 - floor1 > 0.015 * scale:
         fails.append("toe roll: the shoe's lowest vertex went %.1f mm through the floor" % ((floor0 - floor1) * 1000))
     # 1.5 cm: the ball joint sits 2.4 cm above the floor pivot, so a full
     # roll lifts it 2.4 * (1 - cos 55) = 1.0 cm, and the toes with it
     # STAY: not up (they left the floor) and not down (a rigid foot pivoting
     # heel-up about the ball pushes its toes 6 cm through the floor, which
-    # is what breaking the flat-toes helper does)
-    if abs(toes1 - toes0) > 0.015:
+    # is what breaking the flat-toes helper does). Both the 2.4 cm pivot
+    # and the toe box it holds up scale with the man, so this ceiling does
+    # too -- see `scale` above.
+    if abs(toes1 - toes0) > 0.015 * scale:
         fails.append("toe roll: the toes left the floor plane by %+.1f cm" % ((toes1 - toes0) * 100))
-    if ankle1.z - ankle0.z < 0.04:
+    if ankle1.z - ankle0.z < 0.04 * scale:
         fails.append("toe roll: the ankle rose only %.1f cm" % ((ankle1.z - ankle0.z) * 100))
     set_prop(rig, "CTRL_foot_l", "roll", -1.0)
     toes2, heel2 = _toe_and_heel(rig, mesh, "l")
-    if abs(heel2 - heel0) > 0.015:
+    if abs(heel2 - heel0) > 0.015 * scale:
         fails.append("heel roll: the heel left the floor plane by %+.1f cm" % ((heel2 - heel0) * 100))
-    if toes2 - toes0 < 0.03:
+    if toes2 - toes0 < 0.03 * scale:
         fails.append("heel roll: the toes rose only %.1f cm" % ((toes2 - toes0) * 100))
     # 4 the look
     reset(rig)
@@ -647,6 +725,76 @@ def verify(rig, mesh):
     # time already insists on 2 mm, and so does this
     if g0 - g1 < 0.002:
         fails.append("fist: fist=1 tightened the index finger by %.1f mm" % ((g0 - g1) * 1000))
+    # 7 the pivot: moving it moves nothing; turning it turns him about it.
+    # Stood on the lead foot's ball, a quarter turn must leave that ball
+    # where it was and carry the other foot a long way round.
+    reset(rig)
+    ball = pb["ball_l"].head.copy()
+    stand = Vector((ball.x, ball.y, 0.0))
+    before = {n: _world(rig, n) for n in ("ball_l", "ball_r", "pelvis")}
+    set_translation(rig, "CTRL_pivot", stand)
+    drift = max((_world(rig, n) - before[n]).length for n in before)
+    if drift > 0.0005:
+        fails.append("pivot: moving CTRL_pivot, unturned, moved the body %.1f mm" % (drift * 1000))
+    m = pb["CTRL_pivot"].matrix.copy()
+    turn = Matrix.Rotation(math.radians(90.0), 4, "Z")
+    m = Matrix.Translation(stand) @ turn @ Matrix.Translation(-stand) @ m
+    pb["CTRL_pivot"].matrix = m; _update()
+    stayed = (_world(rig, "ball_l") - before["ball_l"]).length
+    went = (_world(rig, "ball_r") - before["ball_r"]).length
+    if stayed > 0.002 * scale:
+        fails.append("pivot: a quarter turn about the lead ball moved that ball %.1f mm" % (stayed * 1000))
+    if went < 0.15 * scale:
+        fails.append("pivot: a quarter turn about the lead ball moved the rear foot only %.1f cm" % (went * 100))
+    # 8 the snaps: a limb handed between IK and FK does not move
+    for limb, ctrl_side, probe in (("hand", "CTRL_hand_l", Vector((0.05, -0.18, 0.08))),
+                                   ("foot", "CTRL_foot_l", Vector((0.04, -0.10, 0.12)))):
+        reset(rig)
+        set_translation(rig, ctrl_side, pb[ctrl_side].matrix.translation + probe)
+        bones = _chain(limb, "l")[2]
+        was = {n: pb[n].matrix.copy() for n in bones}
+        snap_fk_to_ik(rig, "l", limb)
+        off = max(max(abs(v) for row in (pb[n].matrix - was[n]) for v in row) for n in bones)
+        if off > 0.0005:
+            fails.append("snap: %s IK->FK moved the chain by %.2f (matrix terms)" % (limb, off))
+        # now pose it in FK and hand it back to IK
+        pb[bones[1]].rotation_mode = "QUATERNION"
+        pb[bones[1]].rotation_quaternion = pb[bones[1]].rotation_quaternion @ Quaternion((1, 0, 0), math.radians(-12.0))
+        _update()
+        was = {n: pb[n].matrix.copy() for n in bones[:3]}
+        snap_ik_to_fk(rig, "l", limb)
+        off = max(max(abs(v) for row in (pb[n].matrix - was[n]) for v in row) for n in bones[:3])
+        if off > 0.002:
+            fails.append("snap: %s FK->IK moved the chain by %.3f (matrix terms)" % (limb, off))
+    # 9 the pins: the pole swings the joint and leaves the end where it is,
+    # and a target out of reach straightens the limb along the line to it
+    # instead of stretching or popping sideways
+    for ctrl, pole, joint, end, lower, upper in (
+            ("CTRL_foot_l", "CTRL_knee_l", "calf_l", "foot_l", "calf_l", "thigh_l"),
+            ("CTRL_hand_l", "CTRL_elbow_l", "lowerarm_l", "hand_l", "lowerarm_l", "upperarm_l")):
+        reset(rig)
+        # bend it first, so there is a joint to swing
+        set_translation(rig, ctrl, pb[ctrl].matrix.translation + (pb[upper].head - pb[ctrl].matrix.translation) * 0.30)
+        j0, e0 = pb[joint].head.copy(), pb[end].head.copy()
+        side_dir = Vector((0.30, 0, 0))
+        set_translation(rig, pole, pb[pole].matrix.translation + side_dir)
+        j1, e1 = pb[joint].head.copy(), pb[end].head.copy()
+        if (e1 - e0).length > 0.001:
+            fails.append("pin: moving %s moved %s %.1f mm" % (pole, end, (e1 - e0).length * 1000))
+        if (j1 - j0).dot(side_dir.normalized()) < 0.02:
+            fails.append("pin: moving %s 30 cm out swung %s only %.1f cm toward it" % (
+                pole, joint, (j1 - j0).dot(side_dir.normalized()) * 100))
+        reset(rig)
+        top = pb[upper].head.copy()
+        length = pb[upper].bone.length + pb[lower].bone.length
+        target = top + (pb[ctrl].matrix.translation - top).normalized() * (length + 0.40)
+        set_translation(rig, ctrl, target)
+        reach = (pb[lower].tail - top).length
+        line = (pb[lower].tail - top).normalized().angle((target - top).normalized())
+        if reach > length + 0.001:
+            fails.append("pin: out of reach, %s stretched %.1f mm past its length" % (upper[:-2], (reach - length) * 1000))
+        if math.degrees(line) > 2.0:
+            fails.append("pin: out of reach, %s pointed %.1f deg off the line to its target" % (upper[:-2], math.degrees(line)))
     # 6 what would ship
     reset(rig)
     from hero.pipeline import MANNEQUIN
@@ -659,7 +807,8 @@ def verify(rig, mesh):
         fails.append("the mesh is weighted to non-deform bones: %s" % bad[:6])
     reset(rig)
     assert not fails, "the control rig does not do what it says:\n  " + "\n  ".join(fails)
-    print("control rig verified: hand IK reaches, fk switch, toe and heel roll, look, fist, export set")
+    print("control rig verified: hand IK reaches, fk switch, toe and heel roll, look, fist, pivot, "
+          "IK/FK snap, pole pins, no stretch, export set")
     return True
 
 
@@ -813,6 +962,16 @@ def bite(blend):
         _edit_mode(rig); b = rig.data.edit_bones.new("jaw"); b.head = (0, 0, 1.6); b.tail = (0, 0, 1.65); b.use_deform = False; _object_mode(rig)
     def bad_weights(rig, mesh):
         mesh.vertex_groups.new(name="CTRL_root")
+    def kill_unpivot(rig, mesh):
+        rig.pose.bones["MCH_unpivot"].constraints["UNPIVOT"].mute = True
+    def twist_pole(rig, mesh):
+        c = rig.pose.bones["lowerarm_l"].constraints["IK"]; c.pole_angle += math.radians(90.0)
+    def kill_pole(rig, mesh):
+        rig.pose.bones["calf_l"].constraints["IK"].pole_target = None
+    def let_stretch(rig, mesh):
+        for n in ("thigh_l", "calf_l"):
+            rig.pose.bones[n].ik_stretch = 0.3
+        rig.pose.bones["calf_l"].constraints["IK"].use_stretch = True
     case("hand IK reaches",        kill_ik,        "hand IK")
     case("fk switch",              kill_switch,    "fk switch")
     case("toe roll sign",          flip_toe,       "toe roll")
@@ -822,6 +981,10 @@ def bite(blend):
     case("fist",                   kill_fist,      "fist")
     case("export set",             extra_bone,     "export set")
     case("deform weights",         bad_weights,    "non-deform")
+    case("pivot",                  kill_unpivot,   "pivot: moving")
+    case("FK->IK snap",            twist_pole,     "snap: hand FK->IK")
+    case("pole pin",               kill_pole,      "pin: moving CTRL_knee_l")
+    case("no stretch",             let_stretch,    "stretched")
     print("\n%-22s %s" % ("check", "when its mechanism is broken"))
     for label, ok, msg in cases:
         print("  %-20s %s  %s" % (label, "BITES " if ok else "SILENT", msg[:90]))
@@ -830,8 +993,40 @@ def bite(blend):
     return n == len(cases)
 
 
+def refresh(blend, scale=None):
+    """Rebuild the control layer of an animator's file in place, from this
+    file as it is now: strip every control, put add_ik's four constraints
+    back, build, verify, save. The mesh, its weights and its materials are
+    not touched -- the controls never were part of what ships -- so a rig
+    improvement reaches every man's file in seconds rather than a twenty-
+    minute rebuild each. `scale` is the man's height factor for verify();
+    by default it is read off the skeleton against Saud's own."""
+    import build_saud as legacy
+    bpy.ops.wm.open_mainfile(filepath=blend)
+    rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+    mesh = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent == rig)
+    strip_for_export(rig, mesh)
+    for o in [o for o in bpy.data.objects if o.name.startswith(("Pole_Knee", "Pole_Elbow"))]:
+        bpy.data.objects.remove(o, do_unlink=True)
+    legacy.add_ik(rig)
+    made = build(rig, mesh)
+    if scale is None:
+        # his head joint's height against Saud's -- the joint table, which
+        # in a fresh process is Saud's own (a build mutates it; this does not)
+        scale = rig.data.bones["head"].head_local.z / legacy.J["head"][0][2]
+    verify(rig, mesh, scale=scale)
+    bpy.ops.wm.save_as_mainfile(filepath=blend)
+    print("refreshed   : %s (%d controls, scale %.3f)" % (os.path.basename(blend), made["controls"], scale))
+    return made
+
+
 if __name__ == "__main__":
     a = sys.argv[1:]
+    if "--refresh" in a:
+        for path in a[a.index("--refresh") + 1:]:
+            if not path.startswith("--"):
+                refresh(os.path.abspath(path))
+        sys.exit(0)
     if "--roundtrip" in a:
         print(roundtrip(os.path.abspath(a[a.index("--roundtrip") + 1])))
     elif "--bite" in a:

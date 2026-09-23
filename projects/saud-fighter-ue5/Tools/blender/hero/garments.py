@@ -74,7 +74,16 @@ def soles():
         out.append(o)
     return out
 
-def dress(body):
-    tee = shell(body, "Tee", tee_region, 0.006, 0.0025, fold=0.0025, fold_size=0.16)
+def dress(body, tee=True):
+    """`tee=False` is ZAYOS (`look.tee: false`): shell() still runs, with
+    a region that keeps nothing, so the returned object is a real, empty
+    Tee -- zero faces, zero vertices -- rather than None. Everything after
+    this already copies, decimates, UV-unwraps, paints, binds and joins a
+    list of objects that includes "Tee"; an empty one of those is a no-op
+    at every one of those stages (checked: decimate short-circuits under
+    its own target, and the rest are per-vertex/per-face loops over
+    nothing), so building bare-chested does not need a second code path,
+    only skipping the (also checked, on the hair precedent) bake of it."""
+    t = shell(body, "Tee", tee_region if tee else (lambda c: False), 0.006, 0.0025, fold=0.0025, fold_size=0.16)
     pants = shell(body, "Pants", pants_region, 0.010, 0.003, fold=0.0045, fold_size=0.20)
-    return tee, pants, soles()
+    return t, pants, soles()

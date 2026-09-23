@@ -139,8 +139,16 @@ def hair_parts(style="quiff"):
 
     `style`: "quiff" is Saud's -- the cap and some length left on top
     (assets/saud.js: `quiff: true`). "crop" is the cap alone, a close cut,
-    for a man the roster gives a hair colour and nothing else.
+    for a man the roster gives a hair colour and nothing else. "bald" is
+    no geometry at all -- AL-WAHSH and ZAYOS (`look.bald`) -- and the bare
+    skull is what shows; hero.face still paints (and pipeline.build_fighter
+    still bakes) a "hair" material, but no face is ever assigned it, since
+    palette_for gives a bald man no hair colour and every hair-colour use
+    in hero.face and hero.finish already falls back to skin when it is
+    None -- checked, not new code for this.
     """
+    if style == "bald":
+        return []
     # The skull crown is at 1.796 and the chin at 1.570: 0.226 m a head, and
     # 8.04 heads tall, which is the figure the art direction asks for. But
     # the cap used to top out at 1.806 and the quiff at 1.814, so the head a
@@ -196,11 +204,13 @@ def hair_parts(style="quiff"):
 def union_remesh(parts, voxel, name):
     return A.union_remesh(parts, voxel, name)
 
-def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0):
+def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, gloves=False):
     """voxel_scale > 1 is a coarse, quick body for checking the stages after
     this one. `face_scale`, `hair_style` and `arm_scale` are one man's
     differences from another on the same skull and limbs -- see
-    sculpt.sculpt_face, hair_parts and anatomy.arm."""
+    sculpt.sculpt_face, hair_parts and anatomy.arm. `gloves` unions
+    anatomy.glove() over the fingers, both sides -- see anatomy.glove for
+    why the fingers are still built underneath it."""
     vs = voxel_scale
     t = time.time()
     legacy.reset_scene()
@@ -224,7 +234,14 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0):
         boolean(base, sock, 'DIFFERENCE')
     # ---- pass two: fine parts, then one remesh at 3.5 mm to blend the joins
     hl, jl = A.hand(); hr = [mirror_x(o) for o in hl]
-    hands = union_remesh(hl + hr, 0.0025 * vs, "Hands"); A.smooth(hands, 0.5, 3)
+    # gloves: unioned over the fingers at the same fine pass, not instead of
+    # them -- the mannequin skeleton is the same 62 bones whether or not a
+    # finger is separately visible, so the fingers are still built for the
+    # rig; see anatomy.glove for why the union hides them cleanly.
+    glove_parts = []
+    if gloves:
+        gl = A.glove(); glove_parts = gl + [mirror_x(o) for o in gl]
+    hands = union_remesh(hl + hr + glove_parts, 0.0025 * vs, "Hands"); A.smooth(hands, 0.5, 3)
     face = face_parts() + ear(1) + ear(-1)
     hair = hair_parts(hair_style)
     groups = {"skin": [base, hands] + face, "hair": hair}
@@ -248,21 +265,50 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0):
     eyes = eyeballs()
     return body, trees, eyes, jl
 
-def above_hairline(c):
+def above_hairline(c, margin=0.0):
     t = (c.y + 0.09) / 0.18
-    return c.z > HAIRLINE[0] + (HAIRLINE[1] - HAIRLINE[0]) * t
+    return c.z > HAIRLINE[0] + (HAIRLINE[1] - HAIRLINE[0]) * t + margin
+
+# How far above the hairline plane the HAIR MATERIAL starts, on the front
+# and the sides of the head. The plane itself, tested per face centre, is a
+# staircase at the 3.5 mm voxel -- and the hair material's albedo is black,
+# so every render had a sawtooth of black teeth along the hairline. But
+# hero.face already paints the hair colour above the hairline INTO THE SKIN
+# TEXTURE, per texel, as a smooth line with the temple recession (its `hw`),
+# wherever its `on_face` gate is open: the front and the sides, forwardness
+# > about -0.28. So there the material boundary is pushed 6 mm up into the
+# hair, where a bump-strength seam is invisible under black, and the visible
+# hairline is the painted one. At the nape the skin texture is not painted
+# hair (the gate is shut), so the boundary stays on the plane. 8 mm, not
+# 6: the painted ramp (`hw`) is +-3.5 mm about the plane and jittered by
+# 0.0045 * 0.5 = 2.25 mm, so it reaches full hair at plane + 5.75 mm.
+HAIR_MARGIN = 0.008
 
 def assign_by_source(body, trees, slots):
     """Each face takes the material of the nearest source part group. Hair
     is the exception: nearest-source frays along the cap's cut edge, so the
-    hairline is the plane the cap was cut with, tested on the face centre."""
-    for poly in body.data.polygons:
+    hairline is the plane the cap was cut with, tested on the face centre,
+    raised by HAIR_MARGIN where the painted hairline takes over."""
+    from . import face as FA
+    import numpy as np
+    polys = body.data.polygons
+    C = np.array([p.center[:] for p in polys])
+    gate = FA.ramp(FA.forwardness(C), -0.55, -0.28) if len(C) else np.zeros(0)
+    for poly, g in zip(polys, gate):
         c = poly.center
         best, bestd = "skin", 1e9
-        for g, tree in trees.items():
+        for gname, tree in trees.items():
+            # find_nearest on an empty tree -- bald, hair_parts returned no
+            # geometry -- is not None itself, it is (None, None, None,
+            # None): checked directly, and hit[3] < bestd then raised
+            # comparing None to a float. hit[0], the location, is the real
+            # "did this hit anything" signal.
             hit = tree.find_nearest(c)
-            if hit and hit[3] < bestd: best, bestd = g, hit[3]
-        if best == "hair" and not above_hairline(c): best = "skin"
-        if best == "skin" and "hair" in slots and above_hairline(c) and c.z > 1.70 and trees["hair"].find_nearest(c)[3] < 0.004: best = "hair"
+            if hit[0] is not None and hit[3] < bestd: best, bestd = gname, hit[3]
+        m = HAIR_MARGIN * float(g)
+        if best == "hair" and not above_hairline(c, m): best = "skin"
+        if best == "skin" and "hair" in slots and above_hairline(c, m) and c.z > 1.70:
+            hh = trees["hair"].find_nearest(c)
+            if hh[0] is not None and hh[3] < 0.004: best = "hair"
         poly.material_index = slots[best]
 

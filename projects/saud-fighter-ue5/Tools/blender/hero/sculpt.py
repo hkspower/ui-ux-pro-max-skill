@@ -83,7 +83,21 @@ FACE = [
     ("jaw3",      0.068, 1.6100, 0.013, 0.020, 0.012,  +0.0038, True),
 ]
 
-def lids(P, eye, orbit=(0.0158, 0.0128), up_margin=0.0048, dn_margin=0.0052,
+# The lids' layout, at module level because hero.face draws the lash lines
+# along these margins: the aperture's half-width and half-height, and how
+# far above and below the eye's centre the upper and lower lid margins sit
+# at its middle (they taper to the canthi as 1 - t*t over LID_ORBIT[0]).
+LID_ORBIT = (0.0158, 0.0128)
+LID_UP = 0.0048
+LID_DOWN = 0.0052
+
+def lid_close(ax):
+    """How much of the margin's height is left at |x|: 1 at the eye's
+    middle, 0 at each canthus. The same taper lids() uses."""
+    t = np.clip(np.abs(ax - 0.031) / LID_ORBIT[0], 0.0, 1.0)
+    return 1.0 - t * t
+
+def lids(P, eye, orbit=LID_ORBIT, up_margin=LID_UP, dn_margin=LID_DOWN,
          up=0.0042, down=0.0031):
     """The eyelids: two covers over the eye, not a ring around it.
 

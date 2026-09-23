@@ -788,9 +788,28 @@ def build_studio():
         return obj
 
     # The browser build's LIGHT vector is up and to the left; so is this key.
-    lamp("Key",  (-2.2,  -3.4, 2.9), 150, 2.6, (1.00, 0.86, 0.66))
-    lamp("Rim",  ( 3.1,   2.1, 2.5), 320, 1.6, (0.96, 0.28, 0.34))
-    lamp("Fill", ( 1.9,  -3.4, 1.6),  70, 4.0, (0.62, 0.72, 1.00))
+    #
+    # Re-lit 2026-09-22 from measurements on the renders, not by eye. The
+    # old rig was three keys: the fill (70 W, 4 m across, at eye height)
+    # was one stop under the key and lit the underside of the jaw, the rim
+    # (320 W) was twice the key, and the key was 2.6 m across at 4.4 m. The
+    # darkest skin pixel on the face was 87/255 and the underside of the jaw
+    # was 0.2-0.4 stop under the lit cheek: no shadow side at all, so the
+    # sculpted profile and the painted creases read at a fraction of their
+    # strength and the face looked flat and waxy. And the fill's colour
+    # (0.62, 0.72, 1.00) times his skin is (0.54, 0.50, 0.55) -- achromatic
+    # -- so every shadow on him was neutral grey and read as dirt, magenta-
+    # grey where the rim landed on it too. Now: key 210 W, 1.2 m, raised to
+    # 30 deg; rim 130 W (0.42x the key, its red 0.8x the key's red); fill
+    # 35 W (key:fill 4.4:1, two stops) raised so it no longer lights under
+    # the jaw, and warmed to (0.80, 0.86, 1.00) so fill x skin is still a
+    # skin colour. Renders only; nothing here ships.
+    lamp("Key",  (-2.2,  -3.4, 3.5), 210, 1.2, (1.00, 0.86, 0.66))
+    # Rim green above its blue: rim x skin with the old (0.96, 0.28, 0.34)
+    # had G == B, and where the rim landed on the shadow side it made the
+    # jaw angle magenta-grey. Same energy, same red.
+    lamp("Rim",  ( 3.1,   2.1, 2.5), 130, 1.0, (0.96, 0.32, 0.28))
+    lamp("Fill", ( 1.9,  -3.4, 2.0),  35, 4.0, (0.80, 0.86, 1.00))
 
 
 def add_camera(location, look_at=Vector((0, 0, 0.98)), lens=70):
@@ -804,6 +823,15 @@ def add_camera(location, look_at=Vector((0, 0, 0.98)), lens=70):
     return cam
 
 
+def view_transform():
+    """Khronos PBR Neutral where this Blender has it, else Standard."""
+    try:
+        bpy.context.scene.view_settings.view_transform = "Khronos PBR Neutral"
+        return "Khronos PBR Neutral"
+    except TypeError:
+        return "Standard"
+
+
 def render(path, samples=48, res=(760, 1000)):
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
@@ -814,8 +842,12 @@ def render(path, samples=48, res=(760, 1000)):
     scene.render.film_transparent = False
     scene.render.image_settings.file_format = "PNG"
     # AgX washes the palette out; these colours are the game's and should
-    # arrive as themselves.
-    scene.view_settings.view_transform = "Standard"
+    # arrive as themselves. "Standard" kept them but clipped: under the
+    # old rim, R hit 255 on 22 % of the face's skin pixels and the hue
+    # collapsed to one flat salmon. Khronos PBR Neutral keeps sRGB colours
+    # as themselves below the shoulder and rolls a saturated highlight off
+    # instead of clipping one channel.
+    scene.view_settings.view_transform = view_transform()
     scene.view_settings.look = "None"
     scene.render.filepath = path
     bpy.ops.render.render(write_still=True)

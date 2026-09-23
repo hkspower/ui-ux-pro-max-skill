@@ -43,8 +43,8 @@ def check(kinds):
     import numpy as np
     for k in kinds:
         s = roster.spec(k)
-        assert s["look"].get("tee") and s["look"].get("pants"), "%s: this pipeline dresses a tee and trousers" % k
-        assert not s["look"].get("bald"), "%s: no bald head in this pipeline yet" % k
+        assert s["look"].get("pants"), "%s: this pipeline dresses trousers on every man" % k
+        assert s["look"].get("hands") in (None, "bare", "wraps", "gloves"), "%s: no %s hands in this pipeline" % (k, s["look"].get("hands"))
         print("  %-8s %-10s sc %.2f build %.2f  skin %s top %s bottom %s band %s  hands %s  beard %s" % (
             s["name"], s["display"], s["sc"], s["look"].get("build", 1.0), s["col"]["skin"], s["col"]["top"],
             s["col"]["bottom"], s["col"]["band"], s["look"].get("hands"), "yes" if s["look"].get("beard") else "no"))

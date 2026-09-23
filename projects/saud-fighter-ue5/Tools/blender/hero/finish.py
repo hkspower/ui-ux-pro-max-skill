@@ -13,13 +13,30 @@ from . import anatomy as A
 J = legacy.J; Jp = A.Jp
 
 # ------------------------------------------------------------ decimation
-def decimate(obj, target_tris, protect):
+def decimate(obj, target_tris, protect, boundary_rings=0):
     """Collapse to the budget, protecting `protect(vertex)` regions (face,
-    hands) which keep their density: the budget is spent where it shows."""
+    hands) which keep their density: the budget is spent where it shows.
+
+    `boundary_rings` also protects the mesh's open edges and that many rings
+    of vertices inside them. A garment is an open shell, and its hems and
+    its collar are its silhouette: the tee went into the collapse at a ratio
+    near 0.08 with nothing protected, so a collar of ~135 boundary vertices
+    3.5 mm apart came out as about a dozen 4 cm segments -- the neckline in
+    every render was a polygon, not a curve. Two rings of a ~135-vertex
+    ring is a few hundred triangles."""
     tris = sum(len(p.vertices) - 2 for p in obj.data.polygons)
     if tris <= target_tris: return tris
     vg = obj.vertex_groups.new(name="keep")
     keep = [v.index for v in obj.data.vertices if protect(v.co)]
+    if boundary_rings:
+        bm = bmesh.new(); bm.from_mesh(obj.data)
+        ring = {v for v in bm.verts if any(e.is_boundary for e in v.link_edges)}
+        seen = set(ring)
+        for _ in range(boundary_rings - 1):
+            ring = {o for v in ring for e in v.link_edges for o in (e.other_vert(v),) if o not in seen}
+            seen |= ring
+        keep = sorted(set(keep) | {v.index for v in seen})
+        bm.free()
     if keep: vg.add(keep, 1.0, 'REPLACE')
     # The unprotected part must give up enough that the whole lands on target.
     kept_tris = 0
@@ -114,6 +131,15 @@ def body_charts():
     for s, rect in ((1, (0.50, 0.50, 0.75, 1.00)), (-1, (0.75, 0.50, 1.00, 1.00))):
         a = mirror(Jp("upperarm_l"), s); b = mirror(Jp("hand_l"), s)
         charts.append((lambda c, a=a, b=b: near(c, a, b, 0.11) and c.z < 1.50, "cyl", (a - (b - a).normalized() * 0.05, b, F, 0.0, 1.0), rect))
+    # feet: heel to toe, before the legs. Without a chart of their own the
+    # toes fell past the leg cylinder's reach into the trunk's catch-all,
+    # whose v clamps to 0 below the hips: every toe face mapped onto one
+    # line and the shoe uppers had no texels. The rects overlap the skin's
+    # in UV, which is harmless -- the shoe faces bake only into the shoe's
+    # own images, and the soles keep their own quadrant (u > 0.5, v < 0.5).
+    for s, rect in ((1, (0.00, 0.50, 0.50, 0.75)), (-1, (0.00, 0.75, 0.50, 1.00))):
+        charts.append((lambda c, s=s: c.z < 0.14 and c.x * s > 0.02, "cyl",
+                       (Vector((s * 0.082, 0.08, 0.06)), Vector((s * 0.082, -0.22, 0.06)), Z, 0.0, 1.0), rect))
     # legs: hip to ankle
     for s, rect in ((1, (0.00, 0.00, 0.25, 0.50)), (-1, (0.25, 0.00, 0.50, 0.50))):
         a = mirror(Jp("thigh_l"), s); b = mirror(Jp("foot_l"), s)
@@ -152,7 +178,10 @@ def palette_for(spec):
     # strength they gave light stubble a full beard's darkness under it --
     # a pencil moustache and a goatee on a man drawn with a shadow of growth.
     beard_k = roster.rgba_alpha(beard) if beard else 1.0
-    if beard and not look.get("bald"):
+    # Bald and bearded are not opposites -- AL-WAHSH is both -- so a shaved
+    # head does not, on its own, mean a shaved face. Only "no beard colour
+    # given" means no beard.
+    if beard:
         beard = roster.rgba_over(beard, c["skin"])
     else:
         beard = None
@@ -166,6 +195,8 @@ def palette_for(spec):
         # the kit: what the browser lists for him and nothing it does not
         tape_on=(look.get("hands") == "wraps"), patch=bool(look.get("patch")),
         stripe=bool(look.get("stripe")), watch=bool(look.get("watch")),
+        scar=bool(look.get("scar")), gloves=(look.get("hands") == "gloves"),
+        bald=bool(look.get("bald")), no_tee=not look.get("tee", True),
         name=spec["name"])
 
 def saud_palette():
@@ -177,6 +208,103 @@ def saud_palette():
                 lip=lin(srgb('c98a78')), tape=lin(srgb('e8e2d4')), nail=lin(srgb('f4dccb')),
                 tape_on=True, patch=True, stripe=True, watch=True, name="Saud")
 
+# The kit's edges. Every mask below used to be a hard boolean on the
+# vertices -- `col[inpatch] = green` -- and the bake interpolates vertex
+# colour across each triangle, so a 48 x 30 mm flag patch, a 32 mm stripe,
+# a wrap's turns and a collar rib all had edges that wandered by up to a
+# vertex, 3 mm, and read as steps. The head never had this: hero.face is
+# evaluated per TEXEL after the bake. This is the same move for the kit --
+# one description of where the colour is, as smooth ramps a fraction of a
+# texel wide, evaluated per vertex by paint() for the bake to start from and
+# per texel by repaint_kit() for the edges. 0.6 mm is about a texel: the
+# charts are cylinders, so a texel is not square -- the tee's v-texel is
+# 0.85 mm and the pants' 0.43 (u 0.55 for both) -- and 0.6 lands an edge as
+# one to two texels of blend either way. It is nothing at all at 3 mm
+# between vertices.
+KIT_FEATHER = 0.0006
+
+def kit_colour(P, kind, pal, joints_l, base=None):
+    """Colour for positions P (N,3) of one material, linear, and how much of
+    it is kit rather than the base (N,), 0..1. `base` is what to start from
+    for the skin (the shaded body); the garments start from their own colour.
+    Returns (rgb (N,3), kit (N,))."""
+    from . import face as FA
+    ramp = FA.ramp; f = KIT_FEATHER
+    n = len(P)
+    skin = pal["skin"]; hair = pal["hair"] if pal["hair"] is not None else skin
+    tape = pal["tape"]; nail = pal["nail"]
+    tee = pal["tee"]; pants = pal["pants"]; band = pal["band"]; shoe = pal["shoe"]
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    kit = np.zeros(n)
+    if base is not None:
+        col = np.array(base, dtype=float).reshape(n, 3).copy()
+    else:
+        col = np.tile(np.asarray({"skin": skin, "hair": hair, "shoe": shoe, "tee": tee, "pants": pants, "glove": band}[kind], dtype=float), (n, 1))
+
+    def over(w, rgb):
+        w = np.clip(w, 0.0, 1.0)
+        col[:] = col * (1 - w)[:, None] + np.asarray(rgb, dtype=float)[None, :] * w[:, None]
+        np.maximum(kit, w, out=kit)
+
+    if kind == "skin":
+        # hand wraps: tape from the wrist over the back of the hand and the knuckles
+        for s in ((1, -1) if pal["tape_on"] else ()):
+            wr = np.array(Jp("hand_l")) * np.array([s, 1, 1]); he = np.array(Jp("hand_end_l")) * np.array([s, 1, 1])
+            d = (he - wr) / np.linalg.norm(he - wr)
+            t = (P - wr) @ d; perp = np.linalg.norm((P - wr) - np.outer(t, d), axis=1)
+            wrap = ramp(t, -0.045 - f, -0.045 + f) * ramp(t, 0.118 + f, 0.118 - f) * ramp(perp, 0.06 + f, 0.06 - f)
+            # the tape is wound: bands along t, with a gap between turns
+            turns = ((t + 0.045) / 0.011) % 1.0
+            on = np.maximum(ramp(turns, 0.82 + f / 0.011, 0.82 - f / 0.011), ramp(t, f, -f))
+            over(wrap * on, tape)
+        for s in (1, -1):
+            # nails: the last 9 mm of each fingertip, the back side
+            for fi, r in [("f%d" % i, 0.0085) for i in range(4)] + [("thumb", 0.0095)]:
+                tip = np.array(joints_l[fi][-1]) * np.array([s, 1, 1])
+                over(ramp(np.linalg.norm(P - tip, axis=1), r + f, r - f) * ramp(y, tip[1] + 0.002 - f, tip[1] + 0.002 + f), nail)
+    elif kind == "hair":
+        # faded sides: lighter (skin showing through) low on the sides --
+        # face.hair_fade, shared with the hairline band painted on the skin
+        over(0.55 * FA.hair_fade(P), skin)
+        kit[:] = 1.0
+    elif kind == "shoe":
+        over(ramp(z, 0.022 + f, 0.022 - f), lin(srgb('2a2c30')))                       # the sole, a step lighter
+        bars = ramp(z, 0.030 - f, 0.030 + f) * ramp(z, 0.050 + f, 0.050 - f) * ramp(y, -0.04 + f, -0.04 - f) * ramp(y, -0.16 - f, -0.16 + f)
+        over(bars, lin(srgb('c9ccd2')))                                                  # the three bars
+        kit[:] = 1.0
+    elif kind == "tee":
+        # the flag patch on the left breast, 48 x 30 mm, four bands
+        px, pz, w, h = 0.044, 1.352, 0.048, 0.030
+        if pal["patch"]:
+            inpatch = ramp(np.abs(x - px), w / 2 + f, w / 2 - f) * ramp(np.abs(z - pz), h / 2 + f, h / 2 - f) * ramp(y, -0.06 + f, -0.06 - f)
+            hoist = ramp(x, px + w / 2 - w * 0.27 - f, px + w / 2 - w * 0.27 + f)
+            top = ramp(z, pz + h / 6 - f, pz + h / 6 + f); bot = ramp(z, pz - h / 6 + f, pz - h / 6 - f)
+            over(inpatch * (1 - hoist) * top, lin(srgb('007a3d')))
+            over(inpatch * (1 - hoist) * (1 - top) * (1 - bot), lin(srgb('f3f5f8')))
+            over(inpatch * (1 - hoist) * bot, lin(srgb('c8102e')))
+            over(inpatch * hoist, lin(srgb('101216')))
+        # collar rib and hems a shade lighter, the stitching line
+        over(ramp(z, 1.548 - f, 1.548 + f) * ramp(np.hypot(x, y - 0.004), 0.095 + f, 0.095 - f), np.asarray(tee) * 1.6)
+        kit[:] = 1.0
+    elif kind == "pants":
+        over(ramp(z, 1.050 - f, 1.050 + f) * ramp(z, 1.076 + f, 1.076 - f), band)      # waistband
+        # the stripe down the outer seam of each leg: track pants, not jeans
+        for s in ((1, -1) if pal["stripe"] else ()):
+            th = np.array(Jp("thigh_l")) * np.array([s, 1, 1]); ft = np.array(Jp("foot_l")) * np.array([s, 1, 1])
+            d = (ft - th) / np.linalg.norm(ft - th); t = (P - th) @ d
+            outer = (ramp(x * s, th[0] * s + 0.05 - f, th[0] * s + 0.05 + f) * ramp(t, 0.02 - f, 0.02 + f) * ramp(t, 0.97 + f, 0.97 - f)
+                     * ramp(np.abs(y - (th[1] + (ft[1] - th[1]) * t)), 0.016 + f, 0.016 - f))
+            over(outer, band)
+        kit[:] = 1.0
+    elif kind == "glove":
+        # ZAYOS (`look.hands: 'gloves'`): a solid fill in his own accent
+        # colour -- there is no dedicated glove-colour roster field, and
+        # `band` is already the colour every other kit accent (waistband,
+        # stripe, wraps) reads for a man, so a glove is no different.
+        kit[:] = 1.0
+    return col, kit
+
+
 def paint(obj, kind, joints_l, pal=None):
     """A colour attribute per vertex, from position. The albedo bake reads it.
     `pal` is palette_for(spec); None is Saud as he was always painted."""
@@ -186,8 +314,6 @@ def paint(obj, kind, joints_l, pal=None):
     P = np.empty(n * 3); me.vertices.foreach_get("co", P); P = P.reshape(n, 3)
     col = np.zeros((n, 4)); col[:, 3] = 1.0
     skin = pal["skin"]; hair = pal["hair"] if pal["hair"] is not None else skin; beard = pal["beard"]
-    lip = pal["lip"]; tape = pal["tape"]; nail = pal["nail"]
-    tee = pal["tee"]; pants = pal["pants"]; band = pal["band"]; shoe = pal["shoe"]
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
     if kind == "skin":
         col[:, :3] = skin
@@ -206,60 +332,10 @@ def paint(obj, kind, joints_l, pal=None):
         # the nostrils. See hero/face.py.
         from . import face as FA
         col[:, :3] = FA.body_grain(P, col[:, :3])
-        col[:, :3], _rel, _on = FA.shade(P, skin, hair, beard, base_rgb=col[:, :3], beard_k=pal.get("beard_k", 1.0))
-        # hand wraps: tape from the wrist over the back of the hand and the knuckles
-        for s in ((1, -1) if pal["tape_on"] else ()):
-            wr = np.array(Jp("hand_l")) * np.array([s, 1, 1]); he = np.array(Jp("hand_end_l")) * np.array([s, 1, 1])
-            d = (he - wr) / np.linalg.norm(he - wr)
-            t = (P - wr) @ d; perp = np.linalg.norm((P - wr) - np.outer(t, d), axis=1)
-            wrap = (t > -0.045) & (t < 0.118) & (perp < 0.06)
-            # the tape is wound: bands along t, with a gap between turns
-            turns = ((t + 0.045) / 0.011) % 1.0
-            band_on = wrap & ((turns < 0.82) | (t < 0.0))
-            col[band_on, :3] = tape
-        for s in (1, -1):
-            # nails: the last 9 mm of each fingertip, the back side
-            for fi in range(4):
-                tip = np.array(joints_l["f%d" % fi][-1]) * np.array([s, 1, 1])
-                nl = (np.linalg.norm(P - tip, axis=1) < 0.0085) & (y > tip[1] + 0.002)
-                col[nl, :3] = nail
-            tip = np.array(joints_l["thumb"][-1]) * np.array([s, 1, 1])
-            nl = (np.linalg.norm(P - tip, axis=1) < 0.0095) & (y > tip[1] + 0.002)
-            col[nl, :3] = nail
-    elif kind == "hair":
-        col[:, :3] = hair
-        # faded sides: lighter (skin showing through) low on the sides
-        fade = np.clip((0.070 - (1.76 - z)) / 0.05, 0, 1) * np.clip((np.abs(x) - 0.045) / 0.03, 0, 1)
-        col[:, :3] = col[:, :3] * (1 - 0.55 * fade[:, None]) + skin[None, :] * 0.55 * fade[:, None]
-    elif kind == "shoe":
-        col[:, :3] = shoe
-        col[(z < 0.022), :3] = lin(srgb('2a2c30'))   # the sole, a step lighter
-        stripe = (z > 0.030) & (z < 0.050) & (y < -0.04) & (y > -0.16)
-        col[stripe, :3] = lin(srgb('c9ccd2'))          # the three bars
-    elif kind == "tee":
-        col[:, :3] = tee
-        # the flag patch on the left breast, 48 x 30 mm, four bands
-        px, pz, w, h = 0.044, 1.352, 0.048, 0.030
-        inpatch = (np.abs(x - px) < w / 2) & (np.abs(z - pz) < h / 2) & (y < -0.06)
-        if not pal["patch"]: inpatch[:] = False
-        hoist = inpatch & (x > px + w / 2 - w * 0.27)
-        rest = inpatch & ~hoist
-        col[rest & (z > pz + h / 6), :3] = lin(srgb('007a3d'))
-        col[rest & (np.abs(z - pz) <= h / 6), :3] = lin(srgb('f3f5f8'))
-        col[rest & (z < pz - h / 6), :3] = lin(srgb('c8102e'))
-        col[hoist, :3] = lin(srgb('101216'))
-        # collar rib and hems a shade lighter, the stitching line
-        collar = (z > 1.548) & (np.hypot(x, y - 0.004) < 0.095)
-        col[collar, :3] = tee * 1.6
-    elif kind == "pants":
-        col[:, :3] = pants
-        wb = (z > 1.050) & (z < 1.076); col[wb, :3] = band
-        # the stripe down the outer seam of each leg: track pants, not jeans
-        for s in ((1, -1) if pal["stripe"] else ()):
-            th = np.array(Jp("thigh_l")) * np.array([s, 1, 1]); ft = np.array(Jp("foot_l")) * np.array([s, 1, 1])
-            d = (ft - th) / np.linalg.norm(ft - th); t = (P - th) @ d
-            outer = (x * s > th[0] * s + 0.05) & (t > 0.02) & (t < 0.97) & (np.abs(y - (th[1] + (ft[1] - th[1]) * t)) < 0.016)
-            col[outer, :3] = band
+        col[:, :3], _rel, _on = FA.shade(P, skin, hair, beard, base_rgb=col[:, :3], beard_k=pal.get("beard_k", 1.0), scar=pal.get("scar", False))
+        col[:, :3], _kit = kit_colour(P, "skin", pal, joints_l, base=col[:, :3])     # wraps, nails
+    elif kind in ("hair", "shoe", "tee", "pants", "glove"):
+        col[:, :3], _kit = kit_colour(P, kind, pal, joints_l)
     elif kind == "eye":
         # The broad strokes only. The iris is 11 mm across and the limbal ring
         # is 0.4 mm; the globe has 64 x 40 vertices, which is 2.8 by 4.5 deg,
@@ -291,12 +367,27 @@ def shader(name, kind, roughness, sheen=0.0, metallic=0.0, subsurface=0.0, pores
     if coat and "Coat Weight" in bsdf.inputs:
         bsdf.inputs["Coat Weight"].default_value = coat; bsdf.inputs["Coat Roughness"].default_value = 0.06
     if pores or weave:
+        # The pore / weave bump, in METRES and above the texel. Unlinked,
+        # a noise texture runs in Generated (bounding-box) coordinates, so
+        # Scale 1400 over a 1.51 x 0.38 x 1.80 m body was a 1.08 x 0.27 x
+        # 1.29 mm lattice -- anisotropic, and with Detail 6 its octaves ran
+        # down to 0.02 mm against a 0.35 mm skin texel: the bake sampled it
+        # once per texel and every normal map shipped as 66-82 % per-texel
+        # white noise, which mips average to nothing. The body had no relief
+        # at all. Object coordinates (the hi-res sources sit at the origin at
+        # scale 1, so Object == metres), a 2.0 mm / 2.9 mm base period and
+        # two octaves keep the second octave at 3.7 / 2.6 texels; Distance
+        # up so the slope a coherent bump gives is the ~1.5 deg the old
+        # dither's amplitude implied. Measured on a plane bake: lag-1
+        # autocorrelation 0.008 -> 0.60 on the skin, -0.04 -> 0.35 on cloth.
+        tc = nt.nodes.new("ShaderNodeTexCoord")
         noise = nt.nodes.new("ShaderNodeTexNoise")
-        noise.inputs["Scale"].default_value = 1400.0 if pores else 900.0
-        noise.inputs["Detail"].default_value = 6.0 if pores else 4.0
-        noise.inputs["Roughness"].default_value = 0.65
+        nt.links.new(tc.outputs["Object"], noise.inputs["Vector"])
+        noise.inputs["Scale"].default_value = 500.0 if pores else 350.0
+        noise.inputs["Detail"].default_value = 1.0
+        noise.inputs["Roughness"].default_value = 0.5
         bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = pores or weave
-        bump.inputs["Distance"].default_value = 0.0004 if pores else 0.0007
+        bump.inputs["Distance"].default_value = 0.0008
         nt.links.new(noise.outputs["Fac"], bump.inputs["Height"]); nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return mat
 
@@ -328,6 +419,11 @@ def bake_set(obj, mat, size, out_dir, base, maps=("albedo", "normal", "roughness
                 t2 = sm.node_tree.nodes.new("ShaderNodeTexImage"); sm.node_tree.nodes.active = t2; src_nodes.append((sm, t2))
     sc = bpy.context.scene; sc.render.engine = 'CYCLES'; sc.cycles.device = 'CPU'; sc.cycles.samples = 1
     sc.render.bake.use_selected_to_active = source is not None
+    # Baking INTO images an earlier call made (the soles into the shoe's)
+    # must not clear them first. It did: use_clear defaults on, so each
+    # sole's bake wiped the uppers, and the shoe uppers shipped with no
+    # texels at all -- black colour, roughness 0, a mirror.
+    sc.render.bake.use_clear = images is None
     sc.render.bake.use_cage = False
     sc.render.bake.cage_extrusion = 0.02
     sc.render.bake.max_ray_distance = 0.05
@@ -495,7 +591,7 @@ def repaint_head(obj, imgs, size, pal=None):
     # it lays a fraction of the face over its base, and if that base were
     # flat skin the body's own grain would be wiped out across exactly the
     # band where the head and the body have to meet.
-    rgb, rel, on = FA.shade(P, skin, hair, beard, base_rgb=lin[cov], beard_k=pal.get("beard_k", 1.0))
+    rgb, rel, on = FA.shade(P, skin, hair, beard, base_rgb=lin[cov], beard_k=pal.get("beard_k", 1.0), scar=pal.get("scar", False))
     live = on > 0.002
     if not live.any():
         return 0, coherent
@@ -564,12 +660,58 @@ def repaint_head(obj, imgs, size, pal=None):
              - 0.16 * np.clip(tzone, 0, 1)
              + 0.07 * np.clip(cheek, 0, 1)
              - 0.26 * np.clip(lipw, 0, 1)
-             + 0.05 * (FA.fbm(P, 700.0, 3, 61.0) - 0.5))
+             + 0.05 * (FA.fbm(P, 700.0, 3, 61.0) - 0.5)
+             # the band above the hairline that is skin material painted
+             # hair (assembly.HAIR_MARGIN): as matt as the hair material
+             # it meets, 0.52, not the T-zone's 0.40 -- but only where
+             # there is hair to meet: a bald man has no hair material
+             # anywhere, and this band would be an unexplained matte
+             # horseshoe on an otherwise uniform scalp
+             + (0.12 * FA.hairline_weight(P) if pal["hair"] is not None else 0.0))
         r = np.clip(r, 0.18, 0.80)
         buf = np.zeros(cov.shape); buf[cov] = r
         rough[..., :3] = np.where(m[..., None], buf[..., None], rough[..., :3])
         _img_write(imgs["roughness"], _dilate(rough, m, 3))
     return int(m.sum()), coherent
+
+
+def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
+    """Repaint the kit's texels from kit_colour, the way repaint_head does
+    the face: the bake carried the vertex colour across each triangle, so
+    the patch, the stripe, the waistband, the wraps' turns and the collar
+    rib had edges that stepped by up to a vertex (3 mm). Evaluated per
+    texel they are a texel wide. The garments are recoloured whole (their
+    kit mask is 1 everywhere, so a texel the bake's rays missed is filled
+    too); the skin only where the tape and the nails are. `keep` limits
+    the triangles rasterised, e.g. to the hands. Returns texels written."""
+    from . import face as FA
+    pos, cov = rasterise(obj, size, keep or (lambda c: True))
+    if not cov.any():
+        return 0
+    P = pos[cov]
+    alb = _img_array(imgs["albedo"])
+    lin_ = _srgb_to_linear(alb[..., :3])
+    # Not from the baked image: that carried the per-vertex paint's bleed
+    # (3-5 mm ramps either side of every kit edge), and a repaint that
+    # starts from it keeps the bleed outside the feathered edge it draws.
+    # The garments rebuild whole from their own colour; the skin from its
+    # grain, evaluated per texel here as paint() evaluated it per vertex,
+    # so the body's pores are 0.35 mm, not 3 mm.
+    if kind == "skin":
+        base = FA.body_grain(P, np.tile(np.asarray(pal["skin"], dtype=float), (len(P), 1)))
+        rgb, kit = kit_colour(P, kind, pal, joints_l, base=base)
+        live = np.ones(len(P), bool)
+    else:
+        rgb, kit = kit_colour(P, kind, pal, joints_l)
+        live = kit > 0.002
+    if not live.any():
+        return 0
+    buf = np.zeros(pos.shape); buf[cov] = rgb
+    m = np.zeros(cov.shape, bool); m[cov] = live
+    lin_[m] = buf[m]
+    alb[..., :3] = _linear_to_srgb(lin_)
+    _img_write(imgs["albedo"], _dilate(alb, m, 3))
+    return int(m.sum())
 
 
 # --------------------------------------------------------------- the eye

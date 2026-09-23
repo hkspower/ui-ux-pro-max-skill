@@ -418,6 +418,57 @@ built body or the posed rig, and the number is beside it:
   outline pass), not anything this pipeline bakes, and no engine has ever
   been run against this project; it is in "Known, not fixed".
 
+**A third pass, 2026-09-23: edges, shadows, tint, and the leg.** Asked as
+"improve edges and shadows and tint and fix over-pixelated areas", then "fix
+Saud's leg". Each found by measuring the textures and the renders:
+
+- **Edges.** Every kit mark -- the flag patch, the trouser stripe, the
+  waistband, the wraps' turns, the nails, the shoe's bars, the collar rib --
+  was a hard mask on the vertices, so the bake smeared each edge across a
+  3 mm triangle. They are feathered ramps now, a texel wide, painted per
+  texel after the bake (`finish.kit_colour`, `repaint_kit`), the way the face
+  already was. The tee's collar and hems keep two rings of vertices out of
+  the decimation, so the neckline is a curve and not a sawtooth.
+- **Pixelation.** The pore and weave bump ran in the texture's bounding-box
+  coordinates at Detail 6: a 1.1 x 0.3 x 1.3 mm lattice whose octaves went
+  down to 0.02 mm against a 0.35 mm texel, so 66-82 % of every normal map
+  was per-texel white noise. It runs in metres now, two octaves, coherent
+  (lag-1 autocorrelation 0.008 -> 0.60 on the skin). The hair baked into
+  4.4 % of its own image; its UVs fill it now. The documentation renders
+  are twice the size, and the face shot's lens 85 -> 120 mm.
+- **Tint.** The render's view transform clipped saturated highlights
+  (Standard); it is Khronos PBR Neutral where Blender has it. The rim lamp
+  had green equal to blue, and on the shadow side of the jaw that read
+  magenta-grey; it is warmer now at the same energy and red.
+- **Shadows.** The beard was laid over the shading as a colour, which erased
+  the shadows painted before it; it is a multiplicative wash now. The lash
+  line follows the sculpted lid rather than a straight bar. The soles
+  baked into the shoe's images with the images cleared first, which wiped
+  the uppers baked a moment before; only the first bake of a set clears.
+- **The leg.** The trousers' web between the thighs ("Seen, reported, not
+  touched" under "The first area is built") was the welded crotch stretching
+  under a staggered stance: the vertices there were weighted near-equally
+  to the pelvis and both thighs. `rig_export.pin_crotch` tapers them onto
+  the pelvis (101 on Saud); a sample vertex that moved 13 mm in the guard
+  moves 0. The geometry is still welded -- a boolean cut was tried twice and
+  looked worse both times.
+
+**The pipeline builds bosses.** `hero/` now does what AL-WAHSH and ZAYOS need
+and nobody had built: a bald head (`hair_parts("bald")` is empty; the hair
+material is never assigned or baked), no shirt (`garments.dress(tee=False)`
+leaves an empty Tee rather than None, so nothing downstream needs a second
+path), boxing gloves (`anatomy.glove`, unioned over the fingers rather than
+replacing them, because every man exports the same 62 bones, fingers
+included; its own material, in the man's band colour), and a scar
+(`face.shade(scar=True)`, over his left brow). Two bugs on the way: a BVH
+tree built from no geometry answers `find_nearest` with (None, None, None,
+None), not None, and the bald head crashed on it; and `palette_for` dropped
+the beard of any bald man, which would have shaved AL-WAHSH. And one in the
+rig check: `rig_full_ik.verify`'s toe-roll tolerances were millimetres
+measured on Saud and never scaled, and ZAYOS -- 1.48 times his height --
+failed them at his own true proportions. They scale with the man now; the
+self-test still bites nine of nine at Saud's size.
+
 **Not verified.** No engine has compiled or imported any of this. The
 textures and the FBX are written by Blender and read back by Blender, and
 that is all that has been checked.
@@ -513,6 +564,112 @@ it agrees to 0.2 mm -- with the keys shifted one frame, which is Blender's
 own FBX importer's convention and not something in the file. `Content/Animation/Bosses/boss-motion.png`
 is a contact sheet of every clip drawn as the skeleton itself, which is how
 they were judged.
+
+## Saud moves, and every clip is posed through the IK rig
+
+Since 2026-09-23. Asked as "improve motion Saud IK", then, when asked what
+that meant, all four of: Saud's own strike clips, his movement clips, the
+rig itself, and the boss clips moved onto IK.
+
+**The FK clips skated.** `build_motion.py` posed every frame bone by bone and
+planted the feet afterwards by sliding the whole man up or down until his
+lowest foot touched -- up and down was all that fixed. Measured on the
+seventeen FBX files it had shipped, read back through Blender's importer:
+the support foot slid 30-35 cm across the floor on every kick and knee,
+44-54 cm round a circle on the spinning kick (it turned about the origin,
+not the ball of the foot it stands on), the rear foot 9-13 cm under every
+cross and hook (the hips' turn swung both legs with them), and the guard
+idle's sway carried both feet 2.2 cm side to side. Measured the same way on
+the files this writes: 0.0-0.2 mm.
+
+**How.** `Tools/blender/motion_ik.py` is new. Each frame is still struck in
+FK from the same shapes -- the aims, lean, twist, the browser's timing and
+ease -- then every limb is handed to `rig_full_ik`'s controls: a planted foot
+is an IK target that does not move, turned on its ball and rolled onto it
+as far as the FK shape turned and rolled it; the hips come down only as far
+as a planted leg needs to reach; a leg strike moves the body over the
+support foot (standing on one foot, a man's weight has to be over it --
+the FK clips had the foot skate under the hips instead); a jab and a cross
+run the fist down a straight line (it swung an arc about the shoulder, 6.7
+cm off the line); the spin turns on the support ball through the rig's new
+pivot. The rig is then stripped and each frame's deform bones are written
+as keys. The bake reproduces the rig to 0.002 mm, and every exported FBX is
+read back and every bone of every frame compared: 0.00 mm.
+
+**Three more things the FK clips had wrong, found on the way:**
+
+- **The guard's rear knee bent backwards.** Its thigh aims 20 degrees back
+  and its shin 7 forward: measured on the skeleton, the knee sat 11 cm BEHIND
+  the line from hip to ankle, 29 degrees of a knee hyperextended, in every
+  frame of every FK clip, and 9 more on the kick's support leg. The renders
+  never showed it, because they pose through IK with the pole in front.
+  Planted knees now take a forward pole; a striking leg keeps its FK chamber.
+- **He never stood on the floor.** The FK guard's lead ball is 5.2 cm up and
+  its rear 4.0, against 2.4 at rest, and "ground" was the guard's own lowest
+  foot -- so every FK clip hovered 1.6 cm, the lead foot 1.2 more.
+- **The FBX exporter simplified the curves.** Its default
+  `bake_anim_simplify_factor` of 1.0 drops keys it judges close enough, and
+  on a planted foot that was 8 mm of slide in the file that was not in the
+  rig. Every key is kept now; the read-back is what caught it.
+
+Two small changes of judgement, both from the contact sheet: the guard's
+breath sinks from the stance instead of rising above it (legs that are all
+but straight cannot lift the hips 2.6 cm, and the top of every breath was cut
+flat), and its sway goes round in a closed loop rather than a half sine to
+one side.
+
+**Saud's clips.** `Content/Animation/Saud/`, 20 FBX, `DT_SaudMotion.csv` and
+`saud-motion.png`. His strikes are his `DT_Fighters` row (Jab, Cross, Hook,
+Kick, Knee) plus Special, the player's finisher. The rest are the states a
+fight holds him in, shaped on the browser's `drawFighter` (index.html:
+1504-1576) and timed by the C++ that holds him there, read out of
+`FighterBase.cpp` and `SaudCharacter.cpp` rather than copied:
+
+| clip | length | from |
+| --- | --- | --- |
+| Guard | 2.62 s loop | the browser's standing breath, sin(t*2.4) |
+| Walk Fwd / Back / Left / Right | 0.57 s loop | the browser's moving rate, 11 rad/s; stride from MoveSpeed 341 cm/s |
+| Dash Fwd / Back / Left / Right | 0.24 s | `DashRemaining` |
+| Block | 2.62 s loop | the browser's block pose; fists at the forehead |
+| Hit Light / Heavy | 0.22 / 0.34 s | `HitStunRemaining`; the browser's hk = hitT / 0.28 |
+| Down | 0.85 s | `DownRemaining`; ends 71 degrees back (the browser's 1.30 rad) |
+| GetUp | 0.60 s | the invulnerability the engine calls "brief mercy on getting up" |
+
+Walk and Dash are four clips each because a heading is not a facing here:
+the camera and the stick decide one, the opponent the other. At 341 cm/s and
+the browser's 11 rad/s the walk is a run -- 35 % of the cycle on each foot
+-- and sideways the lead foot steps and the other chases it, at the lag
+that keeps them furthest apart; they never cross. The browser draws a dash
+as a fast walk; here it is a dip, both feet off the floor and the catch.
+Down does not slide 30 px back as the browser's drawing does -- a
+picture's offset with no capsule under it -- he sits down and back half a
+metre, so GetUp can rise forward over his feet into the guard. Death reuses
+Down (the engine holds it 1.05 s against 0.85; the last frame holds).
+
+**The rig gained** a body pivot (`CTRL_pivot`, and `MCH_unpivot` taking its
+move back out, so moving it changes nothing and turning it turns everything
+below about that point), IK-to-FK and FK-to-IK snapping (`snap_fk_to_ik`,
+`snap_ik_to_fk`), and `verify()` checks for the pivot, both snaps, the poles
+pinning the knee and elbow without moving the hand or foot, and no stretch
+out of reach. `rig_full_ik.py --bite` breaks each of the thirteen mechanisms
+and all thirteen checks notice. `rig_full_ik.py --refresh rigs/X.blend`
+rebuilds a man's control layer in place in seconds, and every file under
+`rigs/` has been refreshed with it.
+
+**Checked, each proved to fail by `build_motion.py --bite`** (six sabotages,
+each also run unbroken and passing): planted feet stay where the plan put
+them; knees never bend backwards; a straight punch is straight; walking
+feet never cross; Down never goes through the floor; GetUp starts where
+Down ends. Also held, not bitten: loops close, a walk lifts its feet, a
+dash leaves the floor and comes back to the guard, a block's fists are up,
+a heavy hit sends the head further back than a light one (24.6 cm against
+14.1), Down ends on the floor, GetUp ends in the guard.
+
+**Not verified, the same way the boss clips never were.** No engine has
+imported any of this, and nothing plays it: the only montage call is on the
+ability path nothing drives (see "The bosses move now"). A walk blendspace,
+a state machine that picks Hit or Down, and root motion for the dash are
+engine work. The clips are in place; root motion is not in them.
 
 ## L_Prologue -- Saud's life before he fell
 
@@ -693,9 +850,9 @@ reproduced by a second, independent pass before it was accepted:
   reverse foot's floor pivots stood 20 cm in the air, and the "tee pinches
   to a point at the waist" was this twist between the unturned pelvis and
   the turned spine, not a garment. The frame is now the bone's own, swung
-  onto the aim with no twist. `Tools/blender/build_motion.py:515` builds
-  the boss clips' frames the same way and carries the same twist; it is
-  not in this ask and is not touched -- said here, waiting to be told.
+  onto the aim with no twist. `Tools/blender/build_motion.py`'s own copy
+  of the twisted frame (`reaim`) was fixed 2026-09-23 and then removed
+  with the move onto the IK rig ("Saud moves", below).
 - `stance()` read joint positions in world space and wrote the hand and
   foot targets back into `PoseBone.matrix`, which is armature space. The
   two agree with the rig at the origin, where every render of the pipeline
@@ -860,12 +1017,24 @@ Don't re-discover them; don't fix them without being told to.
   so the meter never spends and nothing happens. One word to fix. The same
   bug on the enraged boss *was* fixed, because that one was inside the fight
   style work.
-- **ZAYOS has no legal strike at Long range.** His style carries no Kick and
-  no Knee, so `ChooseStrike` finds nothing in the 186.6-328.7 cm band and he
-  has no answer there. The canon says the fight is "learning to be somewhere
-  else when it lands", so this may well be the point -- but nothing in the
-  code says it is deliberate, and a fighter with an empty band is usually a
-  bug. Left alone because deciding it is a design call.
+- **ZAYOS has no legal strike at Long range -- decided, 2026-09-23: as
+  designed, not touched.** His style carries no Kick and no Knee, so
+  `ChooseStrike` finds nothing in the 186.6-328.7 cm band. This entry used
+  to say nothing in the code marked that as deliberate; it does.
+  `Tools/levels/build_data_assets.py`'s `STRIKE_BANDS` table says so
+  directly -- "a knee is a close-range strike whoever throws it, and an
+  archetype that only knows knees is an archetype that has to get inside to
+  do anything at all. That is what makes a grappler read as a grappler" --
+  and `USaudFightStyleData::ChooseStrike` and `UFightStyleComponent::
+  TickOffence` both carry the same call spelled out for every archetype:
+  "Nothing to throw from here. Not a failure -- it is the whole reason a
+  boxer walks forward instead of swinging at air," and offence returning
+  empty never stops the approach tick, which closes distance every frame
+  regardless of band -- so an empty Long band is a puncher having to get
+  inside, not a fighter stuck standing there. No move in `STRIKE_BANDS`
+  reaches Long except Kick, and ZAYOS only ever punches (`build_motion.py`
+  asserts he never gets a leg clip), so the one way to give him a Long
+  answer is a move type he canonically does not have. Left as it is.
 - **The UE5 fighter table drops how big each man is.** The browser carries
   `sc` and `look.build` per archetype -- ZAYOS is 1.55 and 1.60, half again
   the size, which is his whole identity -- and `DT_Fighters.csv` has no
@@ -876,7 +1045,8 @@ Don't re-discover them; don't fix them without being told to.
   the spine above an unturned pelvis (see "The first area is built": the
   aim), and it went with that fix: the posed mesh's slice at z 1.04 was
   35 x 52 mm and is 220 x 209. The entry stays so the misdiagnosis is on
-  record; `build_motion.py`'s clips still carry the twist.
+  record. `build_motion.py`'s clips carried the twist too until
+  2026-09-23; they no longer do.
 - **The trainers read as pointed dress heels.** The shoe loft's last two rows
   drop the toe box to half the height of the heel, so the topline slopes
   down to a point instead of holding level.
