@@ -424,7 +424,22 @@ def hairline_weight(P):
     # hair by then or the recession's corner shows as a step at the seam.
     temple = (ramp(lat, 0.52, 0.86) * ramp(z, HAIRLINE[0] - 0.052, HAIRLINE[0] - 0.004) * ramp(fwd, 0.10, 0.34)
               * ramp(z - plane, 0.0075, 0.0035))
-    return np.clip(hw - 0.75 * temple, 0.0, 1.0)
+    hw = np.clip(hw - 0.75 * temple, 0.0, 1.0)
+    if HAIR["style"] == "fringe":
+        # The fringe is paint over the forehead, with the locks
+        # (assembly.hair_parts) for lift: at a 3.5 mm remesh a lock of hair
+        # is a bump, and the ragged edge that says "fringe" is finer than
+        # that. Longest in the middle, pointed locks, gone by the temples.
+        u = np.clip(np.abs(x) / 0.058, 0.0, 1.0)
+        # a tip every 8.5 mm, each lock a little longer or shorter
+        k = np.floor(x / 0.0085 + 0.5)
+        tip = (1.0 - np.abs(np.sin(np.pi * x / 0.0085))) ** 1.3
+        length = 0.7 + 0.6 * (np.sin(k * 12.9898) * 43758.5453 % 1.0)
+        lower = plane - 0.008 - (0.004 + 0.012 * tip * length) * (1.0 - u * u)
+        fringe = (ramp(z, lower - 0.0010, lower + 0.0010) * ramp(np.abs(x), 0.058, 0.044)
+                  * ramp(fwd, 0.10, 0.30))
+        hw = np.maximum(hw, fringe)
+    return hw
 
 # ---- the cut, 2026-09-24 ---------------------------------------------------
 # Which cut this man wears and how grey he is at the temples: module state,

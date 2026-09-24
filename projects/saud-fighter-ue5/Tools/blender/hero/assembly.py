@@ -258,18 +258,29 @@ def hair_parts(style="quiff"):
                 ellipsoid("parttop", (0.006, 0.000, 1.7705), (0.0560, 0.0770, 0.0220), (0.06, 0.0, 1.0),
                           segs=48, rings=28)]
     if style == "fringe":
-        # a textured top pushed forward, and a fringe over the forehead. The
-        # fringe hangs below the hairline plane, so it goes to the body as
-        # its own source group (assign_by_source keeps it hair).
-        # One sheet from the crown forward and down over the brow, not a
-        # separate roll laid on the forehead: the fringe overlaps the top
-        # by half its height, so the union makes them one mass.
-        fy = A.head_surface_y(0.0, 1.760) + 0.0035
-        return [hair_shell(0.0040),
-                ellipsoid("fringetop", (0, -0.016, 1.7710), (0.0620, 0.0780, 0.0220), (0, -0.20, 1.0),
-                          segs=48, rings=28),
-                ellipsoid("fringe", (0, fy, 1.7625), (0.0580, 0.0130, 0.0150), (0, -0.40, 1.0),
-                          segs=40, rings=24)]
+        # A textured top pushed forward, and the fringe as locks lying ON the
+        # forehead. The first build (2026-09-24) laid one straight roll
+        # across the brow, 13 mm thick and 3.5 mm inside the surface: the
+        # forehead curves back at the sides and a straight roll does not, so
+        # it stood off the head like a hat's brim. Each lock here sits on
+        # the skull's own surface at its own x and leans with it, 3.5 mm
+        # proud at most; they hang below the hairline plane, so they go to
+        # the body as their own group (assign_by_source keeps them hair).
+        # The top stays inside the shell's front, so it has no visor either.
+        parts = [hair_shell(0.0040),
+                 ellipsoid("fringetop", (0, -0.004, 1.7705), (0.0600, 0.0740, 0.0210), (0, -0.12, 1.0),
+                           segs=48, rings=28)]
+        n = 13
+        for i in range(n):
+            h = [_hash01(4099 + i * 131 + j * 17) for j in range(3)]
+            x = -0.052 + 0.104 * i / (n - 1) + (h[0] - 0.5) * 0.004
+            rz = 0.011 + 0.005 * h[1]                      # how far it hangs
+            zc = HAIRLINE[0] - 0.004 - 0.55 * rz
+            y = A.head_surface_y(x, zc) - 0.0005
+            slope = (A.head_surface_y(x, zc + 0.004) - A.head_surface_y(x, zc - 0.004)) / 0.008
+            parts.append(ellipsoid("fringe_lock", (x, y, zc), (0.0072, 0.0030, rz),
+                                   (0.0, slope, 1.0), segs=16, rings=12))
+        return parts
     # The skull crown is at 1.796 and the chin at 1.570: 0.226 m a head, and
     # 8.04 heads tall, which is the figure the art direction asks for. But
     # the cap used to top out at 1.806 and the quiff at 1.814, so the head a
