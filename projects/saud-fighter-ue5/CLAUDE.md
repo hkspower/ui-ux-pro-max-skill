@@ -13,35 +13,40 @@ place looks like.
 
 ## Art direction
 
-**This build is not cartoonish.** The browser project next door is stylised on
-purpose, because it draws every pixel in code and stylisation is what makes
-that possible. This one has an engine underneath it, so it is held to what an
-engine can actually do.
+**Since 2026-09-24 (Riyadh) this build is an adult Japanese anime: a gritty
+fight seinen** -- the register of *Baki*, *Kengan Ashura*, *Hajime no Ippo*.
+Asked by the author as "make all theme game style like adult japanese
+anime", settled as this build (not the browser's), that register, over the
+fighters, the backgrounds, the hit effects and the HUD. Until that day this
+section said "not cartoonish ... no cel shading, no toon outlines"; that
+direction is retired, and the realistic pipeline under it is kept on
+purpose (see "The anime look", below).
 
-The target is an adult action game with the highest graphics the hardware will
-carry — the register of a modern console fighter, not a mobile stylised one.
-Concretely, and in order of how much each one matters:
+What makes it seinen rather than anything else anime does, in order of how
+much each one matters:
 
-- **Realistic human proportions and anatomy.** Eight heads tall, real muscle
-  insertion, hands that are hands. No exaggerated silhouettes, no oversized
-  heads, no simplified limbs.
-- **Physically based materials.** Skin with subsurface scattering, cloth with
-  real fibre response, sweat, leather, metal. Every surface answers to the
-  light rather than carrying its shading painted in.
-- **Real lighting.** Lumen where the device can hold it, shadow maps where it
-  cannot. Light comes from sources in the scene and everything obeys the same
-  ones — the browser build's lighting rig is the design intent; this build has
-  the means to do it properly.
-- **Motion-capture-grade animation.** Weight, follow-through, recovery you can
-  read. Contact frames that land. No looping idle that snaps.
-- **Grounded, muted colour.** Kuwait's own palette — sand, concrete, dusk,
-  neon over water. Saturation earns its place; it is not the default.
-- **Damage that accumulates.** Bruising, swelling, torn cloth, blood, dust and
-  sweat that build across a fight and stay.
+- **Real bodies, drawn.** Adult proportions, eight heads tall, real muscle
+  insertion, hands that are hands -- the meshes stay exactly as the hero
+  pipeline builds them. A seinen fighter is anatomy; the anime is in how
+  it is lit and inked, not in a bigger head or bigger eyes.
+- **Flat tones with a hard terminator.** Lit, shadow, deep shadow; a sharp
+  highlight where sweat catches. Not a gradient.
+- **Heavy ink.** A thick silhouette round every fighter, a finer line on
+  every fold -- jaw, lip, muscle edge -- and a lighter line on the world
+  that thins with distance.
+- **Hatching in the deepest shadow**, crossed where it is darkest.
+- **Grounded, muted colour.** Kuwait's own palette -- sand, concrete, dusk,
+  neon over water -- a little desaturated and dust-warm. The saturated
+  colours are the blood-red of the HUD and the neon; nothing else shouts.
+- **Blows that land like a panel turning.** An impact frame of ink and
+  paper on the big hits, speed lines round the man hit.
+- **A HUD lettered like a page.** Ink-bordered panels, bars that lean, a
+  starburst for the combo.
 
-**What to avoid:** rounded cartoon shapes, flat cel shading, toon outlines,
-bright primary palettes, chibi or stylised proportions, bouncy squash-and-
-stretch animation, anything that reads as a mobile-store art style.
+**What to avoid:** chibi or super-deformed proportions, oversized eyes, moe
+softness, pastel palettes, bouncy squash-and-stretch, anything that reads
+as a mobile gacha art style -- and, the other way, going back to plain PBR
+with no ink.
 
 This applies to models, materials, animation, VFX, lighting and UI in this
 directory. It does **not** apply to `../saud-fighter`, the browser build,
@@ -1619,6 +1624,49 @@ thug, the brawler and AL-SAQR whole, since their cut changed; Saud,
 AL-WAHSH and ZAYOS from their checkpoints). No engine has imported any of
 it.
 
+## The anime look -- 2026-09-24
+
+Asked as "make all theme game style like adult japanese anime", settled as
+this build, the gritty fight-seinen register, over the fighters, the
+backgrounds, the hit effects and the HUD. See "Art direction" for what it
+is meant to look like; this is how it is built.
+
+**One post-process over everything.** `Tools/look/anime_look.py` holds the
+look's table (`LOOK`), generates the HLSL of one post-process material,
+`M_Anime_Post`, and -- run inside the editor -- builds it and its
+Material Parameter Collection `MPC_Anime` under `/Game/Materials/Anime/`.
+Per pixel: the light a surface receives (lit colour over base colour) is
+cut into lit / shadow / deep-shadow tones with a hard terminator and a
+highlight, laid on the base colour in the light's own hue; deep shadow is
+hatched; ink goes where depth jumps and where the surface folds, heavier
+round fighters (they write custom depth, `AFighterBase::BeginPlay`); the
+sky is banded; a gritty grade. The meshes and the realistic pipeline are
+untouched: a seinen draws real bodies.
+
+**What moves.** `Combat/SaudAnime.h` (no engine; `Tools/harness/tests/
+anime.cpp`): a heavy clean hit gets one film frame (1/24 s) of ink and
+paper, a knockdown two with the second flipped, a parry two with the first
+flipped; light hits and blocks get none. Speed lines round the man hit,
+redrawn on twos. All in real time, inside the freeze. `Game/
+SaudLookSubsystem` spawns the post-process (an unbound volume, so every
+camera sees it) and writes `MPC_Anime` each frame; `USaudFeelSubsystem::
+OnBlow` hands it every blow.
+
+**The HUD.** There was none. `Game/SaudHUD` (Canvas, no asset) draws a
+manga page: Saud's panel with a leaning health bar and its paper damage
+trail, stamina, five rage blocks; the combo on a starburst; a boss banner;
+a short bar over a street man after he is hit. Its layout is `SaudHud` in
+the same header, checked for the title-safe area and couch-legible type at
+seven screen shapes. Both game modes set it. There are no menus in this
+build to restyle.
+
+**Checked**: the harness (the anime test's sabotages bite, eight of
+eight); `anime_look.py` runs its steps in numpy on a lit sphere (four
+sabotages, four caught) and checks its parameter names against the
+header. **Not verified**: no engine has built the material or compiled
+any of the C++. The previews are in progress (see the commit that adds
+`Docs/renders/*anime*`).
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
@@ -1723,4 +1771,7 @@ Don't re-discover them; don't fix them without being told to.
   the PBR bake this pipeline writes, and no engine has ever been run against
   this project, so nothing of it can be built or looked at here. The
   palette half of the ask was done (`col.band`). The material is for
-  whoever first opens this project in the editor.
+  whoever first opens this project in the editor. **Superseded 2026-09-24**
+  by the anime look over the whole build ("The anime look"): the stepped
+  tones and the ink are `M_Anime_Post`, built by `Tools/look/anime_look.py`
+  in the editor -- still never compiled.

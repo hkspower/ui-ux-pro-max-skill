@@ -1,6 +1,7 @@
 #include "Game/SaudFeelSubsystem.h"
 #include "Combat/FighterBase.h"
 #include "Game/SaudGameInstance.h"
+#include "Game/SaudLookSubsystem.h"
 
 #include "Camera/CameraComponent.h"
 #include "Engine/World.h"
@@ -65,6 +66,12 @@ void USaudFeelSubsystem::OnBlow(const AFighterBase* Victim, const AFighterBase* 
 	if (bVictimIsPlayer || bAttackerIsPlayer)
 	{
 		Buzz(F);
+	}
+
+	// And the picture's half of it: the impact frame and the speed lines.
+	if (USaudLookSubsystem* Look = USaudLookSubsystem::Get(this))
+	{
+		Look->OnBlow(Victim, Hit, bHeavy);
 	}
 }
 

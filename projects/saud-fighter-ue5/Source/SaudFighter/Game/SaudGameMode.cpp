@@ -2,6 +2,7 @@
 
 #include "Combat/SaudArena.h"
 #include "Combat/SaudCharacter.h"
+#include "Game/SaudHUD.h"
 #include "Game/SaudGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "World/WaveDirector.h"
@@ -10,6 +11,7 @@
 ASaudGameMode::ASaudGameMode()
 {
 	DefaultPawnClass = ASaudCharacter::StaticClass();
+	HUDClass = ASaudHUD::StaticClass();
 	PrimaryActorTick.bCanEverTick = false;
 }
 

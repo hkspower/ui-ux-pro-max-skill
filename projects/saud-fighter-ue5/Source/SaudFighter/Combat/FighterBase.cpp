@@ -46,6 +46,13 @@ void AFighterBase::BeginPlay()
 	Health = MaxHealth;
 	Stamina = MaxStamina;
 
+	// The anime look draws a fighter's ink heavier than the world's, and
+	// tells them apart by custom depth (Game/SaudLookSubsystem).
+	if (USkeletalMeshComponent* Body = GetMesh())
+	{
+		Body->SetRenderCustomDepth(true);
+	}
+
 	if (AbilitySystem)
 	{
 		AbilitySystem->InitAbilityActorInfo(this, this);

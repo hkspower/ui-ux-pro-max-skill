@@ -34,6 +34,7 @@ void AEnemyFighter::ConfigureFromDefinition(const FFighterDef& Def, int32 Tier,
 	GuardChance      = Def.GuardChance;
 	bHitAndRun       = Def.bHitAndRun;
 	bIsBoss          = Def.bIsBoss;
+	DisplayName      = Def.DisplayName;
 	bResistsKnockdown = Def.bIsBoss;
 	ExperienceValue  = Def.ExperienceValue;
 	Moves            = Def.Moves;

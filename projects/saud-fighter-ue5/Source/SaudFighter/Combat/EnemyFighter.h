@@ -34,6 +34,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Fighter")
 	bool bIsBoss = false;
 
+	/** His row's name, for the HUD's boss banner (Game/SaudHUD). */
+	UPROPERTY(BlueprintReadOnly, Category = "Fighter")
+	FText DisplayName;
+
 	/** Set to true once a boss drops below half health. */
 	UPROPERTY(BlueprintReadOnly, Category = "Fighter")
 	bool bEnraged = false;

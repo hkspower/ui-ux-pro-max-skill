@@ -1,6 +1,7 @@
 #include "Prologue/SaudPrologueGameMode.h"
 
 #include "Combat/SaudCharacter.h"
+#include "Game/SaudHUD.h"
 #include "Combat/SaudTypes.h"
 #include "Game/SaudGameInstance.h"
 #include "Kismet/GameplayStatics.h"
@@ -9,6 +10,7 @@
 ASaudPrologueGameMode::ASaudPrologueGameMode()
 {
 	DefaultPawnClass = ASaudCharacter::StaticClass();
+	HUDClass = ASaudHUD::StaticClass();
 	PrimaryActorTick.bCanEverTick = false;
 }
 

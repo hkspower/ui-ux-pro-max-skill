@@ -778,10 +778,11 @@ vocabulary carries over unchanged when they arrive.
 
 ## Art direction
 
-Not cartoonish. See `CLAUDE.md` in this directory — realistic proportions,
-physically based materials, real lighting, motion-capture-grade animation, a
-grounded palette and damage that accumulates. The browser build next door
-keeps its stylised look on purpose; this one does not share it.
+Adult Japanese anime, the gritty fight-seinen kind (since 2026-09-24): real
+adult bodies drawn with flat tones, a hard terminator, heavy ink and hatched
+shadow, impact frames and speed lines on the big blows, and a HUD lettered
+like a manga page. See `CLAUDE.md` in this directory. The browser build next
+door keeps its own stylised look on purpose; this one does not share it.
 
 ---
 
