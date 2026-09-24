@@ -152,8 +152,11 @@ def main():
         # A sheet: each man full length (Cam.002) over his face (Cam.003),
         # from his rig file.
         i = sys.argv.index("--men")
-        men = [a for a in sys.argv[i + 1:] if not a.startswith("--")]
-        men = men[:men.index(out)] if out in men else men
+        men = []
+        for a in sys.argv[i + 1:]:          # the names, up to the next option
+            if a.startswith("--"):
+                break
+            men.append(a)
         cols = []
         for man in men:
             blend = os.path.join(HERE, "rigs", man + ".blend")
