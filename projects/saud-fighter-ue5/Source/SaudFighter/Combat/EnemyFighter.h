@@ -52,6 +52,28 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "AI")
 	float LaneOffset = 0.f;
 
+	/**
+	 * The role this one holds in the crowd, since 2026-09-24: a bearing off
+	 * the PLAYER'S FACING (0 in front of him, +-110 on his flanks, 180 at
+	 * his back, +-50 out wide) and a lane for anyone past the first six.
+	 * AWaveDirector hands them out every frame from where everyone stands
+	 * (SaudBrain::AssignRoles); the style's footwork steers to it. CrowdBearing
+	 * above is measured off the enemy's own approach and is what the plain
+	 * AI still uses; this is measured off the man being fought.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "AI")
+	float CrowdRoleBearing = 0.f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "AI")
+	float CrowdRoleLane = 0.f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "AI")
+	bool bHasCrowdRole = false;
+
+	/** The distance this one fights at: the style's when it has one. */
+	UFUNCTION(BlueprintPure, Category = "AI")
+	float GetFightingRange() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Arena")
 	void SetArenaCircle(const FVector& InCentre, float InRadius);
 

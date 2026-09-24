@@ -61,7 +61,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Stage")
 	void ApplyArenaBounds();
 
-	/** Fair-crowd rule: only a couple of enemies may be swinging at any moment. */
+	/** Fair-crowd rule: only a couple of enemies may be swinging at any
+	    moment, and since 2026-09-24 only ones placed to: in their range with
+	    a clear line to him, and never a second one from behind his back
+	    (SaudBrain::MayAttack). */
 	UFUNCTION(BlueprintCallable, Category = "Waves")
 	bool TryClaimAttackToken(AEnemyFighter* Claimant);
 
@@ -115,6 +118,18 @@ protected:
 
 	UFUNCTION()
 	void HandleEnemyDefeated(AFighterBase* Fighter);
+
+	/** Hand every live enemy its place round the player -- front, flanks,
+	    back, wide -- from where they all stand now (SaudBrain::AssignRoles).
+	    Every frame, because the player turns. */
+	void AssignCrowdRoles();
+
+	/** Where the player stands and looks, for the crowd's geometry. False
+	    when there is no player to fight. */
+	bool PlayerFrame(FVector& OutPos, FVector& OutFacing) const;
+
+	/** Is another live enemy standing on this one's line to the player? */
+	bool LineToPlayerBlocked(const AEnemyFighter* Enemy, const FVector& PlayerPos) const;
 
 private:
 	const FStageDef* Stage = nullptr;

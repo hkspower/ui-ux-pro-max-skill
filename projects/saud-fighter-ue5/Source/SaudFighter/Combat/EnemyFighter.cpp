@@ -55,6 +55,11 @@ void AEnemyFighter::ConfigureFromDefinition(const FFighterDef& Def, int32 Tier,
 	}
 }
 
+float AEnemyFighter::GetFightingRange() const
+{
+	return (FightStyle && FightStyle->Style) ? FightStyle->Style->PreferredRange : PreferredRange;
+}
+
 void AEnemyFighter::SetArenaCircle(const FVector& InCentre, float InRadius)
 {
 	ArenaCentre = InCentre;
@@ -146,13 +151,17 @@ void AEnemyFighter::TickAI(float DeltaSeconds, ASaudCharacter* Player)
 
 	FaceTowards(Target);
 
-	// Guard when the player commits nearby — this is what makes bouncers a wall.
+	// Guard when the player commits nearby — this is what makes bouncers a
+	// wall. Measured flat and against the facing: this was |X| < 240 and a
+	// depth band on Y until 2026-09-24, a corridor's test that made the
+	// guard and the range depend on which way the fight happened to lie.
+	const float Distance = SaudArena::Flat(Delta);
 	bBlocking = (Player->State == EFighterState::Attack)
-		&& FMath::Abs(Delta.X) < 240.f
+		&& Distance < 240.f
+		&& SaudArena::Covers(Facing, Delta)
 		&& GuardRoll < GuardChance;
 
-	const bool bInRange = FMath::Abs(Delta.X) < PreferredRange * 0.95f
-		&& FMath::Abs(Delta.Y) < 70.f;
+	const bool bInRange = SaudArena::InHitbox(Self, Facing, Target, PreferredRange * 0.95f, 70.f, 0.f, 0.f);
 
 	if (bInRange && AttackCooldown <= 0.f && Moves.Num() > 0 && Player->State != EFighterState::Down)
 	{
@@ -223,9 +232,17 @@ void AEnemyFighter::OnHitLanded(AFighterBase* Victim, const FHitResultData& Hit)
 {
 	// Whether the swing connected is the difference between pressing the
 	// combination and paying for a miss, and only the hit resolution knows.
+	// A guard that stopped it is its own answer: the style counts those.
 	if (FightStyle)
 	{
-		FightStyle->NotifyHitLanded();
+		if (Hit.bBlocked || Hit.bParried)
+		{
+			FightStyle->NotifyBlocked();
+		}
+		else
+		{
+			FightStyle->NotifyHitLanded();
+		}
 	}
 }
 

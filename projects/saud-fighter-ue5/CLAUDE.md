@@ -1366,6 +1366,107 @@ bone names are the mannequin's 62 (`thigh_l`, `calf_l`, `foot_l`,
 missing one skips that solve. The men in this project share one skeleton
 at different sizes, so the same retargeting caveat as the clips applies.
 
+## The enemies read the fight -- 2026-09-24
+
+Asked as "improve enemy AI for fighting", settled as the Unreal build, three
+parts: the corridor leftovers, reading the player, fighting as a crowd. The
+browser build's `updateEnemy()` is untouched.
+
+**The corridor leftovers.** `UFightStyleComponent` measured the distance to
+its opponent as `|To.X|` and chose its opponent by `|X| + 2|Y|`; the plain
+AI in `AEnemyFighter::TickAI` guarded on `|Delta.X| < 240` and was "in
+range" on `|X| < range, |Y| < 70`. Eight days after the fight left the
+strip, a man standing due north of the player was at distance zero, in the
+Close band, throwing knees at nobody, and the whole wave's range bands
+depended on which way the fight happened to lie. All of it is flat
+distance now, or `SaudArena::InHitbox` / `Covers` along the facing.
+
+**Reading the player: `Combat/SaudBrain.h`**, with no engine in it, checked
+by `Tools/harness/tests/brain.cpp`. What one fighter can see of another
+(`FSeen`: state, guard, whether his front covers me, which attack he is in
+and how far into it -- from `GetCurrentAttack()` and `GetAttackElapsed()`
+against the attack table's Startup / Active / Recovery -- and whether I am
+inside that attack's box) becomes one intent:
+
+- **Guard** is the browser's own rule, unchanged: while he attacks and I am
+  in its line, the guard roll against the style's `GuardChance`. It does
+  not wait to see the strike, because the browser's did not and those are
+  the numbers the game was tuned on.
+- **Slip**: of the guards it would raise, the style's `SlipShare` are a
+  step off his line instead (across his facing, to the side I am already
+  on, 0.2 s, once per swing of his) -- only when the strike has been SEEN
+  and there are 60 ms of wind-up left to step in.
+- **Punish**: he is recovering, or swinging at air, and the fastest strike
+  legal from here goes live before he is free again (`CanPunish`: my
+  startup against his recovery left, give or take a frame, within reach).
+  Taken with the style's `PunishChance`; thrown at once, cooldown or not,
+  with that fastest strike rather than the style's favourite.
+- **Press**: he is stunned and something is legal from here: throw now.
+- **Flank**: his guard faces me: with `GuardRespect` (rising 0.22 for every
+  strike of mine it has stopped in a row, to 0.95) go round to his back,
+  where `SaudArena::Covers` says the guard does not reach, and do not swing
+  until then.
+- **Wait**: he is dashing or down: nothing to be done; footwork holds a
+  third further out, clear of the swing he stands up into.
+
+"Seen" is the honesty in it: an attack is noticed only once it has been
+going for the style's `ReactionSeconds`. A 0.07 s jab is under everyone's
+(0.155-0.233 s across the roster, derived from each archetype's rhythm;
+bosses a shade quicker), so it is only ever met by the blind guard roll and
+never stepped off; a 0.16 s kick is seen by the quick with time to step and
+by the slow only after it has landed. The test holds the reaction times to
+the attack table: the jab's startup under the quickest reaction, the kick's
+wind-up between the quick and the slow, a jab's whole swing over before the
+slow could punish it, and the same jab punishable by the quick.
+
+Four new dials on `USaudFightStyleData`, derived by `build_data_assets.py`
+from `DT_Fighters` like the others: `ReactionSeconds` from the interval,
+`SlipShare` from speed (the Runner 0.6, the Kicker 0.36, the Grappler and
+Bouncer 0), `PunishChance` from speed (0.54-0.8), `GuardRespect` from the
+guard chance (0.45-0.62). Style assets built before them get the C++
+defaults (0.18 / 0 / 0.5 / 0.5); re-run the tool in the editor.
+
+**Fighting as a crowd.** `AWaveDirector::AssignCrowdRoles` every frame:
+each live enemy gets a bearing off the PLAYER'S FACING -- 0 in front (the
+presser), +-110 on his flanks, 180 at his back, +-50 out wide, a lane
+further out past six -- handed out front first to whoever already stands
+nearest that bearing, so nobody crosses the ring for a spot someone else is
+beside. The style's footwork steers round him to it (`RoleSteer` along
+`RoundHim`, the tangent that raises the bearing; the style's coin-flip
+circling inside a 12 degree dead band), and a Flank intent uses the same
+steer to the nearer side of his back. One enemy alone gets no role: it
+would have him circle to the player's front every time the player turned.
+`CrowdSlot` / `FlankSpot`, measured off the enemy's own approach, still
+serve the plain AI.
+
+Attack tokens (`TryClaimAttackToken`) were first come, first served. They
+go now to a fighter placed to use one: `AttackScore` (1 at his range, 0 at
+half or double, a little more from the front where the player can see it),
+nothing at all with a teammate on the line (`LineBlocked`, a shoulder's
+width either side, `SaudGameplay::CrowdLineWidth`), and never a second man
+from behind the player's back at once (`MayAttack`). A fighter whose line
+is blocked steps off it (`ClearLineStep`) rather than standing in it. A
+strike stopped by the guard is reported to the style (`NotifyBlocked`)
+instead of counting as a landing; it ends the combination and raises the
+respect.
+
+The test was sabotaged before it was trusted: no reaction gate, no
+behind-limit, a wrong bearing sign and a line blocked beyond its end each
+fail (7 checks between them).
+
+**Not verified -- none of the engine side has been compiled or played.**
+The pure header runs; `FightStyleComponent.cpp`, `EnemyFighter.cpp`,
+`WaveDirector.cpp` and the style dials are read-reviewed. Two things to
+watch on a first play: roles are reassigned every frame from positions, so
+two fighters equidistant from a bearing may trade roles for a moment (the
+dead band and the greedy front-first order are what damp it); and a punish
+still needs an attack token, so a crowd punishes at most two at a time,
+which is the fairness rule and not a bug.
+
+**Found on the way, not touched:** `AFighterBase::FaceNearestOpponent`
+scores by `|X| + 2|Y|` ("depth counts double"), the same corridor leftover,
+and it is the player's and the abilities' as much as the enemies'.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
@@ -1381,10 +1482,10 @@ at different sizes, so the same retargeting caveat as the clips applies.
   to build against. The C++ is idiomatic UE 5.4 and the data is complete, but
   expect to fix a compile error or two on a first build, and do not describe
   any of it as verified until it has actually built. The exceptions are
-  `Combat/SaudArena.h`, `Combat/SaudFeel.h` and `Combat/SaudIK.h`, which
-  `Tools/harness/run.sh` compiles and executes — those files' arithmetic is
-  checked, and no other C++ here is — and `Tools/audio/master.py`, which is
-  Python, runs, and has.
+  `Combat/SaudArena.h`, `Combat/SaudFeel.h`, `Combat/SaudIK.h` and
+  `Combat/SaudBrain.h`, which `Tools/harness/run.sh` compiles and executes —
+  those files' arithmetic is checked, and no other C++ here is — and
+  `Tools/audio/master.py`, which is Python, runs, and has.
 - **iOS is Mac-only.** There is no cross-compile. `Tools/ios/build-ios.sh`
   checks for this and says so rather than failing halfway through a cook.
 

@@ -4,6 +4,7 @@
 
 #include "Combat/SaudCharacter.h"
 #include "Combat/EnemyFighter.h"
+#include "Combat/SaudBrain.h"
 #include "Engine/DataTable.h"
 #include "EngineUtils.h"
 #include "Game/SaudGameInstance.h"
@@ -132,6 +133,9 @@ void AWaveDirector::Tick(float DeltaSeconds)
 	{
 		return;
 	}
+
+	// Where each of them stands round him, from where they all are now.
+	AssignCrowdRoles();
 
 	if (!Player->IsAlive())
 	{
@@ -319,12 +323,111 @@ bool AWaveDirector::TryClaimAttackToken(AEnemyFighter* Claimant)
 	{
 		return true;
 	}
-	if (AttackTokenHolders.Num() >= SaudGameplay::MaxSimultaneousAttackers)
+	if (!IsValid(Claimant))
+	{
+		return false;
+	}
+
+	// Placed to use it? In his range, a clear line to him, and not a second
+	// man at his back. It used to be first come first served, which in a
+	// ring round him meant two swings from behind at once and a swing
+	// through a teammate.
+	FVector PlayerPos, PlayerFacing;
+	if (!PlayerFrame(PlayerPos, PlayerFacing))
+	{
+		return false;
+	}
+	const FVector Self = Claimant->GetActorLocation();
+	const float Bearing = SaudBrain::BearingOf(PlayerPos, PlayerFacing, Self);
+	const float Score = SaudBrain::AttackScore(SaudArena::Flat(PlayerPos - Self), Claimant->GetFightingRange(),
+	                                           Bearing, !LineToPlayerBlocked(Claimant, PlayerPos));
+	int32 Behind = 0;
+	for (const AEnemyFighter* H : AttackTokenHolders)
+	{
+		if (IsValid(H) && SaudBrain::IsBehind(SaudBrain::BearingOf(PlayerPos, PlayerFacing, H->GetActorLocation())))
+		{
+			++Behind;
+		}
+	}
+	if (!SaudBrain::MayAttack(Score, SaudBrain::IsBehind(Bearing), AttackTokenHolders.Num(), Behind,
+	                          SaudGameplay::MaxSimultaneousAttackers))
 	{
 		return false;
 	}
 	AttackTokenHolders.Add(Claimant);
 	return true;
+}
+
+bool AWaveDirector::PlayerFrame(FVector& OutPos, FVector& OutFacing) const
+{
+	const AFighterBase* Player = Cast<AFighterBase>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
+	if (!Player || !Player->IsAlive())
+	{
+		return false;
+	}
+	OutPos = Player->GetActorLocation();
+	OutFacing = Player->GetFacing();
+	return true;
+}
+
+bool AWaveDirector::LineToPlayerBlocked(const AEnemyFighter* Enemy, const FVector& PlayerPos) const
+{
+	if (!IsValid(Enemy))
+	{
+		return false;
+	}
+	for (const AEnemyFighter* Other : LiveEnemies)
+	{
+		if (Other == Enemy || !IsValid(Other) || !Other->IsAlive())
+		{
+			continue;
+		}
+		if (SaudBrain::LineBlocked(Enemy->GetActorLocation(), PlayerPos, Other->GetActorLocation(),
+		                           SaudGameplay::CrowdLineWidth))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void AWaveDirector::AssignCrowdRoles()
+{
+	FVector PlayerPos, PlayerFacing;
+	TArray<AEnemyFighter*> Live;
+	for (AEnemyFighter* E : LiveEnemies)
+	{
+		if (IsValid(E) && E->IsAlive())
+		{
+			Live.Add(E);
+		}
+	}
+	// One man alone has no crowd to hold a place in: the style's own
+	// footwork is his. A role would have him circle to the player's front
+	// every time the player turned.
+	if (Live.Num() < 2 || !PlayerFrame(PlayerPos, PlayerFacing))
+	{
+		for (AEnemyFighter* E : Live)
+		{
+			E->bHasCrowdRole = false;
+		}
+		return;
+	}
+	TArray<FVector> Positions;
+	TArray<int32> Roles;
+	Positions.Reserve(Live.Num());
+	Roles.SetNumZeroed(Live.Num());
+	for (const AEnemyFighter* E : Live)
+	{
+		Positions.Add(E->GetActorLocation());
+	}
+	SaudBrain::AssignRoles(PlayerPos, PlayerFacing, Positions.GetData(), Live.Num(), Roles.GetData());
+	for (int32 I = 0; I < Live.Num(); ++I)
+	{
+		Live[I]->CrowdRoleBearing = SaudBrain::RoleBearing(Roles[I]);
+		Live[I]->CrowdRoleLane = SaudBrain::RoleLane(Roles[I]);
+		Live[I]->bHasCrowdRole = true;
+	}
 }
 
 void AWaveDirector::ReleaseAttackToken(AEnemyFighter* Claimant)

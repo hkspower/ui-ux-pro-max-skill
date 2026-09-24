@@ -250,6 +250,19 @@ def plan_styles():
             # careful fighter's -- so it falls as guard rises.
             CounterChance=round(max(0.05, min(0.55,
                 0.40 - num(row, "GuardChance", 0.12) * 0.5)), 2),
+            # How it reads the player (Combat/SaudBrain.h). A slow rhythm is
+            # a slow eye: the reaction runs with the interval, and a boss's
+            # is a shade quicker. A 0.07 s jab is under all of them; a
+            # 0.16 s kick is over the quick ones and under the slow.
+            ReactionSeconds=round(max(0.12, min(0.26,
+                0.10 + rate * 0.07 - (0.03 if boss else 0.0))), 3),
+            # Light feet step off a line; heavy feet block it.
+            SlipShare=round(max(0.0, min(0.6, (speed - 280.0) / 300.0)), 2),
+            # Fast archetypes take a window they see more often.
+            PunishChance=round(max(0.3, min(0.8, 0.25 + speed / 800.0)), 2),
+            # A careful fighter respects a guard; a brawler swings into it.
+            GuardRespect=round(max(0.3, min(0.85,
+                0.35 + num(row, "GuardChance", 0.12) * 0.8)), 2),
             Notes="Generated from DT_Fighters row '%s'. Edit the browser "
                   "project, re-export, re-run." % name,
         ))
@@ -272,6 +285,9 @@ def describe(attacks, talents, styles):
         print("   %-22s range %-6s discipline %-5s bounce %-5s circle %-5s combo %d"
               % (st["asset"], st["PreferredRange"], st["RangeDiscipline"],
                  st["BounceRate"], st["CircleTendency"], st["MaxComboLength"]))
+        print("        reads at %ss  slip %-4s punish %-4s respects a guard %s"
+              % (st["ReactionSeconds"], st["SlipShare"], st["PunishChance"],
+                 st["GuardRespect"]))
         for k in st["Strikes"]:
             print("        %-10s %-22s w %-5s opener %s"
                   % (k["AttackRow"], "/".join(k["Bands"]), k["Weight"],
@@ -326,7 +342,8 @@ def build(attacks, talents, styles):
         for key in ("PreferredRange", "RangeDiscipline", "ResetDistance",
                     "BounceRate", "BounceAmplitude", "CircleTendency",
                     "CircleSwitchTime", "AttackInterval", "RhythmJitter",
-                    "GuardChance", "CounterChance"):
+                    "GuardChance", "CounterChance",
+                    "ReactionSeconds", "SlipShare", "PunishChance", "GuardRespect"):
             asset.set_editor_property(_snake(key), float(st[key]))
         asset.set_editor_property("max_combo_length", int(st["MaxComboLength"]))
         asset.set_editor_property("b_guards_while_advancing",

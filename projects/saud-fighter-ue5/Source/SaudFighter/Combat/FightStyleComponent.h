@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Combat/SaudBrain.h"
 #include "Combat/SaudTypes.h"
 #include "Gameplay/SaudFightStyle.h"
 #include "FightStyleComponent.generated.h"
@@ -31,6 +32,17 @@ class AFighterBase;
  *     what makes him close the distance rather than swing at air.
  *
  *   WHAT does it do after?  Reset, counter, or press.
+ *
+ * And since 2026-09-24 it READS the man in front of it (Combat/SaudBrain.h):
+ * which phase of which strike he is in and whether it is aimed here, so a
+ * strike it has seen coming can be stepped off, a whiff or a recovery can
+ * be punished with the fastest thing that lands inside it, a stunned man
+ * is pressed, a guard that faces it is gone round rather than swung into,
+ * and a dash or a knockdown is waited out. Each reaction waits on the
+ * style's reaction time, so the fast strikes are never read and the slow
+ * ones are read by the quick archetypes -- the difference a player learns.
+ * It also holds the place the wave director gives it round the player
+ * (AEnemyFighter::CrowdRoleBearing) and steps off a teammate's line.
  *
  * It throws through AFighterBase::StartAttack, the same door the old AI used,
  * so a style can only do what an enemy could already do -- it decides, it does
@@ -99,6 +111,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Style")
 	void NotifyWhiffed();
 
+	/** A strike of ours was stopped by his guard (or parried). Enough of
+	    those in a row and the style stops swinging into it. */
+	UFUNCTION(BlueprintCallable, Category = "Style")
+	void NotifyBlocked();
+
+	/** What the read of him says right now. */
+	SaudBrain::EIntent GetIntent() const { return Intent; }
+
 protected:
 	/** Bound to the fighter's damage delegate: something landed on us. */
 	UFUNCTION()
@@ -112,6 +132,9 @@ protected:
 
 	/** Decide whether to guard. */
 	void TickDefence(float DeltaTime, float Distance);
+
+	/** Look at him: turn what can be seen into one intent. */
+	void TickRead(float DeltaTime, const FVector& ToOpponent, float Distance);
 
 	/** Watch a swing to its end so a miss costs something. */
 	void TickSwingResult();
@@ -146,7 +169,23 @@ private:
 	float BouncePhase = 0.f;
 
 	/** Rolled a few times a second rather than every frame: a guard that
-	    re-decides sixty times a second flickers instead of guarding. */
+	    re-decides sixty times a second flickers instead of guarding. The
+	    offence roll is the read's: a punish or a flank is decided on it. */
 	float GuardRoll = 1.f;
+	float OffenceRoll = 1.f;
 	float GuardRollTimer = 0.f;
+
+	/** The read. */
+	SaudBrain::EIntent Intent = SaudBrain::EIntent::Free;
+	/** The quickest strike legal from here, for the punish window. */
+	FName FastestRow = NAME_None;
+	float FastestStartup = 0.f;
+	float FastestReach = 0.f;
+	/** A step off his line in progress: seconds left and which way. One
+	    per swing of his. */
+	float SlipRemaining = 0.f;
+	FVector SlipDirection = FVector::ZeroVector;
+	bool bSlippedThisSwing = false;
+	/** Strikes of ours his guard has stopped without one landing between. */
+	int32 BlockedInARow = 0;
 };

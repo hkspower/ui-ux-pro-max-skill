@@ -540,4 +540,10 @@ namespace SaudGameplay
 
 	/** At most this many enemies may be attacking at once, so crowds stay fair. */
 	constexpr int32 MaxSimultaneousAttackers = 2;
+
+	/** How close to an enemy's line to the player a teammate has to stand to
+	    be in the way of it: a shoulder's width either side of the line. A
+	    fighter whose line is blocked neither swings nor stands there -- he
+	    steps off it (SaudBrain::LineBlocked, ClearLineStep). */
+	constexpr float CrowdLineWidth = 70.f;
 }

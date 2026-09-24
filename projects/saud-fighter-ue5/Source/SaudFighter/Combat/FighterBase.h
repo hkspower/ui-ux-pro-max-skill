@@ -226,6 +226,11 @@ public:
 	const FAttackDef* GetCurrentAttack() const { return CurrentAttack; }
 	float GetAttackElapsed() const { return AttackElapsed; }
 
+	/** An attack's numbers by row, for anything deciding whether to throw
+	    it: the AI's read of a window needs the startup of what it would
+	    answer with. Null for a row the table does not have. */
+	const FAttackDef* GetAttackDef(FName Row) const { return FindAttack(Row); }
+
 protected:
 	/** Advances startup -> active -> recovery and fires the hitbox once. */
 	void TickAttack(float DeltaSeconds);

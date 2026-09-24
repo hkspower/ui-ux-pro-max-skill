@@ -150,6 +150,31 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defence", meta = (ClampMin = "0", ClampMax = "1"))
 	float CounterChance = 0.15f;
 
+	// ---- how it reads the man in front of it (Combat/SaudBrain.h) ---------
+
+	/** Seconds a strike has to have been going before this fighter sees
+	    it. A 0.07 s jab is a surprise to everyone; a 0.16 s kick is read by
+	    the quick and not the slow. Slipping and punishing wait on this; the
+	    blind guard roll above does not, because the browser's did not. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Read", meta = (ClampMin = "0.05", ClampMax = "0.5"))
+	float ReactionSeconds = 0.18f;
+
+	/** Of the guards it would put up, the share that are a step off the
+	    line instead. Light feet slip; a wall of a man blocks. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Read", meta = (ClampMin = "0", ClampMax = "1"))
+	float SlipShare = 0.f;
+
+	/** Chance it takes a window it has seen -- a whiff, a recovery -- with
+	    the fastest strike that lands inside it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Read", meta = (ClampMin = "0", ClampMax = "1"))
+	float PunishChance = 0.5f;
+
+	/** How much a guard facing it puts it off swinging into that guard: the
+	    chance it goes round to where the guard does not cover instead. Grows
+	    with every strike that guard has stopped. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Read", meta = (ClampMin = "0", ClampMax = "1"))
+	float GuardRespect = 0.5f;
+
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override
 	{
 		return FPrimaryAssetId(TEXT("SaudFightStyle"), GetFName());
