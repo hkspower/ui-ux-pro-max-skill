@@ -462,6 +462,11 @@ built body or the posed rig, and the number is beside it:
   forearm's flexor mass, 0.05 at the elbow, 0 at the wrist -- because a
   stronger arm grows its bellies and keeps its joints, and a flat multiply
   would have thickened the elbow with them. Biceps girth 0.376 -> 0.442 m.
+  **2026-09-24, "make arm stronger" (Saud only, the 3D model): 1.18 ->
+  1.30**, a heavyweight's arms -- about 0.49 m at the biceps ring -- with
+  the joints still their own width. The arm is built before the
+  checkpoint, so he is rebuilt whole, and `build_iron_arm.py` is re-run
+  after him because the iron mask is baked on his arm's own UVs.
 - **The guard.** `build_saud.GUARD` said "fists to the chin" and put them at
   chest height, 1.36-1.40 m against a chin near 1.57: with the upper arm
   hanging straight down (z -0.98) the elbow lands 0.461 m below the chin and
