@@ -361,6 +361,13 @@ void AFighterBase::TickAttack(float DeltaSeconds)
 		if (!bAttackHitFired || CurrentAttack->bMultiHit)
 		{
 			ResolveAttackHits(*CurrentAttack);
+			// A parry takes the swing away: the victim's ReceiveHit nulls this
+			// attacker's CurrentAttack and puts him in Hit. Nothing left to
+			// advance, and the Hit it set must stand.
+			if (!CurrentAttack)
+			{
+				return;
+			}
 		}
 	}
 

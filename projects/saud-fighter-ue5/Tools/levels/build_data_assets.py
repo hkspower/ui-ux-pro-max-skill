@@ -251,11 +251,15 @@ def plan_styles():
             CounterChance=round(max(0.05, min(0.55,
                 0.40 - num(row, "GuardChance", 0.12) * 0.5)), 2),
             # How it reads the player (Combat/SaudBrain.h). A slow rhythm is
-            # a slow eye: the reaction runs with the interval, and a boss's
-            # is a shade quicker. A 0.07 s jab is under all of them; a
-            # 0.16 s kick is over the quick ones and under the slow.
-            ReactionSeconds=round(max(0.12, min(0.26,
-                0.10 + rate * 0.07 - (0.03 if boss else 0.0))), 3),
+            # a slow eye: the reaction runs with the interval, a boss's is a
+            # shade quicker, and light feet quicken it -- the same speed
+            # that gives the feet their SlipShare below -- down to 0.08 s.
+            # A 0.07 s jab is under all of them; a 0.16 s kick's wind-up
+            # can be seen with the 0.06 s a step needs (SlipNeedsSeconds)
+            # only by an eye at or under 0.10, which is the quick ones.
+            ReactionSeconds=round(max(0.08, min(0.26,
+                0.10 + rate * 0.07 - (0.03 if boss else 0.0)
+                - max(0.0, speed - 280.0) * 0.0011)), 3),
             # Light feet step off a line; heavy feet block it.
             SlipShare=round(max(0.0, min(0.6, (speed - 280.0) / 300.0)), 2),
             # Fast archetypes take a window they see more often.

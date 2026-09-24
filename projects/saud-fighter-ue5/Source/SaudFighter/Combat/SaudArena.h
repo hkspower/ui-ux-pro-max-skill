@@ -63,17 +63,29 @@ namespace SaudArena
 	 * `Behind` is the small amount of slack behind the attacker that the
 	 * strip version allowed, kept so the spacing is unchanged.
 	 */
-	inline bool InHitbox(const FVector& Origin, const FVector& Facing, const FVector& Target,
-	                     float Reach, float Lateral, float Behind = 60.f, float Over = 60.f)
+	constexpr float HitboxBehind = 60.f;
+	constexpr float HitboxOver = 60.f;
+
+	/** Where a point is in a fighter's own frame: how far ahead of him along
+	    his facing, and how far across it (positive to his left). */
+	inline void AlongAcross(const FVector& Origin, const FVector& Facing, const FVector& Target,
+	                        float& OutForward, float& OutAcross)
 	{
 		const FVector Delta = FlatVector(Target - Origin);
-		const float Forward = Delta.X * Facing.X + Delta.Y * Facing.Y;
+		OutForward = Delta.X * Facing.X + Delta.Y * Facing.Y;
+		// Across the facing: the perpendicular in the ground plane.
+		OutAcross = Delta.X * -Facing.Y + Delta.Y * Facing.X;
+	}
+
+	inline bool InHitbox(const FVector& Origin, const FVector& Facing, const FVector& Target,
+	                     float Reach, float Lateral, float Behind = HitboxBehind, float Over = HitboxOver)
+	{
+		float Forward = 0.f, Across = 0.f;
+		AlongAcross(Origin, Facing, Target, Forward, Across);
 		if (Forward < -Behind || Forward > Reach + Over)
 		{
 			return false;
 		}
-		// Across the facing: the perpendicular in the ground plane.
-		const float Across = Delta.X * -Facing.Y + Delta.Y * Facing.X;
 		return FMath::Abs(Across) <= Lateral;
 	}
 

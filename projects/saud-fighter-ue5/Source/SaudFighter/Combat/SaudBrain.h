@@ -33,6 +33,7 @@
 #else
 	#include "CoreMinimal.h"
 #endif
+#include "SaudArena.h"
 
 namespace SaudBrain
 {
@@ -57,6 +58,13 @@ namespace SaudBrain
 		float Recovery = 0.f;
 		/** I am inside the strike's box: it will land on me if it runs. */
 		bool bInHisLine = false;
+		/** The strike's box, and where I stand in his frame: its reach and
+		    half-width, how far ahead of him I am and how far across. What a
+		    step off its line has to clear. */
+		float HisReach = 0.f;
+		float HisLateral = 0.f;
+		float MyForward = 0.f;
+		float MyAcross = 0.f;
 		/** Flat distance between us, cm. */
 		float Distance = 0.f;
 	};
@@ -97,6 +105,10 @@ namespace SaudBrain
 	    he is free again, give or take a frame. */
 	constexpr float PunishSlack = 0.02f;
 
+	/** A step off the line needs this much wind-up still to come; later
+	    than that the foot is not down before the strike is. */
+	constexpr float SlipNeedsSeconds = 0.06f;
+
 	inline bool CanPunish(float HisRecoveryLeft, float MyStartup, float Distance, float MyReach)
 	{
 		return HisRecoveryLeft > 0.f
@@ -117,7 +129,31 @@ namespace SaudBrain
 		/** How much a guard facing it puts it off swinging into that guard:
 		    the chance it goes round instead. */
 		float GuardRespect = 0.5f;
+		/** How fast this fighter's feet are, cm/s: what a step can clear. */
+		float MySpeed = 300.f;
 	};
+
+	/** Which way a step off his line goes, if any way clears it: across
+	    his facing, out of the box's width, or back, out of its reach --
+	    whichever is the shorter step, and only if the wind-up still to come
+	    is long enough to make it (plus a margin, so the foot is not on the
+	    box's very edge when the strike goes live). A step that would not
+	    clear the box is not a slip, it is standing in the line looking
+	    busy, and the guard is the better answer. */
+	enum class ESlip : unsigned char { None, Across, Back };
+	constexpr float SlipMargin = 5.f;
+
+	inline ESlip SlipWay(const FSeen& S, float MySpeed)
+	{
+		if (!S.bAttacking || PhaseOf(S) != EPhase::WindUp) return ESlip::None;
+		const float T = UntilActive(S);
+		if (T < SlipNeedsSeconds) return ESlip::None;
+		const float Step = T * MySpeed;
+		const float NeedAcross = S.HisLateral - FMath::Abs(S.MyAcross) + SlipMargin;
+		const float NeedBack = (S.HisReach + SaudArena::HitboxOver) - S.MyForward + SlipMargin;
+		if (NeedAcross <= NeedBack) return Step >= NeedAcross ? ESlip::Across : ESlip::None;
+		return Step >= NeedBack ? ESlip::Back : ESlip::None;
+	}
 
 	/** A guard that has stopped this fighter's last few strikes earns more
 	    respect: three in a row and almost nobody keeps swinging into it. */
@@ -125,10 +161,6 @@ namespace SaudBrain
 	{
 		return FMath::Min(0.95f, Base + 0.22f * static_cast<float>(BlockedInARow));
 	}
-
-	/** A step off the line needs this much wind-up still to come; later
-	    than that the foot is not down before the strike is. */
-	constexpr float SlipNeedsSeconds = 0.06f;
 
 	enum class EIntent : unsigned char
 	{
@@ -163,8 +195,8 @@ namespace SaudBrain
 			// left to get there.
 			if (RollDefence < D.GuardChance)
 			{
-				const bool bTime = P == EPhase::WindUp && UntilActive(S) >= SlipNeedsSeconds;
-				if (bTime && Noticed(S, D.ReactionSeconds) && RollDefence < D.GuardChance * D.SlipShare)
+				if (Noticed(S, D.ReactionSeconds) && RollDefence < D.GuardChance * D.SlipShare
+					&& SlipWay(S, D.MySpeed) != ESlip::None)
 				{
 					return EIntent::Slip;
 				}
@@ -193,12 +225,15 @@ namespace SaudBrain
 	}
 
 	/** Which way to step off his line: across his facing, to whichever side
-	    I am already on, so the step is short and away from the strike. */
-	inline FVector SlipDirection(const FVector& HisFacing, const FVector& HimToMe)
+	    I am already on, so the step is short and away from the strike; or
+	    straight back along his facing, out of its reach. Unit, on the ground. */
+	inline FVector SlipDirection(const FVector& HisFacing, const FVector& HimToMe, ESlip Way = ESlip::Across)
 	{
-		const FVector Across(-HisFacing.Y, HisFacing.X, 0.f);
+		const FVector F(HisFacing.X, HisFacing.Y, 0.f);
+		if (Way == ESlip::Back) return F.GetSafeNormal();
+		const FVector Across(-F.Y, F.X, 0.f);
 		const float Side = HimToMe.X * Across.X + HimToMe.Y * Across.Y;
-		return Side >= 0.f ? Across : FVector(-Across.X, -Across.Y, 0.f);
+		return (Side >= 0.f ? Across : FVector(-Across.X, -Across.Y, 0.f)).GetSafeNormal();
 	}
 
 	constexpr float SlipSeconds = 0.20f;
@@ -299,6 +334,27 @@ namespace SaudBrain
 		if (FMath::Abs(E) <= RoleDeadBandDegrees) return 0.f;
 		return FMath::Clamp(E / 60.f, -1.f, 1.f);
 	}
+
+	/** The same steer with a memory: once it has started steering it keeps
+	    on until it is well inside the band, and once settled it does not
+	    start again until it is well outside. Without that a fighter on the
+	    band's edge is pushed out by his own circling and back in by the
+	    steer every other frame. */
+	constexpr float RoleSettledDegrees = 4.f;
+
+	inline float RoleSteerHeld(float NowBearing, float WantBearing, bool& bSteering)
+	{
+		const float E = WrapDegrees(WantBearing - NowBearing);
+		const float Limit = bSteering ? RoleSettledDegrees : RoleDeadBandDegrees;
+		bSteering = FMath::Abs(E) > Limit;
+		return bSteering ? FMath::Clamp(E / 60.f, -1.f, 1.f) : 0.f;
+	}
+
+	/** A flank, once begun, is kept up past the point where his guard stops
+	    covering me (90 degrees) to here, so it does not flip to Free on his
+	    shoulder line and get steered back under it. */
+	constexpr float FlankBearingDegrees = 150.f;
+	constexpr float FlankReleaseDegrees = 130.f;
 
 	/** Is another fighter standing on my line to him? Inside Width of the
 	    segment between us, and between us along it. */

@@ -181,11 +181,21 @@ private:
 	FName FastestRow = NAME_None;
 	float FastestStartup = 0.f;
 	float FastestReach = 0.f;
+	float FastestOpens = 0.f;
 	/** A step off his line in progress: seconds left and which way. One
 	    per swing of his. */
 	float SlipRemaining = 0.f;
 	FVector SlipDirection = FVector::ZeroVector;
 	bool bSlippedThisSwing = false;
+	/** The one follow-up a stun of his earns has been thrown. A jab's
+	    thrower is free before the stun it caused ends, so an unlimited
+	    press would re-arm the stun before he could ever block. */
+	bool bPressedThisStun = false;
+	/** Going round his guard, kept up past his shoulder line so the read
+	    does not flip to Free there and steer back under it. */
+	bool bFlankHold = false;
+	/** Steering to the crowd role, with hysteresis (SaudBrain::RoleSteerHeld). */
+	bool bRoleSteering = false;
 	/** Strikes of ours his guard has stopped without one landing between. */
 	int32 BlockedInARow = 0;
 };

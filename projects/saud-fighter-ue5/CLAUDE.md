@@ -1393,47 +1393,62 @@ inside that attack's box) becomes one intent:
   not wait to see the strike, because the browser's did not and those are
   the numbers the game was tuned on.
 - **Slip**: of the guards it would raise, the style's `SlipShare` are a
-  step off his line instead (across his facing, to the side I am already
-  on, 0.2 s, once per swing of his) -- only when the strike has been SEEN
-  and there are 60 ms of wind-up left to step in.
+  step off his line instead (0.2 s, once per swing of his) -- only when the
+  strike has been SEEN, there are 60 ms of wind-up left to step in, and the
+  step actually clears the box (`SlipWay`: across his facing out of its
+  80 cm half-width, or back along it out of its reach, whichever is the
+  shorter step, at this fighter's own speed, with a 5 cm margin). From the
+  middle of his line nothing in the tables can clear 80 cm in the time,
+  so a slip happens where a fighter already stands near the box's edge;
+  a step that would not get out is not a slip, and the guard is the answer.
 - **Punish**: he is recovering, or swinging at air, and the fastest strike
   legal from here goes live before he is free again (`CanPunish`: my
   startup against his recovery left, give or take a frame, within reach).
   Taken with the style's `PunishChance`; thrown at once, cooldown or not,
   with that fastest strike rather than the style's favourite.
-- **Press**: he is stunned and something is legal from here: throw now.
+- **Press**: he is stunned and something is legal from here: throw now --
+  once per stun of his. A jab's thrower is free before the 0.22 s stun it
+  caused ends, so an unlimited press re-armed the stun before the player
+  could ever block (found by the review, below); after the one, the
+  style's own rhythm, which is the browser's `e.cd`.
 - **Flank**: his guard faces me: with `GuardRespect` (rising 0.22 for every
   strike of mine it has stopped in a row, to 0.95) go round to his back,
   where `SaudArena::Covers` says the guard does not reach, and do not swing
-  until then.
+  until then. Held past his shoulder line to 130 degrees once begun, since
+  the read itself stops saying Flank at 90 and letting go there steered
+  the fighter back under the guard.
 - **Wait**: he is dashing or down: nothing to be done; footwork holds a
   third further out, clear of the swing he stands up into.
 
 "Seen" is the honesty in it: an attack is noticed only once it has been
 going for the style's `ReactionSeconds`. A 0.07 s jab is under everyone's
-(0.155-0.233 s across the roster, derived from each archetype's rhythm;
-bosses a shade quicker), so it is only ever met by the blind guard roll and
-never stepped off; a 0.16 s kick is seen by the quick with time to step and
-by the slow only after it has landed. The test holds the reaction times to
+(0.08-0.233 s across the roster: from each archetype's rhythm, quickened by
+its feet -- the same speed that gives `SlipShare` -- and a shade for a
+boss), so it is only ever met by the blind guard roll and never stepped
+off; a 0.16 s kick is seen by the quick (the Kicker, the Champ, the Runner,
+the Capo, all three bosses, at 0.08) with time to step and by the slow (the
+Thug 0.20, the Grappler 0.22, the Bouncer 0.23) only after it has landed. The test holds the reaction times to
 the attack table: the jab's startup under the quickest reaction, the kick's
 wind-up between the quick and the slow, a jab's whole swing over before the
 slow could punish it, and the same jab punishable by the quick.
 
 Four new dials on `USaudFightStyleData`, derived by `build_data_assets.py`
-from `DT_Fighters` like the others: `ReactionSeconds` from the interval,
-`SlipShare` from speed (the Runner 0.6, the Kicker 0.36, the Grappler and
-Bouncer 0), `PunishChance` from speed (0.54-0.8), `GuardRespect` from the
-guard chance (0.45-0.62). Style assets built before them get the C++
-defaults (0.18 / 0 / 0.5 / 0.5); re-run the tool in the editor.
+from `DT_Fighters` like the others: `ReactionSeconds` from the interval and
+the speed, `SlipShare` from speed (the Runner 0.6, the Kicker 0.36, the
+Grappler and Bouncer 0), `PunishChance` from speed (0.54-0.8),
+`GuardRespect` from the guard chance (0.45-0.77). Style assets built before
+them get the C++ defaults (0.18 / 0 / 0.5 / 0.5); re-run the tool in the
+editor.
 
 **Fighting as a crowd.** `AWaveDirector::AssignCrowdRoles` every frame:
 each live enemy gets a bearing off the PLAYER'S FACING -- 0 in front (the
 presser), +-110 on his flanks, 180 at his back, +-50 out wide, a lane
 further out past six -- handed out front first to whoever already stands
 nearest that bearing, so nobody crosses the ring for a spot someone else is
-beside. The style's footwork steers round him to it (`RoleSteer` along
-`RoundHim`, the tangent that raises the bearing; the style's coin-flip
-circling inside a 12 degree dead band), and a Flank intent uses the same
+beside. The style's footwork steers round him to it (`RoleSteerHeld` along
+`RoundHim`, the tangent that raises the bearing: steering starts outside
+12 degrees and stops inside 4, so the band's edge is not twitched on; the
+style's coin-flip circling inside it), and a Flank intent uses the same
 steer to the nearer side of his back. One enemy alone gets no role: it
 would have him circle to the player's front every time the player turned.
 `CrowdSlot` / `FlankSpot`, measured off the enemy's own approach, still
@@ -1444,15 +1459,35 @@ go now to a fighter placed to use one: `AttackScore` (1 at his range, 0 at
 half or double, a little more from the front where the player can see it),
 nothing at all with a teammate on the line (`LineBlocked`, a shoulder's
 width either side, `SaudGameplay::CrowdLineWidth`), and never a second man
-from behind the player's back at once (`MayAttack`). A fighter whose line
-is blocked steps off it (`ClearLineStep`) rather than standing in it. A
-strike stopped by the guard is reported to the style (`NotifyBlocked`)
-instead of counting as a landing; it ends the combination and raises the
-respect.
+from behind the player's back at once (`MayAttack`). Every strike asks,
+the follow-ups of a combination included: the director drops a holder the
+moment he is not in Attack, so a token did not survive the gap inside one
+and the rule was void for it. A fighter whose line is blocked steps off it
+(`ClearLineStep`) rather than standing in it. A strike stopped by the
+guard is reported to the style (`NotifyBlocked`) instead of counting as a
+landing; it ends the combination and raises the respect.
 
-The test was sabotaged before it was trusted: no reaction gate, no
-behind-limit, a wrong bearing sign and a line blocked beyond its end each
-fail (7 checks between them).
+**Reviewed adversarially before it was trusted** -- four readers over the
+diff (geometry, the engine API, the gameplay frame by frame, the tests),
+every finding tried against the code by a second pass -- and it caught: the
+press with no rate limit (a stun-lock), the combination outside the token
+rule, the slip that no generated style could ever perform (the reaction
+floor was over every strike's wind-up, and a 0.07 s step cannot cross an
+80 cm box from its middle), a punish that never opened a combination, the
+twitch on the dead band's edge and the flank's flip at 90 degrees, and
+four holes in the test: the punish's reaction gate was never exercised,
+the crowd geometry was only ever tested with the player at the origin (a
+`BearingOf` that forgot his position passed), the line tests likewise, and
+the slip's direction only at facing +X, where a world-Y "sideways" -- the
+corridor's own bug -- passed. All fixed; the harness now bites on each
+(ten sabotages in all).
+
+Also fixed on the way, because the review's `NotifyBlocked` path runs
+straight into it: **a parried enemy strike crashed the game.** The
+victim's `ReceiveHit` nulls the attacker's `CurrentAttack` in the middle
+of the attacker's own `TickAttack`, which then read `CurrentAttack->
+TotalTime()`. `TickAttack` returns after the sweep when the swing has been
+taken away.
 
 **Not verified -- none of the engine side has been compiled or played.**
 The pure header runs; `FightStyleComponent.cpp`, `EnemyFighter.cpp`,
@@ -1464,8 +1499,14 @@ still needs an attack token, so a crowd punishes at most two at a time,
 which is the fairness rule and not a bug.
 
 **Found on the way, not touched:** `AFighterBase::FaceNearestOpponent`
-scores by `|X| + 2|Y|` ("depth counts double"), the same corridor leftover,
-and it is the player's and the abilities' as much as the enemies'.
+and `ASaudCharacter::FaceNearestEnemy` score by `|X| + 2|Y|` ("depth counts
+double"), the same corridor leftover, and they are the player's and the
+abilities' as much as the enemies'. And `AWaveDirector::Tick` still starts
+a wave on `LocalX(Player) > TriggerDistance` -- world X from the director
+-- while every map puts the wave's marker on the spiral at
+`SpiralPoint(TriggerDistance / Length)`: the game and the map disagree
+about where a wave is, and that test alone decides when enemies appear.
+Neither was asked for.
 
 ## Working rules
 

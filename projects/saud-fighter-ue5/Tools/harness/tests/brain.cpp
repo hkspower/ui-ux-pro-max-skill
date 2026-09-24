@@ -61,12 +61,16 @@ static void LoadAttacks()
 
 // -------------------------------------------------------------------- read
 
-static FSeen Throwing(const char* Name, float Elapsed, bool bInLine, float Distance)
+/** He is throwing Name, Elapsed seconds in; I stand Distance ahead of him
+    and Across to his left. In his line or not is the box's own answer. */
+static FSeen Throwing(const char* Name, float Elapsed, bool bInLine, float Distance, float Across = 0.f)
 {
     FSeen S;
     S.State = SAttack; S.bAttacking = true;
     S.Startup = Attacks[Name].Startup; S.Active = Attacks[Name].Active; S.Recovery = Attacks[Name].Recovery;
     S.Elapsed = Elapsed; S.bInHisLine = bInLine; S.Distance = Distance;
+    S.HisReach = Attacks[Name].Reach; S.HisLateral = 80.f;      // every row's DepthTolerance
+    S.MyForward = Distance; S.MyAcross = Across;
     return S;
 }
 
@@ -119,9 +123,11 @@ static void Reaction()
           "the kick's wind-up is between the quick and the slow");
     Check(Read(Throwing("Jab", JabStart - 0.001f, true, 100.f), Quick, 0.f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Guard,
           "a jab is met by the blind guard (the browser's rule), never a step");
-    Check(Read(Throwing("Kick", 0.09f, true, 150.f), Quick, 0.f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Slip,
+    // Near the edge of his box (70 of its 80 cm across), where a step clears it.
+    Quick.MySpeed = Slow.MySpeed = 400.f;
+    Check(Read(Throwing("Kick", 0.09f, true, 150.f, 70.f), Quick, 0.f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Slip,
           "a kick is stepped off by the quick");
-    Check(Read(Throwing("Kick", 0.09f, true, 150.f), Slow, 0.f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Guard,
+    Check(Read(Throwing("Kick", 0.09f, true, 150.f, 70.f), Slow, 0.f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Guard,
           "...and only guarded by the slow");
     Check(!Noticed(Throwing("Kick", 0.05f, true, 150.f), 0.12f) && Noticed(Throwing("Kick", 0.12f, true, 150.f), 0.12f),
           "noticed at exactly the reaction time");
@@ -140,19 +146,36 @@ static void Reaction()
 static void Defence()
 {
     std::printf("DEFENCE  (guard, slip, or eat it)\n");
-    FReadDials D; D.ReactionSeconds = 0.08f; D.GuardChance = 0.40f; D.SlipShare = 0.5f;
-    const FSeen Kick = Throwing("Kick", 0.11f, true, 150.f);    // 0.05 s of wind-up left
+    FReadDials D; D.ReactionSeconds = 0.08f; D.GuardChance = 0.40f; D.SlipShare = 0.5f; D.MySpeed = 400.f;
+    const FSeen Kick = Throwing("Kick", 0.11f, true, 150.f, 70.f);    // 0.05 s of wind-up left
     Check(Read(Kick, D, 0.39f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Guard, "roll under the guard chance: guards");
     Check(Read(Kick, D, 0.41f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Free, "roll over it: eats it (the browser's rule)");
-    // Slip: takes the low half of the guard rolls, only with 60 ms of wind-up left.
-    const FSeen Early = Throwing("Kick", 0.09f, true, 150.f);   // 0.07 s left
-    Check(Read(Early, D, 0.10f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Slip, "low roll with time: slips");
+    // Slip: takes the low half of the guard rolls, only with 60 ms of wind-up
+    // left, and only where a step clears the box: 0.07 s at 400 cm/s is 28
+    // cm, which clears 80 cm of half-width from 70 across and not from 0.
+    const FSeen Early = Throwing("Kick", 0.09f, true, 150.f, 70.f);   // 0.07 s left, near the edge
+    Check(Read(Early, D, 0.10f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Slip, "low roll with time, near the edge: slips");
     Check(Read(Early, D, 0.30f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Guard, "higher roll with time: guards");
     Check(Read(Kick, D, 0.10f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Guard, "low roll, no time: guards, never slips late");
-    const FSeen Last = Throwing("Kick", Attacks["Kick"].Startup - 0.03f, true, 150.f);
+    const FSeen Last = Throwing("Kick", Attacks["Kick"].Startup - 0.03f, true, 150.f, 70.f);
     Check(Read(Last, D, 0.10f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Guard, "30 ms of wind-up left: no time to step");
+    const FSeen Middle = Throwing("Kick", 0.09f, true, 150.f, 0.f);    // dead centre of his line
+    Check(Read(Middle, D, 0.10f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Guard, "in the middle of his line: 28 cm clears nothing, guards");
     FReadDials Heavy = D; Heavy.SlipShare = 0.f;
     Check(Read(Early, Heavy, 0.0f, 1.f, 0.07f, 130.f, true, 0) == EIntent::Guard, "heavy feet never slip");
+
+    // Which way: the shorter of across the box and back out of its reach.
+    Check(SlipWay(Early, 400.f) == ESlip::Across, "near the side: across");
+    Check(SlipWay(Middle, 400.f) == ESlip::None, "in the middle, in reach: no way out in time");
+    const FSeen Deep = Throwing("Kick", 0.09f, true, Attacks["Kick"].Reach + 60.f - 20.f, 0.f);   // 20 cm inside the reach's end
+    Check(SlipWay(Deep, 400.f) == ESlip::Back, "at the end of his reach: back");
+    Check(SlipWay(Deep, 200.f) == ESlip::None, "...unless the feet are too slow for even that");
+    FSeen Live = Early; Live.Elapsed = Attacks["Kick"].Startup + 0.01f;
+    Check(SlipWay(Live, 900.f) == ESlip::None, "a strike already live is not stepped off");
+    Check(Near(SlipDirection(FVector(1.f, 0.f, 0.f), FVector(100.f, 0.f, 0.f), ESlip::Back).X, 1.f), "back is along his facing, away from him");
+    // The margin: a step to the box's very edge is not a step out of it.
+    FSeen Edge = Throwing("Kick", 0.09f, true, 150.f, 80.f - 0.07f * 400.f);
+    Check(SlipWay(Edge, 400.f) == ESlip::None, "a step that only reaches the edge is no slip");
     // Not in his line: nothing to guard.
     const FSeen Wide = Throwing("Kick", 0.11f, false, 150.f);
     Check(Read(Wide, D, 0.f, 1.f, 0.07f, 130.f, true, 0) != EIntent::Guard, "a strike not aimed at me is not guarded");
@@ -162,6 +185,25 @@ static void Defence()
     Check(Near(Step.Y, 1.f) && Near(Step.X, 0.f), "I am a little to his left: slip further left");
     Step = SlipDirection(HisFacing, FVector(100.f, -15.f, 0.f));
     Check(Near(Step.Y, -1.f), "a little to his right: slip right");
+    // ...and at every facing: a unit step across his facing, to my own side.
+    int Bad = 0;
+    for (int A = 0; A < 360; A += 10)
+    {
+        const float Rad = A * 3.14159265f / 180.f;
+        const FVector Fc = Rotate(HisFacing, Rad);
+        const FVector Across(-Fc.Y, Fc.X, 0.f);
+        for (int Side = -1; Side <= 1; Side += 2)
+        {
+            const FVector HimToMe = Rotate(FVector(100.f, 15.f * Side, 0.f), Rad);
+            const FVector S = SlipDirection(Fc, HimToMe);
+            if (!Near(FVector::DotProduct(S, Fc), 0.f)) ++Bad;
+            if (!Near(S.Size2D(), 1.f)) ++Bad;
+            if (FVector::DotProduct(S, Across) * FVector::DotProduct(HimToMe, Across) <= 0.f) ++Bad;
+            const FVector B = SlipDirection(Fc, HimToMe, ESlip::Back);
+            if (!Near(FVector::DotProduct(B, Fc), 1.f)) ++Bad;
+        }
+    }
+    Check(Bad == 0, "a slip is across his facing, to my side, or back along it, at every facing");
 }
 
 static void Punish()
@@ -190,6 +232,17 @@ static void Punish()
     Check(Read(Late, D, 1.f, 0.f, Attacks["Jab"].Startup, 130.f, false, 0) != EIntent::Punish, "nothing legal from here: no punish");
     D.PunishChance = 0.3f;
     Check(Read(Late, D, 1.f, 0.5f, Attacks["Jab"].Startup, 130.f, true, 0) == EIntent::Free, "the punish chance is a chance");
+    // The window is seen only after the reaction time, like everything else.
+    FReadDials Q; Q.ReactionSeconds = 0.08f; Q.PunishChance = 1.f;
+    Check(Read(Throwing("Jab", 0.075f, false, 100.f), Q, 1.f, 0.f, 0.07f, 130.f, true, 0) != EIntent::Punish,
+          "a whiff seen before the reaction time is not punished");
+    Check(Read(Throwing("Jab", 0.08f, false, 100.f), Q, 1.f, 0.f, 0.07f, 130.f, true, 0) == EIntent::Punish,
+          "...and is, once the reaction time has passed");
+    FReadDials Sl; Sl.ReactionSeconds = 0.20f; Sl.PunishChance = 1.f;
+    Check(Read(Throwing("Kick", 0.19f, false, 120.f), Sl, 1.f, 0.f, 0.07f, 130.f, true, 0) != EIntent::Punish,
+          "a kick's whiff at 0.19 s is not yet seen by a 0.20 s eye");
+    Check(Read(Throwing("Kick", 0.21f, false, 120.f), Sl, 1.f, 0.f, 0.07f, 130.f, true, 0) == EIntent::Punish,
+          "...and is at 0.21");
 }
 
 static void Other()
@@ -227,16 +280,18 @@ static void Other()
 static void Roles()
 {
     std::printf("ROLES  (a wave round him, off his facing)\n");
-    const FVector Him(0.f, 0.f, 0.f);
+    // Somewhere in the world, not at the origin: at (0,0,0) a function that
+    // forgot to subtract his position would pass every check below.
+    const FVector Him(4200.f, -1700.f, 90.f);
     // Bearings: front, flanks, back, wide.
     Check(RoleBearing(0) == 0.f && RoleBearing(3) == 180.f && RoleBearing(1) == -RoleBearing(2), "the six bearings");
     Check(RoleLane(0) == 0.f && RoleLane(6) > 0.f && RoleBearing(6) == RoleBearing(0), "the seventh repeats the first, further out");
 
     // Bearing: left is positive.
     const FVector F(1.f, 0.f, 0.f);
-    Check(Near(BearingOf(Him, F, FVector(100.f, 0.f, 0.f)), 0.f), "ahead is 0");
-    Check(Near(BearingOf(Him, F, FVector(0.f, 100.f, 0.f)), 90.f), "his left is +90");
-    Check(Near(BearingOf(Him, F, FVector(-100.f, 0.f, 0.f)), 180.f) || Near(BearingOf(Him, F, FVector(-100.f, 0.f, 0.f)), -180.f), "behind is 180");
+    Check(Near(BearingOf(Him, F, Him + FVector(100.f, 0.f, 0.f)), 0.f), "ahead is 0");
+    Check(Near(BearingOf(Him, F, Him + FVector(0.f, 100.f, 0.f)), 90.f), "his left is +90");
+    Check(Near(FMath::Abs(BearingOf(Him, F, Him + FVector(-100.f, 0.f, 0.f))), 180.f), "behind is 180");
     Check(Near(WrapDegrees(370.f), 10.f) && Near(WrapDegrees(-190.f), 170.f) && Near(WrapDegrees(180.f), 180.f), "wrap");
 
     // A spot is at its range and its bearing.
@@ -256,7 +311,7 @@ static void Roles()
     // Six from one side: all six roles given, no two alike, the one already
     // in front gets the front, and the assignment turns with the facing.
     FVector P[6];
-    for (int I = 0; I < 6; ++I) P[I] = FVector(600.f + I * 40.f, -200.f + I * 80.f, 0.f);
+    for (int I = 0; I < 6; ++I) P[I] = Him + FVector(600.f + I * 40.f, -200.f + I * 80.f, 0.f);
     int Role[6];
     AssignRoles(Him, F, P, 6, Role);
     bool Distinct = true; int Seen = 0;
@@ -270,14 +325,14 @@ static void Roles()
     {
         const float Rad = A * 3.14159265f / 180.f;
         FVector Q[6]; int R2[6];
-        for (int I = 0; I < 6; ++I) Q[I] = Rotate(P[I], Rad);
+        for (int I = 0; I < 6; ++I) Q[I] = Him + Rotate(P[I] - Him, Rad);
         AssignRoles(Him, Rotate(F, Rad), Q, 6, R2);
         for (int I = 0; I < 6; ++I) if (R2[I] != Role[I]) ++Bad;
     }
     Check(Bad == 0, "the roles turn with the fight");
     // Eight: two take the outer lane.
     FVector P8[8]; int R8[8];
-    for (int I = 0; I < 8; ++I) P8[I] = Rotate(FVector(500.f, 0.f, 0.f), I * 0.7f);
+    for (int I = 0; I < 8; ++I) P8[I] = Him + Rotate(FVector(500.f, 0.f, 0.f), I * 0.7f);
     AssignRoles(Him, F, P8, 8, R8);
     int Outer = 0; for (int I = 0; I < 8; ++I) if (R8[I] >= RoleCount) ++Outer;
     Check(Outer == 2, "eight fighters: two on the outer ring");
@@ -287,6 +342,13 @@ static void Roles()
     Check(RoleSteer(0.f, 110.f) == 1.f && RoleSteer(0.f, -110.f) == -1.f, "far off: full steer, to the left for a left bearing");
     Check(RoleSteer(170.f, -170.f) > 0.f, "the short way round the back");
     Check(Near(RoleSteer(0.f, 30.f), 0.5f), "half steer at 30 degrees");
+    // With a memory: in at 12, out at 4, so the band's edge is not twitched on.
+    bool St = false;
+    Check(RoleSteerHeld(0.f, 10.f, St) == 0.f && !St, "inside the band, not steering: stays put");
+    Check(RoleSteerHeld(0.f, 14.f, St) > 0.f && St, "past the band: starts steering");
+    Check(RoleSteerHeld(0.f, 8.f, St) > 0.f && St, "back inside 12 but not yet 4: keeps steering");
+    Check(RoleSteerHeld(0.f, 3.f, St) == 0.f && !St, "inside 4: settled");
+    Check(RoleSteerHeld(0.f, 10.f, St) == 0.f && !St, "...and 10 does not start it again");
     // A step along RoundHim raises my bearing, at every facing and position.
     Bad = 0;
     for (int A = 0; A < 360; A += 20)
@@ -307,23 +369,26 @@ static void Roles()
 static void Lines()
 {
     std::printf("LINES  (nobody stands in a teammate's)\n");
-    const FVector Me(0.f, 0.f, 0.f), Him(300.f, 0.f, 0.f);
-    Check(LineBlocked(Me, Him, FVector(150.f, 20.f, 0.f), 60.f), "a man 20 cm off the middle of my line blocks it");
-    Check(!LineBlocked(Me, Him, FVector(150.f, 80.f, 0.f), 60.f), "80 cm off: clear");
-    Check(!LineBlocked(Me, Him, FVector(-50.f, 0.f, 0.f), 60.f), "behind me: clear");
-    Check(!LineBlocked(Me, Him, FVector(350.f, 0.f, 0.f), 60.f), "beyond him: clear");
-    Check(!LineBlocked(Me, Me, FVector(0.f, 0.f, 0.f), 60.f), "on top of him: no line");
-    FVector Step = ClearLineStep(Me, Him, FVector(150.f, 20.f, 0.f));
+    // Off the origin, for the same reason as the roles.
+    const FVector Me(2500.f, -900.f, 0.f), Him = Me + FVector(300.f, 0.f, 0.f);
+    Check(LineBlocked(Me, Him, Me + FVector(150.f, 20.f, 0.f), 60.f), "a man 20 cm off the middle of my line blocks it");
+    Check(!LineBlocked(Me, Him, Me + FVector(150.f, 80.f, 0.f), 60.f), "80 cm off: clear");
+    Check(!LineBlocked(Me, Him, Me + FVector(-50.f, 0.f, 0.f), 60.f), "behind me: clear");
+    Check(!LineBlocked(Me, Him, Me + FVector(350.f, 0.f, 0.f), 60.f), "beyond him: clear");
+    Check(!LineBlocked(Me, Me, Me, 60.f), "on top of him: no line");
+    FVector Step = ClearLineStep(Me, Him, Me + FVector(150.f, 20.f, 0.f));
     Check(Near(Step.Y, -1.f) && Near(Step.X, 0.f), "he is on my left: step right");
-    Step = ClearLineStep(Me, Him, FVector(150.f, -20.f, 0.f));
+    Step = ClearLineStep(Me, Him, Me + FVector(150.f, -20.f, 0.f));
     Check(Near(Step.Y, 1.f), "on my right: step left");
     int Bad = 0;
     for (int A = 0; A < 360; A += 10)
     {
         const float Rad = A * 3.14159265f / 180.f;
-        const FVector O(150.f, 20.f, 0.f);
-        if (!LineBlocked(Rotate(Me, Rad), Rotate(Him, Rad), Rotate(O, Rad), 60.f)) ++Bad;
-        const FVector S = ClearLineStep(Rotate(Me, Rad), Rotate(Him, Rad), Rotate(O, Rad));
+        const FVector O = Me + Rotate(FVector(150.f, 20.f, 0.f), Rad);
+        const FVector H = Me + Rotate(FVector(300.f, 0.f, 0.f), Rad);
+        if (!LineBlocked(Me, H, O, 60.f)) ++Bad;
+        if (LineBlocked(Me, H, Me + Rotate(FVector(150.f, 80.f, 0.f), Rad), 60.f)) ++Bad;
+        const FVector S = ClearLineStep(Me, H, O);
         if (FVector::Dist(S, Rotate(FVector(0.f, -1.f, 0.f), Rad)) > 1e-3f) ++Bad;
     }
     Check(Bad == 0, "blocked lines and the step off them turn with the fight");

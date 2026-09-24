@@ -5,6 +5,7 @@
 #include "Combat/EnemyFighter.h"
 #include "Combat/FighterBase.h"
 #include "EngineUtils.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "World/WaveDirector.h"
 
 UFightStyleComponent::UFightStyleComponent()
@@ -175,11 +176,18 @@ void UFightStyleComponent::TickRead(float DeltaTime, const FVector& To, float Di
 			S.Recovery = A->Recovery;
 			S.bInHisLine = SaudArena::InHitbox(Him->GetActorLocation(), Him->GetFacing(), Self,
 			                                   A->Reach, A->DepthTolerance);
+			S.HisReach = A->Reach;
+			S.HisLateral = A->DepthTolerance;
+			SaudArena::AlongAcross(Him->GetActorLocation(), Him->GetFacing(), Self, S.MyForward, S.MyAcross);
 		}
 	}
 	if (!S.bAttacking)
 	{
 		bSlippedThisSwing = false;      // his next swing may be stepped off again
+	}
+	if (Him->State != EFighterState::Hit)
+	{
+		bPressedThisStun = false;       // his next stun may be pressed again
 	}
 
 	// The quickest thing legal from here, and its reach: what a window is
@@ -187,6 +195,7 @@ void UFightStyleComponent::TickRead(float DeltaTime, const FVector& To, float Di
 	FastestRow = NAME_None;
 	FastestStartup = 0.f;
 	FastestReach = 0.f;
+	FastestOpens = 0.f;
 	bool bCanReach = false;
 	auto Consider = [&](const FStyleStrike& K)
 	{
@@ -204,6 +213,7 @@ void UFightStyleComponent::TickRead(float DeltaTime, const FVector& To, float Di
 			FastestRow = K.AttackRow;
 			FastestStartup = Def->Startup;
 			FastestReach = Def->Reach;
+			FastestOpens = K.OpensCombination;
 		}
 		bCanReach = true;
 	};
@@ -216,6 +226,8 @@ void UFightStyleComponent::TickRead(float DeltaTime, const FVector& To, float Di
 	Dials.SlipShare = Style->SlipShare;
 	Dials.PunishChance = Style->PunishChance;
 	Dials.GuardRespect = Style->GuardRespect;
+	const UCharacterMovementComponent* Move = Fighter->GetCharacterMovement();
+	Dials.MySpeed = Move ? Move->MaxWalkSpeed : 300.f;
 
 	Intent = SaudBrain::Read(S, Dials, GuardRoll, OffenceRoll, FastestStartup, FastestReach, bCanReach, BlockedInARow);
 
@@ -231,7 +243,36 @@ void UFightStyleComponent::TickRead(float DeltaTime, const FVector& To, float Di
 		{
 			bSlippedThisSwing = true;
 			SlipRemaining = SaudBrain::SlipSeconds;
-			SlipDirection = SaudBrain::SlipDirection(Him->GetFacing(), HimToMe);
+			SlipDirection = SaudBrain::SlipDirection(Him->GetFacing(), HimToMe, SaudBrain::SlipWay(S, Dials.MySpeed));
+		}
+	}
+
+	// A press is one strike per stun of his, the way a slip is one per
+	// swing: the second would land inside the stun the first one caused,
+	// and a man who can neither block nor dash in hitstun would never get
+	// out. After the one, the style's own rhythm -- the browser's e.cd.
+	if (Intent == SaudBrain::EIntent::Press && bPressedThisStun)
+	{
+		Intent = SaudBrain::EIntent::Free;
+	}
+
+	// A flank, once begun, is held past his shoulder line: the read says
+	// Flank only while his guard covers me (90 degrees), and letting go
+	// there would steer me back under it next frame.
+	if (Intent == SaudBrain::EIntent::Flank)
+	{
+		bFlankHold = true;
+	}
+	else if (bFlankHold)
+	{
+		const float Now = FMath::Abs(SaudBrain::BearingOf(Him->GetActorLocation(), Him->GetFacing(), Self));
+		if (Intent == SaudBrain::EIntent::Free && Him->bBlocking && Now < SaudBrain::FlankReleaseDegrees)
+		{
+			Intent = SaudBrain::EIntent::Flank;
+		}
+		else
+		{
+			bFlankHold = false;
 		}
 	}
 }
@@ -334,18 +375,26 @@ void UFightStyleComponent::TickFootwork(float DeltaTime, const FVector& To, floa
 	{
 		const float Now = SaudBrain::BearingOf(Them, Opponent->GetFacing(), Self);
 		// The nearer side of his back, so the way round is the short one.
-		RoundStep = SaudBrain::RoleSteer(Now, Now >= 0.f ? 150.f : -150.f);
+		RoundStep = SaudBrain::RoleSteer(Now, Now >= 0.f ? SaudBrain::FlankBearingDegrees : -SaudBrain::FlankBearingDegrees);
 		Sideways = 0.f;
+		bRoleSteering = false;
 	}
 	else if (Enemy && Enemy->bHasCrowdRole && Opponent.IsValid())
 	{
 		const float Now = SaudBrain::BearingOf(Them, Opponent->GetFacing(), Self);
-		const float Steer = SaudBrain::RoleSteer(Now, Enemy->CrowdRoleBearing);
+		// With a memory: steering runs until well inside the band and does
+		// not start again until well outside it, so the band's edge is not
+		// a place a fighter twitches on.
+		const float Steer = SaudBrain::RoleSteerHeld(Now, Enemy->CrowdRoleBearing, bRoleSteering);
 		if (Steer != 0.f)
 		{
 			RoundStep = Steer * FMath::Max(0.45f, Style->CircleTendency);
 			Sideways = 0.f;                 // the role's way round, not a coin's
 		}
+	}
+	else
+	{
+		bRoleSteering = false;
 	}
 
 	// 5. A teammate on the line to him: step off it, this frame.
@@ -417,8 +466,26 @@ void UFightStyleComponent::TickOffence()
 		return;
 	}
 
-	// Mid-combination: keep going without asking the director again, because
-	// the token was claimed for the whole combination.
+	// The crowd rule: only a couple may be swinging at once, the rest circle
+	// -- and only from a place a swing can be thrown (the director's say).
+	// Every strike asks, the follow-ups of a combination included: the
+	// director drops a holder the moment he is not in Attack, so a token
+	// does not survive the gap inside a combination, and a fighter that
+	// lost his between strikes is checked again for a slot, a clear line
+	// and the player's back. A current holder is answered at once.
+	if (AEnemyFighter* Enemy = Cast<AEnemyFighter>(Fighter))
+	{
+		if (AWaveDirector* Director = AWaveDirector::Get(GetWorld()))
+		{
+			if (!Director->TryClaimAttackToken(Enemy))
+			{
+				ComboRemaining = 0;         // the rest of it is not ours to throw
+				return;
+			}
+		}
+	}
+
+	// Mid-combination: keep going on the recovery's gap, not the interval's.
 	if (ComboRemaining > 0)
 	{
 		if (const FStyleStrike* Next = Style->ChooseStrike(Band, ExtraStrikes))
@@ -426,25 +493,11 @@ void UFightStyleComponent::TickOffence()
 			if (TryThrow(*Next))
 			{
 				--ComboRemaining;
-				// Inside a combination the gap is the recovery, not the interval.
 				AttackCooldown = 0.06f;
 				return;
 			}
 		}
 		ComboRemaining = 0;
-	}
-
-	// The crowd rule: only a couple may be swinging at once, the rest circle
-	// -- and only from a place a swing can be thrown (the director's say).
-	if (AEnemyFighter* Enemy = Cast<AEnemyFighter>(Fighter))
-	{
-		if (AWaveDirector* Director = AWaveDirector::Get(GetWorld()))
-		{
-			if (!Director->TryClaimAttackToken(Enemy))
-			{
-				return;
-			}
-		}
 	}
 
 	// A punish is the fastest strike that fits the window, not the style's
@@ -454,8 +507,9 @@ void UFightStyleComponent::TickOffence()
 	if (Intent == SaudBrain::EIntent::Punish && !FastestRow.IsNone())
 	{
 		Fast.AttackRow = FastestRow;
-		Fast.Bands = { Band };
+		Fast.Bands.Add(Band);
 		Fast.Weight = 1.f;
+		Fast.OpensCombination = FastestOpens;
 		Strike = &Fast;
 	}
 	else
@@ -472,6 +526,10 @@ void UFightStyleComponent::TickOffence()
 	{
 		AttackCooldown = 0.2f;
 		return;
+	}
+	if (Intent == SaudBrain::EIntent::Press)
+	{
+		bPressedThisStun = true;        // the one this stun earns
 	}
 
 	// Openers start combinations; finishers stand alone. A punish opens one
