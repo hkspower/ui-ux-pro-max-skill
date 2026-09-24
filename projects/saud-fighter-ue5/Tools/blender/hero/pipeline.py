@@ -110,7 +110,14 @@ def build_fighter(spec, argv=None):
     assert bald or pal["hair"] is not None, "%s is not bald and has no hair colour" % name
     face_scale = FACES.get(spec["kind"])
     arm_scale = LIMBS.get(spec["kind"], 1.0)
-    hair_style = "bald" if bald else ("quiff" if spec["look"].get("quiff") else "crop")
+    # the cut: the roster's `look.hairStyle` (assembly.HAIR_STYLES), and how
+    # grey he is at the temples, `look.grey`. `quiff: true` is the name
+    # Saud's cut had before there was more than one.
+    hair_style = "bald" if bald else spec["look"].get("hairStyle") or (
+        "quiff" if spec["look"].get("quiff") else "crop")
+    assert hair_style in B.HAIR_STYLES, "%s: no hair style %r" % (name, hair_style)
+    from . import face as FA
+    FA.set_hair(hair_style, spec["look"].get("grey", 0.0))
     if "--out" in argv:
         OUT = os.path.abspath(argv[argv.index("--out") + 1])
         UE5_MODELS = os.path.join(OUT, "ue5", "Models"); UE5_TEX = os.path.join(OUT, "ue5", "Textures", name)
@@ -143,6 +150,13 @@ def build_fighter(spec, argv=None):
     # so the stages after it can be re-run with --resume.
     CHECK = os.path.join(OUT, "built.blend" if low == "saud" else "built_%s.blend" % low)
     if "--resume" in argv and os.path.exists(CHECK):
+        # The cut is geometry, built before the checkpoint: resuming one
+        # built with another cut would paint this cut onto that one's hair.
+        built = open(CHECK + ".hair").read().strip() if os.path.exists(CHECK + ".hair") else (
+            "quiff" if low == "saud" else ("bald" if bald else "crop"))
+        assert built == hair_style, (
+            "%s's checkpoint was built with the %r cut and the roster now says %r: "
+            "rebuild him without --resume" % (name, built, hair_style))
         bpy.ops.wm.open_mainfile(filepath=CHECK)
         O = bpy.data.objects
         body, tee, pants = O["Body"], O["Tee"], O["Pants"]
@@ -213,6 +227,7 @@ def build_fighter(spec, argv=None):
         stamp("built: body %d tris, tee %d, pants %d" % (sum(len(p.vertices) - 2 for p in body.data.polygons),
               len(tee.data.polygons), len(pants.data.polygons)))
         json.dump({k: [list(p) for p in v] for k, v in jl.items()}, open(CHECK + ".json", "w"))
+        open(CHECK + ".hair", "w").write(hair_style + "\n")
         bpy.ops.wm.save_as_mainfile(filepath=CHECK)
 
     # ---- the body under the garments is never seen and pokes through after

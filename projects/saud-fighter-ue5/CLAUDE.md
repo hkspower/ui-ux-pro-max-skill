@@ -652,9 +652,10 @@ the thug and the brawler are level with them now, and the thug and the
 brawler pick up the 2026-09-20 guard aims ("Known, not fixed" said one
 rebuild would).
 
-**Seen, not changed:** Saud's skin colour is the browser's `#f0d8c4` used
-as albedo directly, which is lighter than measured human skin reflectance;
-the colour is `assets/saud.js`'s and the author's call. **Unverified:** no
+**Seen, not changed** (then changed 2026-09-24, "Skin tones and haircuts",
+below): Saud's skin colour was the browser's `#f0d8c4` used as albedo
+directly, which is lighter than measured human skin reflectance; the colour
+is `assets/saud.js`'s and the author's call. **Unverified:** no
 engine has imported any of it; checked in Blender renders and by
 measuring the maps.
 
@@ -1555,6 +1556,68 @@ steps on the ground.
 been compiled, and whether the engine's JSON data-table import fills the
 new `Index` field from `DT_Stages.json` is read from how it imports the
 other fields, not seen.
+
+## Skin tones and haircuts -- 2026-09-24
+
+Asked as "improve skin colors and hair color and create hair style for
+men", settled as both builds: real Gulf skin tones, a different Gulf cut for
+every man who has hair, and more than one hair colour. The colours and the
+cuts are the browser's (`assets/saud.js`, `assets/enemies.js`); the 3D men
+read them through `hero/roster.py` as they read everything else.
+
+**The skin was orange.** Measured in CIELAB, the twelve roster skins had
+chroma 31-40 at hue 57-69 degrees -- tan leather -- where in-vivo skin
+colorimetry puts every human complexion at a* 9-16, b* 14-22, chroma 18-26,
+hue 50-62. Saud's `#f0d8c4` was the other way wrong: L* 88, lighter than
+any measured skin. Each man keeps his place in the light-to-dark order: his
+L* is mapped linearly onto 38-61 (Saud at 64, ITA 35 degrees, a light
+Gulf complexion), and a* and b* are the measured means, rising a little as
+the skin darkens (a = 12.6 + 0.03(62 - L), b = 20.4 + 0.02(62 - L)) --
+holding the hue, because the first pass let it fall to 44-49 degrees on the
+dark men and they read pink. The two pairs that shared one colour
+(Brawler/Capo, Kicker/AL-SAQR) are pulled apart by a small undertone each,
+so no two men share a skin now. Saud `#bd9278`; the rest `#79503b` (ZAYOS)
+to `#b58b6e` (the Runner).
+
+**The hair.** Black for most, as the region's is, but not one black:
+blue-black `#141110` to a brown-black `#2b1d13`, and the Brawler's is
+henna-red `#3d1f13`, beard with it -- the henna an older Gulf man puts on
+both. `grey` (0-1) greys the temples: the Contender .45, the Enforcer .22.
+
+**The cuts.** `look.hairStyle`: `quiff` (Saud, as before; `quiff: true`
+still means it), `buzz` (the Thug), `curly` (the Brawler), `fade` (the
+Kicker -- a skin fade, a short top), `slick` (the Contender, back and
+greying), `crop` (the Runner, under his cap), `part` (the Enforcer, a side
+parting), `fringe` (AL-SAQR). The bald men are bald. The browser draws each
+in `drawFighter`; the 3D pipeline builds each in `assembly.hair_parts` and
+paints it in `face.py` (`hair_fade`, `hair_grey`, `hair_part`,
+`hair_texture`), both from one table of names, `assembly.HAIR_STYLES`.
+
+The 3D cuts are shells of the skull's own loft rings, cut at the hairline:
+`hair_shell(d)` grows every ring above z 1.668 out by `d` (3.5-4 mm, one
+remesh voxel), and the style adds what stands above that -- the fade's
+short top, the slick's swept pile, the parting's heavier side, the
+fringe's ridge over the brow, the curls as jittered 6 mm spheres. Nothing
+stands above z 1.800, the crown the heads-tall check measures (the preview
+of every cut measured its top at 1.8000 or under). The fade and the buzz
+are mostly paint: skin up the sides and back to 1.722, hair from 1.765,
+clipper grain. The parting is a skin line painted 22 mm off the midline.
+
+**A cut is built before the checkpoint**, so a man whose cut changed has to
+be rebuilt whole, not `--resume`d: the pipeline writes the cut beside the
+checkpoint (`<checkpoint>.hair`) and a `--resume` onto a checkpoint with a
+different cut stops and says so. Old checkpoints are read as quiff for
+Saud, bald for the bald and crop for everyone else.
+
+The browser's service worker cache is `v29`, so an installed copy picks up
+the new faces.
+
+**Unverified.** The browser's lineup was drawn headless in Chromium, all
+twelve men, with no page errors; the 3D cuts were built and rendered as
+heads only, and the six 3D men are rebuilt with them separately (the
+thug, the brawler and AL-SAQR whole, since their cut changed; Saud,
+AL-WAHSH and ZAYOS from their checkpoints). No engine has imported any of
+it.
 
 ## Working rules
 

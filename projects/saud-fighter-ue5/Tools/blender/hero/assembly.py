@@ -134,12 +134,98 @@ def eyeballs():
         out.append(e)
     return out
 
+# The cuts, 2026-09-24: one per man who has hair, Gulf cuts, named by the
+# roster's `look.hairStyle` (assets/saud.js, assets/enemies.js):
+#
+#   quiff   Saud's: the cap, and length swept up on top
+#   crop    a close cut all round -- the cap alone; under the Snatcher's cap
+#   buzz    clippered short all over: a shell 3.5 mm off the skull, the skin
+#           showing through it (hero.face.hair_fade)
+#   fade    a skin fade: short textured top, the sides and back taken down
+#           to skin (the fade is paint, the top is the volume)
+#   curly   a curly crop: tight curls packed over the top, shorter sides
+#   slick   combed straight back: flat at the front, the length piled at
+#           the crown and the back, lines combed in
+#   part    a hard side part: volume swept to one side of a shaved line
+#   fringe  a textured crop pushed forward, a fringe over the forehead
+#
+# Every one tops out at 1.800 or under (see the heads-tall note below), and
+# the new ones all start from the same close shell -- the skull's own rings
+# grown a few millimetres -- rather than the cap, which is a single ellipsoid
+# solved for Saud's quiff. The skull is a loft of ellipses (anatomy.HEAD_ROWS)
+# so its offset is just the rings grown, and nothing can sink into it.
+HAIR_STYLES = ("quiff", "crop", "buzz", "fade", "curly", "slick", "part", "fringe", "bald")
+
+def _hairline_cut(obj):
+    """Everything below the hairline plane goes (see the cap's cut, below:
+    the same plane, the same 0.25/cos)."""
+    mid = 0.5 * (HAIRLINE[0] + HAIRLINE[1])
+    tilt = math.atan2(HAIRLINE[0] - HAIRLINE[1], 0.18)
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0.0, mid - 0.25 / math.cos(tilt)))
+    cut = bpy.context.object; cut.scale = (0.5, 0.6, 0.5)
+    cut.rotation_euler = (-tilt, 0, 0)
+    bpy.ops.object.transform_apply(scale=True, rotation=True)
+    boolean(obj, cut, 'DIFFERENCE')
+    return obj
+
+def hair_shell(d):
+    """The skull's rings grown by d, from under the hairline to the crown,
+    closed over the top at crown + d, and cut at the hairline: a close cut
+    that follows the head exactly d off it all round."""
+    rows = [r for r in A.HEAD_ROWS if r[0] >= 1.668]
+    rings = [ring_z(z, 0, cy, rx + d, ry + d) for z, cy, rx, ry in rows]
+    top = rows[-1]
+    rings.append(ring_z(top[0] + d, 0, top[1], 0.010, 0.012))
+    shell = loft("hairshell", rings, segs=64)
+    return _hairline_cut(shell)
+
+def _hash01(n):
+    """The integer hash the level builders place things with (hash01 in
+    Tools/levels), so a man's curls come out the same every build."""
+    x = n & 0xFFFFFFFF
+    x ^= x >> 16; x = (x * 2246822519) & 0xFFFFFFFF
+    x ^= x >> 13; x = (x * 3266489917) & 0xFFFFFFFF
+    x ^= x >> 16
+    return (x & 0xFFFFFF) / 16777215.0
+
+def _curls(d, r=0.0060, spacing=0.0085, zmin=1.745):
+    """Tight curls packed over the top: small spheres on the shell, each
+    lowered where it would stand above 1.800, none below the hairline.
+    Jittered in place and size by the builders' own hash, because a regular
+    lattice of equal spheres reads as a knitted cap, not as hair."""
+    out = []
+    rows = A.HEAD_ROWS
+    z = zmin
+    k = 0
+    while z <= 1.797:
+        # the skull's ellipse at this height, grown by d
+        for r0, r1 in zip(rows, rows[1:]):
+            if r0[0] <= z <= r1[0]: break
+        t = (z - r0[0]) / (r1[0] - r0[0])
+        cy = r0[1] + (r1[1] - r0[1]) * t
+        rx = r0[2] + (r1[2] - r0[2]) * t + d; ry = r0[3] + (r1[3] - r0[3]) * t + d
+        per = max(1, int(2 * math.pi * math.sqrt(0.5 * (rx * rx + ry * ry)) / spacing))
+        for i in range(per):
+            h = [_hash01(k * 7919 + i * 104729 + j * 31) for j in range(4)]
+            a = 2 * math.pi * (i + 0.5 * (k % 2) + (h[0] - 0.5) * 0.7) / per
+            zz = z + (h[1] - 0.5) * spacing * 0.6
+            rr = r * (0.75 + 0.5 * h[2])
+            c = Vector((rx * math.cos(a), cy + ry * math.sin(a), zz))
+            n = Vector((math.cos(a) / rx, math.sin(a) / ry, 0.0)).normalized()
+            c = c + n * (rr * (0.15 + 0.35 * h[3]))
+            if not above_hairline(c, 0.004):
+                continue
+            c.z = min(c.z, 1.800 - rr)
+            out.append(ellipsoid("curl", c, (rr, rr, rr * 0.85), segs=10, rings=7))
+        z += spacing * 0.80
+        k += 1
+    return out
+
 def hair_parts(style="quiff"):
     """A cap over the skull cut at the hairline, and hair over the crown.
 
-    `style`: "quiff" is Saud's -- the cap and some length left on top
-    (assets/saud.js: `quiff: true`). "crop" is the cap alone, a close cut,
-    for a man the roster gives a hair colour and nothing else. "bald" is
+    `style` is one of HAIR_STYLES (above). "quiff" is Saud's -- the cap and
+    some length left on top. "crop" is the cap alone, a close cut. "bald" is
     no geometry at all -- AL-WAHSH and ZAYOS (`look.bald`) -- and the bare
     skull is what shows; hero.face still paints (and pipeline.build_fighter
     still bakes) a "hair" material, but no face is ever assigned it, since
@@ -147,8 +233,43 @@ def hair_parts(style="quiff"):
     in hero.face and hero.finish already falls back to skin when it is
     None -- checked, not new code for this.
     """
+    assert style in HAIR_STYLES, "no hair style %r (HAIR_STYLES: %s)" % (style, ", ".join(HAIR_STYLES))
     if style == "bald":
         return []
+    if style == "buzz":
+        return [hair_shell(0.0035)]
+    if style == "fade":
+        # a short, textured top; the sides are the shell, faded to skin in paint
+        return [hair_shell(0.0035),
+                ellipsoid("fadetop", (0, -0.006, 1.7725), (0.0540, 0.0720, 0.0200), (0, -0.10, 1.0),
+                          segs=40, rings=24)]
+    if style == "curly":
+        return [hair_shell(0.0040)] + _curls(0.0040)
+    if style == "slick":
+        # flat at the front, the length combed back and piled at the crown
+        # -- inside the shell's front, so it rises off the hairline rather
+        # than standing out over the forehead like a visor
+        return [hair_shell(0.0040),
+                ellipsoid("slickback", (0, 0.016, 1.7650), (0.0660, 0.0860, 0.0300), (0, 0.22, 1.0),
+                          segs=48, rings=28)]
+    if style == "part":
+        # the volume swept to his left of a hard part on his right (x < 0)
+        return [hair_shell(0.0040),
+                ellipsoid("parttop", (0.006, 0.000, 1.7705), (0.0560, 0.0770, 0.0220), (0.06, 0.0, 1.0),
+                          segs=48, rings=28)]
+    if style == "fringe":
+        # a textured top pushed forward, and a fringe over the forehead. The
+        # fringe hangs below the hairline plane, so it goes to the body as
+        # its own source group (assign_by_source keeps it hair).
+        # One sheet from the crown forward and down over the brow, not a
+        # separate roll laid on the forehead: the fringe overlaps the top
+        # by half its height, so the union makes them one mass.
+        fy = A.head_surface_y(0.0, 1.760) + 0.0035
+        return [hair_shell(0.0040),
+                ellipsoid("fringetop", (0, -0.016, 1.7710), (0.0620, 0.0780, 0.0220), (0, -0.20, 1.0),
+                          segs=48, rings=28),
+                ellipsoid("fringe", (0, fy, 1.7625), (0.0580, 0.0130, 0.0150), (0, -0.40, 1.0),
+                          segs=40, rings=24)]
     # The skull crown is at 1.796 and the chin at 1.570: 0.226 m a head, and
     # 8.04 heads tall, which is the figure the art direction asks for. But
     # the cap used to top out at 1.806 and the quiff at 1.814, so the head a
@@ -244,7 +365,13 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     hands = union_remesh(hl + hr + glove_parts, 0.0025 * vs, "Hands"); A.smooth(hands, 0.5, 3)
     face = face_parts() + ear(1) + ear(-1)
     hair = hair_parts(hair_style)
+    # a fringe hangs below the hairline plane on purpose: its own group, so
+    # the hairline test that keeps hair above the plane does not strip it
+    fringe = [o for o in hair if o.name.startswith("fringe") and not o.name.startswith("fringetop")]
+    hair = [o for o in hair if o not in fringe]
     groups = {"skin": [base, hands] + face, "hair": hair}
+    if fringe:
+        groups["fringe"] = fringe
     # remember the sources for material assignment: BVH per group
     trees = {}
     for g, objs in groups.items():
@@ -252,7 +379,7 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
         for o in objs:
             tmp = o.data.copy(); tmp.transform(o.matrix_world); bm.from_mesh(tmp); bpy.data.meshes.remove(tmp)
         trees[g] = BVHTree.FromBMesh(bm); bm.free()
-    body = union_remesh([base, hands] + face + hair, 0.0035 * vs, "Body")
+    body = union_remesh([base, hands] + face + hair + fringe, 0.0035 * vs, "Body")
     A.smooth(body, 0.5, 2)
     from . import sculpt
     peak, moved = sculpt.sculpt_face(body, A.head_surface_y, scale=face_scale)
@@ -305,6 +432,10 @@ def assign_by_source(body, trees, slots):
             # "did this hit anything" signal.
             hit = tree.find_nearest(c)
             if hit[0] is not None and hit[3] < bestd: best, bestd = gname, hit[3]
+        if best == "fringe":
+            # the fringe is hair wherever it is, hairline or not
+            poly.material_index = slots["hair"]
+            continue
         m = HAIR_MARGIN * float(g)
         if best == "hair" and not above_hairline(c, m): best = "skin"
         if best == "skin" and "hair" in slots and above_hairline(c, m) and c.z > 1.70:

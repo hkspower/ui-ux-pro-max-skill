@@ -1742,51 +1742,200 @@ function drawFighter(f, camX){
       ctx.moveTo(hx-13, hy-6); ctx.quadraticCurveTo(hx+2, hy-13, hx+16, hy-7);
       ctx.lineTo(hx+16, hy-20); ctx.lineTo(hx-13, hy-20); ctx.closePath(); ctx.fill();
       ctx.restore();
-    } else if(f.quiff){
-      // swept-up quiff with faded sides
-      ctx.fillStyle = 'rgba(0,0,0,.30)';                      // fade at the temple
-      ctx.beginPath();
-      ctx.moveTo(hx-11, hy-3);
-      ctx.quadraticCurveTo(hx-10, hy-11, hx-2, hy-12.5);
-      ctx.quadraticCurveTo(hx-7, hy-8, hx-8, hy-2);
-      ctx.closePath(); ctx.fill();
-      litShape(function(){
-        ctx.beginPath();
-        ctx.moveTo(hx-12, hy-4);
-        ctx.bezierCurveTo(hx-14, hy-15, hx-7, hy-22, hx+2, hy-22);
-        ctx.bezierCurveTo(hx+11, hy-23, hx+17, hy-19, hx+16.5, hy-11);   // quiff peak
-        ctx.lineTo(hx+14.5, hy-9);
-        ctx.quadraticCurveTo(hx+12, hy-14, hx+3, hy-14);                 // hairline
-        ctx.quadraticCurveTo(hx-6, hy-13.5, hx-9, hy-5);
-        ctx.closePath();
-      }, hair, hx+2, hy-17, 17);
-      ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1.3;
-      ctx.beginPath();                                        // quiff sweep
-      ctx.moveTo(hx-4, hy-18); ctx.quadraticCurveTo(hx+6, hy-21, hx+14, hy-14); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,.09)'; ctx.lineWidth = 1.1;
-      ctx.beginPath();                                        // a second, lower strand
-      ctx.moveTo(hx-7, hy-14); ctx.quadraticCurveTo(hx+3, hy-17.5, hx+11, hy-12); ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 1.2;
-      ctx.beginPath();                                        // roots along the hairline
-      ctx.moveTo(hx+13.5, hy-9.5); ctx.quadraticCurveTo(hx+11, hy-13.2, hx+3, hy-13.2); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(hx-6, hy-14); ctx.quadraticCurveTo(hx+3, hy-18, hx+11, hy-13); ctx.stroke();
     } else {
-      litShape(function(){
-        ctx.beginPath();
-        ctx.moveTo(hx-12.5, hy-3);
-        ctx.bezierCurveTo(hx-14, hy-16, hx-5, hy-20, hx+3, hy-19);
-        ctx.bezierCurveTo(hx+12, hy-19, hx+15.6, hy-13, hx+15, hy-9);
-        ctx.quadraticCurveTo(hx+11, hy-13.5, hx+3, hy-13);
-        ctx.quadraticCurveTo(hx-6, hy-12.5, hx-9.5, hy-4);
-        ctx.closePath();
-      }, hair, hx, hy-13, 16);
-      ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 1;
-      for(var hs=0; hs<3; hs++){
-        ctx.beginPath();
-        ctx.moveTo(hx-8+hs*5, hy-17); ctx.quadraticCurveTo(hx-4+hs*5, hy-14, hx-1+hs*5, hy-12.5);
+      // The cut (look.hairStyle, 2026-09-24): quiff, crop, buzz, fade, curly,
+      // slick, part, fringe -- one per man with hair, Gulf cuts. Unreal
+      // builds the same eight in 3D (Tools/blender/hero/assembly.py,
+      // hair_parts). `quiff: true` is the name Saud's cut had before.
+      var cut = f.hairStyle || (f.quiff ? 'quiff' : 'crop');
+      var hairPath = null;
+      var strand = function(col, lw, x0, y0, cx, cy, x1, y1){
+        ctx.strokeStyle = col; ctx.lineWidth = lw;
+        ctx.beginPath(); ctx.moveTo(hx+x0, hy+y0); ctx.quadraticCurveTo(hx+cx, hy+cy, hx+x1, hy+y1);
         ctx.stroke();
+      };
+      var templeFade = function(a){                           // the faded sides of a short cut
+        ctx.fillStyle = 'rgba(0,0,0,'+a+')';
+        ctx.beginPath();
+        ctx.moveTo(hx-11, hy-3);
+        ctx.quadraticCurveTo(hx-10, hy-11, hx-2, hy-12.5);
+        ctx.quadraticCurveTo(hx-7, hy-8, hx-8, hy-2);
+        ctx.closePath(); ctx.fill();
+      };
+      if(cut === 'quiff'){
+        // swept-up quiff with faded sides
+        templeFade(.30);
+        hairPath = function(){
+          ctx.beginPath();
+          ctx.moveTo(hx-12, hy-4);
+          ctx.bezierCurveTo(hx-14, hy-15, hx-7, hy-22, hx+2, hy-22);
+          ctx.bezierCurveTo(hx+11, hy-23, hx+17, hy-19, hx+16.5, hy-11);   // quiff peak
+          ctx.lineTo(hx+14.5, hy-9);
+          ctx.quadraticCurveTo(hx+12, hy-14, hx+3, hy-14);                 // hairline
+          ctx.quadraticCurveTo(hx-6, hy-13.5, hx-9, hy-5);
+          ctx.closePath();
+        };
+        litShape(hairPath, hair, hx+2, hy-17, 17);
+        strand('rgba(255,255,255,.16)', 1.3, -4, -18, 6, -21, 14, -14);  // quiff sweep
+        strand('rgba(255,255,255,.09)', 1.1, -7, -14, 3, -17.5, 11, -12); // a second, lower strand
+        strand('rgba(0,0,0,.22)', 1.2, 13.5, -9.5, 11, -13.2, 3, -13.2);  // roots along the hairline
+        strand('rgba(255,255,255,.08)', 1, -6, -14, 3, -18, 11, -13);
+      } else if(cut === 'buzz'){
+        // clippered all over: the skull's own shape, the scalp showing through
+        hairPath = function(){
+          ctx.beginPath();
+          ctx.moveTo(hx-12.4, hy+2);
+          ctx.bezierCurveTo(hx-13.4, hy-14.2, hx-6, hy-18.6, hx+2, hy-18.6);
+          ctx.bezierCurveTo(hx+11, hy-18.6, hx+15.3, hy-12, hx+14.6, hy-9);
+          ctx.quadraticCurveTo(hx+11, hy-12.6, hx+4, hy-12.5);
+          ctx.quadraticCurveTo(hx-3, hy-12, hx-6, hy-5);
+          ctx.quadraticCurveTo(hx-8, hy-1, hx-9, hy+3);
+          ctx.closePath();
+        };
+        ctx.save(); ctx.globalAlpha = 0.80;
+        litShape(hairPath, hair, hx, hy-12, 16);
+        ctx.restore();
+        ctx.save(); hairPath(); ctx.clip();                   // the clipper grain, fixed per head
+        ctx.fillStyle = 'rgba(0,0,0,.15)';
+        for(var bz = 0; bz < 60; bz++){
+          ctx.fillRect(hx - 13 + ((bz * 12.9898) % 1) * 28, hy - 19 + ((bz * 78.233) % 1) * 20, 0.7, 0.7);
+        }
+        ctx.restore();
+      } else if(cut === 'fade'){
+        // skin fade: the sides and back taken down to skin, a short textured top
+        ctx.save(); skullPath(); ctx.clip();
+        var fadeG = ctx.createLinearGradient(0, hy-13, 0, hy+1);
+        fadeG.addColorStop(0, hair); fadeG.addColorStop(1, skin);
+        ctx.globalAlpha = 0.85; ctx.fillStyle = fadeG;
+        ctx.beginPath();
+        ctx.moveTo(hx-13.5, hy+2); ctx.lineTo(hx-13.5, hy-13); ctx.lineTo(hx+3, hy-14);
+        ctx.quadraticCurveTo(hx-4, hy-10, hx-6, hy-3);
+        ctx.quadraticCurveTo(hx-8, hy, hx-9, hy+3);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+        hairPath = function(){
+          ctx.beginPath();
+          ctx.moveTo(hx-11.5, hy-10.5);
+          ctx.bezierCurveTo(hx-12.5, hy-18.5, hx-5, hy-21.5, hx+3, hy-21);
+          ctx.bezierCurveTo(hx+11, hy-21, hx+15.5, hy-16, hx+15, hy-10.5);
+          ctx.quadraticCurveTo(hx+11, hy-13.8, hx+3, hy-13.4);
+          ctx.quadraticCurveTo(hx-5, hy-13, hx-11.5, hy-10.5);
+          ctx.closePath();
+        };
+        litShape(hairPath, hair, hx+2, hy-16, 16);
+        for(var ft = 0; ft < 5; ft++){                        // texture on top
+          strand('rgba(255,255,255,.13)', 1, -7 + ft * 4, -18 + (ft % 2) * 1.5, -4 + ft * 4, -21, -1 + ft * 4, -17.5);
+        }
+      } else if(cut === 'curly'){
+        // a curly crop: tight curls over the top, shorter at the sides
+        templeFade(.24);
+        hairPath = function(){
+          ctx.beginPath();
+          ctx.moveTo(hx-12.5, hy-3);
+          ctx.bezierCurveTo(hx-15, hy-18, hx-6, hy-23, hx+3, hy-22.5);
+          ctx.bezierCurveTo(hx+13, hy-22, hx+17, hy-15, hx+15.5, hy-9.5);
+          ctx.quadraticCurveTo(hx+11, hy-13.5, hx+3, hy-13);
+          ctx.quadraticCurveTo(hx-6, hy-12.5, hx-9.5, hy-4);
+          ctx.closePath();
+        };
+        litShape(hairPath, hair, hx+1, hy-15, 17);
+        // the outline is curls, not a line: small, overlapping, a little
+        // uneven, so it reads as hair and not as a string of beads
+        var curls = [[-12.6,-7],[-12.9,-10.5],[-12.3,-14],[-10.6,-17.2],[-8,-19.6],[-5,-21.2],[-1.6,-22.1],
+                     [1.8,-22.4],[5.2,-21.9],[8.4,-20.6],[11.2,-18.6],[13.4,-15.8],[14.9,-12.6],[15.4,-10.2]];
+        ctx.fillStyle = hair;
+        for(var cu = 0; cu < curls.length; cu++){
+          circle(hx + curls[cu][0], hy + curls[cu][1], 1.75 + (cu % 3) * 0.3); ctx.fill();
+        }
+        ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 0.8;
+        for(var cv = 0; cv < curls.length; cv += 2){
+          ctx.beginPath(); ctx.arc(hx + curls[cv][0], hy + curls[cv][1], 1.1, 3.7, 5.3); ctx.stroke();
+        }
+        ctx.save(); hairPath(); ctx.clip();
+        for(var ck = 0; ck < 14; ck++){                       // and knots inside it
+          var kx = hx - 9 + (ck * 6.7) % 22, ky = hy - 20 + (ck * 4.3) % 7;
+          ctx.strokeStyle = 'rgba(0,0,0,.30)'; ctx.lineWidth = 0.9;
+          ctx.beginPath(); ctx.arc(kx, ky, 1.3, 0.2, 3.4); ctx.stroke();
+          ctx.strokeStyle = 'rgba(255,255,255,.10)';
+          ctx.beginPath(); ctx.arc(kx + 0.6, ky - 0.6, 1.1, 3.6, 5.6); ctx.stroke();
+        }
+        ctx.restore();
+      } else if(cut === 'slick'){
+        // combed straight back: flat at the front, the length at the back
+        templeFade(.16);
+        hairPath = function(){
+          ctx.beginPath();
+          ctx.moveTo(hx-13.5, hy+1);
+          ctx.bezierCurveTo(hx-15.5, hy-14, hx-6, hy-21.5, hx+4, hy-20.5);
+          ctx.bezierCurveTo(hx+11, hy-20, hx+15, hy-15, hx+14.6, hy-10);
+          ctx.quadraticCurveTo(hx+11, hy-13.2, hx+3.5, hy-13.2);
+          ctx.quadraticCurveTo(hx-5, hy-12.5, hx-8.5, hy-4);
+          ctx.quadraticCurveTo(hx-10, hy-1, hx-10.5, hy+1.5);
+          ctx.closePath();
+        };
+        litShape(hairPath, hair, hx, hy-15, 17);
+        for(var cl = 0; cl < 5; cl++){                        // the comb lines, front to back
+          strand(cl % 2 ? 'rgba(0,0,0,.22)' : 'rgba(255,255,255,.15)', 1,
+                 13 - cl * 1.1, -12.4 - cl * 1.5, 2, -20.2 + cl * 1.5, -12 + cl * 0.6, -8 + cl * 2);
+        }
+      } else if(cut === 'part'){
+        // a hard side part: a shaved line, the volume swept off it
+        templeFade(.30);
+        hairPath = function(){
+          ctx.beginPath();
+          ctx.moveTo(hx-12.5, hy-3);
+          ctx.bezierCurveTo(hx-14, hy-16, hx-5, hy-21.5, hx+4, hy-21);
+          ctx.bezierCurveTo(hx+13, hy-20.5, hx+17, hy-14, hx+15.5, hy-9);
+          ctx.quadraticCurveTo(hx+11, hy-13.5, hx+3, hy-13);
+          ctx.quadraticCurveTo(hx-6, hy-12.5, hx-9.5, hy-4);
+          ctx.closePath();
+        };
+        litShape(hairPath, hair, hx+2, hy-16, 17);
+        strand(skin, 1.0, 11.8, -14.6, 4, -18.9, -5, -18.2);     // the part itself
+        strand('rgba(255,255,255,.15)', 1.2, 4, -19.4, 11, -18, 15, -11);   // swept forward off it
+        strand('rgba(255,255,255,.09)', 1, -3, -19, 7, -17, 12.5, -12);
+      } else if(cut === 'fringe'){
+        // a textured crop pushed forward: a ragged fringe over the brow
+        templeFade(.28);
+        hairPath = function(){
+          ctx.beginPath();
+          ctx.moveTo(hx-12.5, hy-3);
+          ctx.bezierCurveTo(hx-14, hy-16, hx-5, hy-21, hx+4, hy-20.5);
+          ctx.bezierCurveTo(hx+12, hy-20, hx+16.5, hy-14, hx+16, hy-8);
+          ctx.lineTo(hx+14.6, hy-6.4); ctx.lineTo(hx+13.2, hy-8.6); ctx.lineTo(hx+11.7, hy-6.9);
+          ctx.lineTo(hx+10.2, hy-9.3); ctx.lineTo(hx+8.4, hy-8.8);
+          ctx.quadraticCurveTo(hx+3, hy-12.5, hx-6, hy-12);
+          ctx.quadraticCurveTo(hx-9, hy-8, hx-9.5, hy-4);
+          ctx.closePath();
+        };
+        litShape(hairPath, hair, hx+3, hy-15, 17);
+        for(var fr = 0; fr < 4; fr++){                        // pushed forward
+          strand('rgba(255,255,255,.13)', 1, -4 + fr * 3, -19.5 + fr * 0.6, 5 + fr * 2.5, -18.5, 10 + fr * 1.5, -10 + fr * 0.3);
+        }
+      } else {
+        // crop: a close cut all round
+        hairPath = function(){
+          ctx.beginPath();
+          ctx.moveTo(hx-12.5, hy-3);
+          ctx.bezierCurveTo(hx-14, hy-16, hx-5, hy-20, hx+3, hy-19);
+          ctx.bezierCurveTo(hx+12, hy-19, hx+15.6, hy-13, hx+15, hy-9);
+          ctx.quadraticCurveTo(hx+11, hy-13.5, hx+3, hy-13);
+          ctx.quadraticCurveTo(hx-6, hy-12.5, hx-9.5, hy-4);
+          ctx.closePath();
+        };
+        litShape(hairPath, hair, hx, hy-13, 16);
+        for(var hs = 0; hs < 3; hs++){
+          strand('rgba(255,255,255,.10)', 1, -8 + hs * 5, -17, -4 + hs * 5, -14, -1 + hs * 5, -12.5);
+        }
+      }
+      // going grey at the temples (look.grey, 0..1): the Contender, the Enforcer
+      if(f.grey && hairPath){
+        ctx.save(); hairPath(); ctx.clip();
+        var greyG = ctx.createRadialGradient(hx+2, hy-10, 1, hx+2, hy-10, 8);
+        greyG.addColorStop(0, 'rgba(170,164,156,' + (0.85 * f.grey) + ')');
+        greyG.addColorStop(1, 'rgba(170,164,156,0)');
+        ctx.fillStyle = greyG; ctx.fillRect(hx-8, hy-20, 22, 16);
+        ctx.restore();
       }
     }
 

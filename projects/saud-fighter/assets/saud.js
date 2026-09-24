@@ -28,20 +28,24 @@ window.ASSET_SAUD = {
   // rewards staying in the fight rather than hoarding.
   mpRegen:  { idle: 5, onHit: 4 },
 
+  // Skin, 2026-09-24: measured skin, not a swatch. It was #f0d8c4 -- a
+  // Northern European's (CIELAB L* 88, ITA 80 degrees) -- and is now an
+  // eighteen-year-old Kuwaiti's: L* 64, a* 12.6, b* 20, ITA 35 (light-tan,
+  // olive). Every man's skin was moved the same way; see enemies.js.
   // Street clothes: black fitted tee, black track pants, trainers. The
   // accent is Kuwait's own red, pushed brighter and more saturated than a
   // flag-swatch red -- requested 2026-09-20 for more vibrancy/pop in his
   // kit; it is the one colour every draw call reads (waistband, trouser
   // stripe, dash trail, glove, his UI swatch -- see index.html's uses of
   // col.band), so this alone is what makes him read as more vivid.
-  col: { skin:'#f0d8c4', top:'#15171c', bottom:'#0e1014', band:'#ff1a3c' },
+  col: { skin:'#bd9278', top:'#15171c', bottom:'#0e1014', band:'#ff1a3c' },
 
   look: {
     tee:    true,          // sleeves over the upper arms
     pants:  true,          // long trousers rather than fight shorts
     stripe: true,          // his are track pants, not jeans
     patch:  true,          // Kuwait flag on the chest
-    quiff:  true,          // swept-up hair with faded sides
+    hairStyle: 'quiff',    // swept-up hair with faded sides (the cuts: enemies.js)
     watch:  true,          // wristwatch on the lead arm
     hands:  'wraps',       // taped fists — nobody wears gloves with jeans
     build:  1.12,          // thicker limbs: the shirt is a muscle fit

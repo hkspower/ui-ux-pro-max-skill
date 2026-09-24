@@ -137,7 +137,7 @@ def hex_lin(h): return _lin(_srgb(h))
 # Saud's face on a brown neck until it did -- the zones were laid over his
 # #b8794c at 0.85 as the absolute #efd6b8 / #eecbb4 / #e2c7b4 they are here.
 # On Saud the ratio is one and the number is the number.
-SAUD_SKIN = '#f0d8c4'    # assets/saud.js col.skin, the skin these were written on
+SAUD_SKIN = '#f0d8c4'    # the skin these were written on (Saud's until 2026-09-24): a reference, used as a ratio
 ZONE_BROW = '#efd6b8'     # forehead and temples, yellower
 ZONE_MID  = '#eecbb4'     # nose, cheeks, the blood zone
 ZONE_JAW  = '#e2c7b4'     # jaw, chin, upper lip -- cooler
@@ -228,12 +228,14 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
 
     # ---- 4. the hairline, feathered -----------------------------------
     hw = hairline_weight(P)
-    over(hw, hair, 1.0)
-    # the faded sides, the same fade the hair material itself wears
+    # his own hair colour, grey at the temples where he is going grey
+    w_h = (np.clip(hw, 0, 1) * on_face)[:, None]
+    col[:] = col * (1 - w_h) + hair_colour(P, hair) * w_h
+    # the fade, the same one the hair material itself wears
     # (finish.kit_colour): the material boundary sits above the hairline on
     # the front and the sides (assembly.HAIR_MARGIN), so the band between
     # is this paint, and it must match the hair above it
-    over(hw * 0.55 * hair_fade(P), skin, 1.0)
+    over(hw * hair_fade(P), skin, 1.0)
     rel += hw * 0.0010
     darken(hw * (1.0 - hw) * 4.0 * 0.25, 0.30)                          # shadow under the fringe
 
@@ -424,12 +426,88 @@ def hairline_weight(P):
               * ramp(z - plane, 0.0075, 0.0035))
     return np.clip(hw - 0.75 * temple, 0.0, 1.0)
 
+# ---- the cut, 2026-09-24 ---------------------------------------------------
+# Which cut this man wears and how grey he is at the temples: module state,
+# like the rest of this module's per-man layout (one process per man --
+# build_fighters.py), set by pipeline.build_fighter from the roster's
+# `look.hairStyle` and `look.grey`. The geometry of each cut is in
+# assembly.hair_parts; this is its paint, used twice -- on the hair material
+# (finish.kit_colour) and on the band of skin painted as hair above the
+# hairline (shade(), step 4) -- so the two meet.
+HAIR = {"style": "quiff", "grey": 0.0}
+# grey as it comes in at a Gulf man's temples: silver over the dark, not white
+GREY_HAIR = '#9d978f'
+
+def set_hair(style, grey=0.0):
+    HAIR["style"] = style
+    HAIR["grey"] = float(grey)
+
 def hair_fade(P):
-    """The faded sides of a short crop: 0 on top, 1 low on the sides, where
-    the skin shows through. One formula for the hair material's own paint
-    and for the hairline band painted on the skin, so they meet."""
-    x, z = P[:, 0], P[:, 2]
-    return np.clip((0.070 - (1.76 - z)) / 0.05, 0, 1) * np.clip((np.abs(x) - 0.045) / 0.03, 0, 1)
+    """How much skin shows through the hair at P, 0..1 -- the fade. One
+    formula for the hair material's own paint and for the hairline band
+    painted on the skin, so they meet.
+
+    crop / quiff / part / fringe: the faded sides of a short crop (the
+    number every build had, 0.55 low on the sides). slick and curly: longer
+    at the sides, so less. fade: a skin fade -- skin up to 1.72 on the sides
+    and the back, hair from 1.765, the top untouched. buzz: clippered, the
+    scalp showing through everywhere, more low on the sides, in the grain of
+    the follicles."""
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    ax = np.abs(x)
+    crop = np.clip((0.070 - (1.76 - z)) / 0.05, 0, 1) * np.clip((ax - 0.045) / 0.03, 0, 1)
+    style = HAIR["style"]
+    if style == "fade":
+        where = np.maximum(ramp(ax, 0.040, 0.060), ramp(y, 0.020, 0.050))
+        return where * ramp(z, 1.765, 1.722)
+    if style == "buzz":
+        base = 0.30 + 0.28 * ramp(z, 1.780, 1.730) * ramp(ax, 0.035, 0.060)
+        grain = fbm(P, 900.0, 2, 71.0)
+        return np.clip(base + 0.30 * (grain - 0.5), 0.0, 0.85)
+    if style == "slick":
+        return 0.30 * crop
+    if style == "curly":
+        return 0.45 * crop
+    return 0.55 * crop
+
+def hair_grey(P):
+    """How grey the hair is at P: the temples and the sides above the ear,
+    in strands, scaled by the man's `look.grey`."""
+    if HAIR["grey"] <= 0.0:
+        return np.zeros(len(P))
+    z = P[:, 2]
+    temple = (ramp(lateral(P), 0.55, 0.85) * ramp(z, 1.700, 1.720) * ramp(z, 1.790, 1.765)
+              * ramp(forwardness(P), -0.45, 0.05))
+    strands = 0.55 + 0.9 * fbm(P * np.array([1.0, 0.35, 1.0]), 700.0, 2, 5.0)
+    return np.clip(HAIR["grey"] * temple * strands, 0.0, 1.0)
+
+def hair_colour(P, hair):
+    """The hair's colour at P: his own, going grey at the temples."""
+    g = hair_grey(P)[:, None]
+    rgb = np.tile(np.asarray(hair, dtype=float), (len(P), 1))
+    return rgb * (1.0 - g) + hex_lin(GREY_HAIR)[None, :] * g
+
+def hair_part(P):
+    """The hard part: a shaved line 1.5 mm wide on his right (x = -0.022),
+    from the front hairline back to the crown. Zero for every other cut."""
+    if HAIR["style"] != "part":
+        return np.zeros(len(P))
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    return (ramp(np.abs(x + 0.022), 0.0013, 0.0005) * ramp(y, 0.040, 0.015)
+            * ramp(z, 1.745, 1.755))
+
+def hair_texture(P):
+    """The hair's own light and dark, a multiplier about 1: comb lines
+    running front to back on a slick-back (the combed direction is y), a
+    coarse clump on a textured top (fade, fringe, curly), nothing on the
+    others -- their look is the geometry and the fade."""
+    style = HAIR["style"]
+    if style == "slick":
+        lines = fbm(P * np.array([1.0, 0.08, 0.35]), 1500.0, 2, 13.0)
+        return 0.82 + 0.36 * lines
+    if style in ("fade", "fringe", "curly"):
+        return 0.86 + 0.28 * fbm(P, 520.0, 2, 29.0)
+    return np.ones(len(P))
 
 # ---- the body's skin, 2026-09-23 ------------------------------------------
 # Until then the body varied in VALUE only: one multiplicative mottle, so every

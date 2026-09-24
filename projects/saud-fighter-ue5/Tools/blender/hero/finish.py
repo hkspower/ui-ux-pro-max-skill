@@ -168,9 +168,13 @@ def lin(c): return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.
 # browser build instead: kept as the record of where the derived palette
 # has to land for him (see palette_for and the test in build_fighters.py).
 # band c8102e -> ff1a3c 2026-09-20, with assets/saud.js: the record moves with him.
-_SAUD_PAINT = dict(skin='f0d8c4', hair='1e150f', tee='15171c', pants='0e1014', band='ff1a3c', shoe='101216')
+# skin f0d8c4 -> bd9278 2026-09-24, with assets/saud.js: measured skin, not a
+# Northern European's. face.SAUD_SKIN stays #f0d8c4 -- it is the skin the
+# face's tones were WRITTEN on, and every tone is used as a ratio to it
+# (face.shade's tone()), so it is a reference, not his colour.
+_SAUD_PAINT = dict(skin='bd9278', hair='1e150f', tee='15171c', pants='0e1014', band='ff1a3c', shoe='101216')
 from . import face as FA
-assert '#' + _SAUD_PAINT['skin'] == FA.SAUD_SKIN, "face.py's tones are written on a skin that is not Saud's"
+assert FA.SAUD_SKIN == '#f0d8c4', "face.py's tones are ratios to the skin they were written on; change them together"
 
 def palette_for(spec):
     """Linear colours and the kit for one fighter, from his roster entry.
@@ -281,9 +285,12 @@ def kit_colour(P, kind, pal, joints_l, base=None, parts=None):
                 if parts is not None:
                     parts["nail"] = np.maximum(parts.get("nail", np.zeros(n)), np.clip(nw, 0, 1))
     elif kind == "hair":
-        # faded sides: lighter (skin showing through) low on the sides --
-        # face.hair_fade, shared with the hairline band painted on the skin
-        over(0.55 * FA.hair_fade(P), skin)
+        # his colour (grey at the temples) in the cut's own texture, then
+        # the fade -- skin showing through, face.hair_fade, shared with the
+        # hairline band painted on the skin -- and a hard part if he has one
+        col[:] = FA.hair_colour(P, hair) * FA.hair_texture(P)[:, None]
+        over(FA.hair_fade(P), skin)
+        over(FA.hair_part(P), skin)
         kit[:] = 1.0
     elif kind == "shoe":
         over(ramp(z, 0.022 + f, 0.022 - f), lin(srgb('2a2c30')))                       # the sole, a step lighter

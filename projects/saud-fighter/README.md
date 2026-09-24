@@ -200,15 +200,15 @@ colour swap does not, especially in a five-enemy wave.
 
 | | Trait | Reads as |
 | --- | --- | --- |
-| Thug / بلطجي | Basic punches, barely guards. | smallest man on screen, grey tee |
-| Brawler / مشاكس | Three-punch pressure. | stocky, bearded, rust tee |
+| Thug / بلطجي | Basic punches, barely guards. | smallest man on screen, buzz cut, grey tee |
+| Brawler / مشاكس | Three-punch pressure. | stocky, henna-red curls and beard, rust tee |
 | Runner / خطّاف | Very fast, low health, strikes and retreats. | slight, orange hoodie, peaked cap |
-| Kickboxer / ملاكم | Long range, kick-heavy. | green hoodie, track pants, taped fists |
+| Kickboxer / ملاكم | Long range, kick-heavy. | skin fade, green hoodie, track pants, taped fists |
 | Bouncer / حارس | Slow wall of a man, guards 62% of the time. | bald, sunglasses, black on black |
 | Grappler / مصارع | Knees and hooks, hard to knock down. | bald, scarred, grey tee, huge |
-| Enforcer / مُنفّذ | Fast technical combos. | sunglasses but hair, teal jacket |
-| Contender / منافس | Uses the full moveset. | purple jacket over indigo jeans |
-| **AL-SAQR / الصقر** | Mid-campaign boss. All legs, no patience. | navy hoodie, track pants |
+| Enforcer / مُنفّذ | Fast technical combos. | sunglasses, side parting going grey, teal jacket |
+| Contender / منافس | Uses the full moveset. | slicked back and greying, purple jacket over indigo jeans |
+| **AL-SAQR / الصقر** | Mid-campaign boss. All legs, no patience. | a fringe, navy hoodie, track pants |
 | **ZAYOS / زايوس** | The first title fight — Unity build only, in the cellar under the striking house (`assets/strata.js`). A boxing monster: 1.55 of a man, only punches, slow. No browser stage spawns him; he is in the roster so the ports read one table. | gloves, bare-chested, bald, scarred |
 | **AL-WAHSH / الوحش** | Final boss. Two phases. | biggest, bald, full beard, black |
 
@@ -312,7 +312,7 @@ confirmation.
 
 ## Saud's look
 
-Saud is styled as a gym-built Kuwaiti fighter: fair skin, a broad-shouldered
+Saud is styled as a gym-built Kuwaiti fighter: light olive skin, a broad-shouldered
 V-taper on a heavier build, a black fitted training tee with short sleeves,
 black long trousers with a red seam stripe over a red waistband, a Kuwait flag
 patch on the chest, dark trainers, a swept-up quiff with
@@ -326,7 +326,8 @@ wear the same kit:
 | `pants` | legs are drawn in the trouser colour, not skin, with a stripe down the outer seam, a knee crease and an ankle cuff |
 | `patch` | a small Kuwait flag on the chest of the tee |
 | `build` | multiplies limb thickness and chest width; 1 is lean, Saud is 1.12 |
-| `quiff` | swept-up hair with faded sides instead of a rounded cap, no headband |
+| `hairStyle` | the cut: `quiff` (Saud's, swept up with faded sides), `crop` (the default), `buzz`, `fade`, `curly`, `slick`, `part`, `fringe`. `quiff: true` still means `quiff` |
+| `grey` | 0-1, grey at the temples |
 | `beard` | full beard and moustache (a colour string) |
 | `hair` | overrides the hair colour |
 | `watch` | wristwatch on the lead arm |
