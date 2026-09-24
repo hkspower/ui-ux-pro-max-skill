@@ -1690,7 +1690,12 @@ sabotages, six caught) and checks its parameter names against the header.
 Cycles and runs the same numpy over them: `Docs/renders/souq-fight-anime*
 .png` is the existing souq fight scene (its men are the ones built before
 today's skin and cuts) as it looks, on an impact frame and its flip, and
-with speed lines. **Not verified**: no engine has built the materials or
+with speed lines; `Docs/renders/anime-men.png` is the six rebuilt men,
+full length over their faces, from their rig files. Looking at that sheet
+is what retuned the tones: a highlight at 1.30 spotted every face, so it is
+real glare only (1.90), deep shadow starts at 0.09, and the light is
+averaged over 3 px of the same surface before it is cut, so the skin's own
+detail does not flip pixels across a terminator. **Not verified**: no engine has built the materials or
 compiled any of the C++; the preview's exposure is a stand-in (the
 fighters' light at its 55th percentile is "lit") where the engine's is its
 eye adaptation and `MPC_Anime.Key`.
