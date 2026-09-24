@@ -463,7 +463,7 @@ built body or the posed rig, and the number is beside it:
   stronger arm grows its bellies and keeps its joints, and a flat multiply
   would have thickened the elbow with them. Biceps girth 0.376 -> 0.442 m.
   **2026-09-24, "make arm stronger" (Saud only, the 3D model): 1.18 ->
-  1.30**, a heavyweight's arms -- about 0.49 m at the biceps ring -- with
+  1.30**, a heavyweight's arms -- biceps girth 0.442 -> 0.470 m measured -- with
   the joints still their own width. The arm is built before the
   checkpoint, so he is rebuilt whole, and `build_iron_arm.py` is re-run
   after him because the iron mask is baked on his arm's own UVs.

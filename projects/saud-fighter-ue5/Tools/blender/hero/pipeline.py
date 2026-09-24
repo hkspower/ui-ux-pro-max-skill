@@ -78,7 +78,8 @@ FACES = {
 # only: requested 2026-09-20, alongside his face -- eighteen and still a
 # working pro fighter's arms, not a stripped-down teenager's. Thug and
 # Brawler are unlisted and stay at the plain 1.0 anatomy.arm already had.
-# 1.18 -> 1.30 on 2026-09-24, asked as "make arm stronger": a heavyweight's
+# 1.18 -> 1.30 on 2026-09-24, asked as "make arm stronger" (biceps girth
+# 0.442 -> 0.470 m, measured on the build): a heavyweight's
 # arms, the register the anime look's seinen fighters are drawn in, with the
 # elbow and wrist still the joint's own width (arm()'s ring weights).
 LIMBS = {
