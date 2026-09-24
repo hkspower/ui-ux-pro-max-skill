@@ -119,6 +119,13 @@ protected:
 	UFUNCTION()
 	void HandleEnemyDefeated(AFighterBase* Fighter);
 
+	/** The stage is a round district the map was built from, so waves wake
+	    at their sites on its spiral rather than by world X. */
+	bool UsesSites() const;
+
+	/** Where a wave is in the world: the map's marker for it. */
+	FVector WaveSiteWorld(const FWaveDef& Wave) const;
+
 	/** Hand every live enemy its place round the player -- front, flanks,
 	    back, wide -- from where they all stand now (SaudBrain::AssignRoles).
 	    Every frame, because the player turns. */

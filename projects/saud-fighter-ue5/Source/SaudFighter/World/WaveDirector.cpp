@@ -60,6 +60,22 @@ float AWaveDirector::GetStageLength() const
 	return Stage ? Stage->Length : 0.f;
 }
 
+bool AWaveDirector::UsesSites() const
+{
+	return Stage && Stage->Index >= 0 && !Stage->bSurvival;
+}
+
+FVector AWaveDirector::WaveSiteWorld(const FWaveDef& Wave) const
+{
+	if (!Stage)
+	{
+		return GetActorLocation();
+	}
+	const FVector Site = SaudArena::WaveSite(Wave.TriggerDistance, Stage->Length,
+	                                         SaudArena::DistrictPhase(Stage->Index));
+	return FVector(GetActorLocation().X + Site.X, GetActorLocation().Y + Site.Y, GetActorLocation().Z);
+}
+
 bool AWaveDirector::Contains(const FVector& WorldLocation) const
 {
 	// A district is a round place, not a strip with two ends. The margin is
@@ -145,11 +161,19 @@ void AWaveDirector::Tick(float DeltaSeconds)
 		return;
 	}
 
-	// Trigger the next wave once the player walks far enough in.
+	// Wake the next wave when the player reaches it. In a round district
+	// that is its site on the spiral, where the map put its marker -- in
+	// order, so a player who came in by the far door walks the street to the
+	// first fight rather than having every wave wake at the doorway. A row
+	// that is not a district keeps the strip's rule: far enough along X.
 	if (!bArenaLocked && WaveIndex < Waves.Num())
 	{
 		const FWaveDef& Next = Waves[WaveIndex];
-		if (Next.TriggerDistance < 0.f || LocalX(Player->GetActorLocation()) > Next.TriggerDistance)
+		const bool bReached = Next.TriggerDistance < 0.f
+			|| (UsesSites()
+				? SaudArena::InCircle(Player->GetActorLocation(), WaveSiteWorld(Next), SaudArena::SiteRadius)
+				: LocalX(Player->GetActorLocation()) > Next.TriggerDistance);
+		if (bReached)
 		{
 			BeginWave(Next);
 		}
@@ -176,10 +200,17 @@ void AWaveDirector::Tick(float DeltaSeconds)
 		ApplyArenaBounds();
 	}
 
-	// Stage cleared once every wave is down and the exit is reached.
+	// Stage cleared once every wave is down and the end of the way through
+	// is reached: the strip's last 360 cm, which in a round district is the
+	// same fraction of the way along its street.
+	const bool bAtEnd = UsesSites()
+		? SaudArena::InCircle(Player->GetActorLocation(),
+			GetActorLocation() + SaudArena::StreetEnd(Stage->Length, SaudArena::DistrictPhase(Stage->Index)),
+			SaudArena::SiteRadius)
+		: LocalX(Player->GetActorLocation()) >= Stage->Length - 360.f;
 	if (!Stage->bSurvival
 		&& WaveIndex >= Waves.Num()
-		&& LocalX(Player->GetActorLocation()) >= Stage->Length - 360.f)
+		&& bAtEnd)
 	{
 		bFinished = true;
 		if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Stage_Clear")); }
@@ -196,10 +227,12 @@ void AWaveDirector::BeginWave(const FWaveDef& Wave)
 	}
 
 	bArenaLocked = true;
-	// The fight happens where he is standing when it starts, not at an offset
-	// back down the corridor from him.
-	ArenaCentre = FVector(Player->GetActorLocation().X, Player->GetActorLocation().Y,
-	                      GetActorLocation().Z);
+	// The fight happens at its site, the room the map kept clear for it; a
+	// wave with no site (it wakes at once) or in a row that is not a
+	// district happens where he is standing.
+	const FVector Where = (UsesSites() && Wave.TriggerDistance >= 0.f)
+		? WaveSiteWorld(Wave) : Player->GetActorLocation();
+	ArenaCentre = FVector(Where.X, Where.Y, GetActorLocation().Z);
 	ApplyArenaBounds();
 
 	const int32 Tier = (Wave.TierOverride >= 0) ? Wave.TierOverride : Stage->Tier;

@@ -338,6 +338,58 @@ static void District()
     Check(Mismatches == 0, "every real stage's extent matches lay_out_world.py's");
 }
 
+// ------------------------------------------------------------ the world
+
+static void Sites()
+{
+    std::printf("\nSITES AND DOORS  (the game agreeing with the map it is played on)\n");
+
+    // The hash the builders place every district with. These are
+    // Tools/levels/build_world.py's hash01(i * 977 + 13) for the ten stage
+    // indices -- the formula's own values, not the data's, so they only go
+    // stale if someone changes the hash on one side and not the other.
+    const float Py[10] = { 0.4582448f, 0.7918193f, 0.6924685f, 0.4667328f, 0.3285656f,
+                           0.2282923f, 0.1852833f, 0.5928881f, 0.1998035f, 0.8371642f };
+    int HashOff = 0;
+    for (int I = 0; I < 10; ++I)
+    {
+        if (FMath::Abs(SaudArena::Hash01(I * 977u + 13u) - Py[I]) > 1e-6f) { ++HashOff; }
+        if (FMath::Abs(SaudArena::DistrictPhase(I) - Py[I] * 2.f * 3.14159265f) > 1e-4f) { ++HashOff; }
+    }
+    Check(HashOff == 0, "Hash01 and DistrictPhase are the builders' hash01, index for index");
+
+    // A wave's site is the spiral at its fraction of the stage, inside the
+    // district, and a trigger past the stage's end is its end.
+    const float L = 7200.f, Ph = SaudArena::DistrictPhase(0);
+    const FVector W = SaudArena::WaveSite(3000.f, L, Ph);
+    const FVector Sp = SaudArena::SpiralPoint(3000.f / L, SaudArena::DistrictExtent(L), Ph);
+    Check((W - Sp).Size2D() < 1e-3f, "a wave's site is SpiralPoint(TriggerDistance / Length)");
+    Check(W.Size2D() < SaudArena::DistrictExtent(L), "...inside its district");
+    Check((SaudArena::WaveSite(99999.f, L, Ph) - SaudArena::SpiralPoint(1.f, SaudArena::DistrictExtent(L), Ph)).Size2D() < 1e-3f,
+          "a trigger past the end is the end of the street");
+    Check((SaudArena::StreetEnd(L, Ph) - SaudArena::SpiralPoint((L - 360.f) / L, SaudArena::DistrictExtent(L), Ph)).Size2D() < 1e-3f,
+          "the street's end is the strip's last 360 cm, along the spiral");
+
+    // A door at any bearing on the rim steps the player toward the middle,
+    // stays on the ground, and faces in. It was +-240 along X.
+    const FVector Mid(37000.f, -26163.f, 0.f);
+    const float E = SaudArena::DistrictExtent(6720.f);
+    int Out = 0, NotIn = 0;
+    for (int A = 0; A < 360; A += 5)
+    {
+        const float R = A * 3.14159265f / 180.f;
+        const FVector Door(Mid.X + std::cos(R) * (E - 200.f), Mid.Y + std::sin(R) * (E - 200.f), 0.f);
+        const FVector Land = SaudArena::DoorLanding(Door, Mid, 240.f);
+        const float Rd = (Door - Mid).Size2D(), Rl = (Land - Mid).Size2D();
+        if (Rl > E || FMath::Abs((Rd - Rl) - 240.f) > 0.5f) { ++Out; }
+        const FVector In = SaudArena::DoorInward(Door, Mid);
+        const FVector ToMid = SaudArena::Direction(Door, Mid, FVector(1.f, 0.f, 0.f));
+        if (In.X * ToMid.X + In.Y * ToMid.Y < 0.9999f) { ++NotIn; }
+    }
+    Check(Out == 0, "a door step lands 240 cm inside the rim at every bearing");
+    Check(NotIn == 0, "...and faces the middle");
+}
+
 int main()
 {
     Hitbox();
@@ -347,6 +399,7 @@ int main()
     Crowd();
     Spiral();
     District();
+    Sites();
     std::printf(Fails == 0 ? "\nall checks passed\n" : "\n%d FAILURES\n", Fails);
     return Fails == 0 ? 0 : 1;
 }

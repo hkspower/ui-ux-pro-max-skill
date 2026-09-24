@@ -1,8 +1,10 @@
 #include "World/AreaExit.h"
+#include "Combat/SaudArena.h"
 #include "Game/SaudAudioSubsystem.h"
 
 #include "Combat/SaudCharacter.h"
 #include "Components/BoxComponent.h"
+#include "EngineUtils.h"
 #include "Game/SaudGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "World/WaveDirector.h"
@@ -25,6 +27,44 @@ void AAreaExit::BeginPlay()
 {
 	Super::BeginPlay();
 	Trigger->OnComponentBeginOverlap.AddDynamic(this, &AAreaExit::HandleOverlap);
+
+	// The trigger is thin along its own X and wide along Y, which was right
+	// for a door at the end of a strip. A door on a round district's rim
+	// stands at any bearing, so it is turned to face the middle: thin along
+	// the way through it, wide along the rim. Unturned, a door due north of
+	// the middle lay 14 m deep into the district along the road.
+	const FVector In = GetInward();
+	SetActorRotation(FRotator(0.f, FMath::RadiansToDegrees(FMath::Atan2(In.Y, In.X)), 0.f));
+}
+
+FVector AAreaExit::GetInward() const
+{
+	// The middle of the district this door is in: the director whose round
+	// place holds it. A map with none (a door alone in a test level) keeps
+	// the strip's rule: in along +X from a west edge, -X from an east one.
+	const AWaveDirector* Own = nullptr;
+	float Best = TNumericLimits<float>::Max();
+	if (const UWorld* World = GetWorld())
+	{
+		for (TActorIterator<AWaveDirector> It(World); It; ++It)
+		{
+			if (!It->Contains(GetActorLocation()))
+			{
+				continue;
+			}
+			const float D = FVector::DistSquared2D(It->GetActorLocation(), GetActorLocation());
+			if (D < Best)
+			{
+				Best = D;
+				Own = *It;
+			}
+		}
+	}
+	if (!Own)
+	{
+		return FVector(Side == EAreaSide::East ? -1.f : 1.f, 0.f, 0.f);
+	}
+	return SaudArena::DoorInward(GetActorLocation(), Own->GetActorLocation());
 }
 
 bool AAreaExit::IsOpenFor(const USaudGameInstance* GI) const
@@ -46,12 +86,13 @@ bool AAreaExit::IsOpenFor(const USaudGameInstance* GI) const
 
 FVector AAreaExit::GetLandingLocation() const
 {
-	// Inward is +X from a west edge and -X from an east one; the door off the
-	// souq stands in the strip's middle, so a step back the way it faces.
-	const float Inward = (Side == EAreaSide::East) ? -1.f : 1.f;
-	FVector Loc = GetActorLocation();
-	Loc.X += Inward * 240.f;
-	return Loc;
+	// A step toward the middle of this door's own district. It was 240 cm
+	// along world X, which is inward only for a door due east or west of the
+	// middle: in the open world four door steps of eighteen stood the player
+	// outside the rim, facing out.
+	const FVector In = GetInward();
+	const FVector Loc = GetActorLocation();
+	return FVector(Loc.X + In.X * 240.f, Loc.Y + In.Y * 240.f, Loc.Z);
 }
 
 void AAreaExit::HandleOverlap(UPrimitiveComponent*, AActor* Other, UPrimitiveComponent*, int32, bool, const FHitResult&)
@@ -82,10 +123,9 @@ void AAreaExit::HandleOverlap(UPrimitiveComponent*, AActor* Other, UPrimitiveCom
 	{
 		// Push back a step so the player is not standing inside the trigger
 		// when it refuses, then say what it wants.
-		const float Dir = (Side == EAreaSide::West) ? 1.f : -1.f;
-		FVector Loc = Player->GetActorLocation();
-		Loc.X += Dir * 140.f;
-		Player->SetActorLocation(Loc);
+		const FVector In = GetInward();
+		const FVector Loc = Player->GetActorLocation();
+		Player->SetActorLocation(FVector(Loc.X + In.X * 140.f, Loc.Y + In.Y * 140.f, Loc.Z));
 
 		const double Now = World ? World->GetTimeSeconds() : 0.0;
 		if (Now >= RefuseCooldown)
@@ -115,8 +155,11 @@ void AAreaExit::HandleOverlap(UPrimitiveComponent*, AActor* Other, UPrimitiveCom
 			GI->SaveProgress();
 		}
 		DestinationExit->bTravelling = true;
+		// Stood a step inside the far door, facing into its district.
+		const FVector In = DestinationExit->GetInward();
 		Player->SetActorLocation(DestinationExit->GetLandingLocation());
-		Player->SetActorRotation(FRotator(0.f, DestinationExit->Side == EAreaSide::East ? 180.f : 0.f, 0.f));
+		Player->SetActorRotation(FRotator(0.f, FMath::RadiansToDegrees(FMath::Atan2(In.Y, In.X)), 0.f));
+		Player->FaceTowards(Player->GetActorLocation() + In * 100.f);   // the fight's facing, not only the actor's
 		// The district he has stepped into owns him now: its strip is the
 		// clamp, not the one he came from.
 		if (AWaveDirector* There = AWaveDirector::Get(World))

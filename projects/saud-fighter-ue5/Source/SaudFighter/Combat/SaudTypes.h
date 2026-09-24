@@ -265,6 +265,13 @@ struct FStageDef : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
 	float Length = 12000.f;
 
+	/** The stage's place in the table (DT_Stages.json's "Index"), which is
+	    what every map builder turns its district with
+	    (SaudArena::DistrictPhase). -1 for a row that is not a district --
+	    the prologue's -- and the director falls back to the strip's rules. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
+	int32 Index = -1;
+
 	/** Raises every enemy's health and power in this stage. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
 	int32 Tier = 0;

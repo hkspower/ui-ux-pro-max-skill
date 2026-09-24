@@ -56,10 +56,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
 	TObjectPtr<AAreaExit> DestinationExit = nullptr;
 
-	/** Where an arriving player is stood, along X from this exit: a step
-	    inside the district, clear of the trigger so he does not bounce back. */
+	/** Where an arriving player is stood: a step in from this door toward
+	    the middle of its own district, clear of the trigger so he does not
+	    bounce back. */
 	UFUNCTION(BlueprintPure, Category = "Exit")
 	FVector GetLandingLocation() const;
+
+	/** Which way into the district from this door, on the ground: toward
+	    the middle of the district it stands in. */
+	UFUNCTION(BlueprintPure, Category = "Exit")
+	FVector GetInward() const;
 
 	/** Stage row of the destination, for the HUD and the save. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")

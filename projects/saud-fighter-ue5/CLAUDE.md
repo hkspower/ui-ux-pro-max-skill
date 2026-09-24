@@ -1501,12 +1501,60 @@ which is the fairness rule and not a bug.
 **Found on the way, not touched:** `AFighterBase::FaceNearestOpponent`
 and `ASaudCharacter::FaceNearestEnemy` score by `|X| + 2|Y|` ("depth counts
 double"), the same corridor leftover, and they are the player's and the
-abilities' as much as the enemies'. And `AWaveDirector::Tick` still starts
-a wave on `LocalX(Player) > TriggerDistance` -- world X from the director
--- while every map puts the wave's marker on the spiral at
-`SpiralPoint(TriggerDistance / Length)`: the game and the map disagree
-about where a wave is, and that test alone decides when enemies appear.
-Neither was asked for.
+abilities' as much as the enemies'. Not asked for. (The wave trigger on
+world X noted here too was fixed the same day: "The game agrees with the
+map", below.)
+
+## The game agrees with the map -- 2026-09-24
+
+Asked as "check the map world", then "fix". The world itself passed every
+check `build_world.py` holds it to. What did not agree with it was the game,
+in two places, both the strip's rules left behind:
+
+**Waves woke by world X.** `AWaveDirector::Tick` began a wave when the
+player's `LocalX` passed its `TriggerDistance`, and put the fight wherever he
+stood; the map puts each wave's marker at `SpiralPoint(TriggerDistance /
+Length)` on the district's street. Measured on the plan: waves woke 5-173 m
+from their markers, a player who came in by the far door of six districts
+had every wave wake one after another at the doorway, and two waves (the
+souq's third, Abraj Al-Malih's second) could not be reached from the street
+at all. Now a district's wave wakes when the player comes within
+`SaudArena::SiteRadius` (900 cm, the builders' `SITE_RADIUS`) of its site,
+still in order, and the fight is centred there. The stage clears after the
+last wave at the street's end -- the strip's last 360 cm, as the same
+fraction along the spiral. The director works the site out itself:
+`SaudArena::Hash01` / `DistrictPhase` are the builders' `hash01(idx * 977 +
+13)`, `WaveSite` / `StreetEnd` the spiral at the stage's fraction, from
+`FStageDef::Index` -- a new UPROPERTY the export already writes into
+`DT_Stages.json` and the struct never read. A row with no Index (the
+prologue's) and the survival stage keep the old rules.
+
+**Doors stepped the player along world X.** `AAreaExit::GetLandingLocation`
+put an arriving player 240 cm along +-X from the far door and turned him to
+face east or west. On the ring only a door due east or west of its
+district's middle is inward that way: four of the eighteen door steps stood
+him 22 cm outside the rim, and all eighteen faced him 23-158 degrees away
+from the middle. The door now steps him toward the middle of its own
+district (`GetInward`: the director whose round place holds the door;
+`SaudArena::DoorLanding`), faces him in -- the actor and the fight's facing
+both -- and pushes a refused player back the same way. Each door also turns
+itself at BeginPlay to face the middle, because its trigger is thin along
+its own X and 14 m wide along Y: unturned, a door north of the middle lay
+14 m deep into the district along the road instead of across it.
+
+**Checked**: `Tools/harness/tests/arena.cpp` gained `Sites()` -- the hash
+against the builders' own values for all ten indices, the site on the
+spiral and inside its district, the street's end, and a door at every 5
+degrees of the rim stepping 240 cm in and facing the middle; hash,
+phase seed, door direction and street end were each sabotaged and each
+fails. And once, outside the harness: all 29 wave sites the C++ computes
+against the markers in the real world plan, 0.0 cm apart; all 18 door
+steps on the ground.
+
+**Not verified**: the C++ in `WaveDirector.cpp` and `AreaExit.cpp` has not
+been compiled, and whether the engine's JSON data-table import fills the
+new `Index` field from `DT_Stages.json` is read from how it imports the
+other fields, not seen.
 
 ## Working rules
 

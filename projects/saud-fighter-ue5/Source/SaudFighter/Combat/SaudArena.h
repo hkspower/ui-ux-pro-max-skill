@@ -258,4 +258,68 @@ namespace SaudArena
 		constexpr float MaxExtent = 13000.f;
 		return FMath::Clamp(Length * LengthToExtent, MinExtent, MaxExtent);
 	}
+
+	/**
+	 * The integer hash every builder places a district with (District.Hash01
+	 * in the Unity port, hash01() in Tools/levels and Tools/fab), so the game
+	 * can work out what the map was built with instead of being told.
+	 */
+	inline float Hash01(unsigned int N)
+	{
+		unsigned int X = N;
+		X ^= X >> 16; X *= 2246822519u;
+		X ^= X >> 13; X *= 3266489917u;
+		X ^= X >> 16;
+		return static_cast<float>(X & 0xFFFFFFu) / 16777215.f;
+	}
+
+	/** Where a district's spiral starts turning, in radians: the builders'
+	    `hash01(idx * 977 + 13) * 2 pi`, from the stage's own Index. */
+	inline float DistrictPhase(int StageIndex)
+	{
+		return Hash01(static_cast<unsigned int>(StageIndex) * 977u + 13u) * 2.f * 3.14159265358979f;
+	}
+
+	/** How much room a fight keeps to itself round its site: the builders'
+	    SITE_RADIUS. A wave wakes when the player comes this close to it. */
+	constexpr float SiteRadius = 900.f;
+
+	/**
+	 * Where a wave is, from the district's middle: the same point the map
+	 * puts its marker on, `SpiralPoint(TriggerDistance / Length)`. Until
+	 * 2026-09-24 the game woke a wave when the player's world X passed
+	 * TriggerDistance instead -- the strip's own rule, 5 to 173 m from the
+	 * marker, and every wave at once for a player who came in by the far door.
+	 */
+	inline FVector WaveSite(float TriggerDistance, float Length, float Phase)
+	{
+		const float T = FMath::Clamp(TriggerDistance / FMath::Max(1.f, Length), 0.f, 1.f);
+		return SpiralPoint(T, DistrictExtent(Length), Phase);
+	}
+
+	/** Where the way through a district ends, from its middle: the strip's
+	    "Length - 360", the last few metres of the stage, along the spiral. */
+	inline FVector StreetEnd(float Length, float Phase)
+	{
+		const float T = FMath::Clamp((Length - 360.f) / FMath::Max(1.f, Length), 0.f, 1.f);
+		return SpiralPoint(T, DistrictExtent(Length), Phase);
+	}
+
+	/**
+	 * A step in through a door on a district's rim: Step toward the middle,
+	 * whatever bearing the door stands at. It was 240 cm along world X --
+	 * inward only for a door due east or west of the middle; four of the
+	 * open world's eighteen door steps put the player outside the rim. A
+	 * door at the very middle (none is) keeps the old +X.
+	 */
+	inline FVector DoorInward(const FVector& Door, const FVector& Middle)
+	{
+		return Direction(Door, Middle, FVector(1.f, 0.f, 0.f));
+	}
+
+	inline FVector DoorLanding(const FVector& Door, const FVector& Middle, float Step)
+	{
+		const FVector In = DoorInward(Door, Middle);
+		return FVector(Door.X + In.X * Step, Door.Y + In.Y * Step, Door.Z);
+	}
 }
