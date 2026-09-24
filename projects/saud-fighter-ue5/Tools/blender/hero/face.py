@@ -461,9 +461,12 @@ def hair_fade(P):
         where = np.maximum(ramp(ax, 0.040, 0.060), ramp(y, 0.020, 0.050))
         return where * ramp(z, 1.765, 1.722)
     if style == "buzz":
-        base = 0.30 + 0.28 * ramp(z, 1.780, 1.730) * ramp(ax, 0.035, 0.060)
+        # Dense on top, thinner low on the sides: black hair cut to a few
+        # millimetres still reads dark (at 0.30 on top, 2026-09-24's first
+        # build, it read as a brown scalp).
+        base = 0.14 + 0.30 * ramp(z, 1.780, 1.730) * ramp(ax, 0.035, 0.060)
         grain = fbm(P, 900.0, 2, 71.0)
-        return np.clip(base + 0.30 * (grain - 0.5), 0.0, 0.85)
+        return np.clip(base + 0.24 * (grain - 0.5), 0.0, 0.70)
     if style == "slick":
         return 0.30 * crop
     if style == "curly":

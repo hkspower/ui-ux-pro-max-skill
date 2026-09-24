@@ -105,6 +105,7 @@ LOOK = {
     "SPEED_INNER": 0.16,     # clear circle round the blow, share of height
     "SPEED_OUTER": 0.62,
     "SPEED_ALPHA": 0.80,
+    "SPEED_ON_FIGHTER": 0.0,  # the lines stop at a fighter
     # 7. impact frame
     "PAPER": (0.93, 0.90, 0.84),
     # the defaults of the game-driven parameters
@@ -226,7 +227,8 @@ float Cell = floor(Ang);
 float Rnd = frac(sin(Cell * 12.9898 + SpeedSeed * 78.233) * 43758.5453);
 float Streak = step(frac(Ang), 0.12 + 0.30 * Rnd) * step(0.45, Rnd);
 float Reach = smoothstep(SPEED_INNER + 0.25 * Rnd * SPEED_INNER, SPEED_OUTER, Rad);
-Out = lerp(Out, INK, Streak * Reach * Speed * SPEED_A);
+// Behind the figures, as a panel draws them: the men stay clear.
+Out = lerp(Out, INK, Streak * Reach * Speed * SPEED_A * (Fighter ? SPEED_ON_FIGHTER : 1.0));
 
 // 7. impact frame: the lit side paper, the rest ink, the lines ink
 float Lit = 1.0 - Shad;
@@ -253,7 +255,8 @@ return Out;
    .replace("SKY_BANDS", _f(L["SKY_BANDS"])) \
    .replace("SATURATION", _f(L["SATURATION"])).replace("GRADE_TINT", _f3(L["GRADE_TINT"])) \
    .replace("SPEED_COUNT", _f(L["SPEED_COUNT"])).replace("SPEED_INNER", _f(L["SPEED_INNER"])) \
-   .replace("SPEED_OUTER", _f(L["SPEED_OUTER"])).replace("SPEED_A", _f(L["SPEED_ALPHA"])) \
+   .replace("SPEED_OUTER", _f(L["SPEED_OUTER"])) \
+   .replace("SPEED_ON_FIGHTER", _f(L["SPEED_ON_FIGHTER"])).replace("SPEED_A", _f(L["SPEED_ALPHA"])) \
    .replace("PAPER", _f3(L["PAPER"]))
 
 
@@ -355,7 +358,8 @@ def preview(C, A, N, D, fighter, exposure=1.0, key=None, impact=0.0, invert=0.0,
         rnd = fr(np.sin(cell * 12.9898 + seed * 78.233) * 43758.5453)
         streak = (fr(ang) <= 0.12 + 0.30 * rnd) * (rnd >= 0.45)
         reach = _smooth(L["SPEED_INNER"] + 0.25 * rnd * L["SPEED_INNER"], L["SPEED_OUTER"], rad)
-        out = lerp(out, ink, (streak * reach * speed * L["SPEED_ALPHA"])[..., None])
+        out = lerp(out, ink, (streak * reach * speed * L["SPEED_ALPHA"]
+                              * np.where(fighter, L["SPEED_ON_FIGHTER"], 1.0))[..., None])
 
     # 7. impact frame
     if impact > 0.0:
@@ -412,6 +416,8 @@ def check(bite=None):
             LOOK["DEPTH_EDGE"] = 99.0; LOOK["NORMAL_EDGE"] = 99.0
         if bite == "sky_shaded":
             LOOK["SKY_DEPTH_CM"] = 1e12
+        if bite == "lines_over_men":
+            LOOK["SPEED_ON_FIGHTER"] = 1.0
         if bite == "flat_impact":
             LOOK["PAPER"] = LOOK["INK"]
         C, A, N, D, on = _sphere()
@@ -448,6 +454,7 @@ def check(bite=None):
         rr = np.hypot((xx + .5) / n - .5, (yy + .5) / n - .5)
         assert diff[rr < LOOK["SPEED_INNER"]].mean() == 0.0, "the blow itself is clear"
         assert 0.1 < diff[rr > LOOK["SPEED_OUTER"]].mean() < 0.7, "streaks, not a fill"
+        assert diff[on].mean() == 0.0, "the speed lines stop at a fighter"
     finally:
         LOOK.clear(); LOOK.update(saved)
     return True
@@ -536,15 +543,15 @@ if __name__ == "__main__":
         build_in_editor()
     elif "--bite" in sys.argv:
         caught = 0
-        for b in ("no_terminator", "no_ink", "sky_shaded", "flat_impact"):
+        for b in ("no_terminator", "no_ink", "sky_shaded", "flat_impact", "lines_over_men"):
             try:
                 check(bite=b)
                 print("  %-14s NOT caught" % b)
             except AssertionError as e:
                 caught += 1
                 print("  %-14s caught: %s" % (b, e))
-        print("%d of 4 sabotages caught" % caught)
-        sys.exit(0 if caught == 4 else 1)
+        print("%d of 5 sabotages caught" % caught)
+        sys.exit(0 if caught == 5 else 1)
     else:
         check()
         _check_names()
