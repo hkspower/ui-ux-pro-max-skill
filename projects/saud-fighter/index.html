@@ -2439,7 +2439,6 @@ var THEME = {
         // is the whole difference. Two per cluster, at different heights, so
         // they group the way palms actually stand.
         var px = x + 200;
-        ctx.fillStyle = '#6b5233';
         palmTrunk(px, FLOOR_TOP-30, 1.7 + hashv(i,12)*0.35, i, '#6b5233', '#2f6b3d');
         palmTrunk(px + 62, FLOOR_TOP-26, 1.25 + hashv(i,13)*0.3, i+90, '#5d472c', '#275c34');
       });
@@ -2683,16 +2682,7 @@ var THEME = {
         // moored boats + neon palms
         ctx.fillStyle = '#2b2447';
         roundRect(x, FLOOR_TOP-64, 130, 26, 10); ctx.fill();
-        ctx.strokeStyle = '#4dd7ff'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(x+206, FLOOR_TOP-30);
-        ctx.quadraticCurveTo(x+214, FLOOR_TOP-120, x+226, FLOOR_TOP-176); ctx.stroke();
-        ctx.strokeStyle = 'rgba(77,215,255,.55)'; ctx.lineWidth = 4;
-        for(var l=0;l<5;l++){
-          var a = -2.5 + l*0.6;
-          ctx.save(); ctx.translate(x+226, FLOOR_TOP-176); ctx.rotate(a);
-          ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(42, 6); ctx.stroke();
-          ctx.restore();
-        }
+        palmNeon(x + 206, FLOOR_TOP - 30, i, '#4dd7ff', 'rgba(77,215,255,.16)');
       });
     },
     fore:function(camX){
@@ -2994,6 +2984,23 @@ function dhow(x, y, s, col, sail){
   ctx.closePath(); ctx.fill();
 }
 
+/* One frond: a leaf off the crown at angle a, len long, drooping at the tip.
+   Its width is laid across the frond's own direction -- widened only up and
+   down (as it was until 2026-09-24), a frond pointing straight up had no
+   width at all and drew as a needle. */
+function frond(hx, hy, a, len, droop, w){
+  var ca = Math.cos(a), sa = Math.sin(a);
+  var tx = hx + ca*len, ty = hy + sa*len + droop;
+  var mx = hx + ca*len*0.55, my = hy + sa*len*0.55 + droop*0.25;
+  var nx = -sa, ny = ca;                        // across the frond
+  if(ny > 0){ nx = -nx; ny = -ny; }             // the upper edge first
+  ctx.beginPath();
+  ctx.moveTo(hx, hy);
+  ctx.quadraticCurveTo(mx + nx*w, my + ny*w, tx, ty);
+  ctx.quadraticCurveTo(mx - nx*w*0.7, my - ny*w*0.7, hx, hy);
+  ctx.closePath(); ctx.fill();
+}
+
 /* A palm. Fronds as tapering quads off one point, so it reads at any size. */
 function palmFar(x, y, s, col, seed){
   ctx.fillStyle = col;
@@ -3008,13 +3015,7 @@ function palmFar(x, y, s, col, seed){
   for(var i=0;i<7;i++){
     var a = -Math.PI + i * (Math.PI/6) + (hashv(i, (seed||0)+5) - 0.5) * 0.24;
     var len = 30*s * (0.68 + hashv(i, (seed||0)+9) * 0.5);
-    ctx.beginPath();
-    ctx.moveTo(hx, hy);
-    ctx.quadraticCurveTo(hx + Math.cos(a)*len*0.6, hy + Math.sin(a)*len*0.6 - 5*s,
-                         hx + Math.cos(a)*len,     hy + Math.sin(a)*len + 7*s);
-    ctx.quadraticCurveTo(hx + Math.cos(a)*len*0.6, hy + Math.sin(a)*len*0.6 + 4*s,
-                         hx, hy);
-    ctx.closePath(); ctx.fill();
+    frond(hx, hy, a, len, 7*s, 4.5*s);
   }
 }
 
@@ -3029,30 +3030,62 @@ function palmTrunk(x, y, s, seed, trunkCol, frondCol){
   ctx.lineTo(x + lean + 5.6*s, y - 96*s);
   ctx.quadraticCurveTo(x + 5.4*s + lean*0.5, y - 52*s, x + 4.6*s, y);
   ctx.closePath(); ctx.fill();
-  for(var r=0;r<5;r++){                                  // trunk rings
-    ctx.globalAlpha = 0.18; ctx.fillStyle = '#000';
-    ctx.fillRect(x - 4*s + lean*(r/6), y - 16*s - r*15*s, 8*s, 2*s);
-    ctx.globalAlpha = 1; ctx.fillStyle = trunkCol;
+  // Trunk rings, on the trunk's own centre line at its own width there: they
+  // were placed as if it stood straight, and on a leaning trunk they stood
+  // out past its edge.
+  ctx.globalAlpha = 0.18; ctx.fillStyle = '#000';
+  for(var r=0;r<5;r++){
+    var t = 0.17 + r * 0.155, u = 1 - t;
+    var cx = u*u*x + 2*u*t*(x + 2.2*s + lean*0.5) + t*t*(x + lean + 2.8*s);
+    var cy = u*u*y + 2*u*t*(y - 52*s) + t*t*(y - 96*s);
+    var half = (4.6*s + (2.8*s - 4.6*s) * t) * 0.9;
+    ctx.fillRect(cx - half, cy, half * 2, 2*s);
   }
+  ctx.globalAlpha = 1;
   var hx = x + lean + 2.6*s, hy = y - 96*s;
   ctx.fillStyle = frondCol;
   for(var i=0;i<8;i++){
     var a = -Math.PI - 0.2 + i * (Math.PI + 0.4)/7 + (hashv(i, seed+5) - 0.5) * 0.30;
     var len = 40*s * (0.62 + hashv(i, seed+9) * 0.55);
     var droop = 13*s + hashv(i, seed+13) * 12*s;
-    ctx.beginPath();
-    ctx.moveTo(hx, hy);
-    ctx.quadraticCurveTo(hx + Math.cos(a)*len*0.55, hy + Math.sin(a)*len*0.55 - 6*s,
-                         hx + Math.cos(a)*len,     hy + Math.sin(a)*len + droop);
-    ctx.quadraticCurveTo(hx + Math.cos(a)*len*0.5,  hy + Math.sin(a)*len*0.5 + 5*s,
-                         hx, hy);
-    ctx.closePath(); ctx.fill();
+    frond(hx, hy, a, len, droop, 5.5*s);
   }
   ctx.fillStyle = 'rgba(120,86,40,.9)';                  // coconuts
   for(var c=0;c<3;c++){
     ctx.beginPath();
     ctx.arc(hx + (c-1)*5.5*s, hy + 5*s, 3.4*s, 0, 6.2832); ctx.fill();
   }
+}
+
+/* A palm in neon tube, the marina's: a curved trunk and drooping fronds, each
+   palm its own from the seed. Straight spokes read as a starburst, and one
+   shape repeated every few hundred pixels reads as wallpaper. The glow is a
+   wide faint stroke under the tube -- no shadowBlur, which costs a frame. */
+function palmNeon(x, y, seed, col, glow){
+  var h = 150 + hashv(seed, 21) * 50;
+  var lean = (hashv(seed, 22) - 0.35) * 46;
+  var hx = x + lean, hy = y - h;
+  var paths = [];
+  paths.push([x, y, x + lean*0.25, y - h*0.55, hx, hy]);
+  var n = 6 + (hashv(seed, 23) > 0.5 ? 1 : 0);
+  for(var i=0;i<n;i++){
+    var a = -Math.PI + 0.25 + i * (Math.PI - 0.5)/(n-1) + (hashv(i, seed+24) - 0.5) * 0.35;
+    var len = 38 + hashv(i, seed+25) * 22;
+    var droop = 14 + hashv(i, seed+26) * 18 + Math.abs(Math.cos(a)) * 10;
+    paths.push([hx, hy, hx + Math.cos(a)*len*0.6, hy + Math.sin(a)*len*0.6 - 6,
+                hx + Math.cos(a)*len, hy + Math.sin(a)*len + droop]);
+  }
+  ctx.lineCap = 'round';
+  for(var pass=0;pass<2;pass++){
+    ctx.strokeStyle = pass ? col : glow;
+    ctx.lineWidth = pass ? 3 : 9;
+    for(var k=0;k<paths.length;k++){
+      var q = paths[k];
+      ctx.beginPath(); ctx.moveTo(q[0], q[1]);
+      ctx.quadraticCurveTo(q[2], q[3], q[4], q[5]); ctx.stroke();
+    }
+  }
+  ctx.lineCap = 'butt';
 }
 
 /* A minaret and its dome — the shape that says souq rather than high street. */

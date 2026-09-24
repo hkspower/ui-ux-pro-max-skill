@@ -560,6 +560,7 @@ three deep at different parallax rather than one band:
 | `skyline` | a band of buildings whose crowns disagree — stepped, masted, roof-tanked, flat. A skyline of plain boxes reads as a bar chart; what makes it a city is that the tops differ. |
 | `dhow` / the harbour rig | a hull that lifts to a high stern, a mast raked forward, a lateen yard the sail hangs from. A box hull with a vertical mast is a dinghy — this is the shape Sharq is recognised by. |
 | `palmFar` / `palmTrunk` | fronds that droop and disagree, on a trunk that leans. Six ellipses at even angles read as a starburst, not a tree. |
+| `palmNeon` | the marina's neon palm: a curved tube trunk and drooping fronds, each palm its own from its seed, a faint wide stroke for the glow. Straight spokes read as a starburst, and one shape repeated reads as wallpaper. |
 | `minaret` / `domeRoof` | the two shapes that say *old city* rather than *high street*. The minaret is placed rather than sprinkled — it is the one thing taller than the arcade, so it has to clear it. |
 | `duneBand` / `ridgeBand` | sand and rock. Three dune lines at different parallax is the whole desert. |
 | `tentFar`, `mastField` | the camp, and the boats a marina has in it. |
