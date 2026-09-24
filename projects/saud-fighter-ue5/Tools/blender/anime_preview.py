@@ -57,11 +57,26 @@ def _arg(name, default=None, n=1):
     return v[0] if n == 1 else v
 
 
-def render_passes(blend, camera=None, height=1080, samples=48):
+def render_passes(blend, camera=None, height=1080, samples=48, fit=False):
     bpy.ops.wm.open_mainfile(filepath=blend)
     sc = bpy.context.scene
     if camera:
         sc.camera = bpy.data.objects[camera]
+    if fit:
+        # The rig files' cameras are framed for a man of Saud's 1.80 m; a
+        # boss half again his size loses his head. Pull the camera back
+        # along its own view, and up with him, by his height over 1.80.
+        from mathutils import Vector
+        top = max((o.matrix_world @ Vector(c)).z for o in bpy.data.objects
+                  if o.type == "MESH" and any(m.type == "ARMATURE" for m in o.modifiers)
+                  for c in o.bound_box)
+        k = max(1.0, top / 1.80)
+        if k > 1.0:
+            cam = sc.camera
+            view = cam.matrix_world.to_quaternion() @ Vector((0.0, 0.0, -1.0))
+            aim = cam.location + view * 3.0
+            aim.z *= k
+            cam.location = aim - view * 3.0 * k
     aspect = sc.render.resolution_x / sc.render.resolution_y
     sc.render.resolution_y = height
     sc.render.resolution_x = int(round(height * aspect))
@@ -160,7 +175,7 @@ def main():
         cols = []
         for man in men:
             blend = os.path.join(HERE, "rigs", man + ".blend")
-            body, e = render_passes(blend, "Cam.002", height, samples)
+            body, e = render_passes(blend, "Cam.002", height, samples, fit=True)
             b, _ = look_from(body, e)
             face, e = render_passes(blend, "Cam.003", height // 2, samples)
             f, _ = look_from(face, e)

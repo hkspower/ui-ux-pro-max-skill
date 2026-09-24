@@ -75,9 +75,10 @@ import sys
 LOOK = {
     # 1. cel tones: light below T_DEEP is deep shadow, below T_SHADOW shadow
     "T_SHADOW": 0.50,
-    "T_DEEP": 0.13,
-    "T_HIGHLIGHT": 1.30,
+    "T_DEEP": 0.09,
+    "T_HIGHLIGHT": 1.90,     # only real glare: lower, it spotted every face
     "SOFT": 0.020,          # half-width of each terminator, for antialiasing
+    "SMOOTH_PX": 3.0,       # the light is averaged this far (1080 lines) first
     "Q_LIT": 1.00,
     "Q_SHADOW": 0.42,
     "Q_DEEP": 0.16,
@@ -156,7 +157,7 @@ def _sub(code):
     pairs = {
         "SKY_DEPTH": _f(L["SKY_DEPTH_CM"]), "SKY_BANDS": _f(L["SKY_BANDS"]),
         "T_DEEP": _f(L["T_DEEP"]), "T_SHADOW": _f(L["T_SHADOW"]), "T_HIGH": _f(L["T_HIGHLIGHT"]),
-        "SOFT": _f(L["SOFT"]), "Q_LIT": _f(L["Q_LIT"]), "Q_HIGH": _f(L["Q_HIGHLIGHT"]),
+        "SOFT": _f(L["SOFT"]), "SMOOTH_PX": _f(L["SMOOTH_PX"]), "Q_LIT": _f(L["Q_LIT"]), "Q_HIGH": _f(L["Q_HIGHLIGHT"]),
         "Q_SHADOW": _f(L["Q_SHADOW"]), "Q_DEEP": _f(L["Q_DEEP"]),
         "SHADOW_TINT": _f3(L["SHADOW_TINT"]), "TINT_KEEP": _f(L["TINT_KEEP"]),
         "EMIT_FROM": _f(L["EMIT_FROM"]), "HATCH_PX": _f(L["HATCH_PX"]), "HATCH_W": _f(L["HATCH_WIDTH"]),
@@ -209,7 +210,24 @@ float D = SceneTextureLookup(UV, 1, false).r;           // cm
 float CD = SceneTextureLookup(UV, 13, false).r;         // custom depth
 bool Sky = D > SKY_DEPTH;
 bool Fighter = CD < D + 2.0;
-float T = dot(C, LUMA) / max(dot(A, LUMA), 0.02) / max(Key, 0.001);
+const float2 Dir[8] = { float2(1,0), float2(-1,0), float2(0,1), float2(0,-1),
+                        float2(0.7071,0.7071), float2(-0.7071,0.7071),
+                        float2(0.7071,-0.7071), float2(-0.7071,-0.7071) };
+
+// The light, averaged over a few pixels of the same surface (summed lit
+// colour over summed base colour), so the base colour's own fine detail
+// does not push single pixels across a terminator. Not across a depth jump.
+float SC = dot(C, LUMA), SA = dot(A, LUMA);
+float Rs = SMOOTH_PX * Lines;
+for (int j = 0; j < 8; j++)
+{
+    float2 O = Dir[j] * Rs * Px;
+    float Dn = SceneTextureLookup(UV + O, 1, false).r;
+    float Same = abs(Dn - D) <= 0.02 * max(D, 1.0) ? 1.0 : 0.0;
+    SC += Same * dot(SceneTextureLookup(UVc + O, 14, false).rgb, LUMA);
+    SA += Same * dot(SceneTextureLookup(UV + O, 5, false).rgb, LUMA);
+}
+float T = SC / max(SA, 0.02) / max(Key, 0.001);
 
 // 1. tones
 float Deep = 1.0 - smoothstep(T_DEEP - SOFT, T_DEEP + SOFT, T);
@@ -237,9 +255,6 @@ Out = lerp(Out, INK, Hatch * (Sky ? 0.0 : 1.0));
 // 3. ink
 float R = (Fighter ? LINE_FIGHTER : LINE_WORLD) * 0.5 * Lines;
 float Silh = 0.0, Fold = 0.0;
-const float2 Dir[8] = { float2(1,0), float2(-1,0), float2(0,1), float2(0,-1),
-                        float2(0.7071,0.7071), float2(-0.7071,0.7071),
-                        float2(0.7071,-0.7071), float2(-0.7071,-0.7071) };
 for (int i = 0; i < 8; i++)
 {
     float2 U = UV + Dir[i] * R * Px;
@@ -351,7 +366,21 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0):
     lerp = lambda a, b, t: a + (b - a) * t
     fr = lambda v: v - np.floor(v)
 
-    T = (C @ luma) / np.maximum(A @ luma, 0.02) / max(key, 0.001)
+    # The light, averaged over a few pixels of the same surface: the ratio
+    # of summed lit colour to summed base colour, so the base colour's own
+    # fine detail (pores, stubble, weave) does not push single pixels back
+    # and forth across a terminator -- that is what breaks a face into
+    # blotches. Neighbours across a depth jump do not count.
+    lc, la = C @ luma, A @ luma
+    sc, sa = lc.copy(), la.copy()
+    r = L["SMOOTH_PX"] * lines
+    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1),
+                   (.7071, .7071), (-.7071, .7071), (.7071, -.7071), (-.7071, -.7071)):
+        Dn = _shift(D, dx * r, dy * r, 1e10)
+        same = np.abs(Dn - D) <= 0.02 * np.maximum(D, 1.0)
+        sc += np.where(same, _shift(lc, dx * r, dy * r, 0.0), 0.0)
+        sa += np.where(same, _shift(la, dx * r, dy * r, 0.0), 0.0)
+    T = sc / np.maximum(sa, 0.02) / max(key, 0.001)
     s = L["SOFT"]
     deep = 1.0 - _smooth(L["T_DEEP"] - s, L["T_DEEP"] + s, T)
     shad = 1.0 - _smooth(L["T_SHADOW"] - s, L["T_SHADOW"] + s, T)
