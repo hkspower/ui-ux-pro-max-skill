@@ -36,10 +36,15 @@ void USaudLookSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	                                                     nullptr, LOAD_NoWarn | LOAD_Quiet);
 	UMaterialInterface* Post = LoadObject<UMaterialInterface>(nullptr, SaudAnime::PostMaterialPath,
 	                                                          nullptr, LOAD_NoWarn | LOAD_Quiet);
-	if (!Post || !Collection)
+	UMaterialInterface* Frame = LoadObject<UMaterialInterface>(nullptr, SaudAnime::FrameMaterialPath,
+	                                                           nullptr, LOAD_NoWarn | LOAD_Quiet);
+	if (!Post || !Frame || !Collection)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Anime look not built (%s, %s): run Tools/look/anime_look.py in the editor."),
-		       SaudAnime::PostMaterialPath, SaudAnime::CollectionPath);
+		// Loaded by path, so a packaged build carries them only because
+		// DefaultGame.ini cooks /Game/Materials/Anime always.
+		UE_LOG(LogTemp, Warning, TEXT("Anime look not built (%s): run Tools/look/anime_look.py in the editor."),
+		       SaudAnime::CollectionPath);
+		Collection = nullptr;
 		return;
 	}
 
@@ -56,16 +61,19 @@ void USaudLookSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		Volume->Priority = 10.f;
 		Volume->BlendWeight = 1.f;
 		Volume->Settings.AddBlendable(Post, 1.f);
+		Volume->Settings.AddBlendable(Frame, 1.f);
 	}
 }
 
 void USaudLookSubsystem::Deinitialize()
 {
-	if (Volume)
+	// The volume is transient and goes with its world; destroy it only
+	// while that world is still standing.
+	if (IsValid(Volume) && Volume->GetWorld() && !Volume->GetWorld()->bIsTearingDown)
 	{
 		Volume->Destroy();
-		Volume = nullptr;
 	}
+	Volume = nullptr;
 	Super::Deinitialize();
 }
 

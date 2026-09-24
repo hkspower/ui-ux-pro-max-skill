@@ -1631,10 +1631,14 @@ this build, the gritty fight-seinen register, over the fighters, the
 backgrounds, the hit effects and the HUD. See "Art direction" for what it
 is meant to look like; this is how it is built.
 
-**One post-process over everything.** `Tools/look/anime_look.py` holds the
-look's table (`LOOK`), generates the HLSL of one post-process material,
-`M_Anime_Post`, and -- run inside the editor -- builds it and its
-Material Parameter Collection `MPC_Anime` under `/Game/Materials/Anime/`.
+**Two post-process materials over everything.** `Tools/look/anime_look.py`
+holds the look's table (`LOOK`), generates the HLSL of `M_Anime_Post`
+(before tonemapping: the tones, the ink, the hatching, the sky, the grade,
+the impact frame drawn) and `M_Anime_Frame` (after tonemapping, so after
+TSR and bloom: the speed lines, and the impact frame cut back to exactly
+two colours), and -- run inside the editor -- builds both and the Material
+Parameter Collection `MPC_Anime` under `/Game/Materials/Anime/`, which
+`Config/DefaultGame.ini` cooks always because the game loads it by path.
 Per pixel: the light a surface receives (lit colour over base colour) is
 cut into lit / shadow / deep-shadow tones with a hard terminator and a
 highlight, laid on the base colour in the light's own hue; deep shadow is
@@ -1660,12 +1664,31 @@ the same header, checked for the title-safe area and couch-legible type at
 seven screen shapes. Both game modes set it. There are no menus in this
 build to restyle.
 
+**Reviewed adversarially before it was trusted** -- one reader over the
+C++, the HLSL and the editor script against UE 5.4 -- and it caught: a
+parameter shadowing a member in `SaudHud::FPage::For` (an error under the
+engine's warnings), `GWhiteTexture` without `RenderCore`, the scene colour
+exposed twice (it is pre-exposed at that blendable location), the speed
+lines centred in buffer UV where the game gives a viewport fraction (wrong
+under dynamic resolution), G-buffer lookups on the colour input's UV, a
+one-frame cut that TSR would have smeared (hence the second material),
+assets loaded by path that a cook would drop, the editor script deleting
+the collection before the material that uses it, a volume destroyed in
+world teardown, and a boss met already hurt showing a false damage trail.
+All fixed.
+
 **Checked**: the harness (the anime test's sabotages bite, eight of
-eight); `anime_look.py` runs its steps in numpy on a lit sphere (four
-sabotages, four caught) and checks its parameter names against the
-header. **Not verified**: no engine has built the material or compiled
-any of the C++. The previews are in progress (see the commit that adds
-`Docs/renders/*anime*`).
+eight; the header also builds clean under -Wshadow -Wpedantic);
+`anime_look.py` runs both materials' steps in numpy on a lit sphere (six
+sabotages, six caught) and checks its parameter names against the header.
+`Tools/blender/anime_preview.py` renders a scene's G-buffer passes in
+Cycles and runs the same numpy over them: `Docs/renders/souq-fight-anime*
+.png` is the existing souq fight scene (its men are the ones built before
+today's skin and cuts) as it looks, on an impact frame and its flip, and
+with speed lines. **Not verified**: no engine has built the materials or
+compiled any of the C++; the preview's exposure is a stand-in (the
+fighters' light at its 55th percentile is "lit") where the engine's is its
+eye adaptation and `MPC_Anime.Key`.
 
 ## Working rules
 

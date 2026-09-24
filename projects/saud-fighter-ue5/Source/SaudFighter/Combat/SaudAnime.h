@@ -46,7 +46,11 @@ namespace SaudAnime
 	// Built in the editor by Tools/look/anime_look.py, which checks these
 	// names against its own.
 	constexpr const SaudChar* CollectionPath = SAUD_TEXT("/Game/Materials/Anime/MPC_Anime.MPC_Anime");
+	/** The tones and the ink, before tonemapping. */
 	constexpr const SaudChar* PostMaterialPath = SAUD_TEXT("/Game/Materials/Anime/M_Anime_Post.M_Anime_Post");
+	/** The speed lines and the impact frame's hard cut, after tonemapping
+	    (so after TSR and bloom, which would soften a one-frame cut). */
+	constexpr const SaudChar* FrameMaterialPath = SAUD_TEXT("/Game/Materials/Anime/M_Anime_Frame.M_Anime_Frame");
 
 	namespace Param
 	{
@@ -224,12 +228,12 @@ namespace SaudHud
 		float Scale = 1.f;
 		float ScreenW = PageW, ScreenH = PageH;
 
-		static FPage For(float ScreenW, float ScreenH)
+		static FPage For(float InW, float InH)
 		{
 			FPage P;
-			P.ScreenW = ScreenW;
-			P.ScreenH = ScreenH;
-			P.Scale = ScreenH / PageH;
+			P.ScreenW = InW;
+			P.ScreenH = InH;
+			P.Scale = InH / PageH;
 			return P;
 		}
 		float Px(float PageUnits) const { return PageUnits * Scale; }

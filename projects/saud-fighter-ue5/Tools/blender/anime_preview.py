@@ -119,26 +119,27 @@ def render_passes(blend, camera=None, height=1080, samples=48):
 
 
 def look_from(got, exposure, **kw):
-    """The anime look over one render's passes; returns 8-bit sRGB and the
-    preview's masks."""
-    C = got["Image"][..., :3]
+    """Both anime materials over one render's passes; returns 8-bit display
+    values and M_Anime_Post's masks. The engine's buffer is pre-exposed, so
+    the lit colour goes in with the exposure already on it."""
+    C = got["Image"][..., :3] * exposure
     A = got["DiffuseColor"][..., :3]
     N = got["Normal"][..., :3]
     D = got["Depth"][..., 0] * 100.0            # metres to the engine's cm
     D = np.where(D > 1e8, 1e10, D)               # nothing hit: the sky
     fighter = got["ObjectIndex"][..., 0] > 0.5
     luma = np.array(AL.LUMA)
-    T = (C * exposure @ luma) / np.maximum(A @ luma, 0.02)
+    T = (C @ luma) / np.maximum(A @ luma, 0.02)
     body = fighter if fighter.any() else (D < 1e8)
     key = float(np.percentile(T[body], KEY_PERCENTILE)) if body.any() else 1.0
-    look, m = AL.preview(C, A, N, D, fighter, exposure=exposure, key=key, **kw)
+    disp, m = AL.look(C, A, N, D, fighter, key=key, **kw)
     m["key"] = key
     m["fighter"] = fighter
-    return AL.to_srgb8(look * exposure), m
+    return AL.to_8bit(disp), m
 
 
 def plain_from(got, exposure):
-    return AL.to_srgb8(got["Image"][..., :3] * exposure)
+    return AL.to_8bit(AL.to_display(got["Image"][..., :3] * exposure))
 
 
 def main():

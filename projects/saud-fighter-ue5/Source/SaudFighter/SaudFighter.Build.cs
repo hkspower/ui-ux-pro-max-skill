@@ -28,6 +28,9 @@ public class SaudFighter : ModuleRules
 		{
 			"Slate",
 			"SlateCore",
+			// GWhiteTexture, which the HUD's Canvas triangles are drawn with
+			// (Game/SaudHUD.cpp).
+			"RenderCore",
 			// Remote balance: the config subsystem fetches the tables the
 			// browser project exports. The game runs without it -- see
 			// Game/SaudConfigSubsystem.h -- but the modules are not optional

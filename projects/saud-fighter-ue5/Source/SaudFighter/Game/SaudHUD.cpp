@@ -9,7 +9,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "Misc/App.h"
-#include "TextureResource.h"
+#include "RenderUtils.h"
 
 using namespace SaudHud;
 
@@ -127,7 +127,13 @@ void ASaudHUD::DrawBoss(const FPage& Page, const FLayout& L, float Dt)
 			}
 		}
 		Boss = B;
+		// Start the trail where he is, not at full: a boss met already hurt
+		// has no cut to show.
 		BossGhost = FGhost();
+		if (B)
+		{
+			BossGhost.Value = BossGhost.Last = B->GetHealthFraction();
+		}
 	}
 	if (!B)
 	{
