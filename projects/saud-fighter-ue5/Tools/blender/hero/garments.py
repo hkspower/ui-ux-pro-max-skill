@@ -66,8 +66,8 @@ def soles():
     out = []
     for side in (1, -1):
         x = Jp("foot_l").x * side
-        bpy.ops.mesh.primitive_cube_add(size=1.0, location=(x, -0.070, 0.010))
-        o = bpy.context.object; o.name = "sole"; o.scale = (0.098, 0.300, 0.020)
+        bpy.ops.mesh.primitive_cube_add(size=1.0, location=(x, -0.082, 0.010))
+        o = bpy.context.object; o.name = "sole"; o.scale = (0.098, 0.320, 0.020)
         bpy.ops.object.transform_apply(scale=True)
         bv = o.modifiers.new("Bev", "BEVEL"); bv.width = 0.008; bv.segments = 3
         bpy.ops.object.modifier_apply(modifier="Bev"); bpy.ops.object.shade_smooth()

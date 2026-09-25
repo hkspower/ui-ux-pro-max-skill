@@ -442,8 +442,8 @@ FOLDER = {"bosses": "Bosses", "saud": "Saud", "street": "Street"}
 STREET = dict(key="Street", canon=(
     "The street men, and anyone else with no clip of his own: Saud's clips "
     "on the boxer's guard, since Saud alone stands as a mixed martial artist."))
-# which guard each set is struck from
-GUARD_OF = {"Saud": "mma"}
+# which guard each set is struck from (build_saud.GUARDS / STANCE_OF)
+GUARD_OF = {"Saud": "mma", "Saqr": "kickboxer", "Boss": "peekaboo", "Zayos": "heavy"}
 
 
 def _strike_clips(key, row, who, moves, attacks, phase_two_ok, folder):
@@ -590,6 +590,13 @@ def check(clips):
         "the browser enrages %s; PHASE_TWO says %s" % (sorted(browser_phase_two()), sorted(PHASE_TWO)))
     got2 = {c["boss"] for c in clips if c["phase_two"]}
     assert got2 == (set(PHASE_TWO) if bosses else set()), "phase two clips for %s, expected %s" % (sorted(got2), sorted(PHASE_TWO))
+
+    # 6b. each man's clips are struck from his own stance, the same one the
+    #     renders and the souq scene pose him in
+    import build_saud as L
+    for c in clips:
+        want = L.STANCE_OF.get(c["boss"].lower(), "boxer")
+        assert c["guard"] == want, "%s is on the %s guard; build_saud stands him on the %s" % (c["name"], c["guard"], want)
 
     # 7. no two clips share a name
     names = [c["name"] for c in clips]
@@ -1198,7 +1205,7 @@ def author_all(clips):
     au = M.Author(rig)
     print("%6.1fs  rig: %d bones, control layer on" % (time.time() - t0, len(rig.data.bones)))
     import build_saud as L
-    S = {"boxer": _strikes(L.GUARD), "mma": _strikes(L.MMA_GUARD)}
+    S = {name: _strikes(g) for name, g in L.GUARDS.items()}
     authored = []
     for c in clips:
         authored.append((c, AUTHOR[c["kind"]](au, c, S[c["guard"]])))

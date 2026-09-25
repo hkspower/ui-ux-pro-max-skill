@@ -828,9 +828,62 @@ MMA_GUARD.update(
 )
 
 
+# The bosses' own stances (2026-09-25, "posture and stance": how each man
+# stands). Each is solved on Saud's skeleton the way MMA_GUARD is -- feet,
+# knees, fists and elbows placed, the aims read back -- and every one is
+# held to build_motion.hands_check's guard rules when its Guard clip is
+# built (fists up in front of the face, elbows inside the shoulders, wrists
+# straight, palms in). What each one is comes from the roster: AL-SAQR is
+# the Kicker archetype, the fastest man in the game; AL-WAHSH the boxer-
+# boss with the best guard chance in the table; ZAYOS the man who only ever
+# punches, half again everyone's size and the slowest.
+def _stance(**kw):
+    g = dict(GUARD); g.update(kw); return g
+
+# a kickboxer's: upright, the weight held back off a light lead leg, the
+# lead hand long at brow height, the rear foot turned out
+KICKBOXER_GUARD = _stance(
+    spine_01=(0, -0.04, 1.0), spine_02=(0, -0.06, 1.0), spine_03=(0, -0.04, 1.0),
+    neck_01=(0, -0.12, 1.0), head=(0, -0.10, 1.0),
+    foot_l=(0.05, -0.90, -0.42), foot_r=(-0.42, -0.80, -0.42),
+    palm_l=(-0.20, 1.0, 0.0), palm_r=(0.447, 0.894, 0.0),
+    thigh_l=(0.095, -0.424, -0.900), calf_l=(0.105, -0.019, -0.994),
+    thigh_r=(-0.103, -0.065, -0.993), calf_r=(-0.097, 0.346, -0.933),
+    upperarm_l=(-0.193, -0.882, -0.431), lowerarm_l=(-0.107, -0.364, 0.925), hand_l=(-0.094, -0.581, 0.809),
+    upperarm_r=(0.231, -0.783, -0.577), lowerarm_r=(0.097, -0.003, 0.995), hand_r=(0.093, -0.290, 0.953),
+)
+# a peek-a-boo crouch: knees at 44 degrees, the torso folded forward, both
+# fists tight at the cheekbones with the elbows on the ribs, chin down
+PEEKABOO_GUARD = _stance(
+    spine_01=(0, -0.14, 0.99), spine_02=(0, -0.22, 0.97), spine_03=(0, -0.20, 0.98),
+    neck_01=(0, -0.18, 0.98), head=(0, -0.16, 0.99),
+    foot_l=(0.05, -0.90, -0.42), foot_r=(-0.20, -0.88, -0.42),
+    thigh_l=(0.112, -0.561, -0.821), calf_l=(0.133, 0.172, -0.976),
+    thigh_r=(-0.133, -0.176, -0.975), calf_r=(-0.112, 0.558, -0.823),
+    upperarm_l=(-0.402, -0.787, -0.469), lowerarm_l=(0.059, 0.086, 0.995), hand_l=(0.058, -0.210, 0.976),
+    upperarm_r=(0.420, -0.759, -0.498), lowerarm_r=(-0.048, 0.117, 0.992), hand_r=(-0.047, -0.181, 0.982),
+)
+# a heavy puncher's: square and wide (feet 50 cm across), knees barely
+# bent, the shoulders rolled forward, the fists a hand lower than a boxer
+# carries them and the elbows out
+HEAVY_GUARD = _stance(
+    spine_01=(0, -0.05, 1.0), spine_02=(0, -0.10, 1.0), spine_03=(0, -0.16, 0.99),
+    neck_01=(0, -0.14, 1.0), head=(0, -0.10, 1.0),
+    foot_l=(0.08, -0.90, -0.42), foot_r=(-0.30, -0.85, -0.42),
+    palm_l=(-0.40, 0.90, 0.0), palm_r=(0.40, 0.90, 0.0),
+    thigh_l=(0.174, -0.331, -0.928), calf_l=(0.184, 0.012, -0.983),
+    thigh_r=(-0.184, -0.014, -0.983), calf_r=(-0.174, 0.329, -0.928),
+    upperarm_l=(-0.134, -0.687, -0.714), lowerarm_l=(-0.136, -0.232, 0.963), hand_l=(-0.123, -0.480, 0.869),
+    upperarm_r=(0.134, -0.623, -0.771), lowerarm_r=(0.135, -0.113, 0.984), hand_r=(0.126, -0.384, 0.915),
+)
+GUARDS = {"boxer": GUARD, "mma": MMA_GUARD, "kickboxer": KICKBOXER_GUARD,
+          "peekaboo": PEEKABOO_GUARD, "heavy": HEAVY_GUARD}
+STANCE_OF = {"saud": "mma", "saqr": "kickboxer", "boss": "peekaboo", "zayos": "heavy"}
+
+
 def guard_for(name):
-    """The guard a man stands in: Saud's MMA stance, everyone else's GUARD."""
-    return MMA_GUARD if str(name).lower() == "saud" else GUARD
+    """The guard a man stands in: his own (STANCE_OF), else the boxer's."""
+    return GUARDS[STANCE_OF.get(str(name).lower(), "boxer")]
 
 # The fist. The mesh is built as a loose fist (anatomy.hand: 72/109/36
 # degrees) with the thumb laid along the index finger, and a hand posed at

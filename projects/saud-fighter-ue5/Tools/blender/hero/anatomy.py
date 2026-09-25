@@ -88,19 +88,31 @@ def trunk():
     #
     # These rows put the V in the bone: biacromial 0.428, bi-iliac 0.292,
     # ratio 1.47; shoulder to waist 1.67.
+    #
+    # Measured again 2026-09-25 ("make full body fix"): the waist girth was
+    # 0.744 m, a 28-inch waist on a 1.80 m fighter (an athletic male is
+    # 0.80-0.84), the hips 0.82 against 0.95-1.00, and the pelvis was
+    # NARROWER than the thigh tops it sat on -- 0.148 half-width at the hip
+    # row over thigh tubes reaching 0.178 -- so the legs stood out from
+    # under the trunk as two tubes with a step between (ZAYOS's "recessed
+    # pelvis"). And the profile was a slab: cy within 12 mm of zero from the
+    # hips to the shoulders, no small of the back, no thoracic curve. The
+    # rows now carry the spine's S: the back comes IN 3 cm at the lumbar
+    # (1.14) and OUT again over the ribcage (1.34), the front stays plumb.
     rows = [
-        (0.900, 0.010, 0.140, 0.100),   # below the hips, into the thighs
-        (0.960, 0.012, 0.148, 0.112),   # hips
-        (1.020, 0.012, 0.146, 0.110),   # the iliac crest
-        (1.080, 0.006, 0.134, 0.102),   # waist
-        (1.140, 0.002, 0.128, 0.096),   # the narrow of the V
-        (1.200, 0.004, 0.150, 0.106),   # lower ribs
-        (1.270, 0.006, 0.172, 0.116),   # ribcage, deepest
-        (1.340, 0.004, 0.188, 0.114),
-        (1.400, 0.000, 0.202, 0.104),   # upper chest
-        (1.455, -0.002, 0.212, 0.096),  # a slope for the trapezius to sit on
-        (1.478, -0.004, 0.214, 0.090),  # shoulder shelf, the widest bone
-        (1.505, -0.002, 0.152, 0.078),
+        (0.900, 0.010, 0.150, 0.106),   # the pelvis floor, between the thighs' tops
+        (0.930, 0.010, 0.172, 0.116),   # the trochanters: as wide as the thighs it sits on
+        (0.960, 0.008, 0.180, 0.120),   # hips, the widest of the lower body
+        (1.020, 0.002, 0.166, 0.114),   # the iliac crest
+        (1.080, -0.006, 0.150, 0.104),  # waist
+        (1.140, -0.008, 0.144, 0.100),  # the narrow of the V; the small of the back
+        (1.200, -0.004, 0.158, 0.106),  # lower ribs
+        (1.270, 0.004, 0.178, 0.114),   # ribcage, deepest
+        (1.340, 0.010, 0.190, 0.116),   # the thoracic curve carries the back out
+        (1.400, 0.012, 0.202, 0.106),   # upper chest
+        (1.455, 0.006, 0.212, 0.096),   # a slope for the trapezius to sit on
+        (1.478, 0.000, 0.214, 0.090),   # shoulder shelf, the widest bone
+        (1.505, 0.000, 0.152, 0.078),
         (1.530, 0.002, 0.078, 0.064),   # into the neck
     ]
     return loft("trunk", [ring_z(z, 0, cy, rx, ry) for z, cy, rx, ry in rows])
@@ -173,51 +185,70 @@ def arm(scale=1.0):
     ])
     lower = tube("forearm", la, hd, [
         (-0.02,) + bulk(0.044, 0.038, 0.000, 0.0, 0.25),
-        (0.30,) + bulk(0.046, 0.052, +0.005, 0.009, 1.00),  # flexor mass, to the radial side
+        # the brachioradialis and the extensors, the forearm's big belly, sit
+        # on the RADIAL (thumb) side: with the palm forward in the A-pose that
+        # is the side away from the body, which is -s here (s = d x f points
+        # in toward the body). It was +0.009, on the ulnar side.
+        (0.30,) + bulk(0.046, 0.052, +0.005, -0.009, 1.00),
         (0.55,) + bulk(0.039, 0.043, +0.003, 0.004, 0.60),
         (0.80,) + bulk(0.031, 0.030, 0.000, 0.0, 0.25),
-        (1.00,) + bulk(0.029, 0.021, 0.000, 0.0, 0.0),      # wrist, a flattened oval
-        (1.05,) + bulk(0.028, 0.020, 0.000, 0.0, 0.0),
+        (1.00,) + bulk(0.030, 0.023, 0.000, 0.0, 0.0),      # wrist, a flattened oval (0.17 m round)
+        (1.05,) + bulk(0.029, 0.022, 0.000, 0.0, 0.0),
     ])
     return [upper, lower]
 
 def leg():
     th, cf, ft = Jp("thigh_l"), Jp("calf_l"), Jp("foot_l")
+    # Measured 2026-09-25: the knee was 0.352 m round against a real 0.38-
+    # 0.40, and the vastus medialis was shifted OUTWARD -- s = d x f is -X on
+    # the left leg, toward the midline, so "inside" is +ss, not -ss. The
+    # thigh is fuller through its upper third (a fighter's 0.60 m) and the
+    # knee wider across, so the leg reads thigh / knee / calf, not a taper.
     thigh = tube("thigh", th, cf, [
-        (-0.06, 0.086, 0.090, 0.004, 0.0),   # into the hip
-        (0.18, 0.082, 0.090, +0.006, 0.0),
-        (0.42, 0.076, 0.086, +0.012, 0.0),   # quadriceps forward, hamstring behind
-        (0.66, 0.066, 0.076, +0.009, 0.0),
-        (0.84, 0.054, 0.062, +0.004, 0.0),   # the pinch above the knee
-        (0.94, 0.058, 0.058, +0.002, -0.005),# vastus medialis, on the inside
-        (1.02, 0.056, 0.052, 0.000, 0.0),    # knee: wide across, shallow through
+        # The upper thigh is deeper than it is wide and sits OUT from the
+        # hip joint (ss < 0 is away from the midline): with hip joints
+        # 0.184 m apart, thighs 0.176 wide on the joint touched and welded
+        # down to 0.79, a crotch 11 cm under mid-height. Parted, the crotch
+        # is the pelvis floor at 0.900.
+        (-0.06, 0.082, 0.096, +0.004, -0.010),  # into the hip
+        (0.16, 0.084, 0.100, +0.008, -0.008),   # the thigh's fullest
+        (0.40, 0.080, 0.092, +0.013, -0.002),   # quadriceps forward, hamstring behind
+        (0.62, 0.072, 0.080, +0.010, 0.0),
+        (0.82, 0.061, 0.066, +0.005, 0.0),   # the pinch above the knee
+        (0.92, 0.062, 0.060, +0.003, +0.005),# vastus medialis, on the inside
+        (1.02, 0.064, 0.056, 0.000, 0.0),    # knee: wide across, shallow through
     ])
     # The calf measured 1 mm wider than the knee and 4 mm deeper, and it sat
     # in FRONT of the tibia. It is a mass hanging off the back, its medial
     # head high and its lateral head lower, and it is what makes a shin read
     # as a shin rather than as a dowel.
     shank = tube("shank", cf, ft, [
-        (-0.02, 0.050, 0.052, 0.000, 0.0),
-        (0.16, 0.055, 0.070, -0.014, 0.004),  # gastrocnemius, behind the bone
-        (0.32, 0.052, 0.064, -0.011, -0.003), # the lateral head, lower
-        (0.58, 0.042, 0.048, -0.005, 0.0),
-        (0.82, 0.034, 0.036, -0.001, 0.0),
-        (0.98, 0.032, 0.038, 0.000, 0.0),     # ankle
-        (1.04, 0.031, 0.037, 0.000, 0.0),
+        (-0.02, 0.056, 0.056, 0.000, 0.0),
+        (0.16, 0.058, 0.074, -0.014, 0.004),  # gastrocnemius, behind the bone
+        (0.32, 0.055, 0.068, -0.011, -0.003), # the lateral head, lower
+        (0.58, 0.044, 0.050, -0.005, 0.0),
+        (0.82, 0.035, 0.038, -0.001, 0.0),
+        (0.98, 0.032, 0.040, 0.000, 0.0),     # ankle
+        (1.04, 0.031, 0.039, 0.000, 0.0),
     ])
     return [thigh, shank]
 
 def shoe():
     """The trainer, lofted along the foot: heel, arch, ball, toe."""
     x = Jp("foot_l").x
+    # The toe box holds its height to the toes and rounds off in the last
+    # two centimetres: the old rows halved it from the ball to the toe, and
+    # the topline sloped down to a point (CLAUDE.md, "the trainers read as
+    # pointed dress heels" -- fixed 2026-09-25).
     rows = [  # (y, z-centre, half-width, half-height)
         (0.070, 0.038, 0.036, 0.036),    # heel back
         (0.040, 0.040, 0.041, 0.040),
         (-0.020, 0.040, 0.043, 0.040),
-        (-0.080, 0.036, 0.046, 0.036),   # arch to ball
-        (-0.140, 0.030, 0.048, 0.030),   # ball
-        (-0.190, 0.024, 0.044, 0.024),
-        (-0.220, 0.018, 0.030, 0.016),   # toe
+        (-0.080, 0.037, 0.046, 0.037),   # arch to ball
+        (-0.140, 0.032, 0.048, 0.032),   # ball
+        (-0.190, 0.029, 0.046, 0.029),   # the toe box
+        (-0.228, 0.024, 0.036, 0.022),
+        (-0.245, 0.018, 0.020, 0.014),   # toe
     ]
     rings = [(Vector((x, y, zc)), X * rx, Z * rz) for y, zc, rx, rz in rows]
     return loft("shoe", rings, segs=32)
@@ -436,7 +467,70 @@ def measure(body, check=True):
     g = girths(body)
     print("girths    : " + "  ".join("%s %.3f" % (k, v) for k, v in g.items()))
     print("verts/tris: %d / %d" % (len(body.data.vertices), sum(len(p.vertices) - 2 for p in body.data.polygons)))
+    n = len(body.data.vertices); P = np.empty(n * 3); body.data.vertices.foreach_get("co", P)
+    for k, v in proportions(P.reshape(n, 3)).items():
+        g[k] = v
+    print("body      : " + "  ".join("%s %.3f" % (k, v) for k, v in g.items() if k in PROPORTIONS))
+    if check:
+        check_proportions(g)
     return g
+
+
+# What an athletic 1.80 m male measures, and the band the canonical body
+# is held to (2026-09-25, "make full body fix"). Girths in metres round the
+# body; the crotch is the height of the perineum -- mid-height, the
+# eight-heads figure's -- and hip_step is the pelvis's half-width just
+# above the thigh tops (1.00) over the hips' with them (0.96): 0.82 on the
+# old body, whose pelvis was narrower than its own thighs and read as two
+# tubes with a step between them; 0.91 now.
+PROPORTIONS = {
+    "waist": (0.76, 0.88), "hips": (0.92, 1.08), "chest": (1.00, 1.14), "neck": (0.40, 0.46),
+    "thigh": (0.56, 0.66), "knee": (0.36, 0.42), "calf": (0.37, 0.43), "crotch": (0.885, 0.915),
+    "hip_step": (0.88, 1.05),
+}
+
+
+def _girth_of(P, c, d, R):
+    q = P - c; along = q @ d
+    ring = (np.abs(along) < 0.004) & (np.linalg.norm(q - np.outer(along, d), axis=1) < R)
+    if ring.sum() < 8:
+        return 0.0
+    f = np.array([0.0, -1.0, 0.0]); f = f - d * (f @ d); f /= np.linalg.norm(f); s = np.cross(d, f)
+    u, v = q[ring] @ s, q[ring] @ f
+    bins = {}
+    for uu, vv in zip(u, v):
+        k = int((math.atan2(vv, uu) + math.pi) / (2 * math.pi) * 72) % 72
+        bins[k] = max(bins.get(k, 0.0), math.hypot(uu, vv))
+    ks = sorted(bins); per = 0.0
+    for i, k in enumerate(ks):
+        k2 = ks[(i + 1) % len(ks)]; a1 = (k + .5) / 72 * 2 * math.pi; a2 = (k2 + .5) / 72 * 2 * math.pi
+        per += math.dist((bins[k] * math.cos(a1), bins[k] * math.sin(a1)), (bins[k2] * math.cos(a2), bins[k2] * math.sin(a2)))
+    return per
+
+
+def proportions(P):
+    """The limb girths, the crotch and the hip step of a body's points
+    (N,3), at canonical coordinates. Torso girths are girths()'s."""
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    out = {}
+    m = (np.abs(x) < 0.008) & (np.abs(y) < 0.07) & (z > 0.6) & (z < 1.02)
+    out["crotch"] = float(z[m].min()) if m.any() else 0.0
+    def leg(a, b, t, R):
+        a, b = np.array(Jp(a)), np.array(Jp(b)); d = (b - a) / np.linalg.norm(b - a)
+        return _girth_of(P, a + (b - a) * t, d, R)
+    out["thigh"] = leg("thigh_l", "calf_l", 0.22, 0.105)
+    out["knee"] = leg("thigh_l", "calf_l", 1.0, 0.09)
+    out["calf"] = leg("calf_l", "foot_l", 0.18, 0.09)
+    def half(z0, xmax):
+        mm = (np.abs(z - z0) < 0.003) & (np.abs(x) < xmax); return float(np.abs(x[mm]).max()) if mm.any() else 0.0
+    out["hip_step"] = half(1.00, 0.23) / max(half(0.96, 0.23), 1e-6)
+    return out
+
+
+def check_proportions(g):
+    bad = ["%s %.3f (%.2f-%.2f)" % (k, g.get(k, 0.0), lo, hi) for k, (lo, hi) in PROPORTIONS.items()
+           if not (lo <= g.get(k, 0.0) <= hi)]
+    assert not bad, "the body is off an athletic male's proportions: " + ", ".join(bad)
 
 def build(stage_render=True):
     t = time.time()
@@ -489,6 +583,16 @@ def build_field(sc, build):
     h = sc / a["sc"]
     l = build / a["look"]["build"]
     t = (1.0 + 0.7 * (build - 1.0)) / (1.0 + 0.7 * (a["look"]["build"] - 1.0))
+    # The head grows less than the body (2026-09-25, "arrange sizes"): a
+    # sprite scaled by sc keeps its proportions, but a man half again as
+    # tall is not a scaled-up man -- he is more heads tall. h ** 0.65 puts
+    # ZAYOS (h 1.48) at 9.1 heads to Saud's 7.9, AL-WAHSH at 8.4, the thug
+    # (h 0.95) at 7.8: giants with small heads and a short man whose head
+    # sits big on him, which is how they read apart. About a pivot at the
+    # top of the neck, blended over it, so the neck is his and the skull
+    # is scaled. The hands stay with the body, as the browser leaves them.
+    hk = h ** 0.65
+    HEAD_PIVOT = np.array([0.0, 0.0, 1.58])
 
     def seg(p, q, s):
         return (np.array(Jp(p)) * np.array([s, 1, 1]), np.array(Jp(q)) * np.array([s, 1, 1]))
@@ -569,7 +673,17 @@ def build_field(sc, build):
             shift = shift + np.sign(x) * hip_x * (t - 1.0) * _smooth(np.abs(x) / 0.012) * below
             rigid = np.sign(x) * shoulder_x * (t - 1.0)
             P[:, 0] = P[:, 0] + shift * (1.0 - arm_w) + rigid * arm_w
-        return P * np.array([h, h, h])
+        if abs(l - 1.0) > 1e-9:
+            # the neck thickens with the build, half as fast as a limb: a
+            # heavy man's neck is not a lean man's neck on a wide body
+            z = P0[:, 2]
+            wn = _smooth((z - 1.49) / 0.04) * (1.0 - _smooth((z - 1.60) / 0.05))
+            P[:, 0:2] = P[:, 0:2] * (1.0 + (math.sqrt(l) - 1.0) * wn)[:, None]
+        out = P * np.array([h, h, h])
+        if abs(hk - h) > 1e-9:
+            wh = _smooth((P0[:, 2] - 1.54) / 0.08)
+            out = out + (wh * (hk - h))[:, None] * (P0 - HEAD_PIVOT[None, :])
+        return out
     return h, l, t, F
 
 def scale_to(objects, joints_l, sc, build):
@@ -592,9 +706,9 @@ def scale_to(objects, joints_l, sc, build):
         Q = F(np.array([list(p) for p in pts]))
         for p, q in zip(pts, Q):
             p.x, p.y, p.z = float(q[0]), float(q[1]), float(q[2])
-    print("build     : h %.3f (stature %.3f m)  limbs x%.3f  torso x%.3f" % (h, legacy.HEIGHT * h, l, t))
+    print("build     : h %.3f (stature %.3f m)  limbs x%.3f  torso x%.3f  head x%.3f" % (h, legacy.HEIGHT * h, l, t, h ** 0.65))
     # the crotch weld rig_export.pin_crotch pins, carried through the same
     # field: its canonical 0.910 m is mid-thigh on a man half again the size
     c = F(np.array([[0.0, 0.0, 0.910], [0.030, 0.0, 0.910], [0.0, 0.0, 0.940]]))
-    return dict(h=h, l=l, t=t, crotch=dict(z_centre=float(c[0][2]), x_reach=float(c[1][0] - c[0][0]),
+    return dict(h=h, l=l, t=t, head=h ** 0.65, crotch=dict(z_centre=float(c[0][2]), x_reach=float(c[1][0] - c[0][0]),
                                            z_reach=float(c[2][2] - c[0][2])))

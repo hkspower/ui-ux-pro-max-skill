@@ -252,7 +252,7 @@ def palette_for(spec):
         stripe=bool(look.get("stripe")), watch=bool(look.get("watch")),
         scar=bool(look.get("scar")), gloves=(look.get("hands") == "gloves"),
         bald=bool(look.get("bald")), no_tee=not look.get("tee", True),
-        name=spec["name"])
+        build=float(look.get("build", 1.0)), name=spec["name"])
 
 def saud_palette():
     """Today's Saud, exactly as paint() used to spell him."""
@@ -653,42 +653,11 @@ def _dilate(a, cov, rounds=3):
     return out
 
 
-def repaint_head(obj, imgs, size, pal=None):
-    """Repaint the head's texels from hero.face, and turn its relief into
-    normal and roughness. Everything below 3 mm -- the lash line, the
-    vermilion border, a nostril rim, the edge of a brow -- exists only here.
-    `pal` is palette_for(spec); None is Saud.
-    """
-    from . import face as FA
-    pal = pal or saud_palette()
+def apply_relief(imgs, pos, cov, rel, on, size):
+    """A relief (metres, + proud) over the texels `cov` of a chart into the
+    normal map, on top of what the bake put there, where `on` > 0. Returns
+    how coherent the result is (see the check at the end)."""
     coherent = 0.0
-    pos, cov = rasterise(obj, size, lambda c: c[2] > 1.535)
-    if not cov.any():
-        return 0, coherent
-    P = pos[cov]
-    skin = pal["skin"]; hair = pal["hair"] if pal["hair"] is not None else skin
-    beard = pal["beard"]
-    # ---- albedo
-    # A byte image's `pixels` are the stored bytes over 255 -- sRGB-encoded,
-    # not linear (checked: writing 0.5 stores 128).
-    alb = _img_array(imgs["albedo"])
-    lin = _srgb_to_linear(alb[..., :3])
-    # Start from what the bake put there rather than from flat skin. Where
-    # shade() feathers out -- down the neck, round the back of the head --
-    # it lays a fraction of the face over its base, and if that base were
-    # flat skin the body's own grain would be wiped out across exactly the
-    # band where the head and the body have to meet.
-    extra = {}
-    rgb, rel, on = FA.shade(P, skin, hair, beard, base_rgb=lin[cov], beard_k=pal.get("beard_k", 1.0), scar=pal.get("scar", False), out=extra)
-    live = on > 0.002
-    if not live.any():
-        return 0, coherent
-    buf = np.zeros(pos.shape); buf[cov] = rgb
-    m = np.zeros(cov.shape, bool); m[cov] = live
-    lin[m] = buf[m]
-    alb[..., :3] = _linear_to_srgb(lin)
-    _img_write(imgs["albedo"], _dilate(alb, m, 3))
-
     # ---- relief -> normal, at the normal map's own size
     if "normal" in imgs:
         nsz = imgs["normal"].size[0]
@@ -735,6 +704,47 @@ def repaint_head(obj, imgs, size, pal=None):
             k = 4; hh, ww = (fb.shape[0] // k) * k, (fb.shape[1] // k) * k
             if hh and ww:
                 coherent = float(fb[:hh, :ww].reshape(hh // k, k, ww // k, k).mean((1, 3)).std())
+
+    return coherent
+
+
+def repaint_head(obj, imgs, size, pal=None):
+    """Repaint the head's texels from hero.face, and turn its relief into
+    normal and roughness. Everything below 3 mm -- the lash line, the
+    vermilion border, a nostril rim, the edge of a brow -- exists only here.
+    `pal` is palette_for(spec); None is Saud.
+    """
+    from . import face as FA
+    pal = pal or saud_palette()
+    coherent = 0.0
+    pos, cov = rasterise(obj, size, lambda c: c[2] > 1.535)
+    if not cov.any():
+        return 0, coherent
+    P = pos[cov]
+    skin = pal["skin"]; hair = pal["hair"] if pal["hair"] is not None else skin
+    beard = pal["beard"]
+    # ---- albedo
+    # A byte image's `pixels` are the stored bytes over 255 -- sRGB-encoded,
+    # not linear (checked: writing 0.5 stores 128).
+    alb = _img_array(imgs["albedo"])
+    lin = _srgb_to_linear(alb[..., :3])
+    # Start from what the bake put there rather than from flat skin. Where
+    # shade() feathers out -- down the neck, round the back of the head --
+    # it lays a fraction of the face over its base, and if that base were
+    # flat skin the body's own grain would be wiped out across exactly the
+    # band where the head and the body have to meet.
+    extra = {}
+    rgb, rel, on = FA.shade(P, skin, hair, beard, base_rgb=lin[cov], beard_k=pal.get("beard_k", 1.0), scar=pal.get("scar", False), out=extra)
+    live = on > 0.002
+    if not live.any():
+        return 0, coherent
+    buf = np.zeros(pos.shape); buf[cov] = rgb
+    m = np.zeros(cov.shape, bool); m[cov] = live
+    lin[m] = buf[m]
+    alb[..., :3] = _linear_to_srgb(lin)
+    _img_write(imgs["albedo"], _dilate(alb, m, 3))
+
+    coherent = apply_relief(imgs, pos, cov, rel, on, size)
 
     # ---- roughness: a face is not one finish. The T-zone is oily and the
     # cheeks are not; lips are wetter than either; a brow is matt.
@@ -792,6 +802,12 @@ def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
     if kind == "skin":
         base = FA.body_grain(P, np.tile(np.asarray(pal["skin"], dtype=float), (len(P), 1)),
                              skin=pal["skin"], joints_l=joints_l)
+        # the body's relief and its veins (face.body_relief); a vein shows
+        # through the skin a little darker and toward blue-green
+        rgb0, kit0 = kit_colour(P, kind, pal, joints_l, base=base, parts=parts)
+        tape_w = parts.get("tape", np.zeros(len(P)))
+        rel, vein = FA.body_relief(P, joints_l, build=pal.get("build", 1.0), tape=tape_w)
+        base = base * (1.0 - 0.07 * vein)[:, None] * (1.0 + np.outer(vein, np.array([-0.03, 0.0, 0.035])))
         rgb, kit = kit_colour(P, kind, pal, joints_l, base=base, parts=parts)
         live = np.ones(len(P), bool)
     else:
@@ -804,6 +820,11 @@ def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
     lin_[m] = buf[m]
     alb[..., :3] = _linear_to_srgb(lin_)
     _img_write(imgs["albedo"], _dilate(alb, m, 3))
+    if kind == "skin" and "normal" in imgs:
+        # below the face only: repaint_head lays the face's relief over
+        # whatever is here, and starts at 1.535
+        on = (P[:, 2] < 1.545).astype(float)
+        apply_relief(imgs, pos, cov, rel, on, size)
     # The skin's roughness, per texel: it was the shader's one number baked
     # flat over the whole body (FA.body_roughness says why that is the
     # plastic look). Cotton tape is matt and a nail is glossy keratin; both

@@ -598,12 +598,9 @@ The torso and limb fixes change nothing at Saud's own factors. AL-SAQR and
 AL-WAHSH were built before them, and were rebuilt with them later the same
 day, with the skin (see "The skin").
 
-**Known, not fixed, on ZAYOS:** the trousers still read as two leg tubes
-round a recessed pelvis at the hip. It is not his: the canonical body steps
-in 3 cm at the waist (0.188 -> 0.157 m half-width within 4 cm of height),
-the trousers are a shell of it, and every other man wears a tee over that
-line. He is the only one who shows it. Reshaping the shared body there is
-a job of its own.
+**Known, not fixed, on ZAYOS -- fixed 2026-09-25:** the trousers read as
+two leg tubes round a recessed pelvis at the hip, because the canonical
+pelvis was narrower than its own thigh tops. See "The body, measured".
 
 ## The skin -- 2026-09-23
 
@@ -1817,6 +1814,100 @@ his feet instead, as the clips always did; measured 36 / 38 with both
 soles on the floor. Rig verify passes, 14 of 14 sabotages bite. **Not verified**: no
 engine has imported the clips or compiled the lookup change.
 
+## The body, measured -- 2026-09-25
+
+Asked as "make full body fix and arrange sizes and shapes and skin",
+settled as the Unreal men: proportions and joints, shapes and muscle, the
+sizes between the men, posture and stance, and the skin's surface detail.
+Everything below was measured on the canonical body before it was
+changed, on pass one of the build (`Tools/blender/hero/anatomy.py` +
+`assembly.masses`, rendered as clay from four sides), and the numbers it
+is held to are an athletic 1.80 m male's.
+
+**What was wrong.** The waist girth was 0.744 m -- a 28-inch waist on a
+fighter (0.80-0.84); the hips 0.82 (0.95-1.00); the knee 0.35 round
+(0.38-0.40). The pelvis was narrower than the thigh tops it sat on (0.148
+half-width at the hip row over thigh tubes reaching 0.178), so the legs
+stood out from under the trunk as two tubes with a step between them --
+ZAYOS's "recessed pelvis" was this. In profile the trunk was a slab: the
+section centre within 12 mm of zero from the hips to the shoulders, no
+small of the back, no thoracic curve. The pec was one ball a side, the
+rectus one 26 cm sausage a side (the two vertical bars on every belly),
+the glute a ball on the hip, the lat buried, the erectors absent; the
+forearm's big belly was on the ulnar side and the vastus medialis on the
+outside (both sign errors on `tube`'s side shift); the trainers' toe box
+halved its height to a point. The two "Known, not fixed" items on the
+crotch and the shoulder line were checked: the crotch was already back
+at 0.90 (mid-height) after the leg change of 2026-09-23, and the shoulder
+JOINT at 1.445 is right -- the humeral head sits 3 cm under the acromion
+(0.818 H = 1.472), which the shelf is at. Neither moved.
+
+**What changed** (`anatomy.trunk`, `leg`, `arm`, `shoe`, `assembly.masses`):
+the trunk rows carry the pelvis as wide as the thighs (0.180 at the hips),
+a waist of 0.80 and the spine's S (the back in 3 cm at 1.14, out again at
+1.34, the front plumb); the thighs part at the top (0.082 across, 0.096
+deep, shifted out from the joint) so the crotch is the pelvis floor at
+0.900 and not a weld; the knee is 0.064 across; the pec is a fan whose
+long axis runs from the lower sternum into the armpit, 1.5 cm proud, with
+a clavicular slip above it; the rectus is three pairs of bellies on a
+2 mm sheet with the linea alba between; the obliques stand proud of the
+flank; the lats lean out to tuck under the armpit; the erectors are two
+columns either side of a spinal furrow; the glute is a broad seat a
+centimetre proud, parted at the midline (met there, it pulled the crotch
+down 13 mm); the traps are trimmed (the neck base was 0.284 m across at
+1.53). Measured after: waist 0.80, hips 1.04, chest 1.08, neck 0.43,
+thigh 0.60, knee 0.38, calf 0.41, crotch 0.900.
+
+**Held, and bitten.** `anatomy.PROPORTIONS` / `check_proportions` run in
+`measure()` on every build: waist, hips, chest, neck, thigh, knee, calf,
+the crotch's height, and `hip_step` (the pelvis just above the thigh tops
+over the hips with them: 0.82 on the old body, 0.91 now). Six sabotages
+on pass one -- a thin waist, a thin knee, a narrow pelvis, welded thighs,
+glutes meeting at the midline -- each fail the one check that guards it,
+and the clean body passes.
+
+**Sizes between the men** (`anatomy.build_field`). A sprite scaled by
+`sc` keeps its proportions; a man half again as tall is not a scaled-up
+man. The head now grows as h ** 0.65 about the top of the neck: ZAYOS
+(h 1.48) is 9.1 heads tall to Saud's 7.9, AL-WAHSH 8.5, AL-SAQR 8.1, the
+thug (h 0.95) 7.9 with the head that leaves him -- giants with small
+heads, a short man whose head sits big on him. The neck thickens with the
+build, half as fast as a limb. The hands stay with the body, as the
+browser leaves them; every stature is still `sc` x 1.80 m.
+
+**Posture and stance** (`build_saud.GUARDS`, `STANCE_OF`,
+`build_motion.GUARD_OF`). Each boss stands his own way, from the roster:
+AL-SAQR, the Kicker archetype and the fastest man in the game, in a
+kickboxer's guard (upright, weight back off a light lead leg, the lead
+hand long at brow height, the rear foot turned out); AL-WAHSH, the boxer-
+boss with the best guard chance in the table, in a peek-a-boo crouch
+(knees at 44 degrees, torso folded forward, both fists tight at the
+cheekbones, elbows on the ribs); ZAYOS, who only ever punches and is the
+slowest, square and wide (feet 50 cm across, knees barely bent, shoulders
+rolled forward, fists a hand lower and the elbows out). Solved on Saud's
+skeleton the way MMA_GUARD was, and each Guard clip is held to the same
+hand rules as every other. The street men keep the boxer's guard, Saud
+his MMA stance. The rest pose (the A-pose the engine retargets from) is
+unchanged.
+
+**The skin's surface** (`face.body_relief`, `finish.apply_relief`,
+`repaint_kit`). Below the face the normal map carried pores and nothing
+else. Now, at the texture's resolution: veins -- a cell-boundary network
+raised 0.35 mm on the forearms (the flexor side most), the inner upper
+arm and the backs of the hands, denser on the heavier build, and a little
+darker and toward blue-green in the colour; the knuckles proud and a
+crease across every finger joint; fine wrinkles over the olecranon; the
+collarbones' ridge with the hollow above and the notch between them; the
+sternum, the linea alba, the lines between the abs, the spinal furrow,
+as grooves. Under the wraps the relief is the tape's. The head's relief
+is laid over it afterwards, as before.
+
+**State.** The tools are done and the six men are being rebuilt whole
+(started 2026-09-25 00:07 Riyadh; 25-45 minutes a man, two at a time).
+The clips were rebuilt with the new stances (57, every check passing).
+Until the rebuilds land, the shipped models are the old body. **Not
+verified:** no engine has imported any of it.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
@@ -1880,21 +1971,15 @@ Don't re-discover them; don't fix them without being told to.
   35 x 52 mm and is 220 x 209. The entry stays so the misdiagnosis is on
   record. `build_motion.py`'s clips carried the twist too until
   2026-09-23; they no longer do.
-- **The trainers read as pointed dress heels.** The shoe loft's last two rows
-  drop the toe box to half the height of the heel, so the topline slopes
-  down to a point instead of holding level.
-- **The crotch is 54 mm too low**, at 0.855 where mid-height is 0.909. The
-  trunk loft's bottom cap is at 0.900 and the thigh tubes run up to 0.978, so
-  the pelvis and the thighs overlap through 78 mm with no groin geometry
-  between them and the 3.5 mm voxel union welds the 16 mm slot shut wherever
-  it happens to close. Nothing in the code decides where his crotch is. Long
-  torso over short legs is the most age-coded proportion there is, and it is
-  under the trousers, which is the only reason it is here rather than fixed.
-- **The shoulder line is about 30 mm low.** The clavicle joint is at 1.448
-  and the canonical acromion at this stature is near 1.478. Raising it means
-  moving the joint table, and the arm's segment lengths are correct and would
-  have to move with it -- a rig change, not a mesh change. The trunk's
-  shoulder SHELF has been raised to 1.478; the bone under it has not.
+- **The trainers read as pointed dress heels -- fixed 2026-09-25** ("The
+  body, measured"): the toe box holds its height to the toes.
+- **The crotch is 54 mm too low -- no longer true.** Measured 2026-09-25
+  at 0.896-0.900, mid-height, since the leg change of 2026-09-23; the
+  thighs are parted at the top now so it cannot weld lower, and
+  `check_proportions` holds it there.
+- **The shoulder line is about 30 mm low -- it is not.** The humeral head
+  sits about 3 cm under the acromion in a man; the joint at 1.445 under a
+  shelf at 1.478 is that. Left as it is.
 - **The editor scripts pass `unreal.Rotator` its arguments in the wrong
   order.** `build_levels.py:374`,
   `build_island.py:904,1001` and `build_prologue.py:206,247` call

@@ -631,6 +631,120 @@ def body_roughness(P, joints_l=None):
     return np.clip(r, 0.30, 0.85)
 
 
+def worley_gap(P, cell, seed=0.0):
+    """F2 - F1 of a jittered cell noise, in cell units: small along the
+    boundaries between cells, so `ramp` on it draws a network of lines --
+    which is what a vein pattern is at the scale the skin shows it."""
+    q = P / cell
+    base = np.floor(q)
+    f1 = np.full(len(P), 9.0); f2 = np.full(len(P), 9.0)
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            for dz in (-1, 0, 1):
+                c = base + np.array([dx, dy, dz])
+                ix, iy, iz = c[:, 0].astype(np.int64), c[:, 1].astype(np.int64), c[:, 2].astype(np.int64)
+                jit = np.stack([_hash3(ix, iy, iz, seed + k) for k in (1.0, 2.0, 3.0)], axis=1)
+                d = np.linalg.norm(q - (c + jit), axis=1)
+                closer = d < f1
+                f2 = np.where(closer, f1, np.minimum(f2, d)); f1 = np.where(closer, d, f1)
+    return f2 - f1
+
+
+def _seg_frame(P, a, b):
+    """For points P against the segment a->b: the fraction along it, the
+    distance off its axis, and the unit sideways vectors (front, side)."""
+    a, b = np.asarray(a, float), np.asarray(b, float)
+    d = b - a; L = np.linalg.norm(d); d = d / L
+    q = P - a; t = (q @ d) / L
+    off = q - np.outer(q @ d, d)
+    r = np.linalg.norm(off, axis=1)
+    f = np.array([0.0, -1.0, 0.0]); f = f - d * (f @ d); f /= np.linalg.norm(f); sd = np.cross(d, f)
+    return t, r, off @ f, off @ sd
+
+
+def body_relief(P, joints_l=None, build=1.0, tape=None):
+    """The skin's own relief below the face, in metres (+ is proud), and
+    the vein mask, 0..1 -- 2026-09-25, "skin: surface detail". Everything
+    here is finer than the 3.5 mm the mesh carries and lands in the normal
+    map, the way the face's relief does:
+
+      veins       a network of raised lines on the forearms (flexor side
+                  most), the inner upper arm and the backs of the hands,
+                  denser on the heavier build (a fighter's vascularity)
+      knuckles    the metacarpal heads proud, and a crease across each
+                  finger joint
+      elbow       fine wrinkles over the olecranon
+      clavicles   the collarbone's ridge with the hollow above it, and the
+                  notch between them at the throat
+      sternum, linea alba, the tendinous lines between the abs, the
+      spinal furrow -- grooves
+    Under tape (`tape`, 0..1 per point) the skin's relief is the tape's,
+    so it is left flat there."""
+    from .anatomy import Jp
+    n = len(P)
+    rel = np.zeros(n); vein = np.zeros(n)
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    vk = float(np.clip(0.55 + 0.6 * (build - 1.0), 0.35, 1.0))
+    for s in (1, -1):
+        m = np.array([s, 1.0, 1.0])
+        sh, el, wr, he = (np.array(Jp(k)) * m for k in ("upperarm_l", "lowerarm_l", "hand_l", "hand_end_l"))
+        # ---- veins
+        w = np.zeros(n)
+        t, r, fr, sd = _seg_frame(P, el, wr)
+        band = smooth(np.clip((t - 0.04) / 0.10, 0, 1)) * (1.0 - smooth(np.clip((t - 0.86) / 0.10, 0, 1)))
+        side = 0.55 + 0.45 * np.clip(fr / np.maximum(r, 1e-6), -1.0, 1.0)      # the flexor (front) side most
+        w = np.maximum(w, band * side * (r < 0.09))
+        t, r, fr, sd = _seg_frame(P, sh, el)
+        band = smooth(np.clip((t - 0.30) / 0.15, 0, 1)) * (1.0 - smooth(np.clip((t - 0.88) / 0.10, 0, 1)))
+        inner = np.clip(sd / np.maximum(r, 1e-6), 0.0, 1.0)                     # toward the body
+        w = np.maximum(w, 0.55 * band * inner * (r < 0.09))
+        t, r, fr, sd = _seg_frame(P, wr, he)
+        back = np.clip(-fr / np.maximum(r, 1e-6), 0.0, 1.0)                     # the back of the hand (+Y)
+        w = np.maximum(w, 0.8 * (t > -0.1) * (t < 1.1) * back * (r < 0.06))
+        if w.max() > 0:
+            sel = w > 0.02
+            gap = worley_gap(P[sel], 0.021, seed=17.0 + s)
+            line = ramp(gap, 0.17, 0.06)
+            vein[sel] = np.maximum(vein[sel], line * w[sel] * vk)
+        # ---- knuckles and creases
+        if joints_l:
+            for fi in ("f0", "f1", "f2", "f3", "thumb"):
+                pts = joints_l.get(fi)
+                if not pts: continue
+                pts = [np.array(p) * m for p in pts]
+                k0 = pts[0]
+                rel += 0.0006 * np.exp(-((np.linalg.norm(P - k0, axis=1)) / 0.0075) ** 2)
+                for k in (1, 2):
+                    c = pts[k]; d = pts[k] - pts[k - 1]; d /= np.linalg.norm(d)
+                    along = (P - c) @ d; near = np.linalg.norm(P - c, axis=1) < 0.014
+                    rel -= 0.00035 * ramp(np.abs(along), 0.0018, 0.0006) * near
+        # ---- the elbow's wrinkles
+        ol = el + np.array([0.0, 0.028, 0.0])
+        wr_m = _near(P, ol, 0.022, 0.016)
+        rel += 0.00025 * (fbm(P, 260.0, 2, 199.0) - 0.5) * 2.0 * wr_m
+    # ---- the collarbones: a ridge rising 12 mm from the sternal end to the
+    # acromial, the supraclavicular hollow above it, the notch at the throat
+    ax = np.abs(x)
+    front = ramp(y, -0.020, -0.045)
+    zc = 1.470 + 0.012 * np.clip(ax / 0.19, 0.0, 1.0)
+    span = ramp(ax, 0.026, 0.040) * ramp(ax, 0.200, 0.180)
+    rel += 0.0009 * np.exp(-((z - zc) / 0.0055) ** 2) * span * front
+    rel -= 0.0012 * np.exp(-((z - zc - 0.022) / 0.011) ** 2) * ramp(ax, 0.060, 0.080) * ramp(ax, 0.180, 0.160) * front
+    rel -= 0.0015 * np.exp(-(((x) / 0.014) ** 2 + ((z - 1.474) / 0.011) ** 2)) * front
+    # ---- the sternum and the linea alba, the lines between the abs
+    mid = np.exp(-(x / 0.005) ** 2) * ramp(y, -0.050, -0.070)
+    rel -= 0.0008 * mid * ramp(z, 1.220, 1.240) * ramp(z, 1.430, 1.410)
+    rel -= 0.0006 * mid * ramp(z, 1.075, 1.095) * ramp(z, 1.235, 1.215)
+    for zg in (1.211, 1.141):
+        rel -= 0.0005 * np.exp(-((z - zg) / 0.004) ** 2) * ramp(ax, 0.070, 0.055) * ramp(y, -0.060, -0.080)
+    # ---- the spinal furrow
+    rel -= 0.0010 * np.exp(-(x / 0.009) ** 2) * ramp(y, 0.050, 0.075) * ramp(z, 1.02, 1.06) * ramp(z, 1.46, 1.42)
+    rel += 0.00035 * vein
+    if tape is not None:
+        rel = rel * (1.0 - tape); vein = vein * (1.0 - tape)
+    return rel, vein
+
+
 def follicles(P, cell=0.0011, radius=0.00032, seed=0.0):
     """Stubble: one hair's cut end per jittered cell of `cell` metres, as a
     crisp dot of `radius` -- Worley F1 over the 27 neighbouring cells, so the

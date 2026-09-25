@@ -12,6 +12,14 @@ J = legacy.J; Jp = A.Jp; X, Y, Z = A.X, A.Y, A.Z
 ellipsoid, loft, tube, ring_z, mirror_x = A.ellipsoid, A.loft, A.tube, A.ring_z, A.mirror_x
 
 def masses():
+    """The muscle that sits proud of the lofts. Rewritten 2026-09-25 ("make
+    full body fix"): the pec was one ball on each side of the chest and the
+    rectus one 26 cm sausage either side of the midline -- both read as
+    exactly that on the bare chest (zayos-apose-3d.png) and through every
+    tee. A pec is a fan, from the sternum out and up to the armpit, thicker
+    below; the rectus is three pairs of bellies with the linea alba between
+    them; the obliques stand proud of the flank; the erectors stand either
+    side of a spinal groove."""
     out = []
     # The deltoid is a teardrop that flows down the arm, not a ball on the
     # shelf. It was neither: sliced perpendicular to the humerus the arm was
@@ -21,22 +29,45 @@ def masses():
     # this was doing the ribcage's job from the outside. Now the trunk is the
     # V (see anatomy.trunk) and this is a muscle again.
     ua, la = Jp("upperarm_l"), Jp("lowerarm_l")
-    out.append(ellipsoid("delt", ua + (la - ua) * 0.12 + Vector((-0.006, -0.004, 0.014)), (0.032, 0.036, 0.086), tuple(la - ua)))
-    # Sunk into the trunk: only the front third of the pec is proud of the chest.
-    out.append(ellipsoid("pec", (0.086, -0.062, 1.356), (0.094, 0.042, 0.062)))
+    out.append(ellipsoid("delt", ua + (la - ua) * 0.12 + Vector((-0.006, -0.004, 0.014)), (0.034, 0.038, 0.088), tuple(la - ua)))
+    # The pec: its sternal head a fan whose long axis runs from the lower
+    # sternum out and up into the armpit (0.86, 0.30, 0.40 -- back as well as
+    # out, because the chest curves away), 1.5 cm proud at its centre, its
+    # inner end 6 mm short of the midline so the sternum stays a groove; the
+    # clavicular head a thinner slip above it, under the collarbone.
+    out.append(ellipsoid("pec", (0.094, -0.078, 1.346), (0.030, 0.052, 0.102), (0.86, 0.30, 0.40)))
+    out.append(ellipsoid("pec_up", (0.094, -0.068, 1.408), (0.022, 0.030, 0.084), (0.90, 0.22, 0.14)))
     # The trapezius stopped 35 mm short of the acromion, so nothing drew the
     # neck-to-shoulder diagonal and the trunk loft was left to do it with a
-    # step. It has to reach the shoulder.
-    out.append(ellipsoid("trap", (0.112, 0.022, 1.492), (0.062, 0.046, 0.066), (0.70, -0.10, -0.30)))
-    # Buried 16 mm inside the trunk at every height, so it showed nowhere.
-    out.append(ellipsoid("lat", (0.145, 0.048, 1.300), (0.042, 0.046, 0.100)))
+    # step. It has to reach the shoulder. Trimmed 2026-09-25: the neck's
+    # base measured 0.284 m across at 1.53, a mound, not a slope.
+    out.append(ellipsoid("trap", (0.108, 0.024, 1.488), (0.054, 0.040, 0.070), (0.70, -0.10, -0.30)))
+    # The lat: at the side-back of the ribcage, what makes the V from behind.
+    # widest at the armpit, gone by the waist -- centred high, so its bottom
+    # tapers out above the lower ribs instead of bulging at them
+    # ...leaning out, so its top tucks under the armpit and its bottom runs
+    # in toward the flank instead of standing as an egg on the side
+    out.append(ellipsoid("lat", (0.140, 0.050, 1.300), (0.040, 0.050, 0.120), (0.35, 0.05, 1.0)))
+    # The erector spinae, either side of the spine -- the small of the back
+    # is not a smooth dish, it is two columns with a furrow between them.
+    # Two per side, following the spine's curve (anatomy.trunk's cy).
+    out.append(ellipsoid("erector_lo", (0.038, 0.074, 1.080), (0.044, 0.020, 0.140)))
+    out.append(ellipsoid("erector_hi", (0.040, 0.098, 1.300), (0.046, 0.020, 0.140)))
     # It was centred on the hip JOINT, so it read as a hip, not a seat.
-    out.append(ellipsoid("glute", (0.078, 0.076, 0.918), (0.072, 0.070, 0.064)))
+    # a seat, not a ball: broad and only a centimetre proud of the pelvis
+    # ...and its inner edge 6 mm short of the midline: meeting there, the
+    # two welded across it and pulled the crotch down 13 mm
+    out.append(ellipsoid("glute", (0.090, 0.078, 0.924), (0.084, 0.048, 0.086)))
     out.append(ellipsoid("scm", (0.034, -0.032, 1.566), (0.015, 0.015, 0.048), (0.38, -0.58, 1.0)))
-    # Nothing at all lived between the ribcage and the pelvis: no oblique,
-    # no rectus, so the waist was a smooth taper with no muscle in it.
-    out.append(ellipsoid("oblique", (0.094, 0.006, 1.160), (0.040, 0.058, 0.066)))
-    out.append(ellipsoid("rectus", (0.032, -0.086, 1.180), (0.038, 0.020, 0.130)))
+    # The external oblique, proud of the flank between the ribs and the crest.
+    out.append(ellipsoid("oblique", (0.116, 0.004, 1.170), (0.032, 0.056, 0.072)))
+    # The rectus abdominis: three pairs of bellies, 1 cm proud, the linea
+    # alba a 8 mm gap between the pairs and a tendinous line between the rows.
+    # the sheet the bellies sit on, 2 mm proud, so they are steps in a slab
+    # and not six pebbles on a flat belly
+    out.append(ellipsoid("rectus_sheet", (0.0, -0.098, 1.176), (0.078, 0.012, 0.115)))
+    for k, zc in enumerate((1.246, 1.176, 1.106)):
+        out.append(ellipsoid("rectus%d" % k, (0.038, -0.097, zc), (0.036, 0.014, 0.034)))
     return out
 
 def boolean(target, cutter, op):
