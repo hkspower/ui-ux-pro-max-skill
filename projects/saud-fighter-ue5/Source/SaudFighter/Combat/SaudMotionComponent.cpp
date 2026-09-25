@@ -99,8 +99,9 @@ void USaudMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 UAnimSequence* USaudMotionComponent::Find(FName MotionSet, const FString& Clip)
 {
 	const FString Set = MotionSet.IsNone() ? TEXT("Saud") : MotionSet.ToString();
-	// Saud's clips are in Saud/, every other set that has its own is a boss's.
-	const FString Folder = Set == TEXT("Saud") ? TEXT("Saud") : TEXT("Bosses");
+	// Saud's clips are in Saud/, the street men's in Street/, every other
+	// set that has its own is a boss's.
+	const FString Folder = (Set == TEXT("Saud") || Set == TEXT("Street")) ? Set : FString(TEXT("Bosses"));
 
 	const FString Own = FString::Printf(TEXT("/Game/Animation/%s/A_%s_%s.A_%s_%s"),
 	                                    *Folder, *Set, *Clip, *Set, *Clip);
@@ -108,8 +109,23 @@ UAnimSequence* USaudMotionComponent::Find(FName MotionSet, const FString& Clip)
 	{
 		return Seq;
 	}
-	return Set == TEXT("Saud") ? nullptr
-		: LoadOnce(FString::Printf(TEXT("/Game/Animation/Saud/A_Saud_%s.A_Saud_%s"), *Clip, *Clip));
+	if (Set == TEXT("Saud"))
+	{
+		return nullptr;
+	}
+	// Anyone else borrows the street men's: Saud's clips on the boxer's
+	// guard, because since 2026-09-25 Saud alone stands as a mixed martial
+	// artist. Saud's own are the last resort, for a project whose Street
+	// clips have not been imported.
+	if (Set != TEXT("Street"))
+	{
+		if (UAnimSequence* Seq = LoadOnce(FString::Printf(
+			TEXT("/Game/Animation/Street/A_Street_%s.A_Street_%s"), *Clip, *Clip)))
+		{
+			return Seq;
+		}
+	}
+	return LoadOnce(FString::Printf(TEXT("/Game/Animation/Saud/A_Saud_%s.A_Saud_%s"), *Clip, *Clip));
 }
 
 UAnimSequence* USaudMotionComponent::LoadOnce(const FString& Path)

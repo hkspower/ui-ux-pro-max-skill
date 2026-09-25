@@ -279,7 +279,7 @@ def preview(maps, levels=(0, 1, 3, 5)):
     frames = []
     for lvl in levels:
         rig, mesh = load()
-        CR.stance(rig, legacy.GUARD, mesh)
+        CR.stance(rig, legacy.MMA_GUARD, mesh)
         mat = next(m for m in mesh.data.materials if m and m.name.endswith("_Skin"))
         nt = mat.node_tree; bsdf = nt.nodes["Principled BSDF"]
         def img(name, color):

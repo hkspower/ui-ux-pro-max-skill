@@ -1409,7 +1409,7 @@ class Souq:
             face_x, face_y = (cx + fx * f0, cy + fy * f0) if kind == "Saud" else (cx, cy)
             rig.location = (x, y, STREET_Z_CM / 100.0); rig.rotation_euler = (0, 0, math.radians(facing(x, y, face_x, face_y)))
             bpy.context.view_layer.update()
-            CR.stance(rig, legacy.GUARD, mesh)
+            CR.stance(rig, legacy.guard_for(kind), mesh)
             for s in ("l", "r"):
                 CR.set_prop(rig, "CTRL_hand_%s" % s, "fist", 1.0)
             rigs.append((kind, rig, mesh))

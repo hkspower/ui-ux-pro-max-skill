@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Motion for Saud and for the three bosses -- AL-WAHSH, AL-SAQR and ZAYOS.
+"""Motion for Saud, the street men and the three bosses -- AL-WAHSH, AL-SAQR and ZAYOS.
 
     python3 build_motion.py              plan, check, describe, build, export
-    python3 build_motion.py --who saud   only Saud (or --who bosses)
+    python3 build_motion.py --who saud   only Saud (or --who bosses, --who street)
     python3 build_motion.py --check      the assertions only, no Blender work
     python3 build_motion.py --describe   what it would make, and why
     python3 build_motion.py --sheet      render a contact sheet of every clip
@@ -154,9 +154,9 @@ def inclination(move):
 SUPPORT_FOOT = (0.05, -0.55, -0.83)     # heel up, weight over the ball
 
 
-def _strikes():
+def _strikes(base=None):
     import build_saud as L
-    G = dict(L.GUARD)
+    G = dict(L.GUARD if base is None else base)
     if "guard" in SABOTAGE:
         # the guard's arms as they were until 2026-09-24
         for s, x in (("l", 1.0), ("r", -1.0)):
@@ -432,7 +432,18 @@ def browser_phase_two():
     raise AssertionError("the browser's isBoss line is gone from %s" % BROWSER)
 
 
-FOLDER = {"bosses": "Bosses", "saud": "Saud"}
+FOLDER = {"bosses": "Bosses", "saud": "Saud", "street": "Street"}
+
+# Since 2026-09-25 Saud stands as a mixed martial artist (build_saud.
+# MMA_GUARD) and nobody else does. The street men -- the thug, the brawler,
+# every man with no clips of his own -- used to play Saud's; they play these
+# now: the same twenty clips, struck on the boxer's GUARD, and the engine
+# looks here before it looks at Saud's (SaudMotionComponent::Find).
+STREET = dict(key="Street", canon=(
+    "The street men, and anyone else with no clip of his own: Saud's clips "
+    "on the boxer's guard, since Saud alone stands as a mixed martial artist."))
+# which guard each set is struck from
+GUARD_OF = {"Saud": "mma"}
 
 
 def _strike_clips(key, row, who, moves, attacks, phase_two_ok, folder):
@@ -451,7 +462,7 @@ def _strike_clips(key, row, who, moves, attacks, phase_two_ok, folder):
             limb=MOVES[mv][4], phase_two=(phase_two_ok and mv == "Special"),
             amp=who["amp"], stance=who["stance"], settle=who["settle"],
             speed=float(row["MoveSpeed"]), interval=float(row["AttackInterval"]),
-            name="A_%s_%s" % (key, mv), folder=folder))
+            name="A_%s_%s" % (key, mv), folder=folder, guard=GUARD_OF.get(key, "boxer")))
     # What he does when he is not throwing anything. The browser bobs a
     # standing fighter at Math.sin(f.anim * 2.4) * 1.1 (index.html:1515)
     # and that 2.4 is a constant -- every fighter in the game breathes at
@@ -464,11 +475,12 @@ def _strike_clips(key, row, who, moves, attacks, phase_two_ok, folder):
                     phase_two=False, amp=who["amp"], stance=who["stance"],
                     settle=who["settle"], speed=float(row["MoveSpeed"]),
                     interval=float(row["AttackInterval"]),
-                    name="A_%s_Guard" % key, loop=True, folder=folder))
+                    name="A_%s_Guard" % key, loop=True, folder=folder,
+                    guard=GUARD_OF.get(key, "boxer")))
     return out
 
 
-def plan(who=("bosses", "saud")):
+def plan(who=("bosses", "saud", "street")):
     """Every clip that should exist, and what decides it. Reads the tables;
     invents nothing."""
     attacks = {r["Name"]: r for r in read_csv("DT_Attacks.csv")}
@@ -481,35 +493,46 @@ def plan(who=("bosses", "saud")):
             if key in PHASE_TWO and "Special" not in moves:
                 moves = moves + ["Special"]
             clips += _strike_clips(key, row, character(meta["kind"]), moves, attacks, True, FOLDER["bosses"])
-    if "saud" in who:
-        row = fighters[SAUD["key"]]
-        me = saud_character()
-        # His row's strikes, and the finisher. The player's finisher is
-        # Special -- there is no Rage row (CLAUDE.md, "Known, not fixed") --
-        # and it is his, not a phase two.
-        moves = parse_moves(row["Moves"]) + ["Special"]
-        clips += _strike_clips(SAUD["key"], row, me, moves, attacks, False, FOLDER["saud"])
-        eng = engine_timings()
-        speed = float(row["MoveSpeed"])
+    for set_, spec in (("saud", SAUD), ("street", STREET)):
+        if set_ in who:
+            clips += _hero_clips(spec["key"], FOLDER[set_], fighters, attacks)
+    return clips
 
-        def state(name, kind, state_, seconds, loop=False, **kw):
-            d = dict(boss=SAUD["key"], display=row["DisplayName"], arabic=row["DisplayNameArabic"],
-                     move=name, kind=kind, state=state_, su=0.0, ac=0.0, rc=0.0, seconds=seconds,
-                     frames=int(round(seconds * FPS)), contact=-1, limb=None, phase_two=False,
-                     amp=me["amp"], stance=me["stance"], settle=me["settle"], speed=speed,
-                     interval=float(row["AttackInterval"]), name="A_Saud_%s" % name,
-                     loop=loop, folder=FOLDER["saud"])
-            d.update(kw)
-            return d
-        for d in DIRS:
-            clips.append(state("Walk_%s" % d, "walk", "Walk", 2.0 * math.pi / WALK_RATE, loop=True, dir=d))
-        for d in DIRS:
-            clips.append(state("Dash_%s" % d, "dash", "Dash", eng["dash"], dir=d))
-        clips.append(state("Block", "block", "Block", IDLE_SECONDS, loop=True))
-        clips.append(state("Hit_Light", "hit", "Hit", eng["hit_light"], weight=eng["hit_light"]))
-        clips.append(state("Hit_Heavy", "hit", "Hit", eng["hit_heavy"], weight=eng["hit_heavy"]))
-        clips.append(state("Down", "down", "Down", eng["down"]))
-        clips.append(state("GetUp", "getup", "Idle", eng["getup"]))
+
+def _hero_clips(key, folder, fighters, attacks):
+    """Saud's clips -- his strikes and every state a fight holds him in --
+    for a set: his own, or the street men's copy of them on the boxer's
+    guard. Both are Saud's row and Saud's size; only the guard differs."""
+    clips = []
+    row = fighters[SAUD["key"]]
+    me = saud_character()
+    # His row's strikes, and the finisher. The player's finisher is
+    # Special -- there is no Rage row (CLAUDE.md, "Known, not fixed") --
+    # and it is his, not a phase two.
+    moves = parse_moves(row["Moves"]) + ["Special"]
+    clips += _strike_clips(key, row, me, moves, attacks, False, folder)
+    eng = engine_timings()
+    speed = float(row["MoveSpeed"])
+
+    def state(name, kind, state_, seconds, loop=False, **kw):
+        d = dict(boss=key, display=row["DisplayName"] if key == SAUD["key"] else "Street men",
+                 arabic=row["DisplayNameArabic"] if key == SAUD["key"] else "",
+                 move=name, kind=kind, state=state_, su=0.0, ac=0.0, rc=0.0, seconds=seconds,
+                 frames=int(round(seconds * FPS)), contact=-1, limb=None, phase_two=False,
+                 amp=me["amp"], stance=me["stance"], settle=me["settle"], speed=speed,
+                 interval=float(row["AttackInterval"]), name="A_%s_%s" % (key, name),
+                 loop=loop, folder=folder, guard=GUARD_OF.get(key, "boxer"))
+        d.update(kw)
+        return d
+    for d in DIRS:
+        clips.append(state("Walk_%s" % d, "walk", "Walk", 2.0 * math.pi / WALK_RATE, loop=True, dir=d))
+    for d in DIRS:
+        clips.append(state("Dash_%s" % d, "dash", "Dash", eng["dash"], dir=d))
+    clips.append(state("Block", "block", "Block", IDLE_SECONDS, loop=True))
+    clips.append(state("Hit_Light", "hit", "Hit", eng["hit_light"], weight=eng["hit_light"]))
+    clips.append(state("Hit_Heavy", "hit", "Hit", eng["hit_heavy"], weight=eng["hit_heavy"]))
+    clips.append(state("Down", "down", "Down", eng["down"]))
+    clips.append(state("GetUp", "getup", "Idle", eng["getup"]))
     return clips
 
 
@@ -519,7 +542,7 @@ def check(clips):
     attacks = {r["Name"]: r for r in read_csv("DT_Attacks.csv")}
     fighters = {r["Name"]: r for r in read_csv("DT_Fighters.csv")}
     bosses = any(c["boss"] in BOSSES for c in clips)
-    saud = any(c["boss"] == SAUD["key"] for c in clips)
+    heroes = [k for k in (SAUD["key"], STREET["key"]) if any(c["boss"] == k for c in clips)]
 
     # 1. every boss in the table that is a boss has clips here
     table_bosses = {r["Name"] for r in fighters.values() if r["bIsBoss"] == "true"}
@@ -573,12 +596,15 @@ def check(clips):
     assert len(names) == len(set(names)), "duplicate clip names: %s" % sorted(
         n for n in set(names) if names.count(n) > 1)
 
-    if saud:
-        mine = [c for c in clips if c["boss"] == SAUD["key"]]
+    for hero in heroes:
+        mine = [c for c in clips if c["boss"] == hero]
+        # 11. Saud stands in the MMA guard and nobody else does
+        want_guard = "mma" if hero == SAUD["key"] else "boxer"
+        assert all(c["guard"] == want_guard for c in mine), "%s's clips are not all on the %s guard" % (hero, want_guard)
         # 8. every strike his row lists, and the finisher, and no other
         want = set(parse_moves(fighters[SAUD["key"]]["Moves"])) | {"Special"}
         got = {c["move"] for c in mine if c["kind"] == "strike"}
-        assert want == got, "Saud throws %s but has strike clips for %s" % (sorted(want), sorted(got))
+        assert want == got, "%s throws %s but has strike clips for %s" % (hero, sorted(want), sorted(got))
         # 9. every state the engine puts him in has its clip, as long as the
         #    engine holds him there, to within a frame -- read off the C++
         eng = engine_timings()
@@ -587,7 +613,7 @@ def check(clips):
         need.update({"Dash_%s" % d: eng["dash"] for d in DIRS})
         for name, secs in need.items():
             c = next((c for c in mine if c["move"] == name), None)
-            assert c, "Saud has no %s clip" % name
+            assert c, "%s has no %s clip" % (hero, name)
             assert abs(c["frames"] / float(FPS) - secs) <= 1.0 / FPS, (
                 "%s is %d frames; the engine holds that state %.2fs" % (c["name"], c["frames"], secs))
         # 10. the walk is the browser's cycle, 2*pi/11 s, to within a frame, a
@@ -602,7 +628,8 @@ def check(clips):
 def describe(clips):
     print("MOTION -- %d clips on the shared 62-bone skeleton, posed through the IK rig\n" % len(clips))
     people = [(k, m["canon"], character(m["kind"])) for k, m in BOSSES.items()] + \
-             [(SAUD["key"], SAUD["canon"], saud_character())]
+             [(SAUD["key"], SAUD["canon"], saud_character()),
+              (STREET["key"], STREET["canon"], saud_character())]
     for key, canon, who in people:
         mine = [c for c in clips if c["boss"] == key]
         if not mine:
@@ -671,6 +698,10 @@ SIDES = ("l", "r")
 # FK shape would have put it. Posed in FK it swung on an arc about the
 # shoulder, and a jab that arcs is a slap. The hook keeps its arc; it is one.
 LINE = ("Jab", "Cross")
+# The hand that covers while the other one throws, where the body turns into
+# the blow: it turns with the chest rather than holding its world aim. The
+# jab has almost no turn in it and keeps its rear hand as it is.
+COVER = {"Cross": "l", "Hook": "l"}
 # --bite only: each entry breaks one mechanism a motion check guards
 SABOTAGE = set()
 
@@ -700,7 +731,7 @@ def bump(u, a, m, b):
     return ease((u - a) / (m - a)) if u < m else 1.0 - ease((u - m) / (b - m))
 
 
-def strike_frame(au, g, aims, lean, twist, planted, lift=(0.0, 0.0, 0.0), hand_at=None, spin=None):
+def strike_frame(au, g, aims, lean, twist, planted, lift=(0.0, 0.0, 0.0), hand_at=None, spin=None, carry=()):
     """One frame of a strike: the FK shape, grounded as the FK build
     grounded it (the lowest planted foot on the guard's floor), then the
     legs handed to the rig -- planted feet exactly where the guard stands
@@ -710,7 +741,7 @@ def strike_frame(au, g, aims, lean, twist, planted, lift=(0.0, 0.0, 0.0), hand_a
     import motion_ik as M
     from mathutils import Vector
     au.begin()
-    au.fk_body(aims, lean=lean, twist=twist)
+    au.fk_body(aims, lean=lean, twist=twist, carry=carry)
     fk = au.read()
     dz = g["ground"] - min(fk["ball_" + s].z for s in planted)
     au.move_hips((lift[0], lift[1], dz + lift[2]))
@@ -766,10 +797,13 @@ def author_strike(au, c, S):
     g = au.capture_guard(aims_at(guard, guard, 0.0, c["stance"]))
     planted = [s for s in SIDES if not (limb == "rear_leg" and s == "r")]
     striker = {"lead_arm": "l", "rear_arm": "r"}.get(limb)
+    cs = COVER.get(c["move"]) if "cover" not in SABOTAGE else None
+    cover = tuple(b + "_" + cs for b in ("clavicle", "upperarm", "lowerarm", "hand", "palm")) if cs else ()
 
     def pose(k, lift=(0.0, 0.0, 0.0), hand_at=None, spin=None):
         return strike_frame(au, g, aims_at(guard, strike, k, c["stance"]), tip * k,
-                            {nm: amt * k for nm, amt in twist.items()}, planted, lift, hand_at, spin)
+                            {nm: amt * k for nm, amt in twist.items()}, planted, lift, hand_at, spin,
+                            carry=cover)
 
     ends = None
     if c["move"] in LINE and "line" not in SABOTAGE:
@@ -1048,8 +1082,10 @@ def down_keys(g):
     """Down: he sits down and back onto the floor and ends propped on his
     hands, the torso back DOWN_TILT from upright -- the browser's end angle.
     The lead foot stays where it stood; the rear one slides in beside it,
-    because a man who sits straight back cannot leave a foot behind him."""
-    gz = g["pelvis"].translation.z
+    because a man who sits straight back cannot leave a foot behind him.
+    Heights are the pelvis's own above the floor; gz is where the guard
+    stands it once grounded."""
+    gz = g["pelvis"].translation.z + g["dz"]
     return [(0.00, dict(pz=gz, py=0.00, tilt=0.00, rear=0.0, hand=0.0, look=0.0)),
             (0.20, dict(pz=gz - 0.10, py=0.06, tilt=0.30, rear=0.0, hand=0.0, look=0.3)),
             (0.45, dict(pz=0.32, py=0.30, tilt=0.55, rear=1.0, hand=0.3, look=0.6)),
@@ -1067,7 +1103,7 @@ def getup_keys(g):
     end = dict(down_keys(g)[-1][1])
     if "getup" in SABOTAGE:
         end["tilt"] += 0.3
-    gz = g["pelvis"].translation.z
+    gz = g["pelvis"].translation.z + g["dz"]
     return [(0.00, end),
             (0.30, dict(pz=0.16, py=0.42, tilt=0.45, rear=1.0, hand=1.0, look=0.8)),
             (0.62, dict(pz=0.55, py=0.14, tilt=-0.30, rear=0.0, hand=0.2, look=0.3)),
@@ -1129,7 +1165,11 @@ def author_floor(au, c, S, keys_of):
         def elbow(s):
             return lambda fk, s=s: fk["sh_" + s] + Vector((0.45 * side[s], 0.25, -0.10))
         loc, world, _fk, _d = body_frame(
-            au, g, aims, feet, hips=(0.0, p["py"], p["pz"] - gp.z), tilt=p["tilt"], post_aims=post,
+            # pz is the pelvis's height: body_frame adds the guard's grounding
+            # (dz) to what it is given, so it is taken out here -- it used
+            # to sit every fall lower by it, 1.6 cm on the boxer's straight
+            # legs and 5.6 on Saud's bent ones, through the floor
+            au, g, aims, feet, hips=(0.0, p["py"], p["pz"] - gp.z - g["dz"]), tilt=p["tilt"], post_aims=post,
             hands={s: hand(s) for s in SIDES}, hand_poles={s: elbow(s) for s in SIDES} if p["hand"] > 0.05 else None,
             settle=["l"])
         frames.append((loc, world))
@@ -1157,10 +1197,11 @@ def author_all(clips):
             rig.pose.bones["calf_" + s].use_ik_limit_x = False
     au = M.Author(rig)
     print("%6.1fs  rig: %d bones, control layer on" % (time.time() - t0, len(rig.data.bones)))
-    S = _strikes()
+    import build_saud as L
+    S = {"boxer": _strikes(L.GUARD), "mma": _strikes(L.MMA_GUARD)}
     authored = []
     for c in clips:
-        authored.append((c, AUTHOR[c["kind"]](au, c, S)))
+        authored.append((c, AUTHOR[c["kind"]](au, c, S[c["guard"]])))
     print("%6.1fs  authored %d clips through the IK rig" % (time.time() - t0, len(authored)))
     made = M.to_actions(rig, authored)
     err, where = M.bake_error(rig, made)
@@ -1272,18 +1313,28 @@ def hands_check(c, rig, fails):
         H = W @ pb["head"].head
         fist = W @ pb["hand_" + s].tail
         el, sh = W @ pb["lowerarm_" + s].head, W @ pb["upperarm_" + s].head
-        fwd, across, dz = H.y - fist.y, abs(fist.x - H.x), fist.z - H.z
-        # a strike's other hand only has to stay up: the lean carries the
-        # head out over it (7 cm in front of the face at a jab's contact)
-        lo_fwd, hi_across, lo_dz = (0.08, 0.13, -0.20) if strict else (0.0, 0.16, -0.25)
+        # in the head's own frame -- its Y is up the neck, its Z the way the
+        # face looks, its X across -- so a hook that turns the whole man is
+        # measured against where he is facing, not against the world's axes
+        # (a boss's hook carried the covering fist 17-20 cm across the
+        # WORLD's X while it stayed in front of his own face)
+        loc = (W @ pb["head"].matrix).inverted() @ fist
+        fwd, across, dz = loc.z, abs(loc.x), loc.y
+        # a strike's other hand only has to stay up and in front: the lean
+        # carries the head out over it (10 cm in front of the face at a
+        # jab's contact). 5 cm, since the covering hand turns with the chest
+        # (COVER): held to the world, a cross left it 2 cm in front of the
+        # face and a hook 1 cm behind it, 19-23 cm low
+        lo_fwd, hi_across, lo_dz = (0.08, 0.13, -0.20) if strict else (0.05, 0.16, -0.25)
         if fwd < lo_fwd * k or across > hi_across * k or not (lo_dz * k <= dz <= 0.05 * k):
             return "the %s fist is not up in front of the face (%.0f cm forward, %.0f across, %+.0f up)" % (
                 s, fwd * 100, across * 100, dz * 100)
         if not strict:
             return None
-        if abs(el.x - H.x) > abs(sh.x - H.x) - 0.02 * k:
+        hm = (W @ pb["head"].matrix).inverted()
+        if abs((hm @ el).x) > abs((hm @ sh).x) - 0.02 * k:
             return "the %s elbow flares: %.0f cm out against a shoulder at %.0f" % (
-                s, abs(el.x - H.x) * 100, abs(sh.x - H.x) * 100)
+                s, abs((hm @ el).x) * 100, abs((hm @ sh).x) * 100)
         fa = (W @ pb["lowerarm_" + s].tail - el).normalized()
         hd = (fist - W @ pb["hand_" + s].head).normalized()
         bend = math.degrees(fa.angle(hd))
@@ -1663,7 +1714,7 @@ def bite():
     """Each motion check added with the IK rig, made to fail by breaking the
     one thing it guards -- and the same clips, unbroken, passing. A check
     that cannot fail is not a check."""
-    every = {c["name"]: c for c in plan(("saud",))}
+    every = {c["name"]: c for c in plan(("saud", "street"))}
     cases = [
         ("planted feet",   "plant",  ["A_Saud_Cross", "A_Saud_Kick"],  "slides"),
         ("knees forward",  "knee",   ["A_Saud_Guard"],                 "bends backwards"),
@@ -1674,6 +1725,7 @@ def bite():
         ("closed fists",   "fists",  ["A_Saud_Guard"],                 "hand is open"),
         ("guard hands",    "guard",  ["A_Saud_Guard"],                 "not up in front of the face"),
         ("palms in",       "palms",  ["A_Saud_Guard"],                 "palm faces the opponent"),
+        ("covering hand",  "cover",  ["A_Street_Cross"],               "not up in front of the face"),
     ]
     results = []
     for label, sab, names, expect in cases:
@@ -1713,7 +1765,7 @@ def main():
     root = os.path.join(PROJECT, "Content", "Animation")
     if "--out" in argv:
         root = os.path.abspath(argv[argv.index("--out") + 1])
-    who = ("bosses", "saud")
+    who = ("bosses", "saud", "street")
     if "--who" in argv:
         who = (argv[argv.index("--who") + 1],)
         assert who[0] in FOLDER, "--who is one of %s" % sorted(FOLDER)

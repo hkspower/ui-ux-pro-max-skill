@@ -13,7 +13,8 @@ class UAnimSequence;
 /**
  * Plays the clip a fighter's state calls for.
  *
- * Content/Animation holds twenty Saud clips and seventeen boss clips, and
+ * Content/Animation holds twenty Saud clips, twenty street clips and
+ * seventeen boss clips, and
  * until 2026-09-23 nothing in the build played any of them: there is no
  * Animation Blueprint, and the fighters stood in their bind pose through
  * every punch. This is the smallest thing that plays them -- no blend
@@ -24,12 +25,16 @@ class UAnimSequence;
  *
  * Clips are found by name, the names the files already have:
  *   /Game/Animation/<Folder>/A_<MotionSet>_<Clip>
- * and, when a fighter has no clip of his own for something, Saud's:
+ * and, when a fighter has no clip of his own for something, the street
+ * men's -- Saud's clips struck on the boxer's guard -- and then Saud's:
+ *   /Game/Animation/Street/A_Street_<Clip>
  *   /Game/Animation/Saud/A_Saud_<Clip>
- * The bosses have their strikes and their guard and nothing else, so they
- * walk, block, reel and fall as Saud does; the street men have none of their
- * own and do everything as he does. An attack's clip is its DT_Attacks row
- * (A_Saud_Jab), the rest are SaudFeel::ClipSuffix.
+ * Since 2026-09-25 Saud stands as a mixed martial artist and nobody else
+ * does. The bosses have their strikes and their guard and nothing else, so
+ * they walk, block, reel and fall as the street men do; the street men have
+ * none of their own and do everything from the Street set. Saud himself
+ * never borrows. An attack's clip is its DT_Attacks row (A_Saud_Jab), the
+ * rest are SaudFeel::ClipSuffix.
  *
  * A clip is never forced on anything already playing it, except when the
  * fighter's MotionSerial moves -- a second jab, a second hit -- which starts

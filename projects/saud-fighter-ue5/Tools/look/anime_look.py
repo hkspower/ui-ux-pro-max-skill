@@ -28,7 +28,15 @@ same steps, line for line):
   3. Ink: a line where depth jumps (a silhouette) and a finer one where the
      surface folds (a jaw, a muscle's edge, a lip). Fighters -- anything
      that writes custom depth -- get the heavy line; the world a lighter
-     one that thins with distance.
+     one that thins with distance. Since 2026-09-25 ("improve all enemy
+     and Saud borders"): a fighter's silhouette is centred on his edge,
+     half of it drawn over what is behind him, and unbroken wherever he
+     ends (his custom depth says so, whatever the depth behind); a limb
+     over his own body is outlined where the depth breaks, not only where
+     it jumps 7 %; a fold is read only across one surface and only with
+     two sides, so noisy normals leave no specks and no ghost line lands
+     on the wall beside him; every line's edge is antialiased; and the
+     ink is near black, darker than his blackest kit.
   4. The sky is not shaded, it is banded: a painted gradient.
   5. A gritty grade: some saturation out, a dust-warm tint.
   6. Speed lines, radial round the blow, when the game asks for them.
@@ -92,11 +100,29 @@ LOOK = {
     "HATCH_ALPHA": 0.55,
     "CROSS_BELOW": 0.06,    # light under this is cross-hatched
     # 3. ink
-    "INK": (0.030, 0.026, 0.024),
+    # Ink is the darkest thing in the picture. It was 0.030 linear -- a
+    # mid-grey once exposed, lighter than a black tee, so round dark kit the
+    # outline read as a pale halo (anime-men.png, 2026-09-24).
+    "INK": (0.004, 0.0035, 0.003),
+    # The silhouette round a fighter is centred on his edge: OUTER_SHARE of
+    # it outside him, over whatever is behind (found by his custom depth).
+    # Until 2026-09-25 only the inside was drawn, at half this width.
     "LINE_FIGHTER_PX": 4.2,  # silhouette width round a fighter, at 1080 lines
+    "OUTER_SHARE": 0.5,
     "LINE_WORLD_PX": 2.2,
+    "LINE_AA_PX": 1.0,       # each line's edge is ramped over this many pixels
     "DEPTH_EDGE": 0.07,      # a jump of 7 % of the distance is a silhouette
+    # On a fighter, a limb over his own body is a silhouette too: 7 % of 4 m
+    # is 28 cm, and an arm across a chest is less. There the line is where
+    # the depth BREAKS -- the jump to the far side less the slope on the near
+    # side, so a surface seen edge-on draws nothing -- by this many cm.
+    "FIGHTER_EDGE_CM": 5.0,
     "NORMAL_EDGE": 0.40,     # 1 - cos between normals that is a fold
+    # A fold has two sides: of the eight neighbours, some differ and some do
+    # not. One pixel of noise in the normals differs from all eight, and its
+    # neighbours from one each -- specks, not a line.
+    "FOLD_MIN": 2,
+    "FOLD_MAX": 5,
     "INNER_ALPHA": 0.85,
     "FADE_NEAR_CM": 1500.0,  # world lines full strength to here...
     "FADE_FAR_CM": 20000.0,  # ...and down to FADE_MIN by here
@@ -166,6 +192,8 @@ def _sub(code):
         "INK": _f3(L["INK"]), "PAPER": _f3(L["PAPER"]),
         "LINE_FIGHTER": _f(L["LINE_FIGHTER_PX"]), "LINE_WORLD": _f(L["LINE_WORLD_PX"]),
         "DEPTH_EDGE": _f(L["DEPTH_EDGE"]), "NORMAL_EDGE": _f(L["NORMAL_EDGE"]),
+        "FIGHTER_EDGE": _f(L["FIGHTER_EDGE_CM"]), "FOLD_MIN": _f(L["FOLD_MIN"]), "FOLD_MAX": _f(L["FOLD_MAX"]),
+        "OUTER_SHARE": _f(L["OUTER_SHARE"]), "LINE_AA": _f(L["LINE_AA_PX"]),
         "INNER_A": _f(L["INNER_ALPHA"]), "FADE_NEAR": _f(L["FADE_NEAR_CM"]),
         "FADE_FAR": _f(L["FADE_FAR_CM"]), "FADE_MIN": _f(L["FADE_MIN"]),
         "SATURATION": _f(L["SATURATION"]), "GRADE_TINT": _f3(L["GRADE_TINT"]),
@@ -252,19 +280,49 @@ float Cross = 1.0 - smoothstep(CROSS_BELOW - SOFT, CROSS_BELOW + SOFT, T);
 float Hatch = saturate(H1 + H2 * Cross) * Deep * HATCH_A;
 Out = lerp(Out, INK, Hatch * (Sky ? 0.0 : 1.0));
 
-// 3. ink
-float R = (Fighter ? LINE_FIGHTER : LINE_WORLD) * 0.5 * Lines;
-float Silh = 0.0, Fold = 0.0;
-for (int i = 0; i < 8; i++)
+// 3. ink. Each ring is tested at half a pixel either side of its radius and
+// the two averaged, so a line's edge is antialiased rather than stepped.
+float R = (Fighter ? LINE_FIGHTER * (1.0 - OUTER_SHARE) : LINE_WORLD * 0.5) * Lines;
+float Ro = LINE_FIGHTER * OUTER_SHARE * Lines;
+float Silh = 0.0, Outer = 0.0, Fold = 0.0, Folds = 0.0;
+for (int k = 0; k < 2; k++)
 {
-    float2 U = UV + Dir[i] * R * Px;
-    float Dn = SceneTextureLookup(U, 1, false).r;
-    float3 Nn = normalize(SceneTextureLookup(U, 8, false).rgb);
-    Silh = max(Silh, step(DEPTH_EDGE, (Dn - D) / max(D, 1.0)));
-    Fold = max(Fold, step(NORMAL_EDGE, 1.0 - dot(N, Nn)) * (Dn < SKY_DEPTH ? 1.0 : 0.0));
+    float Rk = max(R + (k == 0 ? -0.5 : 0.5) * LINE_AA, 0.0);
+    float Rok = max(Ro + (k == 0 ? -0.5 : 0.5) * LINE_AA, 0.0);
+    float S = 0.0, O = 0.0;
+    for (int i = 0; i < 8; i++)
+    {
+        float2 U = UV + Dir[i] * Rk * Px;
+        float Dn = SceneTextureLookup(U, 1, false).r;
+        float Do = SceneTextureLookup(UV - Dir[i] * Rk * Px, 1, false).r;
+        float CDn = SceneTextureLookup(U, 13, false).r;
+        bool Fn = CDn < Dn + 2.0;
+        // the depth jumps away from here, or (on a fighter) breaks
+        float Jump = step(DEPTH_EDGE, (Dn - D) / max(D, 1.0));
+        float Break = (Fighter && Dn - D >= 0.5 * FIGHTER_EDGE && Dn + Do - 2.0 * D >= FIGHTER_EDGE) ? 1.0 : 0.0;
+        // a fighter's own edge: he ends here, whatever is behind him
+        float Leave = (Fighter && !Fn && Dn > D) ? 1.0 : 0.0;
+        S = max(S, max(Jump, max(Break, Leave)));
+        // the outside half of a fighter's line, on what is behind him
+        float2 Uo = UV + Dir[i] * Rok * Px;
+        float Dno = SceneTextureLookup(Uo, 1, false).r;
+        float CDo = SceneTextureLookup(Uo, 13, false).r;
+        O = max(O, (!Fighter && Ro > 0.0 && CDo < Dno + 2.0 && Dno < D) ? 1.0 : 0.0);
+        if (k == 1)
+        {
+            float3 Nn = normalize(SceneTextureLookup(U, 8, false).rgb);
+            // only across the same surface: a fold read across a depth jump
+            // was a ghost line on the wall beside every fighter
+            float Same = abs(Dn - D) < (Fighter ? FIGHTER_EDGE : DEPTH_EDGE * max(D, 1.0)) ? 1.0 : 0.0;
+            Folds += step(NORMAL_EDGE, 1.0 - dot(N, Nn)) * (Dn < SKY_DEPTH ? 1.0 : 0.0) * Same;
+        }
+    }
+    Silh += 0.5 * S;
+    Outer += 0.5 * O;
 }
+Fold = (Folds >= FOLD_MIN && Folds <= FOLD_MAX) ? 1.0 : 0.0;
 float Fade = Fighter ? 1.0 : lerp(1.0, FADE_MIN, saturate((D - FADE_NEAR) / (FADE_FAR - FADE_NEAR)));
-float Ink = max(Silh, Fold * INNER_A) * Fade * (Sky ? 0.0 : 1.0);
+float Ink = max(max(Silh, Fold * INNER_A) * Fade, Outer) * (Sky && Outer <= 0.0 ? 0.0 : 1.0);
 Out = lerp(Out, INK, Ink);
 
 // 4. sky
@@ -272,7 +330,7 @@ if (Sky)
 {
     float Ls = dot(C, LUMA);
     float Lb = (floor(Ls * SKY_BANDS) + 0.5) / SKY_BANDS;
-    Out = C * (Lb / max(Ls, 0.0001));
+    Out = lerp(C * (Lb / max(Ls, 0.0001)), INK, Outer);   // a fighter's line over the sky
 }
 
 // 5. grade
@@ -402,27 +460,49 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0):
     ink = np.array(L["INK"])
     out = lerp(out, ink, hatch[..., None])
 
-    # 3. ink, eight neighbours at the line's half width
-    silh = np.zeros((H, W)); fold = np.zeros((H, W))
-    for R, mask in ((L["LINE_FIGHTER_PX"] * 0.5 * lines, fighter),
+    # 3. ink, eight neighbours at the line's half width, each ring tested
+    # half a pixel either side of its radius and the two averaged (the edge
+    # of the line antialiased). `fighter` is what writes custom depth: a
+    # pixel of him, or one behind him, is where the fighter's own lines go.
+    dirs = ((1, 0), (-1, 0), (0, 1), (0, -1),
+            (.7071, .7071), (-.7071, .7071), (.7071, -.7071), (-.7071, -.7071))
+    silh = np.zeros((H, W)); outer = np.zeros((H, W)); folds = np.zeros((H, W))
+    Ro = L["LINE_FIGHTER_PX"] * L["OUTER_SHARE"] * lines
+    edge_f, aa = L["FIGHTER_EDGE_CM"], L["LINE_AA_PX"]
+    for R, mask in ((L["LINE_FIGHTER_PX"] * (1.0 - L["OUTER_SHARE"]) * lines, fighter),
                     (L["LINE_WORLD_PX"] * 0.5 * lines, ~fighter)):
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1),
-                       (.7071, .7071), (-.7071, .7071), (.7071, -.7071), (-.7071, -.7071)):
-            Dn = _shift(D, dx * R, dy * R, 1e10)
-            Nn = _shift(N, dx * R, dy * R, 0.0)
-            e = ((Dn - D) / np.maximum(D, 1.0) >= L["DEPTH_EDGE"]).astype(float)
-            f = ((1.0 - np.sum(N * Nn, axis=2)) >= L["NORMAL_EDGE"]).astype(float) * (Dn < L["SKY_DEPTH_CM"])
-            silh = np.where(mask, np.maximum(silh, e), silh)
-            fold = np.where(mask, np.maximum(fold, f), fold)
+        for k in (0, 1):
+            Rk = max(R + (-0.5 if k == 0 else 0.5) * aa, 0.0)
+            Rok = max(Ro + (-0.5 if k == 0 else 0.5) * aa, 0.0)
+            S = np.zeros((H, W)); O = np.zeros((H, W))
+            for dx, dy in dirs:
+                Dn = _shift(D, dx * Rk, dy * Rk, 1e10)
+                Do = _shift(D, -dx * Rk, -dy * Rk, 1e10)
+                Fn = _shift(fighter, dx * Rk, dy * Rk, False)
+                jump = (Dn - D) / np.maximum(D, 1.0) >= L["DEPTH_EDGE"]
+                brk = fighter & (Dn - D >= 0.5 * edge_f) & (Dn + Do - 2.0 * D >= edge_f)
+                leave = fighter & ~Fn & (Dn > D)
+                S = np.maximum(S, (jump | brk | leave).astype(float))
+                Dno = _shift(D, dx * Rok, dy * Rok, 1e10)
+                Fo = _shift(fighter, dx * Rok, dy * Rok, False)
+                O = np.maximum(O, (~fighter & Fo & (Dno < D) & (Ro > 0)).astype(float))
+                if k == 1:
+                    Nn = _shift(N, dx * Rk, dy * Rk, 0.0)
+                    same = np.abs(Dn - D) < np.where(fighter, edge_f, L["DEPTH_EDGE"] * np.maximum(D, 1.0))
+                    f = ((1.0 - np.sum(N * Nn, axis=2)) >= L["NORMAL_EDGE"]) & (Dn < L["SKY_DEPTH_CM"]) & same
+                    folds = np.where(mask, folds + f, folds)
+            silh = np.where(mask, silh + 0.5 * S, silh)
+            outer = np.where(mask, outer + 0.5 * O, outer)
+    fold = ((folds >= L["FOLD_MIN"]) & (folds <= L["FOLD_MAX"])).astype(float)
     fade = np.where(fighter, 1.0, lerp(1.0, L["FADE_MIN"],
                     np.clip((D - L["FADE_NEAR_CM"]) / (L["FADE_FAR_CM"] - L["FADE_NEAR_CM"]), 0, 1)))
-    inkw = np.maximum(silh, fold * L["INNER_ALPHA"]) * fade * (~sky)
+    inkw = np.maximum(np.maximum(silh, fold * L["INNER_ALPHA"]) * fade, outer) * (~sky | (outer > 0))
     out = lerp(out, ink, inkw[..., None])
 
     # 4. sky
     Ls = C @ luma
     Lb = (np.floor(Ls * L["SKY_BANDS"]) + 0.5) / L["SKY_BANDS"]
-    out = np.where(sky[..., None], C * (Lb / np.maximum(Ls, 1e-4))[..., None], out)
+    out = np.where(sky[..., None], lerp(C * (Lb / np.maximum(Ls, 1e-4))[..., None], ink, outer[..., None]), out)
 
     # 5. grade
     out = lerp((out @ luma)[..., None], out, L["SATURATION"]) * np.array(L["GRADE_TINT"])
@@ -485,9 +565,12 @@ def to_8bit(disp):
 
 
 # -------------------------------------------------------------------- check
-def _sphere(n=720):
+def _sphere(n=720, front=False, noise=False):
     """A lit sphere in front of a far wall and a sky: the look's every step
-    has somewhere to show. Key light from the upper left."""
+    has somewhere to show. Key light from the upper left. `front` puts a
+    small ball 10 cm in front of it (a fist over a chest: 4 % of the
+    distance, under the world's 7 %); `noise` scatters one-pixel noise
+    through the normals over a patch of it, as pores in a normal map do."""
     import numpy as np
     yy, xx = np.mgrid[0:n, 0:n].astype(float)
     u, v = (xx + 0.5) / n * 2 - 1, (yy + 0.5) / n * 2 - 1
@@ -496,11 +579,24 @@ def _sphere(n=720):
     z = np.sqrt(np.clip(0.36 - r2, 0, None))
     N = np.zeros((n, n, 3)); N[..., 0] = u / 0.6; N[..., 1] = -v / 0.6; N[..., 2] = z / 0.6
     N[~on] = (0, 0, 1)
+    D = np.where(on, 300.0 - z * 100.0, 900.0)
+    if front:
+        cu, cv, rb = 0.20, 0.25, 0.15
+        r2b = (u - cu) ** 2 + (v - cv) ** 2
+        ball = r2b < rb ** 2
+        zb = np.sqrt(np.clip(rb * rb - r2b, 0, None))
+        N[ball, 0] = ((u - cu) / rb)[ball]; N[ball, 1] = (-(v - cv) / rb)[ball]; N[ball, 2] = (zb / rb)[ball]
+        D = np.where(ball, 300.0 - 0.507 * 100.0 - 10.0 - zb * 30.0, D)
+    if noise:
+        rng = np.random.default_rng(7)
+        patch = on & (np.abs(u + 0.12) < 0.15) & (np.abs(v - 0.10) < 0.15)
+        spot = patch & (rng.random((n, n)) < 0.02)
+        N[spot] = N[spot] + rng.normal(0.0, 0.9, (int(spot.sum()), 3))
+        N[spot] /= np.linalg.norm(N[spot], axis=1)[:, None]
     light = np.array([-0.5, 0.6, 0.62]); light /= np.linalg.norm(light)
     ndl = np.clip(N @ light, 0, None)
     A = np.where(on[..., None], np.array([0.45, 0.28, 0.20]), np.array([0.30, 0.30, 0.30]))
     C = A * (ndl * 1.0 + 0.04)[..., None]
-    D = np.where(on, 300.0 - z * 100.0, 900.0)
     D[: n // 5] = np.where(on[: n // 5], D[: n // 5], 1e10)  # a strip of sky
     C[: n // 5][~on[: n // 5]] = (0.35, 0.45, 0.65)
     A[: n // 5][~on[: n // 5]] = 0.0
@@ -517,7 +613,17 @@ def check(bite=None):
         if bite == "no_terminator":
             LOOK["Q_SHADOW"] = LOOK["Q_LIT"]; LOOK["Q_DEEP"] = LOOK["Q_LIT"]
         if bite == "no_ink":
-            LOOK["DEPTH_EDGE"] = 99.0; LOOK["NORMAL_EDGE"] = 99.0
+            LOOK["LINE_FIGHTER_PX"] = 0.0; LOOK["LINE_WORLD_PX"] = 0.0; LOOK["NORMAL_EDGE"] = 99.0
+        if bite == "grey_ink":
+            LOOK["INK"] = (0.030, 0.026, 0.024)
+        if bite == "inner_only":
+            LOOK["OUTER_SHARE"] = 0.0
+        if bite == "limb_gap":
+            LOOK["FIGHTER_EDGE_CM"] = 1e9
+        if bite == "specks":
+            LOOK["FOLD_MIN"] = 1; LOOK["FOLD_MAX"] = 8
+        if bite == "stepped":
+            LOOK["LINE_AA_PX"] = 0.0
         if bite == "sky_shaded":
             LOOK["SKY_DEPTH_CM"] = 1e12
         if bite == "lines_over_men":
@@ -542,6 +648,36 @@ def check(bite=None):
                      | ~_shift(on, 0, 1, False) | ~_shift(on, 0, -1, False))
         assert m["ink"][ring].mean() > 0.6, "the sphere is outlined"
         assert m["ink"][on & ~ring].mean() < 0.05, "no ink inside a smooth sphere"
+        # ... and the line is centred on the edge: as much of it outside
+        outside = ~on & (_shift(on, 1, 0, False) | _shift(on, -1, 0, False)
+                         | _shift(on, 0, 1, False) | _shift(on, 0, -1, False))
+        assert m["ink"][outside].mean() > 0.6, "the outline lies on both sides of the edge"
+        # ... darker than a black tee lit full (#15171c), or it reads as a halo
+        tee = np.array([0.0075, 0.0080, 0.0110]) @ luma
+        assert np.array(LOOK["INK"]) @ luma < 0.5 * tee * LOOK["Q_LIT"], "the ink is darker than black kit"
+        # ... with a soft edge, not a staircase
+        soft = (m["ink"] > 0.2) & (m["ink"] < 0.8)
+        assert soft[ring | outside | on].sum() > 0.2 * ring.sum(), "the line's edge is antialiased"
+        # a limb over the body is outlined where it crosses, though the
+        # depth there jumps 4 % of the distance, under DEPTH_EDGE
+        C2, A2, N2, D2, on2 = _sphere(front=True)
+        _o2, m2 = preview(C2, A2, N2, D2, on2)
+        n = D2.shape[0]
+        yy2, xx2 = np.mgrid[0:n, 0:n]
+        ball = ((xx2 + 0.5) / n * 2 - 1 - 0.20) ** 2 + ((yy2 + 0.5) / n * 2 - 1 - 0.25) ** 2 < 0.15 ** 2
+        rim = ball & ~(_shift(ball, 1, 0, False) & _shift(ball, -1, 0, False)
+                       & _shift(ball, 0, 1, False) & _shift(ball, 0, -1, False))
+        # at full weight, as a silhouette -- a fold's lighter line alone is
+        # what it had before (and a limb read as the body's crease)
+        assert (m2["ink"][rim] >= 0.99).mean() > 0.6, "a limb over the body is outlined"
+        # noise in the normals does not speckle the skin with ink
+        C3, A3, N3, D3, on3 = _sphere(noise=True)
+        _o3, m3 = preview(C3, A3, N3, D3, on3)
+        n = D3.shape[0]
+        yy3, xx3 = np.mgrid[0:n, 0:n]
+        u3, v3 = (xx3 + 0.5) / n * 2 - 1, (yy3 + 0.5) / n * 2 - 1
+        patch = on3 & (np.abs(u3 + 0.12) < 0.13) & (np.abs(v3 - 0.10) < 0.13)
+        assert m3["ink"][patch].mean() < 0.02, "no ink specks from noisy normals"
         # 4. the sky is banded, not shaded: few distinct levels
         sky = D > LOOK["SKY_DEPTH_CM"]
         assert sky.sum() > 1000, "the sky is recognised"
@@ -663,7 +799,8 @@ if __name__ == "__main__":
     if IN_EDITOR:
         build_in_editor()
     elif "--bite" in sys.argv:
-        bites = ("no_terminator", "no_ink", "sky_shaded", "flat_impact", "lines_over_men", "no_cut")
+        bites = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "specks", "stepped",
+                 "sky_shaded", "flat_impact", "lines_over_men", "no_cut")
         caught = 0
         for b in bites:
             try:

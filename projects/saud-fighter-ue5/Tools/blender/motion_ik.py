@@ -129,14 +129,21 @@ class Author:
         self._fk(1.0)
 
     # ---------------------------------------------------------------- body
-    def fk_body(self, aims, lean=0.0, twist=None):
+    def fk_body(self, aims, lean=0.0, twist=None, carry=()):
         """The body shape, bone by bone, as build_motion always struck it:
         aimed, then the torso leaned and twisted, then the limbs put back on
         their aims over the moved torso. The pelvis follows CTRL_hips (Copy
-        Transforms), so a twist asked of the pelvis is given to CTRL_hips."""
+        Transforms), so a twist asked of the pelvis is given to CTRL_hips.
+
+        `carry` names aims that ride the chest instead of holding their world
+        direction: turned by whatever the lean and twist turned spine_03. The
+        covering hand of a cross or a hook is one -- held to the world, the
+        shoulders turned 60 degrees out from under it and left the fist
+        behind the face (2026-09-25)."""
         import rig_full_ik as CR
         pb = self.pb
         CR._aim(self.rig, aims)
+        chest0 = pb["spine_03"].matrix.to_quaternion()
         if lean:
             for nm, share in LEAN_SHARES:
                 pb[nm].rotation_quaternion = pb[nm].rotation_quaternion @ Quaternion((1, 0, 0), lean * share)
@@ -145,7 +152,12 @@ class Author:
             pb[tgt].rotation_quaternion = pb[tgt].rotation_quaternion @ Quaternion((0, 1, 0), amt)
         upd()
         if lean or twist:
-            CR._aim(self.rig, {n: aims[n] for n in LIMB_CHAIN + ["palm_l", "palm_r"] if n in aims})
+            turn = pb["spine_03"].matrix.to_quaternion() @ chest0.inverted()
+            back = {n: aims[n] for n in LIMB_CHAIN + ["palm_l", "palm_r"] if n in aims}
+            for n in carry:
+                if n in back:
+                    back[n] = tuple(turn @ Vector(back[n]))
+            CR._aim(self.rig, back)
 
     def move_hips(self, delta):
         m = self.pb["CTRL_hips"].matrix.copy()

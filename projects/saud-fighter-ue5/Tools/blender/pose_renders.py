@@ -34,7 +34,7 @@ def render_man(name, samples=64):
     rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
     mesh = next(o for o in bpy.data.objects
                 if o.type == "MESH" and any(m.type == "ARMATURE" for m in o.modifiers))
-    shots = (("guard", legacy.GUARD, ("l", "r"), "Cam"), ("kick", legacy.KICK, ("l",), "Cam.001"))
+    shots = (("guard", legacy.guard_for(name), ("l", "r"), "Cam"), ("kick", legacy.KICK, ("l",), "Cam.001"))
     for shot, stance, plant, cam in shots:
         CR.stance(rig, stance, mesh, plant=plant)
         for s in ("l", "r"):

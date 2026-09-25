@@ -485,9 +485,10 @@ def build_fighter(spec, argv=None):
         if "--no-render" in argv: return
         legacy.add_camera(cam, look_at=Vector(look_at), lens=lens)
         legacy.render(os.path.join(RENDERS, "%s-%s-3d.png" % (low, filename)), samples=24 if FAST else 64, res=res)
-    targets, poles, report = legacy.limb_targets(rig, mesh, legacy.GUARD, plant=("l", "r"))
+    guard = legacy.guard_for(low)          # Saud's is the MMA stance
+    targets, poles, report = legacy.limb_targets(rig, mesh, guard, plant=("l", "r"))
     legacy.print_pose_report("guard", ("l", "r"), report)
-    legacy.pose(rig, legacy.GUARD, targets, poles); R.close_fists(rig)
+    legacy.pose(rig, guard, targets, poles); R.close_fists(rig)
     shot("guard", (1.55, -3.35, 1.24), (0, 0, look_z), 62)
     targets, poles, report = legacy.limb_targets(rig, mesh, legacy.KICK, plant=("l",))
     legacy.print_pose_report("kick", ("l",), report)

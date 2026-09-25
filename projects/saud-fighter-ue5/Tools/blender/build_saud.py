@@ -774,6 +774,46 @@ GUARD.update({
 GUARD.update({"palm_l": (-0.447, 0.894, 0.0), "palm_r": (0.447, 0.894, 0.0)})
 PALMS = ("palm_l", "palm_r")
 
+# Saud's own guard: a mixed martial artist's, not a boxer's (2026-09-25,
+# asked as "scan any real MMA fight then make Saud the same position", Saud
+# only -- every other man keeps GUARD). Nothing was watched: it is the
+# stance as published by MMA coaches (Evolve MMA, Drew Dober, Lowkick MMA,
+# Apex MMA, Fight Encyclopedia, Dynamic Striking), solved on his own
+# skeleton for what they agree on. Against GUARD, measured on the rig:
+#   feet about shoulder-width across, one staggered 30-46 cm ahead
+#                         -- 42 cm across and 38 ahead (GUARD 38 and 31)
+#   knees bent 30-45 degrees, hips low -- both at 38 (GUARD 8 lead, 26 rear)
+#   weight about 50/50 -- the pelvis over the middle of the feet (GUARD
+#                         carried it 6 cm back, over the rear foot)
+#   hands at chin height but further from the face, the lead extended
+#                         -- lead fist 44 cm in front of the skull's base,
+#                         rear 28 (GUARD 36 and 19), both 10 cm under it
+#   elbows slightly out -- 16-17 cm off the middle against shoulders at 20
+#                         (GUARD 11-14): out, still inside the shoulders
+#   chin tucked, back straight -- the neck and head a little further down
+#                         and forward
+# Squarer hips than a boxer's comes from that width: the feet are set
+# across as well as ahead, not in a line. The rear foot turns 18 degrees
+# out, where GUARD pointed it straight ahead.
+MMA_GUARD = dict(GUARD)
+MMA_GUARD.update(
+    spine_01=(0, -0.08, 1.0), spine_02=(0, -0.10, 1.0), spine_03=(0, -0.06, 1.0),
+    neck_01=(0, -0.14, 1.0), head=(0, -0.12, 1.0),
+    thigh_l=(0.123, -0.534, -0.837), calf_l=(0.145, 0.100, -0.984),
+    thigh_r=(-0.144, -0.103, -0.984), calf_r=(-0.123, 0.531, -0.838),
+    foot_l=(0.05, -0.90, -0.42), foot_r=(-0.28, -0.86, -0.42),
+    upperarm_l=(-0.122, -0.875, -0.469), lowerarm_l=(-0.180, -0.449, 0.875), hand_l=(-0.154, -0.642, 0.751),
+    upperarm_r=(0.098, -0.801, -0.590),  lowerarm_r=(0.201, -0.029, 0.979),  hand_r=(0.191, -0.312, 0.931),
+    # the extended lead hand points further forward, so its palm is turned
+    # squarer to his face to keep the knuckles to the opponent
+    palm_l=(-0.15, 1.0, 0.0),
+)
+
+
+def guard_for(name):
+    """The guard a man stands in: Saud's MMA stance, everyone else's GUARD."""
+    return MMA_GUARD if str(name).lower() == "saud" else GUARD
+
 # The fist. The mesh is built as a loose fist (anatomy.hand: 72/109/36
 # degrees) with the thumb laid along the index finger, and a hand posed at
 # that rest reads as a claw with the thumb out -- in every render and every

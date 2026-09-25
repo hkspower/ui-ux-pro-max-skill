@@ -250,18 +250,22 @@ static void Clips()
     Check(!Loops(EClip::DashFwd) && !Loops(EClip::HitLight) && !Loops(EClip::Down)
           && !Loops(EClip::GetUp) && !Loops(EClip::Attack), "one-shots do not");
 
-    // The Saud clips the names point at are on disk.
+    // The Saud clips the names point at are on disk, and the street men's
+    // copy of them (the boxer's guard) that everyone else borrows.
     const EClip All[] = { EClip::Guard, EClip::WalkFwd, EClip::WalkBack, EClip::WalkLeft, EClip::WalkRight,
                           EClip::DashFwd, EClip::DashBack, EClip::DashLeft, EClip::DashRight,
                           EClip::Block, EClip::HitLight, EClip::HitHeavy, EClip::Down, EClip::GetUp };
     int Missing = 0;
-    for (EClip C : All)
+    for (const char* Set : { "Saud", "Street" })
     {
-        const std::string P = std::string("Content/Animation/Saud/A_Saud_") + ClipSuffix(C) + ".fbx";
-        FILE* F = std::fopen(P.c_str(), "rb");
-        if (!F) { ++Missing; std::printf("  missing %s\n", P.c_str()); } else std::fclose(F);
+        for (EClip C : All)
+        {
+            const std::string P = std::string("Content/Animation/") + Set + "/A_" + Set + "_" + ClipSuffix(C) + ".fbx";
+            FILE* F = std::fopen(P.c_str(), "rb");
+            if (!F) { ++Missing; std::printf("  missing %s\n", P.c_str()); } else std::fclose(F);
+        }
     }
-    Check(Missing == 0, "every named Saud clip exists in Content/Animation/Saud");
+    Check(Missing == 0, "every named clip exists in Content/Animation/Saud and Street");
 }
 
 int main()
