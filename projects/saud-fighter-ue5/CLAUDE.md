@@ -1945,7 +1945,12 @@ Also corrected: the twist table's comment had its sign backwards (positive
 turns the RIGHT shoulder forward -- the cross's +60 degrees is the right
 shoulder coming round). All 57 clips rebuilt; every check passes; a strike
 ends within 3.5 cm of its guard on every bone (fingers), so the state
-machine's blend back is short. **Not verified** in an engine, as before.
+machine's blend back is short. The covering-hand check now also wants the
+fist tucked (under 26 cm out), and its sabotage breaks the tuck rather
+than the chest carry -- with the head kept on the opponent, a fist left
+at the guard's world spot is 11 cm in front of the face, a cover, and the
+old sabotage stopped biting; the suite bites 20 of 20 again. **Not
+verified** in an engine, as before.
 
 ## Working rules
 
