@@ -1694,8 +1694,7 @@ eight; the header also builds clean under -Wshadow -Wpedantic);
 sabotages, six caught) and checks its parameter names against the header.
 `Tools/blender/anime_preview.py` renders a scene's G-buffer passes in
 Cycles and runs the same numpy over them: `Docs/renders/souq-fight-anime*
-.png` is the existing souq fight scene (its men are the ones built before
-today's skin and cuts) as it looks, on an impact frame and its flip, and
+.png` is the existing souq fight scene (rebuilt 2026-09-25, so its men are the current ones) as it looks, on an impact frame and its flip, and
 with speed lines; `Docs/renders/anime-men.png` is the six rebuilt men,
 full length over their faces, from their rig files. Looking at that sheet
 is what retuned the tones: a highlight at 1.30 spotted every face, so it is
