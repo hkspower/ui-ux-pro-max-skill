@@ -1622,12 +1622,18 @@ Saud, bald for the bald and crop for everyone else.
 The browser's service worker cache is `v29`, so an installed copy picks up
 the new faces.
 
-**Unverified.** The browser's lineup was drawn headless in Chromium, all
-twelve men, with no page errors; the 3D cuts were built and rendered as
-heads only, and the six 3D men are rebuilt with them separately (the
-thug, the brawler and AL-SAQR whole, since their cut changed; Saud,
-AL-WAHSH and ZAYOS from their checkpoints). No engine has imported any of
-it.
+**Built, 2026-09-24.** All six 3D men carry it: the thug, the brawler and
+AL-SAQR rebuilt whole (their cut changed), Saud, AL-WAHSH and ZAYOS from
+their checkpoints -- and Saud whole again the same evening for his arms
+(below). Two cuts were corrected after their first full build, from the
+renders: the buzz read as a brown scalp (`face.hair_fade`, denser), and
+AL-SAQR's fringe, one straight roll across a forehead that curves back,
+stood off his head like a hat's brim -- it is thirteen locks lying on the
+skull's own surface now, with its ragged edge painted
+(`face.hairline_weight`), because at a 3.5 mm remesh a lock of hair is a
+bump. **Unverified.** The browser's lineup was drawn headless in
+Chromium, all twelve men, with no page errors. No engine has imported any
+of the 3D men.
 
 ## The anime look -- 2026-09-24
 
@@ -1791,13 +1797,11 @@ Don't re-discover them; don't fix them without being told to.
   player) still throw via the legacy `AFighterBase::StartAttack` state
   machine; the GAS layer exists beside it rather than under it. Moving combat
   onto abilities for both sides is a separate job, and a large one.
-- **Thug and Brawler carry the old hair cap, and the fight scene is stale.**
-  Rebuilt 2026-09-23 from their checkpoints with the skin, so their guard
-  aims (posed after the checkpoint) are now the 2026-09-20 ones. The hair
-  cap (`assembly.hair_parts`) is built before the checkpoint, so it is
-  still the old one until a full rebuild without `--resume`; and the souq
-  fight scene's copies of every man are as they were until a
-  `build_souq.py --scene`. Neither was asked for.
+- **Thug and Brawler carried the old hair cap, and the fight scene was
+  stale -- both fixed.** The two were rebuilt whole on 2026-09-24 with
+  their own cuts (a buzz, curls), and the souq fight scene was rebuilt
+  the next day (`build_souq.py --scene`, asked as "update all"), so its
+  men are the current ones.
 - **Saud in a cel-shaded, "Hi-Fi Rush" look -- asked 2026-09-20, Saud only.**
   That look is a real-time material: a stepped diffuse ramp, a Fresnel rim,
   an inverted-hull or post-process outline. It lives in the engine, not in
