@@ -29,7 +29,7 @@ import sys
 
 import bpy
 import bmesh
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # scale by 100 on the way out.
@@ -595,6 +595,9 @@ def pose(arm_obj, directions, targets=None, poles=None):
         matrix.translation = pbone.matrix.translation
         pbone.matrix = matrix
         bpy.context.view_layer.update()
+    for side in ("l", "r"):
+        if "palm_" + side in directions:
+            roll_palm(arm_obj, side, directions["palm_" + side])
 
     bpy.ops.object.mode_set(mode="OBJECT")
 
@@ -724,9 +727,11 @@ GUARD = dict(
         # not sideways: a forward elbow still reads as tucked, a sideways one
         # reads as flared (checked -- x .42 got the height but looked like a
         # chicken wing). This puts the fist at 1.51 m, by the jaw.
-        "upperarm": (0.16, -0.60, -0.80),   # elbows down, tight to the ribs
-        "lowerarm": (-0.20, -0.05, 0.98),   # forearms up, fists to the chin
-        "hand":     (-0.10, -0.05, 0.99),
+        # (Superseded 2026-09-24 by the solved guard below: measured, those
+        # aims put both fists 15 cm under the head and as wide as the
+        # shoulders, the elbows 5 cm OUTSIDE them, the forearms straight up
+        # and the thumbs pointing down -- hands up beside the head, not a
+        # guard. The arms are set per side after this.)
         "thigh":    (0.16, 0.00, -0.98),
         "calf":     (0.02, 0.00, -1.00),
         "foot":     (0.05, -0.90, -0.42),
@@ -740,6 +745,124 @@ GUARD.update({
     "thigh_l": (0.20, -0.42, -0.89), "calf_l": (0.02, -0.06, -1.0),
     "thigh_r": (-0.20, 0.34, -0.92), "calf_r": (-0.02, -0.12, -0.99),
 })
+# The arms: a boxer's high guard, solved rather than guessed (2026-09-24,
+# asked as "the best position for arm and hand"). Each arm is a two-bone
+# solve on Saud's own skeleton for where the fist and the elbow should be,
+# measured from the base of the skull (the head bone's head, H):
+#   rear (right) fist at the jaw   -- 8.5 cm across, 19 cm in front of H,
+#                                     10.5 cm under it
+#   lead (left) fist at the cheek, further out -- 9.5 cm across, 36 cm in
+#                                     front, 10 cm under
+#   elbows down in front of the ribs, inside the shoulders (x 0.11-0.14
+#                                     against 0.20), at 1.23-1.25 m
+#   wrists straight: the knuckles carry on the forearm's line, a little
+#                                     further forward (17-20 degrees)
+# The forearm here is short against the upper arm (0.263 m to 0.336), so a
+# fist at the jaw needs the elbow raised forward and the forearm near
+# upright -- which is how a real high guard stands. The lead and rear are
+# different, as they are in a fighter: this is not a mirror.
+GUARD.update({
+    "upperarm_l": (-0.180, -0.812, -0.555), "lowerarm_l": (-0.136, -0.228, 0.964), "hand_l": (-0.117, -0.542, 0.832),
+    "upperarm_r": (0.273, -0.738, -0.618),  "lowerarm_r": (0.073, 0.190, 0.979),   "hand_r": (0.074, -0.111, 0.991),
+})
+# Which way each palm faces: back at his own face and a little in, so the
+# knuckles face the man in front of him. Not a bone: roll_palm() turns the
+# hand about its own length to it once the hand is aimed. Without it the
+# hand kept whatever roll swinging its A-pose frame onto the aim left it
+# with, and that showed the palms -- the fingers' curled fronts -- to the
+# opponent.
+GUARD.update({"palm_l": (-0.447, 0.894, 0.0), "palm_r": (0.447, 0.894, 0.0)})
+PALMS = ("palm_l", "palm_r")
+
+# The fist. The mesh is built as a loose fist (anatomy.hand: 72/109/36
+# degrees) with the thumb laid along the index finger, and a hand posed at
+# that rest reads as a claw with the thumb out -- in every render and every
+# clip until 2026-09-24, because nothing ever closed it (the clips never
+# posed a finger; the renders tightened it 10 degrees a joint). Closed is
+# these, found by rendering the hand from three sides: each finger's three
+# joints turned this much further toward the palm, and the thumb's three
+# folded across the front of the fingers -- (x, y, z) closing magnitudes in
+# each bone's own frame, applied with the side's closing sign.
+FIST_CURL = (30.0, 30.0, 22.0)
+FIST_THUMB = ((25.0, 0.0, 30.0), (45.0, 0.0, 10.0), (30.0, 0.0, 0.0))
+FINGERS = ("index", "middle", "ring", "pinky")
+
+
+def palm_local(arm_obj, side):
+    """The palm's direction in the hand bone's own rest frame: from the
+    middle of the hand to the middle finger's second joint, across the
+    hand's length. Read once off the rest, so it does not move with the
+    fingers."""
+    bones = arm_obj.data.bones
+    h = bones["hand_" + side]
+    p = bones["middle_02_" + side].head_local - (h.head_local + h.tail_local) * 0.5
+    ax = (h.tail_local - h.head_local).normalized()
+    p = (p - ax * p.dot(ax)).normalized()
+    return h.matrix_local.to_3x3().inverted() @ p
+
+
+def roll_palm(arm_obj, side, want, pbone=None):
+    """Turn the hand (or `pbone`, a control that carries its frame) about
+    the hand's own length until its palm faces `want` as nearly as that
+    length allows. Armature space, like every aim here."""
+    hb = arm_obj.pose.bones["hand_" + side]
+    target = pbone or hb
+    m = hb.matrix.to_3x3()
+    ax = Vector((m[0][1], m[1][1], m[2][1])).normalized()
+    cur = m @ palm_local(arm_obj, side)
+    w = Vector(want)
+    cur = (cur - ax * cur.dot(ax)).normalized()
+    w = w - ax * w.dot(ax)
+    if w.length < 1e-6:
+        return 0.0
+    w.normalize()
+    ang = cur.angle(w)
+    if ax.dot(cur.cross(w)) < 0.0:
+        ang = -ang
+    tm = target.matrix.copy(); at = tm.translation.copy()
+    target.matrix = Matrix.Translation(at) @ Matrix.Rotation(ang, 4, ax) @ Matrix.Translation(-at) @ tm
+    bpy.context.view_layer.update()
+    return ang
+
+
+def closing_sign(arm_obj, side):
+    """Which way a finger bone's X turns the finger toward the palm: turn the
+    index finger's second joint both ways and keep the one that brings its
+    tip nearer the wrist. Leaves the finger as it was."""
+    pb = arm_obj.pose.bones
+    b = pb["index_02_" + side]; b.rotation_mode = "XYZ"
+    keep = tuple(b.rotation_euler)
+    wrist = pb["hand_" + side].head
+    out = {}
+    for sgn in (1.0, -1.0):
+        b.rotation_euler = (keep[0] + sgn * 0.3, keep[1], keep[2])
+        bpy.context.view_layer.update()
+        out[sgn] = (pb["index_03_" + side].tail - wrist).length
+    b.rotation_euler = keep
+    bpy.context.view_layer.update()
+    return 1.0 if out[1.0] < out[-1.0] else -1.0
+
+
+def close_fists(arm_obj, amount=1.0):
+    """Both hands closed by `amount` (0 the built hand, 1 the fist), as Euler
+    rotations on the finger bones -- for a rig with no fist control, like
+    the one the pipeline renders with. The control rig drives the same
+    numbers from its `fist` slider (rig_full_ik)."""
+    pb = arm_obj.pose.bones
+    for side in ("l", "r"):
+        sign = closing_sign(arm_obj, side)
+        for f in FINGERS:
+            for k, deg in enumerate(FIST_CURL):
+                b = pb["%s_%02d_%s" % (f, k + 1, side)]; b.rotation_mode = "XYZ"
+                b.rotation_euler = (sign * math.radians(deg) * amount, 0.0, 0.0)
+        for k, (x, y, z) in enumerate(FIST_THUMB):
+            b = pb["thumb_%02d_%s" % (k + 1, side)]; b.rotation_mode = "XYZ"
+            # the fold across the palm (z) is a mirror between the hands: the
+            # same sign on the right swung that thumb out, 1.14 hand lengths
+            # from the fingers against 0.73 folded
+            zs = sign if side == "l" else -sign
+            b.rotation_euler = (sign * math.radians(x) * amount, math.radians(y) * amount, zs * math.radians(z) * amount)
+    bpy.context.view_layer.update()
 
 # Right round kick, thrown across the body toward the camera's left.
 KICK = dict(

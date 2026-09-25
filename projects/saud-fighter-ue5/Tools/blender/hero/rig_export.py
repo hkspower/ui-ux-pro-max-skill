@@ -172,6 +172,14 @@ def join_all(body, others):
         print("clamped %d weights that heat or the transfer left over 1.0" % over)
     return body
 
+def close_fists(arm, amount=1.0):
+    """Both hands to build_saud's fist (0 the built hand, 1 closed): the
+    fingers turned in and the thumb folded across them. curl_fingers, below,
+    tightened 10 degrees a joint, which left the built claw with its thumb
+    out in every guard and kick render until 2026-09-24."""
+    import build_saud as legacy
+    legacy.close_fists(arm, amount)
+
 def curl_fingers(arm, degrees):
     """Tighten the fists for the fight poses.
 

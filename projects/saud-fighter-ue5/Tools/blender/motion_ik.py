@@ -45,6 +45,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 SIDES = ("l", "r")
+# build_motion's --bite breaks the hands through this (it cannot reach the
+# rig's own state any other way): "fists" leaves them open
+SABOTAGE_HANDS = set()
 LIMB_CHAIN = ["clavicle_l", "upperarm_l", "lowerarm_l", "hand_l",
               "clavicle_r", "upperarm_r", "lowerarm_r", "hand_r",
               "thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"]
@@ -118,6 +121,11 @@ class Author:
         """Every control home, every limb in FK: a clean page for the frame."""
         import rig_full_ik as CR
         CR.reset(self.rig)
+        # every clip is thrown with closed fists (build_saud.FIST_*); until
+        # 2026-09-24 none set it, and every clip carried the built claw
+        if "fists" not in SABOTAGE_HANDS:
+            for s in SIDES:
+                self.pb["CTRL_hand_%s" % s]["fist"] = 1.0
         self._fk(1.0)
 
     # ---------------------------------------------------------------- body
@@ -137,7 +145,7 @@ class Author:
             pb[tgt].rotation_quaternion = pb[tgt].rotation_quaternion @ Quaternion((0, 1, 0), amt)
         upd()
         if lean or twist:
-            CR._aim(self.rig, {n: aims[n] for n in LIMB_CHAIN if n in aims})
+            CR._aim(self.rig, {n: aims[n] for n in LIMB_CHAIN + ["palm_l", "palm_r"] if n in aims})
 
     def move_hips(self, delta):
         m = self.pb["CTRL_hips"].matrix.copy()

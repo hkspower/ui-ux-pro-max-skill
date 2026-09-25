@@ -487,13 +487,13 @@ def build_fighter(spec, argv=None):
         legacy.render(os.path.join(RENDERS, "%s-%s-3d.png" % (low, filename)), samples=24 if FAST else 64, res=res)
     targets, poles, report = legacy.limb_targets(rig, mesh, legacy.GUARD, plant=("l", "r"))
     legacy.print_pose_report("guard", ("l", "r"), report)
-    legacy.pose(rig, legacy.GUARD, targets, poles); R.curl_fingers(rig, 10)
+    legacy.pose(rig, legacy.GUARD, targets, poles); R.close_fists(rig)
     shot("guard", (1.55, -3.35, 1.24), (0, 0, look_z), 62)
     targets, poles, report = legacy.limb_targets(rig, mesh, legacy.KICK, plant=("l",))
     legacy.print_pose_report("kick", ("l",), report)
-    legacy.pose(rig, legacy.KICK, targets, poles); R.curl_fingers(rig, 10)
+    legacy.pose(rig, legacy.KICK, targets, poles); R.close_fists(rig)
     shot("kick", (3.00, -2.45, 1.22), (0.14, 0, 0.96 * factors["h"]), 58)
-    legacy.mute_ik(rig, True); legacy.pose(rig, {}); R.curl_fingers(rig, 0)
+    legacy.mute_ik(rig, True); legacy.pose(rig, {}); R.close_fists(rig, 0.0)
     shot("apose", (0.35, -3.60, 1.05), (0, 0, look_z), 58)
     # lens 85 -> 120 at the same aim: the head fills 69 % of the frame
     # instead of 49 (the crown's ray at 0.141 * 120 = 16.9 mm stays inside

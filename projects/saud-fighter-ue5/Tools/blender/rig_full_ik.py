@@ -88,12 +88,14 @@ SIDES = ("l", "r")
 # to the same place, so the solved pole angle still holds
 POLES = {"CTRL_elbow": ("lowerarm", "Pole_Elbow", "ik_hand"), "CTRL_knee": ("calf", "Pole_Knee", "ik_foot")}
 HEEL_ROLL, TOE_ROLL = math.radians(35.0), math.radians(55.0)
-# The mesh IS a fist -- anatomy.hand() builds the fingers curled 72/109/36
-# degrees and the finger bones follow that chain -- so the slider only
-# tightens it, the 10 degrees a joint rig_export.curl_fingers settles on for
-# the renders. 78 a joint on a closed hand folds the fingers through the
-# palm and out the other side, which is what the first version measured.
-FIST = math.radians(10.0)
+# The mesh is built as a loose fist -- anatomy.hand() curls the fingers
+# 72/109/36 degrees and lays the thumb along the index finger -- and at
+# fist=1 the slider closes it to build_saud's FIST_CURL / FIST_THUMB, the
+# fist found by rendering the hand (2026-09-24). It used to tighten 10
+# degrees a joint, which left the claw and the thumb out it started as; 78
+# a joint folded the fingers through the palm, which is what the first
+# version measured. The thumb turns on two axes, to fold across the front.
+FIST = math.radians(10.0)   # kept for the probe's test turn only
 CTRL_PREFIX = ("CTRL_", "MCH_")
 
 
@@ -352,11 +354,22 @@ def build(rig, mesh):
             for k in (1, 2, 3):
                 pb["%s_%02d_%s" % (f, k, s)].rotation_mode = "XYZ"
         sign = _probe_curl(rig, s)
-        for f in fingers + ("thumb",):
+        for f in fingers:
             for k in (1, 2, 3):
                 b = pb["%s_%02d_%s" % (f, k, s)]
-                _driver(b, "rotation_euler", "%s * fist * %.4f" % (sign, FIST * (0.5 if f == "thumb" else 1.0)), rig,
+                _driver(b, "rotation_euler", "%s * fist * %.4f" % (sign, math.radians(legacy.FIST_CURL[k - 1])), rig,
                         {"fist": (hand, "fist")}, index=0)
+        for k in (1, 2, 3):
+            b = pb["thumb_%02d_%s" % (k, s)]
+            for axis in (0, 2):
+                amount = legacy.FIST_THUMB[k - 1][axis]
+                # the fold across the palm (z) mirrors between the hands
+                # (_probe_curl's sign is the expression's own text, "-1" or "1")
+                axsign = sign if (axis == 0 or s == "l") else (
+                    str(sign)[1:] if str(sign).startswith("-") else "-" + str(sign))
+                if amount:
+                    _driver(b, "rotation_euler", "%s * fist * %.4f" % (axsign, math.radians(amount)), rig,
+                            {"fist": (hand, "fist")}, index=axis)
         # the foot roll: which sign lifts the ankle is found by asking
         for mch, amount, which in (("MCH_heel_%s" % s, HEEL_ROLL, "heel"), ("MCH_toe_%s" % s, TOE_ROLL, "toe")):
             pb[mch].rotation_mode = "XYZ"
@@ -547,6 +560,12 @@ def _aim(rig, directions):
         m.translation = pbone.matrix.translation
         pbone.matrix = m
         _update()
+    # which way the palms face (build_saud.GUARD's palm_l/palm_r): the hand
+    # turned about its own length, once it is aimed
+    for side in SIDES:
+        if "palm_" + side in directions:
+            legacy.roll_palm(rig, side, directions["palm_" + side])
+            _update()
 
 
 def stance(rig, fk, mesh=None, plant=("l", "r")):
@@ -718,13 +737,30 @@ def verify(rig, mesh, scale=1.0):
     # 5 the fist
     reset(rig)
     def grip():
-        return (rig.matrix_world @ pb["index_03_l"].tail - _world(rig, "hand_l")).length
-    g0 = grip(); set_prop(rig, "CTRL_hand_l", "fist", 1.0); g1 = grip()
-    # a tighten of 10 degrees a joint on a hand that is already a fist moves
-    # the index tip 3.3 mm toward the wrist on the thug; the probe at build
-    # time already insists on 2 mm, and so does this
-    if g0 - g1 < 0.002:
-        fails.append("fist: fist=1 tightened the index finger by %.1f mm" % ((g0 - g1) * 1000))
+        # the index tip against the hand's end, where the fingers start: a
+        # closed finger folds its tip back onto it. Measured against the
+        # wrist, as it was, a finger that curls past the palm reads as
+        # opening -- the tip swings on past the nearest point (78 -> 81 mm).
+        return (rig.matrix_world @ pb["index_03_l"].tail - rig.matrix_world @ pb["hand_l"].tail).length
+    def thumb_in(s="l"):
+        # the thumb's tip against the middle finger's second joint: folded
+        # across the front of the fingers, it lies on it
+        return (rig.matrix_world @ pb["thumb_03_" + s].tail - _world(rig, "middle_02_" + s)).length
+    g0 = grip(); t0 = thumb_in(); r0 = thumb_in("r")
+    set_prop(rig, "CTRL_hand_l", "fist", 1.0); set_prop(rig, "CTRL_hand_r", "fist", 1.0)
+    g1 = grip(); t1 = thumb_in(); r1 = thumb_in("r")
+    # both hands: the fold is mirrored, and one sign for both swung the
+    # right thumb out (found by the motion checks, 2026-09-24)
+    if r0 - r1 < 0.030:
+        fails.append("fist: fist=1 brought the right thumb only %.1f mm in across the fingers" % ((r0 - r1) * 1000))
+    # closing the built claw to build_saud's fist brings the index tip well
+    # in toward the wrist, and the thumb across the fingers
+    # measured on Saud: the tip 42 -> 13 mm from the knuckles, the thumb's
+    # tip 130 -> 47 mm from the middle finger
+    if g0 - g1 < 0.015:
+        fails.append("fist: fist=1 closed the index finger by only %.1f mm" % ((g0 - g1) * 1000))
+    if t0 - t1 < 0.030:
+        fails.append("fist: fist=1 brought the thumb only %.1f mm in across the fingers" % ((t0 - t1) * 1000))
     # 7 the pivot: moving it moves nothing; turning it turns him about it.
     # Stood on the lead foot's ball, a quarter turn must leave that ball
     # where it was and carry the other foot a long way round.
@@ -958,6 +994,12 @@ def bite(blend):
         for k in (1, 2, 3):
             fc = rig.animation_data.drivers.find('pose.bones["index_%02d_l"].rotation_euler' % k, index=0)
             rig.animation_data.drivers.remove(fc)
+    def kill_thumb(rig, mesh):
+        for k in (1, 2, 3):
+            for axis in (0, 2):
+                fc = rig.animation_data.drivers.find('pose.bones["thumb_%02d_l"].rotation_euler' % k, index=axis)
+                if fc:
+                    rig.animation_data.drivers.remove(fc)
     def extra_bone(rig, mesh):
         _edit_mode(rig); b = rig.data.edit_bones.new("jaw"); b.head = (0, 0, 1.6); b.tail = (0, 0, 1.65); b.use_deform = False; _object_mode(rig)
     def bad_weights(rig, mesh):
@@ -979,6 +1021,7 @@ def bite(blend):
     case("look on",                kill_look,      "look=1")
     case("look off",               look_always,    "look=0")
     case("fist",                   kill_fist,      "fist")
+    case("thumb folds",            kill_thumb,     "thumb")
     case("export set",             extra_bone,     "export set")
     case("deform weights",         bad_weights,    "non-deform")
     case("pivot",                  kill_unpivot,   "pivot: moving")

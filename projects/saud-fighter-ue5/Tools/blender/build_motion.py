@@ -156,7 +156,16 @@ SUPPORT_FOOT = (0.05, -0.55, -0.83)     # heel up, weight over the ball
 
 def _strikes():
     import build_saud as L
-    G = L.GUARD
+    G = dict(L.GUARD)
+    if "guard" in SABOTAGE:
+        # the guard's arms as they were until 2026-09-24
+        for s, x in (("l", 1.0), ("r", -1.0)):
+            G["upperarm_" + s] = (0.16 * x, -0.60, -0.80)
+            G["lowerarm_" + s] = (-0.20 * x, -0.05, 0.98)
+            G["hand_" + s] = (-0.10 * x, -0.05, 0.99)
+    if "palms" in SABOTAGE:
+        for k in L.PALMS:
+            G.pop(k, None)
 
     def over(**kw):
         d = dict(G); d.update(kw); return d
@@ -169,8 +178,10 @@ def _strikes():
         upperarm_l=(0.20, -0.95, -0.24),
         lowerarm_l=(0.08, -0.99, -0.06),
         hand_l=(0.04, -1.00, -0.02),
-        upperarm_r=(-0.14, -0.12, -0.98),      # rear hand stays on the chin
-        lowerarm_r=(0.22, -0.34, 0.91),
+        palm_l=(0.0, 0.0, -1.0),               # the fist turns over: palm down at the end
+        # the rear hand stays where the guard has it, at the jaw -- it used
+        # to be put back "on the chin" by aims of its own, which were the
+        # old guard's hands-beside-the-head
         spine_03=(0, -0.20, 0.98), neck_01=(0, -0.14, 0.99),
     ), {"spine_02": -0.10, "spine_03": -0.16})
 
@@ -180,8 +191,8 @@ def _strikes():
         upperarm_r=(-0.18, -0.95, -0.22),
         lowerarm_r=(-0.06, -0.99, -0.06),
         hand_r=(-0.03, -1.00, -0.02),
-        upperarm_l=(0.26, -0.06, -0.96),       # lead hand comes back to guard
-        lowerarm_l=(-0.30, -0.28, 0.91),
+        palm_r=(0.0, 0.0, -1.0),               # palm down at the end
+        # the lead hand stays in the guard, covering
         thigh_r=(-0.22, 0.10, -0.97),          # rear heel turns over
         calf_r=(-0.04, -0.06, -1.00),
         foot_r=(0.34, -0.80, -0.50),
@@ -194,8 +205,8 @@ def _strikes():
         upperarm_r=(-0.74, -0.66, -0.12),      # elbow out, level with the fist
         lowerarm_r=(0.16, -0.98, 0.10),
         hand_r=(0.30, -0.95, 0.06),
-        upperarm_l=(0.28, -0.04, -0.96),
-        lowerarm_l=(-0.34, -0.26, 0.90),
+        palm_r=(0.0, 0.20, -1.0),              # a horizontal fist, palm down
+        # the lead hand stays in the guard
         thigh_r=(-0.24, 0.08, -0.97),
         foot_r=(0.40, -0.76, -0.51),
         spine_03=(0.10, -0.22, 0.97),
@@ -243,6 +254,10 @@ def _strikes():
 
     # ---- and the one that is not a strike: what he does between them
     S["Guard"] = (dict(G), {})
+    if "palms" in SABOTAGE:
+        for shape, _tw in S.values():
+            for k in L.PALMS:
+                shape.pop(k, None)
     return S
 
 
@@ -963,7 +978,13 @@ def author_block(au, c, S):
     guard, _ = S["Guard"]
     aims = aims_at(guard, guard, 0.0, c["stance"])
     g = au.capture_guard(aims)
-    tuck = dict(aims, neck_01=(0.0, -0.16, 0.99), head=(0.0, -0.22, 0.975))
+    # The wrists straight -- the knuckles on up the forearm's line, which
+    # leans back toward the forehead here (measured, the guard's hand aims
+    # left each wrist bent 40 degrees in the block) -- and the palms to the
+    # face, the backs of the hands to the blow.
+    tuck = dict(aims, neck_01=(0.0, -0.16, 0.99), head=(0.0, -0.22, 0.975),
+                hand_l=(-0.07, 0.55, 0.83), hand_r=(0.07, 0.55, 0.83),
+                palm_l=(-0.30, 0.95, 0.0), palm_r=(0.30, 0.95, 0.0))
     N = c["frames"]
     frames, plant = [], {s: {} for s in SIDES}
     side = {"l": 1.0, "r": -1.0}
@@ -1225,6 +1246,81 @@ def readback(made, out_root):
 TIP = {"lead_arm": "hand_end_l", "rear_arm": "hand_end_r", "rear_leg": "ball_r"}
 
 
+def hands_check(c, rig, fails):
+    """The hand checks verify() runs on each clip. Distances are the
+    skeleton's own, taken from its hand bone's length (0.075 m on Saud), so
+    a boss half again his size is held to the same shape."""
+    import bpy
+    import build_saud as L
+    from mathutils import Vector
+    pb = rig.pose.bones
+    W = rig.matrix_world
+    hand_len = rig.data.bones["hand_l"].length
+    k = hand_len / 0.075
+    N = c["frames"]
+
+    def go(f):
+        bpy.context.scene.frame_set(f); bpy.context.view_layer.update()
+
+    def closed(s):
+        tip = (W @ pb["index_03_" + s].tail - W @ pb["hand_" + s].tail).length
+        thumb = (W @ pb["thumb_03_" + s].tail - W @ pb["middle_02_" + s].head).length
+        return tip / hand_len, thumb / hand_len
+
+    def guard_hand(s, strict=True):
+        """Why this hand is not in a guard, or None."""
+        H = W @ pb["head"].head
+        fist = W @ pb["hand_" + s].tail
+        el, sh = W @ pb["lowerarm_" + s].head, W @ pb["upperarm_" + s].head
+        fwd, across, dz = H.y - fist.y, abs(fist.x - H.x), fist.z - H.z
+        # a strike's other hand only has to stay up: the lean carries the
+        # head out over it (7 cm in front of the face at a jab's contact)
+        lo_fwd, hi_across, lo_dz = (0.08, 0.13, -0.20) if strict else (0.0, 0.16, -0.25)
+        if fwd < lo_fwd * k or across > hi_across * k or not (lo_dz * k <= dz <= 0.05 * k):
+            return "the %s fist is not up in front of the face (%.0f cm forward, %.0f across, %+.0f up)" % (
+                s, fwd * 100, across * 100, dz * 100)
+        if not strict:
+            return None
+        if abs(el.x - H.x) > abs(sh.x - H.x) - 0.02 * k:
+            return "the %s elbow flares: %.0f cm out against a shoulder at %.0f" % (
+                s, abs(el.x - H.x) * 100, abs(sh.x - H.x) * 100)
+        fa = (W @ pb["lowerarm_" + s].tail - el).normalized()
+        hd = (fist - W @ pb["hand_" + s].head).normalized()
+        bend = math.degrees(fa.angle(hd))
+        if bend > 28.0:
+            return "the %s wrist is bent %.0f degrees" % (s, bend)
+        m = (W @ pb["hand_" + s].matrix).to_3x3()
+        palm = (m @ L.palm_local(rig, s)).normalized()
+        # rolled, the palms face 0.80-0.89 toward him; left at the roll the
+        # aim alone gives them they are 28 and 51 degrees off it
+        if palm.y < 0.72:
+            return "the %s palm faces the opponent (%.2f toward him)" % (s, palm.y)
+        return None
+
+    for f in range(1, N + 1, 3):
+        go(f)
+        for s in SIDES:
+            tip, thumb = closed(s)
+            if tip > 0.30 or thumb > 0.90:
+                fails.append("%s: the %s hand is open on frame %d (index tip %.2f, thumb %.2f hand lengths)" % (
+                    c["name"], s, f, tip, thumb))
+                return
+    if c["kind"] in ("guard", "walk", "dash"):
+        for f in range(1, N + 1, 3):
+            go(f)
+            for s in SIDES:
+                why = guard_hand(s)
+                if why:
+                    fails.append("%s: %s on frame %d" % (c["name"], why, f))
+                    return
+    elif c["limb"] in ("lead_arm", "rear_arm"):
+        other = "r" if c["limb"] == "lead_arm" else "l"
+        go(c["contact"] + 1)
+        why = guard_hand(other, strict=False)
+        if why:
+            fails.append("%s: the hand not punching drops -- %s at contact" % (c["name"], why))
+
+
 def verify(rig, made):
     """Does the motion do what it says, measured on what ships -- the baked
     62 bones, not the rig that posed them.
@@ -1296,6 +1392,12 @@ def verify(rig, made):
             if bad:
                 fails.append("%s: the %s knee bends backwards, %.0f deg past straight on frame %d" % (
                     c["name"], s, bad[1], bad[0]))
+        # ---- the hands (2026-09-24, "the best position for arm and hand"):
+        # every frame of every clip is thrown with closed fists; in the
+        # guard, a walk and a dash both fists are up in front of the face,
+        # the elbows inside the shoulders, the wrists straight and the palms
+        # toward him; and a strike's other hand stays up, covering.
+        hands_check(c, rig, fails)
         # ---- loops close: the step from the last frame to the first is a
         # step like any other
         if c.get("loop"):
@@ -1569,13 +1671,19 @@ def bite():
         ("feet cross",     "cross",  ["A_Saud_Walk_Left"],             "the feet cross"),
         ("through floor",  "sink",   ["A_Saud_Down"],                  "through the floor"),
         ("getup start",    "getup",  ["A_Saud_Down", "A_Saud_GetUp"],  "does not start where Down ends"),
+        ("closed fists",   "fists",  ["A_Saud_Guard"],                 "hand is open"),
+        ("guard hands",    "guard",  ["A_Saud_Guard"],                 "not up in front of the face"),
+        ("palms in",       "palms",  ["A_Saud_Guard"],                 "palm faces the opponent"),
     ]
     results = []
     for label, sab, names, expect in cases:
         for broken in (False, True):
-            SABOTAGE.clear()
+            import motion_ik as M
+            SABOTAGE.clear(); M.SABOTAGE_HANDS.clear()
             if broken:
                 SABOTAGE.add(sab)
+                if sab == "fists":
+                    M.SABOTAGE_HANDS.add("fists")
             clips = [dict(every[n]) for n in names]
             rig, made = author_all(clips)
             try:
@@ -1589,6 +1697,8 @@ def bite():
             else:
                 results.append((label + " (clean)", msg is None, msg.split("\n")[1].strip() if msg else "passes"))
     SABOTAGE.clear()
+    import motion_ik as M
+    M.SABOTAGE_HANDS.clear()
     print("\n%-26s %s" % ("check", "when its mechanism is broken -- and when it is not"))
     for label, ok, msg in results:
         print("  %-24s %s  %s" % (label, "OK     " if ok else "WRONG  ", msg[:96]))
