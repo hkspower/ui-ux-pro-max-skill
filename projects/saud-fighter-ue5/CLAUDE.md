@@ -1737,9 +1737,8 @@ richer, still gritty). The browser's numbers do not move:
   toward a fabric's floor (L* ~20, 0.03) keeping its order and its hue,
   with 20 % more chroma: Saud's tee 0.009 -> 0.031, a cool charcoal; his
   trousers 0.005 -> 0.027. Everything lighter is the browser's untouched.
-  All six men are being rebuilt from their checkpoints with it
-  (started 2026-09-25; until they land, the shipped textures are the
-  old ones).
+  All six men rebuilt from their checkpoints with it, every rig
+  verified.
 - **HUD** (`SaudHUD.cpp`): ink near black and paper a warm newsprint,
   both the look's own and checked against it; an empty bar the cool slate
   of the shadows; the enemy's red an oxblood under Saud's; a deeper amber
@@ -1748,7 +1747,11 @@ richer, still gritty). The browser's numbers do not move:
   of the speed-line streaks are drawn in the HUD's blood red, a two-tone
   panel.
 Checked: `anime_look.py` 15 of 15 sabotages caught (split tone, accent,
-air, blood streaks among them). **Not verified**: no engine has built the
+air, blood streaks among them). The first preview caught one more: the
+lamp rule read the sky -- which has no base colour -- as a lamp and lifted
+it to full saturation, a loud orange over the souq; the sky is held under
+now, and a check that failed on that bug holds it. `Docs/renders/anime-
+men.png` and `souq-fight-anime*.png` are re-rendered with all of it. **Not verified**: no engine has built the
 materials or drawn the HUD; the HUD's colours have never been seen at all.
 
 ## Hands, the guard, and Saud's MMA stance -- 2026-09-24/25
@@ -1803,8 +1806,15 @@ boxer's straight legs, 5.6 on Saud's bent ones, through the floor.
 read-back 0.01 mm); `build_motion.py --bite` 20 of 20 -- the knee and palm
 sabotages run on the Street guard, because the MMA stance is solved with
 its knees forward and its lead palm squared and cannot show them broken.
-Guard and kick renders re-struck for the five other men; Saud's come
-with his rebuild. **Not verified**: no
+Guard and kick renders re-struck for all six men.
+
+**A bent knee stays bent.** The renders and the souq scene stood a man
+on the floor by pulling his feet down under hips that stayed put, which
+straightens a knee: Saud's 38 degrees rendered straight-legged, and the
+boxer's own bend (15 / 29) came out 8 / 26. `build_saud.limb_targets`
+(with `pose(drop=)`) and `rig_full_ik.stance` lower the whole man onto
+his feet instead, as the clips always did; measured 36 / 38 with both
+soles on the floor. Rig verify passes, 14 of 14 sabotages bite. **Not verified**: no
 engine has imported the clips or compiled the lookup change.
 
 ## Working rules
