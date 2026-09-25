@@ -15,15 +15,20 @@ using namespace SaudHud;
 
 namespace
 {
-	// The anime look's paper and ink (Tools/look/anime_look.py LOOK), and
-	// Saud's own red (assets/saud.js col.band).
-	const FLinearColor InkC(0.030f, 0.026f, 0.024f, 1.f);
-	const FLinearColor PaperC(0.93f, 0.90f, 0.84f, 1.f);
-	const FLinearColor ShadeC(0.36f, 0.34f, 0.32f, 1.f);
+	// The anime look's paper and ink (Tools/look/anime_look.py LOOK, which
+	// checks these two against its own), and Saud's own red (assets/saud.js
+	// col.band). 2026-09-25, "improve colours", richer and still gritty:
+	// the ink near black (0.030 showed as a mid-grey border), the paper a
+	// warm newsprint, an empty bar the cool slate of the look's shadows
+	// rather than a flat grey, the enemy's red an oxblood under Saud's, the
+	// stamina a deeper amber and the rage a hotter gold.
+	const FLinearColor InkC(0.004f, 0.0035f, 0.003f, 1.f);
+	const FLinearColor PaperC(0.93f, 0.88f, 0.78f, 1.f);
+	const FLinearColor ShadeC(0.060f, 0.068f, 0.090f, 1.f);
 	const FLinearColor SaudRed = FLinearColor::FromSRGBColor(FColor(0xff, 0x1a, 0x3c));
-	const FLinearColor EnemyRed = FLinearColor::FromSRGBColor(FColor(0x9e, 0x1b, 0x22));
-	const FLinearColor StaminaC = FLinearColor::FromSRGBColor(FColor(0xd9, 0xb3, 0x5a));
-	const FLinearColor RageGold = FLinearColor::FromSRGBColor(FColor(0xff, 0xc4, 0x2e));
+	const FLinearColor EnemyRed = FLinearColor::FromSRGBColor(FColor(0x8e, 0x14, 0x20));
+	const FLinearColor StaminaC = FLinearColor::FromSRGBColor(FColor(0xe3, 0xa3, 0x3a));
+	const FLinearColor RageGold = FLinearColor::FromSRGBColor(FColor(0xff, 0xb2, 0x1f));
 }
 
 void ASaudHUD::DrawHUD()

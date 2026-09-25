@@ -176,6 +176,45 @@ _SAUD_PAINT = dict(skin='bd9278', hair='1e150f', tee='15171c', pants='0e1014', b
 from . import face as FA
 assert FA.SAUD_SKIN == '#f0d8c4', "face.py's tones are ratios to the skin they were written on; change them together"
 
+# A dyed fabric's albedo, from the browser's flat colour. The browser paints
+# Saud's tee #15171c and his trousers #0e1014 -- 0.009 and 0.005 albedo in
+# linear light, darker than black velvet; black cotton measures about 0.03.
+# Under the anime look's three tones (lit, shadow, deep) a 0.005 surface is
+# one flat black whatever the light does, so every black kit -- Saud,
+# AL-WAHSH, ZAYOS -- read as a silhouette with no folds (2026-09-25, "improve
+# colours", richer and still gritty). Below L* 36 the lightness is drawn up
+# toward a floor at L* ~20 (0.03) keeping its order and its hue; a* and b*
+# are kept and given 20 % more, so a black with blue in it reads as a cool
+# charcoal and a brown one as a warm one. Above L* 36 the colour is the
+# browser's untouched. Unreal only: the browser's numbers do not move.
+FABRIC_KNEE = 36.0
+FABRIC_KEEP = 0.55
+FABRIC_CHROMA = 1.20
+_M = np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722], [0.0193, 0.1192, 0.9505]])
+_W = np.array([0.95047, 1.0, 1.08883])
+
+
+def _lab(c):
+    f = lambda t: np.where(t > 216 / 24389, np.cbrt(t), (24389 / 27 * t + 16) / 116)
+    x, y, z = f((_M @ np.asarray(c, float)) / _W)
+    return np.array([116 * y - 16, 500 * (x - y), 200 * (y - z)])
+
+
+def _unlab(lab):
+    L, a, b = lab
+    fy = (L + 16) / 116; fx = fy + a / 500; fz = fy - b / 200
+    g = lambda t: np.where(t ** 3 > 216 / 24389, t ** 3, (116 * t - 16) / (24389 / 27))
+    return np.clip(np.linalg.solve(_M, np.array([g(fx), g(fy), g(fz)]) * _W), 0.0, 1.0)
+
+
+def fabric(c):
+    """A linear colour as a dyed fabric's albedo (see FABRIC_KNEE)."""
+    L, a, b = _lab(c)
+    if L >= FABRIC_KNEE:
+        return np.asarray(c, float)
+    return _unlab((FABRIC_KNEE - (FABRIC_KNEE - L) * FABRIC_KEEP, a * FABRIC_CHROMA, b * FABRIC_CHROMA))
+
+
 def palette_for(spec):
     """Linear colours and the kit for one fighter, from his roster entry.
 
@@ -205,8 +244,8 @@ def palette_for(spec):
     return dict(
         skin=lin(srgb(c["skin"])), hair=lin(srgb(hair)) if hair else None,
         beard=lin(srgb(beard)) if beard else None, beard_k=beard_k,
-        tee=lin(srgb(c["top"])), pants=lin(srgb(c["bottom"])), band=lin(srgb(c["band"])),
-        shoe=lin(srgb('101216')),
+        tee=fabric(lin(srgb(c["top"]))), pants=fabric(lin(srgb(c["bottom"]))), band=fabric(lin(srgb(c["band"]))),
+        shoe=fabric(lin(srgb('101216'))),
         lip=lin(srgb('c98a78')), tape=lin(srgb('e8e2d4')), nail=lin(srgb('f4dccb')),
         # the kit: what the browser lists for him and nothing it does not
         tape_on=(look.get("hands") == "wraps"), patch=bool(look.get("patch")),
@@ -219,8 +258,8 @@ def saud_palette():
     """Today's Saud, exactly as paint() used to spell him."""
     return dict(skin=lin(srgb(_SAUD_PAINT['skin'])), hair=lin(srgb(_SAUD_PAINT['hair'])),
                 beard=lin(srgb('2a1d13')) * 0.9, beard_k=1.0,
-                tee=lin(srgb(_SAUD_PAINT['tee'])), pants=lin(srgb(_SAUD_PAINT['pants'])),
-                band=lin(srgb(_SAUD_PAINT['band'])), shoe=lin(srgb(_SAUD_PAINT['shoe'])),
+                tee=fabric(lin(srgb(_SAUD_PAINT['tee']))), pants=fabric(lin(srgb(_SAUD_PAINT['pants']))),
+                band=fabric(lin(srgb(_SAUD_PAINT['band']))), shoe=fabric(lin(srgb(_SAUD_PAINT['shoe']))),
                 lip=lin(srgb('c98a78')), tape=lin(srgb('e8e2d4')), nail=lin(srgb('f4dccb')),
                 tape_on=True, patch=True, stripe=True, watch=True, name="Saud")
 

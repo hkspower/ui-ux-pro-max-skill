@@ -1714,17 +1714,20 @@ def bite():
     """Each motion check added with the IK rig, made to fail by breaking the
     one thing it guards -- and the same clips, unbroken, passing. A check
     that cannot fail is not a check."""
+    # Two cases break on the boxer's guard: Saud's MMA stance is solved with
+    # its knees forward and its lead palm squared, so on it those two
+    # mechanisms can fail without showing -- the boxer's cannot.
     every = {c["name"]: c for c in plan(("saud", "street"))}
     cases = [
         ("planted feet",   "plant",  ["A_Saud_Cross", "A_Saud_Kick"],  "slides"),
-        ("knees forward",  "knee",   ["A_Saud_Guard"],                 "bends backwards"),
+        ("knees forward",  "knee",   ["A_Street_Guard"],                 "bends backwards"),
         ("straight punch", "line",   ["A_Saud_Jab"],                   "off the straight line"),
         ("feet cross",     "cross",  ["A_Saud_Walk_Left"],             "the feet cross"),
         ("through floor",  "sink",   ["A_Saud_Down"],                  "through the floor"),
         ("getup start",    "getup",  ["A_Saud_Down", "A_Saud_GetUp"],  "does not start where Down ends"),
         ("closed fists",   "fists",  ["A_Saud_Guard"],                 "hand is open"),
         ("guard hands",    "guard",  ["A_Saud_Guard"],                 "not up in front of the face"),
-        ("palms in",       "palms",  ["A_Saud_Guard"],                 "palm faces the opponent"),
+        ("palms in",       "palms",  ["A_Street_Guard"],                 "palm faces the opponent"),
         ("covering hand",  "cover",  ["A_Street_Cross"],               "not up in front of the face"),
     ]
     results = []

@@ -88,10 +88,18 @@ LOOK = {
     "SOFT": 0.020,          # half-width of each terminator, for antialiasing
     "SMOOTH_PX": 3.0,       # the light is averaged this far (1080 lines) first
     "Q_LIT": 1.00,
-    "Q_SHADOW": 0.42,
-    "Q_DEEP": 0.16,
+    # 2026-09-25, "improve colours" -- richer, still gritty: the shadow and
+    # deep tones a step lower (0.42 / 0.16 before), so a lit form stands off
+    # its own shadow instead of greying into it
+    "Q_SHADOW": 0.38,
+    "Q_DEEP": 0.13,
     "Q_HIGHLIGHT": 1.28,
-    "SHADOW_TINT": (0.90, 0.88, 0.98),   # shadows lean cool, as ink wash does
+    # Split toning: shadows lean to a cool slate, the lit side to dust-warm,
+    # so light and shade differ in hue as well as value -- the depth a
+    # painted cel has. Until 2026-09-25 one warm tint lay over everything
+    # and the shadows' faint cool was cancelled by it.
+    "SHADOW_TINT": (0.84, 0.89, 1.03),
+    "LIT_TINT": (1.05, 1.00, 0.91),
     "TINT_KEEP": 0.6,       # how much of the light's hue the tone keeps
     "EMIT_FROM": 5.0,       # light this many times the key is a lamp, not a surface
     # 2. hatching, in pixels of a 1080-line picture
@@ -130,17 +138,35 @@ LOOK = {
     # 4. sky
     "SKY_DEPTH_CM": 1.0e6,
     "SKY_BANDS": 7.0,
-    # 5. grade
-    "SATURATION": 0.84,
-    "GRADE_TINT": (1.03, 1.00, 0.95),
+    # 5. grade. Colour is held a little under what the surfaces are (the
+    # grit), except the two things the art direction lets shout: the
+    # blood-red (Kuwait's red on Saud, a boss's band) and a lamp's own
+    # light, which keep all of theirs and a touch more.
+    "SATURATION": 0.88,
+    "ACCENT_FROM": 0.80,     # a red this pure -- (r - max(g, b)) / r -- starts to count
+    "ACCENT_FULL": 0.92,     # ...and is all accent here: #c8102e is 0.95, a rust tee 0.74
+    "ACCENT_SAT": 1.06,
+    # Air: the world, not a fighter, goes toward a dusty dusk as it recedes
+    # -- a painted background's depth, the souq's far walls behind the fight
+    # softer and warmer than the stall beside it. Albedo-like, times Key.
+    "HAZE": (0.58, 0.47, 0.38),
+    "HAZE_NEAR_CM": 1500.0,
+    "HAZE_FAR_CM": 25000.0,
+    "HAZE_MAX": 0.35,
     # 6. speed lines
     "SPEED_COUNT": 90.0,
     "SPEED_INNER": 0.16,     # clear circle round the blow, share of height
     "SPEED_OUTER": 0.62,
     "SPEED_ALPHA": 0.80,
     "SPEED_ON_FIGHTER": 0.0,  # the lines stop at a fighter
+    # A share of the streaks is drawn in blood rather than ink: a two-tone
+    # panel, the red the HUD gives an enemy's health (#8e1420). Linear.
+    "BLOOD": (0.2705, 0.0070, 0.0144),
+    "SPEED_RED": 0.22,
     # 7. impact frame
-    "PAPER": (0.93, 0.90, 0.84),
+    # a warm newsprint (0.93, 0.90, 0.84 until 2026-09-25): shared with the
+    # HUD's panels, which SaudHUD.cpp draws in the same two, checked below
+    "PAPER": (0.93, 0.88, 0.78),
     "IMPACT_CUT": 0.45,       # display luminance above which the cut frame is paper
     # the defaults of the game-driven parameters
     "KEY": 1.0,
@@ -196,7 +222,11 @@ def _sub(code):
         "OUTER_SHARE": _f(L["OUTER_SHARE"]), "LINE_AA": _f(L["LINE_AA_PX"]),
         "INNER_A": _f(L["INNER_ALPHA"]), "FADE_NEAR": _f(L["FADE_NEAR_CM"]),
         "FADE_FAR": _f(L["FADE_FAR_CM"]), "FADE_MIN": _f(L["FADE_MIN"]),
-        "SATURATION": _f(L["SATURATION"]), "GRADE_TINT": _f3(L["GRADE_TINT"]),
+        "SATURATION": _f(L["SATURATION"]), "LIT_TINT": _f3(L["LIT_TINT"]),
+        "ACCENT_FROM": _f(L["ACCENT_FROM"]), "ACCENT_FULL": _f(L["ACCENT_FULL"]), "ACCENT_SAT": _f(L["ACCENT_SAT"]),
+        "HAZE_NEAR": _f(L["HAZE_NEAR_CM"]), "HAZE_FAR": _f(L["HAZE_FAR_CM"]), "HAZE_MAX": _f(L["HAZE_MAX"]),
+        "HAZE": _f3(L["HAZE"]),
+        "BLOOD_D": _f3(display(L["BLOOD"])), "SPEED_RED": _f(L["SPEED_RED"]),
         "SPEED_COUNT": _f(L["SPEED_COUNT"]), "SPEED_INNER": _f(L["SPEED_INNER"]),
         "SPEED_OUTER": _f(L["SPEED_OUTER"]), "SPEED_ON_FIGHTER": _f(L["SPEED_ON_FIGHTER"]),
         "SPEED_A": _f(L["SPEED_ALPHA"]), "IMPACT_CUT": _f(L["IMPACT_CUT"]),
@@ -269,8 +299,9 @@ float Q = lerp(lerp(lerp(Q_LIT, Q_HIGH, High), Q_SHADOW, Shad), Q_DEEP, Deep);
 float3 Hue = C / max(A, 0.02);
 Hue = clamp(lerp(float3(1, 1, 1), Hue / max(dot(Hue, LUMA), 0.0001), TINT_KEEP), 0.0, 2.0);
 float3 Out = A * (Q * Key) * Hue;
-Out *= lerp(float3(1, 1, 1), SHADOW_TINT, Shad);
-Out = lerp(Out, C, smoothstep(EMIT_FROM, 2.0 * EMIT_FROM, T));
+Out *= lerp(LIT_TINT, SHADOW_TINT, Shad);
+float Emit = smoothstep(EMIT_FROM, 2.0 * EMIT_FROM, T);
+Out = lerp(Out, C, Emit);
 
 // 2. hatching, in pixels of a 1080-line view, fixed to the view
 float2 Sp = GetViewportUV(Parameters) * View.ViewSizeAndInvSize.xy / Lines;
@@ -333,8 +364,15 @@ if (Sky)
     Out = lerp(C * (Lb / max(Ls, 0.0001)), INK, Outer);   // a fighter's line over the sky
 }
 
-// 5. grade
-Out = lerp(dot(Out, LUMA).xxx, Out, SATURATION) * GRADE_TINT;
+// 5. grade: air over the world, then colour held under except the accents
+if (!Fighter && !Sky)
+{
+    float Air = HAZE_MAX * smoothstep(HAZE_NEAR, HAZE_FAR, D);
+    Out = lerp(Out, HAZE * Key, Air);
+}
+float Red = (Out.r - max(Out.g, Out.b)) / max(Out.r, 0.0001);
+float Accent = max(smoothstep(ACCENT_FROM, ACCENT_FULL, Red), Emit);
+Out = lerp(dot(Out, LUMA).xxx, Out, lerp(SATURATION, ACCENT_SAT, Accent));
 
 // 7a. the impact frame, drawn: the lit side paper, the rest ink. It passes
 // through TSR, bloom and the tonemapper after this, which soften it;
@@ -380,7 +418,8 @@ float Cell = floor(Ang);
 float Rnd = frac(sin(Cell * 12.9898 + SpeedSeed * 78.233) * 43758.5453);
 float Streak = step(frac(Ang), 0.12 + 0.30 * Rnd) * step(0.45, Rnd);
 float Reach = smoothstep(SPEED_INNER + 0.25 * Rnd * SPEED_INNER, SPEED_OUTER, Rad);
-Out = lerp(Out, INK_D, Streak * Reach * Speed * SPEED_A * (Fighter ? SPEED_ON_FIGHTER : 1.0));
+float3 LineC = Rnd > 1.0 - SPEED_RED ? BLOOD_D : INK_D;
+Out = lerp(Out, LineC, Streak * Reach * Speed * SPEED_A * (Fighter ? SPEED_ON_FIGHTER : 1.0));
 return Out;
 """)
 
@@ -447,8 +486,9 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0):
     hue = C / np.maximum(A, 0.02)
     hue = np.clip(lerp(np.ones(3), hue / np.maximum(hue @ luma, 1e-4)[..., None], L["TINT_KEEP"]), 0.0, 2.0)
     out = A * (Q * key)[..., None] * hue
-    out = out * lerp(np.ones(3), np.array(L["SHADOW_TINT"]), shad[..., None])
-    out = lerp(out, C, _smooth(L["EMIT_FROM"], 2.0 * L["EMIT_FROM"], T)[..., None])
+    out = out * lerp(np.array(L["LIT_TINT"]), np.array(L["SHADOW_TINT"]), shad[..., None])
+    emit = _smooth(L["EMIT_FROM"], 2.0 * L["EMIT_FROM"], T)
+    out = lerp(out, C, emit[..., None])
 
     # 2. hatching, in pixels of a 1080-line picture (pixel centres, as UV)
     yy, xx = np.mgrid[0:H, 0:W].astype(float)
@@ -504,8 +544,13 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0):
     Lb = (np.floor(Ls * L["SKY_BANDS"]) + 0.5) / L["SKY_BANDS"]
     out = np.where(sky[..., None], lerp(C * (Lb / np.maximum(Ls, 1e-4))[..., None], ink, outer[..., None]), out)
 
-    # 5. grade
-    out = lerp((out @ luma)[..., None], out, L["SATURATION"]) * np.array(L["GRADE_TINT"])
+    # 5. grade: air over the world, then colour held under except the accents
+    air = np.where(~fighter & ~sky, L["HAZE_MAX"] * _smooth(L["HAZE_NEAR_CM"], L["HAZE_FAR_CM"], D), 0.0)
+    out = lerp(out, np.array(L["HAZE"]) * key, air[..., None])
+    red = (out[..., 0] - np.maximum(out[..., 1], out[..., 2])) / np.maximum(out[..., 0], 1e-4)
+    accent = np.maximum(_smooth(L["ACCENT_FROM"], L["ACCENT_FULL"], red), emit)
+    sat = lerp(L["SATURATION"], L["ACCENT_SAT"], accent)
+    out = lerp((out @ luma)[..., None], out, sat[..., None])
 
     # 7a. the impact frame, drawn
     if impact > 0.0:
@@ -537,7 +582,9 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0):
         streak = (fr(ang) <= 0.12 + 0.30 * rnd) * (rnd >= 0.45)
         reach = _smooth(L["SPEED_INNER"] + 0.25 * rnd * L["SPEED_INNER"], L["SPEED_OUTER"], rad)
         a = streak * reach * speed * L["SPEED_ALPHA"] * np.where(fighter, L["SPEED_ON_FIGHTER"], 1.0)
-        out = lerp(out, np.array(display(L["INK"])), a[..., None])
+        line = np.where((rnd > 1.0 - L["SPEED_RED"])[..., None], np.array(display(L["BLOOD"])),
+                        np.array(display(L["INK"])))
+        out = lerp(out, line, a[..., None])
     return out
 
 
@@ -565,7 +612,24 @@ def to_8bit(disp):
 
 
 # -------------------------------------------------------------------- check
-def _sphere(n=720, front=False, noise=False):
+def _patches(n=240):
+    """Three flat swatches square to the light, all fighter, near: Kuwait's
+    red (#c8102e), a rust tee (#8c4a34) and a grey -- what the grade does to
+    an accent and to a colour that is not one."""
+    import numpy as np
+    hexes = ("c8102e", "8c4a34", "8a9099")
+    lin = lambda h: np.array([(lambda c: c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)(
+        int(h[i:i + 2], 16) / 255.0) for i in (0, 2, 4)])
+    A = np.zeros((n, 3 * n, 3))
+    for i, h in enumerate(hexes):
+        A[:, i * n:(i + 1) * n] = lin(h)
+    N = np.zeros_like(A); N[..., 2] = 1.0
+    C = A * 1.2
+    D = np.full((n, 3 * n), 300.0)
+    return C, A, N, D, np.ones((n, 3 * n), bool)
+
+
+def _sphere(n=720, front=False, noise=False, far=False):
     """A lit sphere in front of a far wall and a sky: the look's every step
     has somewhere to show. Key light from the upper left. `front` puts a
     small ball 10 cm in front of it (a fist over a chest: 4 % of the
@@ -579,7 +643,7 @@ def _sphere(n=720, front=False, noise=False):
     z = np.sqrt(np.clip(0.36 - r2, 0, None))
     N = np.zeros((n, n, 3)); N[..., 0] = u / 0.6; N[..., 1] = -v / 0.6; N[..., 2] = z / 0.6
     N[~on] = (0, 0, 1)
-    D = np.where(on, 300.0 - z * 100.0, 900.0)
+    D = np.where(on, 300.0 - z * 100.0, 25000.0 if far else 900.0)
     if front:
         cu, cv, rb = 0.20, 0.25, 0.15
         r2b = (u - cu) ** 2 + (v - cv) ** 2
@@ -624,6 +688,14 @@ def check(bite=None):
             LOOK["FOLD_MIN"] = 1; LOOK["FOLD_MAX"] = 8
         if bite == "stepped":
             LOOK["LINE_AA_PX"] = 0.0
+        if bite == "one_tint":
+            LOOK["SHADOW_TINT"] = LOOK["LIT_TINT"]
+        if bite == "accent_muted":
+            LOOK["ACCENT_FROM"] = 1.5; LOOK["ACCENT_FULL"] = 2.0
+        if bite == "no_air":
+            LOOK["HAZE_MAX"] = 0.0
+        if bite == "ink_lines":
+            LOOK["SPEED_RED"] = 0.0
         if bite == "sky_shaded":
             LOOK["SKY_DEPTH_CM"] = 1e12
         if bite == "lines_over_men":
@@ -643,6 +715,25 @@ def check(bite=None):
         assert lit.sum() > 500 and sh.sum() > 500, "the sphere has a lit and a shadow side"
         assert np.ptp(rel[lit]) < 0.12 and np.ptp(rel[sh]) < 0.12, "each tone is flat"
         assert np.median(rel[lit]) > 1.6 * np.median(rel[sh]), "the terminator is a step"
+        # 1b. split toning: the shadow side is cooler than the lit side, in
+        #     hue and not only in value
+        br = lambda px: np.median(out[px][:, 2] / np.maximum(out[px][:, 0], 1e-6))
+        assert br(sh) > 1.15 * br(lit), "the shadows lean cool against a warm light"
+        # 5. the grade holds colour under, except the red accent
+        Cp, Ap, Np, Dp, onp = _patches()
+        op, _mp = preview(Cp, Ap, Np, Dp, onp)
+        sat = lambda c: (c.max(axis=-1) - c.min(axis=-1)) / np.maximum(c.max(axis=-1), 1e-6)
+        w = Dp.shape[1] // 3
+        keep = [np.median(sat(op[:, i * w:(i + 1) * w]) / np.maximum(sat(Ap[:, i * w:(i + 1) * w]), 1e-6))
+                for i in range(3)]
+        assert keep[0] > keep[1] + 0.05, "Kuwait's red keeps its colour where a rust tee is held under"
+        # 5b. air: the far world recedes toward the dusk, a fighter does not
+        Cf, Af, Nf, Df, onf = _sphere(far=True)
+        of, _mf = preview(Cf, Af, Nf, Df, onf)
+        wall = ~on & (D < LOOK["SKY_DEPTH_CM"])
+        wall = wall & ~_shift(on, 8, 0, False) & ~_shift(on, -8, 0, False)
+        assert np.abs(of[wall] - out[wall]).mean() > 0.02, "the far world is in the air"
+        assert np.abs(of[on] - out[on]).max() < 1e-9, "and a fighter is not"
         # 3. a silhouette line all round the sphere's edge
         ring = on & (~_shift(on, 1, 0, False) | ~_shift(on, -1, 0, False)
                      | ~_shift(on, 0, 1, False) | ~_shift(on, 0, -1, False))
@@ -700,6 +791,8 @@ def check(bite=None):
         assert diff[rr < LOOK["SPEED_INNER"]].mean() == 0.0, "the blow itself is clear"
         assert 0.1 < diff[rr > LOOK["SPEED_OUTER"]].mean() < 0.7, "streaks, not a fill"
         assert diff[on].mean() == 0.0, "the speed lines stop at a fighter"
+        reds = diff & (sp[..., 0] > sp[..., 1] + 0.15)
+        assert 0.05 < reds.sum() / max(diff.sum(), 1) < 0.5, "some streaks are blood, most are ink"
     finally:
         LOOK.clear(); LOOK.update(saved)
     return True
@@ -721,6 +814,14 @@ def _check_names():
         left = set(re.findall(r"\b[A-Z][A-Z]+_[A-Z_]+\b|\b(?:SOFT|INK|PAPER)\b", code))
         assert not left, "placeholders left in %s: %s" % (path, sorted(left))
         assert "EyeAdaptationLookup" not in code, "the buffer is pre-exposed; do not expose it twice"
+    # the HUD's panels are drawn in the look's own ink and paper
+    hud = open(os.path.join(ROOT, "Source", "SaudFighter", "Game", "SaudHUD.cpp")).read()
+    for var, key in (("InkC", "INK"), ("PaperC", "PAPER")):
+        m = re.search(r"FLinearColor %s\(([0-9.]+)f, ([0-9.]+)f, ([0-9.]+)f" % var, hud)
+        assert m, "SaudHUD.cpp has no %s" % var
+        got = tuple(float(v) for v in m.groups())
+        assert all(abs(a - b) < 1e-6 for a, b in zip(got, LOOK[key])), (
+            "SaudHUD.cpp's %s is %s, the look's %s is %s" % (var, got, key, LOOK[key]))
 
 
 # ------------------------------------------------------------------- editor
@@ -800,6 +901,7 @@ if __name__ == "__main__":
         build_in_editor()
     elif "--bite" in sys.argv:
         bites = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "specks", "stepped",
+                 "one_tint", "accent_muted", "no_air", "ink_lines",
                  "sky_shaded", "flat_impact", "lines_over_men", "no_cut")
         caught = 0
         for b in bites:
