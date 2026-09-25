@@ -539,7 +539,7 @@ def _hierarchy_order(arm_obj):
     return out
 
 
-def pose(arm_obj, directions, targets=None, poles=None):
+def pose(arm_obj, directions, targets=None, poles=None, drop=0.0):
     """A pose is where each limb points, in world space -- not Euler angles --
     plus, for the four limbs, where the foot or the fist is.
 
@@ -554,6 +554,8 @@ def pose(arm_obj, directions, targets=None, poles=None):
     `targets` are world positions for ik_foot_l/r and ik_hand_l/r; `poles`
     are world positions for the four pole Empties. With neither given every
     target sits at rest and the IK reproduces the FK pose to the millimetre.
+    `drop` lowers the pelvis, and everything it carries, by that much: how
+    limb_targets stands a bent-kneed stance on the floor (below).
     """
     bpy.context.view_layer.objects.active = arm_obj
     bpy.ops.object.mode_set(mode="POSE")
@@ -576,6 +578,10 @@ def pose(arm_obj, directions, targets=None, poles=None):
         matrix.translation = Vector(where)
         pbone.matrix = matrix
     bpy.context.view_layer.update()
+    if drop:
+        pel = arm_obj.pose.bones["pelvis"]
+        m = pel.matrix.copy(); m.translation.z -= drop; pel.matrix = m
+        bpy.context.view_layer.update()
 
     for name in _hierarchy_order(arm_obj):
         if name not in directions:
@@ -675,14 +681,26 @@ def limb_targets(arm_obj, mesh_obj, fk, plant):
     floor = {side: _foot_floor(mesh_obj, arm_obj, side) for side in ("l", "r")}
 
     report = {}
+    # The body comes down onto its feet, not the feet down to the floor: a
+    # foot pulled down under a hip that stays where it was straightens the
+    # knee, and Saud's MMA stance, 38 degrees at each knee, rendered
+    # straight-legged that way (2026-09-25). The whole man -- pelvis, every
+    # target, every pole -- is lowered until the higher planted foot is on
+    # the floor; only what is left over is taken up by the foot itself.
+    pose(arm_obj, fk, targets, poles)
+    body = max(0.0, min(_foot_floor(mesh_obj, arm_obj, side) - floor[side] for side in plant))
+    for d in (targets, poles):
+        for k in d:
+            d[k] = d[k] - Vector((0.0, 0.0, body))
+    report["body_drop"] = body
     for side in plant:
         for _ in range(3):
-            pose(arm_obj, fk, targets, poles)
+            pose(arm_obj, fk, targets, poles, drop=body)
             drop = _foot_floor(mesh_obj, arm_obj, side) - floor[side]
             targets["ik_foot_" + side].z -= drop
             if abs(drop) < 0.0005:
                 break
-    pose(arm_obj, fk, targets, poles)
+    pose(arm_obj, fk, targets, poles, drop=body)
     for side in ("l", "r"):
         report["foot_" + side] = _foot_floor(mesh_obj, arm_obj, side) - floor[side]
         report["hand_" + side] = ((world @ pb["lowerarm_" + side].tail)

@@ -615,6 +615,15 @@ def stance(rig, fk, mesh=None, plant=("l", "r")):
             pb[name].matrix = m; _update()
         for name, where in poles.items():
             set_translation(rig, name, where)
+        # The body comes down onto its feet (build_saud.limb_targets says
+        # why): hips, hand and foot controls and poles all lowered until the
+        # higher planted foot is on the floor, the knees' bend kept.
+        body = max(0.0, min(legacy._foot_floor(mesh, rig, s) - floor[s] for s in plant))
+        if body:
+            for name in ["CTRL_hips"] + list(cur):
+                m = pb[name].matrix.copy(); m.translation.z -= body; pb[name].matrix = m; _update()
+            for name, where in poles.items():
+                set_translation(rig, name, where - Vector((0.0, 0.0, body)))
         for s in plant:
             for _ in range(3):
                 drop = legacy._foot_floor(mesh, rig, s) - floor[s]

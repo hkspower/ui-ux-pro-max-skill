@@ -488,11 +488,11 @@ def build_fighter(spec, argv=None):
     guard = legacy.guard_for(low)          # Saud's is the MMA stance
     targets, poles, report = legacy.limb_targets(rig, mesh, guard, plant=("l", "r"))
     legacy.print_pose_report("guard", ("l", "r"), report)
-    legacy.pose(rig, guard, targets, poles); R.close_fists(rig)
+    legacy.pose(rig, guard, targets, poles, drop=report.get("body_drop", 0.0)); R.close_fists(rig)
     shot("guard", (1.55, -3.35, 1.24), (0, 0, look_z), 62)
     targets, poles, report = legacy.limb_targets(rig, mesh, legacy.KICK, plant=("l",))
     legacy.print_pose_report("kick", ("l",), report)
-    legacy.pose(rig, legacy.KICK, targets, poles); R.close_fists(rig)
+    legacy.pose(rig, legacy.KICK, targets, poles, drop=report.get("body_drop", 0.0)); R.close_fists(rig)
     shot("kick", (3.00, -2.45, 1.22), (0.14, 0, 0.96 * factors["h"]), 58)
     legacy.mute_ik(rig, True); legacy.pose(rig, {}); R.close_fists(rig, 0.0)
     shot("apose", (0.35, -3.60, 1.05), (0, 0, look_z), 58)
