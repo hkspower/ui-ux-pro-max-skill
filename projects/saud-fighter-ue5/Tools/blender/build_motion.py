@@ -818,8 +818,13 @@ def author_strike(au, c, S):
     # at contact. Carried with the chest alone (COVER's aims), a 60 degree
     # turn swung it 40 cm out to the side of a head that -- since
     # 2026-09-26 -- keeps looking at the opponent.
+    # --bite "tuck": the fist is carried with the chest (COVER) and never
+    # tucked, so a cross's turn swings it 40 cm out to the side of the face.
+    # ("cover" alone no longer breaks anything measurable: with the head
+    # kept on the opponent, a fist left at the guard's world spot sits 11 cm
+    # in front of the face, which is a cover.)
     tuck = None
-    if cs:
+    if cs and "tuck" not in SABOTAGE:
         from mathutils import Vector
         hm0 = g["fk"]["head_m"]
         g_local = hm0.inverted() @ g["fk"]["hand_" + cs].translation
@@ -1765,7 +1770,7 @@ def bite():
         ("closed fists",   "fists",  ["A_Saud_Guard"],                 "hand is open"),
         ("guard hands",    "guard",  ["A_Saud_Guard"],                 "not up in front of the face"),
         ("palms in",       "palms",  ["A_Street_Guard"],                 "palm faces the opponent"),
-        ("covering hand",  "cover",  ["A_Street_Cross"],               "not up in front of the face"),
+        ("covering hand",  "tuck",   ["A_Street_Cross"],               "not up in front of the face"),
     ]
     results = []
     for label, sab, names, expect in cases:
