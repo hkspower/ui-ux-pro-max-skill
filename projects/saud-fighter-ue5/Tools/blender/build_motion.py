@@ -1361,6 +1361,12 @@ def hands_check(c, rig, fails):
             return "the %s fist is not up in front of the face (%.0f cm forward, %.0f across, %+.0f up)" % (
                 s, fwd * 100, across * 100, dz * 100)
         if not strict:
+            # ...and tucked: the covering fist is at the cheek by contact
+            # (author_strike's tuck, 15 cm out). Left at the guard's spot
+            # while the shoulder goes back, a boxer's lead hand hangs 36 cm
+            # out in front of the face at the end of a stiff arm.
+            if fwd > 0.26 * k:
+                return "the %s fist hangs out in front of the face (%.0f cm forward) instead of tucking" % (s, fwd * 100)
             return None
         hm = (W @ pb["head"].matrix).inverted()
         if abs((hm @ el).x) > abs((hm @ sh).x) - 0.02 * k:
