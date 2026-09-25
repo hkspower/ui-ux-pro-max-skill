@@ -371,7 +371,7 @@ if (!Fighter && !Sky)
     Out = lerp(Out, HAZE * Key, Air);
 }
 float Red = (Out.r - max(Out.g, Out.b)) / max(Out.r, 0.0001);
-float Accent = max(smoothstep(ACCENT_FROM, ACCENT_FULL, Red), Emit);
+float Accent = max(smoothstep(ACCENT_FROM, ACCENT_FULL, Red), Sky ? 0.0 : Emit);   // the sky has no base colour: not a lamp
 Out = lerp(dot(Out, LUMA).xxx, Out, lerp(SATURATION, ACCENT_SAT, Accent));
 
 // 7a. the impact frame, drawn: the lit side paper, the rest ink. It passes
@@ -548,7 +548,7 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0):
     air = np.where(~fighter & ~sky, L["HAZE_MAX"] * _smooth(L["HAZE_NEAR_CM"], L["HAZE_FAR_CM"], D), 0.0)
     out = lerp(out, np.array(L["HAZE"]) * key, air[..., None])
     red = (out[..., 0] - np.maximum(out[..., 1], out[..., 2])) / np.maximum(out[..., 0], 1e-4)
-    accent = np.maximum(_smooth(L["ACCENT_FROM"], L["ACCENT_FULL"], red), emit)
+    accent = np.maximum(_smooth(L["ACCENT_FROM"], L["ACCENT_FULL"], red), np.where(sky, 0.0, emit))
     sat = lerp(L["SATURATION"], L["ACCENT_SAT"], accent)
     out = lerp((out @ luma)[..., None], out, sat[..., None])
 
@@ -727,6 +727,12 @@ def check(bite=None):
         keep = [np.median(sat(op[:, i * w:(i + 1) * w]) / np.maximum(sat(Ap[:, i * w:(i + 1) * w]), 1e-6))
                 for i in range(3)]
         assert keep[0] > keep[1] + 0.05, "Kuwait's red keeps its colour where a rust tee is held under"
+        # 5a. the sky is held under like everything else: it has no base
+        #     colour, so it reads as a lamp, and a lamp keeps its colour --
+        #     the first version of the accent lifted the whole sky to full
+        #     saturation, loud orange over the souq
+        skyp = D > LOOK["SKY_DEPTH_CM"]
+        assert np.median(sat(out[skyp])) <= np.median(sat(C[skyp])) + 1e-6, "the sky is not an accent"
         # 5b. air: the far world recedes toward the dusk, a fighter does not
         Cf, Af, Nf, Df, onf = _sphere(far=True)
         of, _mf = preview(Cf, Af, Nf, Df, onf)
