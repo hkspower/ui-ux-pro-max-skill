@@ -149,7 +149,9 @@ def inclination(move):
 # TWIST is the one thing an aim cannot say. Aiming a bone leaves its roll to
 # to_track_quat, so a torso cannot be rotated about its own length -- and a
 # cross with no hip in it is a cartoon. Each entry is extra radians about the
-# bone's own axis, positive turning his left shoulder forward.
+# bone's own axis, positive turning his RIGHT shoulder forward (measured on
+# the clips 2026-09-26: the cross's +60 degrees brings the right shoulder
+# round; the jab's negative twist the left).
 
 SUPPORT_FOOT = (0.05, -0.55, -0.83)     # heel up, weight over the ball
 
@@ -175,9 +177,13 @@ def _strikes(base=None):
     # ---- lead hand, straight, almost no body behind it
     S["Jab"] = (over(
         clavicle_l=(0.84, -0.52, 0.14),
-        upperarm_l=(0.20, -0.95, -0.24),
-        lowerarm_l=(0.08, -0.99, -0.06),
-        hand_l=(0.04, -1.00, -0.02),
+        # The punch rises to the chin: aimed 14 degrees DOWN from the shoulder
+        # it landed 32 cm under the head joint, at the chest (measured on the
+        # shipped clips, 2026-09-26); a straight punch at a man his own size
+        # lands at the jaw, a little above the shoulder it leaves.
+        upperarm_l=(0.20, -0.96, +0.12),
+        lowerarm_l=(0.08, -0.99, +0.08),
+        hand_l=(0.04, -1.00, +0.06),
         palm_l=(0.0, 0.0, -1.0),               # the fist turns over: palm down at the end
         # the rear hand stays where the guard has it, at the jaw -- it used
         # to be put back "on the chin" by aims of its own, which were the
@@ -188,9 +194,9 @@ def _strikes(base=None):
     # ---- rear hand, the whole body turning into it
     S["Cross"] = (over(
         clavicle_r=(-0.80, -0.58, 0.14),
-        upperarm_r=(-0.18, -0.95, -0.22),
-        lowerarm_r=(-0.06, -0.99, -0.06),
-        hand_r=(-0.03, -1.00, -0.02),
+        upperarm_r=(-0.18, -0.96, +0.12),
+        lowerarm_r=(-0.06, -0.99, +0.08),
+        hand_r=(-0.03, -1.00, +0.06),
         palm_r=(0.0, 0.0, -1.0),               # palm down at the end
         # the lead hand stays in the guard, covering
         thigh_r=(-0.22, 0.10, -0.97),          # rear heel turns over
@@ -202,9 +208,9 @@ def _strikes(base=None):
     # ---- rear hand again, but round instead of through
     S["Hook"] = (over(
         clavicle_r=(-0.72, -0.60, 0.34),
-        upperarm_r=(-0.74, -0.66, -0.12),      # elbow out, level with the fist
-        lowerarm_r=(0.16, -0.98, 0.10),
-        hand_r=(0.30, -0.95, 0.06),
+        upperarm_r=(-0.74, -0.66, +0.06),      # elbow out, level with the shoulder
+        lowerarm_r=(0.16, -0.97, 0.18),        # the fist a little above it, at the jaw
+        hand_r=(0.30, -0.94, 0.14),
         palm_r=(0.0, 0.20, -1.0),              # a horizontal fist, palm down
         # the lead hand stays in the guard
         thigh_r=(-0.24, 0.08, -0.97),
@@ -788,7 +794,7 @@ def strike_frame(au, g, aims, lean, twist, planted, lift=(0.0, 0.0, 0.0), hand_a
     for s in SIDES:
         m = fk["hand_" + s].copy()
         if hand_at and s in hand_at:
-            m.translation = hand_at[s]
+            m.translation = hand_at[s](fk) if callable(hand_at[s]) else hand_at[s]
         au.arm(s, m, M.pole_from(fk["sh_" + s], fk["el_" + s], fk["wr_" + s], Vector((0.0, 1.0, 0.0))))
     if spin:
         au.pivot(*spin)
@@ -806,6 +812,19 @@ def author_strike(au, c, S):
     striker = {"lead_arm": "l", "rear_arm": "r"}.get(limb)
     cs = COVER.get(c["move"]) if "cover" not in SABOTAGE else None
     cover = tuple(b + "_" + cs for b in ("clavicle", "upperarm", "lowerarm", "hand", "palm")) if cs else ()
+    # The covering fist tucks to the cheek as the body turns into the blow:
+    # a fixed place in the HEAD's frame, from wherever the guard holds it
+    # (an MMA lead hand is 44 cm out) to 15 cm in front of the cheekbone
+    # at contact. Carried with the chest alone (COVER's aims), a 60 degree
+    # turn swung it 40 cm out to the side of a head that -- since
+    # 2026-09-26 -- keeps looking at the opponent.
+    tuck = None
+    if cs:
+        from mathutils import Vector
+        hm0 = g["fk"]["head_m"]
+        g_local = hm0.inverted() @ g["fk"]["hand_" + cs].translation
+        tuck_local = Vector(((1.0 if cs == "l" else -1.0) * 0.09, -0.07, 0.15))
+        tuck = (cs, g_local, tuck_local)
 
     def pose(k, lift=(0.0, 0.0, 0.0), hand_at=None, spin=None):
         return strike_frame(au, g, aims_at(guard, strike, k, c["stance"]), tip * k,
@@ -838,7 +857,12 @@ def author_strike(au, c, S):
             lift = (math.sin(ph) * 0.9 * PX, 0.0, (math.cos(ph) - 1.0) * IDLE_PX * PX)
         else:
             k = blend_k(t, c["su"], c["ac"], c["rc"]) * c["amp"]
-        hand_at = {striker: ends[0].lerp(ends[1], k / c["amp"])} if ends else None
+        hand_at = {striker: ends[0].lerp(ends[1], k / c["amp"])} if ends else {}
+        if tuck:
+            cs_, gl, tl = tuck
+            w = min(1.0, k / c["amp"])
+            hand_at[cs_] = (lambda fk, w=w: fk["head_m"] @ gl.lerp(tl, w))
+        hand_at = hand_at or None
         spin = (g["ball_l"], turns * 2.0 * math.pi * (t / c["seconds"])) if turns else None
         loc, world, rolls, drop, _fk = pose(k, lift, hand_at, spin)
         frames.append((loc, world))

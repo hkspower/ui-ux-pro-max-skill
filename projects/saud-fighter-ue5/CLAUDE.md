@@ -1908,6 +1908,45 @@ The clips were rebuilt with the new stances (57, every check passing).
 Until the rebuilds land, the shipped models are the old body. **Not
 verified:** no engine has imported any of it.
 
+## The bosses' motion, scanned -- 2026-09-26
+
+Asked as "scan bosses motion": the seventeen boss clips read back from
+their FBX and measured the way a reviewer would measure a fight -- at
+contact, over the swing, at the end -- with the contact sheet beside the
+numbers. What held: every elbow at a straight punch's contact 152-171
+degrees (bent, not locked), the hook's 115-117; the round kick's knee 147-
+152 at contact from a 115-131 chamber, the foot 30-34 cm over the hip; the
+knee strike's knee 64-65 degrees, 25-27 cm over the hip; the spinning kick
+turns 339 degrees and lands on both feet; the support foot's heel comes
+up 6 cm through a kick; every guard loop closes to a millimetre and sways
+5 cm in its loop; each boss's guard matches his solved stance to 1-5
+degrees a bone. Three things did not hold, and they were the same in
+Saud's and the street men's clips, since the strike shapes are shared:
+
+- **Every straight punch landed at the chest.** The jab and cross were
+  aimed 14 degrees DOWN from the shoulder and the fist arrived 32 cm under
+  the head joint; the hook 20 under. A straight punch at a man his own
+  size lands at the jaw, a little above the shoulder it leaves. Re-aimed
+  (`build_motion._strikes`): 5-11 cm under the chin now, the hook 6-9.
+- **He looked away from the man he was hitting.** The torso twist carried
+  the head round with it, so at a cross's contact the face pointed 60
+  degrees off the opponent, a hook's 86-93. The neck and head take the
+  turn back (`motion_ik.fk_body`, 40 / 60 %): 0-5 degrees off now. (In
+  the spinning kick the head is 77 degrees off at contact, mid-turn --
+  that one is the spin.)
+- **The covering fist, once the head stayed put, was 40 cm out to the side
+  of it** -- carried with the chest (2026-09-25's COVER) it swung out as the
+  shoulders turned. It is a place in the HEAD's frame now: from wherever
+  the guard holds it (an MMA lead hand is 44 cm out) it tucks to 15 cm in
+  front of the cheekbone by contact, and the IK bends the arm to keep it
+  there as the shoulder goes back.
+
+Also corrected: the twist table's comment had its sign backwards (positive
+turns the RIGHT shoulder forward -- the cross's +60 degrees is the right
+shoulder coming round). All 57 clips rebuilt; every check passes; a strike
+ends within 3.5 cm of its guard on every bone (fingers), so the state
+machine's blend back is short. **Not verified** in an engine, as before.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

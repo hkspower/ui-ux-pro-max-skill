@@ -150,6 +150,14 @@ class Author:
         for nm, amt in (twist or {}).items():
             tgt = "CTRL_hips" if nm == "pelvis" else nm
             pb[tgt].rotation_quaternion = pb[tgt].rotation_quaternion @ Quaternion((0, 1, 0), amt)
+        if twist:
+            # The eyes stay on the man he is hitting: every twist below the
+            # neck carried the head round with it, so at a cross's contact
+            # he looked 60 degrees off his opponent (measured 2026-09-26).
+            # The neck takes back 40 % of the turn and the head the rest.
+            total = sum(twist.values())
+            for nm, share in (("neck_01", 0.40), ("head", 0.60)):
+                pb[nm].rotation_quaternion = pb[nm].rotation_quaternion @ Quaternion((0, 1, 0), -total * share)
         upd()
         if lean or twist:
             turn = pb["spine_03"].matrix.to_quaternion() @ chest0.inverted()
@@ -187,6 +195,7 @@ class Author:
         out["pelvis"] = pb["pelvis"].matrix.copy()
         out["head"] = pb["head"].head.copy()
         out["head_tail"] = pb["head"].tail.copy()
+        out["head_m"] = pb["head"].matrix.copy()
         return out
 
     # --------------------------------------------------------------- limbs
