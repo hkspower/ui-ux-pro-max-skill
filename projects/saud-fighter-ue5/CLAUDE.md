@@ -1705,6 +1705,108 @@ compiled any of the C++; the preview's exposure is a stand-in (the
 fighters' light at its 55th percentile is "lit") where the engine's is its
 eye adaptation and `MPC_Anime.Key`.
 
+**The borders, 2026-09-25** ("improve all enemy and Saud borders", the ink
+outlines). Measured on `anime-men.png`: the ink was 0.030 linear, a
+mid-grey once exposed and lighter than a black tee, so round dark kit the
+outline read as a pale halo; the fighter's line was drawn only inside
+him, at half its stated width; a limb over his own body got no line (7 %
+of 4 m is 28 cm); fold lines speckled wherever the normals were noisy, and
+a fold read across a depth jump laid a ghost line on the wall beside every
+fighter. Now: ink near black (0.004); the silhouette centred on his edge
+(`OUTER_SHARE`), half over what is behind him and unbroken wherever his
+custom depth ends; a limb outlined where the depth breaks
+(`FIGHTER_EDGE_CM`, the jump less the near side's slope); a fold only
+across one surface and with two sides (`FOLD_MIN`/`FOLD_MAX`); every
+edge antialiased (`LINE_AA_PX`). Each has a check on synthetic input and a
+sabotage that breaks it.
+
+**The colours, 2026-09-25** ("improve colours": the Unreal build; the
+grade, the fighters' kit, the backgrounds, the HUD and hit effects;
+richer, still gritty). The browser's numbers do not move:
+- **Grade** (`M_Anime_Post`): the shadow and deep tones a step lower
+  (0.42 -> 0.38, 0.16 -> 0.13); split toning -- the shadows a cool slate, the
+  lit side dust-warm, where one warm tint lay over everything and
+  cancelled the shadows' cool; colour held under (0.88) except the
+  accents the art direction lets shout -- a pure red (Kuwait's, a boss's
+  band) and a lamp's own light keep theirs and a touch more; and air: the
+  world, never a fighter, recedes toward a dusty dusk from 15 m to 250 m
+  (`HAZE`), the painted background's depth behind the fight.
+- **Kit** (`hero/finish.fabric`): the browser paints the black kits at
+  0.004-0.014 albedo, darker than velvet; under three tones they were one
+  flat black with no folds. Below L* 36 the pipeline draws a colour up
+  toward a fabric's floor (L* ~20, 0.03) keeping its order and its hue,
+  with 20 % more chroma: Saud's tee 0.009 -> 0.031, a cool charcoal; his
+  trousers 0.005 -> 0.027. Everything lighter is the browser's untouched.
+  All six men are being rebuilt from their checkpoints with it
+  (started 2026-09-25; until they land, the shipped textures are the
+  old ones).
+- **HUD** (`SaudHUD.cpp`): ink near black and paper a warm newsprint,
+  both the look's own and checked against it; an empty bar the cool slate
+  of the shadows; the enemy's red an oxblood under Saud's; a deeper amber
+  stamina; a hotter rage gold.
+- **Hit effects**: the impact frame's paper is that newsprint, and 22 %
+  of the speed-line streaks are drawn in the HUD's blood red, a two-tone
+  panel.
+Checked: `anime_look.py` 15 of 15 sabotages caught (split tone, accent,
+air, blood streaks among them). **Not verified**: no engine has built the
+materials or drawn the HUD; the HUD's colours have never been seen at all.
+
+## Hands, the guard, and Saud's MMA stance -- 2026-09-24/25
+
+Asked as "make all enemy and Saud use the best position for arm and hand"
+(the Unreal build: guard, block, strikes, walk and dash), then "scan any
+real MMA fight then make Saud the same position" (Saud only; every other
+man keeps the boxer's guard).
+
+**The boxer's guard, every man but Saud** (`build_saud.GUARD`). Measured
+first, the same in every clip and every man: both fists 15 cm under the
+head and as wide as the shoulders, elbows 5 cm outside them, forearms
+straight up, and a hand never closed -- the mesh is built as a loose claw
+and nothing posed a finger. The arms are a two-bone solve per side on
+Saud's skeleton (rear fist at the jaw 19 cm out, lead fist 36 cm out,
+elbows inside the shoulders, wrists straight); `palm_l`/`palm_r` and
+`roll_palm()` turn the knuckles to the opponent; `FIST_CURL`/`FIST_THUMB`,
+found by rendering the hand, close it with the thumb folded across. Every
+clip is keyed with closed fists. **The covering hand** of a cross or hook
+turns with the chest (`build_motion.COVER`, `motion_ik.fk_body(carry=)`):
+held to its world aim, the shoulders turned 60 degrees out from under it
+and left the fist level with the face or behind it, 19-23 cm low, at
+contact. It is 35 cm out in front of the face now.
+
+**Saud's stance is a mixed martial artist's** (`build_saud.MMA_GUARD`,
+`guard_for()`). Nothing was watched -- no video can be seen from here --
+it is the stance as published by MMA coaches, solved on his skeleton for
+what they agree on: feet about shoulder-width, one staggered 30-46 cm
+ahead (42 cm across, 38 ahead); knees bent 30-45 degrees, hips low (38 both,
+where the boxer's are 8 and 26); weight 50/50 (the pelvis over the middle
+of the feet); hands at chin height but further from the face, the lead
+extended (44 cm and 28, against 36 and 19); elbows slightly out, still
+inside the shoulders; chin tucked. Sources: evolve-mma.com ("MMA stances,
+an explainer"), drewdober.com ("Stance and footwork for MMA"),
+lowkickmma.com ("Fighting stances"), apexmma.com.au ("The importance of
+stance in MMA"), fightencyclopedia.com ("Boxing vs MMA striking",
+"Orthodox stance"), dynamicstriking.com ("MMA stance vs boxing stance").
+
+**The street men had been playing Saud's clips**, so a Saud-only stance
+needed a set of their own: `Content/Animation/Street/A_Street_*` is Saud's
+twenty clips struck on the boxer's guard. `SaudMotionComponent::Find`
+looks for a fighter's own clip, then the Street one, then Saud's; Saud
+never borrows. The bosses' walks, blocks and falls come from Street now.
+The harness checks both sets are on disk (and fails when one is missing).
+
+**Fixed on the way:** the fall's hip heights were meant to be absolute --
+the pelvis 12 cm off the floor at the end of Down -- but the guard's
+grounding was added on top, so every fall sat lower by it: 1.6 cm on the
+boxer's straight legs, 5.6 on Saud's bent ones, through the floor.
+
+**Checked:** 57 clips pass every motion check (bake 0.002 mm off the rig,
+read-back 0.01 mm); `build_motion.py --bite` 20 of 20 -- the knee and palm
+sabotages run on the Street guard, because the MMA stance is solved with
+its knees forward and its lead palm squared and cannot show them broken.
+Guard and kick renders re-struck for the five other men; Saud's come
+with his rebuild. **Not verified**: no
+engine has imported the clips or compiled the lookup change.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
