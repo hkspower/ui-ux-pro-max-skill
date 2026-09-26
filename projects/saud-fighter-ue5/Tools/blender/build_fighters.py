@@ -6,6 +6,7 @@
     python3 build_fighters.py --fast           1K textures, quick renders
     python3 build_fighters.py --coarse         a rough body, to check the stages
     python3 build_fighters.py --check          the roster and the palette only
+    python3 build_fighters.py --hair-check     every cut's geometry checked, and the check bitten
     python3 build_fighters.py --out DIR        write somewhere else than the project
 
 WHO. SOUQ AL-DAWAR's three waves are thugs and brawlers (DT_Stages.json,
@@ -64,8 +65,53 @@ def one(kind, argv):
     return pipeline.build_fighter(roster.spec(kind), argv)
 
 
+def hair_check():
+    """--hair-check: every cut through assembly.check_hair, clean, and each
+    of its four rules broken once to prove it bites (2026-09-26): a part
+    over HAIR_TOP, a shell with no taper (the step at the hairline, the
+    rope in every face render), a lock thinner than 2.5 voxels (AL-SAQR's
+    shards), and nothing over the crown. bpy as a module, a few seconds."""
+    import build_saud as legacy
+    from hero import assembly as ASM
+    styles = [s for s in ASM.HAIR_STYLES if s not in ("bald", "crop")]
+    for style in styles:
+        legacy.reset_scene()
+        top = ASM.check_hair(ASM.hair_parts(style), style)
+        print("  %-8s clean   top %.4f" % (style, top))
+
+    def over(parts):
+        for v in parts[0].data.vertices: v.co.z += 0.006     # the whole volume, 6 mm up
+        return parts
+    def no_taper(parts):
+        return [ASM.hair_shell(0.0040, taper=False)] + parts[1:]
+    def thin(parts):
+        return parts + [ASM.ellipsoid("quiff_lock", (0.0, -0.05, 1.785), (0.008, 0.0025, 0.012))]
+    def bald_top(parts):
+        # only what stays under 1.790: the crown left bare
+        return [o for o in parts if max(v.co.z for v in o.data.vertices) < 1.790]
+    bites = [("above the line", over, "above"), ("no taper", no_taper, "step"),
+             ("thin lock", thin, "shards"), ("nothing on top", bald_top, "crown")]
+    caught = 0
+    for label, bite, word in bites:
+        legacy.reset_scene()
+        parts = bite(ASM.hair_parts("quiff"))
+        try:
+            ASM.check_hair(parts, "quiff")
+            print("  %-15s NOT caught" % label)
+        except AssertionError as e:
+            ok = word in str(e)
+            caught += ok
+            print("  %-15s %s  %s" % (label, "caught" if ok else "WRONG CHECK", e))
+    print("  %d of %d hair sabotages caught" % (caught, len(bites)))
+    if caught != len(bites):
+        sys.exit(1)
+
+
 def main():
     argv = sys.argv[1:]
+    if "--hair-check" in argv:
+        hair_check()
+        return
     # flags are `--x`, plus the value that follows --out and --one; the rest
     # are the men to build
     taken = set()

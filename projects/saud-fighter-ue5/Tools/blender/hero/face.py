@@ -228,16 +228,22 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
 
     # ---- 4. the hairline, feathered -----------------------------------
     hw = hairline_weight(P)
-    # his own hair colour, grey at the temples where he is going grey
+    # his own hair colour, grey at the temples where he is going grey, in
+    # the cut's strands and clumps -- the same ones the hair material
+    # wears above the seam (hair_strands), so the two meet
+    st_rel, st_shade, _st_rough = hair_strands(P)
     w_h = (np.clip(hw, 0, 1) * on_face)[:, None]
-    col[:] = col * (1 - w_h) + hair_colour(P, hair) * w_h
+    col[:] = col * (1 - w_h) + hair_colour(P, hair) * st_shade[:, None] * w_h
     # the fade, the same one the hair material itself wears
     # (finish.kit_colour): the material boundary sits above the hairline on
     # the front and the sides (assembly.HAIR_MARGIN), so the band between
     # is this paint, and it must match the hair above it
     over(hw * hair_fade(P), skin, 1.0)
-    rel += hw * 0.0010
-    darken(hw * (1.0 - hw) * 4.0 * 0.25, 0.30)                          # shadow under the fringe
+    # Not a 1 mm step of relief across the hairline any more: that, with
+    # the shell's own step (assembly.HAIR_TAPER), was the pale rope across
+    # every forehead. The hair's own strands, where there is hair.
+    rel += hw * st_rel
+    darken(hw * (1.0 - hw) * 4.0 * 0.10, 0.30)                          # a little shade at the edge
 
     # ---- 5. the brows: two of them ------------------------------------
     # They were one Gaussian a side with sigma 26 mm at x = +-31 mm, which
@@ -416,8 +422,19 @@ def hairline_weight(P):
     # anything else puts the painted line off the cap's cut by a millimetre
     # or two all the way round.
     plane = z0 + (z1 - z0) * np.clip((y + 0.09) / 0.18, -0.4, 1.4)
-    edge = fbm(P, 260.0, 2, 3.0) - 0.5
-    hw = ramp(z - plane - 0.0045 * edge, -0.0035, 0.0035)
+    # 2026-09-26: the edge is no longer a jittered ramp (fbm at 260 / m, a
+    # beaded rope when it was lit on the shell's step) but what a real
+    # hairline is -- the hair thinning out to single hairs below a soft
+    # line: a core that is full hair from 4 mm above the plane, and below
+    # it hairs growing sparser (follicle dots, kept where a patchy density
+    # is under a probability falling to nothing 4 mm below the plane).
+    edge = fbm(P, 140.0, 2, 3.0) - 0.5
+    h = z - plane - 0.0030 * edge
+    core = ramp(h, 0.0004, 0.0040)
+    dots = follicles(P, cell=0.0016, radius=0.00055, seed=17.0)
+    patch = np.clip((fbm(P, 650.0, 2, 23.0) - 0.30) / 0.40, 0.0, 1.0)
+    stray = dots * ramp(ramp(h, -0.0040, 0.0008) - patch, -0.04, 0.04)
+    hw = np.maximum(core, 0.85 * stray)
     # a temple recession, which every young man has and a swim cap does not.
     # Bounded to the band under plane + 7.5 mm: the hair MATERIAL starts at
     # plane + 8 (assembly.HAIR_MARGIN), and the paint must have reached full
@@ -482,10 +499,26 @@ def hair_fade(P):
         base = 0.14 + 0.30 * ramp(z, 1.780, 1.730) * ramp(ax, 0.035, 0.060)
         grain = fbm(P, 900.0, 2, 71.0)
         return np.clip(base + 0.24 * (grain - 0.5), 0.0, 0.70)
+    if style == "crest":
+        # 2026-09-26: the crest's sides and back clippered close -- skin low,
+        # the stubble of the cut higher -- and the ridge down the middle
+        # (40 mm across, assembly.hair_parts) full
+        off = ramp(ax, 0.016, 0.030)
+        return off * np.clip(0.30 + 0.60 * ramp(z, 1.790, 1.720), 0.0, 0.90)
+    if style == "hightop":
+        # a high-and-tight: skin up the sides and the back to 1.745, the
+        # short top from 1.775, a hard line between
+        where = np.maximum(ramp(ax, 0.036, 0.052), ramp(y, 0.028, 0.052))
+        return where * ramp(z, 1.778, 1.745) * 0.95
     if style == "slick":
         return 0.30 * crop
     if style == "curly":
         return 0.45 * crop
+    if style == "quiff":
+        # 2026-09-26: a faded quiff -- the sides taken lower, so the length
+        # on top reads against them (0.55 * crop before, the same as a crop)
+        low = np.clip((0.070 - (1.77 - z)) / 0.05, 0, 1) * np.clip((ax - 0.040) / 0.025, 0, 1)
+        return 0.75 * low
     return 0.55 * crop
 
 def hair_grey(P):
@@ -513,6 +546,88 @@ def hair_part(P):
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
     return (ramp(np.abs(x + 0.022), 0.0013, 0.0005) * ramp(y, 0.040, 0.015)
             * ramp(z, 1.745, 1.755))
+
+HEAD_C = np.array([0.0, 0.010, 1.700])     # about the skull's centre, for the flow's normal
+
+def _proj(v, n):
+    """v made tangent to the surface of normal n, unit."""
+    t = v - np.sum(v * n, axis=1, keepdims=True) * n
+    return t / np.maximum(np.linalg.norm(t, axis=1, keepdims=True), 1e-9)
+
+def hair_flow(P):
+    """Which way the hair lies at P, a unit tangent (N,3): the combing of
+    each cut. The sides of every cut are combed down and back; the top by
+    the cut -- a quiff brushed forward to its front and up it, a crest in
+    toward the middle and back, a slick-back straight back, a part away
+    from the line, a fringe forward and down."""
+    style = HAIR["style"]
+    Q = P - HEAD_C
+    n = Q / np.maximum(np.linalg.norm(Q, axis=1, keepdims=True), 1e-9)
+    x = P[:, 0]
+    one = np.ones(len(P))
+    side = _proj(np.stack([0 * one, 0.6 * one, -one], 1), n)
+    if style == "quiff":
+        top = _proj(np.stack([0 * one, -one, 0.6 * one], 1), n)
+    elif style == "crest":
+        top = _proj(np.stack([-np.tanh(x / 0.012), 0.5 * one, one], 1), n)
+    elif style == "slick":
+        top = _proj(np.stack([0 * one, one, 0 * one], 1), n)
+    elif style == "part":
+        top = _proj(np.stack([np.tanh((x + 0.022) / 0.006), 0.3 * one, 0 * one], 1), n)
+    elif style == "fringe":
+        top = _proj(np.stack([0 * one, -one, -0.5 * one], 1), n)
+    else:
+        top = _proj(np.stack([0 * one, -0.4 * one, one], 1), n)
+    w = ramp(np.abs(n[:, 0]), 0.45, 0.80)[:, None]
+    f = top * (1 - w) + side * w
+    return f / np.maximum(np.linalg.norm(f, axis=1, keepdims=True), 1e-9)
+
+def hair_strands(P):
+    """The hair's own surface, per texel, 2026-09-26: (relief in metres,
+    colour shade about 1, roughness). Until then the hair material carried
+    the bake's pore noise and the skin's one roughness, 0.52 -- a smooth,
+    even sheen, which is a helmet's. Now, for a cut with length: strands
+    lying along hair_flow (noise squeezed 16 to 1 along the flow, 1.1 mm
+    across -- two texels of the hair's map) gathered into clumps about
+    5 mm across, their crowns lighter and a little glossier, the gaps
+    between them darker and matt. For a clippered cut (buzz, hightop,
+    fade, crop): the cut ends of hairs, follicle dots, and no flow. Curly:
+    coils, the rims of cells about 4 mm across."""
+    style = HAIR["style"]
+    n = len(P)
+    if style in ("buzz", "hightop", "fade", "crop", "bald"):
+        dots = follicles(P, cell=0.0011, radius=0.00040, seed=41.0)
+        grain = fbm(P, 380.0, 2, 43.0)
+        rel = 0.00006 * (dots - 0.5) + 0.00008 * (grain - 0.5)
+        shade = 0.92 + 0.16 * dots * (0.6 + 0.8 * grain)
+        rough = 0.72 - 0.05 * dots
+        if style == "hightop":
+            # the short top a little longer than the sides: a brushed grain
+            t = hair_flow(P)
+            Q = P - HEAD_C
+            Qs = Q - 0.90 * np.sum(Q * t, axis=1, keepdims=True) * t
+            brush = fbm(Qs + HEAD_C, 700.0, 2, 47.0)
+            top = ramp(P[:, 2], 1.772, 1.782)
+            rel += top * 0.00010 * (brush - 0.5)
+            shade *= 1.0 + top * 0.20 * (brush - 0.5)
+        return rel, shade, rough
+    if style == "curly":
+        rim = ramp(worley_gap(P, 0.0042, 53.0), 0.30, 0.06)          # the coil's edge
+        body = fbm(P, 900.0, 2, 59.0)
+        rel = 0.00030 * (rim - 0.5) + 0.00006 * (body - 0.5)
+        shade = 0.80 + 0.40 * rim * (0.7 + 0.6 * body)
+        rough = 0.74 - 0.14 * rim
+        return rel, shade, rough
+    t = hair_flow(P)
+    Q = P - HEAD_C
+    Qs = Q - 0.94 * np.sum(Q * t, axis=1, keepdims=True) * t
+    fine = fbm(Qs + HEAD_C, 900.0, 2, 61.0)
+    clump = fbm(Qs + HEAD_C, 200.0, 2, 67.0)
+    cl = smooth(np.clip((clump - 0.30) / 0.40, 0.0, 1.0))
+    rel = 0.00032 * (cl - 0.5) + 0.00008 * (fine - 0.5)
+    shade = 0.76 + 0.48 * cl + 0.14 * (fine - 0.5)
+    rough = 0.70 - 0.20 * (cl - 0.5) - 0.04 * (fine - 0.5)
+    return rel, shade, rough
 
 def hair_texture(P):
     """The hair's own light and dark, a multiplier about 1: comb lines

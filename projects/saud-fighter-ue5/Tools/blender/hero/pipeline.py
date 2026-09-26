@@ -46,6 +46,16 @@ MANNEQUIN = {
   | {"%s_%02d_%s" % (f, k, s) for s in ("l", "r") for f in ("index", "middle", "ring", "pinky", "thumb") for k in (1, 2, 3)}
 assert len(MANNEQUIN) == 62
 
+# The Unreal men's own cuts, where they are not the browser's
+# (2026-09-26, "improve hair style": the Unreal build, new cuts among what
+# was asked). Like FACES, numbers -- names -- the browser does not own, and
+# labelled so: the browser's drawing of these men keeps `look.hairStyle`.
+# AL-SAQR, "the falcon", the fastest man in the game, wears a hawk's crest
+# where the browser gives him a fringe (whose 3D locks, 6 mm through, broke
+# into shards at the 3.5 mm remesh); the thug a high-and-tight where the
+# browser gives him a buzz, which in 3D was the skull in a brown helmet.
+CUTS = {"saqr": "crest", "thug": "hightop"}
+
 # How one man's face differs from another's on the same skull: factors on
 # the amplitudes in sculpt.FACE. These are the ONE set of numbers here the
 # browser build does not own -- it draws every head from one skull and tells
@@ -117,7 +127,7 @@ def build_fighter(spec, argv=None):
     # the cut: the roster's `look.hairStyle` (assembly.HAIR_STYLES), and how
     # grey he is at the temples, `look.grey`. `quiff: true` is the name
     # Saud's cut had before there was more than one.
-    hair_style = "bald" if bald else spec["look"].get("hairStyle") or (
+    hair_style = "bald" if bald else CUTS.get(spec["kind"]) or spec["look"].get("hairStyle") or (
         "quiff" if spec["look"].get("quiff") else "crop")
     assert hair_style in B.HAIR_STYLES, "%s: no hair style %r" % (name, hair_style)
     from . import face as FA
@@ -430,12 +440,15 @@ def build_fighter(spec, argv=None):
             painted, relief = F.repaint_head(obj, baked[key], size, pal)
             assert painted > 0, "the face repaint wrote nothing -- the head chart did not rasterise"
             stamp("repainted %d face texels, relief %.2f coherent levels in the normal" % (painted, relief))
-        if key in ("tee", "pants", "shoe", "glove"):
+        if key in ("tee", "pants", "shoe", "glove", "hair"):
             # the garments' edges -- patch, collar, waistband, stripe, the
             # shoe's bars -- per texel, from the same description the vertex
             # paint came from (finish.kit_colour). The glove is a solid
             # fill (kit_colour's kit is 1.0 everywhere for it, same as the
-            # other garments), so it rebuilds whole the same way.
+            # other garments), so it rebuilds whole the same way. The hair
+            # since 2026-09-26: its strands, clumps, fade, relief and
+            # roughness are per texel (face.hair_strands); it had only the
+            # vertex paint the bake carried, 3 mm between vertices.
             stamp("repainted %d %s texels" % (F.repaint_kit(obj, key, baked[key], size, pal, jl), key))
         if obj not in (tee, pants) and obj not in eyes: bpy.data.objects.remove(obj, do_unlink=True)
         stamp("baked %s at %d" % (key, size))

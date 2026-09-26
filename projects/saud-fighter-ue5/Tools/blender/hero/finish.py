@@ -327,7 +327,9 @@ def kit_colour(P, kind, pal, joints_l, base=None, parts=None):
         # his colour (grey at the temples) in the cut's own texture, then
         # the fade -- skin showing through, face.hair_fade, shared with the
         # hairline band painted on the skin -- and a hard part if he has one
-        col[:] = FA.hair_colour(P, hair) * FA.hair_texture(P)[:, None]
+        # and, since 2026-09-26, its strands and clumps (face.hair_strands)
+        _rel, shade, _rough = FA.hair_strands(P)
+        col[:] = FA.hair_colour(P, hair) * (FA.hair_texture(P) * shade)[:, None]
         over(FA.hair_fade(P), skin)
         over(FA.hair_part(P), skin)
         kit[:] = 1.0
@@ -825,6 +827,21 @@ def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
         # whatever is here, and starts at 1.535
         on = (P[:, 2] < 1.545).astype(float)
         apply_relief(imgs, pos, cov, rel, on, size)
+    # The hair's strands, clumps and roughness (face.hair_strands,
+    # 2026-09-26): it had the bake's pore noise and the skin's one
+    # roughness, 0.52, baked flat -- the even sheen of a helmet. Where the
+    # fade shows skin through, the skin's own roughness and no strands.
+    if kind == "hair":
+        hrel, _shade, hrough = FA.hair_strands(P)
+        fade = np.clip(FA.hair_fade(P), 0.0, 1.0)
+        if "normal" in imgs:
+            apply_relief(imgs, pos, cov, hrel * (1.0 - fade), np.ones(len(P)), size)
+        if "roughness" in imgs:
+            r = hrough * (1.0 - fade) + 0.55 * fade
+            rough = _img_array(imgs["roughness"])
+            rb = np.zeros(cov.shape); rb[cov] = r
+            rough[..., :3] = np.where(m[..., None], rb[..., None], rough[..., :3])
+            _img_write(imgs["roughness"], _dilate(rough, m, 3))
     # The skin's roughness, per texel: it was the shader's one number baked
     # flat over the whole body (FA.body_roughness says why that is the
     # plastic look). Cotton tape is matt and a nail is glossy keratin; both

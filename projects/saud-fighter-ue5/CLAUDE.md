@@ -2161,6 +2161,83 @@ drawn the HUD. The HUD's translucent plates rely on the Canvas triangle
 item's translucent blend, which was already how it drew. The previews are
 Cycles through the numpy mirror, with the preview's stand-in exposure.
 
+## The hair, restyled -- 2026-09-26
+
+Asked as "improve hair style", settled as the Unreal men with hair --
+Saud, the thug, the brawler, AL-SAQR -- and all of: shape and volume, the
+hairline and its edges, strands and texture, and new cuts. Looked at
+first, on the face renders: Saud's quiff a thin cap with a pale rope
+across the forehead and the back of the skull reading bare; AL-SAQR's
+fringe broken into shards with a hole in it; the thug's buzz a brown
+helmet with the same rope; the brawler's curls the best of the four, a
+lumpy mass.
+
+**What was wrong, measured.** The rope was two things on top of each
+other: every shell was grown a full 3.5-4 mm right to its cut, so the hair
+ended in a 4.5 mm step all round the head, and the skin's paint put a
+1 mm step of relief across the hairline -- lit, a pale beaded ridge. The
+quiff was the crop's cap plus one ellipsoid over the middle of the crown,
+where the skull is already at its highest and `HAIR_TOP` (1.800, the
+heads-tall rule) leaves no room; and building it also left the crop's cap
+lying in the scene, unused. AL-SAQR's fringe locks were 6 mm through, under
+two and a half 3.5 mm voxels, so the remesh broke them apart. And the hair
+material had the bake's pore noise and the skin's one roughness, 0.52,
+baked flat -- an even sheen, a helmet's -- and was never repainted per
+texel at all: the pipeline repainted the garments and the shoes, not the
+hair, so everything a cut had was vertex paint 3 mm apart.
+
+**Shape** (`hero/assembly.py`). The hair is one volume now, not a cap with
+blobs on it: the skull's own surface (rings every 2 mm) pushed out along
+its normals by a cut's thickness field, thinned to nothing over the 12 mm
+above the hairline (`HAIR_TAPER`), and eased under `HAIR_TOP` with a soft
+ceiling rather than clamped flat (a clamp made every top a plateau). Each
+cut puts its length where the skull leaves room -- at the front and down
+the back, not on top:
+- **the quiff** (Saud): 4 mm at the sides, a wedge brushed forward over
+  the brow at the front of the top, five locks falling off its front edge;
+- **the crest** (AL-SAQR, new): a ridge 14 mm high and about 40 mm across
+  from the hairline over the crown and down the back, with nine tufts
+  lying back along it -- a hawk's crest; standing straight out they read
+  as horns;
+- **the high-and-tight** (the thug, new): the close shell and a flat top
+  with a fuller front edge;
+- **the curls** (the brawler): fuller on top (the shell and the curls both
+  stand further off the skull toward the crown), bigger curls, none under
+  the thickness rule.
+
+**The new cuts are this build's, not the browser's.** `pipeline.CUTS`
+gives AL-SAQR the crest (al-saqr is the falcon; the fringe's 3D locks
+could not survive the remesh) and the thug the high-and-tight (his buzz
+was the skull in a brown helmet). Like `FACES`, these are names the
+browser does not own, and the browser's drawing of both men keeps its own
+`look.hairStyle`.
+
+**Edges and texture** (`hero/face.py`, `hero/finish.py`). The hairline is
+what a real one is: full hair from 4 mm above the plane, and below it
+hairs growing sparser -- follicle dots under a density that falls to
+nothing 4 mm below -- with no step of relief. The hair's surface, per
+texel (`face.hair_strands`, and the hair is now repainted per texel like
+the garments): for a cut with length, strands along the cut's combing
+(`face.hair_flow`: a quiff brushed forward and up, a crest in toward the
+middle and back, the sides of every cut down and back) gathered into
+clumps about 5 mm across, the clumps' crowns lighter and glossier, the
+gaps darker and matt (roughness 0.58-0.82 where it was 0.52 flat); for a
+clippered cut, the cut ends of hairs; for the curls, coils. The same
+strands continue across the band of skin painted as hair, so the seam does
+not show. The fades: the quiff's sides taken lower, the crest's sides
+clippered to skin, the high-and-tight skin to 1.745 with a hard line.
+
+**Checked:** `build_fighters.py --hair-check` -- every cut through
+`assembly.check_hair` (nothing over `HAIR_TOP`; no part but the shell
+thinner than 9 mm through; no step at the hairline, within 1 mm of the
+plane the hair stands no more than 0.6 mm off the skull; something over
+the crown), and each rule broken once: 4 of 4 caught. The check also runs
+in every build.
+
+**State.** The tools are done; the four men are being rebuilt (a cut is
+built before the checkpoint, so whole, not `--resume`d). Until those land
+the shipped models and renders are the old hair.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
