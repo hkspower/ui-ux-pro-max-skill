@@ -95,53 +95,169 @@ FACE = [
     ("jaw3",      0.068, 1.6100, 0.013, 0.020, 0.012,  +0.0038, True),
 ]
 
-# The lids' layout, at module level because hero.face draws the lash lines
-# along these margins: the aperture's half-width and half-height, and how
-# far above and below the eye's centre the upper and lower lid margins sit
-# at its middle (they taper to the canthi as 1 - t*t over LID_ORBIT[0]).
-LID_ORBIT = (0.0158, 0.0128)
-LID_UP = 0.0048
-LID_DOWN = 0.0052
+# ---- the eye ------------------------------------------------------------
+# The globe: 24 mm across, its centre EYE_SEAT behind the bare skull line at
+# (EYE_X, EYE_Z), so its cornea is on that line (it was 2 mm behind it, set
+# for a skin the globe had to poke through; with the lids draped round it,
+# 2 mm deeper only sank the whole eye into the face). assembly.eyeballs
+# builds it here and drape_eyes() fits the lids to it, so both read these.
+EYE_X = 0.031
+EYE_R = 0.0120
+EYE_SEAT = 0.0120
 
-def lid_close(ax):
-    """How much of the margin's height is left at |x|: 1 at the eye's
-    middle, 0 at each canthus. The same taper lids() uses."""
-    t = np.clip(np.abs(ax - 0.031) / LID_ORBIT[0], 0.0, 1.0)
-    return 1.0 - t * t
+# The palpebral fissure -- the opening between the lids -- measured to an
+# adult male's (2026-09-26, "fix the eyes shape"): inner corners 32 mm apart
+# and outer corners 89 mm, so 28.5 mm wide; 9.6 mm tall at the pupil, the
+# upper lid resting 1.2 mm over the top of the iris and the lower at its
+# bottom edge; the outer corner 2 mm above the inner (a 4 degree canthal
+# tilt); the upper lid highest just inside the pupil, the lower lowest just
+# outside it, which is what makes it an almond and not a lens.
+X_MED, X_LAT = 0.0160, 0.0445            # the inner and outer canthus, |x|
+Z_MED, Z_LAT = EYE_Z - 0.0008, EYE_Z + 0.0012
+UP_AT_PUPIL, DN_AT_PUPIL = 0.0044, 0.0052
+UP_PEAK, DN_PEAK = 0.42, 0.58            # along the fissure, inner 0 to outer 1
+UP_ROUND, DN_ROUND = 0.90, 1.00          # under 1: fuller in the middle
 
-def lids(P, eye, orbit=LID_ORBIT, up_margin=LID_UP, dn_margin=LID_DOWN,
-         up=0.0042, down=0.0031):
-    """The eyelids: two covers over the eye, not a ring around it.
+def _arc(u, peak, k):
+    a = np.log(0.5) / np.log(peak)       # u ** a is a half at the peak
+    return np.sin(np.pi * np.clip(u, 0.0, 1.0) ** a) ** k
 
-    The eyeball is a 24 mm ball seated in a shallow dish. Left bare it reads
-    as a bead stuck on a face, because a human eye is not a visible sphere --
-    it is an almond aperture about 30 mm by 10 mm, and the rest of the ball
-    is under skin. So the skin above `up_margin` and below `dn_margin` is
-    pushed forward past the ball's front pole and closes over it; what is
-    left between the two margins is the aperture.
+_UP_P = (EYE_X - X_MED) / (X_LAT - X_MED)
 
-    The old version bumped a ring of radius 14.5 mm evenly all the way round,
-    which is a washer, not a pair of lids. The margins were then 3.8 + 4.8 =
-    8.6 mm against the 10 mm quoted above, and after the 3.5 mm remesh and
-    the smoothing the eye rendered as a slit; 4.8 + 5.2 is the 10 mm, and it
-    is also the 5 mm half-aperture assembly.check_eye already assumes.
-    """
-    dx = (P[:, 0] - eye[0]) / orbit[0]
-    dz = P[:, 2] - eye[2]
-    within = np.clip(1.0 - (dx * dx + (dz / orbit[1]) ** 2), 0.0, 1.0) ** 0.5
-    fy = np.exp(-((P[:, 1] - eye[1]) ** 2) / (2 * 0.020 ** 2))
-    def step(t):
-        t = np.clip(t, 0.0, 1.0); return t * t * (3.0 - 2.0 * t)
-    # Both margins taper to dz = 0 at the orbit's edge, so they meet at a
-    # point at each canthus. Gated on dz alone they were two horizontal bars
-    # that simply stopped dead, and along the eye's own midline there was no
-    # lid at all -- the ends of the aperture were wherever the globe's
-    # silhouette happened to fall.
-    t = np.clip(np.abs(dx), 0.0, 1.0)
-    close = 1.0 - t * t
-    hi = step((dz - up_margin * close) / 0.0034) * close
-    lo = step((-dz - dn_margin * close) / 0.0030) * close
-    return within * fy * (up * hi + down * lo)
+def aperture(ax):
+    """The lid margins at |x| = ax: (z of the upper, z of the lower). They
+    meet at each canthus and are closed (equal) outside the fissure."""
+    ax = np.asarray(ax, dtype=float)
+    u = np.clip((ax - X_MED) / (X_LAT - X_MED), 0.0, 1.0)
+    base = Z_MED + (Z_LAT - Z_MED) * u
+    bp = Z_MED + (Z_LAT - Z_MED) * _UP_P
+    hu = (EYE_Z + UP_AT_PUPIL - bp) / _arc(_UP_P, UP_PEAK, UP_ROUND)
+    hd = (bp - (EYE_Z - DN_AT_PUPIL)) / _arc(_UP_P, DN_PEAK, DN_ROUND)
+    return base + hu * _arc(u, UP_PEAK, UP_ROUND), base - hd * _arc(u, DN_PEAK, DN_ROUND)
+
+# How the lids are draped (drape_eyes): the pocket inside the fissure sits
+# POCKET_CLEAR behind the globe, so the white shows from corner to corner;
+# the lids lie on the globe LID_UPPER / LID_LOWER thick at the margin, as a
+# lid does, and go back to the face's own surface by LID_REACH above and
+# below; nothing is taken deeper than POCKET_CAP behind the corneal pole
+# (inner corner, outer corner), which leaves a corner of skin at each end --
+# the lateral canthal angle, and the caruncle painted pink in hero.face.
+POCKET_CLEAR = 0.0008
+LID_UPPER, LID_LOWER = 0.0018, 0.0015
+POCKET_CAP = (0.0050, 0.0090)
+# Past the globe's own edge a lid does not fall back to its equator: it lies
+# on the orbit's fat, a broader shell than the ball. Draped on the globe
+# alone the lids above and beside it were pulled 10-15 mm back into a box
+# with walls (the first preview). The shell's half-width and half-height.
+SHELL = (0.0170, 0.0190)
+# The drape's reach: full inside this ellipse about the fissure's centre
+# (half-width toward the ear, half-width toward the nose, half-height above,
+# half-height below), fading to nothing by DRAPE_FADE times it -- an
+# ellipse, not a rectangle, so it has no corners. Toward the nose it is
+# full to the inner corner and fades out by the bridge (x = 5 mm): the
+# side of the nose, sloping from the bridge down to the canthus as a real
+# one does -- faded over 4 mm it was a cliff.
+DRAPE_ZONE = (0.0155, 0.0142, 0.0098, 0.0095)
+DRAPE_FADE = (1.75, 1.75)
+
+def globe_centre(surface_y, s):
+    return np.array([EYE_X * s, surface_y(EYE_X * s, EYE_Z) + EYE_SEAT, EYE_Z])
+
+def drape_target(x, z, gy):
+    """Where the skin at (x, z) belongs, as y, and how strongly (0..1), for
+    the eye whose globe centre is at depth gy. Pure numpy, so the checks
+    and the preview read the same thing the build does."""
+    ax = np.abs(x)
+    dx = ax - EYE_X; dz = z - EYE_Z
+    front = gy - np.sqrt(np.clip(EYE_R ** 2 - dx * dx - dz * dz, 0.0, None))    # the globe, or its equator
+    apex = gy - EYE_R
+    u = np.clip((ax - X_MED) / (X_LAT - X_MED), 0.0, 1.0)
+    cap = apex + POCKET_CAP[0] + (POCKET_CAP[1] - POCKET_CAP[0]) * u
+    up, dn = aperture(ax)
+    inside = np.minimum(z - dn, up - z)                  # > 0 in the fissure
+    step = lambda t: (lambda c: c * c * (3.0 - 2.0 * c))(np.clip(t, 0.0, 1.0))
+    over = z > 0.5 * (up + dn)
+    lid_t = np.where(over, LID_UPPER, LID_LOWER)
+    # The shell is an ellipsoid near the pole and carries on straight past
+    # q = 0.64 at the slope it had there, and meets the cap through a soft
+    # minimum: an ellipsoid's own edge is vertical, and where it met the
+    # cap it left a crease down the outside of every eye.
+    q = (dx / SHELL[0]) ** 2 + (dz / SHELL[1]) ** 2
+    sq = np.sqrt(np.clip(1.0 - q, 0.36, None))
+    sink = np.where(q < 0.64, 1.0 - sq, 0.4 + (q - 0.64) / 1.2)
+    shell = gy - (EYE_R + lid_t) + (EYE_R + lid_t) * sink
+    def softmin(a, b, k=0.0012):
+        m = np.minimum(a, b)
+        return m - k * np.log(np.exp((m - a) / k) + np.exp((m - b) / k))
+    pocket = np.minimum(front + POCKET_CLEAR, cap)
+    lid = softmin(shell, cap)
+    # the margin: 0.6 mm, and none at all once the lids have met -- at half
+    # strength along the closed line it ran on past each corner as a groove
+    k = step(inside / 0.0006 + 0.5) * step((up - dn) / 0.0012)
+    target = lid + (pocket - lid) * k
+    cx = 0.5 * (X_MED + X_LAT)
+    med = ax < cx
+    hx = np.where(med, DRAPE_ZONE[1], DRAPE_ZONE[0])
+    hz = np.where(z > EYE_Z, DRAPE_ZONE[2], DRAPE_ZONE[3])
+    fade = np.where(med, DRAPE_FADE[1], DRAPE_FADE[0])
+    rho = np.sqrt(((ax - cx) / hx) ** 2 + (dz / hz) ** 2)
+    w = 1.0 - step((rho - 1.0) / (fade - 1.0))
+    w = np.maximum(w, (inside > 0).astype(float))        # the fissure is always cut
+    return target, np.clip(w, 0.0, 1.0), inside
+
+def drape_eyes(body, surface_y):
+    """Fit the skin round each globe: the fissure opened behind it and the
+    lids laid on it. After sculpt_face and its smoothing, on the mesh that
+    assembly.subdivide_eyes made dense enough to carry a lid margin."""
+    me = body.data
+    n = len(me.vertices)
+    P = np.empty(n * 3); me.vertices.foreach_get("co", P); P = P.reshape(n, 3)
+    N = np.empty(n * 3); me.vertices.foreach_get("normal", N); N = N.reshape(n, 3)
+    moved = 0
+    for s in (1, -1):
+        gy = globe_centre(surface_y, s)[1]
+        # every vertex of the zone, whichever way it faces or however far
+        # back it is: one left out while its neighbours move is a spike, and
+        # asking for "in front of the globe's centre" cut a 4 mm step down
+        # the side of the head where the surface passes that depth. The
+        # front half of the head is the only limit (the zone's weight is
+        # nothing long before the back of the skull).
+        sel = ((P[:, 0] * s > 0.0) & (P[:, 0] * s < X_LAT + 0.016)
+               & (np.abs(P[:, 2] - EYE_Z) < 0.018) & (P[:, 1] < 0.0))
+        idx = np.nonzero(sel)[0]
+        t, w, _ = drape_target(P[idx, 0], P[idx, 2], gy)
+        P[idx, 1] += w * (t - P[idx, 1])
+        moved += int((w > 0.01).sum())
+    me.vertices.foreach_set("co", P.reshape(-1))
+    me.update()
+    return moved
+
+def check_eye_shape(ap=None):
+    """The fissure as a man's (numpy): 26-31 mm wide, 8.5-11 mm tall at the
+    pupil, the upper lid over 0.5-2 mm of the iris (under it he stares, over
+    it he is asleep), the lower within 0.8 mm of the iris's bottom, the outer
+    corner 1-4 mm above the inner, the upper lid's crest inside the pupil
+    and the lower's low point outside it. Returns the numbers."""
+    ap = ap or aperture
+    xs = np.linspace(X_MED - 0.004, X_LAT + 0.004, 2001)
+    up, dn = ap(xs)
+    open_ = up - dn > 1e-5
+    width = float(xs[open_].max() - xs[open_].min())
+    u_p, d_p = [float(v) for v in ap(np.array([EYE_X]))]
+    iris = 0.00565
+    cover = (EYE_Z + iris) - u_p
+    under = (EYE_Z - iris) - d_p
+    lo, hi = xs[open_].min(), xs[open_].max()
+    ends = ap(np.array([lo, hi]))
+    tilt = float(ends[0][1] - ends[0][0])
+    crest = float(xs[np.argmax(up)]); low = float(xs[np.argmin(dn)])
+    assert 0.026 <= width <= 0.031, "eye fissure %.1f mm wide, want 26-31" % (width * 1000)
+    assert 0.0005 <= cover <= 0.002, "upper lid over %.1f mm of the iris, want 0.5-2 (staring or asleep)" % (cover * 1000)
+    assert abs(under) <= 0.0008, "lower lid %.1f mm off the iris's bottom, want within 0.8" % (under * 1000)
+    assert 0.0085 <= u_p - d_p <= 0.011, "eye fissure %.1f mm tall, want 8.5-11" % ((u_p - d_p) * 1000)
+    assert 0.001 <= tilt <= 0.004, "canthal tilt %.1f mm, want the outer corner 1-4 above the inner" % (tilt * 1000)
+    assert crest < EYE_X < low, "no almond: upper crest at %.1f, lower low at %.1f mm, pupil %.1f" % (crest * 1000, low * 1000, EYE_X * 1000)
+    return dict(width=width, height=u_p - d_p, cover=cover, under=under, tilt=tilt)
 
 def sculpt_face(body, surface_y, z_min=1.556, scale=None):
     """Displace the head's vertices by the feature field.
@@ -169,9 +285,6 @@ def sculpt_face(body, surface_y, z_min=1.556, scale=None):
         amp = amp * scale.get(name, 1.0)
         D += add(x, z, sx, sy, sz, amp)
         if mirror: D += add(-x, z, sx, sy, sz, amp)
-    for s in (1, -1):
-        eye = (0.031 * s, surface_y(0.031 * s, EYE_Z), EYE_Z)
-        D += lids(Ph, eye)
     # Apply along the normal, then only where the face is (front hemisphere
     # of the head): features must not leak onto the back of the skull.
     front = np.clip((-N[idx, 1] + 0.55) / 0.9, 0.0, 1.0)

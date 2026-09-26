@@ -99,47 +99,78 @@ def ear(s):
     back = ellipsoid("earback", c + Vector((-0.003 * s, 0.005, 0)), (0.0052, 0.0150, 0.0240))
     return [helix, lobe, back]
 
-EYE_R = 0.0120         # a human eyeball is 24 mm across; this was 22
-# Where the globe's centre sits, measured back from the bare skull surface.
-# What matters is NOT how proud the cornea is of the floor of its dish -- the
-# first attempt at this set it 1.2 mm proud of the floor and the eye came out
-# shut, because the floor is 6 mm behind the face and the LID MARGIN is only
-# 3.9 mm behind it, so the cornea still sat 0.9 mm inside the lid. The
-# criterion is the margin. check_eye() below asserts it.
-EYE_SEAT = 0.0140
-SOCKET_AX = (0.019, 0.014, 0.017)     # the orbital dish the boolean cuts
-SOCKET_IN = 0.0095                    # its centre, forward of the skull line
+from .sculpt import EYE_R, EYE_SEAT, EYE_X      # the globe, shared with the drape
+# Where the globe's centre sits, measured back from the bare skull surface:
+# EYE_SEAT, so the cornea is 2 mm behind the skull line. Until 2026-09-26 the
+# lids were Gaussians pushed forward of a flat face and the eye was open
+# wherever the globe happened to poke through the skin -- an 11 mm disc
+# round the iris, 36 % of the opening, no white either side of it. The
+# fissure is cut round the globe now (sculpt.drape_eyes); check_eye_open
+# measures it on the built head.
 
 
 def check_eye():
-    """The globe must stand proud of the lid margin, not of the dish floor.
-
-    Everything here is measured back from the bare skull surface at the eye,
-    so larger is further INTO the head. Returns (floor, margin, cornea) in
-    metres and raises if the eye would render shut.
-    """
-    rx, ry, rz = SOCKET_AX
-    floor = -SOCKET_IN + ry                                   # the dish at its deepest
-    dz = 0.005                                                # the aperture's own edge
-    margin = -SOCKET_IN + ry * (1.0 - (dz / rz) ** 2) ** 0.5
-    from .sculpt import FACE
-    soc = next(a for (n, x, z, sx, sy, sz, a, m) in FACE if n == "socket")
-    floor -= soc; margin -= soc                               # the sculpt sinks it further
+    """The fissure is a man's (sculpt.check_eye_shape), and the globe does
+    not stand out of his head: its cornea behind the bare skull line."""
+    from .sculpt import check_eye_shape
+    shape = check_eye_shape()
     cornea = EYE_SEAT - EYE_R
-    # 2 mm, not a hair's breadth. The head is remeshed at a 3.5 mm voxel and
-    # then smoothed, so anything the cornea clears the lid by under about
-    # 2 mm is inside the grid's own noise and the eye still renders shut --
-    # which is exactly what happened at 0.6 mm.
-    assert cornea < margin - 0.0020, (
-        "the eye renders shut: cornea %.4f, lid margin %.4f, clearance %.1f mm"
-        % (cornea, margin, (margin - cornea) * 1000))
-    # And it must not stand out of his head. The reference for THAT is the
-    # bare skull line at the eye, which is 0 here -- not the dish floor,
-    # which is 6 mm behind it, so measuring the bulge against the floor
-    # called a correctly seated eye a bulging one.
-    assert cornea > -0.002, (
-        "the eye bulges %.1f mm out of the face" % (-cornea * 1000))
-    return floor, margin, cornea
+    assert cornea > -0.002, "the eye bulges %.1f mm out of the face" % (-cornea * 1000)
+    return shape
+
+# The eye region, subdivided twice before the sculpt: 3.1 mm between
+# vertices is a third of the fissure's height, so a lid margin could not be
+# drawn at all -- 0.8 mm can.
+EYE_BOX = (0.002, 0.062, 0.019)       # |x| from, |x| to, |z - EYE_Z| within
+
+# A third level, round the fissure only: 0.4 mm there, so the lid margin is
+# a line and not a sawtooth.
+FISSURE_BOX = (0.012, 0.049, 0.0085)
+
+def subdivide_eyes(body, levels=2):
+    from .sculpt import EYE_Z
+    for level in range(levels + 1):
+        box = EYE_BOX if level < levels else FISSURE_BOX
+        bm = bmesh.new(); bm.from_mesh(body.data)
+        y0 = A.head_surface_y(EYE_X, EYE_Z) + 0.020
+        faces = [f for f in bm.faces
+                 if box[0] < abs(f.calc_center_median().x) < box[1]
+                 and abs(f.calc_center_median().z - EYE_Z) < box[2]
+                 and f.calc_center_median().y < y0]
+        edges = list({e for f in faces for e in f.edges})
+        bmesh.ops.subdivide_edges(bm, edges=edges, cuts=1, use_grid_fill=True)
+        bm.to_mesh(body.data); bm.free()
+    body.data.update()
+    return len(body.data.vertices)
+
+def check_eye_open(body, eyes, step=0.0005):
+    """On the built head, from straight in front: the globe must show over
+    the fissure -- all of it that the pocket clears, the white corner to
+    corner -- and nowhere a lid should cover. Returns (shown, leaked)."""
+    from mathutils.bvhtree import BVHTree
+    from .sculpt import EYE_Z, aperture, X_MED, X_LAT
+    import numpy as np
+    dg = bpy.context.evaluated_depsgraph_get()
+    tb = BVHTree.FromObject(body, dg)
+    fis = shown = leaked = 0
+    for e in eyes:
+        s = 1 if (e.matrix_world @ e.data.vertices[0].co).x > 0 else -1
+        te = BVHTree.FromObject(e, dg)
+        for x in np.arange(X_MED - 0.003, X_LAT + 0.003, step):
+            up, dn = [float(v) for v in aperture(np.array([x]))]
+            for z in np.arange(EYE_Z - 0.010, EYE_Z + 0.010, step):
+                o = Vector((x * s, -0.4, z)); d = Vector((0.0, 1.0, 0.0))
+                hb = tb.ray_cast(o, d); he = te.ray_cast(o, d)
+                g = he[0] is not None and (hb[0] is None or he[3] < hb[3])
+                r = ((x - EYE_X) ** 2 + (z - EYE_Z) ** 2) ** 0.5
+                if dn < z < up and r < 0.0100:
+                    fis += 1; shown += g
+                elif g and (z > up + 0.001 or z < dn - 0.001):
+                    leaked += 1
+    shown_f = shown / max(fis, 1); leak_f = leaked / max(fis, 1)
+    assert shown_f >= 0.92, "the eye is shut: the globe shows over %.0f %% of the fissure, want 92" % (shown_f * 100)
+    assert leak_f <= 0.03, "the lids do not close over the globe: it shows outside them over %.0f %% of the fissure's area" % (leak_f * 100)
+    return shown_f, leak_f
 
 def eyeballs():
     """The globes.
@@ -153,7 +184,7 @@ def eyeballs():
     """
     out = []
     for s in (1, -1):
-        e = ellipsoid("eyeball", (0.031 * s, A.head_surface_y(0.031 * s, EYE_Z) + EYE_SEAT, EYE_Z),
+        e = ellipsoid("eyeball", (EYE_X * s, A.head_surface_y(EYE_X * s, EYE_Z) + EYE_SEAT, EYE_Z),
                       (EYE_R, EYE_R, EYE_R), segs=64, rings=40)
         # Smooth them here. build() shade-smooths the body, and the globes are
         # made after that call and never touched by it, so both shipped flat:
@@ -675,17 +706,10 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     base = union_remesh(base_parts + left + right, 0.006 * vs, "Base")
     A.smooth(base, 0.40, 3)
     print("base      : %d verts  %.1fs" % (len(base.data.vertices), time.time() - t))
-    # Orbital dishes, so the globes have somewhere to sit and the lids have
-    # something to close over. The old cut put the ellipsoid's centre 10 mm
-    # IN FRONT of where it needed to be, which carved a hole 26 mm deep and
-    # 38 mm wide for a 22 mm ball -- a crater with a bead at the bottom.
-    # A real orbit is a shallow dish: 4.5 mm deep, 28 by 25 mm, so the ball
-    # fits inside it with its cornea a millimetre proud.
+    # No orbital dish any more (2026-09-26): the boolean cut a 4.5 mm dish
+    # whose steep wall folded over itself under the drape. The eye's hollow
+    # is sculpt.drape_eyes' now, over a surface with no wall in it.
     check_eye()
-    for s in (1, -1):
-        sock = ellipsoid("socket", (0.031 * s, A.head_surface_y(0.031 * s, EYE_Z) - SOCKET_IN, EYE_Z),
-                         SOCKET_AX)
-        boolean(base, sock, 'DIFFERENCE')
     # ---- pass two: fine parts, then one remesh at 3.5 mm to blend the joins
     hl, jl = A.hand(); hr = [mirror_x(o) for o in hl]
     # gloves: unioned over the fingers at the same fine pass, not instead of
@@ -717,14 +741,18 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     body = union_remesh([base, hands] + face + hair + fringe, 0.0035 * vs, "Body")
     A.smooth(body, 0.5, 2)
     from . import sculpt
+    subdivide_eyes(body)
     peak, moved = sculpt.sculpt_face(body, A.head_surface_y, scale=face_scale)
     A.smooth(body, 0.3, 1)
+    sculpt.drape_eyes(body, A.head_surface_y)
     bpy.ops.object.shade_smooth()
     print("body      : %d verts  %.1fs   face sculpt peak %.1f mm over %d verts" % (len(body.data.vertices), time.time() - t, peak * 1000, moved))
     # The pipeline builds through here, not through anatomy.build(), so the
     # stature and heads-tall checks have to be called here or they never run.
     A.measure(body, check=(vs <= 1.0))
     eyes = eyeballs()
+    shown, leak = check_eye_open(body, eyes)
+    print("eyes      : globe shows over %.0f %% of the fissure, %.1f %% outside the lids" % (shown * 100, leak * 100))
     return body, trees, eyes, jl
 
 def above_hairline(c, margin=0.0):

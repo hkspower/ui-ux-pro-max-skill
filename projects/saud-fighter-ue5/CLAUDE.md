@@ -2244,10 +2244,90 @@ show each cut as itself -- the quiff forward over faded sides, the crest a
 dark ridge over clippered sides rising at the front, the high-and-tight
 a flat top over skin sides -- and no rope at any hairline.
 
-**State.** The tools are done; the four men are being rebuilt (a cut is
-built before the checkpoint, so whole, not `--resume`d; started 21:44
-Riyadh). Until those land the shipped models and renders are the old
-hair.
+**State.** The tools are done. The rebuild started at 21:44 was stopped for
+the nose and then the eyes (below), and all six men are rebuilt whole with
+all three together.
+
+## The nose, narrowed -- 2026-09-26
+
+Asked as "fix nose shape", settled as the Unreal men, all six. Measured on
+the sculpt's field, every width was about twice a real man's: the bridge
+21 mm across at half its height (a dorsum is 10-15), the tip lobule 38
+(about 20), the alae spread 69 mm (the alar base is 32-36), and two 8 mm
+nostril hollows 16 mm apart cut one dark slot across the front of the nose,
+with a notch under the tip in profile.
+
+**What changed** (`hero/sculpt.py`, FACE): a dorsum of 6 mm sigma, a tip
+lobule of 7, the alae in to 13.5 mm with an alar crease behind each, a
+columella carrying the tip down to the lip, the nostrils a small hollow
+under the tip (their dark is paint), a gentler philtrum. `hero/face.py`
+moves the nostril, ala and crease paint onto that: two small ovals under
+the tip instead of the wide pair across the front. The midline peak is
+23.6 mm (was 28.4); the brawler's heavier tip (1.05) 24.5, the thug's 22.8.
+
+**Checked:** `sculpt.check_profile` holds, besides the peak and the nasion,
+the bridge at most 17 mm across at half height, the tip lobule at most 24,
+the alae inside 48 mm and no hollow deeper than 2.5 mm across the nostril
+row; `build_fighters.py --nose-check` runs every man's face amplitudes
+through it and breaks each rule once (a runaway tip, no nasion, the old
+bridge, a bulb tip, flared alae, the old nostril slot): 6 of 6 caught.
+Seen painted on the full builds of Saud and AL-SAQR before the eyes were
+asked for: the slot and the notch are gone.
+
+## The eyes, opened -- 2026-09-26
+
+Asked as "fix the eyes shape", settled as the Unreal men, all six. Looked
+at on the face renders: each eye a brown bead on the skin inside a painted
+almond, no white either side of the iris. Measured on a built head by
+casting rays from the front: the globe showed over 36 % of the opening the
+lids were meant to leave -- an 11 mm disc round the cornea. The lids were
+Gaussians pushed forward of a flat face; the eye was open only where the
+globe happened to poke through the skin, and at 3.1 mm between vertices
+(a third of the opening's height) no lid margin could have been drawn
+anyway. From the side there was no lid at all.
+
+**The opening** (`sculpt.aperture`, one definition the sculpt, the checks
+and the paint all read): an adult male's palpebral fissure -- inner corners
+32 mm apart and outer 89, so 28.5 mm wide; 9.6 mm tall at the pupil, the
+upper lid 1.2 mm over the iris and the lower at its bottom edge; the outer
+corner 2 mm above the inner (a 4 degree canthal tilt); the upper lid's
+crest inside the pupil and the lower's low point outside it, which is what
+makes an almond rather than a lens.
+
+**The geometry** (`sculpt.drape_eyes`, after the face sculpt). The eye
+region is subdivided before the sculpt (`assembly.subdivide_eyes`: 0.8 mm,
+and 0.4 mm round the opening), then the skin is fitted round the globe:
+inside the opening it goes 0.8 mm behind the globe, so the white shows
+corner to corner; the lids lie on it 1.8 mm (upper) and 1.5 mm (lower)
+thick at the margin -- a lid's edge -- over a shell broader than the ball,
+the orbit's fat, which carries them back into the face's own surface over
+an ellipse round the eye. Nothing is taken more than 5 mm (inner corner)
+to 9 mm (outer) behind the cornea, which leaves the corners of skin a real
+eye has: the pink caruncle inside (painted) and the outer canthal angle.
+The globe came 2 mm forward (its cornea on the skull line: 2 mm behind it
+was set for skin the ball had to poke through). The orbital dish the
+build used to cut with a boolean is gone: its wall folded over itself
+under the drape. The lash lines follow the new margins.
+
+**Found on the way, each on the preview before it was trusted:** the
+drape faded over a rectangle, and cut the eye into a box with walls; the
+lids draped on the globe alone fell back to its equator past its edge, a
+crater; toward the nose it faded over 4 mm and made a cliff beside the
+bridge (it fades from the inner corner to the bridge now, the slope of
+the side of a nose); vertices were left out of the drape by the way they
+faced or by being behind the globe's centre, which left spikes and a 4 mm
+step down the side of the head; the shell's own edge was vertical where it
+met the depth limit, a crease beside every eye; and the margin's half-step
+ran on past each corner as a groove.
+
+**Checked:** `assembly.check_eye_open`, in every build: from straight in
+front, the globe must show over 92 % of the opening the pocket clears (96 %
+now, 38 % the old way) and outside the lids over no more than 3 % of its
+area (0 %). `sculpt.check_eye_shape` holds the opening's width, height,
+the lids on the iris, the tilt and the almond. `build_fighters.py
+--eye-check` breaks each of the six shape rules once and builds a head
+the pipeline's way twice more -- with no drape, and with the lids laid
+behind the globe -- 8 of 8 caught.
 
 ## Working rules
 

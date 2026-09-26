@@ -270,19 +270,20 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
         rel += mask * 0.0004
 
     # ---- 6. the eyes: lash line and lid crease ------------------------
-    # The lash lines ride the lid margins sculpt.lids builds -- an arch
-    # LID_UP above the eye's centre at its middle, tapering to nothing at
-    # each canthus -- not a straight sloped bar. The old upper bar ran from
-    # +3.8 mm at the inner corner to +0.3 at the outer, 1.6 mm thick with
-    # squared 1.2 mm ends at 85 % black: at the eye's middle that is 2.8 mm
-    # BELOW the margin, across the white of the eye, and it read as
-    # eyeliner drawn over a slit. Thinner, softer-ended, and on the edge.
-    from .sculpt import LID_UP, LID_DOWN, lid_close
-    lash = bar(P, 0.016, 0.046, lambda u: EYE_Z + LID_UP * lid_close(u) - 0.0005, 0.0009, feather=0.0030)
-    over(lash * ramp(fwd, 0.30, 0.60), hex_lin(LASH), 0.70)
-    rel -= lash * 0.0004
-    lower_lash = bar(P, 0.016, 0.046, lambda u: EYE_Z - LID_DOWN * lid_close(u) + 0.0004, 0.0007, feather=0.0030)
-    over(lower_lash * ramp(fwd, 0.30, 0.60), hex_lin(LASH), 0.35)
+    # The lash lines ride the lid margins sculpt.drape_eyes cuts -- the
+    # fissure of sculpt.aperture, corner to corner, the upper crest inside
+    # the pupil and the outer corner 2 mm up -- just outside the margin on
+    # the lid's own skin. Since 2026-09-26: they followed an arch over the
+    # old Gaussian lids, which were closed over most of the globe.
+    from .sculpt import aperture, X_MED, X_LAT, Z_MED
+    lash = bar(P, X_MED, X_LAT, lambda u: aperture(u)[0] + 0.0004, 0.0007, feather=0.0016)
+    over(lash * ramp(fwd, 0.30, 0.60), hex_lin(LASH), 0.72)
+    rel -= lash * 0.0003
+    lower_lash = bar(P, X_MED + 0.002, X_LAT, lambda u: aperture(u)[1] - 0.0003, 0.0005, feather=0.0016)
+    over(lower_lash * ramp(fwd, 0.30, 0.60), hex_lin(LASH), 0.32)
+    # the caruncle: the pink of the inner corner, which the fissure opens on
+    # (the globe's white stops 4 mm short of it)
+    over(blob(P, X_MED + 0.0022, Z_MED + 0.0003, 0.0017, 0.0015), tone(BLOOD), 0.75)
     rel += blob(P, 0.031, EYE_Z + 0.0085, 0.019, 0.0040) * 0.0011               # the lid's own fold
 
     # ---- 7. the mouth -------------------------------------------------

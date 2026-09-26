@@ -8,6 +8,7 @@
     python3 build_fighters.py --check          the roster and the palette only
     python3 build_fighters.py --hair-check     every cut's geometry checked, and the check bitten
     python3 build_fighters.py --nose-check     every man's nose profile and widths, and the check bitten
+    python3 build_fighters.py --eye-check      the eye's shape and the open eye on a built head, both bitten
     python3 build_fighters.py --out DIR        write somewhere else than the project
 
 WHO. SOUQ AL-DAWAR's three waves are thugs and brawlers (DT_Stages.json,
@@ -123,6 +124,61 @@ def nose_check():
         sys.exit(1)
 
 
+def eye_check():
+    """--eye-check (2026-09-26): the fissure's shape (sculpt.check_eye_shape)
+    and each of its rules broken once; then a head built the way the
+    pipeline builds one -- the 3.5 mm union, the eye region subdivided, the
+    sculpt, the drape -- through assembly.check_eye_open, clean, with no
+    drape (the eye shut behind skin, as it was) and with the lids laid
+    behind the globe instead of on it. bpy as a module, about a minute."""
+    import build_saud as legacy
+    from hero import sculpt, assembly as ASM, anatomy as A
+    print("  shape    clean   " + "  ".join("%s %.1f" % (k, v * 1000) for k, v in sculpt.check_eye_shape().items()))
+    def with_(**kw):
+        old = {k: getattr(sculpt, k) for k in kw}
+        for k, v in kw.items(): setattr(sculpt, k, v)
+        return old
+    # each changes its one thing and keeps the rest: the height the same
+    # for staring and asleep, the iris covered right for tall
+    shapes = [("wide", dict(X_MED=0.0120), "wide"), ("tall", dict(UP_AT_PUPIL=0.0051, DN_AT_PUPIL=0.0064), "tall"),
+              ("staring", dict(UP_AT_PUPIL=0.0058, DN_AT_PUPIL=0.0038), "staring"),
+              ("asleep", dict(UP_AT_PUPIL=0.0034, DN_AT_PUPIL=0.0062), "asleep"),
+              ("no tilt", dict(Z_LAT=sculpt.EYE_Z - 0.0008), "tilt"), ("a lens", dict(UP_PEAK=0.5, DN_PEAK=0.5), "almond")]
+    caught = 0; total = 0
+    def bite(label, word, run):
+        nonlocal caught, total
+        total += 1
+        try:
+            run(); print("  %-15s NOT caught" % label)
+        except AssertionError as e:
+            ok = word in str(e); caught += ok
+            print("  %-15s %s  %s" % (label, "caught" if ok else "WRONG CHECK", e))
+    for label, kw, word in shapes:
+        old = with_(**kw)
+        try: bite(label, word, sculpt.check_eye_shape)
+        finally: with_(**old)
+
+    def head(drape=True):
+        legacy.reset_scene()
+        base = A.union_remesh([A.head(), A.neck()], 0.006, "Base"); A.smooth(base, 0.40, 3)
+        body = A.union_remesh([base] + ASM.face_parts() + ASM.ear(1) + ASM.ear(-1) + ASM.hair_parts("quiff"), 0.0035, "Body")
+        A.smooth(body, 0.5, 2)
+        ASM.subdivide_eyes(body)
+        sculpt.sculpt_face(body, A.head_surface_y)
+        A.smooth(body, 0.3, 1)
+        if drape: sculpt.drape_eyes(body, A.head_surface_y)
+        return ASM.check_eye_open(body, ASM.eyeballs())
+    shown, leak = head()
+    print("  built    clean   globe over %.0f %% of the fissure, %.1f %% outside the lids" % (shown * 100, leak * 100))
+    bite("no drape", "shut", lambda: head(drape=False))
+    old = with_(LID_UPPER=-0.004, LID_LOWER=-0.004)
+    try: bite("lids behind", "lids do not close", head)
+    finally: with_(**old)
+    print("  %d of %d eye sabotages caught" % (caught, total))
+    if caught != total:
+        sys.exit(1)
+
+
 def main():
     argv = sys.argv[1:]
     if "--hair-check" in argv:
@@ -130,6 +186,9 @@ def main():
         return
     if "--nose-check" in argv:
         nose_check()
+        return
+    if "--eye-check" in argv:
+        eye_check()
         return
     # flags are `--x`, plus the value that follows --out and --one; the rest
     # are the men to build
