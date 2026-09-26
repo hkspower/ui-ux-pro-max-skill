@@ -44,24 +44,36 @@ FACE = [
     ("temple",    0.070, 1.7080, 0.014, 0.024, 0.024,  -0.0030, True),
     # eyes: the socket hollow; the lids are covers, below
     ("socket",    0.031, 1.6770, 0.020, 0.018, 0.014,  -0.0015, True),
-    # nose: a ridge from the glabella to the tip, the tip, the alae, the
-    # nostrils. The four ridge Gaussians are 12 mm apart with a 10 mm sigma,
-    # so each gives its neighbours half its amplitude and they pile up: the
-    # old amplitudes summed to 35 mm on the midline and measured 27 mm of
-    # projection on the built mesh, against 19-22 mm on a real male nose.
-    # Scaled to 0.765 and moved 4 mm up with the rest of the layout.
+    # nose: a ridge from the glabella to the tip, the tip, the columella
+    # under it, the alae, the crease behind them, the nostrils. The four
+    # ridge Gaussians are 12 mm apart with a 10 mm sigma, so each gives its
+    # neighbours half its amplitude and they pile up: the old amplitudes
+    # summed to 35 mm on the midline and measured 27 mm of projection on the
+    # built mesh, against 19-22 mm on a real male nose.
+    # Narrowed 2026-09-26 ("fix nose shape"): every width was about double a
+    # real man's. Measured off the field, the bridge was 21 mm across at
+    # half height (a real dorsum is 10-15), the tip lobule 38 (about 20),
+    # the alae spread 69 mm (the alar base is 32-36), and two 8 mm-deep
+    # nostril hollows 16 mm apart cut one dark slot across the front with a
+    # notch under the tip in profile. Now: a 6 mm-sigma dorsum, a 7 mm tip
+    # lobule, the alae in at 13.5 mm with a crease behind each, a columella
+    # carrying the tip down to the lip, and nostrils a small hollow under
+    # the tip -- their dark is paint (hero.face), not a hole. check_profile
+    # holds all of it.
     # The radix -- the dip between the brow and the bridge. Without it the
     # midline runs in one unbroken convex ramp from the hairline to the nose
     # tip, which is the shop-dummy profile and the most legible "not a
     # person" line on the whole head. It has to be a local MINIMUM, so it is
     # a hollow cut into the ridge, not a smaller bump.
-    ("radix",     0.000, 1.6870, 0.013, 0.014, 0.0078, -0.0064, False),
-    ("bridge1",   0.000, 1.6810, 0.0080, 0.016, 0.010, +0.0054, False),
-    ("bridge2",   0.000, 1.6690, 0.0085, 0.016, 0.010, +0.0080, False),
-    ("bridge3",   0.000, 1.6570, 0.0095, 0.016, 0.010, +0.0100, False),
-    ("tip",       0.000, 1.6450, 0.0125, 0.016, 0.011, +0.0175, False),
-    ("ala",       0.016, 1.6400, 0.0098, 0.012, 0.0085, +0.0092, True),
-    ("nostril",   0.0078, 1.6330, 0.0045, 0.008, 0.0045, -0.0080, True),
+    ("radix",     0.000, 1.6870, 0.013, 0.014, 0.0078, -0.0060, False),
+    ("bridge1",   0.000, 1.6810, 0.0055, 0.016, 0.010, +0.0046, False),
+    ("bridge2",   0.000, 1.6690, 0.0058, 0.016, 0.010, +0.0072, False),
+    ("bridge3",   0.000, 1.6570, 0.0062, 0.016, 0.010, +0.0094, False),
+    ("tip",       0.000, 1.6455, 0.0070, 0.016, 0.0078, +0.0150, False),
+    ("ala",       0.0135, 1.6385, 0.0060, 0.012, 0.0066, +0.0060, True),
+    ("nostril",   0.0070, 1.6345, 0.0030, 0.008, 0.0026, -0.0026, True),
+    ("columella", 0.000, 1.6385, 0.0042, 0.012, 0.0045, +0.0030, False),
+    ("alar_crease", 0.0205, 1.6395, 0.0030, 0.012, 0.0080, -0.0018, True),
     # cheeks. A young man carries fat over the cheekbone, not a hollow under
     # it: the hollow is what read as middle-aged, so it is halved and a
     # malar pad put in above it.
@@ -73,7 +85,7 @@ FACE = [
     ("lip_upper", 0.000, 1.6265, 0.024, 0.012, 0.0055, +0.0052, False),
     ("lip_lower", 0.000, 1.6140, 0.020, 0.012, 0.0065, +0.0068, False),
     ("mouthline", 0.000, 1.6202, 0.022, 0.012, 0.0022, -0.0045, False),
-    ("philtrum",  0.000, 1.6360, 0.0038, 0.010, 0.009, -0.0034, False),
+    ("philtrum",  0.000, 1.6340, 0.0038, 0.010, 0.008, -0.0020, False),
     ("corner",    0.025, 1.6200, 0.005, 0.010, 0.005,  -0.0018, True),
     ("mentolab",  0.000, 1.6020, 0.014, 0.012, 0.005,  -0.0028, False),
     ("chin",      0.000, 1.5860, 0.019, 0.016, 0.014,  +0.0062, False),
@@ -169,29 +181,47 @@ def sculpt_face(body, surface_y, z_min=1.556, scale=None):
     check_profile(scale)
     return float(np.abs(D).max()), int((np.abs(D) > 0.0005).sum())
 
-def midline(lo=1.590, hi=1.740, step=0.001, scale=None):
-    """The face's profile down the midline, as the field would build it."""
+# The features that make the nose, for check_profile's widths: the rest of
+# the face (cheeks, lip) rises off the midline too and would read as nose.
+NOSE_PARTS = ("radix", "bridge1", "bridge2", "bridge3", "tip", "columella",
+              "ala", "alar_crease", "nostril")
+
+def _field(x, z, scale=None, table=None, only=None):
+    """The displacement the table would build at (x, z), x and z arrays."""
     scale = scale or {}
-    zs = np.arange(lo, hi, step)
-    d = np.zeros_like(zs)
-    for name, fx, fz, sx, sy, sz, amp, mirror in FACE:
+    d = np.zeros(np.broadcast(x, z).shape)
+    for name, fx, fz, sx, sy, sz, amp, mirror in (table or FACE):
+        if only and name not in only: continue
         amp = amp * scale.get(name, 1.0)
         for sgn in ((1, -1) if mirror else (1,)):
-            d += amp * np.exp(-0.5 * (((0.0 - sgn * fx) / sx) ** 2 + ((zs - fz) / sz) ** 2))
-    return zs, d
+            d = d + amp * np.exp(-0.5 * (((x - sgn * fx) / sx) ** 2 + ((z - fz) / sz) ** 2))
+    return d
 
-def check_profile(scale=None):
-    """The two things about the profile that a render will not tell you
-    until it is too late, and that both went wrong before:
+def midline(lo=1.590, hi=1.740, step=0.001, scale=None, table=None):
+    """The face's profile down the midline, as the field would build it."""
+    zs = np.arange(lo, hi, step)
+    return zs, _field(0.0, zs, scale, table)
+
+def check_profile(scale=None, table=None):
+    """What about the nose a render will not tell you until it is too late,
+    and all of which went wrong before:
 
     the nose must not run away (the four ridge Gaussians sit 12 mm apart
     with a 10 mm sigma, so each gives its neighbours half its amplitude and
     the sum once reached 35 mm, which measured 27 mm of projection against
-    19-22 on a real male nose); and there must be a nasion -- a local
-    minimum between the glabella and the bridge. Without one the midline is
-    a single convex ramp from the hairline to the tip.
+    19-22 on a real male nose); there must be a nasion -- a local minimum
+    between the glabella and the bridge. Without one the midline is a single
+    convex ramp from the hairline to the tip.
+
+    And, since 2026-09-26, it must be a man's width, measured on the nose's
+    own features: the bridge no more than 17 mm across at half its height
+    (a dorsum is 10-15; it was 21), the tip lobule no more than 24 (about
+    20; it was 38), the alae inside 48 mm (the alar base is 32-36; the
+    field spread 69), and no slot -- across the nostril row, no hollow
+    deeper than 2.5 mm between the midline and the ala (it was 4.1, the
+    dark bar across every face).
     """
-    zs, d = midline(scale=scale)
+    zs, d = midline(scale=scale, table=table)
     peak = float(d.max()); at = float(zs[int(d.argmax())])
     assert 0.020 <= peak <= 0.030, "nose field peak %.1f mm, want 20-30" % (peak * 1000)
     assert abs(at - NOSE_TIP) < 0.008, "nose peaks at %.3f, not at the tip %.3f" % (at, NOSE_TIP)
@@ -201,4 +231,50 @@ def check_profile(scale=None):
     assert len(turns) >= 2, "no nasion: the midline from brow to nose tip has no dip"
     nas = float(zw[turns[0]])           # the dip, then the glabella above it
     assert dw[turns[0]] < dw[turns[1]], "the turn below the glabella is a bump, not a dip"
+    xs = np.arange(0.0, 0.040, 0.0005)
+    def across(z):
+        return _field(xs, z, scale, table, NOSE_PARTS)
+    def width(z):                       # full width at half the midline height
+        g = across(z)
+        return 2.0 * float(xs[np.argmax(g < g[0] / 2)])
+    bridge = width(NOSE_TIP + 0.024); tip = width(NOSE_TIP)
+    g = across(NOSE_TIP - 0.007); alae = 2.0 * float(xs[g > 0.001].max())
+    f = _field(xs[xs <= 0.0165], NOSE_Z + 0.0015, scale, table)
+    slot = max(float(f[i:].max() - f[i]) for i in range(len(f)))
+    assert bridge <= 0.017, "bridge %.0f mm wide at half height, want <= 17" % (bridge * 1000)
+    assert tip <= 0.024, "tip lobule %.0f mm wide, want <= 24" % (tip * 1000)
+    assert alae <= 0.048, "alae spread %.0f mm, want <= 48" % (alae * 1000)
+    assert slot <= 0.0025, "nostril slot %.1f mm deep across the front, want <= 2.5" % (slot * 1000)
     return peak, at, nas
+
+def bite():
+    """check_profile broken once per rule, numpy only (2026-09-26): each
+    must be refused, with its own word. Returns (caught, total)."""
+    def swap(table, name, **kw):
+        keys = ("x", "z", "sx", "sy", "sz", "amp")
+        out = []
+        for r in table:
+            if r[0] == name:
+                v = dict(zip(keys, r[1:7]))
+                v.update(kw)
+                r = (name,) + tuple(v[k] for k in keys) + (r[7],)
+            out.append(r)
+        return out
+    bites = [
+        ("runaway nose", swap(FACE, "tip", amp=0.0250), "peak"),
+        ("no nasion",    swap(FACE, "radix", amp=0.0), "nasion"),
+        ("wide bridge",  swap(swap(swap(FACE, "bridge1", sx=0.0080), "bridge2", sx=0.0085),
+                              "bridge3", sx=0.0095), "bridge"),
+        ("bulb tip",     swap(FACE, "tip", sx=0.0125), "tip lobule"),
+        ("flared alae",  swap(FACE, "ala", x=0.016, sx=0.0098), "alae"),
+        ("nostril slot", swap(FACE, "nostril", x=0.0078, sx=0.0045, sz=0.0045, amp=-0.0080), "slot"),
+    ]
+    caught = 0
+    for label, table, word in bites:
+        try:
+            check_profile(table=table)
+            print("  %-13s NOT caught" % label)
+        except AssertionError as e:
+            ok = word in str(e); caught += ok
+            print("  %-13s %s  %s" % (label, "caught" if ok else "WRONG CHECK", e))
+    return caught, len(bites)

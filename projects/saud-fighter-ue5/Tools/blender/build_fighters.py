@@ -7,6 +7,7 @@
     python3 build_fighters.py --coarse         a rough body, to check the stages
     python3 build_fighters.py --check          the roster and the palette only
     python3 build_fighters.py --hair-check     every cut's geometry checked, and the check bitten
+    python3 build_fighters.py --nose-check     every man's nose profile and widths, and the check bitten
     python3 build_fighters.py --out DIR        write somewhere else than the project
 
 WHO. SOUQ AL-DAWAR's three waves are thugs and brawlers (DT_Stages.json,
@@ -107,10 +108,28 @@ def hair_check():
         sys.exit(1)
 
 
+def nose_check():
+    """--nose-check: every man's face amplitudes through
+    sculpt.check_profile -- projection, nasion, bridge, tip, alae, no
+    nostril slot -- then each rule broken once (2026-09-26). Numpy only."""
+    from hero import sculpt, pipeline
+    # the men without a FACES entry (the bosses) are the table as it stands
+    for kind in list(pipeline.FACES) + ["the rest"]:
+        peak, at, nas = sculpt.check_profile(pipeline.FACES.get(kind))
+        print("  %-8s clean   peak %.1f mm at %.4f, nasion %.4f" % (kind, peak * 1000, at, nas))
+    caught, total = sculpt.bite()
+    print("  %d of %d nose sabotages caught" % (caught, total))
+    if caught != total:
+        sys.exit(1)
+
+
 def main():
     argv = sys.argv[1:]
     if "--hair-check" in argv:
         hair_check()
+        return
+    if "--nose-check" in argv:
+        nose_check()
         return
     # flags are `--x`, plus the value that follows --out and --one; the rest
     # are the men to build

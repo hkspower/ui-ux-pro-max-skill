@@ -209,7 +209,7 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
 
     # ---- 2. blood at the thin places ----------------------------------
     over(blob(P, 0.0785, EAR_Z, 0.013, 0.024), tone(BLOOD), 0.30)    # the ear
-    over(blob(P, 0.014, NOSE_Z + 0.001, 0.007, 0.006), tone(BLOOD), 0.26)  # nostril rim
+    over(blob(P, 0.0125, NOSE_Z + 0.0045, 0.0055, 0.0050), tone(BLOOD), 0.26)  # the ala
     over(blob(P, 0.031, EYE_Z - 0.0060, 0.016, 0.005), tone(BLOOD), 0.18)  # lower lid
     over(blob(P, 0.000, 1.586, 0.020, 0.012, mirror=False), tone(ZONE_MID), 0.20)  # chin
 
@@ -218,8 +218,9 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
     # existed before, which is the other half of why he looked like wax.
     darken(blob(P, 0.031, EYE_Z + 0.0075, 0.020, 0.0055), 0.34)                 # upper lid fold
     darken(blob(P, 0.033, EYE_Z - 0.0115, 0.017, 0.0045), 0.16)                 # under the eye
-    darken(blob(P, 0.014, EYE_Z - 0.002, 0.006, 0.012), 0.22)                   # side of the nose root
-    nasolabial = bar(P, 0.016, 0.040, lambda u: NOSE_Z + 0.011 - 0.62 * (u - 0.016), 0.0038)
+    darken(blob(P, 0.011, EYE_Z - 0.002, 0.005, 0.012), 0.22)                   # side of the nose root
+    darken(blob(P, 0.0205, NOSE_Z + 0.0065, 0.0028, 0.0060), 0.20)              # the alar crease
+    nasolabial = bar(P, 0.0195, 0.040, lambda u: NOSE_Z + 0.009 - 0.62 * (u - 0.0195), 0.0038)
     darken(nasolabial, 0.14)                                            # faint at his age
     darken(blob(P, 0.000, MOUTH_Z - 0.0133, 0.016, 0.0040, mirror=False), 0.26)   # under the lower lip
     darken(blob(P, 0.026, MOUTH_Z - 0.0004, 0.005, 0.0055), 0.30)                 # mouth corners
@@ -313,10 +314,14 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
             - blob(P, 0.000, 1.6265, 0.0028, 0.0055, mirror=False) * 0.0008)
 
     # ---- 8. the nostrils ----------------------------------------------
-    nose_hole = blob(P, 0.0078, NOSE_Z, 0.0034, 0.0027)
-    over(nose_hole * ramp(fwd, 0.55, 0.85), hex_lin('#3a2119'), 0.80)
-    rel -= nose_hole * 0.0022
-    rel += blob(P, 0.0150, NOSE_Z + 0.0045, 0.0050, 0.0044) * 0.0009             # the ala's rim
+    # Two small ovals under the tip, each side of the columella (sculpt's
+    # nostril hollow, 7 mm out), not the 7 mm-wide dark pair 16 mm apart
+    # that, with the old sculpt's 8 mm hollows, read as one slot across the
+    # front of the nose (2026-09-26).
+    nose_hole = blob(P, 0.0068, NOSE_Z + 0.0012, 0.0024, 0.0017)
+    over(nose_hole * ramp(fwd, 0.55, 0.85), hex_lin('#3a2119'), 0.70)
+    rel -= nose_hole * 0.0012
+    rel += blob(P, 0.0135, NOSE_Z + 0.0050, 0.0045, 0.0040) * 0.0009             # the ala's rim
 
     # ---- 9. the beard -------------------------------------------------
     # Front and sides of the jaw only. `fwd` is what keeps it off the back
