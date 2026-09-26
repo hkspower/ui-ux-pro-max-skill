@@ -726,6 +726,9 @@ def aims_at(guard, strike, k, stance):
     aims = {}
     for name, g in guard.items():
         s = strike.get(name, g)
+        if name.startswith("twist:"):        # a stance's blade: a scalar
+            aims[name] = g + (s - g) * k
+            continue
         aims[name] = slerp_aim(g, s, k) if s != g else g
     if stance != 1.0:
         for side in ("_l", "_r"):

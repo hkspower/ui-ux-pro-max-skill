@@ -29,7 +29,7 @@ import sys
 
 import bpy
 import bmesh
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Quaternion
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # scale by 100 on the way out.
@@ -584,9 +584,15 @@ def pose(arm_obj, directions, targets=None, poles=None, drop=0.0):
         bpy.context.view_layer.update()
 
     for name in _hierarchy_order(arm_obj):
-        if name not in directions:
+        if name not in directions and "twist:" + name not in directions:
             continue
         if targets and name in CHAIN_BONES:
+            continue
+        if name not in directions:
+            # twisted, not aimed: absolute (pose() reset every bone above)
+            pbone = arm_obj.pose.bones[name]
+            pbone.rotation_quaternion = Quaternion((0, 1, 0), float(directions["twist:" + name]))
+            bpy.context.view_layer.update()
             continue
         pbone = arm_obj.pose.bones[name]
         aim = Vector(directions[name]).normalized()
@@ -600,6 +606,16 @@ def pose(arm_obj, directions, targets=None, poles=None, drop=0.0):
         matrix = (y.rotation_difference(aim).to_matrix() @ cur).to_4x4()
         matrix.translation = pbone.matrix.translation
         pbone.matrix = matrix
+        bpy.context.view_layer.update()
+        tw = directions.get("twist:" + name)      # see rig_full_ik._aim
+        if tw:
+            pbone.rotation_quaternion = pbone.rotation_quaternion @ Quaternion((0, 1, 0), float(tw))
+            bpy.context.view_layer.update()
+    total = sum(float(v) for k, v in directions.items() if k.startswith("twist:"))
+    if total:
+        for nm, share in (("neck_01", 0.40), ("head", 0.60)):
+            pbone = arm_obj.pose.bones[nm]
+            pbone.rotation_quaternion = pbone.rotation_quaternion @ Quaternion((0, 1, 0), -total * share)
         bpy.context.view_layer.update()
     for side in ("l", "r"):
         if "palm_" + side in directions:
@@ -686,9 +702,10 @@ def limb_targets(arm_obj, mesh_obj, fk, plant):
     # knee, and Saud's MMA stance, 38 degrees at each knee, rendered
     # straight-legged that way (2026-09-25). The whole man -- pelvis, every
     # target, every pole -- is lowered until the higher planted foot is on
-    # the floor; only what is left over is taken up by the foot itself.
+    # the floor -- the LOWER-reaching foot; the other, under the floor by
+    # then, is raised, which bends its knee rather than straightening it.
     pose(arm_obj, fk, targets, poles)
-    body = max(0.0, min(_foot_floor(mesh_obj, arm_obj, side) - floor[side] for side in plant))
+    body = max(0.0, max(_foot_floor(mesh_obj, arm_obj, side) - floor[side] for side in plant))
     for d in (targets, poles):
         for k in d:
             d[k] = d[k] - Vector((0.0, 0.0, body))
@@ -760,8 +777,15 @@ GUARD = dict(
 )
 # Bladed stance: lead leg forward, rear leg loaded.
 GUARD.update({
-    "thigh_l": (0.20, -0.42, -0.89), "calf_l": (0.02, -0.06, -1.0),
-    "thigh_r": (-0.20, 0.34, -0.92), "calf_r": (-0.02, -0.12, -0.99),
+    # Solved 2026-09-26 ("make leg improve position") with the hips bladed
+    # 25 degrees: the lead foot flat and pointed at the opponent, the rear
+    # foot turned out 40 degrees with its heel up, knees at 22, the weight
+    # 5 cm back of the feet's middle. Every stance is solved the same way
+    # (STANCES in the scratch solver -> these tables).
+    "thigh_l": (0.116, -0.376, -0.919), "calf_l": (0.126, -0.002, -0.992),
+    "thigh_r": (-0.123, -0.117, -0.986), "calf_r": (-0.119, 0.264, -0.957),
+    "foot_l": (-0.080, -0.960, -0.270), "foot_r": (-0.580, -0.720, -0.380),
+    "twist:pelvis": -0.440,
 })
 # The arms: a boxer's high guard, solved rather than guessed (2026-09-24,
 # asked as "the best position for arm and hand"). Each arm is a two-bone
@@ -780,8 +804,8 @@ GUARD.update({
 # upright -- which is how a real high guard stands. The lead and rear are
 # different, as they are in a fighter: this is not a mirror.
 GUARD.update({
-    "upperarm_l": (-0.180, -0.812, -0.555), "lowerarm_l": (-0.136, -0.228, 0.964), "hand_l": (-0.117, -0.542, 0.832),
-    "upperarm_r": (0.273, -0.738, -0.618),  "lowerarm_r": (0.073, 0.190, 0.979),   "hand_r": (0.074, -0.111, 0.991),
+    "upperarm_l": (-0.104, -0.802, -0.588), "lowerarm_l": (-0.145, 0.007, 0.989), "hand_l": (-0.139, -0.281, 0.949),
+    "upperarm_r": (0.191, -0.753, -0.630), "lowerarm_r": (0.103, -0.044, 0.994), "hand_r": (0.097, -0.326, 0.940),
 })
 # Which way each palm faces: back at his own face and a little in, so the
 # knuckles face the man in front of him. Not a bone: roll_palm() turns the
@@ -815,16 +839,25 @@ PALMS = ("palm_l", "palm_r")
 # out, where GUARD pointed it straight ahead.
 MMA_GUARD = dict(GUARD)
 MMA_GUARD.update(
-    spine_01=(0, -0.08, 1.0), spine_02=(0, -0.10, 1.0), spine_03=(0, -0.06, 1.0),
-    neck_01=(0, -0.14, 1.0), head=(0, -0.12, 1.0),
-    thigh_l=(0.123, -0.534, -0.837), calf_l=(0.145, 0.100, -0.984),
-    thigh_r=(-0.144, -0.103, -0.984), calf_r=(-0.123, 0.531, -0.838),
-    foot_l=(0.05, -0.90, -0.42), foot_r=(-0.28, -0.86, -0.42),
-    upperarm_l=(-0.122, -0.875, -0.469), lowerarm_l=(-0.180, -0.449, 0.875), hand_l=(-0.154, -0.642, 0.751),
-    upperarm_r=(0.098, -0.801, -0.590),  lowerarm_r=(0.201, -0.029, 0.979),  hand_r=(0.191, -0.312, 0.931),
-    # the extended lead hand points further forward, so its palm is turned
-    # squarer to his face to keep the knuckles to the opponent
-    palm_l=(-0.15, 1.0, 0.0),
+    spine_01=(0.000, -0.080, 1.000),
+    spine_02=(0.000, -0.100, 1.000),
+    spine_03=(0.000, -0.060, 1.000),
+    neck_01=(0.000, -0.140, 1.000),
+    head=(0.000, -0.120, 1.000),
+    thigh_l=(0.127, -0.509, -0.851),
+    calf_l=(0.147, 0.129, -0.981),
+    thigh_r=(-0.147, -0.132, -0.980),
+    calf_r=(-0.128, 0.506, -0.853),
+    foot_l=(-0.050, -0.960, -0.270),
+    foot_r=(-0.480, -0.820, -0.320),
+    upperarm_l=(-0.089, -0.850, -0.519),
+    lowerarm_l=(-0.187, -0.314, 0.931),
+    hand_l=(-0.166, -0.543, 0.823),
+    upperarm_r=(0.085, -0.812, -0.577),
+    lowerarm_r=(0.199, -0.175, 0.964),
+    hand_r=(0.182, -0.435, 0.882),
+    palm_l=(-0.150, 1.000, 0.000),
+    **{"twist:pelvis": -0.260},   # the hips bladed 15 degrees; a boxer's are 25
 )
 
 
@@ -843,38 +876,75 @@ def _stance(**kw):
 # a kickboxer's: upright, the weight held back off a light lead leg, the
 # lead hand long at brow height, the rear foot turned out
 KICKBOXER_GUARD = _stance(
-    spine_01=(0, -0.04, 1.0), spine_02=(0, -0.06, 1.0), spine_03=(0, -0.04, 1.0),
-    neck_01=(0, -0.12, 1.0), head=(0, -0.10, 1.0),
-    foot_l=(0.05, -0.90, -0.42), foot_r=(-0.42, -0.80, -0.42),
-    palm_l=(-0.20, 1.0, 0.0), palm_r=(0.447, 0.894, 0.0),
-    thigh_l=(0.095, -0.424, -0.900), calf_l=(0.105, -0.019, -0.994),
-    thigh_r=(-0.103, -0.065, -0.993), calf_r=(-0.097, 0.346, -0.933),
-    upperarm_l=(-0.193, -0.882, -0.431), lowerarm_l=(-0.107, -0.364, 0.925), hand_l=(-0.094, -0.581, 0.809),
-    upperarm_r=(0.231, -0.783, -0.577), lowerarm_r=(0.097, -0.003, 0.995), hand_r=(0.093, -0.290, 0.953),
+    spine_01=(0.000, -0.040, 1.000),
+    spine_02=(0.000, -0.060, 1.000),
+    spine_03=(0.000, -0.040, 1.000),
+    neck_01=(0.000, -0.120, 1.000),
+    head=(0.000, -0.100, 1.000),
+    foot_l=(-0.050, -0.950, -0.300),
+    foot_r=(-0.550, -0.740, -0.380),
+    palm_l=(-0.200, 1.000, 0.000),
+    palm_r=(0.447, 0.894, 0.000),
+    thigh_l=(0.105, -0.382, -0.918),
+    calf_l=(0.114, 0.027, -0.993),
+    thigh_r=(-0.112, -0.111, -0.988),
+    calf_r=(-0.107, 0.303, -0.947),
+    upperarm_l=(-0.127, -0.861, -0.492),
+    lowerarm_l=(-0.107, -0.123, 0.987),
+    hand_l=(-0.100, -0.392, 0.915),
+    upperarm_r=(0.165, -0.820, -0.547),
+    lowerarm_r=(0.115, -0.227, 0.967),
+    hand_r=(0.104, -0.476, 0.873),
+    **{"twist:pelvis": -0.440},
 )
 # a peek-a-boo crouch: knees at 44 degrees, the torso folded forward, both
 # fists tight at the cheekbones with the elbows on the ribs, chin down
 PEEKABOO_GUARD = _stance(
-    spine_01=(0, -0.14, 0.99), spine_02=(0, -0.22, 0.97), spine_03=(0, -0.20, 0.98),
-    neck_01=(0, -0.18, 0.98), head=(0, -0.16, 0.99),
-    foot_l=(0.05, -0.90, -0.42), foot_r=(-0.20, -0.88, -0.42),
-    thigh_l=(0.112, -0.561, -0.821), calf_l=(0.133, 0.172, -0.976),
-    thigh_r=(-0.133, -0.176, -0.975), calf_r=(-0.112, 0.558, -0.823),
-    upperarm_l=(-0.402, -0.787, -0.469), lowerarm_l=(0.059, 0.086, 0.995), hand_l=(0.058, -0.210, 0.976),
-    upperarm_r=(0.420, -0.759, -0.498), lowerarm_r=(-0.048, 0.117, 0.992), hand_r=(-0.047, -0.181, 0.982),
+    spine_01=(0.000, -0.140, 0.990),
+    spine_02=(0.000, -0.220, 0.970),
+    spine_03=(0.000, -0.200, 0.980),
+    neck_01=(0.000, -0.180, 0.980),
+    head=(0.000, -0.160, 0.990),
+    foot_l=(-0.080, -0.960, -0.270),
+    foot_r=(-0.550, -0.740, -0.380),
+    palm_l=(-0.447, 0.894, 0.000),
+    palm_r=(0.447, 0.894, 0.000),
+    thigh_l=(0.124, -0.520, -0.845),
+    calf_l=(0.141, 0.220, -0.965),
+    thigh_r=(-0.141, -0.223, -0.965),
+    calf_r=(-0.124, 0.516, -0.847),
+    upperarm_l=(-0.417, -0.835, -0.359),
+    lowerarm_l=(0.135, 0.378, 0.916),
+    hand_l=(0.146, 0.084, 0.986),
+    upperarm_r=(0.310, -0.785, -0.537),
+    lowerarm_r=(0.014, -0.111, 0.994),
+    hand_r=(0.013, -0.382, 0.924),
+    **{"twist:pelvis": -0.440},
 )
 # a heavy puncher's: square and wide (feet 50 cm across), knees barely
 # bent, the shoulders rolled forward, the fists a hand lower than a boxer
 # carries them and the elbows out
 HEAVY_GUARD = _stance(
-    spine_01=(0, -0.05, 1.0), spine_02=(0, -0.10, 1.0), spine_03=(0, -0.16, 0.99),
-    neck_01=(0, -0.14, 1.0), head=(0, -0.10, 1.0),
-    foot_l=(0.08, -0.90, -0.42), foot_r=(-0.30, -0.85, -0.42),
-    palm_l=(-0.40, 0.90, 0.0), palm_r=(0.40, 0.90, 0.0),
-    thigh_l=(0.174, -0.331, -0.928), calf_l=(0.184, 0.012, -0.983),
-    thigh_r=(-0.184, -0.014, -0.983), calf_r=(-0.174, 0.329, -0.928),
-    upperarm_l=(-0.134, -0.687, -0.714), lowerarm_l=(-0.136, -0.232, 0.963), hand_l=(-0.123, -0.480, 0.869),
-    upperarm_r=(0.134, -0.623, -0.771), lowerarm_r=(0.135, -0.113, 0.984), hand_r=(0.126, -0.384, 0.915),
+    spine_01=(0.000, -0.050, 1.000),
+    spine_02=(0.000, -0.100, 1.000),
+    spine_03=(0.000, -0.160, 0.990),
+    neck_01=(0.000, -0.140, 1.000),
+    head=(0.000, -0.100, 1.000),
+    foot_l=(0.000, -0.960, -0.280),
+    foot_r=(-0.420, -0.850, -0.320),
+    palm_l=(-0.400, 0.900, 0.000),
+    palm_r=(0.400, 0.900, 0.000),
+    thigh_l=(0.177, -0.311, -0.934),
+    calf_l=(0.186, 0.033, -0.982),
+    thigh_r=(-0.186, -0.035, -0.982),
+    calf_r=(-0.177, 0.309, -0.934),
+    upperarm_l=(-0.119, -0.682, -0.721),
+    lowerarm_l=(-0.135, -0.116, 0.984),
+    hand_l=(-0.125, -0.387, 0.914),
+    upperarm_r=(0.124, -0.633, -0.764),
+    lowerarm_r=(0.137, -0.225, 0.965),
+    hand_r=(0.124, -0.474, 0.872),
+    **{"twist:pelvis": -0.200},
 )
 GUARDS = {"boxer": GUARD, "mma": MMA_GUARD, "kickboxer": KICKBOXER_GUARD,
           "peekaboo": PEEKABOO_GUARD, "heavy": HEAVY_GUARD}

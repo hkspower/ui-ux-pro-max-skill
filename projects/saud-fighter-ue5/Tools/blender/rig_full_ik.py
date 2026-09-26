@@ -541,8 +541,29 @@ def _aim(rig, directions):
     rig no longer has."""
     import build_saud as legacy
     _pose_mode(rig)
+    total = sum(float(v) for k, v in directions.items() if k.startswith("twist:"))
+    if total:
+        # An aim keeps the bone's current roll, so the counter-rotation
+        # below would pile up call on call (+25 degrees a call, measured).
+        # The neck and head start from their rest roll when a twist is set.
+        for nm in ("neck_01", "head"):
+            if nm in directions:
+                rig.pose.bones[nm].rotation_quaternion = Quaternion((1, 0, 0, 0))
+        _update()
     for name in legacy._hierarchy_order(rig):
         if name not in directions:
+            tw = directions.get("twist:" + name)
+            if tw:
+                # twisted, not aimed: set absolutely, so a second _aim does
+                # not twist it again (the first version added 25 degrees
+                # per call, and a solve that aims three times gave 76).
+                # The pelvis follows CTRL_hips (Copy Transforms), so the
+                # twist goes there, as motion_ik.fk_body sends it.
+                tgt = "CTRL_hips" if name == "pelvis" and "CTRL_hips" in rig.pose.bones else name
+                pbone = rig.pose.bones[tgt]
+                pbone.rotation_mode = "QUATERNION"
+                pbone.rotation_quaternion = Quaternion((0, 1, 0), float(tw))
+                _update()
             continue
         pbone = rig.pose.bones[name]
         aim = Vector(directions[name]).normalized()
@@ -559,6 +580,23 @@ def _aim(rig, directions):
         m = (y.rotation_difference(aim).to_matrix() @ cur).to_4x4()
         m.translation = pbone.matrix.translation
         pbone.matrix = m
+        _update()
+        # "twist:<bone>": radians about the bone's own length once it is
+        # aimed (build_saud.GUARD's bladed hips, 2026-09-26). Children are
+        # aimed in world space after it, so a twist at the pelvis moves the
+        # hip joints -- the lead hip forward, the rear back -- and the legs
+        # still point where their aims say.
+        tw = directions.get("twist:" + name)
+        if tw:
+            pbone.rotation_quaternion = pbone.rotation_quaternion @ Quaternion((0, 1, 0), float(tw))
+            _update()
+    if total:
+        # the face stays on the opponent: the neck takes back 40 % of the
+        # turn and the head the rest (motion_ik.fk_body does the same for
+        # a strike's twist)
+        for nm, share in (("neck_01", 0.40), ("head", 0.60)):
+            pbone = rig.pose.bones[nm]
+            pbone.rotation_quaternion = pbone.rotation_quaternion @ Quaternion((0, 1, 0), -total * share)
         _update()
     # which way the palms face (build_saud.GUARD's palm_l/palm_r): the hand
     # turned about its own length, once it is aimed
@@ -618,7 +656,12 @@ def stance(rig, fk, mesh=None, plant=("l", "r")):
         # The body comes down onto its feet (build_saud.limb_targets says
         # why): hips, hand and foot controls and poles all lowered until the
         # higher planted foot is on the floor, the knees' bend kept.
-        body = max(0.0, min(legacy._foot_floor(mesh, rig, s) - floor[s] for s in plant))
+        # ...by the LARGER gap: down until the foot that reaches lowest is
+        # on the floor, and the other, now under it, is raised -- which bends
+        # its knee. By the smaller gap (2026-09-25) the other foot was pulled
+        # down instead, which straightens a knee, and a flat lead foot beside
+        # a heel-up rear one ended at a 3 degree knee still 9 mm off the floor.
+        body = max(0.0, max(legacy._foot_floor(mesh, rig, s) - floor[s] for s in plant))
         if body:
             for name in ["CTRL_hips"] + list(cur):
                 m = pb[name].matrix.copy(); m.translation.z -= body; pb[name].matrix = m; _update()

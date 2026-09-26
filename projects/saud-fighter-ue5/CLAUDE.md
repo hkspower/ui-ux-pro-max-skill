@@ -1952,6 +1952,47 @@ at the guard's world spot is 11 cm in front of the face, a cover, and the
 old sabotage stopped biting; the suite bites 20 of 20 again. **Not
 verified** in an engine, as before.
 
+## The legs, in every stance -- 2026-09-26
+
+Asked as "make leg improve position". Measured on the five stances posed
+on Saud's rig against the boxing and MMA references already used for the
+MMA stance: every rear foot pointed straight ahead (a boxer's turns out
+30-45 degrees); both heels were 3.6-4.7 cm up in every stance (the lead
+foot stands flat, only the rear heel comes up); and every stance was
+square -- hips and shoulders at 0 degrees, where a boxer blades 25-40 and
+an MMA fighter 10-20.
+
+**What changed.**
+- **A stance can twist its hips** (`"twist:pelvis"` in a stance dict,
+  radians about the bone, negative for an orthodox blade): `rig_full_ik.
+  _aim` and `build_saud.pose` apply it after aiming (to CTRL_hips, which
+  the pelvis follows), children are aimed in world space after it, and
+  the neck and head take the turn back so the face stays on the opponent.
+  Set absolutely, not added -- the first version twisted 25 degrees more
+  on every call, and a solve that aims three times stood him at 76.
+  `build_motion.aims_at` blends the scalar; a strike's own twist adds on
+  top of the stance's.
+- **The five stances re-solved** with the blade, the rear foot turned out
+  (boxer 40 degrees, kickboxer and peek-a-boo 37, MMA 30, heavy 26) with
+  its heel up 2-4 cm, the lead foot flat and pointed at the opponent (3-5
+  degrees in), the hips bladed 25 (boxer, kickboxer, peek-a-boo), 15
+  (MMA), 11 (heavy). Knees: lead 22 / rear 42 (boxer), 38 / 45 (MMA),
+  24 / 39 (kickboxer), 44 / 55 (peek-a-boo), 20 / 28 (heavy) -- the rear
+  bends more because its heel is up. Feet across and stagger as before.
+- **The body drops to the lower-reaching foot.** `stance()` and
+  `limb_targets` lowered the man by the SMALLER of the two feet's gaps to
+  the floor and pulled the other foot down after, which straightens a
+  knee: with a flat lead foot beside a heel-up rear one, the lead ended at
+  a 3 degree knee still 9 mm off the floor. By the larger gap the other
+  foot is under the floor and is raised, which bends its knee.
+
+**Checked:** every stance posed with both soles on the floor (0.0 mm),
+the head at 0 degrees off the opponent; the 57 clips rebuilt on the new
+stances and every motion check passes (planted feet 0.2 mm, straight
+punches 0.0 mm, punches at the jaw, the cover tucked); the control rig
+verifies; guard and kick renders re-struck. **Not verified** in an
+engine.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
