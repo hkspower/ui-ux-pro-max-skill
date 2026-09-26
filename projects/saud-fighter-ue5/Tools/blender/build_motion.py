@@ -927,8 +927,13 @@ def body_frame(au, g, aims, feet, lean=0.0, hips=(0.0, 0.0, 0.0), tilt=0.0, side
 
 
 def knee_forward(s, up=0.0):
+    """A planted knee's pole: out in front of the leg (the man faces -Y).
+    --bite "knee" puts it BEHIND, the way the guard, the walks and the
+    dashes -- which take their poles from here, not from author_strike --
+    would bend a knee backwards if nothing held them."""
     from mathutils import Vector
-    return lambda fk, s=s: (fk["hip_" + s] + fk["an_" + s]) * 0.5 + Vector((0.0, -0.6, up))
+    y = 0.6 if "knee" in SABOTAGE else -0.6
+    return lambda fk, s=s: (fk["hip_" + s] + fk["an_" + s]) * 0.5 + Vector((0.0, y, up))
 
 
 def planted_feet(g):
@@ -1494,6 +1499,42 @@ def verify(rig, made):
             if bad:
                 fails.append("%s: the %s knee bends backwards, %.0f deg past straight on frame %d" % (
                     c["name"], s, bad[1], bad[0]))
+            # ... and the knee stands in FRONT of the line from hip to
+            # ankle, along the man's own facing (the pelvis's forward, read
+            # off its rest pose, so the spin turns with him). A pole put
+            # behind the knee turns the whole leg about that line and the
+            # hinge's own angle never notices (2026-09-26: the knee
+            # sabotage stopped biting the moment every stance had a forward
+            # knee), which is why this is measured in the world as well.
+            foot = rig.pose.bones["foot_" + s]
+            pel = rig.pose.bones["pelvis"]
+            local_fwd = pel.bone.matrix_local.to_3x3().inverted() @ __import__("mathutils").Vector((0.0, -1.0, 0.0))
+            worst = (0.0, 0)
+            for f in range(1, N + 1, 2):
+                bpy.context.scene.frame_set(f); bpy.context.view_layer.update()
+                hip, kn, an = thigh.matrix.translation, calf.matrix.translation, foot.matrix.translation
+                axis = (an - hip)
+                if axis.length < 1e-6:
+                    continue
+                axis.normalize()
+                # a STANDING leg only (the line within 50 degrees of plumb):
+                # under a man sitting back on the floor, or out along a
+                # kick, the line lies down and "behind it" means nothing;
+                # the hinge check above still holds those
+                if abs(axis.z) < 0.64:
+                    continue
+                off = (kn - hip) - axis * (kn - hip).dot(axis)
+                fwd = (pel.matrix.to_3x3() @ local_fwd)
+                fwd.z = 0.0
+                if fwd.length < 1e-6:
+                    continue
+                fwd.normalize()
+                behind = -off.dot(fwd)
+                if behind > worst[0]:
+                    worst = (behind, f)
+            if worst[0] > 0.02:
+                fails.append("%s: the %s knee is %.0f cm behind the line from hip to ankle on frame %d" % (
+                    c["name"], s, worst[0] * 100.0, worst[1]))
         # ---- the hands (2026-09-24, "the best position for arm and hand"):
         # every frame of every clip is thrown with closed fists; in the
         # guard, a walk and a dash both fists are up in front of the face,

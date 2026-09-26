@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Combat/FighterBase.h"
+#include "Combat/SaudFire.h"
 #include "SaudCharacter.generated.h"
 
 class UCameraComponent;
@@ -31,6 +32,41 @@ public:
 
 	virtual float GetOutgoingDamageMultiplier(const FAttackDef& Attack) const override;
 	virtual float GetBlockCostMultiplier(bool bPush) const override;
+	virtual float GetAttackReachBonus(const FAttackDef& Attack) const override;
+	virtual float GetAttackKnockbackBonus(const FAttackDef& Attack) const override;
+
+	// ------------------------------------------------------------ HAWK FIST
+	/*
+	 * "Your punches carry fire. Burns MP, and only punches -- kicks stay
+	 * cold." The rules and every number are the browser's, in
+	 * Combat/SaudFire.h. On this path -- the state machine the fight runs
+	 * on -- there was no mana and nothing burned; the ability path's
+	 * USaudAttackAbility::IsBurning is still its own. Mana is kept here as
+	 * Rage is: a number on the man, filled by the clock and by landing
+	 * hits, spent by a burning punch when it lands.
+	 */
+
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	float GetMana() const { return Mana; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	float GetManaFraction() const { return Mana / SaudFire::MaxMana; }
+
+	/** hawkReady(): HAWK FIST carried and the MP to burn. */
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	bool IsHawkLit() const;
+
+	/** How bright the flame on his fist is drawn, 0 for none: the eased
+	    lit-ness, brighter through a punch. */
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	float GetHawkHeat() const;
+
+	/** Which fist the flame is on and the forearm behind it (the flame
+	    points along it), as bone names: the lead fist, or the one a punch
+	    is thrown with. */
+	void GetFlameBones(FName& OutHand, FName& OutForearm) const;
+
+	const SaudFire::FState& GetFire() const { return Fire; }
 
 	/** Rebuilds max health, stamina and speed from the saved upgrade levels. */
 	UFUNCTION(BlueprintCallable, Category = "Progression")
@@ -121,6 +157,7 @@ public:
 
 protected:
 	virtual void OnHitLanded(AFighterBase* Victim, const FHitResultData& Hit) override;
+	virtual void OnAttackStarted(const FAttackDef& Attack) override;
 	virtual void GatherTargets(TArray<AFighterBase*>& OutTargets) const override;
 
 	/** Strikes hit fighters first, then any sealed route standing in reach. */
@@ -168,4 +205,13 @@ private:
 	float CameraPitch = -18.f;
 
 	float BaseWalkSpeed = 520.f;
+
+	/** HAWK FIST: the MP (the browser's p.mp), the flame and the burst's
+	    clock, whether this swing burns (decided when it starts, as
+	    hawkAttack() does) and whether it has spent its MP yet (once per
+	    swing, on the first man it lands on: applyHit's hawkSwing). */
+	float Mana = SaudFire::MaxMana;
+	SaudFire::FState Fire;
+	bool bAttackBurning = false;
+	bool bHawkSpent = false;
 };

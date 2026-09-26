@@ -3,9 +3,11 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Combat/SaudAnime.h"
+#include "Combat/SaudFire.h"
 #include "SaudLookSubsystem.generated.h"
 
 class AFighterBase;
+class ASaudCharacter;
 class APostProcessVolume;
 class UMaterialInterface;
 class UMaterialParameterCollection;
@@ -26,6 +28,13 @@ struct FHitResultData;
  * Fighters are told apart from the world by custom depth, which
  * AFighterBase turns on for its mesh: they get the heavy ink line.
  *
+ * HAWK FIST's fire (Combat/SaudFire.h) is drawn by M_Anime_Frame too:
+ * each tick this projects Saud's burning fist -- where it is on the
+ * screen, which way the forearm points, how deep, how big one of the
+ * browser's figure pixels is at that distance -- and, after a burning
+ * punch lands, the man it landed on, into MPC_Anime. The state itself
+ * (the eased flame, the burst's clock) is the player's, in game time.
+ *
  * If the assets are not there (the editor script has not been run), it
  * logs once and does nothing: the game is exactly the game without it.
  */
@@ -39,6 +48,10 @@ public:
 
 	/** A blow landed on Victim: parried, blocked or clean, as Hit says. */
 	void OnBlow(const AFighterBase* Victim, const FHitResultData& Hit, bool bHeavy);
+
+	/** A burning HAWK FIST punch landed on Victim: the burst is drawn on
+	    him for as long as ASaudCharacter's SaudFire::FState says. */
+	void OnBurn(const AFighterBase* Victim);
 
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Deinitialize() override;
@@ -61,9 +74,18 @@ private:
 	    followed while they last. */
 	TWeakObjectPtr<const AFighterBase> Victim;
 
+	/** Who the last burning punch landed on: the burst is drawn on him. */
+	TWeakObjectPtr<const AFighterBase> Burned;
+
 	/** Last values written, so an idle frame writes nothing. */
-	float Written[5] = {-1.f, -1.f, -1.f, -1.f, -1.f};
+	float Written[7] = {-1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f};
 
 	void Write(int32 Slot, const TCHAR* Name, float Value);
+	void Set(const TCHAR* Name, float Value);
 	bool VictimOnScreen(float& OutX, float& OutY) const;
+	void WriteFire(const ASaudCharacter* Saud);
+	/** A world point as the fire parameters want it: viewport fraction (Y
+	    down), scene depth in cm, and the size of one figure pixel there as
+	    a fraction of the viewport's height. False when it cannot be seen. */
+	bool Project(const FVector& At, float& OutX, float& OutY, float& OutDepth, float& OutScale) const;
 };

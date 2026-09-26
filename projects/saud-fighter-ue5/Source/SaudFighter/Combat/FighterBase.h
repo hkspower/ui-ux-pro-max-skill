@@ -159,6 +159,17 @@ public:
 	    Saud's IRON ARM upgrade lowers it. */
 	virtual float GetBlockCostMultiplier(bool bPush) const { return 1.f; }
 
+	/** What a strike carries beyond its row: nothing, for everyone but
+	    Saud, whose HAWK FIST gives a burning punch more reach and more push
+	    (Combat/SaudFire.h). Reach is asked by the sweep, push by the man
+	    hit. */
+	virtual float GetAttackReachBonus(const FAttackDef& Attack) const { return 0.f; }
+	virtual float GetAttackKnockbackBonus(const FAttackDef& Attack) const { return 0.f; }
+
+	/** A strike StartAttack has just accepted, before its first frame: the
+	    place to decide what this swing carries. */
+	virtual void OnAttackStarted(const FAttackDef& Attack) {}
+
 	// ---------------------------------------------------------------- events
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat")

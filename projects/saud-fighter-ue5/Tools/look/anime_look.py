@@ -42,15 +42,26 @@ same steps, line for line):
   6. Speed lines, radial round the blow, when the game asks for them.
   7. The impact frame: for a frame or two the whole picture goes to ink and
      paper, the lit side paper, the rest ink, and can be flipped.
+  8. HAWK FIST's fire (since 2026-09-26, "build flame fire hit for Saud"):
+     the flame on Saud's fist while the talent is lit, and the burst on
+     the man a burning punch hit. They are the browser's own drawings --
+     handFlame()'s three tongues on a shared wobble over a glow, applyHit()'s
+     ring and sparks -- in the browser's figure pixels, scaled to the
+     fist's own distance from the camera (Combat/SaudFire.h has every
+     number and where it comes from), and made the look's: the glow banded,
+     an ink line round the flame, and the flame drawn BEHIND the hand so
+     the knuckles stay legible, which is the browser's own note on it.
 
 Steps 1-5 and the impact frame's drawing are M_Anime_Post, before
-tonemapping. Step 6 and the impact frame's hard cut are a second material,
-M_Anime_Frame, after tonemapping -- after TSR and bloom, which would
-otherwise blend a one-frame cut through their history (found by review,
-2026-09-24). Steps 6 and 7 are driven by the game through the Material
-Parameter Collection MPC_Anime (Combat/SaudAnime.h has the timings and the
-names); everything else is a constant from LOOK, written into the HLSL when
-the materials are built, so the preview and the engine read one table.
+tonemapping. Steps 6 and 8 and the impact frame's hard cut are a second
+material, M_Anime_Frame, after tonemapping -- after TSR and bloom, which
+would otherwise blend a one-frame cut through their history (found by
+review, 2026-09-24); the fire is drawn before the cut, so on an impact
+frame it is cut to paper and ink with everything else. Steps 6, 7 and 8
+are driven by the game through the Material Parameter Collection MPC_Anime
+(Combat/SaudAnime.h and Combat/SaudFire.h have the timings and the names);
+everything else is a constant from LOOK, written into the HLSL when the
+materials are built, so the preview and the engine read one table.
 
 RUN
   python3 Tools/look/anime_look.py            checks: HLSL generated, the
@@ -168,9 +179,49 @@ LOOK = {
     # HUD's panels, which SaudHUD.cpp draws in the same two, checked below
     "PAPER": (0.93, 0.88, 0.78),
     "IMPACT_CUT": 0.45,       # display luminance above which the cut frame is paper
+    # 8. HAWK FIST's fire: what the look adds to the browser's drawing
+    # (the drawing itself is FIRE, below). The flame is drawn only on
+    # pixels this far BEHIND the fist's centre, so the hand itself covers
+    # it; the burst only on pixels not this far in front of the man hit,
+    # so he wears it and a man between him and the camera hides it.
+    "FIRE_BEHIND_CM": 3.0,
+    "BURST_BEHIND_CM": 40.0,
+    "FIRE_INK_PX": 2.2,       # the ink line round the flame, at 1080 lines (the world's)
+    "GLOW_STEPS": 3,          # the glow's gradient cut to this many flat rings
     # the defaults of the game-driven parameters
     "KEY": 1.0,
 }
+
+# HAWK FIST's drawing, the browser's (saud-fighter/index.html handFlame()
+# :1206, burst() :775, ring() :765, drawFx() :807, applyHit() :3538). Sizes
+# are the browser's FIGURE pixels -- a standing fighter is 148 px tall for
+# 180 cm -- and Combat/SaudFire.h quotes the same numbers for the game;
+# _check_names() holds this table to that header. Colours are the
+# browser's rgba, as display values with their alpha.
+FIRE = {
+    "FIGURE_PX": 148.0,
+    "FIGURE_CM": 180.0,
+    "TONGUE_ROOT_PX": 3.0,                       # a tongue starts 3 px behind the fist
+    "TONGUE_W": tuple(5.2 - 1.1 * i for i in range(3)),        # half-widths
+    "TONGUE_LEN": tuple(20.0 - 4.5 * i for i in range(3)),     # times the heat
+    "TONGUE_COL": ((255, 196, 72, 0.92), (255, 124, 32, 0.86), (255, 238, 196, 0.95)),
+    "SWAY_RATE": 11.0, "SWAY_PHASE": 2.1, "SWAY_PX": 3.2,
+    "GLOW_CX": 2.0, "GLOW_R": 26.0,              # radius times the heat
+    "GLOW_MID": 0.45,                            # the gradient's middle stop
+    "GLOW_COL": ((255, 238, 190, 0.85), (255, 150, 44, 0.42), (200, 40, 10, 0.0)),
+    "RING_FROM": 8.0, "RING_TO": 74.0, "RING_S": 0.28, "RING_A": 0.85, "RING_W": 6.0, "RING_SQUASH": 0.62,
+    "RING_COL": (255, 176, 74, 1.0),             # #ffb04a
+    "SPARKS_HOT": 14, "SPARKS_PALE": 8,
+    "SPARK_SPD": (300.0, 190.0), "SPARK_SHARE_MIN": 0.3,
+    "SPARK_LIFT": 40.0, "SPARK_G": 460.0, "SPARK_DRAG": 2.4493,
+    "SPARK_LIFE": (0.25, 0.55), "SPARK_R": (2.0, 5.0),
+    "SPARK_COL": ((255, 168, 52, 0.95), (255, 238, 190, 0.95)),
+}
+
+
+def _rgb(c):
+    """A browser rgba's colour as display values (0..1)."""
+    return tuple(v / 255.0 for v in c[:3])
 
 LUMA = (0.2126, 0.7152, 0.0722)
 
@@ -187,7 +238,21 @@ MPC_SCALARS = (
     ("SpeedCentreY", 0.5),
     ("SpeedSeed", 0.0),     # changes every other frame: the lines flicker
     ("Key", LOOK["KEY"]),
+    # HAWK FIST (Combat/SaudFire.h, Param): the fist on screen and the man hit
+    ("FireHeat", 0.0),      # 0: no flame; the browser's 0.78 standing, 1.25 through a punch
+    ("FireX", 0.5), ("FireY", 0.5),          # the fist, 0..1 of the viewport, Y down
+    ("FireDirX", 0.0), ("FireDirY", -1.0),   # along the forearm, unit, aspect applied
+    ("FireDepth", 0.0),     # scene depth of the fist, cm
+    ("FireScale", 0.0),     # one figure pixel there, as a share of the viewport's height
+    ("FireTime", 0.0),      # game seconds, for the sway
+    ("BurnAge", -1.0),      # seconds since a burning punch landed; < 0: none
+    ("BurnX", 0.5), ("BurnY", 0.5),
+    ("BurnDepth", 0.0),
+    ("BurnScale", 0.0),
+    ("BurnSeed", 0.0),      # a new set of sparks every burst
 )
+FIRE_PARAMS = ("FireHeat", "FireX", "FireY", "FireDirX", "FireDirY", "FireDepth", "FireScale", "FireTime",
+               "BurnAge", "BurnX", "BurnY", "BurnDepth", "BurnScale", "BurnSeed")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
@@ -230,6 +295,8 @@ def _sub(code):
         "SPEED_COUNT": _f(L["SPEED_COUNT"]), "SPEED_INNER": _f(L["SPEED_INNER"]),
         "SPEED_OUTER": _f(L["SPEED_OUTER"]), "SPEED_ON_FIGHTER": _f(L["SPEED_ON_FIGHTER"]),
         "SPEED_A": _f(L["SPEED_ALPHA"]), "IMPACT_CUT": _f(L["IMPACT_CUT"]),
+        "FIRE_BEHIND": _f(L["FIRE_BEHIND_CM"]), "BURST_BEHIND": _f(L["BURST_BEHIND_CM"]),
+        "FIRE_INK": _f(L["FIRE_INK_PX"]), "GLOW_STEPS": _f(L["GLOW_STEPS"]),
     }
     import re
     names = sorted(pairs, key=len, reverse=True)
@@ -405,8 +472,10 @@ float D = SceneTextureLookup(UV, 1, false).r;
 float CD = SceneTextureLookup(UV, 13, false).r;
 bool Fighter = CD < D + 2.0;
 
-// 7b. the cut
-float3 Out = lerp(S, dot(S, LUMA) > IMPACT_CUT ? PAPER_D : INK_D, step(0.5, Impact));
+float3 Out = S;
+""") + hlsl_fire() + _sub(r"""
+// 7b. the cut (the fire is cut with everything else)
+Out = lerp(Out, dot(Out, LUMA) > IMPACT_CUT ? PAPER_D : INK_D, step(0.5, Impact));
 
 // 6. speed lines, behind the figures as a panel draws them
 float2 VUV = GetViewportUV(Parameters);
@@ -422,6 +491,127 @@ float3 LineC = Rnd > 1.0 - SPEED_RED ? BLOOD_D : INK_D;
 Out = lerp(Out, LineC, Streak * Reach * Speed * SPEED_A * (Fighter ? SPEED_ON_FIGHTER : 1.0));
 return Out;
 """)
+
+
+def hlsl_fire():
+    """Step 8 of M_Anime_Frame: the flame and the burst, in display values,
+    before the impact frame's cut. Inputs: the FIRE_PARAMS, plus D (scene
+    depth), VUV and Aspect already in scope. The browser's shapes with the
+    browser's numbers (FIRE), in figure pixels about the fist or the man
+    hit, scaled by the game's FireScale / BurnScale; the tongues' edges
+    are the browser's two quadratic curves sampled along the tongue."""
+    F = FIRE
+    L = LOOK
+    tc = F["TONGUE_COL"]; gc = F["GLOW_COL"]; sc = F["SPARK_COL"]
+    d = {
+        "ROOT": _f(F["TONGUE_ROOT_PX"]),
+        "TW": ", ".join(_f(w) for w in F["TONGUE_W"]),
+        "TL": ", ".join(_f(l) for l in F["TONGUE_LEN"]),
+        "TC": ", ".join(_f3(_rgb(c)) for c in tc),
+        "TA": ", ".join(_f(c[3]) for c in tc),
+        "SWAY_RATE": _f(F["SWAY_RATE"]), "SWAY_PHASE": _f(F["SWAY_PHASE"]), "SWAY_PX": _f(F["SWAY_PX"]),
+        "GLOW_CX": _f(F["GLOW_CX"]), "GLOW_R": _f(F["GLOW_R"]), "GLOW_MID": _f(F["GLOW_MID"]),
+        "GC0": _f3(_rgb(gc[0])), "GC1": _f3(_rgb(gc[1])), "GC2": _f3(_rgb(gc[2])),
+        "GA0": _f(gc[0][3]), "GA1": _f(gc[1][3]),
+        "RING_FROM": _f(F["RING_FROM"]), "RING_TO": _f(F["RING_TO"]), "RING_S": _f(F["RING_S"]),
+        "RING_A": _f(F["RING_A"]), "RING_W": _f(F["RING_W"]), "RING_SQUASH": _f(F["RING_SQUASH"]),
+        "RING_C": _f3(_rgb(F["RING_COL"])),
+        "SPARKS": str(F["SPARKS_HOT"] + F["SPARKS_PALE"]), "SPARKS_HOT": str(F["SPARKS_HOT"]),
+        "SPD_HOT": _f(F["SPARK_SPD"][0]), "SPD_PALE": _f(F["SPARK_SPD"][1]), "SHARE_MIN": _f(F["SPARK_SHARE_MIN"]),
+        "LIFT": _f(F["SPARK_LIFT"]), "GRAV": _f(F["SPARK_G"]), "DRAG": _f(F["SPARK_DRAG"]),
+        "LIFE_MIN": _f(F["SPARK_LIFE"][0]), "LIFE_MAX": _f(F["SPARK_LIFE"][1]),
+        "R_MIN": _f(F["SPARK_R"][0]), "R_MAX": _f(F["SPARK_R"][1]),
+        "SC_HOT": _f3(_rgb(sc[0])), "SC_PALE": _f3(_rgb(sc[1])), "SA": _f(sc[0][3]),
+        "FIRE_BEHIND": _f(L["FIRE_BEHIND_CM"]), "BURST_BEHIND": _f(L["BURST_BEHIND_CM"]),
+        "FIRE_INK": _f(L["FIRE_INK_PX"]), "GLOW_STEPS": _f(L["GLOW_STEPS"]), "INK_D": _f3(display(L["INK"])),
+    }
+    return r"""
+// 8. HAWK FIST (Combat/SaudFire.h): the flame on Saud's fist, and the
+//    burst on the man his burning punch hit -- the browser's handFlame()
+//    and applyHit(), in its figure pixels about the fist, scaled to the
+//    fist's own distance; the glow banded, an ink line round the flame,
+//    and the flame drawn behind the hand so the knuckles stay legible.
+const float2 Dir8[8] = { float2(1,0), float2(-1,0), float2(0,1), float2(0,-1),
+                         float2(0.7071,0.7071), float2(-0.7071,0.7071),
+                         float2(0.7071,-0.7071), float2(-0.7071,-0.7071) };
+if (FireHeat > 0.0)
+{
+    float2 Fd = float2(FireDirX, FireDirY);
+    float2 Fv = (VUV - float2(FireX, FireY)) * float2(Aspect, 1.0);
+    float2 P = float2(dot(Fv, Fd), dot(Fv, float2(-Fd.y, Fd.x))) / max(FireScale, 1e-6);   // figure px: along, across
+    float Behind = D > FireDepth + %(FIRE_BEHIND)s ? 1.0 : 0.0;
+    // the glow: the browser's gradient, its stops kept, cut into rings
+    float G = length(P - float2(%(GLOW_CX)s, 0.0)) / (%(GLOW_R)s * FireHeat);
+    G = (floor(G * %(GLOW_STEPS)s) + 0.5) / %(GLOW_STEPS)s;
+    float Ga = G < %(GLOW_MID)s ? lerp(%(GA0)s, %(GA1)s, G / %(GLOW_MID)s)
+                                : lerp(%(GA1)s, 0.0, saturate((G - %(GLOW_MID)s) / (1.0 - %(GLOW_MID)s)));
+    float3 Gc = G < %(GLOW_MID)s ? lerp(%(GC0)s, %(GC1)s, G / %(GLOW_MID)s)
+                                 : lerp(%(GC1)s, %(GC2)s, saturate((G - %(GLOW_MID)s) / (1.0 - %(GLOW_MID)s)));
+    Out = lerp(Out, Gc, (G < 1.0 ? Ga : 0.0) * Behind);
+    // three tongues, widest first and the pale core last, tested here and
+    // at eight neighbours the ink line's width away: a pixel outside every
+    // tongue with one beside it is the line
+    const float TW[3] = { %(TW)s };
+    const float TL[3] = { %(TL)s };
+    const float3 TC[3] = { %(TC)s };
+    const float TA[3] = { %(TA)s };
+    float Rf = %(FIRE_INK)s / 1080.0 / max(FireScale, 1e-6);
+    float3 Fc = Out;
+    float Inside = 0.0, Beside = 0.0;
+    for (int k = 0; k < 9; k++)
+    {
+        float2 Pk = k == 0 ? P : P + Dir8[k - 1] * Rf;
+        for (int i = 0; i < 3; i++)
+        {
+            float Len = TL[i] * FireHeat;
+            float Sw = sin(FireTime * %(SWAY_RATE)s + i * %(SWAY_PHASE)s) * %(SWAY_PX)s;
+            float u = (Pk.x + %(ROOT)s) / (Len + %(ROOT)s);
+            float Top = (1.0 - u) * (1.0 - u) * -TW[i] + 2.0 * u * (1.0 - u) * (-0.8 * TW[i] + Sw) + u * u * 0.5 * Sw;
+            float Bot = (1.0 - u) * (1.0 - u) * TW[i] + 2.0 * u * (1.0 - u) * (0.8 * TW[i] + Sw) + u * u * 0.5 * Sw;
+            bool In = u >= 0.0 && u <= 1.0 && Pk.y >= Top && Pk.y <= Bot;
+            if (k == 0 && In) { Fc = lerp(Fc, TC[i], TA[i]); Inside = 1.0; }
+            if (k > 0 && In) { Beside = 1.0; }
+        }
+    }
+    Out = lerp(Out, Fc, Behind);
+    Out = lerp(Out, %(INK_D)s, Beside * (1.0 - Inside) * Behind);
+}
+if (BurnAge >= 0.0)
+{
+    float2 Bv = (VUV - float2(BurnX, BurnY)) * float2(Aspect, 1.0) / max(BurnScale, 1e-6);   // figure px, y down
+    float Bb = D > BurnDepth - %(BURST_BEHIND)s ? 1.0 : 0.0;
+    // the ring: an ellipse squashed to the browser's, its stroke thinning
+    float k = BurnAge / %(RING_S)s;
+    if (k < 1.0)
+    {
+        float Rr = lerp(%(RING_FROM)s, %(RING_TO)s, k);
+        float E = length(Bv * float2(1.0, 1.0 / %(RING_SQUASH)s));
+        float Wd = %(RING_W)s * (1.0 - k) + 1.0;
+        Out = lerp(Out, %(RING_C)s, (abs(E - Rr) <= 0.5 * Wd ? 1.0 : 0.0) * (1.0 - k) * %(RING_A)s * Bb);
+    }
+    // the sparks: hot ones then pale, each thrown its own way by the seed,
+    // lifted, dragged and falling as the browser's are, fading with life
+    for (int i = 0; i < %(SPARKS)s; i++)
+    {
+        bool Pale = i >= %(SPARKS_HOT)s;
+        float H1 = frac(sin(i * 12.9898 + BurnSeed * 78.233 + 1.0 * 37.719) * 43758.5453);
+        float H2 = frac(sin(i * 12.9898 + BurnSeed * 78.233 + 2.0 * 37.719) * 43758.5453);
+        float H3 = frac(sin(i * 12.9898 + BurnSeed * 78.233 + 3.0 * 37.719) * 43758.5453);
+        float H4 = frac(sin(i * 12.9898 + BurnSeed * 78.233 + 4.0 * 37.719) * 43758.5453);
+        float A = 6.2831853 * H1;
+        float Sp = (Pale ? %(SPD_PALE)s : %(SPD_HOT)s) * lerp(%(SHARE_MIN)s, 1.0, H2);
+        float Life = lerp(%(LIFE_MIN)s, %(LIFE_MAX)s, H3);
+        float Rad = lerp(%(R_MIN)s, %(R_MAX)s, H4);
+        if (BurnAge < Life)
+        {
+            float2 At = float2(cos(A) * Sp * (1.0 - exp(-%(DRAG)s * BurnAge)) / %(DRAG)s,
+                               (sin(A) * Sp - %(LIFT)s) * BurnAge + 0.5 * %(GRAV)s * BurnAge * BurnAge);
+            float Hit = length(Bv - At) <= Rad ? 1.0 : 0.0;
+            Out = lerp(Out, Pale ? %(SC_PALE)s : %(SC_HOT)s, Hit * saturate((Life - BurnAge) / %(LIFE_MAX)s) * %(SA)s * Bb);
+        }
+    }
+}
+""" % d
 
 
 # ------------------------------------------------------------ numpy mirror
@@ -560,8 +750,93 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0):
     return out, {"T": T, "deep": deep, "shadow": shad, "ink": inkw, "hatch": hatch}
 
 
-def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0):
-    """M_Anime_Frame's steps on a display-valued picture S (H,W,3, 0..1)."""
+def fire(out, D, fire=None, burn=None):
+    """Step 8 on a display-valued picture `out` (H,W,3), with the scene
+    depth D (H,W, cm). `fire` is the fist: heat, x, y (viewport, y down),
+    dir (unit, aspect applied), depth (cm), scale (a figure px as a share
+    of the height), time (s). `burn` is the man hit: age (s), x, y, depth,
+    scale, seed. Either None draws nothing. The same arithmetic as
+    hlsl_fire(), line for line."""
+    import numpy as np
+    L, F = LOOK, FIRE
+    H, W = out.shape[:2]
+    lerp = lambda a, b, t: a + (b - a) * t
+    fr = lambda v: v - np.floor(v)
+    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    vuv = np.stack([(xx + 0.5) / W, (yy + 0.5) / H], axis=-1)
+    aspect = W / H
+    ink = np.array(display(L["INK"]))
+    dirs = ((1, 0), (-1, 0), (0, 1), (0, -1),
+            (.7071, .7071), (-.7071, .7071), (.7071, -.7071), (-.7071, -.7071))
+    if fire is not None and fire["heat"] > 0.0:
+        heat = fire["heat"]
+        fd = np.array(fire["dir"], float); fd /= np.linalg.norm(fd)
+        fv = (vuv - np.array([fire["x"], fire["y"]])) * np.array([aspect, 1.0])
+        P = np.stack([fv @ fd, fv @ np.array([-fd[1], fd[0]])], axis=-1) / max(fire["scale"], 1e-6)
+        behind = (D > fire["depth"] + L["FIRE_BEHIND_CM"]).astype(float)
+        gc = [np.array(_rgb(c)) for c in F["GLOW_COL"]]
+        ga0, ga1, mid, steps = F["GLOW_COL"][0][3], F["GLOW_COL"][1][3], F["GLOW_MID"], L["GLOW_STEPS"]
+        G = np.hypot(P[..., 0] - F["GLOW_CX"], P[..., 1]) / (F["GLOW_R"] * heat)
+        G = (np.floor(G * steps) + 0.5) / steps
+        lo = G < mid
+        t1 = np.clip(G / mid, 0, 1); t2 = np.clip((G - mid) / (1.0 - mid), 0, 1)
+        Ga = np.where(lo, lerp(ga0, ga1, t1), lerp(ga1, 0.0, t2))
+        Gc = np.where(lo[..., None], lerp(gc[0], gc[1], t1[..., None]), lerp(gc[1], gc[2], t2[..., None]))
+        out = lerp(out, Gc, (np.where(G < 1.0, Ga, 0.0) * behind)[..., None])
+        Rf = L["FIRE_INK_PX"] / 1080.0 / max(fire["scale"], 1e-6)
+        fc = out.copy()
+        inside = np.zeros((H, W), bool); beside = np.zeros((H, W), bool)
+        for k in range(9):
+            Pk = P if k == 0 else P + np.array(dirs[k - 1]) * Rf
+            for i in range(3):
+                w, ln = F["TONGUE_W"][i], F["TONGUE_LEN"][i] * heat
+                sw = math.sin(fire["time"] * F["SWAY_RATE"] + i * F["SWAY_PHASE"]) * F["SWAY_PX"]
+                root = F["TONGUE_ROOT_PX"]
+                u = (Pk[..., 0] + root) / (ln + root)
+                top = (1 - u) ** 2 * -w + 2 * u * (1 - u) * (-0.8 * w + sw) + u * u * 0.5 * sw
+                bot = (1 - u) ** 2 * w + 2 * u * (1 - u) * (0.8 * w + sw) + u * u * 0.5 * sw
+                In = (u >= 0) & (u <= 1) & (Pk[..., 1] >= top) & (Pk[..., 1] <= bot)
+                if k == 0:
+                    c = F["TONGUE_COL"][i]
+                    fc = np.where(In[..., None], lerp(fc, np.array(_rgb(c)), c[3]), fc)
+                    inside |= In
+                else:
+                    beside |= In
+        out = lerp(out, fc, behind[..., None])
+        out = lerp(out, ink, (beside & ~inside)[..., None] * behind[..., None])
+    if burn is not None and burn["age"] >= 0.0:
+        age = burn["age"]
+        bv = (vuv - np.array([burn["x"], burn["y"]])) * np.array([aspect, 1.0]) / max(burn["scale"], 1e-6)
+        bb = (D > burn["depth"] - L["BURST_BEHIND_CM"]).astype(float)
+        k = age / F["RING_S"]
+        if k < 1.0:
+            rr = lerp(F["RING_FROM"], F["RING_TO"], k)
+            E = np.hypot(bv[..., 0], bv[..., 1] / F["RING_SQUASH"])
+            wd = F["RING_W"] * (1.0 - k) + 1.0
+            a = (np.abs(E - rr) <= 0.5 * wd) * (1.0 - k) * F["RING_A"] * bb
+            out = lerp(out, np.array(_rgb(F["RING_COL"])), a[..., None])
+        n_hot, n_all = F["SPARKS_HOT"], F["SPARKS_HOT"] + F["SPARKS_PALE"]
+        for i in range(n_all):
+            pale = i >= n_hot
+            h = [fr(math.sin(i * 12.9898 + burn["seed"] * 78.233 + kk * 37.719) * 43758.5453) for kk in (1, 2, 3, 4)]
+            A = 2 * math.pi * h[0]
+            sp = F["SPARK_SPD"][1 if pale else 0] * lerp(F["SPARK_SHARE_MIN"], 1.0, h[1])
+            life = lerp(F["SPARK_LIFE"][0], F["SPARK_LIFE"][1], h[2])
+            rad = lerp(F["SPARK_R"][0], F["SPARK_R"][1], h[3])
+            if age < life:
+                drag = F["SPARK_DRAG"]
+                at = (math.cos(A) * sp * (1.0 - math.exp(-drag * age)) / drag,
+                      (math.sin(A) * sp - F["SPARK_LIFT"]) * age + 0.5 * F["SPARK_G"] * age * age)
+                hit = np.hypot(bv[..., 0] - at[0], bv[..., 1] - at[1]) <= rad
+                c = F["SPARK_COL"][1 if pale else 0]
+                a = hit * min(1.0, (life - age) / F["SPARK_LIFE"][1]) * c[3] * bb
+                out = lerp(out, np.array(_rgb(c)), a[..., None])
+    return out
+
+
+def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None, fist=None, burn=None):
+    """M_Anime_Frame's steps on a display-valued picture S (H,W,3, 0..1):
+    the fire (needs D, the depth), the impact frame's cut, the speed lines."""
     import numpy as np
     L = LOOK
     H, W = S.shape[:2]
@@ -569,8 +844,10 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0):
     lerp = lambda a, b, t: a + (b - a) * t
     fr = lambda v: v - np.floor(v)
     out = S.copy()
+    if (fist is not None or burn is not None) and D is not None:
+        out = fire(out, D, fist, burn)
     if impact >= 0.5:
-        cut = (S @ luma > L["IMPACT_CUT"])[..., None]
+        cut = (out @ luma > L["IMPACT_CUT"])[..., None]
         out = np.where(cut, np.array(display(L["PAPER"])), np.array(display(L["INK"])))
     if speed > 0.0:
         yy, xx = np.mgrid[0:H, 0:W].astype(float)
@@ -598,12 +875,13 @@ def to_display(lin):
 
 
 def look(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, speed=0.0,
-         centre=(0.5, 0.5), seed=0.0):
+         centre=(0.5, 0.5), seed=0.0, fist=None, burn=None):
     """Both materials, in the engine's order: M_Anime_Post, the
     tonemapper's stand-in, M_Anime_Frame. Returns display values (0..1)
-    and M_Anime_Post's masks."""
+    and M_Anime_Post's masks. `fist` and `burn` are HAWK FIST's (fire())."""
     out, m = preview(C, A, N, D, fighter, key=key, impact=impact, invert=invert)
-    return frame(to_display(out), fighter, impact=impact, speed=speed, centre=centre, seed=seed), m
+    return frame(to_display(out), fighter, impact=impact, speed=speed, centre=centre, seed=seed,
+                 D=D, fist=fist, burn=burn), m
 
 
 def to_8bit(disp):
@@ -671,8 +949,10 @@ def check(bite=None):
     """What the look promises, on the sphere. `bite` breaks one thing to
     prove the check that guards it fails."""
     import numpy as np
-    global LOOK
+    global LOOK, FIRE
     saved = dict(LOOK)
+    saved_fire = dict(FIRE)
+    lerp = lambda a, b, t: a + (b - a) * t
     try:
         if bite == "no_terminator":
             LOOK["Q_SHADOW"] = LOOK["Q_LIT"]; LOOK["Q_DEEP"] = LOOK["Q_LIT"]
@@ -704,6 +984,16 @@ def check(bite=None):
             LOOK["PAPER"] = LOOK["INK"]
         if bite == "no_cut":
             LOOK["IMPACT_CUT"] = -1.0
+        if bite == "fire_on_hand":
+            LOOK["FIRE_BEHIND_CM"] = -1e9
+        if bite == "soft_glow":
+            LOOK["GLOW_STEPS"] = 64
+        if bite == "no_fire_ink":
+            LOOK["FIRE_INK_PX"] = 0.0
+        if bite == "burst_through_men":
+            LOOK["BURST_BEHIND_CM"] = 1e9
+        if bite == "still_sparks":
+            FIRE["SPARK_SPD"] = (0.0, 0.0); FIRE["SPARK_G"] = 0.0; FIRE["SPARK_LIFT"] = 0.0
         C, A, N, D, on = _sphere()
         out, m = preview(C, A, N, D, on)
         luma = np.array(LUMA)
@@ -799,8 +1089,74 @@ def check(bite=None):
         assert diff[on].mean() == 0.0, "the speed lines stop at a fighter"
         reds = diff & (sp[..., 0] > sp[..., 1] + 0.15)
         assert 0.05 < reds.sum() / max(diff.sum(), 1) < 0.5, "some streaks are blood, most are ink"
+        # 8. HAWK FIST. The flame on the small ball in front of the sphere
+        #    (a fist over a chest, 6 figure px across at this scale),
+        #    pointing right: it is drawn on what is behind the fist -- the
+        #    chest, the wall -- and never on the fist.
+        base2, _ = look(C2, A2, N2, D2, on2)
+        n = D2.shape[0]
+        fx, fy = (0.20 + 1) / 2, (0.25 + 1) / 2                # the ball's centre on the screen
+        fdepth = 300.0 - 0.507 * 100.0 - 10.0                  # the ball's centre, behind its surface
+        scale = 0.012                                           # a figure px: 1.2 % of the height
+        fist = dict(heat=1.0, x=fx, y=fy, dir=(1.0, 0.0), depth=fdepth, scale=scale, time=0.3)
+        lit, _ = look(C2, A2, N2, D2, on2, fist=fist)
+        cold, _ = look(C2, A2, N2, D2, on2, fist=dict(fist, heat=0.0))
+        diff = np.abs(lit - base2).sum(axis=2) > 0.05
+        assert np.abs(cold - base2).max() < 1e-9, "no flame on a cold fist"
+        yy2, xx2 = np.mgrid[0:n, 0:n]
+        u2, v2 = (xx2 + 0.5) / n, (yy2 + 0.5) / n
+        hand = ((xx2 + 0.5) / n * 2 - 1 - 0.20) ** 2 + ((yy2 + 0.5) / n * 2 - 1 - 0.25) ** 2 < 0.13 ** 2
+        assert diff[hand].mean() == 0.0, "the flame is behind the hand: the knuckles stay legible"
+        px = lambda v: v * scale                                # figure px to viewport heights
+        ahead = (u2 > fx + px(8)) & (u2 < fx + px(12)) & (np.abs(v2 - fy) < px(1.5))
+        assert diff[ahead].mean() > 0.9, "the tongues run out ahead of the fist along the forearm"
+        far = (u2 < fx - px(32)) | (u2 > fx + px(32)) | (np.abs(v2 - fy) > px(32))
+        assert diff[far].mean() == 0.0, "and nothing further than the glow"
+        # flat: on a flat wall the fire adds a handful of colours (the
+        # glow's rings, the three tongues, the ink), not a gradient
+        Cw = np.full((n, n, 3), 0.30 * 1.2); Aw = np.full((n, n, 3), 0.30)
+        Nw = np.zeros((n, n, 3)); Nw[..., 2] = 1.0
+        Dw = np.full((n, n), 900.0); onw = np.zeros((n, n), bool)
+        wall0, _ = look(Cw, Aw, Nw, Dw, onw)
+        wall1, _ = look(Cw, Aw, Nw, Dw, onw, fist=dict(fist, x=0.5, y=0.5, depth=200.0))
+        dw = np.abs(wall1 - wall0).sum(axis=2) > 0.05
+        # (the glow's three rings, each tongue over each ring it crosses,
+        # the ink: at most sixteen; a gradient is hundreds)
+        cols = np.unique(np.round(wall1[dw], 3), axis=0)
+        assert 4 <= len(cols) <= 16, "the flame is flat tones, %d colours" % len(cols)
+        inkd = np.array(display(LOOK["INK"]))
+        inked = dw & (np.abs(wall1 - inkd).sum(axis=2) < 0.02)
+        assert inked.sum() > 100, "and there is an ink line round it"
+        # the burst on the man hit: a ring growing from the point, sparks
+        # flying out of it and dying, nothing after the last one; a man
+        # nearer the camera hides it
+        bx, by, bscale = 0.5, 0.5, 0.004
+        burn = dict(age=0.10, x=bx, y=by, depth=240.0, scale=bscale, seed=3.0)
+        early, _ = look(C, A, N, D, on, burn=dict(burn, age=0.02))
+        mid, _ = look(C, A, N, D, on, burn=burn)
+        late, _ = look(C, A, N, D, on, burn=dict(burn, age=0.40))
+        over, _ = look(C, A, N, D, on, burn=dict(burn, age=0.60))
+        rr2 = np.hypot(u2 - bx, v2 - by) / bscale                  # figure px from the burst
+        de = np.abs(early - base).sum(axis=2) > 0.05
+        dm = np.abs(mid - base).sum(axis=2) > 0.05
+        dl = np.abs(late - base).sum(axis=2) > 0.05
+        assert np.abs(over - base).max() < 1e-9, "the burst is over after the last spark"
+        assert de.sum() > 0 and dm.sum() > 0 and dl.sum() > 0, "the burst is drawn while it lasts"
+        ring_r = lambda age: FIRE["RING_FROM"] + (FIRE["RING_TO"] - FIRE["RING_FROM"]) * age / FIRE["RING_S"]
+        ringc = np.array(_rgb(FIRE["RING_COL"]))
+        ell = np.hypot(u2 - bx, (v2 - by) / FIRE["RING_SQUASH"]) / bscale
+        on_ring = dm & (np.abs(mid - lerp(base, ringc, (1 - 0.10 / FIRE["RING_S"]) * FIRE["RING_A"])).sum(axis=2) < 0.05)
+        assert on_ring.sum() > 50 and abs(np.median(ell[on_ring]) - ring_r(0.10)) < 2.0, "the ring is at its radius for its age"
+        band = lambda age: np.abs(ell - ring_r(age)) <= 0.5 * (FIRE["RING_W"] * (1 - age / FIRE["RING_S"]) + 1) + 1.0
+        se, sl = de & ~band(0.02), dl                             # the ring is gone by 0.40
+        assert se.sum() > 0 and sl.sum() > 0, "there are sparks early and late"
+        assert np.median(rr2[sl]) > 2.0 * np.median(rr2[se]), "the sparks fly out from the blow"
+        hidden, _ = look(C, A, N, D, on, burn=dict(burn, x=0.75, depth=900.0))   # the man hit is behind the sphere
+        dh = np.abs(hidden - base).sum(axis=2) > 0.05
+        assert dh[on].sum() == 0 and dh[~on].sum() > 0, "a man in front hides the burst on the man behind him"
     finally:
         LOOK.clear(); LOOK.update(saved)
+        FIRE.clear(); FIRE.update(saved_fire)
     return True
 
 
@@ -808,11 +1164,35 @@ def _check_names():
     """MPC_Anime's parameters are the names Combat/SaudAnime.h writes, and
     both materials read the ones they are given."""
     h = open(os.path.join(ROOT, "Source", "SaudFighter", "Combat", "SaudAnime.h")).read()
+    fh = open(os.path.join(ROOT, "Source", "SaudFighter", "Combat", "SaudFire.h")).read()
     for name, _ in MPC_SCALARS:
-        assert '"%s"' % name in h, "SaudAnime.h does not write %s" % name
+        where = fh if name in FIRE_PARAMS else h
+        assert '"%s"' % name in where, "%s does not write %s" % ("SaudFire.h" if name in FIRE_PARAMS else "SaudAnime.h", name)
     for path in (MPC_PATH,) + tuple(MATERIALS):
         assert path.rsplit("/", 1)[1] in h, "SaudAnime.h does not load %s" % path
     import re
+    # the fire's numbers are the ones SaudFire.h quotes from the browser
+    F = FIRE
+    shared = {
+        "FigurePx": F["FIGURE_PX"], "FigureCm": F["FIGURE_CM"], "TongueRootPx": F["TONGUE_ROOT_PX"],
+        "SwayRate": F["SWAY_RATE"], "SwayPhase": F["SWAY_PHASE"], "SwayPx": F["SWAY_PX"],
+        "GlowCentrePx": F["GLOW_CX"], "GlowRadiusPx": F["GLOW_R"],
+        "RingFromPx": F["RING_FROM"], "RingToPx": F["RING_TO"], "RingSeconds": F["RING_S"],
+        "RingAlpha": F["RING_A"], "RingWidthPx": F["RING_W"], "RingSquash": F["RING_SQUASH"],
+        "SparksHot": F["SPARKS_HOT"], "SparksPale": F["SPARKS_PALE"],
+        "SparkSpeedHotPx": F["SPARK_SPD"][0], "SparkSpeedPalePx": F["SPARK_SPD"][1],
+        "SparkSpeedShareMin": F["SPARK_SHARE_MIN"], "SparkLiftPx": F["SPARK_LIFT"],
+        "SparkGravityPx": F["SPARK_G"], "SparkDragPerSecond": F["SPARK_DRAG"],
+        "SparkLifeMin": F["SPARK_LIFE"][0], "SparkLifeMax": F["SPARK_LIFE"][1],
+        "SparkRadiusMin": F["SPARK_R"][0], "SparkRadiusMax": F["SPARK_R"][1],
+    }
+    for name, want in shared.items():
+        m = re.search(r"constexpr (?:float|int) %s = ([0-9.]+)f?;" % name, fh)
+        assert m, "SaudFire.h has no %s" % name
+        assert abs(float(m.group(1)) - want) < 1e-6, "SaudFire.h's %s is %s, FIRE's is %s" % (name, m.group(1), want)
+    for i in range(3):
+        assert abs(F["TONGUE_W"][i] - (5.2 - 1.1 * i)) < 1e-9 and abs(F["TONGUE_LEN"][i] - (20.0 - 4.5 * i)) < 1e-9
+    assert "5.2f - 1.1f" in fh and "20.f - 4.5f" in fh, "SaudFire.h's tongues are not the browser's"
     for path, (code_of, inputs, _) in MATERIALS.items():
         code = code_of()
         for name in inputs:
@@ -834,7 +1214,7 @@ def _check_names():
 # path -> (code, the MPC parameters it reads, where it runs)
 MATERIALS = {
     MATERIAL_PATH: (hlsl, ("Impact", "ImpactInvert", "Key"), "BL_SCENE_COLOR_AFTER_DOF"),
-    FRAME_PATH: (hlsl_frame, ("Impact", "Speed", "SpeedCentreX", "SpeedCentreY", "SpeedSeed"),
+    FRAME_PATH: (hlsl_frame, ("Impact", "Speed", "SpeedCentreX", "SpeedCentreY", "SpeedSeed") + FIRE_PARAMS,
                  "BL_SCENE_COLOR_AFTER_TONEMAPPING"),
 }
 
@@ -908,7 +1288,8 @@ if __name__ == "__main__":
     elif "--bite" in sys.argv:
         bites = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "specks", "stepped",
                  "one_tint", "accent_muted", "no_air", "ink_lines",
-                 "sky_shaded", "flat_impact", "lines_over_men", "no_cut")
+                 "sky_shaded", "flat_impact", "lines_over_men", "no_cut",
+                 "fire_on_hand", "soft_glow", "no_fire_ink", "burst_through_men", "still_sparks")
         caught = 0
         for b in bites:
             try:

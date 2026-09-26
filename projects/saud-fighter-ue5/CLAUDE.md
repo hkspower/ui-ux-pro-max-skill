@@ -1990,8 +1990,80 @@ an MMA fighter 10-20.
 the head at 0 degrees off the opponent; the 57 clips rebuilt on the new
 stances and every motion check passes (planted feet 0.2 mm, straight
 punches 0.0 mm, punches at the jaw, the cover tucked); the control rig
-verifies; guard and kick renders re-struck. **Not verified** in an
-engine.
+verifies; guard and kick renders re-struck. The knee sabotage stopped
+biting with this work -- it read the pole's side off the FK bend, and
+every stance has a forward knee now -- and was found to be blind anyway:
+a pole put BEHIND the knee turns the whole leg about the hip-to-ankle
+line, and the hinge's own angle, which is what the check measured, never
+notices. `build_motion.py` now also measures a standing knee against
+that line in the world, along the pelvis's own facing (the guard's
+sabotaged knee is 11 cm behind it), and the suite bites 20 of 20 again.
+**Not verified** in an engine.
+
+## HAWK FIST's fire -- 2026-09-26
+
+Asked as "build flame fire hit for Saud", read as the fire hit this game
+already has: HAWK FIST, the talent whose "punches carry fire. Burns MP,
+and only punches -- kicks stay cold" (`assets/talents.js`). The browser
+draws it (`handFlame()`, three tongues on a shared wobble over a glow on
+his lead fist, brightest through a punch) and lands it (`applyHit()`: a
+ring and two handfuls of sparks on the man hit, x1.55 damage, 10 px more
+reach, 90 px more push, 14 MP a burning punch). This build had the
+talent's tags, an `IsBurning()` on the ability path nothing drives, no
+mana at all on the path the fight runs on, and no picture of any of it.
+
+**The rules, on the path that runs** (`Combat/SaudFire.h`, no engine;
+`Tools/harness/tests/fire.cpp`). `ASaudCharacter` keeps MP as it keeps
+Rage: 40, back at 5 a second and 4 on any landed blow (Player.json's
+numbers, the browser's), spent 14 by a burning punch on the first man it
+lands on, guard or no guard, as `applyHit` spends it. A punch burns when
+it STARTS lit -- the talent carried and the MP there (`hawkReady`) -- and
+a burning punch hits x1.55, reaches 24 cm further and pushes 216 cm/s
+harder (the browser's 10 and 90 px through `PX_TO_CM`); a kick never
+burns. Three hooks on `AFighterBase` carry it without a branch in the
+sweep: `OnAttackStarted`, `GetAttackReachBonus`, `GetAttackKnockbackBonus`
+-- nothing for everyone but Saud. The flame eases on and off at the
+browser's 4.5 a second and the burst runs on the game's clock, so both
+stand still through a freeze as the browser's do. The test reads
+`DT_Talents.csv` and `Player.json` and holds the header's numbers to them.
+
+**The drawing** is the anime look's, step 8 of `M_Anime_Frame`
+(`Tools/look/anime_look.py`, `FIRE`; the HLSL and the numpy mirror line
+for line): the browser's shapes with the browser's numbers, in its
+FIGURE pixels (148 px for 180 cm -- the same figure the souq was taken to
+metres through), about the fist and scaled to the fist's own distance,
+which `USaudLookSubsystem::Project` measures by projecting one figure
+pixel straight up beside the point. What the look adds: the glow's
+gradient cut into three flat rings, an ink line round the tongues (the
+world's 2.2 px), and the flame drawn only on pixels BEHIND the fist's
+centre (3 cm), so the hand itself covers it and the knuckles stay legible
+-- the browser's own note on its flame. The burst is drawn on the man hit
+and on nothing 40 cm nearer the camera than him, so a man in front hides
+it. The flame is on his lead fist as he stands, and on the fist a punch
+is thrown with while he throws it (`SaudIK::StrikingLimb` says which).
+It is drawn before the impact frame's cut, so on an impact frame it is
+cut to paper and ink with everything else.
+
+Fourteen new `MPC_Anime` scalars (`SaudFire::Param`), written each tick
+from the player's state; `anime_look.py` checks their names against
+`SaudFire.h` and every shared number against it (`_check_names`).
+`Tools/blender/anime_preview.py --fire` renders the souq fight with the
+fist lit as he stands (`souq-fight-anime-fire.png`) and a burning punch
+just landed on the man nearest him (`souq-fight-anime-fire-hit.png`), the
+fist and the man read off the scene's own rigs and projected through its
+camera as the engine would.
+
+**Checked:** the harness (fire, 40 checks); `anime_look.py` -- the flame
+never on the hand, the tongues out along the forearm, nothing past the
+glow, flat tones and an ink line, the ring at its radius for its age, the
+sparks flying out and dying, the burst over after the last spark, a man
+in front hiding it -- and 20 of 20 sabotages caught, five of them the
+fire's (`fire_on_hand`, `soft_glow`, `no_fire_ink`, `burst_through_men`,
+`still_sparks`). **Not verified:** no engine has compiled the C++ or
+built the material; the preview is Blender's Cycles through the numpy
+mirror, as the rest of the look. **Seen, not touched:** the manga HUD
+draws no MP bar (the browser has an orange one), so the player cannot see
+what a burning punch costs; not asked for.
 
 ## Working rules
 

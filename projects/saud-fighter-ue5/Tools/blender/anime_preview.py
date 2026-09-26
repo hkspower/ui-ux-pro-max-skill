@@ -16,7 +16,13 @@ mirror of M_Anime_Post's HLSL, over them.
 --pair writes the plain render beside it, for judging the change; --blow
 also writes the impact frame, its flipped half and the speed lines round a
 blow at (X, Y) of the screen; --men makes a sheet from the rig files, each
-man full length over his face.
+man full length over his face; --fire (2026-09-26) writes HAWK FIST's fire
+over the same frame: Saud's lead fist lit as he stands (`-fire.png`), and
+a burning punch just landed on the man nearest him (`-fire-hit.png`) --
+the fist at its punching heat and the burst 0.10 s old. The fist, the
+forearm and the man hit are read off the scene's rigs and projected
+through its camera exactly as USaudLookSubsystem projects them in the
+engine (Combat/SaudFire.h).
 
 The G-buffer's base colour is the Diffuse Color pass, which since Blender
 4.0 carries the subsurface albedo too -- the skin is a full-weight
@@ -133,6 +139,45 @@ def render_passes(blend, camera=None, height=1080, samples=48, fit=False):
     return got, exposure
 
 
+def project(world, cam=None):
+    """A world point as the fire parameters want it: viewport fraction (Y
+    down), scene depth in cm, and one of the browser's figure pixels there
+    as a share of the viewport's height -- USaudLookSubsystem::Project."""
+    from bpy_extras.object_utils import world_to_camera_view
+    from mathutils import Vector
+    sc = bpy.context.scene
+    cam = cam or sc.camera
+    cm_per_px = AL.FIRE["FIGURE_CM"] / AL.FIRE["FIGURE_PX"]
+    p = world_to_camera_view(sc, cam, Vector(world))
+    q = world_to_camera_view(sc, cam, Vector(world) + Vector((0.0, 0.0, cm_per_px / 100.0)))
+    aspect = sc.render.resolution_x / sc.render.resolution_y
+    scale = ((q.x - p.x) ** 2 * aspect * aspect + (q.y - p.y) ** 2) ** 0.5
+    return p.x, 1.0 - p.y, p.z * 100.0, scale
+
+
+def fire_of(saud, hand="hand_l", forearm="lowerarm_l", heat=None, time=0.3):
+    """The flame's parameters for a rig object's fist: where it is, which
+    way the forearm points on the screen, how deep, how big."""
+    sc = bpy.context.scene
+    aspect = sc.render.resolution_x / sc.render.resolution_y
+    fist = saud.matrix_world @ saud.pose.bones[hand].head
+    elbow = saud.matrix_world @ saud.pose.bones[forearm].head
+    x, y, depth, scale = project(fist)
+    ex, ey, _, _ = project(elbow)
+    dx, dy = (x - ex) * aspect, y - ey
+    n = (dx * dx + dy * dy) ** 0.5
+    dx, dy = (dx / n, dy / n) if n > 1e-6 else (0.0, -1.0)
+    return dict(heat=heat, x=x, y=y, dir=(dx, dy), depth=depth, scale=scale, time=time)
+
+
+def burn_of(victim, age=0.10, seed=3.0):
+    """The burst's parameters on a rig object: at the actor's location, half
+    his figure up -- his pelvis, near enough."""
+    at = victim.matrix_world @ victim.pose.bones["pelvis"].head
+    x, y, depth, scale = project(at)
+    return dict(age=age, x=x, y=y, depth=depth, scale=scale, seed=seed)
+
+
 def look_from(got, exposure, **kw):
     """Both anime materials over one render's passes; returns 8-bit display
     values and M_Anime_Post's masks. The engine's buffer is pre-exposed, so
@@ -189,6 +234,24 @@ def main():
 
     got, exposure = render_passes(os.path.abspath(sys.argv[1]), _arg("--camera"), height, samples)
     pic, m = look_from(got, exposure)
+
+    # --fire: HAWK FIST on Saud, from the scene's own rigs, still open.
+    if "--fire" in sys.argv:
+        rigs = [o for o in bpy.data.objects if o.type == "ARMATURE" and "pelvis" in o.pose.bones]
+        saud = [o for o in rigs if o.name.startswith("Saud")][0]
+        others = [o for o in rigs if o is not saud]
+        nearest = min(others, key=lambda o: (o.matrix_world.translation - saud.matrix_world.translation).length)
+        stem = os.path.splitext(out)[0]
+        # Combat/SaudFire.h: 0.78 standing, 1.25 through a punch
+        standing = fire_of(saud, heat=0.78)
+        punching = fire_of(saud, heat=1.25, time=0.42)
+        lit, _ = look_from(got, exposure, fist=standing)
+        hit, _ = look_from(got, exposure, fist=punching, burn=burn_of(nearest))
+        Image.fromarray(lit).save(stem + "-fire.png")
+        Image.fromarray(hit).save(stem + "-fire-hit.png")
+        print("  HAWK FIST: %s-fire.png (lit, %s's lead fist at %.2f %.2f, %.0f cm, a figure px %.4f of the height) "
+              "and %s-fire-hit.png (burning, burst on %s)"
+              % (stem, saud.name, standing["x"], standing["y"], standing["depth"], standing["scale"], stem, nearest.name))
     if "--pair" in sys.argv:
         pic = np.hstack([plain_from(got, exposure), pic])
     Image.fromarray(pic).save(out)

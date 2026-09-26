@@ -1,6 +1,8 @@
 #include "Combat/SaudCharacter.h"
 #include "Combat/SaudArena.h"
+#include "Combat/SaudIK.h"
 #include "Game/SaudAudioSubsystem.h"
+#include "Game/SaudLookSubsystem.h"
 
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -112,7 +114,58 @@ float ASaudCharacter::GetOutgoingDamageMultiplier(const FAttackDef& Attack) cons
 		const int32 Level = (Attack.Family == EAttackFamily::Box) ? P.BoxingLevel : P.KickingLevel;
 		Mult *= 1.f + Level * 0.10f;
 	}
+	// A burning HAWK FIST punch: the browser's x1.55 on top.
+	if (bAttackBurning && State == EFighterState::Attack && Attack.Family == EAttackFamily::Box)
+	{
+		Mult *= SaudFire::DamageMultiplier;
+	}
 	return Mult;
+}
+
+/* -------------------------------------------------------------- HAWK FIST */
+
+bool ASaudCharacter::IsHawkLit() const
+{
+	const USaudGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance<USaudGameInstance>() : nullptr;
+	return SaudFire::Lit(GI && GI->HasAbility(EAbility::HawkFist), Mana);
+}
+
+float ASaudCharacter::GetHawkHeat() const
+{
+	const bool bSwingingPunch = State == EFighterState::Attack && CurrentAttack
+		&& CurrentAttack->Family == EAttackFamily::Box;
+	return SaudFire::Heat(Fire.Lit01, bSwingingPunch);
+}
+
+void ASaudCharacter::GetFlameBones(FName& OutHand, FName& OutForearm) const
+{
+	char Side = 0;
+	const bool bPunching = State == EFighterState::Attack && CurrentAttack
+		&& CurrentAttack->Family == EAttackFamily::Box;
+	if (bPunching)
+	{
+		SaudIK::StrikingLimb(TCHAR_TO_ANSI(*CurrentAttackRow.ToString()), Side);
+	}
+	const bool bRight = SaudFire::FlameHand(bPunching, Side) == 'r';
+	OutHand = bRight ? FName(TEXT("hand_r")) : FName(TEXT("hand_l"));
+	OutForearm = bRight ? FName(TEXT("lowerarm_r")) : FName(TEXT("lowerarm_l"));
+}
+
+void ASaudCharacter::OnAttackStarted(const FAttackDef& Attack)
+{
+	// hawkAttack(): decided as the swing starts, spent when it lands.
+	bAttackBurning = SaudFire::Burning(IsHawkLit(), Attack.Family == EAttackFamily::Box);
+	bHawkSpent = false;
+}
+
+float ASaudCharacter::GetAttackReachBonus(const FAttackDef& Attack) const
+{
+	return (bAttackBurning && State == EFighterState::Attack) ? SaudFire::ReachCm : 0.f;
+}
+
+float ASaudCharacter::GetAttackKnockbackBonus(const FAttackDef& Attack) const
+{
+	return (bAttackBurning && State == EFighterState::Attack) ? SaudFire::PushCm : 0.f;
 }
 
 float ASaudCharacter::GetBlockCostMultiplier(bool bPush) const
@@ -176,6 +229,12 @@ void ASaudCharacter::Tick(float DeltaSeconds)
 		ComboCount = 0;
 		OnComboChanged.Broadcast(ComboCount);
 	}
+
+	// HAWK FIST: MP back slowly with the clock (the browser's mpRegen.idle),
+	// and the flame eased toward lit or out, in game time -- it stands
+	// still through a freeze as the browser's does.
+	Mana = FMath::Min(SaudFire::MaxMana, Mana + SaudFire::ManaRegenPerSecond * DeltaSeconds);
+	Fire.Tick(DeltaSeconds, IsHawkLit());
 
 	if (DashRemaining > 0.f)
 	{
@@ -418,6 +477,24 @@ void ASaudCharacter::Input_Rage()
 
 void ASaudCharacter::OnHitLanded(AFighterBase* Victim, const FHitResultData& Hit)
 {
+	// applyHit(), before it asks whether the blow was blocked: a burning
+	// swing spends its MP on the first man it lands on and bursts on him,
+	// guard or no guard; any other landed blow gives a little MP back.
+	if (bAttackBurning && !bHawkSpent)
+	{
+		bHawkSpent = true;
+		Mana = FMath::Max(0.f, Mana - SaudFire::ManaCost);
+		Fire.Burn();
+		if (USaudLookSubsystem* Look = USaudLookSubsystem::Get(this))
+		{
+			Look->OnBurn(Victim);
+		}
+	}
+	else
+	{
+		Mana = FMath::Min(SaudFire::MaxMana, Mana + SaudFire::ManaPerLandedHit);
+	}
+
 	if (Hit.bBlocked || Hit.Damage <= 0.f)
 	{
 		return;
