@@ -129,7 +129,7 @@ def eye_check():
     """--eye-check (2026-09-26): the fissure's shape (sculpt.check_eye_shape)
     and each of its rules broken once; then a head built the way the
     pipeline builds one -- the 3.5 mm union, the eye region subdivided, the
-    sculpt, the drape -- through assembly.check_eye_open, clean, with no
+    sculpt, the drape, the relax -- through assembly.check_eye_open, clean, with no
     drape (the eye shut behind skin, as it was) and with the lids laid
     behind the globe instead of on it. bpy as a module, about a minute."""
     import build_saud as legacy
@@ -167,7 +167,9 @@ def eye_check():
         ASM.subdivide_eyes(body)
         sculpt.sculpt_face(body, A.head_surface_y)
         A.smooth(body, 0.3, 1)
-        if drape: sculpt.drape_eyes(body, A.head_surface_y)
+        if drape:
+            sculpt.drape_eyes(body, A.head_surface_y)
+            ASM.relax_eyes(body)
         return ASM.check_eye_open(body, ASM.eyeballs())
     shown, leak = head()
     print("  built    clean   globe over %.0f %% of the fissure, %.1f %% outside the lids" % (shown * 100, leak * 100))

@@ -213,13 +213,14 @@ def drape_target(x, z, gy):
     w = np.maximum(w, (inside > 0).astype(float))        # the fissure is always cut
     return target, np.clip(w, 0.0, 1.0), inside
 
-def near_margin(ax, z, band=0.0025):
-    """Within `band` of either lid margin, across the fissure and its
-    corners: the part of the eye that needs its density kept."""
+def near_margin(ax, z, band=0.0012):
+    """Within `band` of either lid margin, corner to corner: the part of the
+    eye that needs its density kept -- the edge of a lid. Not the inside of
+    the fissure, which is the pocket behind the globe and never seen."""
     if not (X_MED - band < ax < X_LAT + band):
         return False
     up, dn = aperture(np.array([ax]))
-    return bool(min(abs(z - up[0]), abs(z - dn[0])) < band or dn[0] < z < up[0])
+    return bool(min(abs(z - up[0]), abs(z - dn[0])) < band)
 
 def drape_eyes(body, surface_y):
     """Fit the skin round each globe: the fissure opened behind it and the

@@ -150,6 +150,35 @@ def subdivide_eyes(body, levels=2):
     body.data.update()
     return len(body.data.vertices)
 
+def relax_eyes(body):
+    """After the drape: collapse the eye region's subdivision back to about
+    the head's own density everywhere but a band along the lid margins.
+    The 33,000 triangles subdivide_eyes adds were needed to draw the lids
+    and are not needed to keep them -- they are smooth -- and left in, they
+    went into the body's reduction under its one ratio and it took every
+    face of the shoes to pay for them (2026-09-26, the first full build)."""
+    from .sculpt import EYE_Z, near_margin
+    me = body.data
+    vg = body.vertex_groups.new(name="eye_relax")
+    idx = [v.index for v in me.vertices
+           if EYE_BOX[0] < abs(v.co.x) < EYE_BOX[1] and abs(v.co.z - EYE_Z) < EYE_BOX[2]
+           and v.co.y < -0.02 and not near_margin(abs(v.co.x), v.co.z)]
+    if not idx:
+        body.vertex_groups.remove(vg); return 0
+    vg.add(idx, 1.0, 'REPLACE')
+    sel = set(idx)
+    region = sum(1 for p in me.polygons if all(i in sel for i in p.vertices))
+    total = len(me.polygons)
+    keep = region / 14.0                        # two levels of four, and a little over
+    before = total
+    d = body.modifiers.new("EyeRelax", "DECIMATE")
+    d.ratio = max(0.02, (total - region + keep) / total)
+    d.vertex_group = "eye_relax"; d.vertex_group_factor = 10.0
+    bpy.context.view_layer.objects.active = body
+    bpy.ops.object.modifier_apply(modifier="EyeRelax")
+    body.vertex_groups.remove(body.vertex_groups["eye_relax"])
+    return before - len(body.data.polygons)
+
 def check_eye_open(body, eyes, step=0.0005):
     """On the built head, from straight in front: the globe must show over
     the fissure -- all of it that the pocket clears, the white corner to
@@ -753,6 +782,7 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     peak, moved = sculpt.sculpt_face(body, A.head_surface_y, scale=face_scale)
     A.smooth(body, 0.3, 1)
     sculpt.drape_eyes(body, A.head_surface_y)
+    relaxed = relax_eyes(body)
     bpy.ops.object.shade_smooth()
     print("body      : %d verts  %.1fs   face sculpt peak %.1f mm over %d verts" % (len(body.data.vertices), time.time() - t, peak * 1000, moved))
     # The pipeline builds through here, not through anatomy.build(), so the
@@ -760,7 +790,8 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     A.measure(body, check=(vs <= 1.0))
     eyes = eyeballs()
     shown, leak = check_eye_open(body, eyes)
-    print("eyes      : globe shows over %.0f %% of the fissure, %.1f %% outside the lids" % (shown * 100, leak * 100))
+    print("eyes      : globe shows over %.0f %% of the fissure, %.1f %% outside the lids (%d faces of the eye region collapsed)"
+          % (shown * 100, leak * 100, relaxed))
     return body, trees, eyes, jl
 
 def above_hairline(c, margin=0.0):

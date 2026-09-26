@@ -2332,9 +2332,12 @@ behind the globe -- 8 of 8 caught.
 **Found on the first full build:** the eye region's subdivision is 33,000
 triangles, and the reduction protects the whole face, so it starved the
 rest of the body until the shoes had no faces left and the build stopped.
-Only a band 2.5 mm either side of each lid margin is protected now
-(`sculpt.near_margin`); the smooth lids and orbit collapse with the body.
-`check_eye_open` runs a second time on the reduced mesh.
+Unprotecting it was not enough -- the body's one collapse ratio still paid
+for them with the shoes. `assembly.relax_eyes` now collapses the region
+back to about the head's own density right after the drape, all but a
+band 1.2 mm either side of each lid margin (`sculpt.near_margin`), which
+the reduction protects: 5,100 faces over a plain head, from 16,200.
+`check_eye_open` runs again on the reduced mesh.
 
 ## The head, redrawn -- 2026-09-26
 

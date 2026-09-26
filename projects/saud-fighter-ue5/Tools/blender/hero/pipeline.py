@@ -283,7 +283,8 @@ def build_fighter(spec, argv=None):
             # but not the eye region's subdivision (assembly.subdivide_eyes)
             # away from the lid margins: 33,000 protected triangles of
             # smooth lid and orbit starved the rest of the body until the
-            # shoes collapsed to nothing. The margins keep their 0.4 mm.
+            # shoes collapsed to nothing. The lid margins keep their 0.4 mm;
+            # assembly.relax_eyes has already collapsed the rest.
             ax = abs(co.x)
             if (B.EYE_BOX[0] < ax < B.EYE_BOX[1] and abs(co.z - SC.EYE_Z) < B.EYE_BOX[2]
                     and not SC.near_margin(ax, co.z)):
