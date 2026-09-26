@@ -23,6 +23,11 @@ NOSE_TIP = 1.6450
 MOUTH_Z  = 1.6202      # the line between the lips
 CHIN_Z   = 1.5720
 EAR_Z    = 1.6640      # centre; the ear runs brow to nose base
+EAR_Y    = 0.026       # behind the mandibular ramus, not at mid-depth
+# 6 mm off the skull's side at (EAR_Y, EAR_Z): was 0.0785 on the old skull,
+# which was 11 mm wider there; assembly.ear asserts the gap, so a skull that
+# moves again takes its ears with it or fails.
+EAR_X    = 0.0722
 # z of the hairline at the brow (y -0.09) and at the nape (y +0.09). It was
 # (1.738, 1.695), which left a 34 mm forehead where the other two thirds of
 # the face were 62 and 59 mm, and a correspondingly swollen cranium.
@@ -41,7 +46,7 @@ FACE = [
     # brow ridge and the glabella between the brows
     ("brow",      0.030, 1.6990, 0.028, 0.016, 0.0080, +0.0048, True),
     ("glabella",  0.000, 1.6900, 0.011, 0.014, 0.011,  +0.0026, False),
-    ("temple",    0.070, 1.7080, 0.014, 0.024, 0.024,  -0.0030, True),
+    ("temple",    0.068, 1.7080, 0.014, 0.024, 0.024,  -0.0030, True),
     # eyes: the socket hollow; the lids are covers, below
     ("socket",    0.031, 1.6770, 0.020, 0.018, 0.014,  -0.0015, True),
     # nose: a ridge from the glabella to the tip, the tip, the columella
@@ -77,10 +82,10 @@ FACE = [
     # cheeks. A young man carries fat over the cheekbone, not a hollow under
     # it: the hollow is what read as middle-aged, so it is halved and a
     # malar pad put in above it.
-    ("cheekbone", 0.050, 1.6560, 0.022, 0.020, 0.016,  +0.0062, True),
-    ("cheek_fat", 0.044, 1.6400, 0.025, 0.020, 0.017,  +0.0036, True),
-    ("hollow",    0.046, 1.6260, 0.017, 0.020, 0.014,  -0.0014, True),
-    ("masseter",  0.058, 1.6040, 0.016, 0.018, 0.016,  +0.0032, True),
+    ("cheekbone", 0.0465, 1.6560, 0.022, 0.020, 0.016,  +0.0062, True),
+    ("cheek_fat", 0.0400, 1.6400, 0.025, 0.020, 0.017,  +0.0036, True),
+    ("hollow",    0.0428, 1.6260, 0.017, 0.020, 0.014,  -0.0014, True),
+    ("masseter",  0.0557, 1.6040, 0.016, 0.018, 0.016,  +0.0032, True),
     # mouth
     ("lip_upper", 0.000, 1.6265, 0.024, 0.012, 0.0055, +0.0052, False),
     ("lip_lower", 0.000, 1.6140, 0.020, 0.012, 0.0065, +0.0068, False),
@@ -89,10 +94,13 @@ FACE = [
     ("corner",    0.025, 1.6200, 0.005, 0.010, 0.005,  -0.0018, True),
     ("mentolab",  0.000, 1.6020, 0.014, 0.012, 0.005,  -0.0028, False),
     ("chin",      0.000, 1.5860, 0.019, 0.016, 0.014,  +0.0062, False),
-    # jaw: a ridge from the chin back to the angle under the ear
+    # jaw: a ridge from the chin back to the angle under the ear. The side
+    # features' x (temple to jaw3) went in 2026-09-26 with the narrower face
+    # of anatomy.HEAD_PROFILE, each by the new half-width over the old at
+    # its own height, so each sits where it sat on the face.
     ("jaw1",      0.032, 1.5880, 0.014, 0.016, 0.008,  +0.0030, True),
-    ("jaw2",      0.052, 1.5960, 0.014, 0.018, 0.009,  +0.0036, True),
-    ("jaw3",      0.068, 1.6100, 0.013, 0.020, 0.012,  +0.0038, True),
+    ("jaw2",      0.0507, 1.5960, 0.014, 0.018, 0.009,  +0.0036, True),
+    ("jaw3",      0.0626, 1.6100, 0.013, 0.020, 0.012,  +0.0038, True),
 ]
 
 # ---- the eye ------------------------------------------------------------
@@ -204,6 +212,14 @@ def drape_target(x, z, gy):
     w = 1.0 - step((rho - 1.0) / (fade - 1.0))
     w = np.maximum(w, (inside > 0).astype(float))        # the fissure is always cut
     return target, np.clip(w, 0.0, 1.0), inside
+
+def near_margin(ax, z, band=0.0025):
+    """Within `band` of either lid margin, across the fissure and its
+    corners: the part of the eye that needs its density kept."""
+    if not (X_MED - band < ax < X_LAT + band):
+        return False
+    up, dn = aperture(np.array([ax]))
+    return bool(min(abs(z - up[0]), abs(z - dn[0])) < band or dn[0] < z < up[0])
 
 def drape_eyes(body, surface_y):
     """Fit the skin round each globe: the fissure opened behind it and the

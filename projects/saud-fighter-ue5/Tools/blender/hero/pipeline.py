@@ -277,8 +277,18 @@ def build_fighter(spec, argv=None):
     hi = {"body": keep_copy(body, "Body_hi"), "tee": keep_copy(tee, "Tee_hi"), "pants": keep_copy(pants, "Pants_hi")}
 
     # ---- 4: the budget. Face and hands keep their density.
+    from . import sculpt as SC
     def precious(co):
-        if co.z > 1.556 and co.y < 0.03: return True                      # the face
+        if co.z > 1.556 and co.y < 0.03:                                  # the face
+            # but not the eye region's subdivision (assembly.subdivide_eyes)
+            # away from the lid margins: 33,000 protected triangles of
+            # smooth lid and orbit starved the rest of the body until the
+            # shoes collapsed to nothing. The margins keep their 0.4 mm.
+            ax = abs(co.x)
+            if (B.EYE_BOX[0] < ax < B.EYE_BOX[1] and abs(co.z - SC.EYE_Z) < B.EYE_BOX[2]
+                    and not SC.near_margin(ax, co.z)):
+                return False
+            return True
         # A glove is a smooth pad and needs none of a hand's density. Kept
         # anyway, ZAYOS's two gloves were 62,720 triangles of the 469,576,
         # the rest of him went into the collapse at 3 % to pay for them, and
@@ -295,6 +305,10 @@ def build_fighter(spec, argv=None):
     tris["pants"] = F.decimate(pants, budget["pants"], lambda c: False, boundary_rings=2)
     for o in soles + eyes: tris[o.name] = sum(len(p.vertices) - 2 for p in o.data.polygons)
     stamp("decimated: " + "  ".join("%s %d" % kv for kv in tris.items()))
+    # the eyes again, on what the collapse left: a lid it thinned must still
+    # close over the globe and the fissure must still be open
+    shown, leak = B.check_eye_open(body, eyes)
+    stamp("eyes after decimation: globe over %.0f %% of the fissure, %.1f %% outside the lids" % (shown * 100, leak * 100))
     # every material the body carries still has faces to bake -- said here,
     # rather than as a bake that finds nothing ten minutes later
     left = {k: sum(1 for p in body.data.polygons if p.material_index == i) for k, i in slots.items()}

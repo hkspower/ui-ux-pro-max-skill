@@ -120,27 +120,209 @@ def trunk():
 def neck():
     # 0.112 m across measured, a 0.36 m circumference: thin for any man and
     # thin to the point of comedy on a fighter, who carries 0.40-0.42.
-    rows = [(1.500, 0.006, 0.072, 0.072), (1.545, 0.004, 0.066, 0.070),
-            (1.590, -0.004, 0.062, 0.072), (1.620, -0.010, 0.062, 0.074)]
+    # 2026-09-26 ("fix head shape"): the same girth, set back under the jaw.
+    # Its front was at y -0.084 at the top, 5 mm behind the chin, so the
+    # neck ran straight up into the chin and there was no jawline and no
+    # plane under the chin (a man's throat is 45-55 mm behind his chin);
+    # and it stood 140 mm deep, a column. Now 124 deep and 138 across,
+    # leaning forward as a neck does (its front comes back 20 mm from the
+    # base to the top), its back curving up under the skull.
+    rows = NECK_ROWS
     return loft("neck", [ring_z(z, 0, cy, rx, ry) for z, cy, rx, ry in rows], segs=32)
+
+NECK_ROWS = [(1.500, 0.008, 0.070, 0.070), (1.530, 0.012, 0.070, 0.064),
+            (1.560, 0.014, 0.069, 0.062), (1.590, 0.015, 0.064, 0.059),
+            (1.620, 0.016, 0.058, 0.057), (1.645, 0.020, 0.052, 0.056),
+            (1.665, 0.024, 0.044, 0.052)]
+# it runs on up inside the skull so the nape curves into the occiput:
+# stopped at 1.620 its back stood 10 mm proud of the skull there, a ring
+# round the back of the head
+
+def _pchip(xs, ys, x):
+    """Monotone cubic through (xs, ys) -- a curve that never overshoots its
+    points, so a profile drawn through measurements stays between them."""
+    xs = np.asarray(xs, float); ys = np.asarray(ys, float)
+    h = np.diff(xs); d = np.diff(ys) / h
+    m = np.zeros_like(ys)
+    for i in range(1, len(xs) - 1):
+        if d[i - 1] * d[i] > 0:
+            w1 = 2 * h[i] + h[i - 1]; w2 = h[i] + 2 * h[i - 1]
+            m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i])
+    m[0] = d[0]; m[-1] = 0.0
+    i = np.clip(np.searchsorted(xs, x) - 1, 0, len(xs) - 2)
+    t = (x - xs[i]) / h[i]
+    h00 = 2 * t ** 3 - 3 * t ** 2 + 1; h10 = t ** 3 - 2 * t ** 2 + t
+    h01 = -2 * t ** 3 + 3 * t ** 2; h11 = t ** 3 - t ** 2
+    return h00 * ys[i] + h10 * h[i] * m[i] + h01 * ys[i + 1] + h11 * h[i] * m[i + 1]
+
+# The skull, drawn from its profiles (2026-09-26, "fix head shape"). It was
+# ten hand-set ellipses joined by straight segments, and measured on the
+# built head: 210 mm long (a man is about 197), widest at the brow (a man's
+# skull is widest behind it, above the ears), 153 mm across the cheekbones
+# (about 141), 128 across the angles of the jaw (about 115) with a jaw as
+# wide as the cranium above it -- a brick from the front -- and a top that
+# ran out to a plateau 100 mm across and closed on a flat 36 x 48 mm cap,
+# the flat patch that caught the light on every bald man. Now:
+#
+#   the cranium above HEAD_DOME_Z is a dome -- a superellipse (exponent
+#   2.15, a shade fuller than an ellipse, as a skull is) from the forehead,
+#   the widest point and the occiput to the crown, 1.796 as before;
+#   below it, the midline front (the face, before the sculpt adds a
+#   feature to it), the back (the occiput, then the underside of the jaw
+#   running back from the chin to the angle) and the half-width are each a
+#   smooth curve through the points in HEAD_PROFILE.
+#
+# HEAD_ROWS is still (z, cy, rx, ry) ellipses, every 3 mm and closer near
+# the crown, because everything downstream reads the skull that way.
+HEAD_DOME_Z = 1.718
+HEAD_CROWN = (1.796, 0.004)                       # z of the vertex, and its y
+HEAD_DOME = (0.103, 0.089, 0.0770, 2.15)          # front, back, half-width, exponent
+HEAD_PROFILE = [
+    # z       front     back     half-width
+    (1.572, -0.0840, -0.0660, 0.0260),   # the chin's underside
+    (1.575, -0.0880, -0.0480, 0.0340),
+    (1.580, -0.0910, -0.0250, 0.0430),   # the jaw's lower border running back
+    (1.588, -0.0940, +0.0000, 0.0510),
+    (1.598, -0.0965, +0.0250, 0.0575),   # the angle of the jaw
+    (1.608, -0.0990, +0.0450, 0.0610),
+    (1.620, -0.1015, +0.0620, 0.0640),   # the mouth
+    (1.635, -0.1035, +0.0740, 0.0670),
+    (1.650, -0.1040, +0.0820, 0.0695),   # the cheekbones
+    (1.668, -0.1030, +0.0870, 0.0715),
+    (1.685, -0.1020, +0.0900, 0.0740),
+    (1.700, -0.1005, +0.0915, 0.0760),   # the brow
+]
+
+def _dome(z):
+    zc, (zt, yv) = HEAD_DOME_Z, HEAD_CROWN
+    fa, ba, w, n = HEAD_DOME
+    s = np.clip((z - zc) / (zt - zc), 0.0, 1.0)
+    sin_t = s ** (n / 2.0)
+    k = np.clip(1.0 - sin_t ** 2, 0.0, 1.0) ** 0.5
+    k = k ** (2.0 / n)
+    return yv - fa * k, yv + ba * k, w * k
+
+def _head_rows():
+    zs = list(np.arange(1.572, 1.7595, 0.003)) + list(np.arange(1.760, 1.7905, 0.0015)) \
+        + [1.791, 1.792, 1.793, 1.794, 1.7948, 1.7954, 1.7958, 1.79595]
+    pz = [p[0] for p in HEAD_PROFILE]
+    df, db, dw = _dome(HEAD_DOME_Z)
+    # the profile runs into the dome with the dome's own (zero) slope
+    pz = pz + [HEAD_DOME_Z]
+    pf = [p[1] for p in HEAD_PROFILE] + [df]
+    pb = [p[2] for p in HEAD_PROFILE] + [db]
+    pw = [p[3] for p in HEAD_PROFILE] + [dw]
+    rows = []
+    for z in zs:
+        if z <= HEAD_DOME_Z:
+            f, b, w = _pchip(pz, pf, z), _pchip(pz, pb, z), _pchip(pz, pw, z)
+        else:
+            f, b, w = _dome(z)
+        rows.append((round(float(z), 5), float((f + b) / 2), float(w), float((b - f) / 2)))
+    return rows
 
 # A skull in cross-sections, from the chin up: (z, cy, rx, ry). cy is the
 # section's centre front/back -- the face is -Y. The crown is at 1.796.
 # This is module state, not something head() fills in, because the stages
 # after the build read it too: --resume never calls head(), and hero.face
 # asks it where the front of the skull is at a given height.
-HEAD_ROWS = [
-    (1.572, -0.050, 0.030, 0.032),   # chin
-    (1.590, -0.036, 0.054, 0.062),   # jaw
-    (1.615, -0.022, 0.070, 0.084),   # jaw angle to the mouth
-    (1.640, -0.014, 0.075, 0.092),   # cheek / nose base
-    (1.668, -0.008, 0.078, 0.098),   # cheekbones, eyes
-    (1.700, -0.002, 0.079, 0.100),   # brow / temples
-    (1.735, 0.006, 0.077, 0.098),    # forehead, occiput fullest
-    (1.765, 0.010, 0.068, 0.086),
-    (1.786, 0.012, 0.050, 0.062),
-    (1.796, 0.012, 0.018, 0.024),    # crown
-]
+HEAD_ROWS = _head_rows()
+
+def _at(rows, z):
+    z = min(max(z, rows[0][0]), rows[-1][0])
+    for r0, r1 in zip(rows, rows[1:]):
+        if r0[0] <= z <= r1[0]:
+            t = 0.0 if r1[0] == r0[0] else (z - r0[0]) / (r1[0] - r0[0])
+            return tuple(a + (b - a) * t for a, b in zip(r0, r1))
+    return rows[-1]
+
+def check_head(rows=None, neck=None):
+    """The skull and neck tables as a man's (2026-09-26), before anything is
+    built -- the sculpt adds to them, so these are the bone's numbers:
+
+    long 190-205 mm and broad 146-160, and broadest ABOVE the brow; the
+    face narrower than the skull (the cheekbone row at least 8 mm under
+    the breadth) and the jaw's angle narrower than the cheekbones; a
+    rounded top (3 mm under the crown no more than 52 mm across, and no
+    cap wider than 20); no kink down the face or over the dome (the
+    midline profile turns no more than 0.12 rad in any 3 mm of it, a
+    25 mm radius);
+    and a neck set back under the jaw -- its front at least 30 mm behind
+    the chin's at the chin's height -- and inside the skull at its top.
+    Returns the numbers."""
+    rows = rows or HEAD_ROWS; neck = neck or NECK_ROWS
+    front = lambda z: _at(rows, z)[1] - _at(rows, z)[3]
+    back = lambda z: _at(rows, z)[1] + _at(rows, z)[3]
+    width = lambda z: 2.0 * _at(rows, z)[2]
+    zs = np.arange(rows[0][0], rows[-1][0], 0.001)
+    length = max(back(z) - front(z) for z in zs)
+    wz = [width(z) for z in zs]; breadth = max(wz); bz = float(zs[int(np.argmax(wz))])
+    cheek = width(1.656); gonion = width(1.600)
+    top = width(rows[-1][0] - 0.003); cap = 2.0 * rows[-1][2]
+    # the midline profile, front and back over the top, resampled every
+    # 3 mm along its own length: how far it turns from one step to the
+    # next is its curvature, fair on the face and over the dome alike
+    fz = np.arange(1.585, rows[-1][0], 0.0005)
+    line = np.array([(front(z), z) for z in fz] + [(back(z), z) for z in fz[::-1]])
+    seg = np.linalg.norm(np.diff(line, axis=0), axis=1)
+    arc = np.concatenate([[0.0], np.cumsum(seg)])
+    t = np.arange(0.0, arc[-1], 0.003)
+    pts = np.stack([np.interp(t, arc, line[:, 0]), np.interp(t, arc, line[:, 1])], axis=1)
+    ang = np.unwrap(np.arctan2(np.diff(pts[:, 1]), np.diff(pts[:, 0])))
+    kink = float(np.abs(np.diff(ang)).max())
+    chin_z = 1.580
+    nf = _at(neck, chin_z)[1] - _at(neck, chin_z)[3]
+    set_back = nf - front(chin_z)
+    ntop = neck[-1]
+    inside = (ntop[1] + ntop[3] < back(ntop[0])) and (ntop[2] < width(ntop[0]) / 2)
+    assert 0.190 <= length <= 0.205, "head %.0f mm long, want 190-205" % (length * 1000)
+    assert 0.146 <= breadth <= 0.160, "head %.0f mm broad, want 146-160" % (breadth * 1000)
+    assert bz > 1.705, "the head is broadest at %.3f, at the brow, not above it behind the brow" % bz
+    assert cheek <= breadth - 0.008, "a brick: the face %.0f mm across the cheekbones against a skull %.0f" % (cheek * 1000, breadth * 1000)
+    assert gonion < cheek - 0.010, "a brick: the jaw %.0f mm across at its angle, the cheekbones %.0f" % (gonion * 1000, cheek * 1000)
+    assert top <= 0.052 and cap <= 0.020, "a flat top: %.0f mm across 3 mm under the crown, a %.0f mm cap" % (top * 1000, cap * 1000)
+    assert kink <= 0.12, "a kink in the face or the dome: the profile turns %.2f rad in 3 mm" % kink
+    assert set_back >= 0.030, "the neck runs into the chin: its front %.0f mm behind the chin's, want 30" % (set_back * 1000)
+    assert inside, "the neck's top stands out of the skull: a ring round the back of the head"
+    return dict(length=length, breadth=breadth, breadth_z=bz, cheek=cheek, gonion=gonion,
+                top=top, cap=cap, kink=kink, set_back=set_back)
+
+def bite_head():
+    """check_head broken once per rule (numpy). Returns (caught, total)."""
+    def rows_with(**kw):
+        g = dict(globals())
+        saved = {k: g[k] for k in kw}
+        globals().update(kw)
+        try: return _head_rows()
+        finally: globals().update(saved)
+    old_rows = [                        # the skull as it was until 2026-09-26
+        (1.572, -0.050, 0.030, 0.032), (1.590, -0.036, 0.054, 0.062), (1.615, -0.022, 0.070, 0.084),
+        (1.640, -0.014, 0.075, 0.092), (1.668, -0.008, 0.078, 0.098), (1.700, -0.002, 0.079, 0.100),
+        (1.735, 0.006, 0.077, 0.098), (1.765, 0.010, 0.068, 0.086), (1.786, 0.012, 0.050, 0.062),
+        (1.796, 0.012, 0.018, 0.024)]
+    wide_jaw = [(z, f, b, max(w, 0.066) if z < 1.63 else w) for z, f, b, w in HEAD_PROFILE]
+    brow_wide = [(z, f, b, 0.0800 if z >= 1.690 else w) for z, f, b, w in HEAD_PROFILE]
+    kinked = [(z, f - (0.006 if z == 1.635 else 0.0), b, w) for z, f, b, w in HEAD_PROFILE]
+    fwd_neck = [(z, cy - 0.030, rx, ry) for z, cy, rx, ry in NECK_ROWS]
+    short_neck = NECK_ROWS[:5]
+    bites = [
+        ("the old skull", dict(rows=old_rows), "broadest"),
+        ("flat top", dict(rows=rows_with(HEAD_DOME=(0.103, 0.089, 0.0770, 4.0))), "flat top"),
+        ("wide jaw", dict(rows=rows_with(HEAD_PROFILE=wide_jaw)), "brick"),
+        ("broad at brow", dict(rows=rows_with(HEAD_PROFILE=brow_wide)), "broadest"),
+        ("kinked face", dict(rows=rows_with(HEAD_PROFILE=kinked)), "kink"),
+        ("neck in chin", dict(neck=fwd_neck), "into the chin"),
+        ("nape ring", dict(neck=short_neck), "ring"),
+    ]
+    caught = 0
+    for label, kw, word in bites:
+        try:
+            check_head(**kw); print("  %-15s NOT caught" % label)
+        except AssertionError as e:
+            ok = word in str(e); caught += ok
+            print("  %-15s %s  %s" % (label, "caught" if ok else "WRONG CHECK", e))
+    return caught, len(bites)
+
 def head_surface_y(x, z, front=True):
     """Where the skull's surface is at (x, z): the loft's own ellipse."""
     rows = HEAD_ROWS
@@ -153,6 +335,18 @@ def head_surface_y(x, z, front=True):
     cy = r0[1] + (r1[1] - r0[1]) * t; rx = r0[2] + (r1[2] - r0[2]) * t; ry = r0[3] + (r1[3] - r0[3]) * t
     k = max(0.0, 1.0 - (x / rx) ** 2) ** 0.5
     return cy - ry * k if front else cy + ry * k
+
+def head_surface_x(y, z):
+    """The skull's half-width at depth y and height z: the loft's ellipse."""
+    rows = HEAD_ROWS
+    if z <= rows[0][0]: r0 = r1 = rows[0]
+    elif z >= rows[-1][0]: r0 = r1 = rows[-1]
+    else:
+        for r0, r1 in zip(rows, rows[1:]):
+            if r0[0] <= z <= r1[0]: break
+    t = 0.0 if r1[0] == r0[0] else (z - r0[0]) / (r1[0] - r0[0])
+    cy = r0[1] + (r1[1] - r0[1]) * t; rx = r0[2] + (r1[2] - r0[2]) * t; ry = r0[3] + (r1[3] - r0[3]) * t
+    return rx * max(0.0, 1.0 - ((y - cy) / ry) ** 2) ** 0.5
 
 def head():
     rows = HEAD_ROWS

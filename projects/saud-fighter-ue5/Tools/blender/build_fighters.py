@@ -9,6 +9,7 @@
     python3 build_fighters.py --hair-check     every cut's geometry checked, and the check bitten
     python3 build_fighters.py --nose-check     every man's nose profile and widths, and the check bitten
     python3 build_fighters.py --eye-check      the eye's shape and the open eye on a built head, both bitten
+    python3 build_fighters.py --head-check     the skull and neck tables, and the check bitten
     python3 build_fighters.py --out DIR        write somewhere else than the project
 
 WHO. SOUQ AL-DAWAR's three waves are thugs and brawlers (DT_Stages.json,
@@ -179,6 +180,18 @@ def eye_check():
         sys.exit(1)
 
 
+def head_check():
+    """--head-check (2026-09-26): anatomy.check_head on the skull and neck
+    tables, and each of its rules broken once. bpy as a module; no build."""
+    from hero import anatomy as A
+    print("  skull    clean   " + "  ".join("%s %.1f" % (k, v * 1000) if k not in ("breadth_z", "kink") else "%s %.3f" % (k, v)
+                                            for k, v in A.check_head().items()))
+    caught, total = A.bite_head()
+    print("  %d of %d head sabotages caught" % (caught, total))
+    if caught != total:
+        sys.exit(1)
+
+
 def main():
     argv = sys.argv[1:]
     if "--hair-check" in argv:
@@ -189,6 +202,9 @@ def main():
         return
     if "--eye-check" in argv:
         eye_check()
+        return
+    if "--head-check" in argv:
+        head_check()
         return
     # flags are `--x`, plus the value that follows --out and --one; the rest
     # are the men to build

@@ -2329,6 +2329,64 @@ the lids on the iris, the tilt and the almond. `build_fighters.py
 the pipeline's way twice more -- with no drape, and with the lids laid
 behind the globe -- 8 of 8 caught.
 
+**Found on the first full build:** the eye region's subdivision is 33,000
+triangles, and the reduction protects the whole face, so it starved the
+rest of the body until the shoes had no faces left and the build stopped.
+Only a band 2.5 mm either side of each lid margin is protected now
+(`sculpt.near_margin`); the smooth lids and orbit collapse with the body.
+`check_eye_open` runs a second time on the reduced mesh.
+
+## The head, redrawn -- 2026-09-26
+
+Asked as "fix head shape", settled as the Unreal men, all six, and all of:
+the skull, the jaw and chin, the face in profile, the head's join to the
+neck. Measured on a bald head built the pipeline's way, against a man's:
+
+| | was | now | a man |
+| --- | --- | --- | --- |
+| length, glabella to the back | 210 mm | 198 | about 197 |
+| breadth, and where | 157, at the brow | 153, at 1.720 behind it | 150-155, above the ears |
+| across the cheekbones | 153 | 140 | about 141 |
+| across the angles of the jaw | 128 | 122 (Saud) - 128 (brawler) | about 115-125 |
+| chin back to the throat | 5 | 34 | 45-55 |
+| the top | a plateau 100 mm across on a flat 36 x 48 mm cap | a dome | a dome |
+
+The jaw was as wide as the skull above it (a brick from the front), the
+neck ran straight up into the chin (no jawline, no plane under the chin),
+and every bald man caught the light on the flat cap.
+
+**What changed** (`hero/anatomy.py`). The skull was ten hand-set ellipses
+joined by straight segments. It is drawn from its profiles now: above
+1.718 a dome (a superellipse, exponent 2.15, from the forehead, the widest
+point and the occiput to the crown at 1.796 as before); below it the
+midline front, the back -- the occiput, then the underside of the jaw
+running back from the chin to its angle -- and the half-width, each a
+smooth monotone curve through `HEAD_PROFILE`'s points. `HEAD_ROWS` is still
+ellipses, every 3 mm, so everything downstream reads the skull as it did.
+The neck (`NECK_ROWS`) keeps its girth (0.415 m) but is set back under the
+jaw and leans forward as a neck does, and runs on up inside the skull so
+the nape curves into the occiput -- stopped at the old height its back
+stood out as a ring round the head. The chin, the crown and the eye line
+are where they were, so the heads-tall figure and every layout constant
+hold. Tied to it: the ears 6 mm off the skull's side (`sculpt.EAR_X`,
+asserted, so a skull that moves again takes its ears with it), the
+Adam's apple 4 mm proud of the new throat, the side features of the face
+sculpt (temple to jaw angle) in by the new width over the old at their
+own heights, and two paint lines that were placed on the old skull -- the
+shadow under the jaw now follows its rising lower border, and the
+sideburn moved in with the ear it would otherwise have landed on.
+
+**Checked:** `anatomy.check_head`, in every build, on the tables: long
+190-205 mm, broad 146-160 and broadest above the brow, the face at least
+8 mm narrower than the skull and the jaw's angle narrower than the
+cheekbones, a rounded top, no kink anywhere down the midline profile (a
+25 mm radius at the tightest), the neck's front 30 mm behind the chin and
+its top inside the skull. `build_fighters.py --head-check` breaks each
+rule once -- the old skull, a flat top, a wide jaw, the head broadest at
+the brow, a kink in the face, the neck forward into the chin, the neck
+stopped short -- 7 of 7 caught. The hair, eye and nose checks all pass on
+the new skull.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

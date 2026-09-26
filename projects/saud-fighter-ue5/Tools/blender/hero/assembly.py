@@ -7,7 +7,7 @@ from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 import build_saud as legacy
 from . import anatomy as A
-from .sculpt import EYE_Z, EAR_Z, HAIRLINE   # the face's layout lives in hero.sculpt
+from .sculpt import EYE_Z, EAR_Z, EAR_X, EAR_Y, HAIRLINE   # the face's layout lives in hero.sculpt
 J = legacy.J; Jp = A.Jp; X, Y, Z = A.X, A.Y, A.Z
 ellipsoid, loft, tube, ring_z, mirror_x = A.ellipsoid, A.loft, A.tube, A.ring_z, A.mirror_x
 
@@ -79,7 +79,10 @@ def boolean(target, cutter, op):
 def face_parts():
     """Only what a displacement cannot make: the adam's apple. The face
     itself is sculpted after the final remesh -- see sculpt.py."""
-    return [ellipsoid("adam", (0, -0.054, 1.560), (0.010, 0.008, 0.012))]
+    # 4 mm proud of the throat, which is at y -0.047 at this height since the
+    # neck was set back under the jaw (2026-09-26); at -0.054 it stood 15 mm
+    # out of the new one.
+    return [ellipsoid("adam", (0, -0.043, 1.560), (0.010, 0.008, 0.012))]
 
 def ear(s):
     """Helix as a flattened ring, lobe below, a dish cut into the front.
@@ -88,7 +91,11 @@ def ear(s):
     here, so about 53 mm, and it was 40 mm, which is why it read as a paddle
     stuck on the side of the head rather than as an ear.
     """
-    c = Vector((0.0785 * s, 0.026, EAR_Z))   # behind the mandibular ramus,
+    side = A.head_surface_x(EAR_Y, EAR_Z)
+    assert abs(EAR_X - side - 0.0061) < 0.0015, (
+        "the ear is %.1f mm off the skull's side, want 6: move sculpt.EAR_X with the skull"
+        % ((EAR_X - side) * 1000))
+    c = Vector((EAR_X * s, EAR_Y, EAR_Z))    # behind the mandibular ramus,
                                              # not at the head's mid-depth
     bpy.ops.mesh.primitive_torus_add(location=c, major_radius=0.0200, minor_radius=0.0062,
                                      major_segments=28, minor_segments=12)
@@ -710,6 +717,7 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     # whose steep wall folded over itself under the drape. The eye's hollow
     # is sculpt.drape_eyes' now, over a surface with no wall in it.
     check_eye()
+    A.check_head()
     # ---- pass two: fine parts, then one remesh at 3.5 mm to blend the joins
     hl, jl = A.hand(); hr = [mirror_x(o) for o in hl]
     # gloves: unioned over the fingers at the same fine pass, not instead of

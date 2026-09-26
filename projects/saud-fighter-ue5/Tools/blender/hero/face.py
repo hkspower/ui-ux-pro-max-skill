@@ -21,7 +21,7 @@ hairline 1.760, crown 1.796.
 """
 import numpy as np
 from . import anatomy as A
-from .sculpt import EYE_Z, BROW_Z, NOSE_Z, MOUTH_Z, EAR_Z, HAIRLINE
+from .sculpt import EYE_Z, BROW_Z, NOSE_Z, MOUTH_Z, EAR_Z, EAR_X, HAIRLINE
 
 # ------------------------------------------------------------- where am I
 def forwardness(P):
@@ -208,7 +208,7 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
     over(jaw_zone, tone(ZONE_JAW), 0.85)
 
     # ---- 2. blood at the thin places ----------------------------------
-    over(blob(P, 0.0785, EAR_Z, 0.013, 0.024), tone(BLOOD), 0.30)    # the ear
+    over(blob(P, EAR_X, EAR_Z, 0.013, 0.024), tone(BLOOD), 0.30)     # the ear
     over(blob(P, 0.0125, NOSE_Z + 0.0045, 0.0055, 0.0050), tone(BLOOD), 0.26)  # the ala
     over(blob(P, 0.031, EYE_Z - 0.0060, 0.016, 0.005), tone(BLOOD), 0.18)  # lower lid
     over(blob(P, 0.000, 1.586, 0.020, 0.012, mirror=False), tone(ZONE_MID), 0.20)  # chin
@@ -224,8 +224,11 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
     darken(nasolabial, 0.14)                                            # faint at his age
     darken(blob(P, 0.000, MOUTH_Z - 0.0133, 0.016, 0.0040, mirror=False), 0.26)   # under the lower lip
     darken(blob(P, 0.026, MOUTH_Z - 0.0004, 0.005, 0.0055), 0.30)                 # mouth corners
-    darken(bar(P, 0.000, 0.062, 1.5695, 0.0055), 0.30)                  # under the jaw
-    darken(blob(P, 0.0695, EAR_Z, 0.006, 0.026), 0.28)                   # where the ear meets
+    # under the jaw: along its lower border, which rises from the chin to
+    # the angle since the skull was redrawn (2026-09-26) -- it was a level
+    # band at the old chin line
+    darken(bar(P, 0.000, 0.060, lambda u: 1.5705 + 0.47 * u, 0.0055), 0.30)
+    darken(blob(P, EAR_X - 0.009, EAR_Z, 0.006, 0.026), 0.28)           # where the ear meets
 
     # ---- 4. the hairline, feathered -----------------------------------
     hw = hairline_weight(P)
@@ -395,7 +398,11 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
         out["beard"] = np.clip(beard_w * dens, 0, 1) * on_face
     darken(np.clip(beard_w * dens, 0, 1) * 0.5, 0.20 * beard_k)           # the shadow a beard casts on skin
     # a sideburn running down in front of the ear, joining the hair
-    side = bar(P, 0.058, 0.075, lambda t: HAIRLINE[0] - 0.062 - 1.55 * (t - 0.058), 0.0060, feather=0.0035)
+    # (in by however far the ear moved in with the narrower skull of
+    # 2026-09-26: it was drawn for an ear at 0.0785, and left there it lay
+    # on the ear)
+    ds = EAR_X - 0.0785
+    side = bar(P, 0.058 + ds, 0.075 + ds, lambda t: HAIRLINE[0] - 0.062 - 1.55 * (t - 0.058 - ds), 0.0060, feather=0.0035)
     wash(np.clip(side * ramp(fwd, 0.10, 0.40) * grain, 0, 1), 0.72)
 
     # ---- 10. the grain of the skin itself ------------------------------
