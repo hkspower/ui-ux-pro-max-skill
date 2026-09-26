@@ -2232,11 +2232,22 @@ clippered to skin, the high-and-tight skin to 1.745 with a hard line.
 thinner than 9 mm through; no step at the hairline, within 1 mm of the
 plane the hair stands no more than 0.6 mm off the skull; something over
 the crown), and each rule broken once: 4 of 4 caught. The check also runs
-in every build.
+in every build. And by eye, on fast builds of Saud, AL-SAQR and the thug
+before the real ones, which caught two faults: the fades picked "the
+sides" by distance from the midline, which at 3-4 cm is most of the top
+of the head, so the whole top of the quiff and the crest came out skin
+(they pick the sides by the way the skull faces now); and the stray
+hairs below the hairline were drawn at half strength over the whole
+forehead wherever their patchiness noise was 0 (they are drawn only where
+their probability is above nothing). The fast builds after those fixes
+show each cut as itself -- the quiff forward over faded sides, the crest a
+dark ridge over clippered sides rising at the front, the high-and-tight
+a flat top over skin sides -- and no rope at any hairline.
 
 **State.** The tools are done; the four men are being rebuilt (a cut is
-built before the checkpoint, so whole, not `--resume`d). Until those land
-the shipped models and renders are the old hair.
+built before the checkpoint, so whole, not `--resume`d; started 21:44
+Riyadh). Until those land the shipped models and renders are the old
+hair.
 
 ## Working rules
 
