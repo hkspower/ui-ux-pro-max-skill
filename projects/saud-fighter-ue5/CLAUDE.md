@@ -2052,7 +2052,7 @@ and on nothing 40 cm nearer the camera than him, so a man in front hides
 it. The flame is on his lead fist as he stands, and on the fist a punch
 is thrown with while he throws it (`SaudIK::StrikingLimb` says which).
 It is drawn before the impact frame's cut, so on an impact frame it is
-cut to paper and ink with everything else.
+cut to ink and ember (paper, before "The dark") with everything else.
 
 Fourteen new `MPC_Anime` scalars (`SaudFire::Param`), written each tick
 from the player's state; `anime_look.py` checks their names against
@@ -2099,7 +2099,9 @@ numpy mirror):
   0.62 -- it was a warm dusk from 15 m to 250 m, up to 0.35;
 - the sky a dim overcast, still banded (x0.30, a cold cast);
 - a vignette in `M_Anime_Frame`, the corners down by half, before the fire
-  (a flame is light) and the impact frame's cut;
+  (a flame is light) -- and not on an impact frame: the first preview cut
+  the dark corners into a hard black iris round the panel, and an impact
+  frame is the whole screen;
 - ink darker still (0.0022), to stay under a black tee at the new lit tone.
 
 **The light and the world.** `Tools/levels/build_world.py`'s one sun over
@@ -2138,12 +2140,21 @@ a deep red one with a pale-hot core, a glow going to blood. The browser's
 own colours are recorded in `anime_look.py` beside the new ones.
 
 **Checked:** the harness passes, the HUD's layout included;
-`anime_look.py`'s checks pass, with six new ones -- the shadows dark, not
-grey; the world darker and greyer than a fighter; the sky a dim overcast;
-the fog dark and cold; the impact's light half an ember, not paper; the
-vignette taking the corners and leaving the middle -- and a sabotage for
-each (`grey_shadows`, `world_as_fighter`, `bright_sky`, `warm_fog`,
-`paper_impact`, `no_vignette`); `build_world.py`'s own checks pass.
+`anime_look.py`'s checks pass, with seven new ones -- the shadows dark,
+not grey; the world darker and greyer than a fighter; the sky a dim
+overcast; the fog dark and cold; the impact's light half an ember, not
+paper; the vignette taking the corners and leaving the middle; the impact
+frame filling the screen -- and a sabotage for each (`grey_shadows`,
+`world_as_fighter`, `bright_sky`, `warm_fog`, `paper_impact`,
+`no_vignette`, `iris_impact`), 27 in all. Two old checks had to be
+re-measured, because the dark made them pass for the wrong reason: the
+fog is measured by how near the far wall comes to the fog's colour (a dark
+wall in a dark fog barely changes brightness), and Kuwait's red must keep
+all its colour, not merely more than a rust tee (at saturation 0.66 a pure
+red out-keeps a rust tee with no accent rule at all -- the `accent_muted`
+sabotage stopped biting). `build_world.py`'s own checks pass.
+`Docs/renders/souq-*.png`, `souq-fight*.png` and `anime-men.png` are
+re-rendered in the dark.
 
 **Not verified:** no engine has built the materials, lit the world or
 drawn the HUD. The HUD's translucent plates rely on the Canvas triangle

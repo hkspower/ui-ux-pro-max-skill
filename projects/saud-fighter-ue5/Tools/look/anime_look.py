@@ -533,7 +533,9 @@ bool Fighter = CD < D + 2.0;
 float2 VUV = GetViewportUV(Parameters);
 float Aspect = View.ViewSizeAndInvSize.x * View.ViewSizeAndInvSize.w;
 float Vr = length((VUV - 0.5) * float2(Aspect, 1.0)) / (0.5 * sqrt(Aspect * Aspect + 1.0));
-float3 Out = S * (1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr));
+// (not on an impact frame: cut after it, the dark corners became a hard
+// black iris round the panel; an impact frame is the whole screen)
+float3 Out = S * (1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr) * (1.0 - step(0.5, Impact)));
 """) + hlsl_fire() + _sub(r"""
 // 7b. the cut (the fire is cut with everything else)
 Out = lerp(Out, dot(Out, LUMA) > IMPACT_CUT ? EMBER_D : INK_D, step(0.5, Impact));
@@ -813,6 +815,10 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0):
     return out, {"T": T, "deep": deep, "shadow": shad, "ink": inkw, "hatch": hatch}
 
 
+# --bite "iris_impact" only: the vignette left on during an impact frame
+_frame_vignette_on_impact = [False]
+
+
 def fire(out, D, fire=None, burn=None):
     """Step 8 on a display-valued picture `out` (H,W,3), with the scene
     depth D (H,W, cm). `fire` is the fist: heat, x, y (viewport, y down),
@@ -910,7 +916,10 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
     yv, xv = np.mgrid[0:H, 0:W].astype(float)
     asp = W / H
     vr = np.hypot(((xv + 0.5) / W - 0.5) * asp, (yv + 0.5) / H - 0.5) / (0.5 * math.sqrt(asp * asp + 1.0))
-    out = S * (1.0 - L["VIGNETTE"] * _smooth(L["VIGNETTE_FROM"], L["VIGNETTE_TO"], vr))[..., None]
+    # (not on an impact frame, which is the whole screen: cut after the
+    # vignette, the dark corners became a hard black iris)
+    vig = 0.0 if impact >= 0.5 and not _frame_vignette_on_impact[0] else L["VIGNETTE"]
+    out = S * (1.0 - vig * _smooth(L["VIGNETTE_FROM"], L["VIGNETTE_TO"], vr))[..., None]
     if (fist is not None or burn is not None) and D is not None:
         out = fire(out, D, fist, burn)
     if impact >= 0.5:
@@ -1059,6 +1068,8 @@ def check(bite=None):
             LOOK["SKY_LEVEL"] = 1.0
         if bite == "no_vignette":
             LOOK["VIGNETTE"] = 0.0
+        if bite == "iris_impact":
+            _frame_vignette_on_impact[0] = True
         if bite == "warm_fog":
             LOOK["HAZE"] = (0.58, 0.47, 0.38)
         if bite == "no_cut":
@@ -1099,7 +1110,11 @@ def check(bite=None):
         w = Dp.shape[1] // 3
         keep = [np.median(sat(op[:, i * w:(i + 1) * w]) / np.maximum(sat(Ap[:, i * w:(i + 1) * w]), 1e-6))
                 for i in range(3)]
-        assert keep[0] > keep[1] + 0.05, "Kuwait's red keeps its colour where a rust tee is held under"
+        # (all of it: since the dark cut saturation to 0.66, a pure red
+        # held under like everything else still out-keeps a rust tee, so
+        # comparing the two alone stopped proving the accent rule)
+        assert keep[0] > 0.98 and keep[0] > keep[1] + 0.05, \
+            "Kuwait's red keeps its colour where a rust tee is held under (red keeps %.2f)" % keep[0]
         # 5c. the world is held darker and greyer than a fighter of the
         #     same colour under the same light: the men stand out of the murk
         ow, _mw = preview(Cp, Ap, Np, Dp, ~onp)
@@ -1181,6 +1196,9 @@ def check(bite=None):
         em = np.array(LOOK["EMBER"])
         assert em[0] > 2.0 * em[1] and em[1] > em[2], "its light half is an ember, not paper"
         assert (l0[lit] > 0.5).mean() > 0.95 and (l1[lit] < 0.3).mean() > 0.95, "and it flips"
+        # ... and fills the screen: the vignette does not cut an iris into
+        # it (the sky strip across the top is paper-lit edge to edge)
+        assert (l0[:D.shape[0] // 5] > 0.5).mean() > 0.99, "the impact frame is the whole screen, not an iris"
         # 6. speed lines: clear at the blow, streaked away from it, not on a fighter
         base, _ = look(C, A, N, D, on)
         sp, _ = look(C, A, N, D, on, speed=1.0, centre=(0.5, 0.5))
@@ -1272,6 +1290,7 @@ def check(bite=None):
     finally:
         LOOK.clear(); LOOK.update(saved)
         FIRE.clear(); FIRE.update(saved_fire)
+        _frame_vignette_on_impact[0] = False
     return True
 
 
@@ -1405,7 +1424,8 @@ if __name__ == "__main__":
                  "one_tint", "accent_muted", "no_air", "ink_lines",
                  "sky_shaded", "flat_impact", "lines_over_men", "no_cut",
                  "fire_on_hand", "soft_glow", "no_fire_ink", "burst_through_men", "still_sparks",
-                 "paper_impact", "grey_shadows", "world_as_fighter", "bright_sky", "no_vignette", "warm_fog")
+                 "paper_impact", "grey_shadows", "world_as_fighter", "bright_sky", "no_vignette", "warm_fog",
+                 "iris_impact")
         caught = 0
         for b in bites:
             try:
