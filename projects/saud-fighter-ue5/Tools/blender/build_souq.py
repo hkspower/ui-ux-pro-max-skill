@@ -665,6 +665,27 @@ def _lin(rgba):
     return tuple((c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4) for c in rgba[:3]) + (1.0,)
 
 
+# The dark, 2026-09-26 ("use darker theme style like Demon's Souls", the
+# Unreal build): the souq weathered. The browser's colours do not move --
+# they are its painting of the souq and its source of truth -- the Unreal
+# souq takes each of them through one transform, the way hero/finish.fabric
+# takes the kit: in linear light, its chroma cut to WEATHER["chroma"] of
+# what it was, its level to WEATHER["level"], and a cold cast, so warm
+# mud-brick and sun-bleached sand go to a grey, soot-dark stone and a
+# faded cloth. The lantern is not weathered: what burns is the only warm
+# light in the dark, and it keeps its colour.
+WEATHER = dict(level=0.50, chroma=0.40, cloth_chroma=0.60, cast=(0.97, 1.00, 1.04))
+
+
+def _worn(h, chroma=None):
+    """A browser colour, weathered: linear RGBA."""
+    c = _lin(_hex(h))[:3]
+    y = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    k = WEATHER["chroma"] if chroma is None else chroma
+    out = tuple(max(0.0, (y + (v - y) * k) * WEATHER["level"] * t) for v, t in zip(c, WEATHER["cast"]))
+    return out + (1.0,)
+
+
 class Souq:
     """The Blender half: materials, meshes, placement, export, renders."""
 
@@ -727,11 +748,11 @@ class Souq:
             if kind == "brick":
                 br.inputs["Brick Width"].default_value = BRICK[0]; br.inputs["Row Height"].default_value = BRICK[1]
                 br.inputs["Mortar Size"].default_value = 0.012; br.offset = 0.5; br.offset_frequency = 2
-                c1, c2, mortar = _lin(_hex(A["brick"])), _lin(_hex(A["brick_dark"])), _lin(_hex(A["pier"]))
+                c1, c2, mortar = _worn(A["brick"]), _worn(A["brick_dark"]), _worn(A["pier"])
             else:
                 br.inputs["Brick Width"].default_value = SLAB; br.inputs["Row Height"].default_value = SLAB
                 br.inputs["Mortar Size"].default_value = 0.016; br.offset = 0.0; br.offset_frequency = 2
-                c1, c2, mortar = _lin(_hex(A["ground"][0])), _lin(_hex(A["ground"][1])), _lin(_hex(A["ground_dark"]))
+                c1, c2, mortar = _worn(A["ground"][0]), _worn(A["ground"][1]), _worn(A["ground_dark"])
             br.inputs["Color1"].default_value = c1; br.inputs["Color2"].default_value = c2; br.inputs["Mortar"].default_value = mortar
             br.inputs["Bias"].default_value = 0.0; br.inputs["Brick Width"].default_value = br.inputs["Brick Width"].default_value
             grime = self._noise(nt, uv.outputs["UV"], 6.0)
@@ -751,7 +772,7 @@ class Souq:
             bump(inv.outputs[0], 0.9, 0.006)
         elif kind == "mud":
             n = self._noise(nt, uv.outputs["UV"], 5.0)
-            nt.links.new(mix(_lin(_hex(A["brick"])), _lin(_hex(A["brick_dark"])), n), bsdf.inputs["Base Color"])
+            nt.links.new(mix(_worn(A["brick"]), _worn(A["brick_dark"]), n), bsdf.inputs["Base Color"])
             bsdf.inputs["Roughness"].default_value = 0.92
             # a rendered wall: coarse trowel marks and a fine grit
             coarse = self._noise(nt, uv.outputs["UV"], 14.0, 2.0); fine = self._noise(nt, uv.outputs["UV"], 90.0, 2.0)
@@ -761,20 +782,20 @@ class Souq:
             bump(mixh.outputs[0], 0.45, 0.004)
         elif kind == "plaster":
             n = self._noise(nt, uv.outputs["UV"], 9.0)
-            nt.links.new(mix(_lin(_hex(A["skyline"])), _lin(_hex(A["brick"])), n), bsdf.inputs["Base Color"])
+            nt.links.new(mix(_worn(A["skyline"]), _worn(A["brick"]), n), bsdf.inputs["Base Color"])
             bsdf.inputs["Roughness"].default_value = 0.85; bump(self._noise(nt, uv.outputs["UV"], 30.0, 2.0), 0.35, 0.003)
         elif kind == "sand":
             # THEME.souq.floor: sun-bleached stones (#e0b077) and trodden dark
             # patches (#4a2c10) over the ground colour, as two blotch layers
             n = self._noise(nt, uv.outputs["UV"], 4.0)
-            base = mix(_lin(_hex(A["ground"][0])), _lin(_hex(A["ground"][1])), n)
+            base = mix(_worn(A["ground"][0]), _worn(A["ground"][1]), n)
             light = self._noise(nt, uv.outputs["UV"], 2.5); lr = nt.nodes.new("ShaderNodeMath"); lr.operation = "GREATER_THAN"; lr.inputs[1].default_value = 0.62
             nt.links.new(light, lr.inputs[0])
             dark = self._noise(nt, uv.outputs["UV"], 3.5); dr = nt.nodes.new("ShaderNodeMath"); dr.operation = "GREATER_THAN"; dr.inputs[1].default_value = 0.66
             nt.links.new(dark, dr.inputs[0])
-            m1 = nt.nodes.new("ShaderNodeMix"); m1.data_type = "RGBA"; m1.inputs["B"].default_value = _lin(_hex(A["ground_light"]))
+            m1 = nt.nodes.new("ShaderNodeMix"); m1.data_type = "RGBA"; m1.inputs["B"].default_value = _worn(A["ground_light"])
             nt.links.new(base, m1.inputs["A"]); nt.links.new(lr.outputs[0], m1.inputs["Factor"])
-            m2 = nt.nodes.new("ShaderNodeMix"); m2.data_type = "RGBA"; m2.inputs["B"].default_value = _lin(_hex(A["ground_dark"]))
+            m2 = nt.nodes.new("ShaderNodeMix"); m2.data_type = "RGBA"; m2.inputs["B"].default_value = _worn(A["ground_dark"])
             nt.links.new(m1.outputs["Result"], m2.inputs["A"]); nt.links.new(dr.outputs[0], m2.inputs["Factor"])
             nt.links.new(m2.outputs["Result"], bsdf.inputs["Base Color"])
             bsdf.inputs["Roughness"].default_value = 0.95; bump(self._noise(nt, uv.outputs["UV"], 60.0, 2.0), 0.25, 0.002)
@@ -786,17 +807,17 @@ class Souq:
             wave2.inputs["Scale"].default_value = 240.0 / TILE; nt.links.new(uv.outputs["UV"], wave2.inputs["Vector"])
             weave = nt.nodes.new("ShaderNodeMath"); weave.operation = "MULTIPLY"
             nt.links.new(wave.outputs["Fac"], weave.inputs[0]); nt.links.new(wave2.outputs["Fac"], weave.inputs[1])
-            bsdf.inputs["Base Color"].default_value = _lin(_hex(col)); bsdf.inputs["Roughness"].default_value = 0.72
+            bsdf.inputs["Base Color"].default_value = _worn(col, WEATHER["cloth_chroma"]); bsdf.inputs["Roughness"].default_value = 0.72
             if "Sheen Weight" in bsdf.inputs: bsdf.inputs["Sheen Weight"].default_value = 0.4
             bump(weave.outputs[0], 0.25, 0.0008)
         elif kind == "wood":
             wave = nt.nodes.new("ShaderNodeTexWave"); wave.wave_type = "BANDS"; wave.bands_direction = "Y"
             wave.inputs["Scale"].default_value = 18.0 / TILE; wave.inputs["Distortion"].default_value = 1.4; wave.inputs["Detail"].default_value = 2.0
             nt.links.new(uv.outputs["UV"], wave.inputs["Vector"])
-            nt.links.new(mix(_lin(_hex(A["crate"])), _lin(_hex(A["crate_edge"])), wave.outputs["Fac"]), bsdf.inputs["Base Color"])
+            nt.links.new(mix(_worn(A["crate"]), _worn(A["crate_edge"]), wave.outputs["Fac"]), bsdf.inputs["Base Color"])
             bsdf.inputs["Roughness"].default_value = 0.62; bump(wave.outputs["Fac"], 0.3, 0.0015)
         elif kind == "iron":
-            bsdf.inputs["Base Color"].default_value = _lin(_hex(A["barrel"])); bsdf.inputs["Metallic"].default_value = 0.85
+            bsdf.inputs["Base Color"].default_value = _worn(A["barrel"]); bsdf.inputs["Metallic"].default_value = 0.85
             bsdf.inputs["Roughness"].default_value = 0.45
         elif kind == "glass":
             bsdf.inputs["Base Color"].default_value = _lin(_hex(A["lantern"])); bsdf.inputs["Roughness"].default_value = 0.2
@@ -807,13 +828,13 @@ class Souq:
             br = nt.nodes.new("ShaderNodeTexBrick"); nt.links.new(metres.outputs[0], br.inputs["Vector"])
             br.inputs["Scale"].default_value = 1.0; br.inputs["Brick Width"].default_value = BRICK[0]; br.inputs["Row Height"].default_value = BRICK[1]
             br.inputs["Mortar Size"].default_value = 0.012; br.offset = 0.5; br.offset_frequency = 2
-            br.inputs["Color1"].default_value = _lin(_hex(A["wall_gate"])); br.inputs["Color2"].default_value = _lin(_hex("#8c7656"))
-            br.inputs["Mortar"].default_value = _lin(_hex("#6d5c44"))
+            br.inputs["Color1"].default_value = _worn(A["wall_gate"]); br.inputs["Color2"].default_value = _worn("#8c7656")
+            br.inputs["Mortar"].default_value = _worn("#6d5c44")
             nt.links.new(br.outputs["Color"], bsdf.inputs["Base Color"]); bsdf.inputs["Roughness"].default_value = 0.9
             inv = nt.nodes.new("ShaderNodeMath"); inv.operation = "SUBTRACT"; inv.inputs[0].default_value = 1.0; nt.links.new(br.outputs["Fac"], inv.inputs[1])
             bump(inv.outputs[0], 0.9, 0.006)
         elif kind == "crack":
-            bsdf.inputs["Base Color"].default_value = _lin(_hex("#140e0a")); bsdf.inputs["Roughness"].default_value = 1.0
+            bsdf.inputs["Base Color"].default_value = _worn("#140e0a"); bsdf.inputs["Roughness"].default_value = 1.0
         self.mats[name] = mat
         return mat
 
@@ -1320,18 +1341,23 @@ class Souq:
 
     # -------------------------------------------------------------- renders
     def sun(self):
-        """build_levels' Souq rig: 24 degrees up, warm; from where he walks in
-        (the West door), down the length of the market as the browser has it."""
+        """build_levels' Souq rig: 24 degrees up, from where he walks in (the
+        West door), down the length of the market as the browser has it.
+        Since 2026-09-26 (the dark) a dim, cold, overcast light -- energy 5
+        -> 1.6, (1.00, 0.85, 0.63) -> an ashen blue-grey, the sun's disc
+        spread wide so shadows go soft as under cloud -- and a dim slate
+        sky, where it was a warm dusk; the lanterns are left the only warm
+        light. The open world's own sun is build_world.py's WORLD_RIG."""
         bpy = self.bpy
         from mathutils import Vector
-        light = bpy.data.lights.new("Sun", type="SUN"); light.energy = 5.0; light.color = (1.00, 0.85, 0.63); light.angle = math.radians(1.5)
+        light = bpy.data.lights.new("Sun", type="SUN"); light.energy = 1.6; light.color = (0.74, 0.80, 0.90); light.angle = math.radians(12.0)
         o = bpy.data.objects.new("Sun", light); bpy.context.scene.collection.objects.link(o)
         wx, wy = self.P["doors"].get("West", (-1.0, 0.0)); az = math.atan2(wy, wx)
         el = math.radians(SUN_PITCH)
         d = Vector((-math.cos(az) * math.cos(el), -math.sin(az) * math.cos(el), -math.sin(el)))   # the light travels from the door inward
         o.rotation_euler = (-d).to_track_quat("Z", "Y").to_euler()
         world = bpy.data.worlds.new("Souq"); bpy.context.scene.world = world; world.use_nodes = True
-        bg = world.node_tree.nodes["Background"]; bg.inputs[0].default_value = _lin(_hex("#e79a5c")); bg.inputs[1].default_value = 0.55
+        bg = world.node_tree.nodes["Background"]; bg.inputs[0].default_value = _lin(_hex("#4a545c")); bg.inputs[1].default_value = 0.35
         return o
 
     def render(self, name, cam_loc, look_at, lens=35, res=(1600, 900), samples=None):

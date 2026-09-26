@@ -41,7 +41,7 @@ same steps, line for line):
   5. A gritty grade: some saturation out, a dust-warm tint.
   6. Speed lines, radial round the blow, when the game asks for them.
   7. The impact frame: for a frame or two the whole picture goes to ink and
-     paper, the lit side paper, the rest ink, and can be flipped.
+     ember, the lit side ember, the rest ink, and can be flipped.
   8. HAWK FIST's fire (since 2026-09-26, "build flame fire hit for Saud"):
      the flame on Saud's fist while the talent is lit, and the burst on
      the man a burning punch hit. They are the browser's own drawings --
@@ -62,6 +62,21 @@ are driven by the game through the Material Parameter Collection MPC_Anime
 (Combat/SaudAnime.h and Combat/SaudFire.h have the timings and the names);
 everything else is a constant from LOOK, written into the HLSL when the
 materials are built, so the preview and the engine read one table.
+
+THE DARK, since 2026-09-26 ("use darker theme style like Demon's Souls",
+settled as: darken the anime, not replace it -- the ink, the flat tones and
+the impact frames stay, and the picture goes grim). What changed, all in
+LOOK: the tones a long step down (lit 0.84, shadow 0.22, deep 0.05, and
+more of the picture falls into shadow and deep shadow); the split toning
+cold -- slate-blue shadows under an ashen, barely warm light; the WORLD
+held darker and greyer than the fighters (WORLD_LEVEL, WORLD_SATURATION)
+so a man stands out of the murk; the air a dark, cold fog that starts
+close (HAZE); the sky a dim overcast (SKY_LEVEL, SKY_TINT); a vignette
+(M_Anime_Frame); and warm light only from what burns -- a lamp, a lantern,
+HAWK FIST -- which keeps its colour (EMIT_FROM) while everything round it
+goes grey. The hit effects go with it: the impact frame is ink and EMBER,
+not ink and paper; more of the speed lines are blood; the fire is embers
+(FIRE's colours, not its shapes). The HUD's bone lettering is BONE.
 
 RUN
   python3 Tools/look/anime_look.py            checks: HLSL generated, the
@@ -93,24 +108,30 @@ import sys
 # dial most likely to need tuning in the engine (MPC_Anime.Key).
 LOOK = {
     # 1. cel tones: light below T_DEEP is deep shadow, below T_SHADOW shadow
-    "T_SHADOW": 0.50,
-    "T_DEEP": 0.09,
+    # 2026-09-26, the dark: more of the picture in shadow (0.50 / 0.09
+    # before) and every tone a long step down, so the lit side is a slice
+    # of light out of the murk rather than the picture's default
+    "T_SHADOW": 0.56,
+    "T_DEEP": 0.14,
     "T_HIGHLIGHT": 1.90,     # only real glare: lower, it spotted every face
     "SOFT": 0.020,          # half-width of each terminator, for antialiasing
     "SMOOTH_PX": 3.0,       # the light is averaged this far (1080 lines) first
-    "Q_LIT": 1.00,
-    # 2026-09-25, "improve colours" -- richer, still gritty: the shadow and
-    # deep tones a step lower (0.42 / 0.16 before), so a lit form stands off
-    # its own shadow instead of greying into it
-    "Q_SHADOW": 0.38,
-    "Q_DEEP": 0.13,
-    "Q_HIGHLIGHT": 1.28,
+    # 2026-09-25, "improve colours": shadow 0.42 -> 0.38, deep 0.16 -> 0.13.
+    # 2026-09-26, the dark: lit 1.00 -> 0.84, shadow -> 0.22, deep -> 0.05
+    # (near black: the shadow side of a Souls knight), the glint 1.28 ->
+    # 1.10 so sweat catches without lighting the face
+    "Q_LIT": 0.84,
+    "Q_SHADOW": 0.22,
+    "Q_DEEP": 0.05,
+    "Q_HIGHLIGHT": 1.10,
     # Split toning: shadows lean to a cool slate, the lit side to dust-warm,
     # so light and shade differ in hue as well as value -- the depth a
     # painted cel has. Until 2026-09-25 one warm tint lay over everything
     # and the shadows' faint cool was cancelled by it.
-    "SHADOW_TINT": (0.84, 0.89, 1.03),
-    "LIT_TINT": (1.05, 1.00, 0.91),
+    # 2026-09-26, the dark: colder -- slate-blue shadows, an ashen light
+    # that is barely warm; the warmth is left to what burns
+    "SHADOW_TINT": (0.78, 0.88, 1.04),
+    "LIT_TINT": (1.02, 1.00, 0.94),
     "TINT_KEEP": 0.6,       # how much of the light's hue the tone keeps
     "EMIT_FROM": 5.0,       # light this many times the key is a lamp, not a surface
     # 2. hatching, in pixels of a 1080-line picture
@@ -122,7 +143,9 @@ LOOK = {
     # Ink is the darkest thing in the picture. It was 0.030 linear -- a
     # mid-grey once exposed, lighter than a black tee, so round dark kit the
     # outline read as a pale halo (anime-men.png, 2026-09-24).
-    "INK": (0.004, 0.0035, 0.003),
+    # 2026-09-26: darker still (0.004 before), so it stays under a black
+    # tee lit at the darker Q_LIT
+    "INK": (0.0022, 0.0019, 0.0017),
     # The silhouette round a fighter is centred on his edge: OUTER_SHARE of
     # it outside him, over whatever is behind (found by his custom depth).
     # Until 2026-09-25 only the inside was drawn, at half this width.
@@ -153,17 +176,33 @@ LOOK = {
     # grit), except the two things the art direction lets shout: the
     # blood-red (Kuwait's red on Saud, a boss's band) and a lamp's own
     # light, which keep all of theirs and a touch more.
-    "SATURATION": 0.88,
+    # 2026-09-26, the dark: 0.88 -> 0.66 on a fighter, and the world
+    # further: held darker (WORLD_LEVEL) and greyer (WORLD_SATURATION) than
+    # the men in it, so a fighter stands out of the murk as a Souls knight
+    # does out of Boletaria's grey. A lamp keeps its own light (EMIT_FROM).
+    "SATURATION": 0.66,
+    "WORLD_SATURATION": 0.42,
+    "WORLD_LEVEL": 0.62,
     "ACCENT_FROM": 0.80,     # a red this pure -- (r - max(g, b)) / r -- starts to count
     "ACCENT_FULL": 0.92,     # ...and is all accent here: #c8102e is 0.95, a rust tee 0.74
     "ACCENT_SAT": 1.06,
     # Air: the world, not a fighter, goes toward a dusty dusk as it recedes
     # -- a painted background's depth, the souq's far walls behind the fight
     # softer and warmer than the stall beside it. Albedo-like, times Key.
-    "HAZE": (0.58, 0.47, 0.38),
-    "HAZE_NEAR_CM": 1500.0,
-    "HAZE_FAR_CM": 25000.0,
-    "HAZE_MAX": 0.35,
+    # 2026-09-26, the dark: a cold, dark fog that starts close and eats
+    # the distance (a dusty dusk from 15 m to 250 m, 0.35, before)
+    "HAZE": (0.13, 0.145, 0.15),
+    "HAZE_NEAR_CM": 600.0,
+    "HAZE_FAR_CM": 9000.0,
+    "HAZE_MAX": 0.62,
+    # the sky: a dim overcast, cold, still banded
+    "SKY_LEVEL": 0.30,
+    "SKY_TINT": (0.86, 0.93, 1.00),
+    # the vignette, in M_Anime_Frame on display values: the corners down
+    # by VIGNETTE, from VIGNETTE_FROM of the way out (1 is a corner)
+    "VIGNETTE": 0.50,
+    "VIGNETTE_FROM": 0.45,
+    "VIGNETTE_TO": 1.05,
     # 6. speed lines
     "SPEED_COUNT": 90.0,
     "SPEED_INNER": 0.16,     # clear circle round the blow, share of height
@@ -173,12 +212,15 @@ LOOK = {
     # A share of the streaks is drawn in blood rather than ink: a two-tone
     # panel, the red the HUD gives an enemy's health (#8e1420). Linear.
     "BLOOD": (0.2705, 0.0070, 0.0144),
-    "SPEED_RED": 0.22,
-    # 7. impact frame
-    # a warm newsprint (0.93, 0.90, 0.84 until 2026-09-25): shared with the
-    # HUD's panels, which SaudHUD.cpp draws in the same two, checked below
-    "PAPER": (0.93, 0.88, 0.78),
-    "IMPACT_CUT": 0.45,       # display luminance above which the cut frame is paper
+    "SPEED_RED": 0.27,      # 2026-09-26: 0.22 -> 0.27, more of it blood
+    # 7. impact frame. 2026-09-26, the dark: its light half is an EMBER --
+    # a blood-orange, the colour of what burns -- where it was paper
+    # (a warm newsprint, 0.93 0.88 0.78). BONE is the HUD's lettering, dim
+    # parchment on dark panels; SaudHUD.cpp draws in INK and BONE, checked
+    # below.
+    "EMBER": (0.80, 0.26, 0.07),
+    "BONE": (0.56, 0.52, 0.44),
+    "IMPACT_CUT": 0.45,       # display luminance above which the cut frame is ember
     # 8. HAWK FIST's fire: what the look adds to the browser's drawing
     # (the drawing itself is FIRE, below). The flame is drawn only on
     # pixels this far BEHIND the fist's centre, so the hand itself covers
@@ -196,26 +238,31 @@ LOOK = {
 # :1206, burst() :775, ring() :765, drawFx() :807, applyHit() :3538). Sizes
 # are the browser's FIGURE pixels -- a standing fighter is 148 px tall for
 # 180 cm -- and Combat/SaudFire.h quotes the same numbers for the game;
-# _check_names() holds this table to that header. Colours are the
-# browser's rgba, as display values with their alpha.
+# _check_names() holds this table to that header. The shapes and timings
+# are the browser's; the COLOURS are the dark theme's since 2026-09-26 --
+# the browser's pale yellow flame and sparks read as a torch in daylight,
+# so they are embers here: an orange tongue over a deep red one with a
+# pale-hot core, a glow going to blood, ember sparks. (The browser's were
+# tongues 255,196,72 / 255,124,32 / 255,238,196, glow 255,238,190 ->
+# 255,150,44 -> 200,40,10, ring #ffb04a, sparks 255,168,52 / 255,238,190.)
 FIRE = {
     "FIGURE_PX": 148.0,
     "FIGURE_CM": 180.0,
     "TONGUE_ROOT_PX": 3.0,                       # a tongue starts 3 px behind the fist
     "TONGUE_W": tuple(5.2 - 1.1 * i for i in range(3)),        # half-widths
     "TONGUE_LEN": tuple(20.0 - 4.5 * i for i in range(3)),     # times the heat
-    "TONGUE_COL": ((255, 196, 72, 0.92), (255, 124, 32, 0.86), (255, 238, 196, 0.95)),
+    "TONGUE_COL": ((255, 120, 32, 0.92), (214, 54, 14, 0.88), (255, 196, 120, 0.95)),
     "SWAY_RATE": 11.0, "SWAY_PHASE": 2.1, "SWAY_PX": 3.2,
     "GLOW_CX": 2.0, "GLOW_R": 26.0,              # radius times the heat
     "GLOW_MID": 0.45,                            # the gradient's middle stop
-    "GLOW_COL": ((255, 238, 190, 0.85), (255, 150, 44, 0.42), (200, 40, 10, 0.0)),
+    "GLOW_COL": ((255, 170, 90, 0.80), (210, 70, 16, 0.42), (120, 14, 4, 0.0)),
     "RING_FROM": 8.0, "RING_TO": 74.0, "RING_S": 0.28, "RING_A": 0.85, "RING_W": 6.0, "RING_SQUASH": 0.62,
-    "RING_COL": (255, 176, 74, 1.0),             # #ffb04a
+    "RING_COL": (230, 92, 28, 1.0),
     "SPARKS_HOT": 14, "SPARKS_PALE": 8,
     "SPARK_SPD": (300.0, 190.0), "SPARK_SHARE_MIN": 0.3,
     "SPARK_LIFT": 40.0, "SPARK_G": 460.0, "SPARK_DRAG": 2.4493,
     "SPARK_LIFE": (0.25, 0.55), "SPARK_R": (2.0, 5.0),
-    "SPARK_COL": ((255, 168, 52, 0.95), (255, 238, 190, 0.95)),
+    "SPARK_COL": ((255, 110, 30, 0.95), (255, 190, 110, 0.95)),
 }
 
 
@@ -279,8 +326,11 @@ def _sub(code):
         "SHADOW_TINT": _f3(L["SHADOW_TINT"]), "TINT_KEEP": _f(L["TINT_KEEP"]),
         "EMIT_FROM": _f(L["EMIT_FROM"]), "HATCH_PX": _f(L["HATCH_PX"]), "HATCH_W": _f(L["HATCH_WIDTH"]),
         "HATCH_A": _f(L["HATCH_ALPHA"]), "CROSS_BELOW": _f(L["CROSS_BELOW"]),
-        "INK_D": _f3(display(L["INK"])), "PAPER_D": _f3(display(L["PAPER"])),
-        "INK": _f3(L["INK"]), "PAPER": _f3(L["PAPER"]),
+        "INK_D": _f3(display(L["INK"])), "EMBER_D": _f3(display(L["EMBER"])),
+        "INK": _f3(L["INK"]), "EMBER": _f3(L["EMBER"]),
+        "WORLD_SATURATION": _f(L["WORLD_SATURATION"]), "WORLD_LEVEL": _f(L["WORLD_LEVEL"]),
+        "SKY_LEVEL": _f(L["SKY_LEVEL"]), "SKY_TINT": _f3(L["SKY_TINT"]),
+        "VIGNETTE_FROM": _f(L["VIGNETTE_FROM"]), "VIGNETTE_TO": _f(L["VIGNETTE_TO"]), "VIGNETTE": _f(L["VIGNETTE"]),
         "LINE_FIGHTER": _f(L["LINE_FIGHTER_PX"]), "LINE_WORLD": _f(L["LINE_WORLD_PX"]),
         "DEPTH_EDGE": _f(L["DEPTH_EDGE"]), "NORMAL_EDGE": _f(L["NORMAL_EDGE"]),
         "FIGHTER_EDGE": _f(L["FIGHTER_EDGE_CM"]), "FOLD_MIN": _f(L["FOLD_MIN"]), "FOLD_MAX": _f(L["FOLD_MAX"]),
@@ -423,30 +473,34 @@ float Fade = Fighter ? 1.0 : lerp(1.0, FADE_MIN, saturate((D - FADE_NEAR) / (FAD
 float Ink = max(max(Silh, Fold * INNER_A) * Fade, Outer) * (Sky && Outer <= 0.0 ? 0.0 : 1.0);
 Out = lerp(Out, INK, Ink);
 
-// 4. sky
+// 4. sky: banded, and a dim cold overcast
 if (Sky)
 {
     float Ls = dot(C, LUMA);
     float Lb = (floor(Ls * SKY_BANDS) + 0.5) / SKY_BANDS;
-    Out = lerp(C * (Lb / max(Ls, 0.0001)), INK, Outer);   // a fighter's line over the sky
+    Out = lerp(C * (Lb / max(Ls, 0.0001)) * SKY_LEVEL * SKY_TINT, INK, Outer);   // a fighter's line over the sky
 }
 
-// 5. grade: air over the world, then colour held under except the accents
+// 5. grade: the world held down under the men in it (not a lamp), the
+// air over it, then colour held under except the accents -- and the
+// world greyer than a fighter
 if (!Fighter && !Sky)
 {
+    Out *= lerp(WORLD_LEVEL, 1.0, Emit);
     float Air = HAZE_MAX * smoothstep(HAZE_NEAR, HAZE_FAR, D);
     Out = lerp(Out, HAZE * Key, Air);
 }
 float Red = (Out.r - max(Out.g, Out.b)) / max(Out.r, 0.0001);
 float Accent = max(smoothstep(ACCENT_FROM, ACCENT_FULL, Red), Sky ? 0.0 : Emit);   // the sky has no base colour: not a lamp
-Out = lerp(dot(Out, LUMA).xxx, Out, lerp(SATURATION, ACCENT_SAT, Accent));
+float SatBase = Fighter ? SATURATION : WORLD_SATURATION;
+Out = lerp(dot(Out, LUMA).xxx, Out, lerp(SatBase, ACCENT_SAT, Accent));
 
-// 7a. the impact frame, drawn: the lit side paper, the rest ink. It passes
+// 7a. the impact frame, drawn: the lit side ember, the rest ink. It passes
 // through TSR, bloom and the tonemapper after this, which soften it;
 // M_Anime_Frame cuts it back to two exact colours.
 float Paper = Sky ? 1.0 : (1.0 - Shad) * (1.0 - Ink);
 Paper = lerp(Paper, 1.0 - Paper, ImpactInvert);
-Out = lerp(Out, lerp(INK, PAPER, Paper), Impact);
+Out = lerp(Out, lerp(INK, EMBER, Paper), Impact);
 return Out;
 """)
 
@@ -460,9 +514,12 @@ def hlsl_frame():
        projects is a fraction of the viewport, which is not the buffer's
        UV under dynamic resolution or a screen percentage.
     7b. The impact frame cut to exactly two colours: whatever TSR's
-       history, bloom or the tonemapper did to M_Anime_Post's paper and
-       ink, a pixel brighter than IMPACT_CUT is paper and the rest ink, so
-       one film frame is one hard cut."""
+       history, bloom or the tonemapper did to M_Anime_Post's ember and
+       ink, a pixel brighter than IMPACT_CUT is ember and the rest ink, so
+       one film frame is one hard cut.
+    And first, the vignette (2026-09-26, the dark): the picture's corners
+    taken down by VIGNETTE, before the fire (a flame is light) and the
+    cut."""
     return _sub(r"""
 // ---- anime look (frame), generated by Tools/look/anime_look.py -- do not hand-edit
 const float3 LUMA = float3(0.2126, 0.7152, 0.0722);
@@ -472,14 +529,16 @@ float D = SceneTextureLookup(UV, 1, false).r;
 float CD = SceneTextureLookup(UV, 13, false).r;
 bool Fighter = CD < D + 2.0;
 
-float3 Out = S;
-""") + hlsl_fire() + _sub(r"""
-// 7b. the cut (the fire is cut with everything else)
-Out = lerp(Out, dot(Out, LUMA) > IMPACT_CUT ? PAPER_D : INK_D, step(0.5, Impact));
-
-// 6. speed lines, behind the figures as a panel draws them
+// the vignette: the corners into the dark (1 is a corner, whatever the aspect)
 float2 VUV = GetViewportUV(Parameters);
 float Aspect = View.ViewSizeAndInvSize.x * View.ViewSizeAndInvSize.w;
+float Vr = length((VUV - 0.5) * float2(Aspect, 1.0)) / (0.5 * sqrt(Aspect * Aspect + 1.0));
+float3 Out = S * (1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr));
+""") + hlsl_fire() + _sub(r"""
+// 7b. the cut (the fire is cut with everything else)
+Out = lerp(Out, dot(Out, LUMA) > IMPACT_CUT ? EMBER_D : INK_D, step(0.5, Impact));
+
+// 6. speed lines, behind the figures as a panel draws them
 float2 V = (VUV - float2(SpeedCentreX, SpeedCentreY)) * float2(Aspect, 1.0);
 float Rad = length(V);
 float Ang = (atan2(V.y, V.x) / 6.2831853 + 0.5) * SPEED_COUNT;
@@ -729,24 +788,28 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0):
     inkw = np.maximum(np.maximum(silh, fold * L["INNER_ALPHA"]) * fade, outer) * (~sky | (outer > 0))
     out = lerp(out, ink, inkw[..., None])
 
-    # 4. sky
+    # 4. sky: banded, and a dim cold overcast
     Ls = C @ luma
     Lb = (np.floor(Ls * L["SKY_BANDS"]) + 0.5) / L["SKY_BANDS"]
-    out = np.where(sky[..., None], lerp(C * (Lb / np.maximum(Ls, 1e-4))[..., None], ink, outer[..., None]), out)
+    skyc = C * (Lb / np.maximum(Ls, 1e-4))[..., None] * L["SKY_LEVEL"] * np.array(L["SKY_TINT"])
+    out = np.where(sky[..., None], lerp(skyc, ink, outer[..., None]), out)
 
-    # 5. grade: air over the world, then colour held under except the accents
-    air = np.where(~fighter & ~sky, L["HAZE_MAX"] * _smooth(L["HAZE_NEAR_CM"], L["HAZE_FAR_CM"], D), 0.0)
+    # 5. grade: the world held down (not a lamp), the air over it, then
+    # colour held under except the accents, the world greyer than a man
+    world = ~fighter & ~sky
+    out = out * np.where(world, lerp(L["WORLD_LEVEL"], 1.0, emit), 1.0)[..., None]
+    air = np.where(world, L["HAZE_MAX"] * _smooth(L["HAZE_NEAR_CM"], L["HAZE_FAR_CM"], D), 0.0)
     out = lerp(out, np.array(L["HAZE"]) * key, air[..., None])
     red = (out[..., 0] - np.maximum(out[..., 1], out[..., 2])) / np.maximum(out[..., 0], 1e-4)
     accent = np.maximum(_smooth(L["ACCENT_FROM"], L["ACCENT_FULL"], red), np.where(sky, 0.0, emit))
-    sat = lerp(L["SATURATION"], L["ACCENT_SAT"], accent)
+    sat = lerp(np.where(fighter, L["SATURATION"], L["WORLD_SATURATION"]), L["ACCENT_SAT"], accent)
     out = lerp((out @ luma)[..., None], out, sat[..., None])
 
-    # 7a. the impact frame, drawn
+    # 7a. the impact frame, drawn: the lit side ember, the rest ink
     if impact > 0.0:
         paper = np.where(sky, 1.0, (1.0 - shad) * (1.0 - inkw))
         paper = lerp(paper, 1.0 - paper, invert)
-        out = lerp(out, lerp(ink, np.array(L["PAPER"]), paper[..., None]), impact)
+        out = lerp(out, lerp(ink, np.array(L["EMBER"]), paper[..., None]), impact)
     return out, {"T": T, "deep": deep, "shadow": shad, "ink": inkw, "hatch": hatch}
 
 
@@ -843,12 +906,16 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
     luma = np.array(LUMA)
     lerp = lambda a, b, t: a + (b - a) * t
     fr = lambda v: v - np.floor(v)
-    out = S.copy()
+    # the vignette, first: the corners into the dark
+    yv, xv = np.mgrid[0:H, 0:W].astype(float)
+    asp = W / H
+    vr = np.hypot(((xv + 0.5) / W - 0.5) * asp, (yv + 0.5) / H - 0.5) / (0.5 * math.sqrt(asp * asp + 1.0))
+    out = S * (1.0 - L["VIGNETTE"] * _smooth(L["VIGNETTE_FROM"], L["VIGNETTE_TO"], vr))[..., None]
     if (fist is not None or burn is not None) and D is not None:
         out = fire(out, D, fist, burn)
     if impact >= 0.5:
         cut = (out @ luma > L["IMPACT_CUT"])[..., None]
-        out = np.where(cut, np.array(display(L["PAPER"])), np.array(display(L["INK"])))
+        out = np.where(cut, np.array(display(L["EMBER"])), np.array(display(L["INK"])))
     if speed > 0.0:
         yy, xx = np.mgrid[0:H, 0:W].astype(float)
         vx = ((xx + 0.5) / W - centre[0]) * (W / H)
@@ -981,7 +1048,19 @@ def check(bite=None):
         if bite == "lines_over_men":
             LOOK["SPEED_ON_FIGHTER"] = 1.0
         if bite == "flat_impact":
-            LOOK["PAPER"] = LOOK["INK"]
+            LOOK["EMBER"] = LOOK["INK"]
+        if bite == "paper_impact":
+            LOOK["EMBER"] = (0.93, 0.88, 0.78)
+        if bite == "grey_shadows":
+            LOOK["Q_SHADOW"] = 0.38; LOOK["Q_DEEP"] = 0.13
+        if bite == "world_as_fighter":
+            LOOK["WORLD_LEVEL"] = 1.0; LOOK["WORLD_SATURATION"] = LOOK["SATURATION"]
+        if bite == "bright_sky":
+            LOOK["SKY_LEVEL"] = 1.0
+        if bite == "no_vignette":
+            LOOK["VIGNETTE"] = 0.0
+        if bite == "warm_fog":
+            LOOK["HAZE"] = (0.58, 0.47, 0.38)
         if bite == "no_cut":
             LOOK["IMPACT_CUT"] = -1.0
         if bite == "fire_on_hand":
@@ -1005,6 +1084,10 @@ def check(bite=None):
         assert lit.sum() > 500 and sh.sum() > 500, "the sphere has a lit and a shadow side"
         assert np.ptp(rel[lit]) < 0.12 and np.ptp(rel[sh]) < 0.12, "each tone is flat"
         assert np.median(rel[lit]) > 1.6 * np.median(rel[sh]), "the terminator is a step"
+        # 1a. the dark (2026-09-26): the shadow side is near black, a
+        #     quarter of the lit side or less, not a grey
+        assert np.median(rel[sh]) < 0.30 and np.median(rel[sh]) < 0.30 * np.median(rel[lit]), \
+            "the shadows are dark, not grey"
         # 1b. split toning: the shadow side is cooler than the lit side, in
         #     hue and not only in value
         br = lambda px: np.median(out[px][:, 2] / np.maximum(out[px][:, 0], 1e-6))
@@ -1017,19 +1100,38 @@ def check(bite=None):
         keep = [np.median(sat(op[:, i * w:(i + 1) * w]) / np.maximum(sat(Ap[:, i * w:(i + 1) * w]), 1e-6))
                 for i in range(3)]
         assert keep[0] > keep[1] + 0.05, "Kuwait's red keeps its colour where a rust tee is held under"
+        # 5c. the world is held darker and greyer than a fighter of the
+        #     same colour under the same light: the men stand out of the murk
+        ow, _mw = preview(Cp, Ap, Np, Dp, ~onp)
+        lum = lambda c: c @ np.array(LUMA)
+        rust = slice(w, 2 * w)
+        assert np.median(lum(ow[:, rust])) < 0.8 * np.median(lum(op[:, rust])), "the world is darker than the men"
+        assert np.median(sat(ow[:, rust])) < 0.9 * np.median(sat(op[:, rust])), "and greyer"
         # 5a. the sky is held under like everything else: it has no base
         #     colour, so it reads as a lamp, and a lamp keeps its colour --
         #     the first version of the accent lifted the whole sky to full
         #     saturation, loud orange over the souq
         skyp = D > LOOK["SKY_DEPTH_CM"]
         assert np.median(sat(out[skyp])) <= np.median(sat(C[skyp])) + 1e-6, "the sky is not an accent"
+        # 4b. the sky is a dim overcast: well under half its own light
+        assert np.median(out[skyp] @ np.array(LUMA)) < 0.45 * np.median(C[skyp] @ np.array(LUMA)), \
+            "the sky is a dim overcast"
         # 5b. air: the far world recedes toward the dusk, a fighter does not
         Cf, Af, Nf, Df, onf = _sphere(far=True)
         of, _mf = preview(Cf, Af, Nf, Df, onf)
         wall = ~on & (D < LOOK["SKY_DEPTH_CM"])
         wall = wall & ~_shift(on, 8, 0, False) & ~_shift(on, -8, 0, False)
-        assert np.abs(of[wall] - out[wall]).mean() > 0.02, "the far world is in the air"
+        # (measured as how near the wall comes to the fog's own colour: a
+        # dark wall in a dark fog changes little in brightness, and that
+        # is the point of it)
+        fogc = np.array(LOOK["HAZE"])
+        near_d = np.abs(out[wall] - fogc).sum(axis=1).mean()
+        far_d = np.abs(of[wall] - fogc).sum(axis=1).mean()
+        assert far_d < 0.6 * near_d, "the far world is in the air"
         assert np.abs(of[on] - out[on]).max() < 1e-9, "and a fighter is not"
+        # ... and the air is a dark cold fog, not a warm dusk
+        hz = np.array(LOOK["HAZE"])
+        assert hz @ np.array(LUMA) < 0.2 and hz[2] >= hz[0], "the fog is dark and cold"
         # 3. a silhouette line all round the sphere's edge
         ring = on & (~_shift(on, 1, 0, False) | ~_shift(on, -1, 0, False)
                      | ~_shift(on, 0, 1, False) | ~_shift(on, 0, -1, False))
@@ -1073,9 +1175,11 @@ def check(bite=None):
         f0, _ = look(C, A, N, D, on, impact=1.0)
         f1, _ = look(C, A, N, D, on, impact=1.0, invert=1.0)
         colours = np.unique(np.round(f0.reshape(-1, 3), 4), axis=0)
-        assert len(colours) == 2, "the impact frame is exactly ink and paper"
+        assert len(colours) == 2, "the impact frame is exactly ink and ember"
         l0, l1 = f0 @ luma, f1 @ luma
-        assert np.ptp(l0) > 0.5, "the impact frame is ink and paper"
+        assert np.ptp(l0) > 0.5, "the impact frame is ink and ember"
+        em = np.array(LOOK["EMBER"])
+        assert em[0] > 2.0 * em[1] and em[1] > em[2], "its light half is an ember, not paper"
         assert (l0[lit] > 0.5).mean() > 0.95 and (l1[lit] < 0.3).mean() > 0.95, "and it flips"
         # 6. speed lines: clear at the blow, streaked away from it, not on a fighter
         base, _ = look(C, A, N, D, on)
@@ -1088,7 +1192,14 @@ def check(bite=None):
         assert 0.1 < diff[rr > LOOK["SPEED_OUTER"]].mean() < 0.7, "streaks, not a fill"
         assert diff[on].mean() == 0.0, "the speed lines stop at a fighter"
         reds = diff & (sp[..., 0] > sp[..., 1] + 0.15)
-        assert 0.05 < reds.sum() / max(diff.sum(), 1) < 0.5, "some streaks are blood, most are ink"
+        assert 0.15 < reds.sum() / max(diff.sum(), 1) < 0.7, "a good share of the streaks are blood, the rest ink"
+        # the vignette: the corners into the dark, the middle untouched
+        plain = to_display(out)
+        n = D.shape[0]
+        c = 12
+        assert np.abs(base[n // 2, n // 2] - plain[n // 2, n // 2]).max() < 1e-9, "the vignette leaves the middle"
+        corner = (base[:c, :c] @ luma).mean() / max((plain[:c, :c] @ luma).mean(), 1e-6)
+        assert corner < 0.65, "the vignette takes the corners into the dark (%.2f)" % corner
         # 8. HAWK FIST. The flame on the small ball in front of the sphere
         #    (a fist over a chest, 6 figure px across at this scale),
         #    pointing right: it is drawn on what is behind the fist -- the
@@ -1117,8 +1228,12 @@ def check(bite=None):
         Cw = np.full((n, n, 3), 0.30 * 1.2); Aw = np.full((n, n, 3), 0.30)
         Nw = np.zeros((n, n, 3)); Nw[..., 2] = 1.0
         Dw = np.full((n, n), 900.0); onw = np.zeros((n, n), bool)
+        # (counted without the vignette, which shades the wall under it a
+        # little differently in every ring of pixels)
+        vig, LOOK["VIGNETTE"] = LOOK["VIGNETTE"], 0.0
         wall0, _ = look(Cw, Aw, Nw, Dw, onw)
         wall1, _ = look(Cw, Aw, Nw, Dw, onw, fist=dict(fist, x=0.5, y=0.5, depth=200.0))
+        LOOK["VIGNETTE"] = vig
         dw = np.abs(wall1 - wall0).sum(axis=2) > 0.05
         # (the glow's three rings, each tongue over each ring it crosses,
         # the ink: at most sixteen; a gradient is hundreds)
@@ -1197,12 +1312,12 @@ def _check_names():
         code = code_of()
         for name in inputs:
             assert re.search(r"\b%s\b" % name, code), "%s does not read %s" % (path, name)
-        left = set(re.findall(r"\b[A-Z][A-Z]+_[A-Z_]+\b|\b(?:SOFT|INK|PAPER)\b", code))
+        left = set(re.findall(r"\b[A-Z][A-Z]+_[A-Z_]+\b|\b(?:SOFT|INK|EMBER|VIGNETTE)\b", code))
         assert not left, "placeholders left in %s: %s" % (path, sorted(left))
         assert "EyeAdaptationLookup" not in code, "the buffer is pre-exposed; do not expose it twice"
-    # the HUD's panels are drawn in the look's own ink and paper
+    # the HUD is drawn in the look's own ink and bone
     hud = open(os.path.join(ROOT, "Source", "SaudFighter", "Game", "SaudHUD.cpp")).read()
-    for var, key in (("InkC", "INK"), ("PaperC", "PAPER")):
+    for var, key in (("InkC", "INK"), ("BoneC", "BONE")):
         m = re.search(r"FLinearColor %s\(([0-9.]+)f, ([0-9.]+)f, ([0-9.]+)f" % var, hud)
         assert m, "SaudHUD.cpp has no %s" % var
         got = tuple(float(v) for v in m.groups())
@@ -1289,7 +1404,8 @@ if __name__ == "__main__":
         bites = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "specks", "stepped",
                  "one_tint", "accent_muted", "no_air", "ink_lines",
                  "sky_shaded", "flat_impact", "lines_over_men", "no_cut",
-                 "fire_on_hand", "soft_glow", "no_fire_ink", "burst_through_men", "still_sparks")
+                 "fire_on_hand", "soft_glow", "no_fire_ink", "burst_through_men", "still_sparks",
+                 "paper_impact", "grey_shadows", "world_as_fighter", "bright_sky", "no_vignette", "warm_fog")
         caught = 0
         for b in bites:
             try:

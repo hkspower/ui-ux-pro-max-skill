@@ -191,24 +191,27 @@ namespace SaudAnime
 }
 
 /**
- * The manga HUD's shapes. Everything is laid out on a 1920 x 1080 page and
+ * The HUD's shapes. Everything is laid out on a 1920 x 1080 page and
  * scaled by the screen's height, inside the TV title-safe area (the
  * outermost 5 % is left empty), with type big enough to read from a couch
  * -- CLAUDE.md's "the HUD is read at a distance".
  *
- * The look: panels with a heavy ink border, bars that lean like a panel
- * edge, a damage trail in paper white that holds and then drains -- the
- * "how much did that cost" a fighting-game bar shows -- the rage meter as
- * five ink blocks, and the combo count on a starburst, the shape a manga
- * letters a big sound effect on.
+ * The look, since 2026-09-26 ("use darker theme style like Demon's
+ * Souls"): dark translucent plates with a thin bronze keyline, thin flat
+ * bars -- a Souls bar, not a manga panel edge -- a damage trail that holds
+ * and then drains (the "how much did that cost" both genres show), the
+ * rage meter as five small blocks, and the combo count on a sixteen-point
+ * seal, a serrated disc rather than a lettered starburst. Until that day
+ * the bars leaned like a panel edge (0.45 of their height), the ink border
+ * was 5 page px and the combo sat on a twelve-point starburst.
  */
 namespace SaudHud
 {
 	constexpr float PageW = 1920.f;
 	constexpr float PageH = 1080.f;
 	constexpr float Safe = 0.05f;               // title-safe margin, each side
-	constexpr float Ink = 5.f;                  // border, page pixels
-	constexpr float Lean = 0.45f;               // a bar leans this much of its height
+	constexpr float Ink = 2.f;                  // keyline, page pixels (5 until 2026-09-26)
+	constexpr float Lean = 0.f;                 // bars are flat (0.45, leaning, until 2026-09-26)
 
 	constexpr float NameText = 36.f;            // page pixels, cap height class
 	constexpr float ComboText = 104.f;
@@ -264,29 +267,31 @@ namespace SaudHud
 	{
 		FLayout L;
 		const float X = P.Left(), Y = P.Top();
-		L.PlayerPanel = {X, Y, P.Px(640.f), P.Px(150.f)};
-		L.Name = {X + P.Px(84.f), Y + P.Px(14.f)};   // clear of the panel's leaning edge
-		L.Health = {X + P.Px(28.f), Y + P.Px(62.f), P.Px(560.f), P.Px(34.f)};
-		L.Stamina = {X + P.Px(40.f), Y + P.Px(102.f), P.Px(380.f), P.Px(14.f)};
-		const float BlockW = P.Px(24.f), Gap = P.Px(8.f);
+		// Thin bars, as a Souls HUD draws them: health 16 page px (34
+		// before), stamina 10 (14), rage blocks 12 (22).
+		L.PlayerPanel = {X, Y, P.Px(620.f), P.Px(120.f)};
+		L.Name = {X + P.Px(28.f), Y + P.Px(12.f)};
+		L.Health = {X + P.Px(28.f), Y + P.Px(60.f), P.Px(560.f), P.Px(16.f)};
+		L.Stamina = {X + P.Px(28.f), Y + P.Px(86.f), P.Px(400.f), P.Px(10.f)};
+		const float BlockW = P.Px(20.f), Gap = P.Px(8.f);
 		for (int i = 0; i < RageBlocks; ++i)
 		{
-			L.Rage[i] = {X + P.Px(440.f) + i * (BlockW + Gap), Y + P.Px(100.f), BlockW, P.Px(22.f)};
+			L.Rage[i] = {X + P.Px(448.f) + i * (BlockW + Gap), Y + P.Px(85.f), BlockW, P.Px(12.f)};
 		}
 		L.ComboRadius = P.Px(118.f);
 		L.Combo = {P.Right() - L.ComboRadius, P.Top() + P.Px(300.f)};
 		const float BW = P.Px(1100.f);
-		L.BossPanel = {0.5f * P.ScreenW - 0.5f * BW, P.Bottom() - P.Px(118.f), BW, P.Px(118.f)};
+		L.BossPanel = {0.5f * P.ScreenW - 0.5f * BW, P.Bottom() - P.Px(100.f), BW, P.Px(100.f)};
 		L.BossName = {L.BossPanel.X + P.Px(36.f), L.BossPanel.Y + P.Px(10.f)};
-		L.BossHealth = {L.BossPanel.X + P.Px(36.f), L.BossPanel.Y + P.Px(62.f), BW - P.Px(90.f), P.Px(30.f)};
-		L.EnemyBarW = P.Px(120.f);
-		L.EnemyBarH = P.Px(12.f);
+		L.BossHealth = {L.BossPanel.X + P.Px(36.f), L.BossPanel.Y + P.Px(64.f), BW - P.Px(72.f), P.Px(14.f)};
+		L.EnemyBarW = P.Px(110.f);
+		L.EnemyBarH = P.Px(7.f);
 		return L;
 	}
 
-	/** A bar's filled part, leaning right like a panel edge: four corners,
-	    clockwise from the bottom left. Fill 0 is a line, not nothing, so a
-	    caller can always draw it. */
+	/** A bar's filled part: four corners, clockwise from the bottom left,
+	    leaning right by Lean of its height (flat since 2026-09-26). Fill 0
+	    is a line, not nothing, so a caller can always draw it. */
 	inline void BarQuad(const FRect& R, float Fill, FPoint Out[4])
 	{
 		const float F = FMath::Clamp(Fill, 0.f, 1.f);
@@ -338,10 +343,12 @@ namespace SaudHud
 		return FMath::Clamp(FMath::Clamp(RageFraction, 0.f, 1.f) * RageBlocks - Index, 0.f, 1.f);
 	}
 
-	/** The combo's starburst: 2N points alternating out and in, turned a
-	    little more for every hit so a rising count visibly moves. */
-	constexpr int BurstPoints = 12;
-	constexpr float BurstInner = 0.62f;
+	/** The combo's seal: 2N points alternating out and in, turned a little
+	    more for every hit so a rising count visibly moves. Since 2026-09-26
+	    a serrated disc -- sixteen shallow teeth -- where it was a
+	    twelve-point manga starburst (inner radius 0.62). */
+	constexpr int BurstPoints = 16;
+	constexpr float BurstInner = 0.90f;
 
 	inline FPoint BurstPoint(const FPoint& Centre, float Radius, int Count, int i)
 	{

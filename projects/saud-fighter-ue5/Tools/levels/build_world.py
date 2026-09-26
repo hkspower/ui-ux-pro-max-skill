@@ -121,8 +121,17 @@ DEFAULT_VOCAB = _vocab("block", "tower", "wall", "concrete", False, 16, 0.55, 4,
 # build_levels.py. The open world is lit once, by the arena's rig, because it
 # is one map with one sun -- per-district light comes from the fog and the
 # post volume an artist adds later, not from nine suns fighting each other.
-WORLD_RIG = dict(pitch=-38, yaw=-125, sun=(1.00, 0.88, 0.70), lux=6.0,
-                 sky=1.4, fog=(0.86, 0.72, 0.56), fogd=0.012, expo=1.02)
+#
+# 2026-09-26, the dark ("use darker theme style like Demon's Souls", this
+# build): the one sun is a dim, cold overcast rather than the arena's warm
+# day -- sun (1.00, 0.88, 0.70) at 6 lux -> an ashen blue-grey at 2, its
+# disc spread to 8 degrees so shadows go soft as under cloud; the sky light
+# 1.4 -> 0.5; the fog a dark cold grey (it was a warm dust, 0.86 0.72
+# 0.56) and more than three times as thick. The same direction as before,
+# so every shadow still falls the way it did. The anime look's own air
+# (Tools/look/anime_look.py HAZE) is tuned to the same grey.
+WORLD_RIG = dict(pitch=-38, yaw=-125, sun=(0.72, 0.78, 0.88), lux=2.0, angle=8.0,
+                 sky=0.5, fog=(0.20, 0.23, 0.25), fogd=0.040, expo=1.02)
 
 
 # ------------------------------------------------------------ the island
@@ -1005,6 +1014,7 @@ def build(P):
     light = sun.get_component_by_class(unreal.DirectionalLightComponent)
     light.set_intensity(r["lux"])
     light.set_light_color(unreal.LinearColor(*r["sun"]))
+    light.set_editor_property("light_source_angle", r["angle"])   # overcast: soft shadows
     light.set_editor_property("atmosphere_sun_light", True)
     sky = spawn(unreal.SkyLight, "SkyLight", 0, 0, 18000, folder="Lighting")
     sl = sky.get_component_by_class(unreal.SkyLightComponent)

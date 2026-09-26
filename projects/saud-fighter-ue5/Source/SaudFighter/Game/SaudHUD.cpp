@@ -15,20 +15,27 @@ using namespace SaudHud;
 
 namespace
 {
-	// The anime look's paper and ink (Tools/look/anime_look.py LOOK, which
-	// checks these two against its own), and Saud's own red (assets/saud.js
-	// col.band). 2026-09-25, "improve colours", richer and still gritty:
-	// the ink near black (0.030 showed as a mid-grey border), the paper a
-	// warm newsprint, an empty bar the cool slate of the look's shadows
-	// rather than a flat grey, the enemy's red an oxblood under Saud's, the
-	// stamina a deeper amber and the rage a hotter gold.
-	const FLinearColor InkC(0.004f, 0.0035f, 0.003f, 1.f);
-	const FLinearColor PaperC(0.93f, 0.88f, 0.78f, 1.f);
-	const FLinearColor ShadeC(0.060f, 0.068f, 0.090f, 1.f);
-	const FLinearColor SaudRed = FLinearColor::FromSRGBColor(FColor(0xff, 0x1a, 0x3c));
-	const FLinearColor EnemyRed = FLinearColor::FromSRGBColor(FColor(0x8e, 0x14, 0x20));
-	const FLinearColor StaminaC = FLinearColor::FromSRGBColor(FColor(0xe3, 0xa3, 0x3a));
-	const FLinearColor RageGold = FLinearColor::FromSRGBColor(FColor(0xff, 0xb2, 0x1f));
+	// 2026-09-26, "use darker theme style like Demon's Souls": the HUD of a
+	// dark fantasy rather than a manga page. The ink and the bone are the
+	// look's own (Tools/look/anime_look.py LOOK INK and BONE, which checks
+	// these two against its own): dark translucent plates keylined in a
+	// dull bronze, lettering in bone, the bars the Souls' three -- a deep
+	// blood-red health, a moss-green stamina, and the rage an ember gold --
+	// in an empty trough near black, and the damage trail a dim gold that
+	// drains, as a Souls bar's does. Until that day: paper panels with a
+	// heavy ink border, Saud's bright band red (#ff1a3c) for his health,
+	// an amber stamina and a hot rage gold.
+	const FLinearColor InkC(0.0022f, 0.0019f, 0.0017f, 1.f);
+	const FLinearColor BoneC(0.56f, 0.52f, 0.44f, 1.f);
+	const FLinearColor PlateC(0.006f, 0.006f, 0.007f, 0.78f);   // a dark plate, the world through it
+	const FLinearColor TroughC(0.010f, 0.011f, 0.014f, 0.92f);  // an empty bar
+	const FLinearColor BronzeC = FLinearColor::FromSRGBColor(FColor(0x6b, 0x55, 0x33));
+	const FLinearColor TrailC = FLinearColor::FromSRGBColor(FColor(0xa8, 0x86, 0x3c));
+	const FLinearColor HealthC = FLinearColor::FromSRGBColor(FColor(0x9b, 0x16, 0x16));
+	const FLinearColor EnemyRed = FLinearColor::FromSRGBColor(FColor(0x6e, 0x0e, 0x12));
+	const FLinearColor StaminaC = FLinearColor::FromSRGBColor(FColor(0x4a, 0x6e, 0x33));
+	const FLinearColor RageC = FLinearColor::FromSRGBColor(FColor(0xa0, 0x6a, 0x22));
+	const FLinearColor EmberC = FLinearColor::FromSRGBColor(FColor(0xe8, 0x74, 0x2a));
 }
 
 void ASaudHUD::DrawHUD()
@@ -62,20 +69,20 @@ void ASaudHUD::DrawPlayer(const FPage& Page, const FLayout& L, float Dt)
 	const float HealthF = Saud->GetHealthFraction();
 	PlayerGhost.Tick(HealthF, Dt);
 
-	Panel(Page, L.PlayerPanel, PaperC);
-	Text(TEXT("SAUD"), L.Name.X, L.Name.Y, Page.Px(NameText), InkC);
-	InkBar(Page, L.Health, HealthF, PlayerGhost.Value, SaudRed);
+	Panel(Page, L.PlayerPanel, PlateC);
+	Text(TEXT("SAUD"), L.Name.X, L.Name.Y, Page.Px(NameText), BoneC);
+	InkBar(Page, L.Health, HealthF, PlayerGhost.Value, HealthC);
 	InkBar(Page, L.Stamina, Saud->MaxStamina > 0.f ? Saud->GetStamina() / Saud->MaxStamina : 0.f,
 	       0.f, StaminaC);
 
-	// Rage: five ink blocks, gold and pulsing once all five are full --
-	// the finisher is ready.
+	// Rage: five small blocks, a dull gold, glowing to ember and pulsing
+	// once all five are full -- the finisher is ready.
 	const float Rage = Saud->GetRageFraction();
 	const bool bReady = Saud->IsRageReady();
 	const float Pulse = bReady ? 0.5f + 0.5f * FMath::Sin(Clock * 9.f) : 0.f;
 	for (int32 i = 0; i < RageBlocks; ++i)
 	{
-		const FLinearColor Fill = bReady ? FMath::Lerp(RageGold, PaperC, 0.35f * Pulse) : SaudRed;
+		const FLinearColor Fill = bReady ? FMath::Lerp(RageC, EmberC, 0.4f + 0.6f * Pulse) : RageC;
 		InkBar(Page, L.Rage[i], RageBlock(Rage, i), 0.f, Fill);
 	}
 }
@@ -93,20 +100,20 @@ void ASaudHUD::DrawCombo(const FPage& Page, const FLayout& L, float Dt)
 	const float Punch = ComboPunch(SinceComboHit);
 	const float R = L.ComboRadius * (0.85f + 0.15f * Punch);
 
-	// The burst: an ink star, a paper one inside it -- a lettered sound
-	// effect's balloon.
+	// The seal: a bronze-rimmed serrated disc, dark inside, the count in
+	// bone and HITS in ember.
 	FPoint Outer[2 * BurstPoints], Inner[2 * BurstPoints];
 	for (int32 i = 0; i < 2 * BurstPoints; ++i)
 	{
 		Outer[i] = BurstPoint(L.Combo, R, Combo, i);
-		Inner[i] = BurstPoint(L.Combo, R - Page.Px(Ink * 1.6f), Combo, i);
+		Inner[i] = BurstPoint(L.Combo, R - Page.Px(Ink * 1.5f), Combo, i);
 	}
-	Poly(Outer, 2 * BurstPoints, InkC);
-	Poly(Inner, 2 * BurstPoints, PaperC);
+	Poly(Outer, 2 * BurstPoints, BronzeC);
+	Poly(Inner, 2 * BurstPoints, PlateC);
 
 	const float H = Page.Px(ComboText) * Punch * 0.8f;
-	Text(FString::FromInt(Combo), L.Combo.X, L.Combo.Y - 0.62f * H, H, InkC, true);
-	Text(TEXT("HITS"), L.Combo.X, L.Combo.Y + 0.40f * H, Page.Px(NameText) * 0.9f, SaudRed, true);
+	Text(FString::FromInt(Combo), L.Combo.X, L.Combo.Y - 0.62f * H, H, BoneC, true);
+	Text(TEXT("HITS"), L.Combo.X, L.Combo.Y + 0.40f * H, Page.Px(NameText) * 0.9f, EmberC, true);
 }
 
 void ASaudHUD::DrawBoss(const FPage& Page, const FLayout& L, float Dt)
@@ -147,10 +154,12 @@ void ASaudHUD::DrawBoss(const FPage& Page, const FLayout& L, float Dt)
 	const float F = B->GetHealthFraction();
 	BossGhost.Tick(F, Dt);
 
-	// An ink banner with the name reversed out of it in paper; red when
+	// A dark plate at the foot of the screen, his name in bone over a thin
+	// oxblood bar, as a Souls boss is named; the name goes to ember when
 	// he is enraged.
-	Panel(Page, L.BossPanel, B->bEnraged ? EnemyRed : InkC);
-	Text(B->DisplayName.ToString().ToUpper(), L.BossName.X, L.BossName.Y, Page.Px(BossNameText), PaperC);
+	Panel(Page, L.BossPanel, PlateC);
+	Text(B->DisplayName.ToString().ToUpper(), L.BossName.X, L.BossName.Y, Page.Px(BossNameText),
+	     B->bEnraged ? EmberC : BoneC);
 	InkBar(Page, L.BossHealth, F, BossGhost.Value, EnemyRed);
 }
 
@@ -234,17 +243,18 @@ void ASaudHUD::Poly(const FPoint* Points, int32 Count, const FLinearColor& Colou
 void ASaudHUD::InkBar(const FPage& Page, const FRect& R, float Fill, float Ghost, const FLinearColor& Colour)
 {
 	FPoint Q[4];
-	// The ink border: the whole bar, grown by the ink width.
-	const float B = FMath::Max(1.f, Page.Px(Ink * 0.6f));
+	// The keyline: the whole bar, grown by a thin bronze edge, then the
+	// dark trough, the draining trail and the bar.
+	const float B = FMath::Max(1.f, Page.Px(Ink * 0.75f));
 	const FRect Outer = {R.X - B, R.Y - B, R.W + 2.f * B, R.H + 2.f * B};
 	BarQuad(Outer, 1.f, Q);
-	Poly(Q, 4, InkC);
+	Poly(Q, 4, BronzeC);
 	BarQuad(R, 1.f, Q);
-	Poly(Q, 4, ShadeC);
+	Poly(Q, 4, TroughC);
 	if (Ghost > Fill)
 	{
 		BarQuad(R, Ghost, Q);
-		Poly(Q, 4, PaperC);
+		Poly(Q, 4, TrailC);
 	}
 	if (Fill > 0.f)
 	{
@@ -255,12 +265,23 @@ void ASaudHUD::InkBar(const FPage& Page, const FRect& R, float Fill, float Ghost
 
 void ASaudHUD::Panel(const FPage& Page, const FRect& R, const FLinearColor& Fill)
 {
-	// A panel is a bar that is always full: the same lean, a heavier ink.
+	// A panel is a bar that is always full: a dark plate in a bronze
+	// keyline. The plate is translucent, so the keyline is drawn as four
+	// strips round it rather than a quad under it, or the bronze would
+	// show through.
 	FPoint Q[4];
-	const float B = Page.Px(Ink);
-	const FRect Outer = {R.X - B, R.Y - B, R.W + 2.f * B, R.H + 2.f * B};
-	BarQuad(Outer, 1.f, Q);
-	Poly(Q, 4, InkC);
+	const float B = FMath::Max(1.f, Page.Px(Ink));
+	const FRect Edges[4] = {
+		{R.X - B, R.Y - B, R.W + 2.f * B, B},     // top
+		{R.X - B, R.Y + R.H, R.W + 2.f * B, B},   // bottom
+		{R.X - B, R.Y, B, R.H},                   // left
+		{R.X + R.W, R.Y, B, R.H},                 // right
+	};
+	for (const FRect& E : Edges)
+	{
+		BarQuad(E, 1.f, Q);
+		Poly(Q, 4, BronzeC);
+	}
 	BarQuad(R, 1.f, Q);
 	Poly(Q, 4, Fill);
 }
@@ -276,9 +297,10 @@ void ASaudHUD::Text(const FString& S, float X, float Y, float HeightPx, const FL
 	const float Scale = HeightPx / Native;
 	FCanvasTextItem Item(FVector2D(X, Y), FText::FromString(S), Font, Colour);
 	Item.Scale = FVector2D(Scale, Scale);
-	// Lettering with an ink keyline, as a manga letters over art.
+	// Lettering with an ink keyline, so it reads over the world as well
+	// as over a plate.
 	Item.bOutlined = true;
-	Item.OutlineColor = Colour.Equals(InkC) ? PaperC : InkC;
+	Item.OutlineColor = InkC;
 	if (bCentre)
 	{
 		float W = 0.f, H = 0.f;

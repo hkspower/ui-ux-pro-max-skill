@@ -43,6 +43,16 @@ much each one matters:
 - **A HUD lettered like a page.** Ink-bordered panels, bars that lean, a
   starburst for the combo.
 
+**Since 2026-09-26 it is a DARK seinen** ("use darker theme style like
+Demon's Souls", settled as: darken the anime, do not replace it). The ink,
+the flat tones and the impact frames stay; the picture goes grim --
+near-black shadows, a cold slate split tone, the world held darker and
+greyer than the men in it, a dark cold fog that starts close, a dim
+overcast sky, a vignette, and warm light only from what burns. See "The
+dark", below. "Grounded, muted colour" above now means that: Kuwait's
+palette weathered to soot and stone, with Kuwait's red and a lamp's
+flame the colours left standing.
+
 **What to avoid:** chibi or super-deformed proportions, oversized eyes, moe
 softness, pastel palettes, bouncy squash-and-stretch, anything that reads
 as a mobile gacha art style -- and, the other way, going back to plain PBR
@@ -2059,11 +2069,86 @@ glow, flat tones and an ink line, the ring at its radius for its age, the
 sparks flying out and dying, the burst over after the last spark, a man
 in front hiding it -- and 20 of 20 sabotages caught, five of them the
 fire's (`fire_on_hand`, `soft_glow`, `no_fire_ink`, `burst_through_men`,
-`still_sparks`). **Not verified:** no engine has compiled the C++ or
+`still_sparks`). Since 2026-09-26 its colours are the dark theme's
+embers, not the browser's; its shapes are still the browser's (see "The
+dark"). **Not verified:** no engine has compiled the C++ or
 built the material; the preview is Blender's Cycles through the numpy
 mirror, as the rest of the look. **Seen, not touched:** the manga HUD
 draws no MP bar (the browser has an orange one), so the player cannot see
 what a burning punch costs; not asked for.
+
+## The dark -- 2026-09-26
+
+Asked as "use darker theme style like Demon's Souls", settled as the
+Unreal build; darken the anime look rather than replace it; over the
+grade, light and fog, the world and backgrounds, the HUD, and the hit
+effects and fire. The browser build and every number the browser owns
+are untouched.
+
+**The grade** (`Tools/look/anime_look.py`, LOOK; both materials and the
+numpy mirror):
+- the tones a long step down -- lit 1.00 -> 0.84, shadow 0.38 -> 0.22,
+  deep 0.13 -> 0.05, the glint 1.28 -> 1.10 -- and more of the picture in
+  shadow (the thresholds 0.50 / 0.09 -> 0.56 / 0.14);
+- the split tone cold: slate-blue shadows (0.78, 0.88, 1.04) under an
+  ashen, barely warm light (1.02, 1.00, 0.94);
+- the world held darker (x0.62) and greyer (saturation 0.42) than the
+  fighters in it (0.66, from 0.88), so a man stands out of the murk; a
+  lamp is exempt and keeps its own light, as does Kuwait's red;
+- the air a dark cold fog (0.13, 0.145, 0.15) from 6 m to 90 m, up to
+  0.62 -- it was a warm dusk from 15 m to 250 m, up to 0.35;
+- the sky a dim overcast, still banded (x0.30, a cold cast);
+- a vignette in `M_Anime_Frame`, the corners down by half, before the fire
+  (a flame is light) and the impact frame's cut;
+- ink darker still (0.0022), to stay under a black tee at the new lit tone.
+
+**The light and the world.** `Tools/levels/build_world.py`'s one sun over
+the open world is a dim cold overcast (2 lux, ashen blue-grey, its disc
+spread to 8 degrees for soft shadows; the sky light 1.4 -> 0.5; the height
+fog a dark cold grey, 0.012 -> 0.040), same direction as before. The
+souq's materials (`Tools/blender/build_souq.py`, `_worn`) take every
+browser colour through one weathering transform -- chroma to 0.40 (cloth
+0.60), level to 0.50, a cold cast -- so mud-brick and sand go to soot-dark
+stone; the lanterns are not weathered, the one warm light in the market.
+The souq's renders are lit to match (a dim, soft, cold sun, a slate sky).
+`Content/Textures/Souq/` is rebaked with it. The seven derived districts
+are engine primitives with no colour of their own; the grade darkens them.
+`build_levels.py`'s per-stage rigs are left as they were: the game never
+opens those maps.
+
+**The HUD** (`Game/SaudHUD.cpp`, `SaudHud` in `Combat/SaudAnime.h`): a
+dark fantasy's rather than a manga page's. Dark translucent plates in a
+thin bronze keyline, lettering in bone (the look's BONE, checked against
+it with INK), flat bars at about half their height (health 34 -> 16 page
+px, stamina 14 -> 10, rage blocks 22 -> 12), in the Souls' three colours
+-- a deep blood-red health, a moss-green stamina, the rage a dull gold that
+glows to ember when full -- over a near-black trough, the damage trail a
+dim gold that drains. The combo sits on a sixteen-point serrated seal (it
+was a twelve-point starburst); a boss is named in bone over a thin oxblood
+bar, the name going to ember when he is enraged. The harness still holds
+every layout rule: title-safe at seven screen shapes, no overlaps,
+couch-legible type, bars inside their panels.
+
+**Hits and fire.** The impact frame is ink and EMBER (0.80, 0.26, 0.07),
+where it was ink and paper, and flips the same way; 27 % of the speed
+lines are blood (22 %). HAWK FIST's flame, glow, ring and sparks keep the
+browser's shapes, sizes and timings (still checked against
+`Combat/SaudFire.h`) and are recoloured as embers -- an orange tongue over
+a deep red one with a pale-hot core, a glow going to blood. The browser's
+own colours are recorded in `anime_look.py` beside the new ones.
+
+**Checked:** the harness passes, the HUD's layout included;
+`anime_look.py`'s checks pass, with six new ones -- the shadows dark, not
+grey; the world darker and greyer than a fighter; the sky a dim overcast;
+the fog dark and cold; the impact's light half an ember, not paper; the
+vignette taking the corners and leaving the middle -- and a sabotage for
+each (`grey_shadows`, `world_as_fighter`, `bright_sky`, `warm_fog`,
+`paper_impact`, `no_vignette`); `build_world.py`'s own checks pass.
+
+**Not verified:** no engine has built the materials, lit the world or
+drawn the HUD. The HUD's translucent plates rely on the Canvas triangle
+item's translucent blend, which was already how it drew. The previews are
+Cycles through the numpy mirror, with the preview's stand-in exposure.
 
 ## Working rules
 

@@ -9,16 +9,19 @@ class AEnemyFighter;
 class UFont;
 
 /**
- * The fight HUD, drawn as a manga page -- since 2026-09-24, with the anime
- * look. Until then this build had no HUD at all: no class, no widget, no
- * Blueprint; the fighters' health existed only as numbers.
+ * The fight HUD -- since 2026-09-24, with the anime look; until then this
+ * build had no HUD at all: no class, no widget, no Blueprint; the
+ * fighters' health existed only as numbers. Drawn as a manga page until
+ * 2026-09-26, and since then as a dark fantasy's ("use darker theme style
+ * like Demon's Souls"): dark plates, bronze keylines, bone lettering,
+ * thin flat bars.
  *
- * Top left, Saud's panel: his name, his health leaning like a panel edge
- * in his own red with a paper-white trail that holds for a beat and then
- * drains to it, his stamina under it, his rage as five ink blocks. Right,
- * the combo count on a starburst once it reaches two, punching as it goes
- * up. Bottom, a boss's banner. Over a street man's head, a short bar for a
- * while after he is hit.
+ * Top left, Saud's plate: his name, his health in a deep blood-red with a
+ * dim gold trail that holds for a beat and then drains to it, his stamina
+ * in moss green under it, his rage as five small gold blocks. Right, the
+ * combo count on a serrated seal once it reaches two, punching as it goes
+ * up. Bottom, a boss's name over a thin oxblood bar. Over a street man's
+ * head, a short bar for a while after he is hit.
  *
  * Every shape and number is SaudHud's (Combat/SaudAnime.h), which the
  * harness checks for the title-safe area and for type legible from a

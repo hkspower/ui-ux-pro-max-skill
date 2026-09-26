@@ -2,7 +2,7 @@
  * The anime look's moving parts, executed: which blows get an impact frame
  * and of what shape, that the picture's state keeps the bigger of two blows
  * and runs out in real time, that the speed lines redraw on twos, and that
- * the manga HUD stays inside the title-safe area and legible from a couch
+ * the HUD stays inside the title-safe area and legible from a couch
  * at every screen shape and size a console or PC puts it on.
  */
 #include "../HarnessTypes.h"
@@ -174,7 +174,7 @@ static void Hud()
     FPoint Q[4];
     const FRect R = {100, 50, 400, 40};
     BarQuad(R, 1.f, Q);
-    Check(Near(Q[2].X, R.X + R.W) && Near(Q[1].X - Q[0].X, R.H * Lean), "a full bar reaches its end, leaning");
+    Check(Near(Q[2].X, R.X + R.W) && Near(Q[1].X - Q[0].X, R.H * Lean), "a full bar reaches its end, at its lean (flat since 2026-09-26)");
     BarQuad(R, 0.f, Q);
     Check(Near(Q[3].X, Q[0].X) && Near(Q[2].X, Q[1].X), "an empty bar is a line");
     BarQuad(R, 7.f, Q);
@@ -221,7 +221,7 @@ static void Hud()
         const float Rr = std::sqrt(Pt.X * Pt.X + Pt.Y * Pt.Y);
         Alt = Alt && Near(Rr, i % 2 ? 100.f * BurstInner : 100.f, 1e-3f);
     }
-    Check(Alt, "the starburst alternates its radius");
+    Check(Alt, "the combo's seal alternates its radius");
     Check(!Near(BurstPoint(C, 100, 3, 0).X, BurstPoint(C, 100, 4, 0).X), "and turns as the count rises");
     Check(Near(ComboPunch(0.f), 1.35f) && ComboPunch(1.f) < 1.001f, "the count punches and settles");
 }
