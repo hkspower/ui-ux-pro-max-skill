@@ -433,7 +433,11 @@ def hairline_weight(P):
     core = ramp(h, 0.0004, 0.0040)
     dots = follicles(P, cell=0.0016, radius=0.00055, seed=17.0)
     patch = np.clip((fbm(P, 650.0, 2, 23.0) - 0.30) / 0.40, 0.0, 1.0)
-    stray = dots * ramp(ramp(h, -0.0040, 0.0008) - patch, -0.04, 0.04)
+    prob = ramp(h, -0.0040, 0.0008)
+    # only where the probability is above nothing: ramp(prob - patch)
+    # alone gave half-strength dots over the whole forehead wherever the
+    # patchiness was 0 (the first fast build, speckled like freckles)
+    stray = dots * ramp(prob - patch, 0.0, 0.08) * (prob > 0.0)
     hw = np.maximum(core, 0.85 * stray)
     # a temple recession, which every young man has and a swim cap does not.
     # Bounded to the band under plane + 7.5 mm: the hair MATERIAL starts at
@@ -489,6 +493,13 @@ def hair_fade(P):
     ax = np.abs(x)
     crop = np.clip((0.070 - (1.76 - z)) / 0.05, 0, 1) * np.clip((ax - 0.045) / 0.03, 0, 1)
     style = HAIR["style"]
+    # the sides and the back of the head, by which way the skull faces --
+    # not by distance from the midline, which at 3-4 cm is already most of
+    # the top of the head (the first fast build of 2026-09-26 faded the
+    # whole top of the quiff and the crest to skin that way)
+    Qn = P - HEAD_C
+    Qn = Qn / np.maximum(np.linalg.norm(Qn, axis=1, keepdims=True), 1e-9)
+    sides = np.maximum(ramp(np.abs(Qn[:, 0]), 0.50, 0.80), ramp(Qn[:, 1], 0.40, 0.70))
     if style == "fade":
         where = np.maximum(ramp(ax, 0.040, 0.060), ramp(y, 0.020, 0.050))
         return where * ramp(z, 1.765, 1.722)
@@ -500,16 +511,15 @@ def hair_fade(P):
         grain = fbm(P, 900.0, 2, 71.0)
         return np.clip(base + 0.24 * (grain - 0.5), 0.0, 0.70)
     if style == "crest":
-        # 2026-09-26: the crest's sides and back clippered close -- skin low,
-        # the stubble of the cut higher -- and the ridge down the middle
-        # (40 mm across, assembly.hair_parts) full
-        off = ramp(ax, 0.016, 0.030)
-        return off * np.clip(0.30 + 0.60 * ramp(z, 1.790, 1.720), 0.0, 0.90)
+        # 2026-09-26: the crest's sides and back clippered close -- the scalp
+        # through dark stubble on the sides, skin low down -- and the ridge
+        # down the middle (40 mm across, assembly.hair_parts) full
+        off = ramp(ax, 0.020, 0.034)
+        return off * (0.22 + 0.60 * sides * ramp(z, 1.770, 1.725))
     if style == "hightop":
         # a high-and-tight: skin up the sides and the back to 1.745, the
-        # short top from 1.775, a hard line between
-        where = np.maximum(ramp(ax, 0.036, 0.052), ramp(y, 0.028, 0.052))
-        return where * ramp(z, 1.778, 1.745) * 0.95
+        # short top from 1.778, a hard line between
+        return sides * ramp(z, 1.778, 1.745) * 0.95
     if style == "slick":
         return 0.30 * crop
     if style == "curly":
@@ -517,8 +527,7 @@ def hair_fade(P):
     if style == "quiff":
         # 2026-09-26: a faded quiff -- the sides taken lower, so the length
         # on top reads against them (0.55 * crop before, the same as a crop)
-        low = np.clip((0.070 - (1.77 - z)) / 0.05, 0, 1) * np.clip((ax - 0.040) / 0.025, 0, 1)
-        return 0.75 * low
+        return 0.80 * sides * ramp(z, 1.772, 1.735)
     return 0.55 * crop
 
 def hair_grey(P):
