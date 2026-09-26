@@ -783,6 +783,12 @@ def strike_frame(au, g, aims, lean, twist, planted, lift=(0.0, 0.0, 0.0), hand_a
         # kick's support leg. A striking leg keeps its FK chamber.
         if s in planted and "knee" not in SABOTAGE:
             pole = (fk["hip_" + s] + fk["an_" + s]) * 0.5 + Vector((0.0, -0.6, 0.0))
+        elif s in planted:
+            # --bite "knee": the pole BEHIND the knee. It used to be the FK
+            # bend's own side, which exposed the old guard's backward rear
+            # knee; the stances are solved with forward knees now
+            # (2026-09-26) and that no longer broke anything.
+            pole = (fk["hip_" + s] + fk["an_" + s]) * 0.5 + Vector((0.0, 0.6, 0.0))
         else:
             pole = M.pole_from(fk["hip_" + s], fk["kn_" + s], fk["an_" + s], Vector((0.0, -1.0, 0.0)))
         if s in planted and "plant" not in SABOTAGE:
