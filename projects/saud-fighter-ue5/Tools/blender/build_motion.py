@@ -1812,7 +1812,7 @@ def bite():
     every = {c["name"]: c for c in plan(("saud", "street"))}
     cases = [
         ("planted feet",   "plant",  ["A_Saud_Cross", "A_Saud_Kick"],  "slides"),
-        ("knees forward",  "knee",   ["A_Street_Guard"],                 "bends backwards"),
+        ("knees forward",  "knee",   ["A_Street_Guard"],                 "behind the line"),
         ("straight punch", "line",   ["A_Saud_Jab"],                   "off the straight line"),
         ("feet cross",     "cross",  ["A_Saud_Walk_Left"],             "the feet cross"),
         ("through floor",  "sink",   ["A_Saud_Down"],                  "through the floor"),
