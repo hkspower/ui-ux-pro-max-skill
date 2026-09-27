@@ -245,6 +245,7 @@ def _noise(P, scale, seed):
 CLEAR = {"tee": 0.0030, "pants": 0.0045}   # the closest cloth comes to the skin
 FOLD_SCALE = 1.0          # the folds' amplitude, for the check's sabotage
 TEE_SLOPE = 0.35          # how fast the tee may narrow under what it hangs from (0.20 tented it off the lats)
+ARM_CLEAR = (0.11, 0.15)  # the tee's drape keeps this far off the upper arm's axis
 DRAPE_SMOOTH = 60         # at most, smoothing the drape where it turns faces over
 PELVIS_Z = 0.93           # the seat's drape stops above the crotch (0.90)
 MIN_CLEAR = 0.002         # check_cloth's floor, whatever CLEAR is set to
@@ -267,17 +268,27 @@ def fit(g, kind, body=None):
         # start outside it), the tee's own side strip stayed on the skin
         # while the front and back hung out up to 3 cm: a vertical step down
         # each flank, armpit to hem (seen on the full build of Saud).
+        # Nor the sleeve and the web of the armpit, which reach down to 1.26
+        # on Saud's arms (x 1.30): taken in, the tee hung from them and stood
+        # 36 mm off his waist. Kept out by their distance from the upper arm.
         ax_ = np.abs(P[:, 0])
-        trunk = np.nonzero((P[:, 2] < 1.40) & ((ax_ < rx * 0.95) | (P[:, 2] < 1.30)))[0]
+        arm_d = np.full(n, np.inf)
+        for sgn in (1, -1):
+            sh = np.array(Jp("upperarm_l")) * np.array([sgn, 1, 1]); el = np.array(Jp("lowerarm_l")) * np.array([sgn, 1, 1])
+            d = el - sh; L = np.linalg.norm(d); d /= L
+            tt = np.clip((P - sh) @ d / L, 0.0, 1.0)
+            arm_d = np.minimum(arm_d, np.linalg.norm(P - (sh + np.outer(tt * L, d)), axis=1))
+        trunk = np.nonzero((P[:, 2] < 1.40) & ((ax_ < rx * 0.95) | ((P[:, 2] < 1.30) & (arm_d > ARM_CLEAR[0]))))[0]
         out = _drape_region(P, trunk, np.array([0.0, 0.004, 1.40]), -Z, X, Y, 0.006, slope=TEE_SLOPE)
         if len(out):
             grow, dirv = out
             # none under the arms: from 1.30 up in the middle, and at the
             # sides from 1.22 up (the side strip above 1.30 is not taken at
-            # all), the two blended across the side so nothing steps
+            # all) and near the arm, the two blended across the side so
+            # nothing steps
             side = _smoothstep(0.80, 0.95, ax_[trunk] / rx[trunk])
             w = (1.0 - _smoothstep(1.30, 1.37, P[trunk, 2])) * (1.0 - side) \
-                + (1.0 - _smoothstep(1.22, 1.30, P[trunk, 2])) * side
+                + (1.0 - _smoothstep(1.22, 1.30, P[trunk, 2])) * _smoothstep(ARM_CLEAR[0], ARM_CLEAR[1], arm_d[trunk]) * side
             D[trunk] += dirv * (grow * w)[:, None]
         # the sleeves: looser toward the cuff, and hanging off the arm
         for sgn in (1, -1):

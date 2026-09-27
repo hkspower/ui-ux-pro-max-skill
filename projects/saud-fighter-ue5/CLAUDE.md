@@ -2562,8 +2562,13 @@ showed through again. What remains down each side reads as a side seam.
 With the sides draped, the tee hung from the lats and stood 39 mm off
 Saud's waist, over the waistband, a tent: the slope it may narrow at under
 what it hangs from is 0.35 now (was 0.20, which is less than his V), 19 mm
-off the waist on the test body. The sabotage suite ran 4 of 4 with the side
-fix at 0.20; the clean dress passes every rule at 0.35.
+off the waist on the test body. Saud's own build still stood 36 mm off: on
+his arms (x 1.30) the sleeve and the web of the armpit reach down to 1.26,
+and the drape took them in and hung the tee from them. The drape keeps
+11-15 cm off the upper arm's axis now (`garments.ARM_CLEAR`): 19 mm on a
+test body with his arms, the same as on one without. The sabotage suite
+ran 4 of 4 with the side fix at 0.20; the clean dress passes every rule
+with all of it.
 Seen, not touched (they were in the renders before this work): the
 sleeves' hems are ragged, and the sleeves stand off the arm like boxes.
 
