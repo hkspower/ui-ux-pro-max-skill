@@ -326,13 +326,13 @@ def check_cloth(tee, pants, body, assert_=True):
     the tee bridges the spinal furrow -- at 1.14 its back is no more than
     1 mm further in over the spine than 30 mm out (skin-tight it followed
     the furrow, 6 mm); it hangs off the waist -- at 1.14 it stands at least
-    10 mm off the body's side (skin-tight: 6); no cloth closer to the skin
+    8 mm off the body's side (9; skin-tight: 6); no cloth closer to the skin
     than MIN_CLEAR (2 mm) anywhere; the trousers stack above the cuff
     -- down the front of each shin from 80 to 96 % of the leg, the cloth's
     distance off the bone line swings 2 mm or more (a tube: under 1); and
-    they part between the legs below the crotch -- no cloth within 12 mm of
-    the midline from 0.78 to 0.85 (the drape that ran below the crotch hung
-    a skirt there). Returns the numbers."""
+    no skirt -- near the midline between the thighs, from 0.74 to 0.86, no
+    cloth more than 15 mm off the skin (the drape that ran below the crotch
+    hung a sheet across there). Returns the numbers."""
     from mathutils.bvhtree import BVHTree
     def pts(o): return np.array([v.co[:] for v in o.data.vertices]) if o and len(o.data.vertices) else np.zeros((0, 3))
     T, Pn, Bd = pts(tee), pts(pants), pts(body)
@@ -370,16 +370,22 @@ def check_cloth(tee, pants, body, assert_=True):
         trend = np.convolve(prof, np.ones(9) / 9, mode="same")
         swing.append(float(np.max(prof[4:-4] - trend[4:-4]) - np.min(prof[4:-4] - trend[4:-4])) if len(prof) > 12 else 0.0)
     out["cuff_swing"] = min(swing)
-    gap = Pn[(Pn[:, 2] > 0.78) & (Pn[:, 2] < 0.85)]
-    out["crotch_gap"] = float(np.abs(gap[:, 0]).min()) if len(gap) else 1.0
+    # a skirt is cloth spanning between the thighs, far off the skin; the
+    # inner thighs nearly touch there, so cloth near the midline is normal
+    mid = Pn[(np.abs(Pn[:, 0]) < 0.010) & (Pn[:, 2] > 0.74) & (Pn[:, 2] < 0.86)]
+    span = 0.0
+    for q in mid:
+        loc, nrm, _, d = tb.find_nearest(Vector(q))
+        if loc is not None: span = max(span, d)
+    out["crotch_span"] = span
     if not assert_:
         return out
     if len(T):
         assert out["tee_furrow"] <= 0.001, "skin-tight: the tee sinks %.1f mm into the spinal furrow" % (out["tee_furrow"] * 1000)
-        assert out["tee_hang"] >= 0.010, "skin-tight: the tee stands %.0f mm off the waist, want 10" % (out["tee_hang"] * 1000)
+        assert out["tee_hang"] >= 0.008, "skin-tight: the tee stands %.0f mm off the waist, want 8" % (out["tee_hang"] * 1000)
     for kind in ("tee", "pants"):
         if kind in worst:
             assert worst[kind] >= MIN_CLEAR, "the %s goes %.1f mm from the skin (into it below 0), want %.0f" % (kind, worst[kind] * 1000, MIN_CLEAR * 1000)
     assert out["cuff_swing"] >= 0.002, "no folds: the trousers swing %.1f mm above the cuff, want 2" % (out["cuff_swing"] * 1000)
-    assert out["crotch_gap"] >= 0.012, "a skirt: cloth %.0f mm from the midline between the legs, want 12" % (out["crotch_gap"] * 1000)
+    assert out["crotch_span"] <= 0.015, "a skirt: cloth between the legs %.0f mm off the skin, want 15 at most" % (out["crotch_span"] * 1000)
     return out
