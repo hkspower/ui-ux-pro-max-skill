@@ -2244,9 +2244,9 @@ show each cut as itself -- the quiff forward over faded sides, the crest a
 dark ridge over clippered sides rising at the front, the high-and-tight
 a flat top over skin sides -- and no rope at any hairline.
 
-**State.** The tools are done. The rebuild started at 21:44 was stopped for
-the nose and then the eyes (below), and all six men are rebuilt whole with
-all three together.
+**State.** Built. The rebuild started at 21:44 was stopped for the nose,
+the eyes and the head (below); all six men were rebuilt whole with all
+four together, 2026-09-27 01:39-03:23 Riyadh.
 
 ## The nose, narrowed -- 2026-09-26
 
@@ -2389,6 +2389,27 @@ rule once -- the old skull, a flat top, a wide jaw, the head broadest at
 the brow, a kink in the face, the neck forward into the chin, the neck
 stopped short -- 7 of 7 caught. The hair, eye and nose checks all pass on
 the new skull.
+
+**Built, 2026-09-27** (01:39-03:23 Riyadh): all six men whole with the
+head, the eyes, the nose and the hair together -- every build passed
+`check_head`, `check_eye_open` before and after the reduction (95-96 %
+open, 0 % through the lids), `check_profile`, `check_hair`, and 7.9-8.0
+heads tall. Then the iron arm, `anime-men.png` and the souq fight scene
+and its anime previews; the scene's 34 re-exported souq FBX (new ids
+only, as every `--scene` run) were put back.
+
+**Found on the way, the iron arm.** `build_iron_arm.py`'s check refused the
+rebuilt Saud: 0.7 % of the iron mask outside his right arm's charts. It
+was seven faces on the back of his upper arm straddling the arm
+cylinder's seam, which the unwrap places with a corner up to 8 texels
+past the rect's edge -- into the LEFT arm's rect -- and the mask's
+padding after them: at a high level, a hairline of iron down the seam of
+his other arm. It is an old property of `finish.body_charts`' cylinder
+unwrap that the previous build happened to miss (1 texel). The iron maps
+are clipped to his right arm's and hand's own charts now (`own_charts`),
+padding included; the right arm's seam gives up at most 8 texels (2-3
+mm) of iron there. The unwrap itself is not changed. **Not verified:** no
+engine has imported any of the six men or the iron maps.
 
 ## Working rules
 

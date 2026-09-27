@@ -198,10 +198,27 @@ def save_png(path, a, mode):
     Image.fromarray(np.flipud(a), mode).save(path)    # Blender row 0 is v = 0; a PNG's is the top
 
 
+def own_charts(size):
+    """Texels in his right arm's and right hand's charts, as
+    finish.body_charts lays them out (the same rects check() holds)."""
+    v = (np.arange(size) + 0.5) / size                 # Blender row 0 is v = 0
+    u = (np.arange(size) + 0.5) / size
+    U, V = np.meshgrid(u, v)
+    return ((U >= 0.5) & (V >= 0.25) & (V <= 0.5)) | ((U >= 0.75) & (V >= 0.5))
+
+
 def build_maps(rig, mesh):
     from hero import finish as F
     arm = arm_only(mesh)
     pos, cov = F.rasterise(arm, SIZE, lambda c: True)
+    # Only inside his right arm's and right hand's own charts. A face that
+    # straddles the arm cylinder's seam is unwrapped with one corner up to
+    # 8 texels past the rect's edge -- into the LEFT arm's rect -- and seven
+    # such faces on the back of his upper arm in the build of 2026-09-26
+    # put 2,100 texels of iron there (check() caught it): at a high level a
+    # hairline of iron down the seam of his other arm. Those few texels
+    # stay skin; the right arm's seam loses at most 8 texels (2-3 mm).
+    cov = cov & own_charts(SIZE)
     assert cov.sum() > 20000, "the arm rasterised to %d texels -- no arm found" % cov.sum()
     P = pos[cov]
     s, _t, d, ang = along(P, chain(rig))
@@ -219,6 +236,7 @@ def build_maps(rig, mesh):
         return F._dilate(a, cov, 4)
     mask = np.full((SIZE, SIZE), 255.0); mask[cov] = np.round(t * MASK_TOP)
     mask = F._dilate(mask, cov, 2)
+    mask[~own_charts(SIZE)] = 255.0                   # the padding stops at the chart's edge too
     alb = full(lin2srgb(col), (0.0, 0.0, 0.0))
     rgh = full(rough, 0.5)
     met = full(metal, 0.0)
