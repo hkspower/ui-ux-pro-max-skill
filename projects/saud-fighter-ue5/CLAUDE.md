@@ -2546,6 +2546,99 @@ caught, each by its own rule. How far the tee hangs off the waist is
 reported, not held: 9.3 mm draped against 8.6 unfitted, too close for a
 rule to tell apart.
 
+## Hits -- 2026-09-27
+
+Asked as "make fighter motions with hits", settled as the Unreal build, all
+six men, and all four of: reactions by the blow, both men of one exchange
+together, combos that land, knockdowns and finishers. `Tools/blender/
+motion_hits.py` is new; `build_motion.py` plans, authors, checks and
+exports its clips with the rest.
+
+**What a man had when hit:** Hit_Light and Hit_Heavy -- the head thrown
+straight back, the same for a jab, a hook on the jaw or a knee in the belly
+-- and only Saud and the street men had those; the bosses had no reaction
+and no fall at all.
+
+**Reactions by blow**, for every motion set (Saud, Street, AL-WAHSH,
+AL-SAQR, ZAYOS), each as long as the engine holds the hit, rising in 40 ms
+and falling back into the guard it started from (last frame within 1 cm of
+the first). Measured on Saud's, at the peak:
+
+| clip | the blow | what it does |
+| --- | --- | --- |
+| Hit_Head_Straight_Light | jab | head back 11 cm |
+| Hit_Head_Straight | cross | head back 19 cm |
+| Hit_Head_Side | hook, on his left jaw | head 17 cm to his right, the face turned, the shoulders after it |
+| Hit_Body_Front | knee | folded over it, head 13 cm forward and 13 down, both fists to the belly |
+| Hit_Body_Side | kick, left ribs | curled round it, the chest 10 cm to his left of the hips, the hips 4.5 cm away, the left elbow down on the ribs |
+
+Each is a set of numbers that add (lean, hips, tilt, twist, the head's
+pitch, roll and turn, the arms), so two blows that overlap are their sum.
+
+**Falls.** `Down_Side` (a hook or the spinning kick takes him round to his
+right as he goes) and `Down_Fold` (a knee folds him over it first) end on
+Down's last frame to the millimetre, so GetUp follows any of the three. The
+bosses have Down and GetUp now too.
+
+**Combos** (`A_<Set>_Combo_...`): each strike leaves when the one before is
+35 % of the way back into its guard, on one body -- every strike's shape,
+lean and twist blended in at its own k from where the last one got to; a
+jab or a cross down its straight line; the covering fist tucked while a
+cross or a hook is out; the rear foot handed from the floor to a kick and
+back, never snapped. Saud: Jab-Cross, Jab-Cross-Hook, Jab-Cross-Kick;
+Street: Jab-Cross, Jab-Cross-Hook; AL-WAHSH: Jab-Cross-Hook, Jab-Cross-Knee;
+AL-SAQR: Jab-Kick, Jab-Cross-Kick; ZAYOS (still only punches):
+Jab-Cross-Hook, Hook-Cross. Every blow in a combo reaches at least 85 % of
+what that strike reaches alone.
+
+**Pairs** (`A_<Victim>_Pair_<Attacker>_<Move>`, 57 of them): the victim's
+side of one exchange, frame for frame against the attacker's clip -- guard,
+each blow's reaction from its contact frame, the finisher's fall. Saud and
+the street men both ways, and each boss on Saud and Saud on each boss.
+Where the victim stands and which way he faces is solved from the contacts
+(facing the attacker, least squares on the floor) and written to
+`Content/Animation/DT_Pairs.csv` in the attacker's frame (forward, right,
+yaw, centimetres and degrees). Every blow lands inside its mark: the chin
+and the jaw 8 cm, the ribs and the solar plexus 12, the chest 13. Combos
+are paired only when every blow is a punch -- the round kick lands 40
+degrees to the kicker's left and 30 cm further out than a punch, the knee
+28 cm shorter, so from one spot no man can be where both land, and the
+clips have no step to close it. `pairs-motion.png` draws both men side on.
+
+**Where the punches land -- changed for every set.** Pairing them showed
+the jab landing 23 cm to the thrower's left and the cross 24 cm to his
+right, 7-15 cm under the chin: two punches that never met on one man. The
+jab and the cross now end their straight line on the chin of a man in
+front of him (`build_motion.LAND_X`, `landing`: on his centre line, 10 cm
+under the head joint, which is at the eye line on this skeleton), the hook
+is bent onto the point of the jaw as it arrives, and each keeps the
+elbow's own bend -- moved across and up at its own depth the arm would
+lock, so the fist comes back along the line instead. Punch pairs now land
+within 4-7 cm of the mark. This replaces "5-11 cm under the chin" in "The
+bosses' motion, scanned".
+
+**The engine** picks the reaction by the blow. `AFighterBase` keeps the
+row that hit him (`LastHitAttack`, set in `ReceiveHit`, cleared by a parry's
+stagger and a shove); `SaudFeel::BlowOf` turns it into a blow and `Pick`
+into the clip -- jab, cross, hook, kick, knee as the table above, the
+finisher into Down_Side, a hook's knockdown Down_Side, a knee's Down_Fold,
+any other knockdown Down. `SaudFeel::Fallback` plays the old Hit_Light /
+Hit_Heavy / Down for a set without the new clips. Combos and pairs are
+**not wired**: the game has no montage or synchronised playback to hand
+them to; they are written, checked, and in the manifests (a new `Hits`
+column: every contact frame and its blow) for the day it does.
+
+**Checked:** 166 clips, every motion check passing; `build_motion.py
+--bite` 28 of 28 -- four new: a reaction thrown the wrong way, a fall not
+ending on Down, a combo whose blows fall short, a pair placed without
+solving. `Tools/harness/tests/feel.cpp`: each blow picks its own reaction
+and fall at either weight, an unknown row is no blow, the fallbacks, every
+row of `DT_Attacks` lands as a blow, and every new clip on disk for Saud
+and the street men; the mapping was sabotaged (a hook read as a straight)
+and it fails. **Not verified:** no engine has compiled the C++ or imported
+a clip; the pairs are placed for men of Saud's size, which is how every
+clip here is authored (the engine does not scale a fighter).
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

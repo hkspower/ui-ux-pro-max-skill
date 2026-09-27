@@ -224,6 +224,11 @@ public:
 	    Hit_Heavy over Hit_Light. */
 	bool bLastHitHeavy = false;
 
+	/** The attack row of the blow that put this fighter in Hit or Down
+	    (None for a parry's stagger or a shove): SaudFeel::BlowOf turns it
+	    into the reaction that blow gets. */
+	FName LastHitAttack = NAME_None;
+
 	/** Seconds left of getting up after Down -- the same 0.6 s as the
 	    invulnerability, and the length of A_Saud_GetUp. */
 	float GetUpRemaining = 0.f;

@@ -168,6 +168,7 @@ void AFighterBase::ReceiveKnockback(const FVector& Impulse, bool bKnockdown)
 	LaunchCharacter(Impulse, true, false);
 	bSwingFired = true;		// whatever was being thrown is over
 	bLastHitHeavy = bKnockdown;
+	LastHitAttack = NAME_None;
 	GetUpRemaining = 0.f;
 	++MotionSerial;
 
@@ -483,6 +484,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 		// A parry's stagger is longer than either hit clip; the heavy one is
 		// the nearer, and the reel reads as the bigger thing it is.
 		Attacker->bLastHitHeavy    = true;
+		Attacker->LastHitAttack    = NAME_None;
 		++Attacker->MotionSerial;
 
 		Result.bParried = true;
@@ -526,6 +528,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 	bSwingFired = true;		// the swing this blow interrupted never happened
 	LaunchCharacter(Attacker->GetFacing() * Knockback, true, false);
 	bLastHitHeavy = Attack.bHeavy;
+	LastHitAttack = Attacker->GetCurrentAttackRow();
 	GetUpRemaining = 0.f;
 	FlashRemaining = SaudFeel::FlashSeconds;
 	++MotionSerial;

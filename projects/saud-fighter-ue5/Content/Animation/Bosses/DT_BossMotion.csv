@@ -1,18 +1,75 @@
-Name,Fighter,Attack,File,Seconds,Frames,ContactFrame,Limb,bLoop,bPhaseTwo,State,Direction
-A_Boss_Jab,Boss,Jab,A_Boss_Jab.fbx,0.260,8,2,lead_arm,false,false,Attack,
-A_Boss_Cross,Boss,Cross,A_Boss_Cross.fbx,0.360,11,3,rear_arm,false,false,Attack,
-A_Boss_Hook,Boss,Hook,A_Boss_Hook.fbx,0.480,14,4,rear_arm,false,false,Attack,
-A_Boss_Kick,Boss,Kick,A_Boss_Kick.fbx,0.530,16,5,rear_leg,false,false,Attack,
-A_Boss_Knee,Boss,Knee,A_Boss_Knee.fbx,0.470,14,4,rear_leg,false,false,Attack,
-A_Boss_Special,Boss,Special,A_Boss_Special.fbx,0.780,23,5,rear_leg,false,true,Attack,
-A_Boss_Guard,Boss,,A_Boss_Guard.fbx,2.618,79,-1,,true,false,Idle,
-A_Saqr_Kick,Saqr,Kick,A_Saqr_Kick.fbx,0.530,16,5,rear_leg,false,false,Attack,
-A_Saqr_Jab,Saqr,Jab,A_Saqr_Jab.fbx,0.260,8,2,lead_arm,false,false,Attack,
-A_Saqr_Cross,Saqr,Cross,A_Saqr_Cross.fbx,0.360,11,3,rear_arm,false,false,Attack,
-A_Saqr_Knee,Saqr,Knee,A_Saqr_Knee.fbx,0.470,14,4,rear_leg,false,false,Attack,
-A_Saqr_Special,Saqr,Special,A_Saqr_Special.fbx,0.780,23,5,rear_leg,false,true,Attack,
-A_Saqr_Guard,Saqr,,A_Saqr_Guard.fbx,2.618,79,-1,,true,false,Idle,
-A_Zayos_Jab,Zayos,Jab,A_Zayos_Jab.fbx,0.260,8,2,lead_arm,false,false,Attack,
-A_Zayos_Cross,Zayos,Cross,A_Zayos_Cross.fbx,0.360,11,3,rear_arm,false,false,Attack,
-A_Zayos_Hook,Zayos,Hook,A_Zayos_Hook.fbx,0.480,14,4,rear_arm,false,false,Attack,
-A_Zayos_Guard,Zayos,,A_Zayos_Guard.fbx,2.618,79,-1,,true,false,Idle,
+Name,Fighter,Attack,File,Seconds,Frames,ContactFrame,Limb,bLoop,bPhaseTwo,State,Direction,Hits
+A_Boss_Jab,Boss,Jab,A_Boss_Jab.fbx,0.260,8,2,lead_arm,false,false,Attack,,
+A_Boss_Cross,Boss,Cross,A_Boss_Cross.fbx,0.360,11,3,rear_arm,false,false,Attack,,
+A_Boss_Hook,Boss,Hook,A_Boss_Hook.fbx,0.480,14,4,rear_arm,false,false,Attack,,
+A_Boss_Kick,Boss,Kick,A_Boss_Kick.fbx,0.530,16,5,rear_leg,false,false,Attack,,
+A_Boss_Knee,Boss,Knee,A_Boss_Knee.fbx,0.470,14,4,rear_leg,false,false,Attack,,
+A_Boss_Special,Boss,Special,A_Boss_Special.fbx,0.780,23,5,rear_leg,false,true,Attack,,
+A_Boss_Guard,Boss,,A_Boss_Guard.fbx,2.618,79,-1,,true,false,Idle,,
+A_Saqr_Kick,Saqr,Kick,A_Saqr_Kick.fbx,0.530,16,5,rear_leg,false,false,Attack,,
+A_Saqr_Jab,Saqr,Jab,A_Saqr_Jab.fbx,0.260,8,2,lead_arm,false,false,Attack,,
+A_Saqr_Cross,Saqr,Cross,A_Saqr_Cross.fbx,0.360,11,3,rear_arm,false,false,Attack,,
+A_Saqr_Knee,Saqr,Knee,A_Saqr_Knee.fbx,0.470,14,4,rear_leg,false,false,Attack,,
+A_Saqr_Special,Saqr,Special,A_Saqr_Special.fbx,0.780,23,5,rear_leg,false,true,Attack,,
+A_Saqr_Guard,Saqr,,A_Saqr_Guard.fbx,2.618,79,-1,,true,false,Idle,,
+A_Zayos_Jab,Zayos,Jab,A_Zayos_Jab.fbx,0.260,8,2,lead_arm,false,false,Attack,,
+A_Zayos_Cross,Zayos,Cross,A_Zayos_Cross.fbx,0.360,11,3,rear_arm,false,false,Attack,,
+A_Zayos_Hook,Zayos,Hook,A_Zayos_Hook.fbx,0.480,14,4,rear_arm,false,false,Attack,,
+A_Zayos_Guard,Zayos,,A_Zayos_Guard.fbx,2.618,79,-1,,true,false,Idle,,
+A_Boss_Hit_Head_Straight_Light,Boss,,A_Boss_Hit_Head_Straight_Light.fbx,0.220,7,-1,,false,false,Hit,,Head_Straight_Light
+A_Boss_Hit_Head_Straight,Boss,,A_Boss_Hit_Head_Straight.fbx,0.340,10,-1,,false,false,Hit,,Head_Straight
+A_Boss_Hit_Head_Side,Boss,,A_Boss_Hit_Head_Side.fbx,0.340,10,-1,,false,false,Hit,,Head_Side
+A_Boss_Hit_Body_Front,Boss,,A_Boss_Hit_Body_Front.fbx,0.340,10,-1,,false,false,Hit,,Body_Front
+A_Boss_Hit_Body_Side,Boss,,A_Boss_Hit_Body_Side.fbx,0.340,10,-1,,false,false,Hit,,Body_Side
+A_Boss_Down,Boss,,A_Boss_Down.fbx,0.850,26,-1,,false,false,Down,,
+A_Boss_GetUp,Boss,,A_Boss_GetUp.fbx,0.600,18,-1,,false,false,Idle,,
+A_Boss_Down_Side,Boss,,A_Boss_Down_Side.fbx,0.850,26,-1,,false,false,Down,,Down_Side
+A_Boss_Down_Fold,Boss,,A_Boss_Down_Fold.fbx,0.850,26,-1,,false,false,Down,,Down_Fold
+A_Boss_Combo_Jab_Cross_Hook,Boss,,A_Boss_Combo_Jab_Cross_Hook.fbx,0.892,27,2,,false,false,Attack,,2:Jab 8:Cross 17:Hook
+A_Boss_Combo_Jab_Cross_Knee,Boss,,A_Boss_Combo_Jab_Cross_Knee.fbx,0.882,26,2,,false,false,Attack,,2:Jab 8:Cross 16:Knee
+A_Saqr_Hit_Head_Straight_Light,Saqr,,A_Saqr_Hit_Head_Straight_Light.fbx,0.220,7,-1,,false,false,Hit,,Head_Straight_Light
+A_Saqr_Hit_Head_Straight,Saqr,,A_Saqr_Hit_Head_Straight.fbx,0.340,10,-1,,false,false,Hit,,Head_Straight
+A_Saqr_Hit_Head_Side,Saqr,,A_Saqr_Hit_Head_Side.fbx,0.340,10,-1,,false,false,Hit,,Head_Side
+A_Saqr_Hit_Body_Front,Saqr,,A_Saqr_Hit_Body_Front.fbx,0.340,10,-1,,false,false,Hit,,Body_Front
+A_Saqr_Hit_Body_Side,Saqr,,A_Saqr_Hit_Body_Side.fbx,0.340,10,-1,,false,false,Hit,,Body_Side
+A_Saqr_Down,Saqr,,A_Saqr_Down.fbx,0.850,26,-1,,false,false,Down,,
+A_Saqr_GetUp,Saqr,,A_Saqr_GetUp.fbx,0.600,18,-1,,false,false,Idle,,
+A_Saqr_Down_Side,Saqr,,A_Saqr_Down_Side.fbx,0.850,26,-1,,false,false,Down,,Down_Side
+A_Saqr_Down_Fold,Saqr,,A_Saqr_Down_Fold.fbx,0.850,26,-1,,false,false,Down,,Down_Fold
+A_Saqr_Combo_Jab_Kick,Saqr,,A_Saqr_Combo_Jab_Kick.fbx,0.706,21,2,,false,false,Attack,,2:Jab 10:Kick
+A_Saqr_Combo_Jab_Cross_Kick,Saqr,,A_Saqr_Combo_Jab_Cross_Kick.fbx,0.942,28,2,,false,false,Attack,,2:Jab 8:Cross 17:Kick
+A_Zayos_Hit_Head_Straight_Light,Zayos,,A_Zayos_Hit_Head_Straight_Light.fbx,0.220,7,-1,,false,false,Hit,,Head_Straight_Light
+A_Zayos_Hit_Head_Straight,Zayos,,A_Zayos_Hit_Head_Straight.fbx,0.340,10,-1,,false,false,Hit,,Head_Straight
+A_Zayos_Hit_Head_Side,Zayos,,A_Zayos_Hit_Head_Side.fbx,0.340,10,-1,,false,false,Hit,,Head_Side
+A_Zayos_Hit_Body_Front,Zayos,,A_Zayos_Hit_Body_Front.fbx,0.340,10,-1,,false,false,Hit,,Body_Front
+A_Zayos_Hit_Body_Side,Zayos,,A_Zayos_Hit_Body_Side.fbx,0.340,10,-1,,false,false,Hit,,Body_Side
+A_Zayos_Down,Zayos,,A_Zayos_Down.fbx,0.850,26,-1,,false,false,Down,,
+A_Zayos_GetUp,Zayos,,A_Zayos_GetUp.fbx,0.600,18,-1,,false,false,Idle,,
+A_Zayos_Down_Side,Zayos,,A_Zayos_Down_Side.fbx,0.850,26,-1,,false,false,Down,,Down_Side
+A_Zayos_Down_Fold,Zayos,,A_Zayos_Down_Fold.fbx,0.850,26,-1,,false,false,Down,,Down_Fold
+A_Zayos_Combo_Jab_Cross_Hook,Zayos,,A_Zayos_Combo_Jab_Cross_Hook.fbx,0.892,27,2,,false,false,Attack,,2:Jab 8:Cross 17:Hook
+A_Zayos_Combo_Hook_Cross,Zayos,,A_Zayos_Combo_Hook_Cross.fbx,0.671,20,4,,false,false,Attack,,4:Hook 12:Cross
+A_Boss_Pair_Saud_Jab,Boss,,A_Boss_Pair_Saud_Jab.fbx,0.300,9,2,,false,false,Hit,,2:Jab
+A_Boss_Pair_Saud_Cross,Boss,,A_Boss_Pair_Saud_Cross.fbx,0.433,13,3,,false,false,Hit,,3:Cross
+A_Boss_Pair_Saud_Hook,Boss,,A_Boss_Pair_Saud_Hook.fbx,0.467,14,4,,false,false,Hit,,4:Hook
+A_Boss_Pair_Saud_Kick,Boss,,A_Boss_Pair_Saud_Kick.fbx,0.533,16,5,,false,false,Hit,,5:Kick
+A_Boss_Pair_Saud_Knee,Boss,,A_Boss_Pair_Saud_Knee.fbx,0.467,14,4,,false,false,Hit,,4:Knee
+A_Boss_Pair_Saud_Special,Boss,,A_Boss_Pair_Saud_Special.fbx,1.033,31,5,,false,false,Hit,,5:Special
+A_Boss_Pair_Saud_Combo_Jab_Cross,Boss,,A_Boss_Pair_Saud_Combo_Jab_Cross.fbx,0.600,18,2,,false,false,Hit,,2:Jab 8:Cross
+A_Boss_Pair_Saud_Combo_Jab_Cross_Hook,Boss,,A_Boss_Pair_Saud_Combo_Jab_Cross_Hook.fbx,0.900,27,2,,false,false,Hit,,2:Jab 8:Cross 17:Hook
+A_Saqr_Pair_Saud_Jab,Saqr,,A_Saqr_Pair_Saud_Jab.fbx,0.300,9,2,,false,false,Hit,,2:Jab
+A_Saqr_Pair_Saud_Cross,Saqr,,A_Saqr_Pair_Saud_Cross.fbx,0.433,13,3,,false,false,Hit,,3:Cross
+A_Saqr_Pair_Saud_Hook,Saqr,,A_Saqr_Pair_Saud_Hook.fbx,0.467,14,4,,false,false,Hit,,4:Hook
+A_Saqr_Pair_Saud_Kick,Saqr,,A_Saqr_Pair_Saud_Kick.fbx,0.533,16,5,,false,false,Hit,,5:Kick
+A_Saqr_Pair_Saud_Knee,Saqr,,A_Saqr_Pair_Saud_Knee.fbx,0.467,14,4,,false,false,Hit,,4:Knee
+A_Saqr_Pair_Saud_Special,Saqr,,A_Saqr_Pair_Saud_Special.fbx,1.033,31,5,,false,false,Hit,,5:Special
+A_Saqr_Pair_Saud_Combo_Jab_Cross,Saqr,,A_Saqr_Pair_Saud_Combo_Jab_Cross.fbx,0.600,18,2,,false,false,Hit,,2:Jab 8:Cross
+A_Saqr_Pair_Saud_Combo_Jab_Cross_Hook,Saqr,,A_Saqr_Pair_Saud_Combo_Jab_Cross_Hook.fbx,0.900,27,2,,false,false,Hit,,2:Jab 8:Cross 17:Hook
+A_Zayos_Pair_Saud_Jab,Zayos,,A_Zayos_Pair_Saud_Jab.fbx,0.300,9,2,,false,false,Hit,,2:Jab
+A_Zayos_Pair_Saud_Cross,Zayos,,A_Zayos_Pair_Saud_Cross.fbx,0.433,13,3,,false,false,Hit,,3:Cross
+A_Zayos_Pair_Saud_Hook,Zayos,,A_Zayos_Pair_Saud_Hook.fbx,0.467,14,4,,false,false,Hit,,4:Hook
+A_Zayos_Pair_Saud_Kick,Zayos,,A_Zayos_Pair_Saud_Kick.fbx,0.533,16,5,,false,false,Hit,,5:Kick
+A_Zayos_Pair_Saud_Knee,Zayos,,A_Zayos_Pair_Saud_Knee.fbx,0.467,14,4,,false,false,Hit,,4:Knee
+A_Zayos_Pair_Saud_Special,Zayos,,A_Zayos_Pair_Saud_Special.fbx,1.033,31,5,,false,false,Hit,,5:Special
+A_Zayos_Pair_Saud_Combo_Jab_Cross,Zayos,,A_Zayos_Pair_Saud_Combo_Jab_Cross.fbx,0.600,18,2,,false,false,Hit,,2:Jab 8:Cross
+A_Zayos_Pair_Saud_Combo_Jab_Cross_Hook,Zayos,,A_Zayos_Pair_Saud_Combo_Jab_Cross_Hook.fbx,0.900,27,2,,false,false,Hit,,2:Jab 8:Cross 17:Hook

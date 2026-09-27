@@ -209,7 +209,10 @@ namespace SaudFeel
 	{
 		Guard, WalkFwd, WalkBack, WalkLeft, WalkRight,
 		DashFwd, DashBack, DashLeft, DashRight,
-		Block, HitLight, HitHeavy, Down, GetUp, Attack
+		Block, HitLight, HitHeavy, Down, GetUp, Attack,
+		// by the blow (2026-09-27): what it hit and how, not only how hard
+		HitHeadStraightLight, HitHeadStraight, HitHeadSide, HitBodyFront, HitBodySide,
+		DownSide, DownFold
 	};
 
 	/** The clip's name in Content/Animation: A_<Set>_<this>. Attack is the
@@ -232,6 +235,13 @@ namespace SaudFeel
 		case EClip::HitHeavy:  return "Hit_Heavy";
 		case EClip::Down:      return "Down";
 		case EClip::GetUp:     return "GetUp";
+		case EClip::HitHeadStraightLight: return "Hit_Head_Straight_Light";
+		case EClip::HitHeadStraight:      return "Hit_Head_Straight";
+		case EClip::HitHeadSide:          return "Hit_Head_Side";
+		case EClip::HitBodyFront:         return "Hit_Body_Front";
+		case EClip::HitBodySide:          return "Hit_Body_Side";
+		case EClip::DownSide:             return "Down_Side";
+		case EClip::DownFold:             return "Down_Fold";
 		default:               return "";
 		}
 	}
@@ -240,6 +250,45 @@ namespace SaudFeel
 	{
 		return C == EClip::Guard || C == EClip::Block
 			|| C == EClip::WalkFwd || C == EClip::WalkBack || C == EClip::WalkLeft || C == EClip::WalkRight;
+	}
+
+	/** The clip that stands in for one a motion set does not have: a
+	    reaction by the blow falls back to the old light / heavy hit, a fall
+	    by the blow to Down. Anything else is its own. */
+	inline EClip Fallback(EClip C)
+	{
+		switch (C)
+		{
+		case EClip::HitHeadStraightLight: return EClip::HitLight;
+		case EClip::HitHeadStraight:
+		case EClip::HitHeadSide:
+		case EClip::HitBodyFront:
+		case EClip::HitBodySide:          return EClip::HitHeavy;
+		case EClip::DownSide:
+		case EClip::DownFold:             return EClip::Down;
+		default:                          return C;
+		}
+	}
+
+	/** What a blow did, read off the attack row that landed it -- the same
+	    table build_motion.py's motion_hits.BLOW is: a jab snaps the head
+	    back a little, a cross all the way, a hook turns it on the jaw, a
+	    kick takes the ribs from the side, a knee folds him, and the
+	    finisher spins him down. A row this does not know is None, which
+	    plays the old light / heavy hit. */
+	enum class EBlow : unsigned char { None, HeadStraightLight, HeadStraight, HeadSide, BodyFront, BodySide, Spin };
+
+	inline EBlow BlowOf(const char* Row)
+	{
+		if (!Row) return EBlow::None;
+		auto Is = [Row](const char* N) { const char* A = Row; while (*A && *N && *A == *N) { ++A; ++N; } return *A == 0 && *N == 0; };
+		if (Is("Jab"))     return EBlow::HeadStraightLight;
+		if (Is("Cross"))   return EBlow::HeadStraight;
+		if (Is("Hook"))    return EBlow::HeadSide;
+		if (Is("Kick"))    return EBlow::BodySide;
+		if (Is("Knee"))    return EBlow::BodyFront;
+		if (Is("Special")) return EBlow::Spin;
+		return EBlow::None;
 	}
 
 	/** Which way a heading is, against where the fighter faces: the four
@@ -263,6 +312,7 @@ namespace SaudFeel
 		int State = 0;                 // EFighterState as an int, so no engine header is needed
 		bool bBlocking = false;
 		bool bLastHitHeavy = false;
+		EBlow LastBlow = EBlow::None;  // the blow that put him in Hit or Down
 		float GettingUp = 0.f;         // seconds left of the get-up
 		float Speed = 0.f;             // cm/s on the ground
 		FVector Facing = FVector(1.f, 0.f, 0.f);
@@ -282,9 +332,21 @@ namespace SaudFeel
 		switch (In.State)
 		{
 		case SAttack: return EClip::Attack;
-		case SHit:    return In.bLastHitHeavy ? EClip::HitHeavy : EClip::HitLight;
+		case SHit:
+			switch (In.LastBlow)
+			{
+			case EBlow::HeadStraightLight: return EClip::HitHeadStraightLight;
+			case EBlow::HeadStraight:      return EClip::HitHeadStraight;
+			case EBlow::HeadSide:          return EClip::HitHeadSide;
+			case EBlow::BodyFront:         return EClip::HitBodyFront;
+			case EBlow::BodySide:          return EClip::HitBodySide;
+			case EBlow::Spin:              return EClip::HitHeadSide;   // a spin that did not put him down
+			default: return In.bLastHitHeavy ? EClip::HitHeavy : EClip::HitLight;
+			}
 		case SDown:
-		case SDead:   return EClip::Down;          // death reuses Down; the last frame holds
+		case SDead:   // death reuses the fall; every fall ends on Down's last frame, which holds
+			return In.LastBlow == EBlow::Spin || In.LastBlow == EBlow::HeadSide ? EClip::DownSide
+			     : In.LastBlow == EBlow::BodyFront ? EClip::DownFold : EClip::Down;
 		case SDash:
 		{
 			const int Q = Quadrant(In.Facing, In.Heading);

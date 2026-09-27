@@ -207,6 +207,62 @@ static void Clips()
     In.State = SDead;
     Check(Pick(In) == EClip::Down, "dead holds down");
 
+    // By the blow (2026-09-27): the row that landed it picks the reaction
+    // and the fall -- motion_hits.BLOW's table, the same six rows.
+    {
+        struct { const char* Row; EClip Hit; EClip Fall; } Rows[] = {
+            { "Jab",     EClip::HitHeadStraightLight, EClip::Down },
+            { "Cross",   EClip::HitHeadStraight,      EClip::Down },
+            { "Hook",    EClip::HitHeadSide,          EClip::DownSide },
+            { "Kick",    EClip::HitBodySide,          EClip::Down },
+            { "Knee",    EClip::HitBodyFront,         EClip::DownFold },
+            { "Special", EClip::HitHeadSide,          EClip::DownSide } };
+        int Wrong = 0;
+        for (const auto& R : Rows)
+        {
+            for (bool Heavy : { false, true })       // the blow decides, not the weight
+            {
+                FMotionInput M; M.LastBlow = BlowOf(R.Row); M.bLastHitHeavy = Heavy;
+                M.State = SHit;  if (Pick(M) != R.Hit)  { ++Wrong; std::printf("  %s hit\n", R.Row); }
+                M.State = SDown; if (Pick(M) != R.Fall) { ++Wrong; std::printf("  %s down\n", R.Row); }
+                M.State = SDead; if (Pick(M) != R.Fall) { ++Wrong; std::printf("  %s dead\n", R.Row); }
+            }
+        }
+        Check(Wrong == 0, "each blow picks its own reaction and its own fall");
+        Check(BlowOf("Rage") == EBlow::None && BlowOf("") == EBlow::None && BlowOf(nullptr) == EBlow::None
+              && BlowOf("Ja") == EBlow::None && BlowOf("Jabs") == EBlow::None && BlowOf("None") == EBlow::None,
+              "a row it does not know is no blow at all");
+        FMotionInput M; M.State = SHit; M.LastBlow = EBlow::None;
+        M.bLastHitHeavy = false; const bool L = Pick(M) == EClip::HitLight;
+        M.bLastHitHeavy = true;  const bool H = Pick(M) == EClip::HitHeavy;
+        M.State = SDown;         const bool D = Pick(M) == EClip::Down;
+        Check(L && H && D, "no blow (a parry's stagger, a shove): the old light / heavy hit, and Down");
+        Check(Fallback(EClip::HitHeadStraightLight) == EClip::HitLight && Fallback(EClip::HitHeadStraight) == EClip::HitHeavy
+              && Fallback(EClip::HitHeadSide) == EClip::HitHeavy && Fallback(EClip::HitBodyFront) == EClip::HitHeavy
+              && Fallback(EClip::HitBodySide) == EClip::HitHeavy && Fallback(EClip::DownSide) == EClip::Down
+              && Fallback(EClip::DownFold) == EClip::Down && Fallback(EClip::Guard) == EClip::Guard
+              && Fallback(EClip::HitLight) == EClip::HitLight,
+              "a set without a reaction by blow plays the old hit, or Down");
+        // every attack row in the table lands as some blow
+        FILE* F = std::fopen("Content/Data/DT_Attacks.csv", "rb");
+        int Rows_ = 0, Unknown = 0;
+        if (F)
+        {
+            char Line[512];
+            bool First = true;
+            while (std::fgets(Line, sizeof Line, F))
+            {
+                if (First) { First = false; continue; }
+                char* Comma = std::strchr(Line, ',');
+                if (!Comma) continue;
+                *Comma = 0; ++Rows_;
+                if (BlowOf(Line) == EBlow::None) { ++Unknown; std::printf("  %s lands as no blow\n", Line); }
+            }
+            std::fclose(F);
+        }
+        Check(Rows_ >= 6 && Unknown == 0, "every row of DT_Attacks lands as a blow");
+    }
+
     In = FMotionInput(); In.GettingUp = 0.3f; In.Speed = 400.f; In.bBlocking = true;
     Check(Pick(In) == EClip::GetUp, "getting up beats blocking and walking");
     In.GettingUp = 0.f;
@@ -249,12 +305,18 @@ static void Clips()
     Check(Loops(EClip::Guard) && Loops(EClip::WalkBack) && Loops(EClip::Block), "stances loop");
     Check(!Loops(EClip::DashFwd) && !Loops(EClip::HitLight) && !Loops(EClip::Down)
           && !Loops(EClip::GetUp) && !Loops(EClip::Attack), "one-shots do not");
+    Check(std::strcmp(ClipSuffix(EClip::HitHeadSide), "Hit_Head_Side") == 0
+          && std::strcmp(ClipSuffix(EClip::DownFold), "Down_Fold") == 0, "the reactions' names");
+    Check(!Loops(EClip::HitHeadStraight) && !Loops(EClip::HitBodySide) && !Loops(EClip::DownSide),
+          "a reaction and a fall are one-shots");
 
     // The Saud clips the names point at are on disk, and the street men's
     // copy of them (the boxer's guard) that everyone else borrows.
     const EClip All[] = { EClip::Guard, EClip::WalkFwd, EClip::WalkBack, EClip::WalkLeft, EClip::WalkRight,
                           EClip::DashFwd, EClip::DashBack, EClip::DashLeft, EClip::DashRight,
-                          EClip::Block, EClip::HitLight, EClip::HitHeavy, EClip::Down, EClip::GetUp };
+                          EClip::Block, EClip::HitLight, EClip::HitHeavy, EClip::Down, EClip::GetUp,
+                          EClip::HitHeadStraightLight, EClip::HitHeadStraight, EClip::HitHeadSide,
+                          EClip::HitBodyFront, EClip::HitBodySide, EClip::DownSide, EClip::DownFold };
     int Missing = 0;
     for (const char* Set : { "Saud", "Street" })
     {

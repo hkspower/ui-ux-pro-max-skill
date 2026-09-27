@@ -73,6 +73,8 @@ project that has never been compiled. The clips and a manifest are written;
 what would read them is left alone and named here instead.
 """
 import sys, os, csv, math, json, time
+import motion_hits as H          # the hits; it reads this module back as H.B
+H.B = sys.modules[__name__]
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -502,6 +504,8 @@ def plan(who=("bosses", "saud", "street")):
     for set_, spec in (("saud", SAUD), ("street", STREET)):
         if set_ in who:
             clips += _hero_clips(spec["key"], FOLDER[set_], fighters, attacks)
+    # the hits: reactions by blow, falls, combos, and both sides of a blow
+    clips += H.plan(clips, who)
     return clips
 
 
@@ -560,7 +564,7 @@ def check(clips):
         want = set(parse_moves(fighters[key]["Moves"]))
         if key in PHASE_TWO:
             want.add("Special")
-        got = {c["move"] for c in clips if c["boss"] == key and c["move"] != "Guard"}
+        got = {c["move"] for c in clips if c["boss"] == key and c["kind"] == "strike"}
         assert want == got, "%s throws %s but has clips for %s" % (key, sorted(want), sorted(got))
 
     # 3. a clip is exactly as long as the attack table says, to within a frame
@@ -635,6 +639,8 @@ def check(clips):
             c = next(c for c in mine if c["move"] == "Walk_%s" % d)
             assert c["loop"] and abs(c["frames"] / float(FPS) - 2 * math.pi / WALK_RATE) <= 1.0 / FPS, (
                 "%s is not the browser's walk cycle" % c["name"])
+    # 12. the hits (motion_hits.check)
+    H.check(clips)
     return True
 
 
@@ -717,6 +723,36 @@ LINE = ("Jab", "Cross")
 COVER = {"Cross": "l", "Hook": "l"}
 # --bite only: each entry breaks one mechanism a motion check guards
 SABOTAGE = set()
+# Where a punch lands (2026-09-27, "motions with hits"): the tip of the fist
+# at contact, across his own frame -- the jab and the cross on the line to
+# the man in front of him, the hook 5 cm to its right, on the point of that
+# man's left jaw -- at the chin of a man in the same guard, 10 cm under the
+# head joint (which is at the eye line on this skeleton: 1.672 at rest, the
+# chin 1.572). Measured before, the jab landed 23 cm to his left and the
+# cross 24 to his right, 7-15 cm under the chin: two punches that never met.
+LAND_X = {"Jab": 0.0, "Cross": 0.0, "Hook": -0.05}
+CHIN_UNDER_HEAD = 0.10
+
+
+def landing(au, g, move, fk, s):
+    """How far the fist must go, at its contact pose `fk`, for its tip to
+    land where LAND_X and the chin say."""
+    from mathutils import Vector
+    m = fk["hand_" + s]
+    tip = m @ Vector((0.0, au.pb["hand_" + s].length, 0.0))
+    want = Vector((LAND_X[move], tip.y, g["head"].z + g["dz"] - CHIN_UNDER_HEAD))
+    d = want - tip
+    # ...with the elbow as bent as the strike's own: moved across and up,
+    # at its own depth the arm would lock straight (0.598 m of 0.599 on the
+    # street man's cross), so the fist comes back along the line until the
+    # shoulder is as far from the wrist as the strike put it
+    sh, wr = fk["sh_" + s], m.translation
+    reach = (wr - sh).length
+    w2 = wr + d
+    rest = reach * reach - (w2.x - sh.x) ** 2 - (w2.z - sh.z) ** 2
+    if (w2 - sh).length > reach and rest > 0.0:
+        d.y += (sh.y - math.sqrt(rest)) - w2.y
+    return d
 
 
 def aims_at(guard, strike, k, stance):
@@ -845,10 +881,15 @@ def author_strike(au, c, S):
                             {nm: amt * k for nm, amt in twist.items()}, planted, lift, hand_at, spin,
                             carry=cover)
 
-    ends = None
+    ends, bend = None, None
     if c["move"] in LINE and "line" not in SABOTAGE:
+        full = pose(c["amp"])[4]
         ends = (pose(0.0)[4]["hand_" + striker].translation.copy(),
-                pose(c["amp"])[4]["hand_" + striker].translation.copy())
+                full["hand_" + striker].translation + landing(au, g, c["move"], full, striker))
+    elif c["move"] in LAND_X and c["move"] not in LINE:
+        # the hook keeps its arc, bent onto the jaw as it arrives
+        striker = "r"
+        bend = landing(au, g, c["move"], pose(c["amp"])[4], striker)
     frames, plant, drops = [], {s: {} for s in planted}, []
     for f in range(c["frames"]):
         t = f / float(FPS)
@@ -872,6 +913,8 @@ def author_strike(au, c, S):
         else:
             k = blend_k(t, c["su"], c["ac"], c["rc"]) * c["amp"]
         hand_at = {striker: ends[0].lerp(ends[1], k / c["amp"])} if ends else {}
+        if bend is not None:
+            hand_at[striker] = (lambda fk, w=k / c["amp"]: fk["hand_r"].translation + bend * w)
         if tuck:
             cs_, gl, tl = tuck
             w = min(1.0, k / c["amp"])
@@ -891,24 +934,35 @@ def author_strike(au, c, S):
 
 # ----------------------------------------------------------- the states
 def body_frame(au, g, aims, feet, lean=0.0, hips=(0.0, 0.0, 0.0), tilt=0.0, side_tilt=0.0,
-               post_aims=None, hands=None, hand_poles=None, settle=()):
+               post_aims=None, hands=None, hand_poles=None, settle=(), twist=None, head_turn=0.0,
+               turn=0.0):
     """One frame of anything that is not a strike: the guard's body shape,
     the hips moved and tipped (tilt + is back, side_tilt + toward his
-    left), the feet put where `feet` says, the arms from the body or from
-    `hands`. Values in `feet`, `hands` and `hand_poles` may be functions of
-    the FK read, for anything that has to follow the moved body."""
+    left, turn + about the vertical toward his left), the feet put where
+    `feet` says, the arms from the body or from `hands`. Values in `feet`,
+    `hands` and `hand_poles` may be functions of the FK read, for anything
+    that has to follow the moved body. `twist` turns the spine as a
+    strike's does; `head_turn` then turns the head on the neck, + toward
+    his left (a blow turns the face; fk_body's twist keeps it forward)."""
     import motion_ik as M
     import rig_full_ik as CR
-    from mathutils import Vector
+    from mathutils import Vector, Quaternion
     au.begin()
-    au.fk_body(aims, lean=lean)
+    au.fk_body(aims, lean=lean, twist=twist)
     au.move_hips((hips[0], hips[1], hips[2] + g["dz"]))
     if tilt:
         au.tilt_hips(-tilt, "X")         # about +X a turn carries up toward -Y, his front
     if side_tilt:
         au.tilt_hips(side_tilt, "Y")     # about +Y a turn carries up toward +X, his left
+    if turn:
+        au.tilt_hips(turn, "Z")          # about +Z his front (-Y) turns toward +X, his left
     if post_aims:
         CR._aim(au.rig, post_aims)
+    if head_turn:
+        for nm, share in (("neck_01", 0.35), ("head", 0.65)):
+            pb = au.pb[nm]
+            pb.rotation_quaternion = pb.rotation_quaternion @ Quaternion((0, 1, 0), head_turn * share)
+        M.upd()
     fk = au.read()
     for s, (m, pole, roll) in feet.items():
         au.leg(s, m(fk) if callable(m) else m, pole(fk) if callable(pole) else pole, roll)
@@ -1175,65 +1229,95 @@ def author_floor(au, c, S, keys_of):
     between its guard spot and the lead's side, the hands pressed to two
     fixed points on the floor behind the hips, and the head brought back
     to looking forward as the torso goes back."""
-    import mathutils
-    from mathutils import Vector, Matrix
     guard, _ = S["Guard"]
     aims = aims_at(guard, guard, 0.0, c["stance"])
     g = au.capture_guard(aims)
     keys = keys_of(g)
-    gp = g["pelvis"].translation
-    side = {"l": 1.0, "r": -1.0}
-    beside = Vector((0.0, g["ball_l"].y + 0.05 - g["ball_r"].y, 0.0))      # rear foot's slide
-    floor = {s: Vector((0.28 * side[s], gp.y + 0.72, 0.05)) for s in SIDES}
-    ahead = {"neck_01": (0.0, -0.45, 0.89), "head": (0.0, -0.35, 0.94)}
     N = c["frames"]
     frames, plant = [], {s: {} for s in SIDES}
     for f in range(N):
         u = f / float(N - 1)
         p = keyed(keys, u)
         prev = keyed(keys, max(0.0, u - 1.0 / (N - 1)))
-        moving_rear = abs(p["rear"] - prev["rear"]) > 1e-4
-        rear_shift = beside * p["rear"] + Vector((0.0, 0.0, 0.025 if moving_rear else 0.0))
-        feet = {"l": (g["ctrl_foot_l"], knee_forward("l", up=0.5 * min(1.0, p["tilt"] + 0.2)), 0.0),
-                "r": (Matrix.Translation(rear_shift) @ g["ctrl_foot_r"],
-                      knee_forward("r", up=0.5 * min(1.0, p["tilt"] + 0.2)), 0.0)}
-        # the head: its guard aim turned back with the torso, then brought
-        # round toward looking forward by `look`
-        turn = mathutils.Matrix.Rotation(-p["tilt"], 3, "X")
-        post = {}
-        for nm, want in ahead.items():
-            now = (turn @ mathutils.Vector(aims[nm])).normalized()
-            post[nm] = tuple(slerp_aim(tuple(now), want, p["look"]))
-
-        def hand(s, w=p["hand"]):
-            def at(fk, s=s, w=w):
-                m = fk["hand_" + s].copy()
-                m.translation = fk["hand_" + s].translation.lerp(floor[s], w)
-                return m
-            return at
-
-        def elbow(s):
-            return lambda fk, s=s: fk["sh_" + s] + Vector((0.45 * side[s], 0.25, -0.10))
-        loc, world, _fk, _d = body_frame(
-            # pz is the pelvis's height: body_frame adds the guard's grounding
-            # (dz) to what it is given, so it is taken out here -- it used
-            # to sit every fall lower by it, 1.6 cm on the boxer's straight
-            # legs and 5.6 on Saud's bent ones, through the floor
-            au, g, aims, feet, hips=(0.0, p["py"], p["pz"] - gp.z - g["dz"]), tilt=p["tilt"], post_aims=post,
-            hands={s: hand(s) for s in SIDES}, hand_poles={s: elbow(s) for s in SIDES} if p["hand"] > 0.05 else None,
-            settle=["l"])
+        loc, world, moving_rear = floor_frame(au, g, aims, p, prev)
         frames.append((loc, world))
         plant["l"][f] = (g["ball_l"].copy(), 0.0)
         if not moving_rear:
-            plant["r"][f] = (g["ball_r"] + beside * p["rear"], 0.0)
+            plant["r"][f] = (g["ball_r"] + floor_beside(g) * p["rear"], 0.0)
     c["plant"] = plant
     return frames
+
+
+def floor_beside(g):
+    """How far the rear foot slides in, to the lead's side, on the way down."""
+    from mathutils import Vector
+    return Vector((0.0, g["ball_l"].y + 0.05 - g["ball_r"].y, 0.0))
+
+
+def floor_frame(au, g, aims, p, prev, extra=None):
+    """One frame of the floor mechanism at the keyed values `p` (and the
+    frame before's, `prev`, to tell a sliding rear foot). Keys a fall may
+    add and Down does not have -- `side` (side_tilt), `turn` (the hips
+    about the vertical), `fold` (the spine's lean, + forward) -- read 0
+    when absent, so Down is posed exactly as it always was. `extra` is a
+    blow's reaction laid over the fall (motion_hits), or None."""
+    import mathutils
+    from mathutils import Vector, Matrix
+    x = extra or {}
+    aims = x.get("aims", aims)
+    gp = g["pelvis"].translation
+    side = {"l": 1.0, "r": -1.0}
+    beside = floor_beside(g)
+    floor = {s: Vector((0.28 * side[s], gp.y + 0.72, 0.05)) for s in SIDES}
+    ahead = {"neck_01": (0.0, -0.45, 0.89), "head": (0.0, -0.35, 0.94)}
+    moving_rear = abs(p["rear"] - prev["rear"]) > 1e-4
+    rear_shift = beside * p["rear"] + Vector((0.0, 0.0, 0.025 if moving_rear else 0.0))
+    feet = {"l": (g["ctrl_foot_l"], knee_forward("l", up=0.5 * min(1.0, p["tilt"] + 0.2)), 0.0),
+            "r": (Matrix.Translation(rear_shift) @ g["ctrl_foot_r"],
+                  knee_forward("r", up=0.5 * min(1.0, p["tilt"] + 0.2)), 0.0)}
+    # the head: its guard aim turned back with the torso, then brought
+    # round toward looking forward by `look`
+    turn = mathutils.Matrix.Rotation(-p["tilt"], 3, "X")
+    post = {}
+    for nm, want in ahead.items():
+        now = (turn @ mathutils.Vector(aims[nm])).normalized()
+        post[nm] = tuple(slerp_aim(tuple(now), want, p["look"]))
+
+    def hand(s, w=p["hand"]):
+        def at(fk, s=s, w=w):
+            m = fk["hand_" + s].copy()
+            m.translation = fk["hand_" + s].translation.lerp(floor[s], w)
+            return m
+        return at
+
+    def elbow(s):
+        return lambda fk, s=s: fk["sh_" + s] + Vector((0.45 * side[s], 0.25, -0.10))
+    if x.get("hands"):
+        base = {s: hand(s) for s in SIDES}
+        hands = {s: (lambda fk, s=s: x["hands"][s](fk, base[s](fk))) for s in SIDES}
+    else:
+        hands = {s: hand(s) for s in SIDES}
+    loc, world, _fk, _d = body_frame(
+        # pz is the pelvis's height: body_frame adds the guard's grounding
+        # (dz) to what it is given, so it is taken out here -- it used
+        # to sit every fall lower by it, 1.6 cm on the boxer's straight
+        # legs and 5.6 on Saud's bent ones, through the floor
+        au, g, aims, feet,
+        lean=p.get("fold", 0.0) + x.get("lean", 0.0),
+        hips=(x.get("hx", 0.0), p["py"] + x.get("hy", 0.0), p["pz"] - gp.z - g["dz"] + x.get("hz", 0.0)),
+        tilt=p["tilt"], side_tilt=p.get("side", 0.0) + x.get("side", 0.0),
+        turn=p.get("turn", 0.0), twist=x.get("twist"), head_turn=x.get("head_turn", 0.0),
+        post_aims=post,
+        hands=hands, hand_poles={s: elbow(s) for s in SIDES} if p["hand"] > 0.05 else None,
+        settle=["l"])
+    return loc, world, moving_rear
 
 
 AUTHOR = {"strike": author_strike, "guard": author_strike, "walk": author_walk, "dash": author_dash,
           "block": author_block, "hit": author_hit,
           "down": lambda au, c, S: author_floor(au, c, S, down_keys),
           "getup": lambda au, c, S: author_floor(au, c, S, getup_keys)}
+AUTHOR.update(H.AUTHOR)
 
 
 def author_all(clips):
@@ -1297,15 +1381,22 @@ def build(clips, out_root, sheet=False):
         with open(manifest, "w", newline="", encoding="utf-8") as fh:
             w = csv.writer(fh)
             w.writerow(["Name", "Fighter", "Attack", "File", "Seconds", "Frames",
-                        "ContactFrame", "Limb", "bLoop", "bPhaseTwo", "State", "Direction"])
+                        "ContactFrame", "Limb", "bLoop", "bPhaseTwo", "State", "Direction", "Hits"])
             for c, _a, _f in items:
                 w.writerow([c["name"], c["boss"], c["move"] if c["kind"] == "strike" else "",
                             c["name"] + ".fbx", "%.3f" % c["seconds"], c["frames"],
                             c["contact"], c["limb"] or "", str(c.get("loop", False)).lower(),
-                            str(c["phase_two"]).lower(), c["state"], c.get("dir", "")])
+                            str(c["phase_two"]).lower(), c["state"], c.get("dir", ""), H.hits_cell(c)])
         print("%6.1fs  %s: exported %d fbx + %s" % (time.time() - t0, folder, len(items), os.path.basename(manifest)))
         if sheet:
-            contact_sheet(rig, items, out_dir, "%s-motion.png" % ("boss" if folder == "Bosses" else folder.lower()))
+            # the pairs are drawn two men at a time, below, not here
+            contact_sheet(rig, [i for i in items if i[0]["kind"] != "pair"], out_dir,
+                          "%s-motion.png" % ("boss" if folder == "Bosses" else folder.lower()))
+    pairs = H.write_pairs(made, out_root)
+    if pairs:
+        print("        %s: where each pair's victim stands" % os.path.relpath(pairs, PROJECT))
+        if sheet:
+            H.pair_sheet(rig, made, os.path.join(out_root, "pairs-motion.png"))
     readback(made, out_root)
     return made
 
@@ -1679,6 +1770,7 @@ def verify(rig, made):
             if gap > 0.01:
                 fails.append("GetUp does not end in the guard: %.1f cm from it" % (gap * 100))
     rig.animation_data.action = None
+    H.verify(rig, made, fails)
     assert not fails, "the motion does not move:\n  " + "\n  ".join(fails)
     strikes = [c for c, _a, _f in made if c["kind"] == "strike"]
     if strikes:
@@ -1688,6 +1780,7 @@ def verify(rig, made):
     lines = [c["line_mm"] for c in strikes if c.get("line_mm") is not None]
     if lines:
         print("        straight punches: worst %.1f mm off the line" % max(lines))
+    H.report(made)
 
 
 # The bones worth drawing: the figure, not the fingers.
@@ -1821,6 +1914,11 @@ def bite():
         ("guard hands",    "guard",  ["A_Saud_Guard"],                 "not up in front of the face"),
         ("palms in",       "palms",  ["A_Street_Guard"],                 "palm faces the opponent"),
         ("covering hand",  "tuck",   ["A_Street_Cross"],               "not up in front of the face"),
+        # the hits (motion_hits)
+        ("reaction's way", "react_sign", ["A_Saud_Hit_Head_Side", "A_Saud_Hit_Body_Front"], "want 4"),
+        ("fall ends as Down", "fall_end", ["A_Saud_Down", "A_Saud_Down_Side"], "does not end where Down ends"),
+        ("combo lands",    "combo_short", ["A_Saud_Jab", "A_Saud_Cross", "A_Saud_Combo_Jab_Cross"], "alone it reaches"),
+        ("pair lands",     "pair_far",  ["A_Street_Jab", "A_Saud_Pair_Street_Jab"], "misses its mark"),
     ]
     results = []
     for label, sab, names, expect in cases:

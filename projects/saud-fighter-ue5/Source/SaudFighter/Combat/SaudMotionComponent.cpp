@@ -53,6 +53,7 @@ void USaudMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	In.State = static_cast<int>(Fighter->State);
 	In.bBlocking = Fighter->bBlocking;
 	In.bLastHitHeavy = Fighter->bLastHitHeavy;
+	In.LastBlow = SaudFeel::BlowOf(TCHAR_TO_ANSI(*Fighter->LastHitAttack.ToString()));
 	In.GettingUp = Fighter->GetUpRemaining;
 	const FVector Vel = Fighter->GetVelocity();
 	const FVector Flat(Vel.X, Vel.Y, 0.f);
@@ -76,6 +77,11 @@ void USaudMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	}
 
 	UAnimSequence* Seq = Find(Fighter->MotionSet, Name);
+	if (!Seq && SaudFeel::Fallback(Clip) != Clip)
+	{
+		// a set built before the reactions by blow: the old hit, or Down
+		Seq = Find(Fighter->MotionSet, FString(ANSI_TO_TCHAR(SaudFeel::ClipSuffix(SaudFeel::Fallback(Clip)))));
+	}
 	const bool bRestart = Key == PlayingName;      // the same clip, a fresh serial
 	PlayingName = Key;
 	PlayingSerial = Fighter->MotionSerial;
