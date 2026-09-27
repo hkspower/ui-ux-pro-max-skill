@@ -350,10 +350,14 @@ def kit_colour(P, kind, pal, joints_l, base=None, parts=None):
             over(inpatch * (1 - hoist) * bot, lin(srgb('c8102e')))
             over(inpatch * hoist, lin(srgb('101216')))
         # collar rib and hems a shade lighter, the stitching line
-        over(ramp(z, 1.548 - f, 1.548 + f) * ramp(np.hypot(x, y - 0.004), 0.095 + f, 0.095 - f), np.asarray(tee) * 1.6)
+        collar = ramp(z, 1.548 - f, 1.548 + f) * ramp(np.hypot(x, y - 0.004), 0.095 + f, 0.095 - f)
+        over(collar, np.asarray(tee) * 1.6)
+        if parts is not None: parts["collar"] = collar
         kit[:] = 1.0
     elif kind == "pants":
-        over(ramp(z, 1.050 - f, 1.050 + f) * ramp(z, 1.076 + f, 1.076 - f), band)      # waistband
+        wb = ramp(z, 1.050 - f, 1.050 + f) * ramp(z, 1.076 + f, 1.076 - f)
+        over(wb, band)      # waistband
+        if parts is not None: parts["waistband"] = wb
         # the stripe down the outer seam of each leg: track pants, not jeans
         for s in ((1, -1) if pal["stripe"] else ()):
             th = np.array(Jp("thigh_l")) * np.array([s, 1, 1]); ft = np.array(Jp("foot_l")) * np.array([s, 1, 1])
@@ -361,6 +365,7 @@ def kit_colour(P, kind, pal, joints_l, base=None, parts=None):
             outer = (ramp(x * s, th[0] * s + 0.05 - f, th[0] * s + 0.05 + f) * ramp(t, 0.02 - f, 0.02 + f) * ramp(t, 0.97 + f, 0.97 - f)
                      * ramp(np.abs(y - (th[1] + (ft[1] - th[1]) * t)), 0.016 + f, 0.016 - f))
             over(outer, band)
+            if parts is not None: parts["stripe"] = np.maximum(parts.get("stripe", np.zeros(n)), outer)
         kit[:] = 1.0
     elif kind == "glove":
         # ZAYOS (`look.hands: 'gloves'`): a solid fill in his own accent
@@ -778,6 +783,50 @@ def repaint_head(obj, imgs, size, pal=None):
     return int(m.sum()), coherent
 
 
+def fabric_surface(P, kind, parts):
+    """The cloth's own surface, per texel (2026-09-27, "improve clothes":
+    fabric texture): a tone to multiply the colour by, a relief (metres)
+    for the normal map, and a roughness. The garments had one colour, the
+    shader's single roughness (0.88 the tee, 0.82 the trousers -- a matt
+    cotton and a matt cotton) and the bake's generic weave noise.
+
+    the tee is cotton jersey: a heathered tone (+-3 %) with slubs in the
+    yarn -- the same noise stretched along the body -- a knit's fine relief
+    (0.05-0.1 mm), matt (0.80-0.90), the collar rib rougher still;
+    the track trousers are polyester tricot: a flatter tone (+-2 %), a fine
+    diagonal twill in the relief, and a sheen (0.48-0.60) -- worn shinier
+    and a shade lighter where they rub, over the knees and the seat; the
+    waistband's elastic matt (0.72), the stripe a smoother tape (0.46).
+    FA.fbm spreads about 0.12 either side of 0.5, so a (fbm - 0.5) / 0.12
+    is about -1..1."""
+    from . import face as FA
+    n = len(P); x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    if kind == "tee":
+        heather = (FA.fbm(P, 220.0, 2, 41.0) - 0.5) / 0.12
+        slub = (FA.fbm(P * np.array([1.0, 1.0, 0.22]), 150.0, 2, 43.0) - 0.5) / 0.12
+        knit = (FA.fbm(P, 650.0, 2, 45.0) - 0.5) / 0.12
+        collar = parts.get("collar", np.zeros(n))
+        tone = 1.0 + 0.020 * heather + 0.012 * slub + 0.03 * collar
+        rel = 0.00006 * knit + 0.00004 * slub
+        rough = np.clip(0.85 + 0.025 * heather + 0.04 * collar, 0.78, 0.93)
+        return tone, rel, rough
+    grain = (FA.fbm(P, 300.0, 2, 51.0) - 0.5) / 0.12
+    twill = np.sin(2.0 * np.pi * (x * np.sign(x + 1e-9) + z) / 0.0018)
+    wear = np.zeros(n)
+    for s in (1, -1):
+        kn = np.array(Jp("calf_l")) * np.array([s, 1, 1])
+        d2 = (x - kn[0]) ** 2 + ((z - kn[2]) / 1.4) ** 2
+        wear = np.maximum(wear, np.exp(-d2 / (2 * 0.035 ** 2)) * (y < kn[1] - 0.01))     # the fronts of the knees
+    seat = np.exp(-((z - 0.955) / 0.045) ** 2) * np.clip((y - 0.06) / 0.03, 0, 1) * (np.abs(x) < 0.13)
+    wear = np.clip(np.maximum(wear, seat), 0, 1)
+    band = parts.get("waistband", np.zeros(n)); stripe = parts.get("stripe", np.zeros(n))
+    tone = 1.0 + 0.015 * grain + 0.05 * wear
+    rel = 0.00003 * grain + 0.00002 * twill * (1 - band)
+    rough = 0.55 + 0.025 * grain - 0.09 * wear
+    rough = rough * (1 - band) + 0.72 * band
+    rough = rough * (1 - stripe) + 0.46 * stripe
+    return tone, rel, np.clip(rough, 0.40, 0.80)
+
 def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
     """Repaint the kit's texels from kit_colour, the way repaint_head does
     the face: the bake carried the vertex colour across each triangle, so
@@ -813,8 +862,11 @@ def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
         rgb, kit = kit_colour(P, kind, pal, joints_l, base=base, parts=parts)
         live = np.ones(len(P), bool)
     else:
-        rgb, kit = kit_colour(P, kind, pal, joints_l)
+        rgb, kit = kit_colour(P, kind, pal, joints_l, parts=parts)
         live = kit > 0.002
+        if kind in ("tee", "pants"):
+            ftone, frel, frough = fabric_surface(P, kind, parts)
+            rgb = rgb * ftone[:, None]
     if not live.any():
         return 0
     buf = np.zeros(pos.shape); buf[cov] = rgb
@@ -827,6 +879,15 @@ def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
         # whatever is here, and starts at 1.535
         on = (P[:, 2] < 1.545).astype(float)
         apply_relief(imgs, pos, cov, rel, on, size)
+    # the cloth's relief and roughness (fabric_surface)
+    if kind in ("tee", "pants"):
+        if "normal" in imgs:
+            apply_relief(imgs, pos, cov, frel, np.ones(len(P)), size)
+        if "roughness" in imgs:
+            rough = _img_array(imgs["roughness"])
+            rb = np.zeros(cov.shape); rb[cov] = frough
+            rough[..., :3] = np.where(m[..., None], rb[..., None], rough[..., :3])
+            _img_write(imgs["roughness"], _dilate(rough, m, 3))
     # The hair's strands, clumps and roughness (face.hair_strands,
     # 2026-09-26): it had the bake's pore noise and the skin's one
     # roughness, 0.52, baked flat -- the even sheen of a helmet. Where the

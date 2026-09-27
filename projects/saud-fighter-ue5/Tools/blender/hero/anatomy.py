@@ -69,6 +69,65 @@ X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
 def ring_z(z, cx, cy, rx, ry): return (Vector((cx, cy, z)), X * rx, Y * ry)
 
 # ------------------------------------------------------------------ trunk
+TRUNK_ROWS = [
+    (0.900, 0.010, 0.150, 0.106),   # the pelvis floor, between the thighs' tops
+    (0.930, 0.010, 0.172, 0.116),   # the trochanters: as wide as the thighs it sits on
+    (0.960, 0.008, 0.180, 0.120),   # hips, the widest of the lower body
+    (1.020, 0.002, 0.166, 0.114),   # the iliac crest
+    (1.080, -0.006, 0.150, 0.104),  # waist
+    (1.140, -0.008, 0.144, 0.100),  # the narrow of the V; the small of the back
+    (1.200, -0.004, 0.158, 0.106),  # lower ribs
+    (1.270, 0.004, 0.178, 0.114),   # ribcage, deepest
+    (1.340, 0.010, 0.190, 0.116),   # the thoracic curve carries the back out
+    (1.400, 0.012, 0.202, 0.106),   # upper chest
+    (1.455, 0.006, 0.212, 0.096),   # a slope for the trapezius to sit on
+    (1.478, 0.000, 0.214, 0.090),   # shoulder shelf, the widest bone
+    (1.505, 0.000, 0.152, 0.078),
+    (1.530, 0.002, 0.078, 0.064),   # into the neck
+]
+
+def trunk_surface(x, z, back=True):
+    """The trunk loft's surface at (x, z) -- back or front -- and its
+    outward normal there: the loft's own ellipse, rows interpolated
+    straight as the loft bridges them. For seating the back's muscles on
+    the surface they lie on (2026-09-27)."""
+    r = TRUNK_ROWS
+    z = min(max(z, r[0][0]), r[-1][0])
+    for r0, r1 in zip(r, r[1:]):
+        if r0[0] <= z <= r1[0]: break
+    t = (z - r0[0]) / (r1[0] - r0[0])
+    cy, rx, ry = [a + (b - a) * t for a, b in zip(r0[1:], r1[1:])]
+    k = max(0.0, 1.0 - (x / rx) ** 2) ** 0.5
+    y = cy + ry * k if back else cy - ry * k
+    n = Vector((x / rx ** 2, (y - cy) / ry ** 2, 0.0)).normalized()
+    return Vector((x, y, z)), n
+
+# The back's muscles (2026-09-27, "fix back body": the lats and the V, the
+# spine and the lower back), as (x, z, how far it stands proud of the
+# trunk loft, half-width across) along each, left side; assembly.masses
+# seats each point on trunk_surface and builds the band with
+# assembly.chain. They were two eggs a side on the flank for the lats and
+# two more up the spine for the erectors -- four vertical ovals on a flat
+# back, and nothing that ran from the armpit down into the waist.
+BACK_MUSCLES = {
+    # latissimus dorsi: from the armpit's back fold, sweeping down and in
+    # to the lumbar fascia -- the V, drawn by a muscle, thickest at the
+    # armpit and thinning to nothing over the small of the back
+    "lat": [(0.166, 1.345, 0.010, 0.040), (0.156, 1.290, 0.010, 0.060), (0.136, 1.228, 0.008, 0.065),
+            (0.106, 1.168, 0.005, 0.055), (0.072, 1.118, 0.002, 0.040)],
+    # erector spinae: two columns either side of the spine from the sacrum
+    # to the middle of the back, thickest over the lumbar, the furrow
+    # between them the length of the back. Broad and soft: at a 22 mm
+    # half-width they read as two rods
+    "erector": [(0.030, 0.975, 0.004, 0.024), (0.034, 1.040, 0.008, 0.029), (0.035, 1.110, 0.009, 0.030),
+                (0.036, 1.180, 0.008, 0.029), (0.037, 1.260, 0.006, 0.026), (0.038, 1.340, 0.003, 0.022)],
+}
+# each link's centre this far under the surface: deep, so a band rises out
+# of the back at a shallow angle and blends -- seated 6 mm under, its edges
+# met the skin steeply and read as creases, the columns as rods
+BACK_SEAT = 0.015
+BACK_WIDEN = 1.25          # the across radii, for the part a deeper seat hides
+
 def trunk():
     # (z, cy, rx, ry): half-width across, half-depth; cy shifts the section
     # forward/back. Hips wide and low, waist the narrow of the V, ribcage the
@@ -99,22 +158,7 @@ def trunk():
     # hips to the shoulders, no small of the back, no thoracic curve. The
     # rows now carry the spine's S: the back comes IN 3 cm at the lumbar
     # (1.14) and OUT again over the ribcage (1.34), the front stays plumb.
-    rows = [
-        (0.900, 0.010, 0.150, 0.106),   # the pelvis floor, between the thighs' tops
-        (0.930, 0.010, 0.172, 0.116),   # the trochanters: as wide as the thighs it sits on
-        (0.960, 0.008, 0.180, 0.120),   # hips, the widest of the lower body
-        (1.020, 0.002, 0.166, 0.114),   # the iliac crest
-        (1.080, -0.006, 0.150, 0.104),  # waist
-        (1.140, -0.008, 0.144, 0.100),  # the narrow of the V; the small of the back
-        (1.200, -0.004, 0.158, 0.106),  # lower ribs
-        (1.270, 0.004, 0.178, 0.114),   # ribcage, deepest
-        (1.340, 0.010, 0.190, 0.116),   # the thoracic curve carries the back out
-        (1.400, 0.012, 0.202, 0.106),   # upper chest
-        (1.455, 0.006, 0.212, 0.096),   # a slope for the trapezius to sit on
-        (1.478, 0.000, 0.214, 0.090),   # shoulder shelf, the widest bone
-        (1.505, 0.000, 0.152, 0.078),
-        (1.530, 0.002, 0.078, 0.064),   # into the neck
-    ]
+    rows = TRUNK_ROWS
     return loft("trunk", [ring_z(z, 0, cy, rx, ry) for z, cy, rx, ry in rows])
 
 def neck():
@@ -382,6 +426,39 @@ def check_neck(P, assert_=True):
     assert plateau >= 0.35, "a shelf: the shoulder line falls only %.2f from the neck to 130 mm out, want 0.35" % plateau
     assert climb >= 1.545, "a column on the shoulders: the trapezius reaches only %.3f up the side of the neck, want 1.545" % climb
     return dict(plateau=plateau, climb=climb, fall=fall, girth=girth, notch=notch)
+
+def check_back(P, assert_=True):
+    """The back on the built base (pass one, canonical), 2026-09-27 ("fix
+    back body"). P is (N,3) vertex positions.
+
+    the spine is a furrow between two columns the length of the lower and
+    middle back -- at every height from 1.02 to 1.22 the erector (x 30 mm)
+    stands at least 3 mm behind the midline (the old back had eggs at two
+    heights and nothing between: -2 mm at 1.10), 2.5 mm; the lats cover
+    the flank -- 120 mm out at 1.22 and 150 mm out at 1.29 the back stands
+    at least 6 mm proud of the trunk loft (9 mm; with no lats the remesh's
+    own swell gives 3); and the
+    V: seen from behind the trunk narrows from under the arms to the waist
+    without a bulge (no rise of more than 2 mm going down, 1.30 to 1.14).
+    Returns the numbers."""
+    P = np.asarray(P)
+    def back_y(x, z):
+        b = P[(np.abs(np.abs(P[:, 0]) - x) < 0.004) & (np.abs(P[:, 2] - z) < 0.004) & (P[:, 1] > 0)]
+        return float(b[:, 1].max())
+    def half(z):
+        b = P[(np.abs(P[:, 2] - z) < 0.004) & (P[:, 1] > 0.0) & (np.abs(P[:, 0]) < 0.19)]
+        return float(np.abs(b[:, 0]).max())
+    furrow = min(back_y(0.030, z) - back_y(0.0, z) for z in np.arange(1.02, 1.221, 0.02))
+    lat = min(back_y(x, z) - trunk_surface(x, z)[0].y for x, z in ((0.120, 1.22), (0.150, 1.29)))
+    hw = [half(z) for z in np.arange(1.30, 1.139, -0.02)]
+    bulge = max(0.0, max(b - a for a, b in zip(hw, hw[1:])))
+    out = dict(furrow=furrow, lat=lat, bulge=bulge, v=hw[0] / hw[-1])
+    if not assert_:
+        return out
+    assert furrow >= 0.0025, "no spinal furrow: at its shallowest the erector stands %.1f mm behind the midline, want 2.5" % (furrow * 1000)
+    assert bulge <= 0.002, "no V: the back bulges %.0f mm going down from the arms to the waist" % (bulge * 1000)
+    assert lat >= 0.006, "no lats: the flank stands %.1f mm off the trunk loft, want 6" % (lat * 1000)
+    return out
 
 def bite_head():
     """check_head broken once per rule (numpy). Returns (caught, total)."""

@@ -87,16 +87,21 @@ def masses():
     # tapers out above the lower ribs instead of bulging at them
     # ...leaning out, so its top tucks under the armpit and its bottom runs
     # in toward the flank instead of standing as an egg on the side
-    out.append(ellipsoid("lat", (0.140, 0.050, 1.300), (0.040, 0.050, 0.120), (0.35, 0.05, 1.0)))
     # The erector spinae, either side of the spine -- the small of the back
     # is not a smooth dish, it is two columns with a furrow between them.
     # Two per side, following the spine's curve (anatomy.trunk's cy).
-    out.append(ellipsoid("erector_lo", (0.038, 0.074, 1.080), (0.044, 0.020, 0.140)))
-    out.append(ellipsoid("erector_hi", (0.040, 0.098, 1.300), (0.046, 0.020, 0.140)))
     # It was centred on the hip JOINT, so it read as a hip, not a seat.
     # a seat, not a ball: broad and only a centimetre proud of the pelvis
     # ...and its inner edge 6 mm short of the midline: meeting there, the
     # two welded across it and pulled the crotch down 13 mm
+    # the lats and the erectors (2026-09-27): bands seated on the trunk's
+    # own back, not ovals on it -- anatomy.BACK_MUSCLES
+    for name, spec in A.BACK_MUSCLES.items():
+        pts, radii = [], []
+        for x, z, proud, across in spec:
+            S, n = A.trunk_surface(x, z)
+            pts.append(S - n * A.BACK_SEAT); radii.append((across * A.BACK_WIDEN, proud + A.BACK_SEAT))
+        out.extend(chain(name, pts, radii, lambda c: A.trunk_surface(c.x, c.z)[1]))
     out.append(ellipsoid("glute", (0.090, 0.078, 0.924), (0.084, 0.048, 0.086)))
     # The external oblique, proud of the flank between the ribs and the crest.
     out.append(ellipsoid("oblique", (0.116, 0.004, 1.170), (0.032, 0.056, 0.072)))
@@ -783,8 +788,11 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     print("base      : %d verts  %.1fs" % (len(base.data.vertices), time.time() - t))
     if vs <= 1.0:
         import numpy as np
-        nk = A.check_neck(np.array([v.co[:] for v in base.data.vertices]))
+        Pb = np.array([v.co[:] for v in base.data.vertices])
+        nk = A.check_neck(Pb)
         print("neck      : " + "  ".join("%s %.3f" % kv for kv in nk.items()))
+        bk = A.check_back(Pb)
+        print("back      : " + "  ".join("%s %.3f" % kv for kv in bk.items()))
     # No orbital dish any more (2026-09-26): the boolean cut a 4.5 mm dish
     # whose steep wall folded over itself under the drape. The eye's hollow
     # is sculpt.drape_eyes' now, over a surface with no wall in it.

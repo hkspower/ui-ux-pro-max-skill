@@ -11,6 +11,7 @@
     python3 build_fighters.py --eye-check      the eye's shape and the open eye on a built head, both bitten
     python3 build_fighters.py --head-check     the skull and neck tables, and the check bitten
     python3 build_fighters.py --neck-check     the neck and its join to the shoulders on the built base, bitten
+    python3 build_fighters.py --back-check     the lats, the V and the spinal furrow on the built base, bitten
     python3 build_fighters.py --out DIR        write somewhere else than the project
 
 WHO. SOUQ AL-DAWAR's three waves are thugs and brawlers (DT_Stages.json,
@@ -255,6 +256,44 @@ def neck_check():
         sys.exit(1)
 
 
+def back_check():
+    """--back-check (2026-09-27): anatomy.check_back on pass one of the
+    build, clean, and each rule broken once by the base that breaks it:
+    no back muscles at all, the erectors flattened, no lats, the lats
+    pushed out past the flank. bpy as a module, a few seconds a base."""
+    import build_saud as legacy
+    import numpy as np
+    from hero import anatomy as A, assembly as ASM
+    def base():
+        legacy.reset_scene()
+        left = A.arm(1.0) + A.leg() + [A.shoe()] + ASM.masses()
+        b = A.union_remesh([A.trunk(), A.neck(), A.head()] + left + [ASM.mirror_x(o) for o in left], 0.006, "Base")
+        A.smooth(b, 0.40, 3)
+        return np.array([v.co[:] for v in b.data.vertices])
+    print("  back     clean   " + "  ".join("%s %.3f" % kv for kv in A.check_back(base()).items()))
+    m = dict(A.BACK_MUSCLES)
+    bites = [("no back muscles", {}, "furrow"),
+             ("flat erectors", dict(m, erector=[(x, z, 0.0005, a) for x, z, p, a in m["erector"]]), "furrow"),
+             ("no lats", dict(erector=m["erector"]), "lats"),
+             ("lats out wide", dict(m, lat=[(x + 0.040, z, p + 0.006, a) for x, z, p, a in m["lat"]]), "V")]
+    caught = 0
+    for label, patch, word in bites:
+        saved = A.BACK_MUSCLES; A.BACK_MUSCLES = patch
+        try:
+            Pb = base()
+            if "--verbose" in sys.argv:
+                print("    " + "  ".join("%s %.3f" % kv for kv in A.check_back(Pb, assert_=False).items()))
+            A.check_back(Pb); print("  %-15s NOT caught" % label)
+        except AssertionError as e:
+            ok = word in str(e); caught += ok
+            print("  %-15s %s  %s" % (label, "caught" if ok else "WRONG CHECK", e))
+        finally:
+            A.BACK_MUSCLES = saved
+    print("  %d of %d back sabotages caught" % (caught, len(bites)))
+    if caught != len(bites):
+        sys.exit(1)
+
+
 def main():
     argv = sys.argv[1:]
     if "--hair-check" in argv:
@@ -271,6 +310,9 @@ def main():
         return
     if "--neck-check" in argv:
         neck_check()
+        return
+    if "--back-check" in argv:
+        back_check()
         return
     # flags are `--x`, plus the value that follows --out and --one; the rest
     # are the men to build

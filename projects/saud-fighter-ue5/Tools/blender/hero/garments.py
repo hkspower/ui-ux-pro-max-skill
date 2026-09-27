@@ -84,6 +84,195 @@ def dress(body, tee=True):
     its own target, and the rest are per-vertex/per-face loops over
     nothing), so building bare-chested does not need a second code path,
     only skipping the (also checked, on the hair precedent) bake of it."""
-    t = shell(body, "Tee", tee_region if tee else (lambda c: False), 0.006, 0.0025, fold=0.0025, fold_size=0.16)
-    pants = shell(body, "Pants", pants_region, 0.010, 0.003, fold=0.0045, fold_size=0.20)
+    # the cloud noise is a millimetre now, only irregularity: the folds are
+    # fit()'s, where cloth actually folds, and the fit is fit()'s drape
+    t = shell(body, "Tee", tee_region if tee else (lambda c: False), 0.006, 0.0025, fold=0.0010, fold_size=0.16)
+    pants = shell(body, "Pants", pants_region, 0.010, 0.003, fold=0.0012, fold_size=0.20)
+    for g, kind in ((t, "tee"), (pants, "pants")):
+        info = fit(g, kind)
+        if info.get("moved"):
+            print("cloth     : %-5s draped %d verts (up to %.0f mm), folds to %.1f mm"
+                  % (kind, info["moved"], info["drape_max"] * 1000, info["fold_max"] * 1000))
     return t, pants, soles()
+
+
+# ---------------------------------------------------------------- the cloth
+# 2026-09-27 ("improve clothes": fit and folds, fabric texture). The tee and
+# the trousers were the body's own surface pushed out 6 and 10 mm and given
+# a 2.5-4.5 mm cloud noise: skin-tight shells that followed every groove --
+# the spinal furrow, the abs, the cleft between the glutes -- and wrapped
+# the waist and the calves, with folds that ran no way in particular. Cloth
+# does neither. It bridges a hollow (it is stretched across it), it hangs
+# from what is above it (off the lats and the chest down to the hem, off
+# the seat and the thigh down to the cuff), and it folds where it is short
+# of room -- stacked above an elastic cuff, gathered under a waistband,
+# creased behind the knee, dragged from the crotch and the armpit.
+import numpy as np
+
+def _hull(pts):
+    """2-D convex hull, counter-clockwise (Andrew's monotone chain)."""
+    p = sorted(map(tuple, pts))
+    if len(p) < 3: return np.array(p)
+    def cross(o, a, b): return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lo, hi = [], []
+    for q in p:
+        while len(lo) >= 2 and cross(lo[-2], lo[-1], q) <= 0: lo.pop()
+        lo.append(q)
+    for q in reversed(p):
+        while len(hi) >= 2 and cross(hi[-2], hi[-1], q) <= 0: hi.pop()
+        hi.append(q)
+    return np.array(lo[:-1] + hi[:-1])
+
+def _hull_radius(uv, bins):
+    """The hull of a slice's points (local 2-D, the axis at the origin) as
+    a radius per angle bin: what cloth stretched round the slice spans."""
+    h = _hull(uv)
+    if len(h) < 3: return None
+    th = np.arctan2(h[:, 0], h[:, 1]); r = np.hypot(h[:, 0], h[:, 1])
+    o = np.argsort(th); th, r = th[o], r[o]
+    th = np.concatenate([th - 2 * np.pi, th, th + 2 * np.pi]); r = np.concatenate([r, r, r])
+    return np.interp(bins, th, r)
+
+def _drape_region(P, idx, centre, ax, u, v, dz, slope, hang_down=True, taper=None):
+    """Drape the vertices `idx` of P about an axis: in slices of `dz` along
+    `ax` (from `centre`), each slice's hull; then, going down the axis,
+    no slice narrower than the one above less `slope` a unit of fall.
+    `taper(t)` (0..1, t the fraction down the region) pulls the result
+    back toward the hull where an elastic cuff gathers it. Moves points
+    outward only. Returns the displacement lengths."""
+    if len(idx) < 50: return np.zeros(0)
+    Q = P[idx] - centre
+    s = Q @ ax
+    a = Q @ u; b = Q @ v
+    th = np.arctan2(a, b); r = np.hypot(a, b)
+    nb = 96; bins = np.linspace(-np.pi, np.pi, nb, endpoint=False)
+    k = np.floor((s - s.min()) / dz).astype(int); nk = k.max() + 1
+    R = np.full((nk, nb), np.nan)
+    for i in range(nk):
+        m = k == i
+        if m.sum() >= 8:
+            hr = _hull_radius(np.stack([a[m], b[m]], 1), bins)
+            if hr is not None: R[i] = hr
+    # fill empty slices from their neighbours
+    for i in range(nk):
+        if np.isnan(R[i]).all():
+            j = i - 1 if i > 0 and not np.isnan(R[i - 1]).all() else min(i + 1, nk - 1)
+            R[i] = R[j]
+    H = R.copy()
+    order = range(1, nk) if hang_down else range(nk - 2, -1, -1)
+    for i in order:
+        prev = i - 1 if hang_down else i + 1
+        H[i] = np.maximum(R[i], H[prev] - slope * dz)
+    if taper is not None:
+        for i in range(nk):
+            w = taper(i / max(nk - 1, 1)); H[i] = H[i] * (1 - w) + R[i] * w
+    # per vertex: the hang radius at its slice and angle (bins wrap)
+    bi = (th + np.pi) / (2 * np.pi) * nb
+    b0 = np.floor(bi).astype(int) % nb; b1 = (b0 + 1) % nb; f = bi - np.floor(bi)
+    want = H[k, b0] * (1 - f) + H[k, b1] * f
+    grow = np.maximum(0.0, want - r)
+    dirv = (np.outer(a / np.maximum(r, 1e-9), u) + np.outer(b / np.maximum(r, 1e-9), v))
+    return grow, dirv
+
+def _smoothstep(e0, e1, x):
+    t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0); return t * t * (3 - 2 * t)
+
+def _noise(P, scale, seed):
+    """A cheap smooth value: a few incommensurate sines, enough to break a
+    fold's regularity without importing the texture noise."""
+    x, y, z = P[:, 0] * scale, P[:, 1] * scale, P[:, 2] * scale
+    return (np.sin(1.7 * x + 2.3 * z + seed) + np.sin(2.9 * y - 1.3 * z + 1.7 * seed)
+            + np.sin(1.1 * x + 3.7 * y + 0.9 * z + 2.9 * seed)) / 3.0
+
+def fit(g, kind):
+    """Drape and fold one garment in place ("tee" or "pants"). Canonical
+    positions (before a man's size). See the note above."""
+    me = g.data
+    n = len(me.vertices)
+    if n == 0: return dict(moved=0)
+    P = np.empty(n * 3); me.vertices.foreach_get("co", P); P = P.reshape(n, 3)
+    D = np.zeros((n, 3))
+    X = np.array([1.0, 0, 0]); Y = np.array([0, 1.0, 0]); Z = np.array([0, 0, 1.0])
+    if kind == "tee":
+        rows = A.TRUNK_ROWS
+        zs = [r[0] for r in rows]; rx = np.interp(P[:, 2], zs, [r[2] for r in rows])
+        trunk = np.nonzero((np.abs(P[:, 0]) < rx * 0.95) & (P[:, 2] < 1.40))[0]
+        out = _drape_region(P, trunk, np.array([0.0, 0.004, 1.40]), -Z, X, Y, 0.006, slope=0.20)
+        if len(out):
+            grow, dirv = out
+            w = 1.0 - _smoothstep(1.30, 1.37, P[trunk, 2])          # none under the arms
+            D[trunk] += dirv * (grow * w)[:, None]
+        # the sleeves: looser toward the cuff, and hanging off the arm
+        for sgn in (1, -1):
+            sh = np.array(Jp("upperarm_l")) * np.array([sgn, 1, 1]); el = np.array(Jp("lowerarm_l")) * np.array([sgn, 1, 1])
+            d = el - sh; L = np.linalg.norm(d); d /= L
+            t = (P - sh) @ d / L
+            m = np.nonzero((P[:, 0] * sgn > rx * 0.95) & (t > -0.1) & (t < 0.5))[0]
+            c = sh + np.outer(t[m] * L, d); rv = P[m] - c
+            rn = rv / np.maximum(np.linalg.norm(rv, axis=1), 1e-9)[:, None]
+            along = np.clip(t[m] / 0.40, 0, 1)
+            loose = 0.002 + 0.007 * along + 0.004 * along * np.clip(-rn[:, 2], 0, 1)
+            D[m] += rn * (loose * _smoothstep(-0.05, 0.10, t[m]))[:, None]
+    else:
+        # the seat and the hips: one hull a slice, over the cleft
+        rows = A.TRUNK_ROWS
+        pel = np.nonzero(P[:, 2] >= 0.86)[0]
+        out = _drape_region(P, pel, np.array([0.0, 0.012, 1.08]), -Z, X, Y, 0.006, slope=0.30)
+        wpel = _smoothstep(0.86, 0.92, P[pel, 2]) if len(pel) else None
+        if len(out):
+            grow, dirv = out; D[pel] += dirv * (grow * wpel)[:, None]
+        # each leg: hangs from the seat and the thigh, gathered at the cuff
+        for sgn in (1, -1):
+            hip = np.array(Jp("thigh_l")) * np.array([sgn, 1, 1]); ank = np.array(Jp("foot_l")) * np.array([sgn, 1, 1])
+            ax = ank - hip; L = np.linalg.norm(ax); ax /= L
+            u = np.cross(ax, Y); u /= np.linalg.norm(u); v = np.cross(u, ax)
+            leg = np.nonzero((P[:, 0] * sgn > 0.004) & (P[:, 2] < 0.93))[0]
+            out = _drape_region(P, leg, hip, ax, u, v, 0.010, slope=0.16,
+                                taper=lambda f: _smoothstep(0.86, 0.98, f))
+            if len(out):
+                grow, dirv = out
+                w = 1.0 - _smoothstep(0.88, 0.93, P[leg, 2])
+                D[leg] += dirv * (grow * w)[:, None]
+    P = P + D
+    me.vertices.foreach_set("co", P.reshape(-1)); me.update()
+    # ---- the folds, along the normals of the draped surface
+    Nn = np.empty(n * 3); me.vertices.foreach_get("normal", Nn); Nn = Nn.reshape(n, 3)
+    F = np.zeros(n)
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    if kind == "tee":
+        # slack above the hem, round the waist: soft horizontal folds
+        env = _smoothstep(1.070, 1.095, z) * (1 - _smoothstep(1.17, 1.22, z))
+        F += 0.0020 * env * np.sin(2 * np.pi * (z - 1.07) / 0.034 + 1.8 * _noise(P, 18.0, 1.0))
+        # drag from each armpit toward the middle of the chest and back
+        for sgn in (1, -1):
+            ap = np.array([0.165 * sgn, 0.0, 1.345])
+            q = P - ap; rho = np.hypot(q[:, 0], q[:, 2]); ang = np.arctan2(q[:, 2], -q[:, 0] * sgn)
+            env = _smoothstep(0.025, 0.05, rho) * (1 - _smoothstep(0.09, 0.14, rho)) * (np.abs(x) < 0.17)
+            F += 0.0015 * env * np.sin(9.0 * ang + 1.5 * _noise(P, 14.0, 2.0 + sgn))
+    else:
+        for sgn in (1, -1):
+            hip = np.array(Jp("thigh_l")) * np.array([sgn, 1, 1]); ank = np.array(Jp("foot_l")) * np.array([sgn, 1, 1])
+            ax = ank - hip; L = np.linalg.norm(ax); ax /= L
+            t = (P - hip) @ ax / L
+            side = (x * sgn > 0.004).astype(float)
+            # stacked above the elastic cuff
+            env = _smoothstep(0.82, 0.87, t) * (1 - _smoothstep(0.95, 0.985, t)) * side
+            F += 0.0035 * env * np.sin(2 * np.pi * t * L / 0.030 + 2.2 * _noise(P, 20.0, 3.0 + sgn))
+            # creased behind the knee
+            back = _smoothstep(0.0, 0.03, y - (hip[1] + ax[1] * t * L))
+            env = np.exp(-((t - 0.52) / 0.045) ** 2) * back * side
+            F += 0.0030 * env * np.sin(2 * np.pi * t * L / 0.022 + 1.2 * _noise(P, 25.0, 5.0 + sgn))
+            # drag from the crotch down the inside of the thigh, in front
+            cr = np.array([0.0, -0.02, 0.890])
+            q = P - cr; rho = np.hypot(q[:, 0], q[:, 2]); ang = np.arctan2(-q[:, 2], q[:, 0] * sgn)
+            front = _smoothstep(0.0, 0.03, -(y - 0.0))
+            env = _smoothstep(0.03, 0.06, rho) * (1 - _smoothstep(0.13, 0.20, rho)) * front * side * (z < 0.89)
+            F += 0.0020 * env * np.sin(7.0 * ang + 1.4 * _noise(P, 16.0, 7.0 + sgn))
+        # gathered under the elastic waistband
+        th = np.arctan2(x, y - 0.012)
+        env = _smoothstep(0.985, 1.005, z) * (1 - _smoothstep(1.045, 1.060, z))
+        F += 0.0015 * env * np.sin(th * 26.0 + 0.8 * _noise(P, 30.0, 9.0))
+    P = P + Nn * F[:, None]
+    me.vertices.foreach_set("co", P.reshape(-1)); me.update()
+    return dict(moved=int((np.linalg.norm(D, axis=1) > 0.001).sum()), drape_max=float(np.linalg.norm(D, axis=1).max()),
+                fold_max=float(np.abs(F).max()))
