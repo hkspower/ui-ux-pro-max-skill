@@ -2571,7 +2571,18 @@ build's rim light the flank still had a ridge: a slice's hull is a polygon,
 sharp at the lat's outermost point, and the hang carried that corner down
 the side. The hang is rounded across angles now (`ANGLE_SMOOTH`, 10 passes
 where it was 3): no ridge under side light on the test body, 15.5 mm off
-the waist. The sabotage suite
+the waist. On Saud's full build (15.8 mm) the ragged edge is gone; a soft
+ridge stays where the tee lies over the edge of the lat, which is what a
+shirt over that muscle shows.
+
+**Built, 2026-09-27/28** (Saud and AL-SAQR 20:48-21:40, the other four
+22:33-00:12 Riyadh; the container restarted once in between): all six men
+whole with the neck, the back and the clothes -- every build passed
+`check_neck`, `check_back`, `check_cloth`, the head, eye, nose and hair
+checks. Then the iron arm (its check passes), `anime-men.png`, the souq
+fight scene and its anime previews; the scene's 34 re-exported souq FBX
+(new ids only) were put back. **Not verified:** no engine has imported any
+of the six men. The sabotage suite
 ran 4 of 4 with the side fix at 0.20; the clean dress passes every rule
 with all of it.
 Seen, not touched (they were in the renders before this work): the
