@@ -2534,14 +2534,17 @@ They had one roughness each from the shader (0.88, 0.82) and the bake's
 generic weave.
 
 **Checked:** `garments.check_cloth`, in every build: the tee bridges the
-spinal furrow and stands at least 8 mm off the waist (9; skin-tight, 6);
-no cloth within 2 mm of the skin; the trousers swing at least 2 mm over
+spinal furrow (it sank 5.8 mm into it unfitted); no cloth within 2 mm of
+the skin; the trousers swing at least 2 mm over
 the folds above the cuff; in front of the crotch no cloth more than
 15 mm off the skin (10 clean, 29 with the skirt; behind, cloth hanging
 from the seat rightly bridges the fold under it, 23 mm, so the rule is
 held on the front). `build_fighters.py --cloth-check` dresses a body clean and then
 once per rule broken -- no fit, no folds, the seat's drape below the
-crotch, no hold-off from the skin with the folds tripled.
+crotch, no hold-off from the skin with the folds tripled -- 4 of 4
+caught, each by its own rule. How far the tee hangs off the waist is
+reported, not held: 9.3 mm draped against 8.6 unfitted, too close for a
+rule to tell apart.
 
 ## Working rules
 

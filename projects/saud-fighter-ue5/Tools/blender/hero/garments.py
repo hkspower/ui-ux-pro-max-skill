@@ -325,8 +325,8 @@ def check_cloth(tee, pants, body, assert_=True):
 
     the tee bridges the spinal furrow -- at 1.14 its back is no more than
     1 mm further in over the spine than 30 mm out (skin-tight it followed
-    the furrow, 6 mm); it hangs off the waist -- at 1.14 it stands at least
-    8 mm off the body's side (9; skin-tight: 6); no cloth closer to the skin
+    the furrow, 6 mm); how far it hangs off the waist at 1.14 is reported,
+    not held -- 9.3 mm draped, 8.6 unfitted, too close to tell apart; no cloth closer to the skin
     than MIN_CLEAR (2 mm) anywhere; the trousers stack above the cuff
     -- down the front of each shin from 80 to 96 % of the leg, the cloth's
     distance off the bone line swings 2 mm or more (a tube: under 1); and
@@ -384,7 +384,6 @@ def check_cloth(tee, pants, body, assert_=True):
         return out
     if len(T):
         assert out["tee_furrow"] <= 0.001, "skin-tight: the tee sinks %.1f mm into the spinal furrow" % (out["tee_furrow"] * 1000)
-        assert out["tee_hang"] >= 0.008, "skin-tight: the tee stands %.0f mm off the waist, want 8" % (out["tee_hang"] * 1000)
     for kind in ("tee", "pants"):
         if kind in worst:
             assert worst[kind] >= MIN_CLEAR, "the %s goes %.1f mm from the skin (into it below 0), want %.0f" % (kind, worst[kind] * 1000, MIN_CLEAR * 1000)
