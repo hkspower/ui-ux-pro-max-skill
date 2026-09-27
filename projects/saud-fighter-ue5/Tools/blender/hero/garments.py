@@ -184,6 +184,10 @@ def _drape_region(P, idx, centre, ax, u, v, dz, slope, hang_down=True, taper=Non
     for _ in range(3):
         Hp = np.vstack([H[:1], H, H[-1:]])
         H = 0.25 * Hp[:-2] + 0.5 * Hp[1:-1] + 0.25 * Hp[2:]
+    # and round its corners: a hull is a polygon, sharp at the outermost
+    # point of a bulge (the lat), and the hang carried that corner down the
+    # flank as a ridge that caught the rim light (the full build of Saud)
+    for _ in range(ANGLE_SMOOTH):
         H = 0.25 * np.roll(H, 1, 1) + 0.5 * H + 0.25 * np.roll(H, -1, 1)
     # per vertex: the hang radius, interpolated between slices (at slice
     # centres) and between angle bins (which wrap)
@@ -245,6 +249,7 @@ def _noise(P, scale, seed):
 CLEAR = {"tee": 0.0030, "pants": 0.0045}   # the closest cloth comes to the skin
 FOLD_SCALE = 1.0          # the folds' amplitude, for the check's sabotage
 TEE_SLOPE = 0.35          # how fast the tee may narrow under what it hangs from (0.20 tented it off the lats)
+ANGLE_SMOOTH = 10         # passes rounding each slice's hang across angles (was 3)
 ARM_CLEAR = (0.11, 0.15)  # the tee's drape keeps this far off the upper arm's axis
 DRAPE_SMOOTH = 60         # at most, smoothing the drape where it turns faces over
 PELVIS_Z = 0.93           # the seat's drape stops above the crotch (0.90)

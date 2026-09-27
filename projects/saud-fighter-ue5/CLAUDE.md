@@ -2544,7 +2544,7 @@ once per rule broken -- no fit, no folds, the seat's drape below the
 crotch, no hold-off from the skin with the folds tripled -- 4 of 4
 caught, each by its own rule. How far the tee hangs off the waist is
 reported, not held: 9.3 mm draped against 8.6 unfitted, too close for a
-rule to tell apart (19.4 mm since the side fix below).
+rule to tell apart (15.5 mm since the side fix below).
 
 **Found on the first full build, the tee's sides.** Down each flank, from
 the armpit to the hem, a ragged dark crease. Two causes, both in the
@@ -2566,7 +2566,12 @@ off the waist on the test body. Saud's own build still stood 36 mm off: on
 his arms (x 1.30) the sleeve and the web of the armpit reach down to 1.26,
 and the drape took them in and hung the tee from them. The drape keeps
 11-15 cm off the upper arm's axis now (`garments.ARM_CLEAR`): 19 mm on a
-test body with his arms, the same as on one without. The sabotage suite
+test body with his arms, the same as on one without. And under the full
+build's rim light the flank still had a ridge: a slice's hull is a polygon,
+sharp at the lat's outermost point, and the hang carried that corner down
+the side. The hang is rounded across angles now (`ANGLE_SMOOTH`, 10 passes
+where it was 3): no ridge under side light on the test body, 15.5 mm off
+the waist. The sabotage suite
 ran 4 of 4 with the side fix at 0.20; the clean dress passes every rule
 with all of it.
 Seen, not touched (they were in the renders before this work): the
