@@ -11,6 +11,33 @@ from .sculpt import EYE_Z, EAR_Z, EAR_X, EAR_Y, HAIRLINE   # the face's layout l
 J = legacy.J; Jp = A.Jp; X, Y, Z = A.X, A.Y, A.Z
 ellipsoid, loft, tube, ring_z, mirror_x = A.ellipsoid, A.loft, A.tube, A.ring_z, A.mirror_x
 
+def chain(name, pts, radii, out_dir, step=0.010):
+    """Ellipsoids along a polyline, each aligned with its segment and
+    overlapping its neighbours, so the union is one smooth band: a muscle
+    or a bone with a length, which one ellipsoid cannot draw. `radii` per
+    point is (across, through): across the band, and how far it stands out
+    along `out_dir(point)` -- the way the surface under it faces."""
+    out = []
+    pts = [Vector(p) for p in pts]
+    segs = list(zip(zip(pts, radii), zip(pts[1:], radii[1:])))
+    for i, ((a, ra), (b, rb)) in enumerate(segs):
+        d = b - a; n = max(1, int(math.ceil(d.length / step)))
+        for k in range(n + (1 if i == len(segs) - 1 else 0)):
+            t = k / n
+            c = a + d * t
+            r0 = ra[0] + (rb[0] - ra[0]) * t; r1 = ra[1] + (rb[1] - ra[1]) * t
+            zax = d.normalized()
+            yax = Vector(out_dir(c)); yax = (yax - zax * yax.dot(zax)).normalized()
+            xax = yax.cross(zax)
+            bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=24, ring_count=14, location=(0, 0, 0))
+            o = bpy.context.object; o.name = name
+            half = max(step * 1.6, min(r0, r1))     # long links, well overlapped: no beads
+            R = Matrix((xax * r0, yax * r1, zax * half)).transposed()
+            o.matrix_world = Matrix.Translation(c) @ R.to_4x4()
+            bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+            out.append(o)
+    return out
+
 def masses():
     """The muscle that sits proud of the lofts. Rewritten 2026-09-25 ("make
     full body fix"): the pec was one ball on each side of the chest and the
@@ -41,7 +68,20 @@ def masses():
     # neck-to-shoulder diagonal and the trunk loft was left to do it with a
     # step. It has to reach the shoulder. Trimmed 2026-09-25: the neck's
     # base measured 0.284 m across at 1.53, a mound, not a slope.
-    out.append(ellipsoid("trap", (0.108, 0.024, 1.488), (0.054, 0.040, 0.070), (0.70, -0.10, -0.30)))
+    # 2026-09-26 ("fix neck"): that one ellipsoid made a plateau 50 mm wide
+    # at 1.52-1.53 from the neck out, and the neck stood up out of it with a
+    # 37 mm step -- a column on a shelf, and on ZAYOS, widened by his torso
+    # factor, a table. The upper trapezius is a band now, from under the
+    # occiput down the back and side of the neck to the acromion, so the
+    # shoulder line runs from high on the neck down to the shoulder in one
+    # slope (anatomy.NECK_MUSCLES; check_neck measures it).
+    out.extend(chain(*A.NECK_MUSCLES["trap"]))
+    # the sternocleidomastoid, from behind the ear to the top of the sternum:
+    # the diagonal that makes a neck read as a neck and not a tube; the two
+    # meet at the sternum with the jugular notch between them
+    out.extend(chain(*A.NECK_MUSCLES["scm"]))
+    # the collarbones, the ridge from the sternum out to the shoulder
+    out.extend(chain(*A.NECK_MUSCLES["clavicle"]))
     # The lat: at the side-back of the ribcage, what makes the V from behind.
     # widest at the armpit, gone by the waist -- centred high, so its bottom
     # tapers out above the lower ribs instead of bulging at them
@@ -58,7 +98,6 @@ def masses():
     # ...and its inner edge 6 mm short of the midline: meeting there, the
     # two welded across it and pulled the crotch down 13 mm
     out.append(ellipsoid("glute", (0.090, 0.078, 0.924), (0.084, 0.048, 0.086)))
-    out.append(ellipsoid("scm", (0.034, -0.032, 1.566), (0.015, 0.015, 0.048), (0.38, -0.58, 1.0)))
     # The external oblique, proud of the flank between the ribs and the crest.
     out.append(ellipsoid("oblique", (0.116, 0.004, 1.170), (0.032, 0.056, 0.072)))
     # The rectus abdominis: three pairs of bellies, 1 cm proud, the linea
@@ -742,6 +781,10 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     base = union_remesh(base_parts + left + right, 0.006 * vs, "Base")
     A.smooth(base, 0.40, 3)
     print("base      : %d verts  %.1fs" % (len(base.data.vertices), time.time() - t))
+    if vs <= 1.0:
+        import numpy as np
+        nk = A.check_neck(np.array([v.co[:] for v in base.data.vertices]))
+        print("neck      : " + "  ".join("%s %.3f" % kv for kv in nk.items()))
     # No orbital dish any more (2026-09-26): the boolean cut a 4.5 mm dish
     # whose steep wall folded over itself under the drape. The eye's hollow
     # is sculpt.drape_eyes' now, over a surface with no wall in it.

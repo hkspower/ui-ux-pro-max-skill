@@ -2411,6 +2411,58 @@ padding included; the right arm's seam gives up at most 8 texels (2-3
 mm) of iron there. The unwrap itself is not changed. **Not verified:** no
 engine has imported any of the six men or the iron maps.
 
+## The neck -- 2026-09-27
+
+Asked as "fix neck", settled as the Unreal men, all six, and all of: shape
+and muscles, length and thickness, the join to the head, the join to the
+shoulders. Measured on pass one of the build (the base the pipeline unions
+at 6 mm) and seen in clay from four sides: the neck was a plain tube
+standing out of a flat shelf. The shoulder line -- the top of the surface
+seen from the front -- sat at 1.52-1.53 from 80 to 130 mm out and the neck
+rose out of it with a 37 mm step: the one trapezius ellipsoid was a mound
+over the shoulder, not a muscle up the neck, and on ZAYOS, widened by his
+torso factor, the shelf was a table. The sternocleidomastoid was a 96 mm
+blob low on the side of the neck, so there was no diagonal from behind the
+ear to the sternum and no jugular notch; across the top of the chest ran a
+straight crease, the edge of the trunk loft where the collarbones belong.
+
+**What changed** (`anatomy.NECK_MUSCLES`, built by `assembly.chain` in
+`assembly.masses`): each muscle is a band of overlapping ellipsoids along
+a polyline, each link aligned with its segment and standing out along the
+way the surface under it faces --
+- **the upper trapezius**, a sheet from the midline under the occiput down
+  the back and side of the neck and over the top of the shoulder to the
+  acromion, thin on the neck, thickest over the shoulder: the shoulder line
+  now runs from 1.557 at the neck's side to 1.49 at the shoulder in one
+  slope, and the back of the neck broadens into the back;
+- **the sternocleidomastoid**, from the mastoid behind the ear to the top
+  of the sternum, its lower end seated on the chest's own front (buried in
+  it, the first try left no notch after the 6 mm remesh): the two tendons
+  stand 6 mm proud either side of the jugular notch;
+- **the collarbones**, a low ridge from the sternum bowing forward and out
+  to the shoulder, each point set off the chest's measured front so it
+  stands 3.5-5 mm -- the straight crease is a clavicle now.
+The column itself (`NECK_ROWS`) is 4-8 mm slimmer, because the muscles now
+carry the outline: the neck is 0.452 m round at 1.55 (was 0.416, a thin
+tube for a fighter). It reads shorter because the trapezius climbs it; its
+joints, the chin and the shoulders are where they were. The joins: to the
+head, the SCM runs up behind the angle of the jaw into the skull; to the
+shoulders, the trapezius slope and the collarbones. The first tries at the
+chain showed as cords and beads (links too short, radii too narrow), which
+the preview caught before any build.
+
+**Checked:** `anatomy.check_neck`, in every build, on the base: the
+shoulder line falls at least 0.35 from the neck to 130 mm out (0.59; the
+old shelf -0.05); the trapezius climbs the neck -- 12 mm out from the
+column the line is at 1.545 or higher (1.557; the old 1.530); the neck
+0.40-0.46 m round; the SCM's tendons 2 mm or more proud of the notch (6 mm;
+the old -0.2). `build_fighters.py --neck-check` builds the base that
+breaks each -- the old trapezius, a slumped one, one only over the
+shoulder, no SCM, a column a third thicker -- 5 of 5 caught. The fall from
+the neck to the acromion is reported (54 mm), not held: no sabotage moved
+it without the shelf rule firing first, so a rule for it would be
+unproven. The head, nose, hair and eye checks still pass.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

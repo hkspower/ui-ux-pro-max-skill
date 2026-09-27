@@ -10,6 +10,7 @@
     python3 build_fighters.py --nose-check     every man's nose profile and widths, and the check bitten
     python3 build_fighters.py --eye-check      the eye's shape and the open eye on a built head, both bitten
     python3 build_fighters.py --head-check     the skull and neck tables, and the check bitten
+    python3 build_fighters.py --neck-check     the neck and its join to the shoulders on the built base, bitten
     python3 build_fighters.py --out DIR        write somewhere else than the project
 
 WHO. SOUQ AL-DAWAR's three waves are thugs and brawlers (DT_Stages.json,
@@ -194,6 +195,66 @@ def head_check():
         sys.exit(1)
 
 
+def neck_check():
+    """--neck-check (2026-09-26): anatomy.check_neck on pass one of the
+    build -- the base the pipeline unions at 6 mm -- clean, and each of its
+    rules broken once by building the base that breaks it: the old
+    trapezius (the shelf), a slumped trapezius (the trunk's own shelf shows), a trapezius
+    only over the shoulder (the step), no SCM (no notch), the neck column
+    a third thicker.
+    bpy as a module, a few seconds a base."""
+    import build_saud as legacy
+    import numpy as np
+    from hero import anatomy as A, assembly as ASM
+    def base():
+        legacy.reset_scene()
+        left = A.arm(1.0) + A.leg() + [A.shoe()] + ASM.masses()
+        b = A.union_remesh([A.trunk(), A.neck(), A.head()] + left + [ASM.mirror_x(o) for o in left], 0.006, "Base")
+        A.smooth(b, 0.40, 3)
+        return np.array([v.co[:] for v in b.data.vertices])
+    print("  neck     clean   " + "  ".join("%s %.3f" % kv for kv in A.check_neck(base()).items()))
+    muscles, rows = dict(A.NECK_MUSCLES), list(A.NECK_ROWS)
+    def old_trap():
+        m = dict(muscles); m["trap"] = ("trap", [(0.108, 0.024, 1.470), (0.108, 0.024, 1.506)],
+                                        [(0.054, 0.040), (0.054, 0.040)], lambda c: (0.70, -0.10, -0.30))
+        return m
+    def slumped():
+        # the trapezius pulled down 45 mm over the shoulder: a slumped,
+        # sloping shoulder -- the neck itself untouched
+        n, pts, radii, f = muscles["trap"]
+        return dict(muscles, trap=(n, [(x, y, z - (0.045 if x >= 0.07 else 0.0)) for x, y, z in pts], radii, f))
+    def no_scm():
+        n, pts, radii, f = muscles["scm"]
+        return dict(muscles, scm=(n, [(x, 0.030, z) for x, y, z in pts], [(0.004, 0.004)] * len(pts), f))
+    def off_the_neck():
+        # the trapezius only over the shoulder, none up the neck: the
+        # column stands up out of the slope
+        n, pts, radii, f = muscles["trap"]
+        return dict(muscles, trap=(n, pts[3:], radii[3:], f))
+    bites = [("old trapezius", dict(NECK_MUSCLES=old_trap()), "shelf"),
+             ("slumped", dict(NECK_MUSCLES=slumped()), "shelf"),
+             ("trap off neck", dict(NECK_MUSCLES=off_the_neck()), "column"),
+             ("no SCM", dict(NECK_MUSCLES=no_scm()), "notch"),
+             ("thick neck", dict(NECK_ROWS=[(z, cy, rx * 1.35, ry * 1.35) for z, cy, rx, ry in rows]), "round")]
+    caught = 0
+    for label, patch, word in bites:
+        saved = {k: getattr(A, k) for k in patch}
+        for k, v in patch.items(): setattr(A, k, v)
+        try:
+            Pb = base()
+            if "--verbose" in sys.argv:
+                print("    " + "  ".join("%s %.3f" % kv for kv in A.check_neck(Pb, assert_=False).items()))
+            A.check_neck(Pb); print("  %-15s NOT caught" % label)
+        except AssertionError as e:
+            ok = word in str(e); caught += ok
+            print("  %-15s %s  %s" % (label, "caught" if ok else "WRONG CHECK", e))
+        finally:
+            for k, v in saved.items(): setattr(A, k, v)
+    print("  %d of %d neck sabotages caught" % (caught, len(bites)))
+    if caught != len(bites):
+        sys.exit(1)
+
+
 def main():
     argv = sys.argv[1:]
     if "--hair-check" in argv:
@@ -207,6 +268,9 @@ def main():
         return
     if "--head-check" in argv:
         head_check()
+        return
+    if "--neck-check" in argv:
+        neck_check()
         return
     # flags are `--x`, plus the value that follows --out and --one; the rest
     # are the men to build

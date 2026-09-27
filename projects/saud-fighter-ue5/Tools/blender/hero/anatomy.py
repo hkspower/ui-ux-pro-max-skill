@@ -130,13 +130,67 @@ def neck():
     rows = NECK_ROWS
     return loft("neck", [ring_z(z, 0, cy, rx, ry) for z, cy, rx, ry in rows], segs=32)
 
-NECK_ROWS = [(1.500, 0.008, 0.070, 0.070), (1.530, 0.012, 0.070, 0.064),
-            (1.560, 0.014, 0.069, 0.062), (1.590, 0.015, 0.064, 0.059),
-            (1.620, 0.016, 0.058, 0.057), (1.645, 0.020, 0.052, 0.056),
+NECK_ROWS = [(1.500, 0.008, 0.066, 0.068), (1.530, 0.012, 0.062, 0.062),
+            (1.560, 0.014, 0.058, 0.059), (1.590, 0.015, 0.056, 0.057),
+            (1.620, 0.016, 0.054, 0.056), (1.645, 0.020, 0.050, 0.055),
             (1.665, 0.024, 0.044, 0.052)]
 # it runs on up inside the skull so the nape curves into the occiput:
 # stopped at 1.620 its back stood 10 mm proud of the skull there, a ring
 # round the back of the head
+
+# The neck's muscles and the collarbones, as polylines with (across,
+# through) radii per point and the direction they stand out along
+# (2026-09-26, "fix neck"); assembly.masses builds them with
+# assembly.chain. Left side (x > 0); masses mirrors them.
+def _out_neck(c):
+    """Outward from the neck's axis, level."""
+    v = Vector((c.x, c.y - 0.012, 0.0))
+    return v if v.length > 1e-6 else Vector((1.0, 0.0, 0.0))
+def _out_up(c):
+    """Up and a little out: the top of the shoulder."""
+    return Vector((0.35 * (1 if c.x >= 0 else -1), 0.10, 1.0))
+def _out_front(c):
+    return Vector((0.25 * (1 if c.x >= 0 else -1), -1.0, 0.25))
+
+def _out_trap(c):
+    """Back and out on the neck, turning to up over the shoulder."""
+    k = min(1.0, max(0.0, (1.560 - c.z) / 0.040))
+    sx = 1 if c.x >= 0 else -1
+    back = Vector((0.45 * sx, 1.0, 0.15)).normalized()
+    up = Vector((0.30 * sx, 0.15, 1.0)).normalized()
+    return back * (1.0 - k) + up * k
+
+NECK_MUSCLES = {
+    # the upper trapezius: a sheet, not a cord -- from the midline under the
+    # occiput, down the back and side of the neck, over the top of the
+    # shoulder to the acromion. Wide and thin at the neck (the two sides
+    # meet over the spine), thickest over the top of the shoulder.
+    "trap": ("trap",
+             [(0.012, 0.058, 1.612), (0.026, 0.056, 1.580), (0.044, 0.050, 1.550),
+              (0.078, 0.036, 1.524), (0.118, 0.026, 1.505), (0.160, 0.018, 1.489)],
+             [(0.024, 0.006), (0.030, 0.008), (0.034, 0.011), (0.034, 0.013), (0.030, 0.012), (0.022, 0.008)],
+             _out_trap),
+    # the sternocleidomastoid: the mastoid, behind the ear, to the sternum
+    "scm": ("scm",
+            # the lower two on the chest's top, not the neck loft's: the
+            # trunk stands in front of the neck there, and buried in it the
+            # tendons were gone after the 6 mm remesh (no notch at all)
+            [(0.049, 0.018, 1.626), (0.043, -0.010, 1.590), (0.034, -0.040, 1.548),
+             (0.024, -0.071, 1.506), (0.017, -0.089, 1.478)],
+            [(0.010, 0.008), (0.011, 0.010), (0.011, 0.010), (0.009, 0.009), (0.007, 0.008)],
+            _out_neck),
+    # the clavicle, the sternal end to the acromion, bowed forward in its
+    # inner two thirds: a low ridge, not a bar
+    "clavicle": ("clavicle",
+                 # centres set off the chest's own front (measured on the trunk
+                 # loft at each point) so each stands 3.5-5 mm proud of it: the
+                 # sternal ends and the SCM's tendons either side of the
+                 # jugular notch, the shaft a low ridge out to the shoulder
+                 [(0.024, -0.0874, 1.470), (0.060, -0.0846, 1.474), (0.100, -0.0773, 1.480),
+                  (0.140, -0.0610, 1.485), (0.170, -0.0460, 1.486)],
+                 [(0.008, 0.007), (0.009, 0.007), (0.009, 0.007), (0.009, 0.0065), (0.008, 0.005)],
+                 _out_front),
+}
 
 def _pchip(xs, ys, x):
     """Monotone cubic through (xs, ys) -- a curve that never overshoots its
@@ -286,6 +340,48 @@ def check_head(rows=None, neck=None):
     assert inside, "the neck's top stands out of the skull: a ring round the back of the head"
     return dict(length=length, breadth=breadth, breadth_z=bz, cheek=cheek, gonion=gonion,
                 top=top, cap=cap, kink=kink, set_back=set_back)
+
+def check_neck(P, assert_=True):
+    """The neck on the built base (pass one, canonical), 2026-09-26 ("fix
+    neck"). P is (N,3) vertex positions. The shoulder line is the top of the
+    surface seen from the front, at each |x|:
+
+    no plateau -- it falls at least 0.35 (19 degrees) on average from the
+    neck's side (x 80 mm) to 130 mm out (the old trapezius was a shelf there,
+    -0.05 to 0.2); the trapezius climbs the neck -- 12 mm out from the neck
+    column the line is at 1.545 or higher (the neck stood up out of a shelf
+    at 1.533, a column on a table); the neck 0.40-0.46 m
+    round at 1.55, a fighter's, with the muscles on it; and the SCM's
+    tendons stand at least 2 mm proud of the midline at the base of the
+    throat, so there is a jugular notch between them. Returns the numbers."""
+    P = np.asarray(P)
+    def top(x):
+        b = P[(np.abs(np.abs(P[:, 0]) - x) < 0.003) & (P[:, 2] < 1.62) & (P[:, 2] > 1.35)
+              & (np.abs(P[:, 1] - 0.02) < 0.06)]
+        return float(b[:, 2].max())
+    xs = np.arange(0.070, 0.2001, 0.010)
+    line = np.array([top(x) for x in xs])
+    i08, i13, i20 = [int(round((v - 0.070) / 0.010)) for v in (0.080, 0.130, 0.200)]
+    # (the fall from the neck to the acromion is reported, not held: no
+    # sabotage moved it without tripping the shelf rule first)
+    plateau = (line[i08] - line[i13]) / 0.050
+    # how high the trapezius climbs the neck: the shoulder line 12 mm out
+    # from the neck column (its half-width just under the chin)
+    wn = _at(NECK_ROWS, 1.575)[2]
+    climb = top(wn + 0.012)
+    fall = float(line[i08] - line[i20])
+    girth = _girth_of(P, np.array([0.0, 0.012, 1.55]), np.array([0.0, 0.0, 1.0]), 0.095)
+    def front(x, z):
+        b = P[(np.abs(np.abs(P[:, 0]) - x) < 0.004) & (np.abs(P[:, 2] - z) < 0.005) & (P[:, 1] < 0)]
+        return float(b[:, 1].min())
+    notch = front(0.0, 1.488) - min(front(x, 1.488) for x in (0.014, 0.018, 0.022))
+    if not assert_:
+        return dict(plateau=plateau, climb=climb, fall=fall, girth=girth, notch=notch)
+    assert 0.40 <= girth <= 0.46, "the neck %.3f m round at 1.55, want 0.40-0.46" % girth
+    assert notch >= 0.002, "no jugular notch: the SCM's tendons %.1f mm proud of the midline, want 2" % (notch * 1000)
+    assert plateau >= 0.35, "a shelf: the shoulder line falls only %.2f from the neck to 130 mm out, want 0.35" % plateau
+    assert climb >= 1.545, "a column on the shoulders: the trapezius reaches only %.3f up the side of the neck, want 1.545" % climb
+    return dict(plateau=plateau, climb=climb, fall=fall, girth=girth, notch=notch)
 
 def bite_head():
     """check_head broken once per rule (numpy). Returns (caught, total)."""
