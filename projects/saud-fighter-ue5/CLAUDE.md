@@ -2544,7 +2544,28 @@ once per rule broken -- no fit, no folds, the seat's drape below the
 crotch, no hold-off from the skin with the folds tripled -- 4 of 4
 caught, each by its own rule. How far the tee hangs off the waist is
 reported, not held: 9.3 mm draped against 8.6 unfitted, too close for a
-rule to tell apart.
+rule to tell apart (19.4 mm since the side fix below).
+
+**Found on the first full build, the tee's sides.** Down each flank, from
+the armpit to the hem, a ragged dark crease. Two causes, both in the
+drape: it took only the vertices inside 95 % of the trunk's half-width (so
+the sleeves stayed out of it), which left the tee's own side strip on the
+skin while the front and back hung out up to 3 cm -- a step; and it pushes
+each vertex straight out from the body's axis, so where the flank curls
+round the lat two neighbours were pushed across each other -- measured,
+339 faces turned over on the sides, against 25 on the plain shell. The
+sides below the armpit are draped now, faded out toward the arm; and
+where a face turns over, the drape is smoothed over the garment's surface
+round it until it does not (`garments._untangle`: 12 left). Smoothed
+everywhere instead, it lost the bridging of the small hollows and the abs
+showed through again. What remains down each side reads as a side seam.
+With the sides draped, the tee hung from the lats and stood 39 mm off
+Saud's waist, over the waistband, a tent: the slope it may narrow at under
+what it hangs from is 0.35 now (was 0.20, which is less than his V), 19 mm
+off the waist on the test body. The sabotage suite ran 4 of 4 with the side
+fix at 0.20; the clean dress passes every rule at 0.35.
+Seen, not touched (they were in the renders before this work): the
+sleeves' hems are ragged, and the sleeves stand off the arm like boxes.
 
 ## Hits -- 2026-09-27
 

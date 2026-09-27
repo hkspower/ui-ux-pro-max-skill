@@ -169,6 +169,15 @@ def _drape_region(P, idx, centre, ax, u, v, dz, slope, hang_down=True, taper=Non
     if taper is not None:
         for i in range(nk):
             w = taper(i / max(nk - 1, 1)); H[i] = H[i] * (1 - w) + R[i] * w
+    # stretched round the body again: the hang is taken angle by angle, and
+    # where one angle hangs from a bulge above (a lat) and its neighbour
+    # does not, the slice had a concave corner -- a crease down the flank
+    # from the armpit to the hem (seen on the full build). Cloth pulled
+    # round a body has none; each slice is its own hull again.
+    ca, sa = np.cos(bins), np.sin(bins)
+    for i in range(nk):
+        hr = _hull_radius(np.stack([H[i] * sa, H[i] * ca], 1), bins)
+        if hr is not None: H[i] = np.maximum(H[i], hr)
     # smooth the hang over neighbouring slices and angles: a slice's hull
     # jumps, and each vertex taking its own slice's value terraced the
     # cloth into horizontal ridges (the first preview)
@@ -189,6 +198,40 @@ def _drape_region(P, idx, centre, ax, u, v, dz, slope, hang_down=True, taper=Non
     dirv = (np.outer(a / np.maximum(r, 1e-9), u) + np.outer(b / np.maximum(r, 1e-9), v))
     return grow, dirv
 
+def _face_normals(P, ls, lt, lv):
+    """Each polygon's normal (unnormalised): the cross of its diagonals, or
+    of two sides for a triangle."""
+    a = P[lv[ls]]; b = P[lv[ls + 1]]; c = P[lv[ls + 2]]
+    d = np.where((lt >= 4)[:, None], P[lv[ls + np.minimum(3, lt - 1)]], a)
+    return np.where((lt >= 4)[:, None], np.cross(c - a, d - b), np.cross(b - a, c - a))
+
+def _untangle(me, P, D, passes):
+    """Smooth the displacement D over the mesh, but only round faces that
+    D turns over (their normal more than ~80 degrees from where it was),
+    two rings out, until none are left or `passes` runs out."""
+    n = len(P)
+    E = np.empty(len(me.edges) * 2, dtype=np.int64); me.edges.foreach_get("vertices", E); E = E.reshape(-1, 2)
+    deg = np.maximum(np.bincount(E.ravel(), minlength=n), 1).astype(float)[:, None]
+    m = len(me.polygons)
+    ls = np.empty(m, dtype=np.int64); me.polygons.foreach_get("loop_start", ls)
+    lt = np.empty(m, dtype=np.int64); me.polygons.foreach_get("loop_total", lt)
+    lv = np.empty(len(me.loops), dtype=np.int64); me.loops.foreach_get("vertex_index", lv)
+    n0 = _face_normals(P, ls, lt, lv)
+    n0 /= np.maximum(np.linalg.norm(n0, axis=1), 1e-12)[:, None]
+    for _ in range(passes):
+        n1 = _face_normals(P + D, ls, lt, lv)
+        n1 /= np.maximum(np.linalg.norm(n1, axis=1), 1e-12)[:, None]
+        bad = np.nonzero((n0 * n1).sum(1) < 0.2)[0]
+        if not len(bad): break
+        sel = np.zeros(n, bool)
+        for k in range(4): sel[lv[ls[bad] + np.minimum(k, lt[bad] - 1)]] = True
+        for _r in range(2):
+            grow = sel.copy(); grow[E[sel[E[:, 0]], 1]] = True; grow[E[sel[E[:, 1]], 0]] = True; sel = grow
+        acc = np.zeros((n, 3))
+        np.add.at(acc, E[:, 0], D[E[:, 1]]); np.add.at(acc, E[:, 1], D[E[:, 0]])
+        D = np.where(sel[:, None], 0.5 * D + 0.5 * acc / deg, D)
+    return D
+
 def _smoothstep(e0, e1, x):
     t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0); return t * t * (3 - 2 * t)
 
@@ -201,6 +244,8 @@ def _noise(P, scale, seed):
 
 CLEAR = {"tee": 0.0030, "pants": 0.0045}   # the closest cloth comes to the skin
 FOLD_SCALE = 1.0          # the folds' amplitude, for the check's sabotage
+TEE_SLOPE = 0.35          # how fast the tee may narrow under what it hangs from (0.20 tented it off the lats)
+DRAPE_SMOOTH = 60         # at most, smoothing the drape where it turns faces over
 PELVIS_Z = 0.93           # the seat's drape stops above the crotch (0.90)
 MIN_CLEAR = 0.002         # check_cloth's floor, whatever CLEAR is set to
 check_cloth_in_dress = True   # --cloth-check checks each dressing itself
@@ -217,11 +262,22 @@ def fit(g, kind, body=None):
     if kind == "tee":
         rows = A.TRUNK_ROWS
         zs = [r[0] for r in rows]; rx = np.interp(P[:, 2], zs, [r[2] for r in rows])
-        trunk = np.nonzero((np.abs(P[:, 0]) < rx * 0.95) & (P[:, 2] < 1.40))[0]
-        out = _drape_region(P, trunk, np.array([0.0, 0.004, 1.40]), -Z, X, Y, 0.006, slope=0.20)
+        # The trunk: everything inside the sides, and below the armpit the
+        # sides too. Taken inside 95 % of the half-width only (the sleeves
+        # start outside it), the tee's own side strip stayed on the skin
+        # while the front and back hung out up to 3 cm: a vertical step down
+        # each flank, armpit to hem (seen on the full build of Saud).
+        ax_ = np.abs(P[:, 0])
+        trunk = np.nonzero((P[:, 2] < 1.40) & ((ax_ < rx * 0.95) | (P[:, 2] < 1.30)))[0]
+        out = _drape_region(P, trunk, np.array([0.0, 0.004, 1.40]), -Z, X, Y, 0.006, slope=TEE_SLOPE)
         if len(out):
             grow, dirv = out
-            w = 1.0 - _smoothstep(1.30, 1.37, P[trunk, 2])          # none under the arms
+            # none under the arms: from 1.30 up in the middle, and at the
+            # sides from 1.22 up (the side strip above 1.30 is not taken at
+            # all), the two blended across the side so nothing steps
+            side = _smoothstep(0.80, 0.95, ax_[trunk] / rx[trunk])
+            w = (1.0 - _smoothstep(1.30, 1.37, P[trunk, 2])) * (1.0 - side) \
+                + (1.0 - _smoothstep(1.22, 1.30, P[trunk, 2])) * side
             D[trunk] += dirv * (grow * w)[:, None]
         # the sleeves: looser toward the cuff, and hanging off the arm
         for sgn in (1, -1):
@@ -259,6 +315,16 @@ def fit(g, kind, body=None):
                 grow, dirv = out
                 w = 1.0 - _smoothstep(0.82, 0.87, P[leg, 2])
                 D[leg] += dirv * (grow * w)[:, None]
+    # The drape pushes each vertex straight out from the axis, and where the
+    # surface curls round a bulge (the flank round the lat) two neighbours
+    # were pushed across each other: 339 faces down the tee's sides turned
+    # over, a ragged crease from the armpit to the hem (25 on the shell
+    # before it). Where a face turns over, the drape is smoothed over the
+    # garment's surface round it until it does not -- only there: smoothed
+    # everywhere, it lost the bridging of the small hollows (the abs showed
+    # through again).
+    if DRAPE_SMOOTH:
+        D = _untangle(me, P, D, DRAPE_SMOOTH)
     P = P + D
     me.vertices.foreach_set("co", P.reshape(-1)); me.update()
     # ---- the folds, along the normals of the draped surface
