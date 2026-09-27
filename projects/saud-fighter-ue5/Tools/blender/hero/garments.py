@@ -93,8 +93,9 @@ def dress(body, tee=True):
         if info.get("moved"):
             print("cloth     : %-5s draped %d verts (up to %.0f mm), folds to %.1f mm, %d held off the skin"
                   % (kind, info["moved"], info["drape_max"] * 1000, info["fold_max"] * 1000, info["pushed"]))
-    ck = check_cloth(t, pants, body)
-    print("cloth     : " + "  ".join("%s %.4f" % kv for kv in ck.items()))
+    if check_cloth_in_dress:
+        ck = check_cloth(t, pants, body)
+        print("cloth     : " + "  ".join("%s %.4f" % kv for kv in ck.items()))
     return t, pants, soles()
 
 
@@ -201,6 +202,8 @@ def _noise(P, scale, seed):
 CLEAR = {"tee": 0.0030, "pants": 0.0045}   # the closest cloth comes to the skin
 FOLD_SCALE = 1.0          # the folds' amplitude, for the check's sabotage
 PELVIS_Z = 0.93           # the seat's drape stops above the crotch (0.90)
+MIN_CLEAR = 0.002         # check_cloth's floor, whatever CLEAR is set to
+check_cloth_in_dress = True   # --cloth-check checks each dressing itself
 
 def fit(g, kind, body=None):
     """Drape and fold one garment in place ("tee" or "pants"). Canonical
@@ -265,7 +268,7 @@ def fit(g, kind, body=None):
     if kind == "tee":
         # slack above the hem, round the waist: soft horizontal folds
         env = _smoothstep(1.070, 1.095, z) * (1 - _smoothstep(1.17, 1.22, z))
-        F += 0.0020 * env * np.sin(2 * np.pi * (z - 1.07) / 0.034 + 1.8 * _noise(P, 18.0, 1.0))
+        F += 0.0015 * env * (0.6 + 0.4 * _noise(P, 30.0, 11.0)) * np.sin(2 * np.pi * (z - 1.07) / 0.034 + 1.8 * _noise(P, 18.0, 1.0))
         # drag from each armpit toward the middle of the chest and back
         for sgn in (1, -1):
             ap = np.array([0.165 * sgn, 0.0, 1.345])
@@ -324,7 +327,7 @@ def check_cloth(tee, pants, body, assert_=True):
     1 mm further in over the spine than 30 mm out (skin-tight it followed
     the furrow, 6 mm); it hangs off the waist -- at 1.14 it stands at least
     10 mm off the body's side (skin-tight: 6); no cloth closer to the skin
-    than 1 mm less than CLEAR anywhere; the trousers stack above the cuff
+    than MIN_CLEAR (2 mm) anywhere; the trousers stack above the cuff
     -- down the front of each shin from 80 to 96 % of the leg, the cloth's
     distance off the bone line swings 2 mm or more (a tube: under 1); and
     they part between the legs below the crotch -- no cloth within 12 mm of
@@ -376,7 +379,7 @@ def check_cloth(tee, pants, body, assert_=True):
         assert out["tee_hang"] >= 0.010, "skin-tight: the tee stands %.0f mm off the waist, want 10" % (out["tee_hang"] * 1000)
     for kind in ("tee", "pants"):
         if kind in worst:
-            assert worst[kind] >= CLEAR[kind] - 0.001, "the %s goes %.1f mm from the skin, into it below 0" % (kind, worst[kind] * 1000)
+            assert worst[kind] >= MIN_CLEAR, "the %s goes %.1f mm from the skin (into it below 0), want %.0f" % (kind, worst[kind] * 1000, MIN_CLEAR * 1000)
     assert out["cuff_swing"] >= 0.002, "no folds: the trousers swing %.1f mm above the cuff, want 2" % (out["cuff_swing"] * 1000)
     assert out["crotch_gap"] >= 0.012, "a skirt: cloth %.0f mm from the midline between the legs, want 12" % (out["crotch_gap"] * 1000)
     return out

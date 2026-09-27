@@ -12,6 +12,7 @@
     python3 build_fighters.py --head-check     the skull and neck tables, and the check bitten
     python3 build_fighters.py --neck-check     the neck and its join to the shoulders on the built base, bitten
     python3 build_fighters.py --back-check     the lats, the V and the spinal furrow on the built base, bitten
+    python3 build_fighters.py --cloth-check    the tee and trousers' drape, folds and clearance, bitten
     python3 build_fighters.py --out DIR        write somewhere else than the project
 
 WHO. SOUQ AL-DAWAR's three waves are thugs and brawlers (DT_Stages.json,
@@ -294,6 +295,58 @@ def back_check():
         sys.exit(1)
 
 
+def cloth_check():
+    """--cloth-check (2026-09-27): garments.check_cloth on a body built the
+    pipeline's way (pass one, the 3.5 mm union), dressed clean, then
+    dressed once per rule broken: no fit (skin-tight), no folds, the
+    seat's drape run below the crotch (a skirt), no hold-off from the skin.
+    bpy as a module; a few minutes, most of it the dressing."""
+    import build_saud as legacy
+    import bpy
+    from hero import anatomy as A, assembly as ASM, garments as G
+    legacy.reset_scene()
+    left = A.arm(1.0) + A.leg() + [A.shoe()] + ASM.masses()
+    base = A.union_remesh([A.trunk(), A.neck(), A.head()] + left + [ASM.mirror_x(o) for o in left], 0.006, "Base")
+    A.smooth(base, 0.40, 3)
+    body = A.union_remesh([base] + ASM.face_parts(), 0.0035, "Body"); A.smooth(body, 0.5, 2)
+    def dressed():
+        t, p, soles = G.dress(body)
+        out = G.check_cloth(t, p, body, assert_=False)
+        try:
+            G.check_cloth(t, p, body); err = None
+        except AssertionError as e:
+            err = str(e)
+        for o in [t, p] + soles: bpy.data.objects.remove(o, do_unlink=True)
+        return out, err
+    fit0 = G.fit
+    out, err = None, None
+    saved = dict(fit=G.fit, FOLD_SCALE=G.FOLD_SCALE, PELVIS_Z=G.PELVIS_Z, CLEAR=dict(G.CLEAR))
+    def restore():
+        for k, v in saved.items(): setattr(G, k, v)
+    G.check_cloth_in_dress = False
+    out, err = dressed()
+    print("  cloth    clean   " + "  ".join("%s %.4f" % kv for kv in out.items()))
+    assert err is None, err
+    bites = [("no fit", dict(fit=lambda g, kind, body=None: {}), "skin-tight"),
+             ("no folds", dict(FOLD_SCALE=0.0), "no folds"),
+             ("skirt", dict(PELVIS_Z=0.84), "skirt"),
+             ("no hold-off", dict(CLEAR={"tee": -1.0, "pants": -1.0}, FOLD_SCALE=3.0), "from the skin")]
+    caught = 0
+    for label, patch, word in bites:
+        for k, v in patch.items(): setattr(G, k, v)
+        try:
+            out, err = dressed()
+        finally:
+            restore()
+        if "--verbose" in sys.argv:
+            print("    " + "  ".join("%s %.4f" % kv for kv in out.items()))
+        ok = err is not None and word in err; caught += ok
+        print("  %-15s %s  %s" % (label, "caught" if ok else ("WRONG CHECK" if err else "NOT caught"), err or ""))
+    print("  %d of %d cloth sabotages caught" % (caught, len(bites)))
+    if caught != len(bites):
+        sys.exit(1)
+
+
 def main():
     argv = sys.argv[1:]
     if "--hair-check" in argv:
@@ -313,6 +366,9 @@ def main():
         return
     if "--back-check" in argv:
         back_check()
+        return
+    if "--cloth-check" in argv:
+        cloth_check()
         return
     # flags are `--x`, plus the value that follows --out and --one; the rest
     # are the men to build

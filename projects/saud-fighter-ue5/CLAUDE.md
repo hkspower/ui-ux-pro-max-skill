@@ -2463,6 +2463,84 @@ the neck to the acromion is reported (54 mm), not held: no sabotage moved
 it without the shelf rule firing first, so a rule for it would be
 unproven. The head, nose, hair and eye checks still pass.
 
+## The back -- 2026-09-27
+
+Asked as "fix back body", settled as the Unreal men, all six: the lats and
+the V, the spine and the lower back. Seen from behind on pass one of the
+build, in clay: the lats were an egg on each flank and the erectors two more
+eggs a side up the spine, four vertical ovals on a flat back, with nothing
+running from the armpit down into the waist and no furrow between them --
+measured, the erector stood 2 mm IN from the midline at 1.10, so there was
+no spine to see at all between the eggs.
+
+**What changed** (`anatomy.BACK_MUSCLES`, seated by `anatomy.trunk_surface`
+on the trunk loft's own surface and built by `assembly.chain`; the trunk's
+rows are module state now, `TRUNK_ROWS`, so the muscles can be seated on
+them): **the lats**, a fan from the back of the armpit sweeping down and in
+to the lumbar fascia, thickest at the armpit and thinning to nothing over
+the small of the back -- the V drawn by a muscle; **the erectors**, two
+broad columns either side of the spine from the sacrum to the middle of the
+back, thickest over the lumbar, the furrow between them 5-9 mm deep over
+the lower back. Each link is seated 15 mm under the surface so a band rises
+out of the back at a shallow angle: seated 6 mm under, their edges met the
+skin steeply and read as creases, the columns as rods.
+
+**Checked:** `anatomy.check_back`, in every build: the furrow at least
+2.5 mm the whole way from 1.02 to 1.22 (3.5; the old back -2.1), the lats
+at least 6 mm proud of the loft at the flank (9; with none, the remesh's
+own swell gives 2.7), and no bulge going down from the arms to the waist.
+`build_fighters.py --back-check` builds the base that breaks each -- no
+back muscles, flat erectors, no lats, the lats pushed out past the flank
+-- 4 of 4 caught. **Seen, not touched** (not asked): the glutes read as two
+balls from behind.
+
+## The clothes -- 2026-09-27
+
+Asked as "improve clothes", settled as the tee and the track trousers on
+the Unreal men: the fit and the folds, and the fabric's texture. The
+garments were the body's own surface pushed out 6 and 10 mm with a cloud
+noise of 2.5-4.5 mm: skin-tight shells that followed every groove -- the
+spinal furrow, the abs, the cleft of the seat -- and wrapped the waist and
+the calves, with folds that ran no way in particular.
+
+**The fit** (`garments.fit`, after `shell`). Cloth bridges a hollow and
+hangs from what is above it: in slices down the trunk and down each leg,
+each slice's convex hull (the cloth stretched round it), and no slice
+narrower than the one above less a slope (0.20 the tee, 0.16 a trouser
+leg), smoothed between slices and angles; the trouser legs are pulled back
+toward the leg by the elastic cuff; the tee's sleeves loosen toward the
+cuff and hang off the arm. The seat's drape stops above the crotch and the
+legs' below it. No cloth comes nearer the skin than 3 mm (tee) or 4.5 mm
+(trousers). The first preview caught three faults: the slices terraced the
+cloth into horizontal ridges (each vertex took its own slice's radius --
+it is interpolated now), a leg's hull reached up into the seat and pushed
+the inner thigh's cloth 68 mm into the other leg, and the seat's hull run
+below the crotch hung a skirt between the legs.
+
+**The folds**, where cloth folds and nowhere else: stacked above each
+elastic trouser cuff (slanted and uneven, up to 3.5 mm), creased behind
+the knee, dragged from the crotch down the inside of the thigh and from
+each armpit toward the chest, gathered under the waistband's elastic, and
+slack round the tee's waist above the hem. The cloud noise stays, at a
+millimetre, as irregularity.
+
+**The fabric** (`finish.fabric_surface`, per texel in `repaint_kit`): the
+tee is cotton jersey -- a heathered tone with slubs in the yarn, a knit's
+fine relief, matt (0.80-0.90), the collar rib rougher; the trousers are
+polyester tricot -- a flatter tone, a fine twill in the relief, a sheen
+(0.48-0.60), worn shinier and a shade lighter over the knees and the seat;
+the waistband's elastic matt (0.72), the stripe a smoother tape (0.46).
+They had one roughness each from the shader (0.88, 0.82) and the bake's
+generic weave.
+
+**Checked:** `garments.check_cloth`, in every build: the tee bridges the
+spinal furrow and stands at least 10 mm off the waist; no cloth within
+2 mm of the skin; the trousers swing at least 2 mm over the folds above the
+cuff; no cloth within 12 mm of the midline between the legs below the
+crotch. `build_fighters.py --cloth-check` dresses a body clean and then
+once per rule broken -- no fit, no folds, the seat's drape below the
+crotch, no hold-off from the skin with the folds tripled.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
