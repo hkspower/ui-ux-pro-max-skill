@@ -330,9 +330,9 @@ def check_cloth(tee, pants, body, assert_=True):
     than MIN_CLEAR (2 mm) anywhere; the trousers stack above the cuff
     -- down the front of each shin from 80 to 96 % of the leg, the cloth's
     distance off the bone line swings 2 mm or more (a tube: under 1); and
-    no skirt -- near the midline between the thighs, from 0.74 to 0.86, no
-    cloth more than 15 mm off the skin (the drape that ran below the crotch
-    hung a sheet across there). Returns the numbers."""
+    no skirt -- in front of the crotch near the midline, from 0.80 to 0.90,
+    no cloth more than 15 mm off the skin (10 clean; the drape run below the
+    crotch hung a sheet across there, 29). Returns the numbers."""
     from mathutils.bvhtree import BVHTree
     def pts(o): return np.array([v.co[:] for v in o.data.vertices]) if o and len(o.data.vertices) else np.zeros((0, 3))
     T, Pn, Bd = pts(tee), pts(pants), pts(body)
@@ -370,9 +370,11 @@ def check_cloth(tee, pants, body, assert_=True):
         trend = np.convolve(prof, np.ones(9) / 9, mode="same")
         swing.append(float(np.max(prof[4:-4] - trend[4:-4]) - np.min(prof[4:-4] - trend[4:-4])) if len(prof) > 12 else 0.0)
     out["cuff_swing"] = min(swing)
-    # a skirt is cloth spanning between the thighs, far off the skin; the
-    # inner thighs nearly touch there, so cloth near the midline is normal
-    mid = Pn[(np.abs(Pn[:, 0]) < 0.010) & (Pn[:, 2] > 0.74) & (Pn[:, 2] < 0.86)]
+    # a skirt is cloth spanning in front of the crotch between the thighs,
+    # far off the skin (28.7 mm, the sabotage); behind, cloth hanging from
+    # the seat rightly bridges the fold under it (23 mm, clean), and the
+    # inner thighs nearly touch, so cloth near the midline is normal
+    mid = Pn[(np.abs(Pn[:, 0]) < 0.010) & (Pn[:, 2] > 0.80) & (Pn[:, 2] < 0.90) & (Pn[:, 1] < -0.02)]
     span = 0.0
     for q in mid:
         loc, nrm, _, d = tb.find_nearest(Vector(q))

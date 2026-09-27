@@ -2536,9 +2536,10 @@ generic weave.
 **Checked:** `garments.check_cloth`, in every build: the tee bridges the
 spinal furrow and stands at least 8 mm off the waist (9; skin-tight, 6);
 no cloth within 2 mm of the skin; the trousers swing at least 2 mm over
-the folds above the cuff; between the thighs below the crotch no cloth
-more than 15 mm off the skin (the thighs nearly touch there, so cloth near
-the midline is normal -- a sheet spanning them is the skirt). `build_fighters.py --cloth-check` dresses a body clean and then
+the folds above the cuff; in front of the crotch no cloth more than
+15 mm off the skin (10 clean, 29 with the skirt; behind, cloth hanging
+from the seat rightly bridges the fold under it, 23 mm, so the rule is
+held on the front). `build_fighters.py --cloth-check` dresses a body clean and then
 once per rule broken -- no fit, no folds, the seat's drape below the
 crotch, no hold-off from the skin with the folds tripled.
 
