@@ -89,10 +89,12 @@ def dress(body, tee=True):
     t = shell(body, "Tee", tee_region if tee else (lambda c: False), 0.006, 0.0025, fold=0.0010, fold_size=0.16)
     pants = shell(body, "Pants", pants_region, 0.010, 0.003, fold=0.0012, fold_size=0.20)
     for g, kind in ((t, "tee"), (pants, "pants")):
-        info = fit(g, kind)
+        info = fit(g, kind, body)
         if info.get("moved"):
-            print("cloth     : %-5s draped %d verts (up to %.0f mm), folds to %.1f mm"
-                  % (kind, info["moved"], info["drape_max"] * 1000, info["fold_max"] * 1000))
+            print("cloth     : %-5s draped %d verts (up to %.0f mm), folds to %.1f mm, %d held off the skin"
+                  % (kind, info["moved"], info["drape_max"] * 1000, info["fold_max"] * 1000, info["pushed"]))
+    ck = check_cloth(t, pants, body)
+    print("cloth     : " + "  ".join("%s %.4f" % kv for kv in ck.items()))
     return t, pants, soles()
 
 
@@ -133,7 +135,7 @@ def _hull_radius(uv, bins):
     th = np.concatenate([th - 2 * np.pi, th, th + 2 * np.pi]); r = np.concatenate([r, r, r])
     return np.interp(bins, th, r)
 
-def _drape_region(P, idx, centre, ax, u, v, dz, slope, hang_down=True, taper=None):
+def _drape_region(P, idx, centre, ax, u, v, dz, slope, hang_down=True, taper=None, max_grow=0.030):
     """Drape the vertices `idx` of P about an axis: in slices of `dz` along
     `ax` (from `centre`), each slice's hull; then, going down the axis,
     no slice narrower than the one above less `slope` a unit of fall.
@@ -166,11 +168,23 @@ def _drape_region(P, idx, centre, ax, u, v, dz, slope, hang_down=True, taper=Non
     if taper is not None:
         for i in range(nk):
             w = taper(i / max(nk - 1, 1)); H[i] = H[i] * (1 - w) + R[i] * w
-    # per vertex: the hang radius at its slice and angle (bins wrap)
+    # smooth the hang over neighbouring slices and angles: a slice's hull
+    # jumps, and each vertex taking its own slice's value terraced the
+    # cloth into horizontal ridges (the first preview)
+    for _ in range(3):
+        Hp = np.vstack([H[:1], H, H[-1:]])
+        H = 0.25 * Hp[:-2] + 0.5 * Hp[1:-1] + 0.25 * Hp[2:]
+        H = 0.25 * np.roll(H, 1, 1) + 0.5 * H + 0.25 * np.roll(H, -1, 1)
+    # per vertex: the hang radius, interpolated between slices (at slice
+    # centres) and between angle bins (which wrap)
+    sf = (s - s.min()) / dz - 0.5
+    k0 = np.clip(np.floor(sf).astype(int), 0, nk - 1); k1 = np.clip(k0 + 1, 0, nk - 1)
+    fk = np.clip(sf - np.floor(sf), 0.0, 1.0)
     bi = (th + np.pi) / (2 * np.pi) * nb
     b0 = np.floor(bi).astype(int) % nb; b1 = (b0 + 1) % nb; f = bi - np.floor(bi)
-    want = H[k, b0] * (1 - f) + H[k, b1] * f
-    grow = np.maximum(0.0, want - r)
+    def at(kk): return H[kk, b0] * (1 - f) + H[kk, b1] * f
+    want = at(k0) * (1 - fk) + at(k1) * fk
+    grow = np.clip(want - r, 0.0, max_grow)
     dirv = (np.outer(a / np.maximum(r, 1e-9), u) + np.outer(b / np.maximum(r, 1e-9), v))
     return grow, dirv
 
@@ -184,7 +198,11 @@ def _noise(P, scale, seed):
     return (np.sin(1.7 * x + 2.3 * z + seed) + np.sin(2.9 * y - 1.3 * z + 1.7 * seed)
             + np.sin(1.1 * x + 3.7 * y + 0.9 * z + 2.9 * seed)) / 3.0
 
-def fit(g, kind):
+CLEAR = {"tee": 0.0030, "pants": 0.0045}   # the closest cloth comes to the skin
+FOLD_SCALE = 1.0          # the folds' amplitude, for the check's sabotage
+PELVIS_Z = 0.93           # the seat's drape stops above the crotch (0.90)
+
+def fit(g, kind, body=None):
     """Drape and fold one garment in place ("tee" or "pants"). Canonical
     positions (before a man's size). See the note above."""
     me = g.data
@@ -216,9 +234,11 @@ def fit(g, kind):
     else:
         # the seat and the hips: one hull a slice, over the cleft
         rows = A.TRUNK_ROWS
-        pel = np.nonzero(P[:, 2] >= 0.86)[0]
-        out = _drape_region(P, pel, np.array([0.0, 0.012, 1.08]), -Z, X, Y, 0.006, slope=0.30)
-        wpel = _smoothstep(0.86, 0.92, P[pel, 2]) if len(pel) else None
+        # above the crotch (0.90) only: run below it, the hull spanned both
+        # thighs and hung a skirt between the legs (the first preview)
+        pel = np.nonzero(P[:, 2] >= PELVIS_Z)[0]
+        out = _drape_region(P, pel, np.array([0.0, 0.012, 1.08]), -Z, X, Y, 0.006, slope=0.30, max_grow=0.020)
+        wpel = _smoothstep(PELVIS_Z, PELVIS_Z + 0.04, P[pel, 2]) if len(pel) else None
         if len(out):
             grow, dirv = out; D[pel] += dirv * (grow * wpel)[:, None]
         # each leg: hangs from the seat and the thigh, gathered at the cuff
@@ -226,12 +246,15 @@ def fit(g, kind):
             hip = np.array(Jp("thigh_l")) * np.array([sgn, 1, 1]); ank = np.array(Jp("foot_l")) * np.array([sgn, 1, 1])
             ax = ank - hip; L = np.linalg.norm(ax); ax /= L
             u = np.cross(ax, Y); u /= np.linalg.norm(u); v = np.cross(u, ax)
-            leg = np.nonzero((P[:, 0] * sgn > 0.004) & (P[:, 2] < 0.93))[0]
+            # below the crotch only: reaching up into the pelvis, a slice's
+            # hull took in the seat and pushed the inner thigh's cloth 68 mm
+            # into the other leg (the first preview)
+            leg = np.nonzero((P[:, 0] * sgn > 0.004) & (P[:, 2] < 0.87))[0]
             out = _drape_region(P, leg, hip, ax, u, v, 0.010, slope=0.16,
-                                taper=lambda f: _smoothstep(0.86, 0.98, f))
+                                taper=lambda f: _smoothstep(0.86, 0.98, f), max_grow=0.025)
             if len(out):
                 grow, dirv = out
-                w = 1.0 - _smoothstep(0.88, 0.93, P[leg, 2])
+                w = 1.0 - _smoothstep(0.82, 0.87, P[leg, 2])
                 D[leg] += dirv * (grow * w)[:, None]
     P = P + D
     me.vertices.foreach_set("co", P.reshape(-1)); me.update()
@@ -257,7 +280,9 @@ def fit(g, kind):
             side = (x * sgn > 0.004).astype(float)
             # stacked above the elastic cuff
             env = _smoothstep(0.82, 0.87, t) * (1 - _smoothstep(0.95, 0.985, t)) * side
-            F += 0.0035 * env * np.sin(2 * np.pi * t * L / 0.030 + 2.2 * _noise(P, 20.0, 3.0 + sgn))
+            ang = np.arctan2(x - hip[0], y - hip[1])
+            F += (0.0035 * env * (0.65 + 0.35 * _noise(P, 35.0, 4.0 + sgn))
+                  * np.sin(2 * np.pi * t * L / 0.030 + 1.6 * np.sin(2 * ang + sgn) + 2.2 * _noise(P, 20.0, 3.0 + sgn)))
             # creased behind the knee
             back = _smoothstep(0.0, 0.03, y - (hip[1] + ax[1] * t * L))
             env = np.exp(-((t - 0.52) / 0.045) ** 2) * back * side
@@ -272,7 +297,86 @@ def fit(g, kind):
         th = np.arctan2(x, y - 0.012)
         env = _smoothstep(0.985, 1.005, z) * (1 - _smoothstep(1.045, 1.060, z))
         F += 0.0015 * env * np.sin(th * 26.0 + 0.8 * _noise(P, 30.0, 9.0))
-    P = P + Nn * F[:, None]
+    P = P + Nn * (F * FOLD_SCALE)[:, None]
+    # never closer to the skin than CLEAR: a fold's trough over a bulge, or
+    # a drape direction that is not the surface's, could otherwise sink it
+    pushed = 0
+    if body is not None:
+        from mathutils.bvhtree import BVHTree
+        tb = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+        need = CLEAR[kind]
+        for i in range(n):
+            loc, nrm, _, d = tb.find_nearest(Vector(P[i]))
+            if loc is None: continue
+            q = Vector(P[i]) - loc
+            sd = d if q.dot(nrm) > 0 else -d
+            if sd < need:
+                P[i] = np.array(loc + nrm * need); pushed += 1
     me.vertices.foreach_set("co", P.reshape(-1)); me.update()
-    return dict(moved=int((np.linalg.norm(D, axis=1) > 0.001).sum()), drape_max=float(np.linalg.norm(D, axis=1).max()),
+    return dict(pushed=pushed, moved=int((np.linalg.norm(D, axis=1) > 0.001).sum()), drape_max=float(np.linalg.norm(D, axis=1).max()),
                 fold_max=float(np.abs(F).max()))
+
+
+def check_cloth(tee, pants, body, assert_=True):
+    """The clothes on the body, canonical, 2026-09-27 ("improve clothes"):
+
+    the tee bridges the spinal furrow -- at 1.14 its back is no more than
+    1 mm further in over the spine than 30 mm out (skin-tight it followed
+    the furrow, 6 mm); it hangs off the waist -- at 1.14 it stands at least
+    10 mm off the body's side (skin-tight: 6); no cloth closer to the skin
+    than 1 mm less than CLEAR anywhere; the trousers stack above the cuff
+    -- down the front of each shin from 80 to 96 % of the leg, the cloth's
+    distance off the bone line swings 2 mm or more (a tube: under 1); and
+    they part between the legs below the crotch -- no cloth within 12 mm of
+    the midline from 0.78 to 0.85 (the drape that ran below the crotch hung
+    a skirt there). Returns the numbers."""
+    from mathutils.bvhtree import BVHTree
+    def pts(o): return np.array([v.co[:] for v in o.data.vertices]) if o and len(o.data.vertices) else np.zeros((0, 3))
+    T, Pn, Bd = pts(tee), pts(pants), pts(body)
+    def back_y(Q, x, z):
+        b = Q[(np.abs(np.abs(Q[:, 0]) - x) < 0.005) & (np.abs(Q[:, 2] - z) < 0.005) & (Q[:, 1] > 0)]
+        return float(b[:, 1].max()) if len(b) else float("nan")
+    def half(Q, z):
+        b = Q[(np.abs(Q[:, 2] - z) < 0.004) & (np.abs(Q[:, 0]) < 0.20)]
+        return float(np.abs(b[:, 0]).max()) if len(b) else float("nan")
+    out = {}
+    if len(T):
+        out["tee_furrow"] = back_y(T, 0.030, 1.14) - back_y(T, 0.0, 1.14)
+        out["tee_hang"] = half(T, 1.14) - half(Bd, 1.14)
+    tb = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+    worst = {}
+    for kind, Q in (("tee", T), ("pants", Pn)):
+        w = 1.0
+        for q in Q[::3]:
+            loc, nrm, _, d = tb.find_nearest(Vector(q))
+            if loc is None: continue
+            w = min(w, d if (Vector(q) - loc).dot(nrm) > 0 else -d)
+        worst[kind] = w
+    out["clear_tee"] = worst.get("tee", 1.0); out["clear_pants"] = worst["pants"]
+    swing = []
+    for sgn in (1, -1):
+        hip = np.array(Jp("thigh_l")) * np.array([sgn, 1, 1]); ank = np.array(Jp("foot_l")) * np.array([sgn, 1, 1])
+        ax = ank - hip; L = np.linalg.norm(ax); ax /= L
+        t = (Pn - hip) @ ax / L
+        c = hip + np.outer(t * L, ax); rv = Pn - c
+        front = (rv[:, 1] < -0.02) & (np.abs(rv[:, 0]) < 0.012) & (t > 0.80) & (t < 0.96)
+        if front.sum() < 10: swing.append(0.0); continue
+        order = np.argsort(t[front]); r = np.linalg.norm(rv[front], axis=1)[order]; tt = t[front][order]
+        bins = np.arange(0.80, 0.961, 0.004); prof = np.array([r[(tt >= a) & (tt < a + 0.004)].max() if ((tt >= a) & (tt < a + 0.004)).any() else np.nan for a in bins])
+        prof = prof[~np.isnan(prof)]
+        trend = np.convolve(prof, np.ones(9) / 9, mode="same")
+        swing.append(float(np.max(prof[4:-4] - trend[4:-4]) - np.min(prof[4:-4] - trend[4:-4])) if len(prof) > 12 else 0.0)
+    out["cuff_swing"] = min(swing)
+    gap = Pn[(Pn[:, 2] > 0.78) & (Pn[:, 2] < 0.85)]
+    out["crotch_gap"] = float(np.abs(gap[:, 0]).min()) if len(gap) else 1.0
+    if not assert_:
+        return out
+    if len(T):
+        assert out["tee_furrow"] <= 0.001, "skin-tight: the tee sinks %.1f mm into the spinal furrow" % (out["tee_furrow"] * 1000)
+        assert out["tee_hang"] >= 0.010, "skin-tight: the tee stands %.0f mm off the waist, want 10" % (out["tee_hang"] * 1000)
+    for kind in ("tee", "pants"):
+        if kind in worst:
+            assert worst[kind] >= CLEAR[kind] - 0.001, "the %s goes %.1f mm from the skin, into it below 0" % (kind, worst[kind] * 1000)
+    assert out["cuff_swing"] >= 0.002, "no folds: the trousers swing %.1f mm above the cuff, want 2" % (out["cuff_swing"] * 1000)
+    assert out["crotch_gap"] >= 0.012, "a skirt: cloth %.0f mm from the midline between the legs, want 12" % (out["crotch_gap"] * 1000)
+    return out
