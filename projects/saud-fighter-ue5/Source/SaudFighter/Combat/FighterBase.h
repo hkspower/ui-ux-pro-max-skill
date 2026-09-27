@@ -229,6 +229,15 @@ public:
 	    into the reaction that blow gets. */
 	FName LastHitAttack = NAME_None;
 
+	/** Seconds left of the win (A_<Set>_Victory), standing where he is.
+	    Anything he does -- a blow taken, a strike thrown -- ends it. */
+	float VictoryRemaining = 0.f;
+
+	/** He won: the stage is cleared (the player) or the player is down for
+	    good (every enemy still standing). */
+	UFUNCTION(BlueprintCallable, Category = "Motion")
+	void Celebrate();
+
 	/** Seconds left of getting up after Down -- the same 0.6 s as the
 	    invulnerability, and the length of A_Saud_GetUp. */
 	float GetUpRemaining = 0.f;

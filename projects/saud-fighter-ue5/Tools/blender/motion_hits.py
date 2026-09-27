@@ -158,6 +158,9 @@ def plan(clips, who):
             out.append(_from(gc, move="GetUp", kind="getup", state="Idle", seconds=eng["getup"]))
         for r in FALLS:
             out.append(_from(gc, move=r, kind="fall", state="Down", seconds=eng["down"], blow=r))
+        # the end of a fight, one way or the other (2026-09-28)
+        out.append(_from(gc, move="Death", kind="death", state="Dead", seconds=eng["death"]))
+        out.append(_from(gc, move="Victory", kind="victory", state="Idle", seconds=VICTORY_SECONDS))
         for moves in COMBOS[key]:
             seq = combo_seq(moves, attacks)
             end = seq[-1]["start"] + seq[-1]["su"] + seq[-1]["ac"] + seq[-1]["rc"]
@@ -207,7 +210,7 @@ def check(clips):
     for key in sets:
         for r in REACTS:
             assert "A_%s_Hit_%s" % (key, r) in names, "%s has no %s reaction" % (key, r)
-        for r in FALLS + ("Down", "GetUp"):
+        for r in FALLS + ("Down", "GetUp", "Death", "Victory"):
             assert "A_%s_%s" % (key, r) in names, "%s has no %s" % (key, r)
         mine = {c["move"] for c in clips if c["boss"] == key and c["kind"] == "strike"}
         for moves in COMBOS[key]:
@@ -218,6 +221,10 @@ def check(clips):
             assert abs(c["frames"] / float(FPS()) - want) <= 1.0 / FPS(), "%s is not the engine's hit" % c["name"]
         if c["kind"] == "fall":
             assert abs(c["frames"] / float(FPS()) - eng["down"]) <= 1.0 / FPS(), "%s is not the engine's Down" % c["name"]
+        if c["kind"] == "death":
+            assert abs(c["frames"] / float(FPS()) - eng["death"]) <= 1.0 / FPS(), "%s is not the engine's dying Down" % c["name"]
+        if c["kind"] == "victory":
+            assert abs(c["frames"] / float(FPS()) - VICTORY_SECONDS) <= 1.0 / FPS(), "%s is not %.1fs" % (c["name"], VICTORY_SECONDS)
         if c["kind"] in ("combo", "pair"):
             cs = c["contacts"]
             assert cs == sorted(cs) and len(set(cs)) == len(cs), "%s: contacts out of order %s" % (c["name"], cs)
@@ -347,6 +354,98 @@ def fold_keys(g):
 
 
 FALL_KEYS = {"Down_Side": side_keys, "Down_Fold": fold_keys}
+
+
+# ======================================================== death and victory
+# 2026-09-28, "full suite motions ik". A killing blow puts a man in Down for
+# the engine's 1.05 s (FighterBase: DownRemaining = Health <= 0 ? 1.05 : 0.85)
+# and then Dead, which holds the last frame; he used to play Down there and
+# stay propped on his hands. Death is its own fall: back and flat, arms down
+# by his sides, the head let go. Victory is the win: straightening up, the
+# chin up, a fist raised -- whose, by the man -- held.
+VICTORY_SECONDS = 2.0          # SaudFeel::VictorySeconds is this, and the harness holds it to the clip
+VICTORY_ARMS = {"Saud": ("r",), "Street": ("r",), "Boss": ("l", "r"), "Saqr": ("l",), "Zayos": ("l", "r")}
+RAISE = 0.52                   # the raised wrist above its shoulder, metres
+
+
+def death_keys(g):
+    """Back and down past where Down stops, onto the floor flat; the pelvis
+    goes back as far as the planted feet let the legs reach (0.62: at 0.78
+    the leg could not, and the settle sank him through the floor)."""
+    gz = g["pelvis"].translation.z + g["dz"]
+    if "death_sit" in B.SABOTAGE:
+        end = dict(pz=0.30, py=0.45, tilt=1.00, rear=1.0, hand=1.0, look=0.4)
+    else:
+        end = dict(pz=0.11, py=0.62, tilt=1.52, rear=1.0, hand=1.0, look=0.15)
+    return _norm([(0.00, dict(pz=gz, py=0.00, tilt=0.00, rear=0.0, hand=0.0, look=0.0)),
+                  (0.14, dict(pz=gz - 0.07, py=0.03, tilt=0.18, rear=0.0, hand=0.0, look=0.1)),
+                  (0.40, dict(pz=0.42, py=0.26, tilt=0.62, rear=1.0, hand=0.3, look=0.2)),
+                  (0.66, dict(pz=0.17, py=0.50, tilt=1.20, rear=1.0, hand=0.85, look=0.2)),
+                  (0.86, end), (1.00, dict(end))])
+
+
+def author_death(au, c, S):
+    aims, g = _guard(au, c, S)
+    keys = death_keys(g)
+    N = c["frames"]
+    frames, plant = [], {s: {} for s in B.SIDES}
+    for f in range(N):
+        (loc, world, moving), p = _fall_at(au, g, aims, keys, f / float(N - 1), 1.0 / (N - 1), None)
+        frames.append((loc, world))
+        plant["l"][f] = (g["ball_l"].copy(), 0.0)
+        if not moving:
+            plant["r"][f] = (g["ball_r"] + B.floor_beside(g) * p["rear"], 0.0)
+    c["plant"] = plant
+    return frames
+
+
+def author_victory(au, c, S):
+    """From the guard: up out of the stance, the chin up, the raised fist
+    (or both) straight up over its shoulder, the other to the chest; in
+    0.45 s on the browser's ease, then held, breathing."""
+    from mathutils import Vector
+    aims, g = _guard(au, c, S)
+    up = VICTORY_ARMS.get(c["boss"], ("r",))
+    lift = RAISE * (0.2 if "victory_low" in B.SABOTAGE else 1.0)
+    side = {"l": 1.0, "r": -1.0}
+    raise_aims = {}
+    for s in up:
+        x = side[s]
+        raise_aims.update({"upperarm_" + s: (0.15 * x, -0.05, 0.99), "lowerarm_" + s: (0.05 * x, -0.08, 0.99),
+                           "hand_" + s: (0.0, -0.10, 0.99)})
+    frames, plant = [], {s: {} for s in B.SIDES}
+    for f in range(c["frames"]):
+        t = f / float(FPS())
+        w = ease(min(1.0, t / 0.45))
+        breath = (math.cos(2.0 * math.pi * max(0.0, t - 0.45) / 1.2) - 1.0) * 0.004 * w
+        a = B.aims_at(aims, raise_aims, w, 1.0)
+        P = {k: 0.0 for k in KEYS}; P["pitch"] = 0.22 * w
+        x_ = react_extra(a, P)
+
+        def hand(s, w=w):
+            def at(fk, s=s, w=w):
+                m = fk["hand_" + s].copy()
+                if s in up:
+                    want = fk["sh_" + s] + Vector((0.07 * side[s], -0.04, lift))
+                else:
+                    want = fk["sh_" + s] + Vector((-0.12 * side[s], -0.20, -0.20))
+                m.translation = m.translation.lerp(want, w)
+                return m
+            return at
+
+        def pole(s):
+            if s in up:
+                return lambda fk, s=s: fk["sh_" + s] + Vector((0.45 * side[s], 0.05, 0.15))
+            return None
+        loc, world, _fk, _d = B.body_frame(au, g, x_["aims"], B.planted_feet(g), lean=-0.10 * w,
+                                           hips=(0.0, 0.0, breath), hands={s: hand(s) for s in B.SIDES},
+                                           hand_poles={s: pole(s) for s in B.SIDES if pole(s)}, settle=B.SIDES)
+        frames.append((loc, world))
+        for s in B.SIDES:
+            plant[s][f] = (g["ball_" + s].copy(), 0.0)
+    c["plant"] = plant
+    c["raised"] = up
+    return frames
 
 
 def _guard(au, c, S):
@@ -558,7 +657,8 @@ def author_combo(au, c, S):
     return frames
 
 
-AUTHOR = {"react": author_react, "fall": author_fall, "pair": author_pair, "combo": author_combo}
+AUTHOR = {"react": author_react, "fall": author_fall, "pair": author_pair, "combo": author_combo,
+          "death": author_death, "victory": author_victory}
 
 
 # ================================================================ checking
@@ -627,6 +727,26 @@ def verify(rig, made, fails):
                 if gap > 0.01:
                     fails.append("%s: does not end where Down ends: %.1f cm apart, so GetUp cannot follow it" % (
                         c["name"], gap * 100))
+        elif c["kind"] == "death":
+            for f in range(1, N + 1):
+                pp = pose(act, f, ("spine_01", "spine_02", "spine_03", "neck_01", "head", "pelvis"))
+                low = min(pp[n].z for n in ("spine_01", "spine_02", "spine_03", "neck_01", "head"))
+                if low < 0.06 or pp["pelvis"].z < 0.08:
+                    fails.append("%s: goes through the floor on frame %d" % (c["name"], f))
+                    break
+            pe = pose(act, N)
+            back = math.degrees((pe["neck_01"] - pe["pelvis"]).angle(Vector((0, 0, 1))))
+            c["death"] = dict(pelvis=pe["pelvis"].z * 100, back=back, head=pe["head"].z * 100)
+            if back < 75.0 or pe["pelvis"].z > 0.20 or pe["head"].z > 0.30:
+                fails.append("%s: does not lie dead -- the torso %.0f deg back, the pelvis %.0f cm up, the head %.0f" % (
+                    c["name"], back, pe["pelvis"].z * 100, pe["head"].z * 100))
+        elif c["kind"] == "victory":
+            pe = pose(act, N)
+            for s in c.get("raised", ()):
+                over = pe["hand_end_" + s].z - pe["head"].z
+                c.setdefault("over_cm", []).append(over * 100)
+                if over < 0.10:
+                    fails.append("%s: the %s fist is not raised -- %.0f cm over the head" % (c["name"], s, over * 100))
         elif c["kind"] == "combo":
             p1 = pose(act, 1)
             reach = []
@@ -715,6 +835,13 @@ def report(made):
         worst = max(pairs, key=lambda c: max(c["miss_cm"]))
         print("        pairs: %d, worst miss %.1f cm (%s); widest bearing %.0f deg" % (
             len(pairs), max(worst["miss_cm"]), worst["name"], max(abs(c["bearing"]) for c in pairs)))
+    deaths = [c["death"] for c, _a, _f in made if c.get("death")]
+    if deaths:
+        print("        deaths lie flat: torso %.0f-%.0f deg back, pelvis at most %.0f cm up" % (
+            min(d["back"] for d in deaths), max(d["back"] for d in deaths), max(d["pelvis"] for d in deaths)))
+    wins = [min(c["over_cm"]) for c, _a, _f in made if c.get("over_cm")]
+    if wins:
+        print("        victories: every raised fist at least %.0f cm over the head" % min(wins))
     falls = [c for c, _a, _f in made if c.get("end_cm") is not None]
     if falls:
         print("        falls end on Down's last frame, worst %.2f cm off" % max(c["end_cm"] for c in falls))
@@ -759,6 +886,8 @@ def hits_cell(c):
         return " ".join("%d:%s" % (f, m) for f, m in c["blows"])
     if c["kind"] in ("react", "fall"):
         return c["blow"]
+    if c["kind"] == "victory":
+        return "raises " + " ".join(c.get("raised", VICTORY_ARMS.get(c["boss"], ())))
     return ""
 
 

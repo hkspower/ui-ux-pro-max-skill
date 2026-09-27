@@ -500,13 +500,41 @@ def plan(who=("bosses", "saud", "street")):
             moves = parse_moves(row["Moves"])
             if key in PHASE_TWO and "Special" not in moves:
                 moves = moves + ["Special"]
-            clips += _strike_clips(key, row, character(meta["kind"]), moves, attacks, True, FOLDER["bosses"])
+            man = character(meta["kind"])
+            clips += _strike_clips(key, row, man, moves, attacks, True, FOLDER["bosses"])
+            clips += _boss_moves(key, row, man, FOLDER["bosses"])
     for set_, spec in (("saud", SAUD), ("street", STREET)):
         if set_ in who:
             clips += _hero_clips(spec["key"], FOLDER[set_], fighters, attacks)
     # the hits: reactions by blow, falls, combos, and both sides of a blow
     clips += H.plan(clips, who)
     return clips
+
+
+def _boss_moves(key, row, who, folder):
+    """A boss's own walking, blocking and plain hits, in his own stance
+    (2026-09-28, "full suite motions ik"). Until then he borrowed the street
+    men's, struck on the boxer's guard, so his stance changed the moment he
+    moved or blocked. His own speed sets his stride. No dashes: only Saud
+    dashes in the engine (SaudCharacter), so a boss's would never play."""
+    eng = engine_timings()
+    out = []
+
+    def state(name, kind, state_, seconds, loop=False, **kw):
+        d = dict(boss=key, display=row["DisplayName"], arabic=row["DisplayNameArabic"],
+                 move=name, kind=kind, state=state_, su=0.0, ac=0.0, rc=0.0, seconds=seconds,
+                 frames=int(round(seconds * FPS)), contact=-1, limb=None, phase_two=False,
+                 amp=who["amp"], stance=who["stance"], settle=who["settle"],
+                 speed=float(row["MoveSpeed"]), interval=float(row["AttackInterval"]),
+                 name="A_%s_%s" % (key, name), loop=loop, folder=folder, guard=GUARD_OF.get(key, "boxer"))
+        d.update(kw)
+        return d
+    for d in DIRS:
+        out.append(state("Walk_%s" % d, "walk", "Walk", 2.0 * math.pi / WALK_RATE, loop=True, dir=d))
+    out.append(state("Block", "block", "Block", IDLE_SECONDS, loop=True))
+    out.append(state("Hit_Light", "hit", "Hit", eng["hit_light"], weight=eng["hit_light"]))
+    out.append(state("Hit_Heavy", "hit", "Hit", eng["hit_heavy"], weight=eng["hit_heavy"]))
+    return out
 
 
 def _hero_clips(key, folder, fighters, attacks):
@@ -639,6 +667,17 @@ def check(clips):
             c = next(c for c in mine if c["move"] == "Walk_%s" % d)
             assert c["loop"] and abs(c["frames"] / float(FPS) - 2 * math.pi / WALK_RATE) <= 1.0 / FPS, (
                 "%s is not the browser's walk cycle" % c["name"])
+    # 12b. each boss walks, blocks and reels in his own stance, as long as
+    #      the engine holds him there
+    eng = engine_timings()
+    for key in (BOSSES if bosses else ()):
+        need = {"Walk_%s" % d: 2 * math.pi / WALK_RATE for d in DIRS}
+        need.update(Block=IDLE_SECONDS, Hit_Light=eng["hit_light"], Hit_Heavy=eng["hit_heavy"])
+        for name, secs in need.items():
+            c = next((c for c in clips if c["boss"] == key and c["move"] == name), None)
+            assert c, "%s has no %s of his own" % (key, name)
+            assert abs(c["frames"] / float(FPS) - secs) <= 1.0 / FPS, "%s is not %.2fs" % (c["name"], secs)
+            assert c["guard"] == GUARD_OF[key], "%s is not on his own guard" % c["name"]
     # 12. the hits (motion_hits.check)
     H.check(clips)
     return True
@@ -1919,6 +1958,9 @@ def bite():
         ("fall ends as Down", "fall_end", ["A_Saud_Down", "A_Saud_Down_Side"], "does not end where Down ends"),
         ("combo lands",    "combo_short", ["A_Saud_Jab", "A_Saud_Cross", "A_Saud_Combo_Jab_Cross"], "alone it reaches"),
         ("pair lands",     "pair_far",  ["A_Street_Jab", "A_Saud_Pair_Street_Jab"], "misses its mark"),
+        # the end of a fight (motion_hits, 2026-09-28)
+        ("death lies flat", "death_sit", ["A_Saud_Death"],             "does not lie dead"),
+        ("victory raised", "victory_low", ["A_Street_Victory"],        "is not raised"),
     ]
     results = []
     for label, sab, names, expect in cases:

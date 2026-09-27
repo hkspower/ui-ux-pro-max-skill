@@ -169,6 +169,7 @@ void AFighterBase::ReceiveKnockback(const FVector& Impulse, bool bKnockdown)
 	bSwingFired = true;		// whatever was being thrown is over
 	bLastHitHeavy = bKnockdown;
 	LastHitAttack = NAME_None;
+	VictoryRemaining = 0.f;
 	GetUpRemaining = 0.f;
 	++MotionSerial;
 
@@ -238,6 +239,7 @@ void AFighterBase::TickTimers(float DeltaSeconds)
 	InvulnerableRemaining = FMath::Max(0.f, InvulnerableRemaining - DeltaSeconds);
 	ParryWindowRemaining  = FMath::Max(0.f, ParryWindowRemaining  - DeltaSeconds);
 	GetUpRemaining        = FMath::Max(0.f, GetUpRemaining        - DeltaSeconds);
+	VictoryRemaining      = FMath::Max(0.f, VictoryRemaining      - DeltaSeconds);
 
 	if (State == EFighterState::Hit)
 	{
@@ -305,6 +307,7 @@ bool AFighterBase::StartAttack(FName AttackRow)
 	Stamina -= Attack->StaminaCost;
 
 	CurrentAttackRow = AttackRow;
+	VictoryRemaining = 0.f;
 	CurrentAttack    = Attack;
 	AttackElapsed    = 0.f;
 	bAttackHitFired  = false;
@@ -529,6 +532,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 	LaunchCharacter(Attacker->GetFacing() * Knockback, true, false);
 	bLastHitHeavy = Attack.bHeavy;
 	LastHitAttack = Attacker->GetCurrentAttackRow();
+	VictoryRemaining = 0.f;
 	GetUpRemaining = 0.f;
 	FlashRemaining = SaudFeel::FlashSeconds;
 	++MotionSerial;
@@ -581,6 +585,17 @@ void AFighterBase::FaceTowards(const FVector& WorldLocation)
 	}
 	Facing = Wanted;
 	SetActorRotation(FRotator(0.f, FMath::RadiansToDegrees(FMath::Atan2(Facing.Y, Facing.X)), 0.f));
+}
+
+void AFighterBase::Celebrate()
+{
+	if (!IsAlive())
+	{
+		return;
+	}
+	// set even mid-swing: the clip picker shows it once he stands free
+	VictoryRemaining = SaudFeel::VictorySeconds;
+	++MotionSerial;
 }
 
 void AFighterBase::OnDeath()

@@ -6,16 +6,37 @@ A_Boss_Kick,Boss,Kick,A_Boss_Kick.fbx,0.530,16,5,rear_leg,false,false,Attack,,
 A_Boss_Knee,Boss,Knee,A_Boss_Knee.fbx,0.470,14,4,rear_leg,false,false,Attack,,
 A_Boss_Special,Boss,Special,A_Boss_Special.fbx,0.780,23,5,rear_leg,false,true,Attack,,
 A_Boss_Guard,Boss,,A_Boss_Guard.fbx,2.618,79,-1,,true,false,Idle,,
+A_Boss_Walk_Fwd,Boss,,A_Boss_Walk_Fwd.fbx,0.571,17,-1,,true,false,Walk,Fwd,
+A_Boss_Walk_Back,Boss,,A_Boss_Walk_Back.fbx,0.571,17,-1,,true,false,Walk,Back,
+A_Boss_Walk_Left,Boss,,A_Boss_Walk_Left.fbx,0.571,17,-1,,true,false,Walk,Left,
+A_Boss_Walk_Right,Boss,,A_Boss_Walk_Right.fbx,0.571,17,-1,,true,false,Walk,Right,
+A_Boss_Block,Boss,,A_Boss_Block.fbx,2.618,79,-1,,true,false,Block,,
+A_Boss_Hit_Light,Boss,,A_Boss_Hit_Light.fbx,0.220,7,-1,,false,false,Hit,,
+A_Boss_Hit_Heavy,Boss,,A_Boss_Hit_Heavy.fbx,0.340,10,-1,,false,false,Hit,,
 A_Saqr_Kick,Saqr,Kick,A_Saqr_Kick.fbx,0.530,16,5,rear_leg,false,false,Attack,,
 A_Saqr_Jab,Saqr,Jab,A_Saqr_Jab.fbx,0.260,8,2,lead_arm,false,false,Attack,,
 A_Saqr_Cross,Saqr,Cross,A_Saqr_Cross.fbx,0.360,11,3,rear_arm,false,false,Attack,,
 A_Saqr_Knee,Saqr,Knee,A_Saqr_Knee.fbx,0.470,14,4,rear_leg,false,false,Attack,,
 A_Saqr_Special,Saqr,Special,A_Saqr_Special.fbx,0.780,23,5,rear_leg,false,true,Attack,,
 A_Saqr_Guard,Saqr,,A_Saqr_Guard.fbx,2.618,79,-1,,true,false,Idle,,
+A_Saqr_Walk_Fwd,Saqr,,A_Saqr_Walk_Fwd.fbx,0.571,17,-1,,true,false,Walk,Fwd,
+A_Saqr_Walk_Back,Saqr,,A_Saqr_Walk_Back.fbx,0.571,17,-1,,true,false,Walk,Back,
+A_Saqr_Walk_Left,Saqr,,A_Saqr_Walk_Left.fbx,0.571,17,-1,,true,false,Walk,Left,
+A_Saqr_Walk_Right,Saqr,,A_Saqr_Walk_Right.fbx,0.571,17,-1,,true,false,Walk,Right,
+A_Saqr_Block,Saqr,,A_Saqr_Block.fbx,2.618,79,-1,,true,false,Block,,
+A_Saqr_Hit_Light,Saqr,,A_Saqr_Hit_Light.fbx,0.220,7,-1,,false,false,Hit,,
+A_Saqr_Hit_Heavy,Saqr,,A_Saqr_Hit_Heavy.fbx,0.340,10,-1,,false,false,Hit,,
 A_Zayos_Jab,Zayos,Jab,A_Zayos_Jab.fbx,0.260,8,2,lead_arm,false,false,Attack,,
 A_Zayos_Cross,Zayos,Cross,A_Zayos_Cross.fbx,0.360,11,3,rear_arm,false,false,Attack,,
 A_Zayos_Hook,Zayos,Hook,A_Zayos_Hook.fbx,0.480,14,4,rear_arm,false,false,Attack,,
 A_Zayos_Guard,Zayos,,A_Zayos_Guard.fbx,2.618,79,-1,,true,false,Idle,,
+A_Zayos_Walk_Fwd,Zayos,,A_Zayos_Walk_Fwd.fbx,0.571,17,-1,,true,false,Walk,Fwd,
+A_Zayos_Walk_Back,Zayos,,A_Zayos_Walk_Back.fbx,0.571,17,-1,,true,false,Walk,Back,
+A_Zayos_Walk_Left,Zayos,,A_Zayos_Walk_Left.fbx,0.571,17,-1,,true,false,Walk,Left,
+A_Zayos_Walk_Right,Zayos,,A_Zayos_Walk_Right.fbx,0.571,17,-1,,true,false,Walk,Right,
+A_Zayos_Block,Zayos,,A_Zayos_Block.fbx,2.618,79,-1,,true,false,Block,,
+A_Zayos_Hit_Light,Zayos,,A_Zayos_Hit_Light.fbx,0.220,7,-1,,false,false,Hit,,
+A_Zayos_Hit_Heavy,Zayos,,A_Zayos_Hit_Heavy.fbx,0.340,10,-1,,false,false,Hit,,
 A_Boss_Hit_Head_Straight_Light,Boss,,A_Boss_Hit_Head_Straight_Light.fbx,0.220,7,-1,,false,false,Hit,,Head_Straight_Light
 A_Boss_Hit_Head_Straight,Boss,,A_Boss_Hit_Head_Straight.fbx,0.340,10,-1,,false,false,Hit,,Head_Straight
 A_Boss_Hit_Head_Side,Boss,,A_Boss_Hit_Head_Side.fbx,0.340,10,-1,,false,false,Hit,,Head_Side
@@ -25,6 +46,8 @@ A_Boss_Down,Boss,,A_Boss_Down.fbx,0.850,26,-1,,false,false,Down,,
 A_Boss_GetUp,Boss,,A_Boss_GetUp.fbx,0.600,18,-1,,false,false,Idle,,
 A_Boss_Down_Side,Boss,,A_Boss_Down_Side.fbx,0.850,26,-1,,false,false,Down,,Down_Side
 A_Boss_Down_Fold,Boss,,A_Boss_Down_Fold.fbx,0.850,26,-1,,false,false,Down,,Down_Fold
+A_Boss_Death,Boss,,A_Boss_Death.fbx,1.050,32,-1,,false,false,Dead,,
+A_Boss_Victory,Boss,,A_Boss_Victory.fbx,2.000,60,-1,,false,false,Idle,,raises l r
 A_Boss_Combo_Jab_Cross_Hook,Boss,,A_Boss_Combo_Jab_Cross_Hook.fbx,0.892,27,2,,false,false,Attack,,2:Jab 8:Cross 17:Hook
 A_Boss_Combo_Jab_Cross_Knee,Boss,,A_Boss_Combo_Jab_Cross_Knee.fbx,0.882,26,2,,false,false,Attack,,2:Jab 8:Cross 16:Knee
 A_Saqr_Hit_Head_Straight_Light,Saqr,,A_Saqr_Hit_Head_Straight_Light.fbx,0.220,7,-1,,false,false,Hit,,Head_Straight_Light
@@ -36,6 +59,8 @@ A_Saqr_Down,Saqr,,A_Saqr_Down.fbx,0.850,26,-1,,false,false,Down,,
 A_Saqr_GetUp,Saqr,,A_Saqr_GetUp.fbx,0.600,18,-1,,false,false,Idle,,
 A_Saqr_Down_Side,Saqr,,A_Saqr_Down_Side.fbx,0.850,26,-1,,false,false,Down,,Down_Side
 A_Saqr_Down_Fold,Saqr,,A_Saqr_Down_Fold.fbx,0.850,26,-1,,false,false,Down,,Down_Fold
+A_Saqr_Death,Saqr,,A_Saqr_Death.fbx,1.050,32,-1,,false,false,Dead,,
+A_Saqr_Victory,Saqr,,A_Saqr_Victory.fbx,2.000,60,-1,,false,false,Idle,,raises l
 A_Saqr_Combo_Jab_Kick,Saqr,,A_Saqr_Combo_Jab_Kick.fbx,0.706,21,2,,false,false,Attack,,2:Jab 10:Kick
 A_Saqr_Combo_Jab_Cross_Kick,Saqr,,A_Saqr_Combo_Jab_Cross_Kick.fbx,0.942,28,2,,false,false,Attack,,2:Jab 8:Cross 17:Kick
 A_Zayos_Hit_Head_Straight_Light,Zayos,,A_Zayos_Hit_Head_Straight_Light.fbx,0.220,7,-1,,false,false,Hit,,Head_Straight_Light
@@ -47,6 +72,8 @@ A_Zayos_Down,Zayos,,A_Zayos_Down.fbx,0.850,26,-1,,false,false,Down,,
 A_Zayos_GetUp,Zayos,,A_Zayos_GetUp.fbx,0.600,18,-1,,false,false,Idle,,
 A_Zayos_Down_Side,Zayos,,A_Zayos_Down_Side.fbx,0.850,26,-1,,false,false,Down,,Down_Side
 A_Zayos_Down_Fold,Zayos,,A_Zayos_Down_Fold.fbx,0.850,26,-1,,false,false,Down,,Down_Fold
+A_Zayos_Death,Zayos,,A_Zayos_Death.fbx,1.050,32,-1,,false,false,Dead,,
+A_Zayos_Victory,Zayos,,A_Zayos_Victory.fbx,2.000,60,-1,,false,false,Idle,,raises l r
 A_Zayos_Combo_Jab_Cross_Hook,Zayos,,A_Zayos_Combo_Jab_Cross_Hook.fbx,0.892,27,2,,false,false,Attack,,2:Jab 8:Cross 17:Hook
 A_Zayos_Combo_Hook_Cross,Zayos,,A_Zayos_Combo_Hook_Cross.fbx,0.671,20,4,,false,false,Attack,,4:Hook 12:Cross
 A_Boss_Pair_Saud_Jab,Boss,,A_Boss_Pair_Saud_Jab.fbx,0.300,9,2,,false,false,Hit,,2:Jab

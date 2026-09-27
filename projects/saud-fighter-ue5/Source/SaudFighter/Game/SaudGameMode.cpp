@@ -7,6 +7,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "World/WaveDirector.h"
 #include "Engine/DataTable.h"
+#include "EngineUtils.h"
+#include "Combat/EnemyFighter.h"
 
 ASaudGameMode::ASaudGameMode()
 {
@@ -163,12 +165,22 @@ AWaveDirector* ASaudGameMode::CurrentDirector() const
 
 void ASaudGameMode::HandleStageCleared()
 {
+	// the win, in his body before it is in the numbers
+	if (ASaudCharacter* Player = Cast<ASaudCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
+	{
+		Player->Celebrate();
+	}
 	Director = CurrentDirector();
 	CompleteStage(Director ? Director->StageRow : NAME_None);
 }
 
 void ASaudGameMode::HandleStageFailed()
 {
+	// every man still standing has won
+	for (TActorIterator<AEnemyFighter> It(GetWorld()); It; ++It)
+	{
+		It->Celebrate();
+	}
 	FailStage();
 }
 

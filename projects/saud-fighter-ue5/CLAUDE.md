@@ -2681,6 +2681,49 @@ and it fails. **Not verified:** no engine has compiled the C++ or imported
 a clip; the pairs are placed for men of Saud's size, which is how every
 clip here is authored (the engine does not scale a fighter).
 
+## The full motion suite -- 2026-09-28
+
+Asked as "make full suite motions ik", settled as the Unreal build: the
+bosses' own movement set, death and victory for every set, and the engine
+choosing them. Every clip is posed through the IK rig as the rest are.
+
+**The bosses move in their own stance.** AL-WAHSH, AL-SAQR and ZAYOS had
+their strikes, guard and hits of their own, and borrowed the street men's
+walks, block and plain hits -- struck on the boxer's guard -- so a boss's
+stance changed the moment he walked or blocked. Each has Walk (four ways,
+his own MoveSpeed setting his stride), Block, Hit_Light and Hit_Heavy of
+his own now (`build_motion._boss_moves`). No dashes: only Saud dashes in
+the engine (the Dash state is set only in `SaudCharacter.cpp`), so a
+boss's would never play.
+
+**Death** (`A_<Set>_Death`, 1.05 s -- the engine's Down on a killing
+blow, then Dead holds the last frame): back past where Down stops, flat on
+the floor, arms down by his sides, the head let go. He used to play Down
+and stay propped on his hands. Measured: the torso 79-85 degrees back, the
+pelvis 11 cm off the floor.
+
+**Victory** (`A_<Set>_Victory`, 2.0 s, held): up out of the stance, the
+chin up, a fist raised straight over its shoulder and the other to the
+chest -- Saud and the street men the rear fist, AL-SAQR the lead, AL-WAHSH
+and ZAYOS both. Every raised fist ends at least 35 cm over the head.
+
+**The engine.** `SaudFeel::Pick`: a Down with no health left plays Death,
+and Dead holds it; `FMotionInput::Victory` plays the win while he stands
+-- walking, guarding, a hit or a swing come first. `AFighterBase::
+Celebrate()` starts it (`VictoryRemaining`, `SaudFeel::VictorySeconds`);
+taking a blow or throwing one ends it. `ASaudGameMode` calls it on the
+player when the stage clears, and on every enemy still standing when it
+fails. `Fallback`: no Death clip plays Down, no Victory the guard.
+
+**Checked:** 197 clips, every motion check passing (bake 0.002 mm, read
+back 0.01 mm); `build_motion.py --bite` 32 of 32 -- two new: a death that
+ends sitting up, a win whose fist stays low. `Tools/harness/tests/
+feel.cpp`: death and the win picked as above, their fallbacks, the clips on
+disk for Saud and the street men, and `A_Saud_Victory` / `A_Saud_Death` as
+long as the engine holds them. **Not verified:** no engine has compiled the
+C++ or imported a clip; `ASaudGameMode`'s hooks are read-reviewed only.
+"Death reuses Down" in "Saud moves" is superseded.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

@@ -54,6 +54,8 @@ void USaudMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	In.bBlocking = Fighter->bBlocking;
 	In.bLastHitHeavy = Fighter->bLastHitHeavy;
 	In.LastBlow = SaudFeel::BlowOf(TCHAR_TO_ANSI(*Fighter->LastHitAttack.ToString()));
+	In.bDying = Fighter->GetHealth() <= 0.f;
+	In.Victory = Fighter->VictoryRemaining;
 	In.GettingUp = Fighter->GetUpRemaining;
 	const FVector Vel = Fighter->GetVelocity();
 	const FVector Flat(Vel.X, Vel.Y, 0.f);

@@ -12,6 +12,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <cmath>
 #include <string>
 
@@ -205,7 +206,7 @@ static void Clips()
     In.State = SDown;
     Check(Pick(In) == EClip::Down, "down");
     In.State = SDead;
-    Check(Pick(In) == EClip::Down, "dead holds down");
+    Check(Pick(In) == EClip::Death, "dead holds Death");
 
     // By the blow (2026-09-27): the row that landed it picks the reaction
     // and the fall -- motion_hits.BLOW's table, the same six rows.
@@ -225,7 +226,7 @@ static void Clips()
                 FMotionInput M; M.LastBlow = BlowOf(R.Row); M.bLastHitHeavy = Heavy;
                 M.State = SHit;  if (Pick(M) != R.Hit)  { ++Wrong; std::printf("  %s hit\n", R.Row); }
                 M.State = SDown; if (Pick(M) != R.Fall) { ++Wrong; std::printf("  %s down\n", R.Row); }
-                M.State = SDead; if (Pick(M) != R.Fall) { ++Wrong; std::printf("  %s dead\n", R.Row); }
+                M.State = SDead; if (Pick(M) != EClip::Death) { ++Wrong; std::printf("  %s dead\n", R.Row); }
             }
         }
         Check(Wrong == 0, "each blow picks its own reaction and its own fall");
@@ -261,6 +262,45 @@ static void Clips()
             std::fclose(F);
         }
         Check(Rows_ >= 6 && Unknown == 0, "every row of DT_Attacks lands as a blow");
+    }
+
+    // The end of a fight (2026-09-28): the killing blow's Down is the dying,
+    // Dead holds it; the win plays standing, and moving or guarding ends it.
+    {
+        FMotionInput M; M.State = SDown; M.bDying = true; M.LastBlow = BlowOf("Hook");
+        const bool DyingDown = Pick(M) == EClip::Death;
+        M.bDying = false; const bool LivingDown = Pick(M) == EClip::DownSide;
+        M = FMotionInput(); M.State = SDead;
+        const bool Dead = Pick(M) == EClip::Death;
+        Check(DyingDown && LivingDown && Dead, "a killing blow falls into Death, a living one into its fall, and Dead holds Death");
+        M = FMotionInput(); M.Victory = 1.f;
+        const bool Win = Pick(M) == EClip::Victory;
+        M.Speed = 400.f; const bool Walks = Pick(M) == EClip::WalkFwd;
+        M.Speed = 0.f; M.bBlocking = true; const bool Blocks = Pick(M) == EClip::Block;
+        M.bBlocking = false; M.State = SHit; M.LastBlow = BlowOf("Jab"); const bool Hit = Pick(M) == EClip::HitHeadStraightLight;
+        M = FMotionInput(); M.Victory = 1.f; M.State = SAttack; const bool Swing = Pick(M) == EClip::Attack;
+        Check(Win && Walks && Blocks && Hit && Swing, "the win plays standing; walking, blocking, a hit or a swing come first");
+        Check(Fallback(EClip::Death) == EClip::Down && Fallback(EClip::Victory) == EClip::Guard, "no Death clip plays Down, no Victory the guard");
+        Check(!Loops(EClip::Death) && !Loops(EClip::Victory), "death and the win are one-shots that hold");
+        // the clip is as long as the engine holds it
+        FILE* F = std::fopen("Content/Animation/Saud/DT_SaudMotion.csv", "rb");
+        float VicS = -1.f, DeathS = -1.f;
+        if (F)
+        {
+            char Line[512];
+            while (std::fgets(Line, sizeof Line, F))
+            {
+                char* Name = Line; char* C1 = std::strchr(Name, ','); if (!C1) continue; *C1 = 0;
+                // Name,Fighter,Attack,File,Seconds
+                char* P = C1 + 1; for (int K = 0; K < 3 && P; ++K) { P = std::strchr(P, ','); if (P) ++P; }
+                if (!P) continue;
+                if (std::strcmp(Name, "A_Saud_Victory") == 0) VicS = static_cast<float>(std::atof(P));
+                if (std::strcmp(Name, "A_Saud_Death") == 0) DeathS = static_cast<float>(std::atof(P));
+            }
+            std::fclose(F);
+        }
+        Check(std::fabs(VicS - VictorySeconds) < 0.02f, "A_Saud_Victory is VictorySeconds long");
+        Check(std::fabs(DeathS - 1.05f) < 0.04f, "A_Saud_Death is the engine's dying Down, 1.05 s");
     }
 
     In = FMotionInput(); In.GettingUp = 0.3f; In.Speed = 400.f; In.bBlocking = true;
@@ -316,7 +356,8 @@ static void Clips()
                           EClip::DashFwd, EClip::DashBack, EClip::DashLeft, EClip::DashRight,
                           EClip::Block, EClip::HitLight, EClip::HitHeavy, EClip::Down, EClip::GetUp,
                           EClip::HitHeadStraightLight, EClip::HitHeadStraight, EClip::HitHeadSide,
-                          EClip::HitBodyFront, EClip::HitBodySide, EClip::DownSide, EClip::DownFold };
+                          EClip::HitBodyFront, EClip::HitBodySide, EClip::DownSide, EClip::DownFold,
+                          EClip::Death, EClip::Victory };
     int Missing = 0;
     for (const char* Set : { "Saud", "Street" })
     {

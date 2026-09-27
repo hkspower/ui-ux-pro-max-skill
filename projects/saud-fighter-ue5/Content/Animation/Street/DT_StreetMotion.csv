@@ -26,6 +26,8 @@ A_Street_Hit_Body_Front,Street,,A_Street_Hit_Body_Front.fbx,0.340,10,-1,,false,f
 A_Street_Hit_Body_Side,Street,,A_Street_Hit_Body_Side.fbx,0.340,10,-1,,false,false,Hit,,Body_Side
 A_Street_Down_Side,Street,,A_Street_Down_Side.fbx,0.850,26,-1,,false,false,Down,,Down_Side
 A_Street_Down_Fold,Street,,A_Street_Down_Fold.fbx,0.850,26,-1,,false,false,Down,,Down_Fold
+A_Street_Death,Street,,A_Street_Death.fbx,1.050,32,-1,,false,false,Dead,,
+A_Street_Victory,Street,,A_Street_Victory.fbx,2.000,60,-1,,false,false,Idle,,raises r
 A_Street_Combo_Jab_Cross,Street,,A_Street_Combo_Jab_Cross.fbx,0.535,16,2,,false,false,Attack,,2:Jab 8:Cross
 A_Street_Combo_Jab_Cross_Hook,Street,,A_Street_Combo_Jab_Cross_Hook.fbx,0.892,27,2,,false,false,Attack,,2:Jab 8:Cross 17:Hook
 A_Street_Pair_Saud_Jab,Street,,A_Street_Pair_Saud_Jab.fbx,0.300,9,2,,false,false,Hit,,2:Jab

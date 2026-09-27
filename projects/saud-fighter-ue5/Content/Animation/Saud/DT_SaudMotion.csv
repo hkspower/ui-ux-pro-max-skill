@@ -26,6 +26,8 @@ A_Saud_Hit_Body_Front,Saud,,A_Saud_Hit_Body_Front.fbx,0.340,10,-1,,false,false,H
 A_Saud_Hit_Body_Side,Saud,,A_Saud_Hit_Body_Side.fbx,0.340,10,-1,,false,false,Hit,,Body_Side
 A_Saud_Down_Side,Saud,,A_Saud_Down_Side.fbx,0.850,26,-1,,false,false,Down,,Down_Side
 A_Saud_Down_Fold,Saud,,A_Saud_Down_Fold.fbx,0.850,26,-1,,false,false,Down,,Down_Fold
+A_Saud_Death,Saud,,A_Saud_Death.fbx,1.050,32,-1,,false,false,Dead,,
+A_Saud_Victory,Saud,,A_Saud_Victory.fbx,2.000,60,-1,,false,false,Idle,,raises r
 A_Saud_Combo_Jab_Cross,Saud,,A_Saud_Combo_Jab_Cross.fbx,0.535,16,2,,false,false,Attack,,2:Jab 8:Cross
 A_Saud_Combo_Jab_Cross_Hook,Saud,,A_Saud_Combo_Jab_Cross_Hook.fbx,0.892,27,2,,false,false,Attack,,2:Jab 8:Cross 17:Hook
 A_Saud_Combo_Jab_Cross_Kick,Saud,,A_Saud_Combo_Jab_Cross_Kick.fbx,0.942,28,2,,false,false,Attack,,2:Jab 8:Cross 17:Kick

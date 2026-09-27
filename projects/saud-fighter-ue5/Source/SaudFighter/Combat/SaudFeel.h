@@ -212,7 +212,9 @@ namespace SaudFeel
 		Block, HitLight, HitHeavy, Down, GetUp, Attack,
 		// by the blow (2026-09-27): what it hit and how, not only how hard
 		HitHeadStraightLight, HitHeadStraight, HitHeadSide, HitBodyFront, HitBodySide,
-		DownSide, DownFold
+		DownSide, DownFold,
+		// the end of a fight (2026-09-28)
+		Death, Victory
 	};
 
 	/** The clip's name in Content/Animation: A_<Set>_<this>. Attack is the
@@ -242,6 +244,8 @@ namespace SaudFeel
 		case EClip::HitBodySide:          return "Hit_Body_Side";
 		case EClip::DownSide:             return "Down_Side";
 		case EClip::DownFold:             return "Down_Fold";
+		case EClip::Death:                return "Death";
+		case EClip::Victory:              return "Victory";
 		default:               return "";
 		}
 	}
@@ -265,7 +269,9 @@ namespace SaudFeel
 		case EClip::HitBodyFront:
 		case EClip::HitBodySide:          return EClip::HitHeavy;
 		case EClip::DownSide:
-		case EClip::DownFold:             return EClip::Down;
+		case EClip::DownFold:
+		case EClip::Death:                return EClip::Down;
+		case EClip::Victory:              return EClip::Guard;
 		default:                          return C;
 		}
 	}
@@ -313,6 +319,8 @@ namespace SaudFeel
 		bool bBlocking = false;
 		bool bLastHitHeavy = false;
 		EBlow LastBlow = EBlow::None;  // the blow that put him in Hit or Down
+		bool bDying = false;           // no health left: this Down is the last
+		float Victory = 0.f;           // seconds left of the win
 		float GettingUp = 0.f;         // seconds left of the get-up
 		float Speed = 0.f;             // cm/s on the ground
 		FVector Facing = FVector(1.f, 0.f, 0.f);
@@ -343,8 +351,9 @@ namespace SaudFeel
 			case EBlow::Spin:              return EClip::HitHeadSide;   // a spin that did not put him down
 			default: return In.bLastHitHeavy ? EClip::HitHeavy : EClip::HitLight;
 			}
+		case SDead:   return EClip::Death;    // its last frame holds
 		case SDown:
-		case SDead:   // death reuses the fall; every fall ends on Down's last frame, which holds
+			if (In.bDying) return EClip::Death; // the killing blow's Down is the dying
 			return In.LastBlow == EBlow::Spin || In.LastBlow == EBlow::HeadSide ? EClip::DownSide
 			     : In.LastBlow == EBlow::BodyFront ? EClip::DownFold : EClip::Down;
 		case SDash:
@@ -355,6 +364,8 @@ namespace SaudFeel
 		default: break;
 		}
 		if (In.GettingUp > 0.f) return EClip::GetUp;
+		// the win, standing: moving or guarding again ends it
+		if (In.Victory > 0.f && !In.bBlocking && In.State != SBlock && In.Speed < WalkThreshold) return EClip::Victory;
 		if (In.bBlocking || In.State == SBlock) return EClip::Block;
 		if (In.Speed >= WalkThreshold)
 		{
@@ -367,4 +378,8 @@ namespace SaudFeel
 	/** Seconds the get-up runs: A_Saud_GetUp.fbx is 0.60 s, and so is the
 	    invulnerability AFighterBase gives on getting up. */
 	constexpr float GetUpSeconds = 0.60f;
+
+	/** Seconds the win is held: A_<Set>_Victory is 2.0 s (motion_hits.
+	    VICTORY_SECONDS), and the harness holds the clip to this. */
+	constexpr float VictorySeconds = 2.0f;
 }
