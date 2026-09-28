@@ -934,6 +934,9 @@ def build(stage_render=True):
 def _smooth(t):
     t = np.clip(t, 0.0, 1.0); return t * t * (3.0 - 2.0 * t)
 
+NEARER_LIMB = True    # a point two limbs hold is the nearer one's (see build_field)
+MIDLINE_KEEP = 0.5    # below the crotch no point ends nearer the midline than this share of its own distance
+
 def build_field(sc, build):
     """The three factors and the field, for a man of (sc, build).
 
@@ -1002,13 +1005,24 @@ def build_field(sc, build):
             # Every limb's weight is taken off the ORIGINAL positions and a
             # point belongs to the limb whose field is strongest on it, so
             # the inner thighs are thinned once, the same on both sides.
-            best_w = np.zeros(len(P)); best_foot = P0.copy()
+            #
+            # Between the thighs both legs hold a point, and "strongest"
+            # was decided in the fourth decimal: the thigh's axis slants, so
+            # the foot of the perpendicular -- and the ramp-in weight with
+            # it -- came out a hair higher on the far leg (0.7400 against
+            # 0.7398 for a point 3 mm left of the midline at 0.70). The inner
+            # thigh was thinned toward the OTHER leg's axis and carried
+            # through the midline: on the thug (limbs x0.80) 155 trouser
+            # faces crossed it, a web every clip stretched up to 63x (the
+            # scan, 2026-09-28). A point belongs to the nearest limb that
+            # holds it.
+            best_w = np.zeros(len(P)); best_d = np.full(len(P), np.inf); best_foot = P0.copy()
             for pts, R, (u0, u1), ramp in limbs:
                 d, u, foot = along(P0, pts)
                 w = _smooth((u - u0) / ramp) * (1.0 - _smooth((u - u1) / 0.07))
                 w = w * (1.0 - _smooth((d - R * 0.75) / (R * 0.25)))
-                take = w > best_w
-                best_w[take] = w[take]; best_foot[take] = foot[take]
+                take = ((w > 0) & (d < best_d)) if NEARER_LIMB else (w > best_w)
+                best_w[take] = w[take]; best_d[take] = d[take]; best_foot[take] = foot[take]
             P = best_foot + (P0 - best_foot) * (1.0 + (l - 1.0) * best_w)[:, None]
         if abs(t - 1.0) > 1e-9:
             # torso width: x scaled about the midline through the trunk, and
@@ -1040,6 +1054,24 @@ def build_field(sc, build):
             shift = shift + np.sign(x) * hip_x * (t - 1.0) * _smooth(np.abs(x) / 0.012) * below
             rigid = np.sign(x) * shoulder_x * (t - 1.0)
             P[:, 0] = P[:, 0] + shift * (1.0 - arm_w) + rigid * arm_w
+        if MIDLINE_KEEP and (abs(l - 1.0) > 1e-9 or abs(t - 1.0) > 1e-9):
+            # The legs stay two legs. Between the thighs the trousers hang
+            # 2-12 mm off the midline, and neither rule above knows the
+            # other leg is there: thinned and carried in (the thug) or
+            # thickened about their own axes (AL-WAHSH, ZAYOS), the inner
+            # thighs met and passed through each other -- 155 trouser faces
+            # across the midline on the thug, a web every clip stretched up
+            # to 63x (the scan, 2026-09-28). Below the crotch a point near
+            # the midline keeps at least half its distance to it (a smooth
+            # maximum, so nothing creases where the floor takes over).
+            x0, z0 = P0[:, 0], P0[:, 2]
+            sx = np.where(x0 >= 0.0, 1.0, -1.0)
+            own = P[:, 0] * sx
+            floor = MIDLINE_KEEP * np.abs(x0)
+            e = 0.002
+            soft = 0.5 * (own + floor + np.sqrt((own - floor) ** 2 + e * e))
+            wm = (1.0 - _smooth((z0 - 0.88) / 0.02)) * (1.0 - _smooth((np.abs(x0) - 0.04) / 0.03))
+            P[:, 0] = sx * (own + (soft - own) * wm)
         if abs(l - 1.0) > 1e-9:
             # the neck thickens with the build, half as fast as a limb: a
             # heavy man's neck is not a lean man's neck on a wide body

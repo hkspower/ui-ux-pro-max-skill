@@ -81,37 +81,72 @@ def pin_crotch(body, x_reach=0.030, z_centre=0.910, z_reach=0.030):
 
 
 def own_the_head(body, arm):
-    """The face belongs to the head bone. Bone heat gave ZAYOS's face to
-    neck_01 -- 0 % of what stands in front of his head joint was head-held,
-    where Saud's is 99 % -- so every turn of his head sheared the face off
-    the skull into flat shards. Checked on every man: when under half of the
-    face in front of the joint is head-held, heat failed there and the head
-    is weighted here instead, the way heat weights Saud's: neck_01 fading
-    to head from 0.35 of a neck-length below the joint (Saud: none head-held
-    at -0.4, 69 % at -0.2, 99 % at the joint), head alone above it. Returns
-    how many vertices it set (0: heat was right and nothing is touched)."""
+    """The skull is one bone. Bone heat splits the head at its joint, and
+    the head joint is at the eye line: the scan of 2026-09-28 read the
+    eyes at 43-56 % head, the scalp 50-88 %, the hair 81-97 %, the rest
+    on neck_01 -- so every nod or turn bent the skull at the eyes, the
+    globes sliding in their lids. Until then this only repaired a face
+    heat had given to the neck entirely (ZAYOS, 2026-09-23).
+
+    Now, on every man: everything from 0.60 of a neck-length under the
+    head joint up is the head's alone (the jaw's angle, the ears, the
+    whole skull); below that, inside the neck's column, the skin blends
+    from neck_01 into the head over the upper neck, fading into heat's
+    own answer at the column's edge (the trapezius, the collar) and at
+    its foot. Returns how many vertices it set."""
     gh, gn = body.vertex_groups.get("head"), body.vertex_groups.get("neck_01")
     if gh is None or gn is None:
         return 0
     b = arm.data.bones
-    hz, nz = b["head"].head_local.z, b["neck_01"].head_local.z
+    ph, pn = b["head"].head_local, b["neck_01"].head_local
+    hz, nz = ph.z, pn.z
     L = hz - nz
-    face = [v for v in body.data.vertices
-            if hz <= v.co.z < hz + 0.2 * L and v.co.y < -0.4 * L and abs(v.co.x) < 0.6 * L]
-    held = sum(1 for v in face if any(g.group == gh.index and g.weight >= 0.5 for g in v.groups))
-    if not face or held >= 0.5 * len(face):
-        return 0
-    lo = hz - 0.35 * L
+    lo, hi = hz - HEAD_BLEND[0] * L, hz - HEAD_BLEND[1] * L
     n = 0
     for v in body.data.vertices:
-        if v.co.z < lo: continue
-        th = _smoothstep((v.co.z - lo) / (0.35 * L))
-        for g in list(v.groups):
-            body.vertex_groups[g.group].remove([v.index])
-        gh.add([v.index], th, "REPLACE")
-        if th < 1.0: gn.add([v.index], 1.0 - th, "REPLACE")
+        z = v.co.z
+        if z < lo: continue
+        k = min(1.0, max(0.0, (z - pn.z) / max(ph.z - pn.z, 1e-9)))
+        ax = pn + (ph - pn) * k
+        r = math.hypot(v.co.x - ax.x, v.co.y - ax.y)
+        rw = max(1.0 - _smoothstep((r - 0.50 * L) / (0.10 * L)), _smoothstep((z - (hz - 0.75 * L)) / (0.15 * L)))
+        rw *= _smoothstep((z - lo) / (0.20 * L))
+        if rw <= 0.0: continue
+        th = _smoothstep((z - lo) / (hi - lo))
+        heat = {g.group: g.weight for g in v.groups}
+        tot = sum(heat.values()) or 1.0
+        new = {gi: w / tot * (1.0 - rw) for gi, w in heat.items()}
+        new[gh.index] = new.get(gh.index, 0.0) + rw * th
+        new[gn.index] = new.get(gn.index, 0.0) + rw * (1.0 - th)
+        for gi in heat:
+            body.vertex_groups[gi].remove([v.index])
+        for gi, w in new.items():
+            if w > 1e-4: body.vertex_groups[gi].add([v.index], w, "REPLACE")
         n += 1
     return n
+
+
+HEAD_BLEND = (0.95, 0.60)   # the neck blends into the head between these fractions of a neck-length under its joint
+
+
+def head_held(mesh, arm):
+    """The least share any vertex from HEAD_BLEND[1] of a neck-length under
+    the head joint up gives the head bone (1.0: the skull is rigid), and
+    how many vertices that is over. Rest positions, world space."""
+    b = arm.data.bones
+    hz = (arm.matrix_world @ b["head"].head_local).z
+    L = hz - (arm.matrix_world @ b["neck_01"].head_local).z
+    g = mesh.vertex_groups.get("head")
+    if g is None:
+        return 0.0, 0
+    mw = mesh.matrix_world
+    least, count = 1.0, 0
+    for v in mesh.data.vertices:
+        if (mw @ v.co).z < hz - HEAD_BLEND[1] * L: continue
+        tot = sum(x.weight for x in v.groups) or 1.0
+        w = sum(x.weight for x in v.groups if x.group == g.index) / tot
+        least = min(least, w); count += 1
+    return least, count
 
 
 def bind_all(body, garments, arm, crotch=None):
@@ -121,7 +156,7 @@ def bind_all(body, garments, arm, crotch=None):
     weld is on this man (anatomy.scale_to); left out, Saud's own."""
     legacy.bind(body, arm)
     n = own_the_head(body, arm)
-    if n: print("head: bone heat left the face off the head bone; %d vertices re-weighted to it" % n)
+    print("head: the skull made rigid on the head bone, the neck blended into it (%d vertices)" % n)
     print("crotch: %d vertices pinned toward the pelvis (tapered)" % pin_crotch(body, **(crotch or {})))
     # The toe box belongs to ball_*: heat gives everything ahead of the ball
     # joint two thirds to foot_*, so a toe roll pitched the whole shoe with

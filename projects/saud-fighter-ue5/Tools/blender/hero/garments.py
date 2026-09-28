@@ -251,6 +251,7 @@ FOLD_SCALE = 1.0          # the folds' amplitude, for the check's sabotage
 TEE_SLOPE = 0.35          # how fast the tee may narrow under what it hangs from (0.20 tented it off the lats)
 ANGLE_SMOOTH = 10         # passes rounding each slice's hang across angles (was 3)
 ARM_CLEAR = (0.11, 0.15)  # the tee's drape keeps this far off the upper arm's axis
+SLEEVE_LOOSE = (0.001, 0.004, 0.003)  # the sleeve off the arm: at the shoulder, more to the cuff, more below
 DRAPE_SMOOTH = 60         # at most, smoothing the drape where it turns faces over
 PELVIS_Z = 0.93           # the seat's drape stops above the crotch (0.90)
 MIN_CLEAR = 0.002         # check_cloth's floor, whatever CLEAR is set to
@@ -304,7 +305,10 @@ def fit(g, kind, body=None):
             c = sh + np.outer(t[m] * L, d); rv = P[m] - c
             rn = rv / np.maximum(np.linalg.norm(rv, axis=1), 1e-9)[:, None]
             along = np.clip(t[m] / 0.40, 0, 1)
-            loose = 0.002 + 0.007 * along + 0.004 * along * np.clip(-rn[:, 2], 0, 1)
+            # (the scan, 2026-09-28: at 0.002 + 0.007 + 0.004 the sleeve stood
+            # 13 mm out from the 6 mm shell at the cuff, 19 off the arm, and
+            # read as a box; a jersey sleeve on a fighter's arm lies closer)
+            loose = SLEEVE_LOOSE[0] + SLEEVE_LOOSE[1] * along + SLEEVE_LOOSE[2] * along * np.clip(-rn[:, 2], 0, 1)
             D[m] += rn * (loose * _smoothstep(-0.05, 0.10, t[m]))[:, None]
     else:
         # the seat and the hips: one hull a slice, over the cleft
@@ -472,3 +476,29 @@ def check_cloth(tee, pants, body, assert_=True):
     assert out["cuff_swing"] >= 0.002, "no folds: the trousers swing %.1f mm above the cuff, want 2" % (out["cuff_swing"] * 1000)
     assert out["crotch_span"] <= 0.015, "a skirt: cloth between the legs %.0f mm off the skin, want 15 at most" % (out["crotch_span"] * 1000)
     return out
+
+
+def check_legs_apart(pants, crotch_z, assert_=True):
+    """The trouser legs are two legs, on the man at his own size (the scan,
+    2026-09-28): below the crotch no face of the trousers straddles the
+    midline. The thug's size field once carried his legs inward through
+    each other -- 155 faces across it, a web between his thighs that every
+    clip stretched up to 63x. Returns (faces across, the nearest any
+    trouser vertex below the crotch comes to the midline)."""
+    me = pants.data
+    if not len(me.polygons):
+        return 0, 1.0
+    below = crotch_z - 0.03 * crotch_z / 0.910     # 3 cm under the crotch, at the man's own size
+    co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get("co", co); co = co.reshape(-1, 3)
+    across, where = 0, []
+    for p in me.polygons:
+        q = co[list(p.vertices)]
+        if q[:, 2].mean() < below and q[:, 0].max() > 0.0005 and q[:, 0].min() < -0.0005:
+            across += 1; where.append(q[:, 2].mean())
+    low = co[co[:, 2] < below]
+    gap = float(np.abs(low[:, 0]).min()) if len(low) else 1.0
+    if assert_:
+        assert across == 0, "the trouser legs run through each other: %d faces across the midline below the crotch (z %.3f-%.3f, the crotch at %.3f)" % (
+            across, min(where), max(where), crotch_z)
+    return across, gap
+

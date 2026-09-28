@@ -2724,6 +2724,118 @@ long as the engine holds them. **Not verified:** no engine has compiled the
 C++ or imported a clip; `ASaudGameMode`'s hooks are read-reviewed only.
 "Death reuses Down" in "Saud moves" is superseded.
 
+## The scan, and what it found -- 2026-09-28
+
+Asked as "make blender scan all game then fix all", settled as the six men,
+every motion clip, the souq and the world, the anime look and the iron arm;
+fix what the scan finds, the items seen and not touched before included.
+The scan read every man back from his FBX, played every clip of his set on
+him the way the engine will (each bone's turn from the clip, its length
+from his own skeleton), and measured edge stretch, faces through faces,
+weights and UVs; it re-ran every check and every sabotage suite, and looked
+at close renders of the sleeve, the collar, the waist and the crotch. The
+souq, the world, the look and the iron arm passed their own checks
+unchanged. What it found, and what was done:
+
+- **A web between the thug's legs.** 155 trouser faces crossed the midline
+  below the crotch, and every clip stretched them -- 46x in the walk, 58x
+  in the kick, 63x in the Special. Not the garment: the size field
+  (`anatomy.build_field`). A point between the thighs is held by both legs'
+  thinning, and "strongest" was decided in the fourth decimal -- the thigh's
+  axis slants, so the far leg's weight came out a hair higher -- and the
+  inner thigh was thinned toward the OTHER leg and carried through the
+  midline. A point now belongs to the nearest limb that holds it
+  (`NEARER_LIMB`), and below the crotch nothing ends nearer the midline
+  than half its own distance (`MIDLINE_KEEP`, a smooth floor), which is what
+  keeps a heavy man's thickened thighs (AL-WAHSH, ZAYOS) apart too.
+  `garments.check_legs_apart` runs on every man at his own size; the
+  cloth check dresses a body, takes it through the thug's field (0 faces
+  across, 3.0 mm the nearest) and then the old one (615 across): caught.
+  On the rebuilt thug, the worst trouser stretch: the walk 46x -> 8.3x, the
+  kick 58 -> 21.6, the Special 63 -> 24.5, the guard 15 -> 8; his trousers'
+  faces through each other at rest 378 -> 125, level with the other men's
+  109-118.
+- **The skull bent at the eyes.** Bone heat split the head at its joint,
+  which is at the eye line: the eyes were 43-56 % on the head bone, the
+  scalp 50-88, the hair 81-97, the rest on neck_01 -- a nod bent the skull
+  and slid the globes in their lids. `rig_export.own_the_head` now makes
+  everything from 0.60 of a neck-length under the head joint up the
+  head's alone, and blends the neck into it inside the neck's column,
+  fading into heat's own answer at its edge (the trapezius, the collar)
+  and its foot. `rig_full_ik.verify` holds every such vertex at 98 % or
+  more; a head split at the eye line bites.
+- **The Block put both fists in his forehead.** The wrist was 11 cm in
+  front of the head joint and the hand leant back 34 degrees, so the
+  knuckles stood 4.9 cm in front of a joint the brow is 10 cm in front of,
+  in every set's Block. The wrists are 19 cm out and the hands near
+  upright (`build_motion.BLOCK_FWD`); every knuckle must be 14 cm in
+  front of the head joint (`BLOCK_CLEAR`), and a Block struck the old way
+  bites (`block_in`; the suite is 34 of 34). The five Block clips are
+  rebuilt; the other 192 are unchanged.
+- **Faces with no texture.** The palm half of both hands was a chart that
+  was defined and never added: 4,360 faces on every man mapped onto one
+  line of the arm's cylinder. The arm's cylinder took faces behind its own
+  start (the tee over the shoulder: 85 more), the shoe's toe ran past the
+  foot's cylinder, and the soles' rims were projected top-down onto lines.
+  All have charts of their own now (`finish.body_charts`, the soles in
+  `pipeline`). Measured on all six: skin 4,164-4,360 -> 0 or 1, tee 85-89
+  -> 0, ZAYOS's gloves 781 -> 0, the shoes 124-346 -> 40 (the bevel at the
+  front edge of each sole, which takes one texel's colour, not black).
+- **Black notches in every waistband.** The trousers used the body's UV
+  layout, where everything above the legs -- the seat and the whole
+  waistband -- sat in the trunk's catch-all: about 7 texel rows of a 1K map,
+  with the gutter's black bleeding into the band. They have their own
+  layout now (`finish.pants_charts`): the legs two thirds of the image, the
+  seat and waistband the top third across its width, and the leg cylinder
+  started above every face it owns (started lower, its top row clamped
+  into a dark seam round each hip). And every selected-to-active bake now
+  bakes the surface from its own paint first, so a texel whose ray misses
+  the detailed source keeps a colour instead of black
+  (`finish.bake_set`; checked on two planes: missed texels 0 black).
+- **Holes at the collar and up the sleeves.** The fit hangs both off the
+  body now, and where they stand off it the stripped edge of the skin
+  showed -- the "ragged sleeve hems" of the renders were this edge seen up
+  the sleeve. Skin is kept for 12 cm round the neck above 1.45 and down the
+  upper arm from a tenth of its length (`pipeline.under_garments`). The
+  budget is still worked out as if that skin were stripped: counted as
+  seen, the smaller budget took every shoe face on Saud (the decimation
+  takes the shoes first and all at once).
+- **Boxy sleeves.** The sleeve loosened up to 13 mm toward the cuff over
+  the 6 mm shell, 19 mm off the arm in all; it loosens up to 8 now, 14 in
+  all (`garments.SLEEVE_LOOSE`). A judgement from the renders, not a
+  measured standard.
+- **ZAYOS out of his own renders.** Every documentation camera stood where
+  it stands for Saud; they stand back as far as the man is tall now.
+- **The rig check at ZAYOS's size**, found while fixing the above:
+  `verify`'s toe and heel were Saud's points, 1.47 times too far inside his
+  foot; carried as offsets from his own joints, grown by how much he has
+  grown (read off the head, since inside a build the joint table has
+  already been taken to his size). `--bite` runs the unbroken rig first
+  and it must pass.
+
+**Checked:** all six rebuilt from their checkpoints (2026-09-28, 03:24-
+06:09 Riyadh), every build passing its own checks -- the head, eyes, nose,
+hair, neck, back and cloth, and the legs apart at his size; the control
+rig verified with the rigid head, and `rig_full_ik.py --bite` on every
+man's rig: the unbroken rig passes, 16 of 16 bite. `build_fighters.py
+--cloth-check` 5 of 5; `build_motion.py --bite` 34 of 34; 197 clips, every
+motion check passing. The iron arm rebuilt on Saud's new UVs, its check
+passing (the palm is in his right hand's chart now, so the whole fist
+turns at level 1). `anime-men.png`, the souq fight scene and its anime and
+fire previews, every man's documentation renders and the three motion
+contact sheets re-rendered; the scene's 34 re-exported souq FBX (new ids
+only) put back, and so were the 192 clips the motion run re-exported
+unchanged.
+
+**Not verified:** no engine has imported any of the six men or the
+Block clips.
+
+**Seen, not touched:** the trousers still stretch at the crotch in every
+clip, 9-19x on the men of Saud's build and 17x in AL-WAHSH's knee strike
+-- the welded crotch that `pin_crotch` tapers onto the pelvis (2026-09-23),
+not the web; the decimation leaves Saud's two shoes 310 faces (the other
+men 900-2,200), as it did before; and the 40 sole-bevel faces above.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

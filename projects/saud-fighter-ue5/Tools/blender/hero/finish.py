@@ -139,10 +139,21 @@ def body_charts():
         # its cylinder, which the wider radius would otherwise pull onto
         # the planar rect's edge.
         charts.append((lambda c, wr=wr, he=he, d=d: near(c, wr, he + (he - wr).normalized() * 0.12, 0.10) and (c - wr).dot(d) > -0.03 and c.y >= 0, "planar", (o, w, d, 0.26), rect_b))
+        # ...and the palm half, into its own rect. It was defined and never
+        # added (2026-09-28, found by the scan): the palm side of both hands
+        # fell through to the arm's cylinder, clamped at its end, and every
+        # palm face mapped onto one line -- 4,360 faces with no texels.
+        charts.append((lambda c, wr=wr, he=he, d=d: near(c, wr, he + (he - wr).normalized() * 0.12, 0.10) and (c - wr).dot(d) > -0.03 and c.y < 0, "planar", (o, w, d, 0.26), rect_p))
     # arms: cylinder from the shoulder to the wrist
     for s, rect in ((1, (0.50, 0.50, 0.75, 1.00)), (-1, (0.75, 0.50, 1.00, 1.00))):
         a = mirror(Jp("upperarm_l"), s); b = mirror(Jp("hand_l"), s)
-        charts.append((lambda c, a=a, b=b: near(c, a, b, 0.11) and c.z < 1.50, "cyl", (a - (b - a).normalized() * 0.05, b, F, 0.0, 1.0), rect))
+        # Only what lies along the arm from where its cylinder starts: faces
+        # behind that start (the tee over the shoulder, beside the collar)
+        # were clamped to its first row, flat -- 85 tee faces with no texels
+        # and the black notches at every collar (the scan, 2026-09-28).
+        a0 = a - (b - a).normalized() * 0.05
+        charts.append((lambda c, a=a, b=b, a0=a0: near(c, a, b, 0.11) and c.z < 1.50 and (c - a0).dot((b - a0).normalized()) > 0.01,
+                       "cyl", (a0, b, F, 0.0, 1.0), rect))
     # feet: heel to toe, before the legs. Without a chart of their own the
     # toes fell past the leg cylinder's reach into the trunk's catch-all,
     # whose v clamps to 0 below the hips: every toe face mapped onto one
@@ -151,13 +162,38 @@ def body_charts():
     # own images, and the soles keep their own quadrant (u > 0.5, v < 0.5).
     for s, rect in ((1, (0.00, 0.50, 0.50, 0.75)), (-1, (0.00, 0.75, 0.50, 1.00))):
         charts.append((lambda c, s=s: c.z < 0.14 and c.x * s > 0.02, "cyl",
-                       (Vector((s * 0.082, 0.08, 0.06)), Vector((s * 0.082, -0.22, 0.06)), Z, 0.0, 1.0), rect))
+                       # to -0.27: the toe reaches -0.245, and past -0.22 its
+                       # faces clamped onto the chart's last row, flat (83 on
+                       # the thug -- the scan, 2026-09-28)
+                       (Vector((s * 0.082, 0.08, 0.06)), Vector((s * 0.082, -0.27, 0.06)), Z, 0.0, 1.0), rect))
     # legs: hip to ankle
     for s, rect in ((1, (0.00, 0.00, 0.25, 0.50)), (-1, (0.25, 0.00, 0.50, 0.50))):
         a = mirror(Jp("thigh_l"), s); b = mirror(Jp("foot_l"), s)
         charts.append((lambda c, a=a, b=b: near(c, a + Vector((0, 0, 0.08)), b - Vector((0, 0, 0.05)), 0.14) and c.z < 1.02, "cyl", (a + Vector((0, 0, 0.08)), b - Vector((0, 0, 0.06)), F, 0.0, 1.0), rect))
     # trunk: the rest above the hips. Mostly under the tee, so the small strip.
     charts.append((lambda c: True, "cyl", (Vector((0, 0.005, 0.86)), Vector((0, 0.005, 1.56)), F, 0.0, 1.0), (0.00, 0.50, 0.50, 0.70)))
+    return charts
+
+def pants_charts():
+    """The trousers' own layout (the scan, 2026-09-28). On the body's they
+    took the legs' two quarter-width strips and the trunk's catch-all, which
+    runs from the hips to the neck in a fifth of the image: the whole seat
+    and waistband sat in about 7 texel rows of a 1K map, and the black gutter
+    between charts bled into the band as black notches. Here the legs have
+    the bottom two thirds, a half each, and the seat and waistband -- 0.84 to
+    1.12 -- the top third across the whole width."""
+    F = Vector((0, -1, 0))
+    def near(p, a, b, r):
+        return A._point_to_segment(p, a, b) < r if hasattr(A, "_point_to_segment") else legacy._point_to_segment(p, a, b) < r
+    def mirror(v, s): return Vector((v.x * s, v.y, v.z))
+    charts = []
+    for s, rect in ((1, (0.00, 0.00, 0.50, 0.64)), (-1, (0.50, 0.00, 1.00, 0.64))):
+        a = mirror(Jp("thigh_l"), s); b = mirror(Jp("foot_l"), s)
+        # the cylinder starts at 1.10, above every face it owns: started at
+        # 1.03 as the body's does, the corners of its top row clamped onto
+        # one line, a dark seam round each hip
+        charts.append((lambda c, a=a, b=b: near(c, a + Vector((0, 0, 0.08)), b - Vector((0, 0, 0.05)), 0.14) and c.z < 1.02, "cyl", (a + Vector((0, 0, 0.15)), b - Vector((0, 0, 0.06)), F, 0.0, 1.0), rect))
+    charts.append((lambda c: True, "cyl", (Vector((0, 0.005, 0.84)), Vector((0, 0.005, 1.12)), F, 0.0, 1.0), (0.00, 0.66, 1.00, 1.00)))
     return charts
 
 # --------------------------------------------------------------- colour
@@ -542,23 +578,42 @@ def bake_set(obj, mat, size, out_dir, base, maps=("albedo", "normal", "roughness
         tex.image = img
         for sm, t2 in src_nodes: t2.image = img
         s2a = source is not None
-        if m == "albedo":
-            # Cycles' diffuse colour pass includes the sheen closure's
-            # albedo, which lifted every dark roster colour: Saud's tee
-            # #15171c baked as (32,33,37) -- more than double in linear
-            # light. The sheen is off for this one pass and put back.
-            sheen = [(n, n.inputs["Sheen Weight"].default_value) for t in [nt] + [sm.node_tree for sm, _ in src_nodes]
-                     for n in t.nodes if n.type == "BSDF_PRINCIPLED"]
-            for n, _ in sheen: n.inputs["Sheen Weight"].default_value = 0.0
-            bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'}, margin=8, use_selected_to_active=s2a, cage_extrusion=0.02, max_ray_distance=0.05)
-            for n, v in sheen: n.inputs["Sheen Weight"].default_value = v
-        elif m == "normal": bpy.ops.object.bake(type='NORMAL', margin=8, use_selected_to_active=s2a, cage_extrusion=0.02, max_ray_distance=0.05)
-        else: bpy.ops.object.bake(type='ROUGHNESS', margin=8, use_selected_to_active=s2a, cage_extrusion=0.02, max_ray_distance=0.05)
+        # A texel whose ray finds no source is left as it was -- cleared to
+        # black. The scan of 2026-09-28 found them along the trousers'
+        # waistband, where the decimated rim sits further off the source
+        # than the ray reaches: black notches in every man's waistband. So
+        # a first pass bakes the surface from its own paint, and the
+        # source's pass then goes over it without clearing: a missed texel
+        # keeps its own colour instead of black.
+        if s2a and images is None:
+            source.select_set(False)
+            _bake_pass(m, nt, [], False)
+            source.select_set(True); bpy.context.view_layer.objects.active = obj
+            sc.render.bake.use_clear = False
+        _bake_pass(m, nt, src_nodes, s2a)
+        sc.render.bake.use_clear = images is None
         img.save()
         written[m] = img
     nt.nodes.remove(tex)
     for sm, t2 in src_nodes: sm.node_tree.nodes.remove(t2)
     return written
+
+
+def _bake_pass(m, nt, src_nodes, s2a):
+    """One bake of map `m` into the active image node, from the surface
+    itself or (s2a) from the selected source."""
+    if m == "albedo":
+        # Cycles' diffuse colour pass includes the sheen closure's
+        # albedo, which lifted every dark roster colour: Saud's tee
+        # #15171c baked as (32,33,37) -- more than double in linear
+        # light. The sheen is off for this one pass and put back.
+        sheen = [(n, n.inputs["Sheen Weight"].default_value) for t in [nt] + [sm.node_tree for sm, _ in src_nodes]
+                 for n in t.nodes if n.type == "BSDF_PRINCIPLED"]
+        for n, _ in sheen: n.inputs["Sheen Weight"].default_value = 0.0
+        bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'}, margin=8, use_selected_to_active=s2a, cage_extrusion=0.02, max_ray_distance=0.05)
+        for n, v in sheen: n.inputs["Sheen Weight"].default_value = v
+    elif m == "normal": bpy.ops.object.bake(type='NORMAL', margin=8, use_selected_to_active=s2a, cage_extrusion=0.02, max_ray_distance=0.05)
+    else: bpy.ops.object.bake(type='ROUGHNESS', margin=8, use_selected_to_active=s2a, cage_extrusion=0.02, max_ray_distance=0.05)
 
 def wire_textures(mat, imgs):
     """Replace the procedural inputs with the baked maps, so the exported

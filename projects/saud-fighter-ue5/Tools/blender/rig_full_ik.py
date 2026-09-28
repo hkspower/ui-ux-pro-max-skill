@@ -687,11 +687,22 @@ def _toe_and_heel(rig, mesh, side):
     weights are whatever heat gave it."""
     import build_saud as legacy
     pb = rig.pose.bones
-    def carried(bone, point):
+    # The joint table is Saud's, the bones are this man's: the point is
+    # carried as its offset from the bone's own joint, grown with him
+    # (2026-09-28 -- taken as Saud's absolute point, ZAYOS's toe was
+    # measured 1.47 times too far inside his foot, and breaking the
+    # flat-toes helper went past the check unseen). How much he has grown is
+    # read off the head, not passed in: inside a build the joint table has
+    # already been taken to his size and the factor is 1 -- passed his
+    # height instead, ZAYOS's heel was carried twice as far and his own
+    # rig failed the heel roll by 2.9 cm.
+    scale = pb["head"].bone.head_local.z / legacy.J["head"][0][2]
+    def carried(bone, joint, point):
         b = pb[bone]
-        return (rig.matrix_world @ b.matrix @ b.bone.matrix_local.inverted() @ Vector(point)).z
-    toe = carried("ball_" + side, legacy.J["toe_" + side][0])
-    heel = carried("foot_" + side, legacy.J["heel_" + side][0])
+        at = b.bone.head_local + (Vector(point) - Vector(legacy.J[joint][0])) * scale
+        return (rig.matrix_world @ b.matrix @ b.bone.matrix_local.inverted() @ at).z
+    toe = carried("ball_" + side, "ball_" + side, legacy.J["toe_" + side][0])
+    heel = carried("foot_" + side, "foot_" + side, legacy.J["heel_" + side][0])
     return toe, heel
 
 def verify(rig, mesh, scale=1.0):
@@ -893,10 +904,16 @@ def verify(rig, mesh, scale=1.0):
     bad = [g.name for g in mesh.vertex_groups if g.name not in deform]
     if bad:
         fails.append("the mesh is weighted to non-deform bones: %s" % bad[:6])
+    # the skull is rigid: no vertex of the head over the upper neck shares
+    # its weight with another bone (heat split it at the eye line, 2026-09-28)
+    from hero import rig_export as RX
+    least, count = RX.head_held(mesh, rig)
+    if count and least < 0.98:
+        fails.append("head: a vertex of the skull is only %.0f %% on the head bone (of %d)" % (least * 100, count))
     reset(rig)
     assert not fails, "the control rig does not do what it says:\n  " + "\n  ".join(fails)
     print("control rig verified: hand IK reaches, fk switch, toe and heel roll, look, fist, pivot, "
-          "IK/FK snap, pole pins, no stretch, export set")
+          "IK/FK snap, pole pins, no stretch, export set, rigid head")
     return True
 
 
@@ -1012,22 +1029,30 @@ def roundtrip(blend, out=None):
 # ===================================================================== bite
 def bite(blend):
     """Each verify() check, made to fail by breaking what it guards. A check
-    that cannot fail is not a check."""
+    that cannot fail is not a check.
+
+    At the man's own size (2026-09-28): run at Saud's, ZAYOS's clean rig
+    failed the toe roll's millimetre tolerance, so every sabotage "bit" on
+    that and one was silent. And the unbroken rig is run first and must
+    pass -- without it, a rig that failed clean read as every check biting."""
+    import build_saud as legacy
     def load():
         bpy.ops.wm.open_mainfile(filepath=blend)
         rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
         mesh = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent == rig)
         return rig, mesh
+    rig, _mesh = load()
+    scale = rig.data.bones["head"].head_local.z / legacy.J["head"][0][2]
     cases = []
     def case(label, sabotage, expect):
         rig, mesh = load()
         sabotage(rig, mesh)
         try:
-            verify(rig, mesh)
-            cases.append((label, False, "did not bite"))
+            verify(rig, mesh, scale=scale)
+            cases.append((label, expect is None, "passes" if expect is None else "did not bite"))
         except AssertionError as e:
             msg = str(e)
-            cases.append((label, expect in msg, msg.split("\n")[1].strip() if "\n" in msg else msg[:80]))
+            cases.append((label, expect is not None and expect in msg, msg.split("\n")[1].strip() if "\n" in msg else msg[:80]))
     def kill_ik(rig, mesh):
         c = rig.pose.bones["lowerarm_l"].constraints["IK"]; c.driver_remove("influence"); c.influence = 0.0
     def kill_switch(rig, mesh):
@@ -1062,10 +1087,18 @@ def bite(blend):
         c = rig.pose.bones["lowerarm_l"].constraints["IK"]; c.pole_angle += math.radians(90.0)
     def kill_pole(rig, mesh):
         rig.pose.bones["calf_l"].constraints["IK"].pole_target = None
+    def split_head(rig, mesh):
+        # heat's answer: the upper head shared with the neck at the eye line
+        gh, gn = mesh.vertex_groups["head"], mesh.vertex_groups["neck_01"]
+        hz = (rig.matrix_world @ rig.data.bones["head"].head_local).z
+        for v in mesh.data.vertices:
+            if abs((mesh.matrix_world @ v.co).z - hz) < 0.01:
+                gh.add([v.index], 0.5, "REPLACE"); gn.add([v.index], 0.5, "REPLACE")
     def let_stretch(rig, mesh):
         for n in ("thigh_l", "calf_l"):
             rig.pose.bones[n].ik_stretch = 0.3
         rig.pose.bones["calf_l"].constraints["IK"].use_stretch = True
+    case("clean (must pass)",      lambda rig, mesh: None, None)
     case("hand IK reaches",        kill_ik,        "hand IK")
     case("fk switch",              kill_switch,    "fk switch")
     case("toe roll sign",          flip_toe,       "toe roll")
@@ -1080,9 +1113,10 @@ def bite(blend):
     case("FK->IK snap",            twist_pole,     "snap: hand FK->IK")
     case("pole pin",               kill_pole,      "pin: moving CTRL_knee_l")
     case("no stretch",             let_stretch,    "stretched")
-    print("\n%-22s %s" % ("check", "when its mechanism is broken"))
+    case("rigid head",             split_head,     "head:")
+    print("\n%-22s %s   (scale %.3f)" % ("check", "when its mechanism is broken", scale))
     for label, ok, msg in cases:
-        print("  %-20s %s  %s" % (label, "BITES " if ok else "SILENT", msg[:90]))
+        print("  %-20s %s  %s" % (label, ("OK    " if msg == "passes" else "BITES ") if ok else "SILENT", msg[:90]))
     n = sum(1 for _, ok, _ in cases if ok)
     print("  %d of %d bite" % (n, len(cases)))
     return n == len(cases)

@@ -342,8 +342,35 @@ def cloth_check():
             print("    " + "  ".join("%s %.4f" % kv for kv in out.items()))
         ok = err is not None and word in err; caught += ok
         print("  %-15s %s  %s" % (label, "caught" if ok else ("WRONG CHECK" if err else "NOT caught"), err or ""))
-    print("  %d of %d cloth sabotages caught" % (caught, len(bites)))
-    if caught != len(bites):
+    # the legs apart at the thug's size (2026-09-28): the clean trousers
+    # through his field, then the field with the old fixed taper
+    import numpy as np
+    from hero import roster
+    t, p, soles = G.dress(body)
+    co0 = np.empty(len(p.data.vertices) * 3); p.data.vertices.foreach_get("co", co0)
+    def legs(keep):
+        k0 = (A.NEARER_LIMB, A.MIDLINE_KEEP)
+        if not keep: A.NEARER_LIMB, A.MIDLINE_KEEP = False, 0.0
+        try:
+            sp = roster.spec("thug")
+            _h, _l, _t, Fm = A.build_field(sp["sc"], sp["look"]["build"])
+            p.data.vertices.foreach_set("co", Fm(co0.reshape(-1, 3)).reshape(-1)); p.data.update()
+            cz = float(Fm(np.array([[0.0, 0.0, 0.910]]))[0][2])
+            try:
+                return G.check_legs_apart(p, cz), None
+            except AssertionError as e:
+                return G.check_legs_apart(p, cz, assert_=False), str(e)
+        finally:
+            A.NEARER_LIMB, A.MIDLINE_KEEP = k0
+    (n, gap), err = legs(True)
+    print("  legs     clean   thug: %d faces across, nearest %.1f mm" % (n, gap * 1000))
+    assert err is None, err
+    (n, gap), err = legs(False)
+    ok = err is not None and "each other" in err; caught += ok
+    print("  %-15s %s  %s" % ("old leg field", "caught" if ok else "NOT caught", err or ""))
+    for o in [t, p] + soles: bpy.data.objects.remove(o, do_unlink=True)
+    print("  %d of %d cloth sabotages caught" % (caught, len(bites) + 1))
+    if caught != len(bites) + 1:
         sys.exit(1)
 
 

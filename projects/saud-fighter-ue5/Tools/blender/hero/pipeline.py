@@ -247,20 +247,28 @@ def build_fighter(spec, argv=None):
 
     # ---- the body under the garments is never seen and pokes through after
     # decimation, so it goes; a band is kept inside every hem.
-    def under_garments(c):
+    def under_garments(c, seen=True):
         # to 1.50, not 1.53: the collar ring's lowest point is at 1.507, and a
         # strip that ran to 1.53 left the tee's black inside showing through
         # the 26 mm between the ring and the neck in every face render.
         # ZAYOS (no_tee) has no tee at all -- bare-chested and bare-armed --
         # so none of this strips: the skin there is what is seen.
+        #
+        # The scan of 2026-09-28 looked up the sleeves and in at the collar:
+        # the fit hangs both off the body now, and where they stand off it
+        # the stripped edge of the skin showed -- a hole into the tee's dark
+        # inside. The skin is kept for 12 cm round the neck above 1.45 and
+        # down the upper arm from a tenth of its length (0.30 before); what
+        # is stripped is what nothing can see.
         if no_tee: return 0.16 <= c.z <= 1.04 and G.pants_region(c)
-        if 1.10 <= c.z <= 1.50 and abs(c.x) < 0.24 and G.tee_region(c): return True
+        if (1.10 <= c.z <= 1.50 and abs(c.x) < 0.24 and G.tee_region(c)
+                and not (seen and c.z > 1.45 and math.hypot(c.x, c.y - 0.004) < 0.12)): return True
         if 0.16 <= c.z <= 1.04 and G.pants_region(c): return True
         for s in (1, -1):
             sh = Vector((A.Jp("upperarm_l").x * s, A.Jp("upperarm_l").y, A.Jp("upperarm_l").z))
             el = Vector((A.Jp("lowerarm_l").x * s, A.Jp("lowerarm_l").y, A.Jp("lowerarm_l").z))
             t = (c - sh).dot(el - sh) / (el - sh).length_squared
-            if -0.25 < t < 0.30 and G._pt_seg(c, sh, el) < 0.095 and c.z > 1.30: return True
+            if -0.25 < t < (0.10 if seen else 0.30) and G._pt_seg(c, sh, el) < 0.095 and c.z > 1.30: return True
         return False
     import bmesh
     def strip_body(body, drop_idx):
@@ -269,7 +277,11 @@ def build_fighter(spec, argv=None):
         bmesh.ops.delete(bm, geom=drop, context='FACES'); bm.to_mesh(body.data); bm.free()
         return len(drop)
     # the stripped share is spent on the face and hands instead
-    covered = sum(1 for p in body.data.polygons if under_garments(p.center)) / max(1, len(body.data.polygons))
+    # ...counted as the strip ran before the collar and sleeve skin was kept
+    # (seen=False): the few hundred triangles that kept cost nothing, and
+    # the smaller budget they made took every shoe face -- the collapse
+    # takes the shoes first and all at once (the scan's rebuild, 2026-09-28)
+    covered = sum(1 for p in body.data.polygons if under_garments(p.center, seen=False)) / max(1, len(body.data.polygons))
 
     # ---- the sources: the surfaces before decimation, kept for the bake
     def keep_copy(o, name_):
@@ -305,7 +317,8 @@ def build_fighter(spec, argv=None):
     tris["tee"] = F.decimate(tee, budget["tee"], lambda c: False, boundary_rings=2)      # the collar and the hems stay curves
     tris["pants"] = F.decimate(pants, budget["pants"], lambda c: False, boundary_rings=2)
     for o in soles + eyes: tris[o.name] = sum(len(p.vertices) - 2 for p in o.data.polygons)
-    stamp("decimated: " + "  ".join("%s %d" % kv for kv in tris.items()))
+    stamp("decimated: " + "  ".join("%s %d" % kv for kv in tris.items())
+          + "  (shoe faces %d)" % sum(1 for p in body.data.polygons if p.material_index == slots["shoe"]))
     # the eyes again, on what the collapse left: a lid it thinned must still
     # close over the globe and the fissure must still be open
     shown, leak = B.check_eye_open(body, eyes)
@@ -324,7 +337,8 @@ def build_fighter(spec, argv=None):
 
     # ---- UVs and paint
     charts = F.body_charts()
-    for o in (body, tee, pants): F.assign_uvs(o, charts)
+    for o in (body, tee): F.assign_uvs(o, charts)
+    F.assign_uvs(pants, F.pants_charts())
     # The hair's faces sit on the head cylinder's chart, a strip across the
     # top of it, and bake into their OWN image: measured, 527 x 87 texels of
     # a 1024 map -- 4.4 % of it, 1.2 mm a texel, 2.3 in the normal. The
@@ -340,7 +354,16 @@ def build_fighter(spec, argv=None):
         for li in hl:
             u, v = uvl[li].uv
             uvl[li].uv = (0.02 + 0.96 * (u - u0) / max(u1 - u0, 1e-9), 0.02 + 0.96 * (v - v0) / max(v1 - v0, 1e-9))
-    for o in soles: F.assign_uvs(o, [(lambda c: True, "planar", (Vector((o.location.x, -0.07, 0.01)), Vector((1, 0, 0)), Vector((0, 1, 0)), 0.32), (0.5, 0.0, 1.0, 0.5))])
+    for o in soles:
+        # the tread and the top top-down; the rim -- vertical, so a top-down
+        # projection flattened each of its faces to a line (124 faces, the
+        # scan, 2026-09-28) -- round the sole in a strip of its own
+        zs = [v.co.z for v in o.data.vertices]; zlo, zhi = min(zs), max(zs)
+        ctr = sum((v.co for v in o.data.vertices), Vector()) / len(o.data.vertices)
+        F.assign_uvs(o, [(lambda c, zlo=zlo, zhi=zhi: zlo + 0.25 * (zhi - zlo) < c.z < zhi - 0.25 * (zhi - zlo), "cyl",
+                          (Vector((ctr.x, ctr.y, zlo)), Vector((ctr.x, ctr.y, zhi)), Vector((0, -1, 0)), 0.0, 1.0),
+                          (0.5, 0.40, 0.75, 0.5) if ctr.x > 0 else (0.75, 0.40, 1.0, 0.5)),
+                         (lambda c: True, "planar", (Vector((o.location.x, -0.07, 0.01)), Vector((1, 0, 0)), Vector((0, 1, 0)), 0.32), (0.5, 0.0, 1.0, 0.40))])
     for e in eyes:
         ec = sum((v.co for v in e.data.vertices), Vector()) / len(e.data.vertices)    # the primitive keeps its verts in world space
         F.assign_uvs(e, [(lambda c: True, "cyl", (ec + Vector((0, 0, -0.02)), ec + Vector((0, 0, 0.02)), Vector((0, -1, 0)), 0.0, 1.0), (0, 0, 1, 1))])
@@ -476,7 +499,11 @@ def build_fighter(spec, argv=None):
 
     # ---- his own size. Everything above ran at Saud's coordinates; from
     # here on the mesh and the joints are the man's.
+    across0, gap0 = G.check_legs_apart(pants, 0.910, assert_=False)
     factors = A.scale_to([body, tee, pants] + soles + eyes, jl, spec["sc"], spec["look"].get("build", 1.0))
+    print("cloth     : at Saud's size %d faces across, nearest %.1f mm" % (across0, gap0 * 1000))
+    across, gap = G.check_legs_apart(pants, factors.get("crotch", {}).get("z_centre", 0.910))
+    print("cloth     : trouser legs apart below the crotch (%d faces across, nearest %.1f mm off the midline)" % (across, gap * 1000))
 
     # ---- rig
     rig = legacy.build_armature()
@@ -518,17 +545,20 @@ def build_fighter(spec, argv=None):
     targets, poles, report = legacy.limb_targets(rig, mesh, guard, plant=("l", "r"))
     legacy.print_pose_report("guard", ("l", "r"), report)
     legacy.pose(rig, guard, targets, poles, drop=report.get("body_drop", 0.0)); R.close_fists(rig)
-    shot("guard", (1.55, -3.35, 1.24), (0, 0, look_z), 62)
+    # the camera stands back as far as the man is tall (the scan, 2026-09-28:
+    # at Saud's distance ZAYOS's head was out of the top of every body shot)
+    hh, hk = factors["h"], factors.get("head", 1.0)
+    shot("guard", (1.55 * hh, -3.35 * hh, 1.24 * hh), (0, 0, look_z), 62)
     targets, poles, report = legacy.limb_targets(rig, mesh, legacy.KICK, plant=("l",))
     legacy.print_pose_report("kick", ("l",), report)
     legacy.pose(rig, legacy.KICK, targets, poles, drop=report.get("body_drop", 0.0)); R.close_fists(rig)
-    shot("kick", (3.00, -2.45, 1.22), (0.14, 0, 0.96 * factors["h"]), 58)
+    shot("kick", (3.00 * hh, -2.45 * hh, 1.22 * hh), (0.14 * hh, 0, 0.96 * hh), 58)
     legacy.mute_ik(rig, True); legacy.pose(rig, {}); R.close_fists(rig, 0.0)
-    shot("apose", (0.35, -3.60, 1.05), (0, 0, look_z), 58)
+    shot("apose", (0.35 * hh, -3.60 * hh, 1.05 * hh), (0, 0, look_z), 58)
     # lens 85 -> 120 at the same aim: the head fills 69 % of the frame
     # instead of 49 (the crown's ray at 0.141 * 120 = 16.9 mm stays inside
     # the 18 mm half-sensor), 0.24 mm a pixel at 2x -- under the texel
-    shot("face", (0.62, -1.05, 1.60 * factors["h"]), (0, 0, 1.62 * factors["h"]), 120, res=(760 * scale, 760 * scale))
+    shot("face", (0.62 * hk, -1.05 * hk, 1.60 * hh), (0, 0, 1.62 * hh), 120, res=(760 * scale, 760 * scale))
     legacy.mute_ik(rig, False)
     stamp("posed" if "--no-render" in argv else "rendered")
 

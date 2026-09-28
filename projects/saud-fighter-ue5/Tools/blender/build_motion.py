@@ -1146,6 +1146,10 @@ def author_dash(au, c, S):
     return frames
 
 
+BLOCK_FWD = 0.19      # the block's wrists, in front of the head joint
+BLOCK_CLEAR = 0.14    # the least any knuckle stands in front of it (the brow is 10 cm)
+
+
 def author_block(au, c, S):
     """index.html:1506: arms higher and tighter, lean 0.16, the hip 3 px
     lower. The browser draws the arms up; the rig can say exactly where:
@@ -1159,8 +1163,14 @@ def author_block(au, c, S):
     # leans back toward the forehead here (measured, the guard's hand aims
     # left each wrist bent 40 degrees in the block) -- and the palms to the
     # face, the backs of the hands to the blow.
+    #
+    # Out in FRONT of the forehead (the scan, 2026-09-28): the wrist was
+    # 11 cm in front of the head joint and the hand leant back 34 degrees
+    # from it, so the knuckles stood 4.9 cm in front of a joint the brow is
+    # 10 cm in front of -- both fists sunk into his forehead in every
+    # Block. The wrist is BLOCK_FWD out now and the hand near upright.
     tuck = dict(aims, neck_01=(0.0, -0.16, 0.99), head=(0.0, -0.22, 0.975),
-                hand_l=(-0.07, 0.55, 0.83), hand_r=(0.07, 0.55, 0.83),
+                hand_l=(-0.07, 0.22, 0.97), hand_r=(0.07, 0.22, 0.97),
                 palm_l=(-0.30, 0.95, 0.0), palm_r=(0.30, 0.95, 0.0))
     N = c["frames"]
     frames, plant = [], {s: {} for s in SIDES}
@@ -1169,7 +1179,7 @@ def author_block(au, c, S):
     def fist(s):
         def at(fk, s=s):
             m = fk["hand_" + s].copy()
-            m.translation = fk["head"] + Vector((0.075 * side[s], -0.11, 0.03))
+            m.translation = fk["head"] + Vector((0.075 * side[s], -(0.11 if "block_in" in SABOTAGE else BLOCK_FWD), 0.03))
             return m
         return at
 
@@ -1774,6 +1784,11 @@ def verify(rig, made):
                     if fist.z < head.z - 0.03 or fist.y > head.y:
                         fails.append("%s: the %s fist is not up at the forehead on frame %d" % (c["name"], s, f))
                         break
+                    near = min(head.y - at(f, n + s).y for n in ("hand_", "middle_01_", "middle_03_"))
+                    if near < BLOCK_CLEAR:
+                        fails.append("%s: the %s fist is in the forehead on frame %d, %.1f cm in front of the head joint, want %.0f" % (
+                            c["name"], s, f, near * 100, BLOCK_CLEAR * 100))
+                        break
         elif c["kind"] == "hit":
             h0 = at(1, "head")
             c["head_back_cm"] = max((at(f, "head").y - h0.y) for f in range(1, N + 1)) * 100.0
@@ -1961,6 +1976,7 @@ def bite():
         # the end of a fight (motion_hits, 2026-09-28)
         ("death lies flat", "death_sit", ["A_Saud_Death"],             "does not lie dead"),
         ("victory raised", "victory_low", ["A_Street_Victory"],        "is not raised"),
+        ("block in front", "block_in", ["A_Saud_Block"],               "in the forehead"),
     ]
     results = []
     for label, sab, names, expect in cases:
