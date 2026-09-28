@@ -31,7 +31,7 @@ BOTTOMS, KIT, VEINS). apply_man(kind) sets all of it that is module state.
 import bpy, os, sys, time, math, json
 from mathutils import Vector
 import build_saud as legacy
-from . import anatomy as A, assembly as B, garments as G, finish as F, rig_export as R
+from . import anatomy as A, assembly as B, garments as G, finish as F, rig_export as R, face as FA
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
@@ -136,6 +136,22 @@ NOSES = {
                     ala=dict(k=1.08)),
 }
 
+# What a man's NOSES entry is for, held by sculpt.check_nose (a check, not
+# geometry: not stamped): the brawler's broken -- off the midline 2-4 mm
+# with a hump of 2.4 mm or more (2.75 / 2.84); AL-SAQR's aquiline, the hump
+# 3.5 mm or more (4.16); AL-WAHSH's and ZAYOS's flattened -- no hump (1.1 mm
+# at most: 0.84 / 0.87) and the dorsum pushed in, 14 mm high at mid-bridge
+# at most (13.4 / 13.1). The shared nose: 0 off, 1.61 mm, 15.7 mm. (The
+# hump alone does not tell ZAYOS's nose from his face without it: his
+# heavy brow already straightens the dorsum, 0.99 mm; the pushed-in bridge
+# does, 15.6 without his entry.)
+NOSE_LOOKS = {
+    "brawler": dict(looks="broken", deviation=(0.0020, 0.0040), hump=(0.0024, None)),
+    "saqr":    dict(looks="aquiline", hump=(0.0035, None)),
+    "boss":    dict(looks="flattened", hump=(None, 0.0011), dorsum=(None, 0.0140)),
+    "zayos":   dict(looks="flattened", hump=(None, 0.0011), dorsum=(None, 0.0140)),
+}
+
 # A man's lids: sculpt.set_eye's numbers. Saud's HOODED -- a lid set low
 # over an eye that stays open (the fissure 9.6 -> 8.25 mm, the upper lid
 # over 2.40 mm of the iris, 1.2 mm of iris still over the pupil), which
@@ -202,6 +218,52 @@ LIMBS = {
     "boss":    1.10,
 }
 
+# What a man's MASS and LIMBS must show on his body against the same body
+# built plain -- no MASS, LIMBS 1.0, his PHYSIQUE kept (check_body_looks; a
+# check, not geometry: not stamped). Measured on the pass-two body built
+# the physique way (--grim-check): the brawler, the heavy man, at least
+# 40 mm more waist and 20 mm more chest; AL-SAQR the kicker's V, check_back's
+# half-width at 1.30 over 1.14, at least 1.29 (plain 1.276); AL-WAHSH and
+# ZAYOS at least 15 mm more chest; and every man whose LIMBS is over 1 an
+# upper arm at least 0.6 of that factor's excess thicker round the biceps
+# (anatomy.arm puts it on the biceps and the flexors, not the joints).
+BODY_LOOKS = {
+    "brawler": dict(waist=0.040, chest=0.020),
+    "saqr":    dict(v_min=1.29),
+    "boss":    dict(chest=0.015),
+    "zayos":   dict(chest=0.015),
+}
+LIMB_SHOW = 0.6
+
+
+def check_body_looks(kind, man, plain, assert_=True):
+    """`man` and `plain`: his body's measures with his MASS and LIMBS and
+    without them -- anatomy.girths' chest, waist and biceps, and 'v',
+    check_back's. His own BODY_LOOKS rules first, then the arm's. Returns
+    the differences (metres; 'v' as measured)."""
+    looks = BODY_LOOKS.get(kind, {})
+    bad = set(looks) - {"waist", "chest", "v_min"}
+    if bad:
+        raise KeyError("no such body look: %s (waist, chest, v_min)" % sorted(bad))
+    out = {k: man[k] - plain[k] for k in ("chest", "waist", "biceps")}
+    out["v"] = man["v"]
+    limbs = LIMBS.get(kind, 1.0)
+    if not assert_:
+        return out
+    for k in ("waist", "chest"):
+        if k in looks:
+            assert out[k] >= looks[k], "no mass on the %s: %.3f m round against %.3f plain (+%.0f mm), want +%.0f" % (
+                k, man[k], plain[k], out[k] * 1000, looks[k] * 1000)
+    if "v_min" in looks:
+        assert man["v"] >= looks["v_min"], "no kicker's V: the back's half-width 1.30 over 1.14 is %.3f, want %.2f" % (
+            man["v"], looks["v_min"])
+    if limbs > 1.0:
+        want = plain["biceps"] * (1.0 + LIMB_SHOW * (limbs - 1.0))
+        assert man["biceps"] >= want, "no arms: the biceps %.3f m round against %.3f plain, want %.3f (LIMBS %.2f)" % (
+            man["biceps"], plain["biceps"], want, limbs)
+    return out
+
+
 # A cauliflower ear, {'l': k, 'r': k} on his left (+x) and right ear
 # (assembly.ear): the brawler's left, both of AL-WAHSH's.
 EARS = {
@@ -209,16 +271,150 @@ EARS = {
     "boss":    dict(l=1.0, r=1.0),
 }
 
-# Paint and kit, all of it after the checkpoint (2026-09-28; filled by the
-# face, body and five-men paint): face.set_look's knobs (PAINT), the top
-# and trousers' cut (TOPS, BOTTOMS -- built before the checkpoint, so
-# stamped), the kit's colours and pieces (KIT), the veins (VEINS). Empty:
-# every man paints and dresses as he did.
-PAINT = {}
-TOPS = {}
-BOTTOMS = {}
-KIT = {}
-VEINS = {}
+# A man's paint: face.set_look's knobs (every one a man leaves out is the
+# number painted before), all of it after the checkpoint. Lengths in metres.
+# The scowl -- the brows' inner ends pulled down against their tails
+# (brow_slant), flatter (brow_arch) and heavier (brow_thick); the
+# glabella's furrow; a deeper lid crease; the creases of a man past
+# eighteen (nasolabial, under_eye); a thinner, drier mouth whose line drops
+# to the corners (lip_*); the eye's own colours (iris, sclera; Saud's are
+# not changed, as not asked); scar tissue paler than the skin it crosses
+# (scars: face.scar_strokes); tape on a broken nose; grey in a beard; and
+# the grooves of the body cut deeper or softer (cut).
+_BZ, _MZ, _NZ = FA.BROW_Z, FA.MOUTH_Z, FA.NOSE_Z
+PAINT = {
+    # Saud: the seinen scowl in paint -- the brow 2.8 mm lower, its inner
+    # end 4.5 mm under the tail (it was 0.4 mm above it), 5 mm thick, the
+    # inner ends 16 mm apart (20); the furrow; a heavier lash, the ink line
+    # a seinen eye is drawn with; the lips 2.7 + 3.7 mm at the middle (4.0
+    # + 5.2), matt (0.10 glossier than the skin, 0.26 before), their line
+    # 3.8 mm down at the corners (2.4); a nasolabial line; the moustache's
+    # share of his stubble cut (at thinner lips it read as a pencil
+    # moustache). The beard's colour and wash stay the browser's.
+    "saud":    dict(brow_drop=0.0028, brow_slant=0.0045, brow_arch=0.0010, brow_thick=0.0050, brow_in=0.0080,
+                    furrow=(0.26, 0.00035), lid_fold=(0.0066, 0.55), lash=(0.0009, 0.86),
+                    lip_up=0.0027, lip_lo=0.0037, lip_drop=0.0038, lip_bow=0.30, lip_k=0.62, lip_deep=0.36,
+                    lip_seam=(0.95, 0.0016), lip_corner=0.40, lip_gloss=0.10,
+                    nasolabial=(0.28, 0.0004), hollow_shade=0.10, mous=0.55),
+    # the thug: a scar down through his right brow
+    "thug":    dict(brow_slant=0.0030, brow_arch=0.0010, brow_thick=0.0040, furrow=(0.30, 0.0005),
+                    nasolabial=(0.24, 0.0), under_eye=0.26, lid_fold=(0.0075, 0.46),
+                    lip_k=0.72, lip_gloss=0.12, lip_drop=0.0040, iris="#3f2a1b",
+                    scars=[dict(at="face", a=(-0.034, _BZ + 0.010), b=(-0.034, _BZ - 0.012), w=0.0013)],
+                    cut=1.4),
+    # the brawler: a split upper lip, tape over the broken nose
+    "brawler": dict(brow_slant=0.0025, brow_arch=0.0008, brow_thick=0.0050, furrow=(0.35, 0.0005),
+                    nasolabial=(0.30, 0.0), under_eye=0.24, lid_fold=(0.0075, 0.46),
+                    lip_k=0.72, lip_gloss=0.12, lip_drop=0.0040, iris="#3e2a1c",
+                    scars=[dict(at="face", a=(0.009, _MZ - 0.003), b=(0.009, _NZ - 0.002), w=0.0011)],
+                    nose_tape=dict(z=1.668, x=(-0.011, 0.013), h=0.0045, colour="#a39a88", rough=0.80),
+                    cut=0.8),
+    # AL-SAQR: a pale falcon's amber eye, a cut over the left cheekbone
+    "saqr":    dict(brow_slant=0.0035, brow_arch=0.0, brow_thick=0.0038, furrow=(0.32, 0.0005),
+                    nasolabial=(0.24, 0.0), under_eye=0.22, lid_fold=(0.0075, 0.46),
+                    lip_k=0.72, lip_gloss=0.12, lip_drop=0.0040, iris="#86652a",
+                    scars=[dict(at="face", a=(0.040, 1.662), b=(0.058, 1.648), w=0.0009)],
+                    cut=1.5),
+    # AL-WAHSH: the browser's brow scar, wider, a scalp scar and a chin
+    # scar; grey in the beard; his brows in his beard's colour (a bald
+    # man's were painted in his skin: none); scars down his right upper
+    # arm and across his left forearm
+    "boss":    dict(brow_slant=0.0025, brow_arch=0.0008, brow_thick=0.0050, brow_colour="beard",
+                    furrow=(0.36, 0.0005), nasolabial=(0.36, 0.0), under_eye=0.30, lid_fold=(0.0075, 0.50),
+                    lip_k=0.72, lip_gloss=0.12, lip_drop=0.0040, iris="#2e2118", sclera=("#e0d4c4", 0.22),
+                    scars=[dict(FA.BROW_SCAR, w=0.0024),
+                           dict(at="face", a=(-0.030, 1.785), b=(-0.068, 1.735), w=0.0020),
+                           dict(at="face", a=(-0.012, 1.585), b=(0.004, 1.592), w=0.0012),
+                           dict(at="upperarm_r", t=(0.05, 0.40), side="outer", w=0.0020),
+                           dict(at="lowerarm_l", t=(0.35, 0.60), side="flexor", across=True, w=0.0020)],
+                    beard_grey=0.35, cut=1.1),
+    # ZAYOS: the browser's brow scar, wider, one across the bridge; a
+    # stitched slash across his bare chest and a scar on his flank; brows
+    # of his own (no beard to take their colour from)
+    "zayos":   dict(brow_slant=0.0025, brow_arch=0.0008, brow_thick=0.0046, brow_colour=FA.BROW_BALD,
+                    furrow=(0.40, 0.0005), nasolabial=(0.32, 0.0), under_eye=0.30, lid_fold=(0.0075, 0.50),
+                    lip_k=0.72, lip_gloss=0.12, lip_drop=0.0040, iris="#2a1d15", sclera=("#d6c9b8", 0.10),
+                    scars=[dict(FA.BROW_SCAR, w=0.0024),
+                           dict(at="face", a=(-0.016, 1.671), b=(0.020, 1.671), w=0.0018),
+                           dict(at="front", a=(0.150, 1.420), b=(-0.060, 1.215), w=0.0025, stitches=True),
+                           dict(at="front", a=(0.020, 1.130), b=(0.135, 1.150), w=0.0020)],
+                    cut=1.3),
+}
+
+# A man's top and trousers where they are not the tee and the track
+# trousers: garments.TANKS' cuts -- 'compression' (Saud: tight, sleeveless,
+# the V and the deltoids shown) and 'singlet' (the thug and AL-WAHSH: a
+# loose sleeveless vest, the arms bare) -- and garments.LEG_FIT's
+# 'jogger' (Saud: fitted, gathered from the lower shin). Built before the
+# checkpoint, so stamped. The browser still draws every one of them in a
+# tee and track trousers (`look.tee`), on purpose.
+TOPS = {
+    "saud":    "compression",
+    "thug":    "singlet",
+    "boss":    "singlet",
+}
+BOTTOMS = {
+    "saud":    "jogger",
+}
+
+# A man's kit where it is not the browser's (finish.palette_for merges it):
+# every non-accent slot pushed into the dark palette, at most one declared
+# accent a man (`accent`), the hand tape a worn grey (it was bone white on
+# every wrapped man) with dried blood at the knuckles, knuckle scabs on
+# bare hands, a man's stubble, the glove's finish and the trousers'
+# roughness (cotton drill, not tricot, on the street men). Hex before
+# finish.fabric. Saud's colours stay the browser's (his tank, joggers and
+# the fabrics' own finish are TOPS/BOTTOMS').
+KIT = {
+    "thug":    dict(top="#35372f", bottom="#23262b", band="#3b3833", scabs="#4a1c16",
+                    beard="rgba(23,19,16,.40)", pants_rough=0.76),
+    # (the oxblood top and band muted 2026-09-28, #43201c and #4f2a22 as
+    # the five-men spec gave them: C* 23.2 and 24.7 after fabric, against
+    # that spec's own C* 16 for a slot that is not the accent; now 13.5 and
+    # 14.4, the same hue and L*)
+    "brawler": dict(top="#3a2522", bottom="#241d19", band="#452f29", hands="wraps",
+                    tape="#8f8676", tape_blood="#4a1c16", pants_rough=0.76),
+    "saqr":    dict(top="#252233", bottom="#17181d", band="#7a3413", accent="band",
+                    tape="#8f8676", beard="rgba(34,24,19,.35)"),
+    "boss":    dict(top="#1a1a1c", bottom="#121214", band="#9e0f1c", accent="band",
+                    tape="#6f6456", tape_blood="#4a1c16"),
+    "zayos":   dict(bottom="#141114", band="#5e1015", accent="band", glove_rough=0.62, glove_coat=0.05),
+}
+
+# A man's veins (face.set_look's vein_* knobs; `hold` is face.check_veins'
+# and not a knob): 'contour' on every man, lines running along the limb --
+# the old isotropic Worley net read as reptile scales on the big men's
+# forearms -- at the five men's strengths; Saud's fewer and bolder (2-4
+# veins across the 96 mm of his flexor side, 0.55 mm of relief, 10 %
+# darker), his arms bare to the shoulder in the tank.
+VEINS = {
+    "saud":    dict(vein_style="contour", vein_k=1.0, vein_scale=32.0, vein_width=0.020, vein_stretch=6.0,
+                    vein_lines=1, vein_height=0.00055, vein_darken=0.10, vein_seed=33.0,
+                    hold=dict(crossings=(2.0, 4.0), peak=0.00045)),
+    "thug":    dict(vein_style="contour", vein_k=0.95),
+    "brawler": dict(vein_style="contour", vein_k=0.55),
+    "saqr":    dict(vein_style="contour", vein_k=0.90),
+    "boss":    dict(vein_style="contour", vein_k=0.85),
+    "zayos":   dict(vein_style="contour", vein_k=1.00),
+}
+
+# The garments' shader numbers per cut, (roughness, sheen, weave) -- the
+# per-texel roughness is finish.fabric_surface's, over them: the tee's
+# jersey and the track's tricot as they were; the compression knit and the
+# jogger's brushed knit (Saud); a singlet is the tee's cotton.
+SHADERS = {"tee": (0.88, 0.35, 0.22), "singlet": (0.88, 0.35, 0.22), "compression": (0.68, 0.15, 0.10),
+           "track": (0.82, 0.20, 0.16), "jogger": (0.78, 0.10, 0.14)}
+# The triangle budget's shares, (body, top, trousers), per top. The body's
+# target is BUDGET x share / (the share of it not under the garments), and
+# the collapse takes the shoes first and all at once below a cliff that
+# sits at about 18 % of the pre-strip body (measured on the fast builds of
+# 2026-09-28: Saud's lean body under the tank 94.4k of 509k tris left 528
+# shoe faces, 89.7k left 53, 84.9k none; the brawler's heavier body at the
+# tee's old 0.66, 90.3k of 515k, none). So the body's share is 0.72 under
+# a tee (0.66 before: the brawler 98.6k) and 0.84 under a tank, whose own
+# tris go to the body (Saud 99k); the garments' as they were.
+SHARES = {"tee": (0.72, 0.16, 0.14), "tank": (0.84, 0.10, 0.14)}
+SHOE_FLOOR = 250          # shoe faces the decimation must leave on every man
 
 # The tables built before the checkpoint, and so stamped beside it: a
 # --resume onto a checkpoint built with any other entry would paint this
@@ -295,8 +491,8 @@ def apply_man(kind, spec=None):
     from . import roster, sculpt as SC, face as FA
     spec = spec or roster.spec(kind)
     men = {"saud"} | set(roster.enemies())
-    for t in ("CUTS", "FACES", "NOSES", "EYES", "HOLDS", "PHYSIQUE", "MASS", "LIMBS", "EARS",
-              "PAINT", "TOPS", "BOTTOMS", "KIT", "VEINS"):
+    for t in ("CUTS", "FACES", "NOSES", "NOSE_LOOKS", "EYES", "HOLDS", "PHYSIQUE", "MASS", "LIMBS", "EARS",
+              "PAINT", "TOPS", "BOTTOMS", "KIT", "VEINS", "BODY_LOOKS"):
         bad = set(globals()[t]) - men
         assert not bad, "pipeline.%s names no man in the roster: %s" % (t, sorted(bad))
     hair_style = hair_style_of(spec)
@@ -304,9 +500,43 @@ def apply_man(kind, spec=None):
     SC.set_eye(**EYES.get(kind, {}))
     A.set_physique(PHYSIQUE.get(kind))
     FA.set_hair(hair_style, spec["look"].get("grey", 0.0))
-    if PAINT.get(kind) or hasattr(FA, "set_look"):
-        FA.set_look(**PAINT.get(kind, {}))
+    veins = {k: v for k, v in VEINS.get(kind, {}).items() if k != "hold"}
+    both = set(PAINT.get(kind, {})) & set(veins)
+    assert not both, "%s: %s in both PAINT and VEINS" % (kind, sorted(both))
+    FA.set_look(**PAINT.get(kind, {}), **veins)
     return man_stamp(kind, hair_style)
+
+
+def paint_checks(kind, pal, assert_=True):
+    """A man's paint as face.set_look now holds it (apply_man), held to
+    its rules on numpy probes: his veins lines along the limb and, where
+    VEINS holds him, that many and that bold (face.check_veins); two brows,
+    and his scowl where HOLDS says (face.check_brows); the brows dark, and
+    on a man with PAINT the furrow, the frown, every face scar paler than
+    the skin round it and the tape where he wears it (face.check_paint);
+    his body scars (face.check_body_scars). Returns the numbers."""
+    # What is looked for is what his tables say he has -- the scars and
+    # the tape PAINT gives him, the veins VEINS holds him to -- and what is
+    # measured is what face.LOOK paints: a man whose table never reached
+    # the paint fails here.
+    want = PAINT.get(kind, {})
+    strokes = want.get("scars")
+    face_strokes = [q for q in strokes if q.get("at", "face") == "face"] if strokes is not None else (
+        [FA.BROW_SCAR] if pal["scar"] else [])
+    body_strokes = [q for q in (strokes or ()) if q.get("at", "face") != "face"]
+    out = {}
+    out["veins"] = FA.check_veins(VEINS.get(kind, {}).get("hold"), build=pal["build"], assert_=assert_)
+    out["brows"] = FA.check_brows(HOLDS.get(kind, {}).get("brow_slant", 0.0), assert_=assert_)
+    hair = pal["hair"] if pal["hair"] is not None else pal["skin"]
+    out["paint"] = FA.check_paint(pal["skin"], hair, pal["beard"], beard_k=pal["beard_k"], scar=pal["scar"],
+                                  strokes=face_strokes, grim=kind in PAINT, tape=bool(want.get("nose_tape")),
+                                  assert_=assert_)
+    out["body_scars"] = FA.check_body_scars(body_strokes, pal["skin"], assert_=assert_)
+    # a man with the Unreal build's own kit: dark, muted, one accent
+    # (finish.check_kit; the tops apart is --grim-check's, over all five)
+    if kind in KIT:
+        out["kit"] = F.check_kit({kind: pal}, assert_=assert_)
+    return out
 
 
 def run(argv=None):
@@ -329,12 +559,15 @@ def build_fighter(spec, argv=None):
     # says how far); 0.28 was a part-diffuse compromise for a radius three
     # times too long
     SKIN_SSS = 1.0
-    pal = F.palette_for(spec)
+    kind = spec["kind"]
+    # his top and trousers' cut, and his kit where the Unreal build has its
+    # own (TOPS, BOTTOMS, KIT): the palette is the roster's with KIT over it
+    top, bottom = TOPS.get(kind, "tee"), BOTTOMS.get(kind, "track")
+    pal = F.palette_for(spec, KIT.get(kind), top, bottom)
     bald = bool(spec["look"].get("bald"))
     no_tee = not spec["look"].get("tee", True)
-    gloves = spec["look"].get("hands") == "gloves"
+    gloves = pal["gloves"]
     assert bald or pal["hair"] is not None, "%s is not bald and has no hair colour" % name
-    kind = spec["kind"]
     face_scale = FACES.get(kind)
     arm_scale = LIMBS.get(kind, 1.0)
     # every per-man number that is module state -- the lids, the trunk, the
@@ -343,6 +576,13 @@ def build_fighter(spec, argv=None):
     # so a resumed man is painted on his own lids and trunk
     man = apply_man(kind, spec)
     hair_style = man["hair"]
+    # the paint, checked before anything is built (numpy, seconds): it is
+    # all laid after the checkpoint, and a failure found then would cost
+    # the build
+    paint_checks(kind, pal)
+    # ...and his nose what his NOSES entry is for (sculpt.check_nose, numpy)
+    from . import sculpt as _SC
+    _SC.check_nose(*_SC.with_nose(face_scale, NOSES.get(kind)), looks=NOSE_LOOKS.get(kind))
     if "--out" in argv:
         OUT = os.path.abspath(argv[argv.index("--out") + 1])
         UE5_MODELS = os.path.join(OUT, "ue5", "Models"); UE5_TEX = os.path.join(OUT, "ue5", "Textures", name)
@@ -395,6 +635,11 @@ def build_fighter(spec, argv=None):
         for k, strength in PORES.items():
             for n in mats[k].node_tree.nodes:
                 if n.type == 'BUMP': n.inputs["Strength"].default_value = strength
+        if gloves:
+            # the glove's finish is KIT's (after the checkpoint, like the pores)
+            bs = mats["glove"].node_tree.nodes["Principled BSDF"]
+            bs.inputs["Roughness"].default_value = pal["glove_rough"]
+            if "Coat Weight" in bs.inputs: bs.inputs["Coat Weight"].default_value = pal["glove_coat"]
         slots = {k: i for i, k in enumerate(body_kinds)}
         stamp("resumed from %s" % CHECK)
     else:
@@ -411,7 +656,9 @@ def build_fighter(spec, argv=None):
         if gloves:
             # ZAYOS: leather/vinyl, not skin or fabric -- a step glossier
             # than the shoe's own coat, no weave (a boxing glove has no weft).
-            mats["glove"] = F.shader("%s_Glove" % name, "glove", 0.40, coat=0.25)
+            # (2026-09-28: the kit's own finish, KIT: 0.40 / 0.25 as it was,
+            # ZAYOS's oxblood leather 0.62 / 0.05 -- it read as candy plastic)
+            mats["glove"] = F.shader("%s_Glove" % name, "glove", pal["glove_rough"], coat=pal["glove_coat"])
         body_kinds = ("skin", "hair", "shoe") + (("glove",) if gloves else ())
         for k in body_kinds:
             body.data.materials.append(mats[k]); slots[k] = len(body.data.materials) - 1
@@ -441,9 +688,13 @@ def build_fighter(spec, argv=None):
                     if G._pt_seg(p.center, lo, hi_) < 0.075 or \
                        any(G._pt_seg(p.center, a, b) < reach for a, b in zip(th[:-1], th[1:])):
                         p.material_index = slots["glove"]
-        tee, pants, soles = G.dress(body, tee=not no_tee)
-        mats["tee"] = F.shader("%s_Tee" % name, "tee", 0.88, sheen=0.35, weave=0.22)
-        mats["pants"] = F.shader("%s_Pants" % name, "pants", 0.82, sheen=0.20, weave=0.16)
+        tee, pants, soles = G.dress(body, tee=not no_tee, top=top, bottom=bottom)
+        # the shader's own numbers per cut (the per-texel roughness is
+        # fabric_surface's): the object and material keep the tee's name
+        # whatever the cut, so nothing downstream renames
+        for key, cut in (("tee", top), ("pants", bottom)):
+            rough, sheen, weave = SHADERS[cut]
+            mats[key] = F.shader("%s_%s" % (name, key.capitalize()), key, rough, sheen=sheen, weave=weave)
         mats["eye"] = F.shader("%s_Eye" % name, "eye", 0.08, coat=1.0)
         tee.data.materials.append(mats["tee"]); pants.data.materials.append(mats["pants"])
         for o in soles: o.data.materials.append(mats["shoe"])
@@ -472,16 +723,12 @@ def build_fighter(spec, argv=None):
         # inside. The skin is kept for 12 cm round the neck above 1.45 and
         # down the upper arm from a tenth of its length (0.30 before); what
         # is stripped is what nothing can see.
-        if no_tee: return 0.16 <= c.z <= 1.04 and G.pants_region(c)
-        if (1.10 <= c.z <= 1.50 and abs(c.x) < 0.24 and G.tee_region(c)
-                and not (seen and c.z > 1.45 and math.hypot(c.x, c.y - 0.004) < 0.12)): return True
-        if 0.16 <= c.z <= 1.04 and G.pants_region(c): return True
-        for s in (1, -1):
-            sh = Vector((A.Jp("upperarm_l").x * s, A.Jp("upperarm_l").y, A.Jp("upperarm_l").z))
-            el = Vector((A.Jp("lowerarm_l").x * s, A.Jp("lowerarm_l").y, A.Jp("lowerarm_l").z))
-            t = (c - sh).dot(el - sh) / (el - sh).length_squared
-            if -0.25 < t < (0.10 if seen else 0.30) and G._pt_seg(c, sh, el) < 0.095 and c.z > 1.30: return True
-        return False
+        #
+        # 2026-09-28, the tanks: under a sleeveless top the tank's own
+        # region, 20 mm in from every edge, and no arm (the arm's strip left
+        # under a tank measured 8,280 faces, 6.4 %, bare holes). The rule
+        # is garments.stripped, one for every top; check_holes holds it.
+        return G.stripped(c, top, no_tee=no_tee, seen=seen)
     import bmesh
     def strip_body(body, drop_idx):
         bm = bmesh.new(); bm.from_mesh(body.data); bm.faces.ensure_lookup_table()
@@ -494,6 +741,7 @@ def build_fighter(spec, argv=None):
     # the smaller budget they made took every shoe face -- the collapse
     # takes the shoes first and all at once (the scan's rebuild, 2026-09-28)
     covered = sum(1 for p in body.data.polygons if under_garments(p.center, seen=False)) / max(1, len(body.data.polygons))
+    stamp("under the garments (as counted for the budget): %.3f of the body" % covered)
 
     # ---- the sources: the surfaces before decimation, kept for the bake
     def keep_copy(o, name_):
@@ -523,7 +771,13 @@ def build_fighter(spec, argv=None):
             wr = Vector((A.Jp("hand_l").x * s, A.Jp("hand_l").y, A.Jp("hand_l").z))
             if (co - wr).length < 0.22 and co.z < 1.10: return True         # the hands
         return False
-    budget = {"body": int(BUDGET * 0.66 / max(0.3, 1.0 - covered)), "tee": int(BUDGET * 0.16), "pants": int(BUDGET * 0.14)}
+    # the shares per top (SHARES): a sleeveless top strips less, so the
+    # tee's share would lower the body's target (60000 x 0.66 / 0.509 =
+    # 77.8k on Saud) and the collapse takes the shoes first; a tank's own
+    # tris go to the body instead
+    sb, st, sp = SHARES["tee" if top == "tee" else "tank"]
+    budget = {"body": int(BUDGET * sb / max(0.3, 1.0 - covered)), "tee": int(BUDGET * st), "pants": int(BUDGET * sp)}
+    stamp("budget: body %d (%.2f / %.3f uncovered), top %d, trousers %d" % (budget["body"], sb, 1.0 - covered, budget["tee"], budget["pants"]))
     tris = {}
     tris["body"] = F.decimate(body, budget["body"], precious)
     tris["tee"] = F.decimate(tee, budget["tee"], lambda c: False, boundary_rings=2)      # the collar and the hems stay curves
@@ -540,16 +794,36 @@ def build_fighter(spec, argv=None):
     left = {k: sum(1 for p in body.data.polygons if p.material_index == i) for k, i in slots.items()}
     empty = [k for k, n in left.items() if n == 0 and not (k == "hair" and bald)]
     assert not empty, "decimation left no %s faces on %s (%s)" % ("/".join(empty), name, left)
+    # ...and the shoes enough to be shoes (2026-09-28): the collapse takes
+    # them first and all at once, so a floor, not just "some" (Saud's were
+    # 310, the other men's 900-2,200)
+    assert left["shoe"] >= SHOE_FLOOR, "decimation left %s %d shoe faces, want %d: the body's budget is too small (%s)" % (
+        name, left["shoe"], SHOE_FLOOR, budget)
     # The faces under the garments, decided HERE, at the canonical
     # coordinates every region test was written for. They are deleted after
     # the bind (bone heat wants the closed body), by which time the body has
     # been taken to the man's own size and `under_garments` would be asking
     # about a tee that is no longer where its constants say.
     hidden_faces = [p.index for p in body.data.polygons if under_garments(p.center)]
+    # ...and none of them a hole: a garment over every one (garments.check_holes).
+    # Held on the surface before the collapse, where the strip rule is
+    # decided face by face, against the garments as they ship: the
+    # collapse leaves slivers whose normals turn into the body or across
+    # the crotch (Saud's fast build, 2026-09-28: 10 of the 3,037 stripped
+    # faces, 21-120 mm2, every one 7-17 mm from the cloth), which a ray
+    # along the normal reads as a hole that is not there.
+    hid_hi = [p.index for p in hi["body"].data.polygons if under_garments(p.center)]
+    exposed, of = G.check_holes(hi["body"], hid_hi, [tee, pants])
+    stamp("strip: %d body faces to go (%d before the collapse), %d of those with no garment or skin within %.0f mm" % (
+        len(hidden_faces), of, exposed, G.HOLE_REACH * 1000))
 
     # ---- UVs and paint
     charts = F.body_charts()
-    for o in (body, tee): F.assign_uvs(o, charts)
+    F.assign_uvs(body, charts)
+    # a tank has its own layout (finish.tank_charts); the tee shares the body's
+    F.assign_uvs(tee, charts if top == "tee" else F.tank_charts())
+    if top != "tee" and not no_tee:
+        F.check_uv_flat(tee)
     F.assign_uvs(pants, F.pants_charts())
     # The hair's faces sit on the head cylinder's chart, a strip across the
     # top of it, and bake into their OWN image: measured, 527 x 87 texels of

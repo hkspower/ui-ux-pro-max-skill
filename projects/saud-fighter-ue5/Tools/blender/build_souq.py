@@ -6,6 +6,9 @@
     python3 build_souq.py --check        the plan and its checks only (no Blender)
     python3 build_souq.py --describe     what it would build, and why
     python3 build_souq.py --bite         break the plan and prove check() notices
+    python3 build_souq.py --bite-meshes  break the meshes and the bake (bpy, no
+                                         export) and prove check_meshes() and
+                                         check_bake() notice
     python3 build_souq.py --fast         512 px textures, quick renders
     python3 build_souq.py --no-render    everything but the Cycles renders
     python3 build_souq.py --scene        also the fight: the three fighters
@@ -55,6 +58,30 @@ arch is 60 cm deep with a wooden shutter at the back; crenellations are
 40 cm wide on a 40 cm gap; the lantern hangs 25 cm; the rim wall is 1.2 m
 thick; the ground is sand off the street. The sun for the renders is
 build_levels.py's Souq rig (24 degrees up) put where he walks in from.
+
+THE NIGHT (2026-09-28, "make all game like dark anime adult style", the
+Unreal build; every number below is this build's, not the browser's). The
+souq is soot stone under a cold hard moon, lit only by what burns:
+    the palette   every browser colour through WEATHER's curve -- chroma
+                  pulled to grey, a cold cast, luminance a power (0.29) of
+                  the browser's from the ink floor up -- so the darkest
+                  stone in the world's shadow tone is still twice the ink
+                  (ink_floor(), read from Tools/look/anime_look.py: 0.060);
+                  soot streaks, a damp plinth at every wall's foot, rust,
+                  mortar and puddles, each a tone held at that floor
+    the light     MOON: 0.55 degrees, B/R 1.60, sky #3a4656 x 0.25; a pyre
+                  (a fire basket up a pole) either side of every fight and
+                  the gate, a brazier every 30 m, two at every way out, a
+                  lantern lit in every stall that faces the street -- each
+                  fire's intensity from the pool it must light, in Blender
+                  watts and UE candela against the same moon (NIGHT)
+    the street    kerb dressing at the browser's own density per metre
+                  (DRESS), half its crates broken, torn banners (TATTER),
+                  torn awnings on the tall stalls (AWNING), puddles by the
+                  fires (PUDDLE)
+check() holds all of it (10-23), bite() breaks each; check_meshes (24-26)
+and check_bake are broken by --bite-meshes. The editor half spawns the same
+rows as lights (spawn_night), for the open world (build_world.py).
 
 WHAT LEAVES:
     Content/Models/Souq/SM_Souq_*.fbx      one static mesh per kind, at the
@@ -143,6 +170,157 @@ LANTERN_DROP = 0.25
 WALL_THICK = 1.20
 SUN_PITCH = 24.0           # build_levels RIGS["Souq"].pitch
 
+# ====================================================== the night, 2026-09-28
+# Asked as "make all game like dark anime adult style" (the Unreal build).
+# EVERY TABLE IN THIS BLOCK IS UNREAL-ONLY, NOT THE BROWSER'S: the browser
+# paints its souq by day and owns none of these numbers, and none of its own
+# (BROWSER_ART, THEME, buildProps' hash and step) moves. The hash seeds
+# +36 (a browser crate broken), salt + 9 (an awning) and the idx * 4051 /
+# idx * 6007 / idx * 7121 streams (fires, dressing, puddles) are this
+# build's too.
+#
+# The look this souq is graded through is Tools/look/anime_look.py; its
+# numbers are read from it here, at import, never copied.
+LOOK_DIR = os.path.join(PROJECT, "Tools", "look")
+if LOOK_DIR not in sys.path:
+    sys.path.insert(0, LOOK_DIR)
+import anime_look as _AL     # noqa: E402  (plain Python; numpy only when it renders)
+LOOK = _AL.LOOK
+
+
+def _luma(c):
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+
+def ink_floor(L=None):
+    """The darkest albedo the world may have, from the look: a wall at it
+    and in the world's SHADOW tone still comes to twice the ink (MERGE,
+    2026-09-28: 2 lum(INK) / (Q_SHADOW_WORLD x WORLD_LEVEL)), and lit, four
+    times it. With the dark seinen's look (INK luma 0.00195, Q_SHADOW_WORLD
+    0.12, WORLD_LEVEL 0.55) the shadow rule is the one that binds: 0.0591,
+    rounded up to 0.060. It was 0.015 when only the lit tone was held, and
+    the world spec's 0.016-0.080 soot band sat mostly under it."""
+    L = LOOK if L is None else L
+    ink = _luma(L["INK"])
+    lit = 4.0 * ink / (L["Q_LIT"] * L["WORLD_LEVEL"])
+    shade = 2.0 * ink / (L["Q_SHADOW_WORLD"] * L["WORLD_LEVEL"])
+    return math.ceil(max(lit, shade) * 1000.0 - 1e-9) / 1000.0
+
+
+def _world_rig():
+    """build_world.WORLD_RIG's literal values, read with ast (build_world
+    imports this file, so this cannot import it): the world's moon, whose
+    ground illuminance every UE candela here is sized against. The value it
+    takes from the look (fog = LOOK["HAZE"]) is resolved against LOOK."""
+    import ast
+    tree = ast.parse(open(os.path.join(LEVELS, "build_world.py"), encoding="utf-8").read())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "WORLD_RIG" for t in node.targets):
+            rig = {}
+            for k in node.value.keywords:
+                try:
+                    rig[k.arg] = ast.literal_eval(k.value)
+                except ValueError:
+                    key = getattr(getattr(k.value, "slice", None), "value", None)
+                    if key in LOOK:
+                        rig[k.arg] = LOOK[key]
+            return rig
+    raise AssertionError("build_world.py has no WORLD_RIG")
+
+
+# THE PALETTE. The browser's colours, weathered to soot stone by one curve
+# for the whole world (build_world colours its districts through it too):
+# in linear light each colour's chroma is pulled toward its grey, a cold
+# cast is laid on, and its luminance y goes to LO x (y / y_lo) ^ gamma. A
+# power keeps the browser's order and every one of its contrasts in
+# proportion (each ratio r becomes r ^ gamma); the world spec's affine
+# tanh curve could not, once LO rose to the ink floor: with LO 0.060 it
+# left Gym's and Towers' way through 1.02-1.07 x their ground. y_lo is the
+# darkest colour the browser paints a place (Towers' ground #1a2136, luma
+# 0.0157), so it lands on LO; gamma 0.29 is the least that keeps every
+# district's way through 1.20 x its ground (Gym needs 0.276), and it puts
+# the palest source (the sun-bleached stone #e0b077) at 0.164, under HI.
+# Unreal-only, not the browser's.
+WEATHER = dict(lo=ink_floor(), y_lo=0.015, gamma=0.29, hi=0.17,
+               chroma=0.28, cast=(0.92, 0.98, 1.08),
+               cloth_chroma=0.42, blood_chroma=0.85)
+CRACK = "#140e0a"      # a hole, not a surface: kept as dark as the browser paints it, never weathered
+RUST = "#6b3a1f"       # Unreal-only: the browser's barrel hoops have no rust
+
+# What each material is painted with, by name. material() reads its colours
+# from here and check() holds these same rows to the band, so the two
+# cannot disagree. A row's colours are browser hexes (weathered by _worn);
+# "chroma" names the WEATHER chroma a cloth takes. Unreal-only rows are
+# marked. The lantern's glass is not here: what burns keeps its colour.
+PALETTE = {
+    "M_Souq_Mud":       dict(hex=(BROWSER_ART["brick"], BROWSER_ART["brick_dark"]), soot=True),
+    "M_Souq_Plaster":   dict(hex=(BROWSER_ART["skyline"], BROWSER_ART["brick"]), soot=True),
+    "M_Souq_MudBrick":  dict(hex=(BROWSER_ART["brick"], BROWSER_ART["brick_dark"], BROWSER_ART["pier"]), soot=True),
+    "M_Souq_GateWall":  dict(hex=(BROWSER_ART["wall_gate"], "#8c7656", "#6d5c44"), soot=True),
+    "M_Souq_Flagstone": dict(hex=(BROWSER_ART["ground"][0], BROWSER_ART["ground"][1], BROWSER_ART["ground_dark"])),
+    "M_Souq_Sand":      dict(hex=(BROWSER_ART["ground"][0], BROWSER_ART["ground"][1], BROWSER_ART["ground_light"], BROWSER_ART["ground_dark"])),
+    "M_Souq_Wood":      dict(hex=(BROWSER_ART["crate"], BROWSER_ART["crate_edge"])),
+    "M_Souq_Iron":      dict(hex=(BROWSER_ART["barrel"], RUST)),                 # RUST: Unreal-only
+    "M_Souq_Damp":      dict(hex=(BROWSER_ART["pier"], BROWSER_ART["ground_light"])),   # Unreal-only
+    "M_Souq_Puddle":    dict(hex=(BROWSER_ART["ground"][0], BROWSER_ART["ground"][1])), # Unreal-only
+    "M_Souq_Cloth0":    dict(hex=(BROWSER_ART["banners"][0],), chroma="blood_chroma"),
+    "M_Souq_Cloth1":    dict(hex=(BROWSER_ART["banners"][1],), chroma="cloth_chroma"),
+    "M_Souq_Cloth2":    dict(hex=(BROWSER_ART["banners"][2],), chroma="cloth_chroma"),
+}
+# Grime, all of it a colour to mix toward, never a multiply: a multiply
+# of the darkest stone would take it under the ink floor. Soot streaks run
+# down the walls (the torus vector's across pair x7, its down pair x0.8, so
+# the noise changes fast across and slowly down), SOOT["dark"] of the
+# wall's own tone where the streak ramp (lo..hi, about 30 % of a wall) is
+# full; the wall's foot is damp (DAMP x the pier, a salt speckle of the
+# bleached stone where the noise is over 0.72); the flagstones' mortar is
+# MORTAR x the trodden dark; a puddle PUDDLE_TONE x the flagstone; iron
+# rusts where a noise at RUST_AT["scale"] a tile is over RUST_AT["above"].
+# Every one is held at the floor: none goes under WEATHER["lo"].
+SOOT = dict(across=7.0, down=0.8, lo=0.55, hi=0.70, dark=0.50)
+DAMP = dict(tone=0.55, salt_above=0.72, salt=0.40, salt_tone=0.8)
+MORTAR = 0.70
+PUDDLE_TONE = 0.35
+RUST_AT = dict(scale=5.0, above=0.48)
+WEAR = dict(flagstone=0.35, brick=0.25)      # how far the grime noise takes a slab toward its soot
+# roughness, per material; flagstone's is a range, low in the hollows,
+# where water stands, so a fire streaks across a wet street
+ROUGH = dict(flagstone=(0.55, 0.85), puddle=0.04, damp=0.95, iron=0.45, rust=0.90, metallic=0.55,
+             ember=0.80, brick=0.88, mud=0.92, plaster=0.85, sand=0.95, cloth=0.72, wood=0.62, gatewall=0.90)
+EMBER = dict(base=(0.02, 0.01, 0.005), emission=(1.0, 0.30, 0.06), strength=8.0)   # what burns: exempt from the floor
+
+# The night: where fire stands, and how bright. A fire's intensity comes
+# from the pool it must light, not a guess: a point at height h over the
+# ground gives it I h / (rho^2 + h^2)^1.5, in units of the moon's own
+# ground irradiance, so a pool of radius R (where the fire equals the moon)
+# needs I = (R^2 + h^2)^1.5 / h. A pyre is sized so the two either side of
+# a fight, at_m from its centre, give it `share` of the moon each. Blender
+# watts are 4 pi I x the render moon's ground irradiance; UE candela are
+# I x WORLD_RIG's (lux x sin of its pitch). Unreal-only, not the browser's.
+NIGHT = dict(
+    moon_pitch=SUN_PITCH,
+    brazier=dict(h=1.20, pool_m=4.5, half=30.0, mesh="SM_Souq_Brazier"),
+    pyre=dict(h=2.90, share=0.70, at_m=10.3, half=25.0, mesh="SM_Souq_Cresset"),
+    lantern=dict(pool_m=2.0, aim_down=40.0, cone=55.0, lit_within_m=10.0),
+    street_step_m=30.0, step_jitter=0.25, min_gap_m=12.0, fight_clear_m=1.0, prop_clear_m=1.5,
+    door_off_m=1.2, door_in_m=1.0, off_street_cm=30.0, site_margin_cm=30.0,
+    temp_k=1800.0, lantern_hex=BROWSER_ART["lantern"], smoke=dict(r_m=0.6, h_m=4.0, extinction=0.5),
+    budget=dict(shadowed=32, lights=96, smoke=32), lit_share=(0.20, 0.50), dark_run_m=40.0)
+FIRE_KINDS = ("brazier", "pyre")
+# the render moon: the souq sun's direction, colder, harder, a little dimmer
+MOON = dict(energy=1.2, colour=(0.60, 0.70, 0.96), angle=0.55, sky="#3a4656", sky_strength=0.25)
+# kerb dressing at the browser's own density per metre of street (one prop
+# per 265 px of its 72 m run, at the 0.70 its hash keeps): the browser's six
+# keep their places, the rest are laid by this build's hash
+DRESS = dict(every_m=265.0 * PX / 100.0 / 0.70, jitter=0.30, fire_clear_m=2.5, gap_cm=20.0,
+             kinds=(("crate", 0.35), ("crate_broken", 0.30), ("barrel", 0.35)), per_100m=(8.0, 14.0))
+PUDDLE = dict(near_fire_m=(2.0, 6.0), every_m=22.0, r_cm=(40.0, 110.0), aspect=(0.5, 1.0), z_cm=0.3,
+              wobble=0.10, sides=20, darker=0.55, gloss=0.10)
+TATTER = dict(strips=7, cut=(0.0, 0.38), slit=0.01, tip=0.04)
+AWNING = dict(out=1.10, drop=0.35, tongues=9, tongue=(0.0, 0.30), tip=0.03, share=0.40, below_top=0.10,
+              min_clear_cm=220.0, variant_h=380.0, clear_street_cm=30.0)
+PLINTH = dict(h=0.40, proud=0.012)
+
 
 def extent_of(stage):
     return max(MIN_EXTENT, min(MAX_EXTENT, float(stage["Length"]) * LENGTH_TO_EXTENT))
@@ -218,7 +396,7 @@ def banner_of(r, m):
     sx, sy, sz = r["scale"]
     lx, ly, lz = bx * sx, by * sy, bz * sz
     a = math.radians(r["yaw"]); c, s_ = math.cos(a), math.sin(a)
-    return dict(slot="Structures", mesh="SM_Souq_Banner%d" % r["banner"], kind="banner",
+    return dict(slot="Structures", mesh="SM_Souq_Banner%d%s" % (r["banner"], r.get("tear", "a")), kind="banner",
                 x=r["x"] + lx * c - ly * s_, y=r["y"] + lx * s_ + ly * c, z=lz, yaw=r["yaw"],
                 scale=(bw / 100.0 * sx, 1.0, bh / 100.0 * sz))
 
@@ -226,6 +404,316 @@ def banner_of(r, m):
 def facing(x, y, tx, ty):
     """Yaw in degrees that points a mesh's front (its local -Y) at (tx, ty)."""
     return math.degrees(math.atan2(tx - x, -(ty - y)))
+
+
+# ------------------------------------------------ the night: light and cloth
+def moon_blender():
+    """The render moon's irradiance on the ground, W/m^2 (Cycles sun units)."""
+    return MOON["energy"] * math.sin(math.radians(NIGHT["moon_pitch"]))
+
+
+def moon_ue(rig=None):
+    """WORLD_RIG's moon on the ground, lux: its illuminance times the sine
+    of its elevation. Every candela in the world is sized against this."""
+    rig = _world_rig() if rig is None else rig
+    return rig["lux"] * math.sin(math.radians(-rig["pitch"]))
+
+
+def intensity(kind):
+    """A fire's intensity in moon-ground-irradiance x m^2 (see NIGHT)."""
+    k = NIGHT[kind]
+    if kind == "pyre":
+        return k["share"] * (k["at_m"] ** 2 + k["h"] ** 2) ** 1.5 / k["h"]
+    return (k["pool_m"] ** 2 + k["h"] ** 2) ** 1.5 / k["h"]
+
+
+def pool_of(I, h):
+    """The radius (m) inside which a point of intensity I at height h out-lights the moon."""
+    return math.sqrt(max(0.0, (I * h) ** (2.0 / 3.0) - h * h))
+
+
+def watts(I):
+    """Cycles point-light power for intensity I: 4 pi I x the render moon."""
+    return 4.0 * math.pi * I * moon_blender()
+
+
+def candela(I, rig=None):
+    return I * moon_ue(rig)
+
+
+def ground_light(fires, x, y):
+    """What the fires give the ground at (x, y) cm, in moons."""
+    e = 0.0
+    for f in fires:
+        rho2 = ((f["x"] - x) / 100.0) ** 2 + ((f["y"] - y) / 100.0) ** 2
+        e += f["I"] * f["h"] / (rho2 + f["h"] ** 2) ** 1.5
+    return e
+
+
+def _arc(path):
+    s = [0.0]
+    for i in range(1, len(path)):
+        s.append(s[-1] + math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]))
+    return s
+
+
+def _at(path, s_, s):
+    """The point and unit tangent at arc length s along the path."""
+    s = max(0.0, min(s_[-1], s))
+    i = 1
+    while i < len(s_) - 1 and s_[i] < s:
+        i += 1
+    (ax, ay), (bx, by) = path[i - 1], path[i]
+    seg = (s_[i] - s_[i - 1]) or 1.0; u = (s - s_[i - 1]) / seg
+    return ax + (bx - ax) * u, ay + (by - ay) * u, (bx - ax) / seg, (by - ay) / seg
+
+
+def _kerb(path, s_, s, side, half, off_street=False):
+    """Where a thing `half` across stands at arc length s on one side:
+    on the street at the kerb (its half-width, at least 40 cm, in from the
+    edge, as the browser's props stand), or -- a derived district, whose
+    street is paving the world keeps clear of solids -- just off it."""
+    x, y, tx, ty = _at(path, s_, s)
+    lx, ly = -ty, tx
+    if off_street:
+        across = side * (STREET_HALF_WIDTH + half + NIGHT["off_street_cm"])
+    else:
+        across = side * (STREET_HALF_WIDTH - max(40.0, half))
+    return x + lx * across, y + ly * across, math.degrees(math.atan2(ty, tx))
+
+
+def _seg_dist(x, y, a, b):
+    (ax, ay), (bx, by) = a, b
+    abx, aby = bx - ax, by - ay; l2 = abx * abx + aby * aby
+    t = 0.0 if l2 < 1e-9 else max(0.0, min(1.0, ((x - ax) * abx + (y - ay) * aby) / l2))
+    return math.hypot(x - (ax + abx * t), y - (ay + aby * t))
+
+
+def _spurs(Q):
+    """The paving that leaves the spiral: (a, b, half width) per spur."""
+    return [(s["a"], s["b"], s["width"] * 0.5) for s in Q.get("street", [])[len(Q["path"]) - 1:]]
+
+
+def _rect_dist(x, y, r):
+    """From a point to a box (x, y, yaw, sx, sy) on the ground, cm."""
+    a = math.radians(r[2]); dx, dy = x - r[0], y - r[1]
+    lx, ly = dx * math.cos(a) + dy * math.sin(a), -dx * math.sin(a) + dy * math.cos(a)
+    return math.hypot(max(0.0, abs(lx) - r[3] * 0.5), max(0.0, abs(ly) - r[4] * 0.5))
+
+
+def hem(n, cut, seed):
+    """A torn hem: how far up (0..1 of the cloth, or metres) each of n
+    tongues is cut, by this build's hash."""
+    lo, hi = cut
+    return [lo + (hi - lo) * hash01(seed + k * 31) for k in range(n)]
+
+
+def banner_hem(i, tear):
+    return hem(TATTER["strips"], TATTER["cut"], 7717 + i * 173 + (0 if tear == "a" else 89))
+
+
+def awning_hem(i):
+    return hem(AWNING["tongues"], AWNING["tongue"], 8123 + i * 173)
+
+
+def lantern_local(w, d, h):
+    """The lantern glass's centre in a stall's own frame (metres), from the
+    browser's bay numbers -- the ONE place build_stall and the night take it
+    from. Returns (x, y, z, glass radius)."""
+    A = BROWSER_ART
+    lx = -w * 0.5 + w * A["lantern_x"] / A["bay_w"]
+    lr = A["lantern_r"] * CM_PER_DRAWN_PX / 100.0
+    apex = h * A["arch_peak"] / A["arch_outer"]
+    return lx, -d * 0.5 + RECESS * 0.45, apex - LANTERN_DROP - lr * 1.1, lr
+
+
+def _to_world(r, lx, ly, lz):
+    """A point in a placed row's own frame (cm) through its scale and yaw, once."""
+    sx, sy, sz = r["scale"]
+    a = math.radians(r["yaw"]); c, s_ = math.cos(a), math.sin(a)
+    lx, ly, lz = lx * sx, ly * sy, lz * sz
+    return r["x"] + lx * c - ly * s_, r["y"] + lx * s_ + ly * c, lz
+
+
+def awning_of(r, m):
+    """A stall's torn awning as an instance row, like banner_of: hung from
+    the parapet (AWNING below_top under the stall's top), running out
+    AWNING out and down AWNING drop over the plot's front, placed through
+    the stall's yaw and scale once. The mesh is a metre wide and its out
+    and drop are metres, so only its width takes the stall's."""
+    x, y, z = _to_world(r, 0.0, -m["d"] * 0.5, m["h"] - AWNING["below_top"] * 100.0)
+    return dict(slot="Cloth", mesh="SM_Souq_Awning%d" % r["banner"], kind="awning", x=x, y=y, z=z,
+                yaw=r["yaw"], scale=(m["w"] / 100.0 * r["scale"][0], 1.0, 1.0), stall_h=m["h"] * r["scale"][2],
+                variant_h=m["h"])
+
+
+def _fire(kind, x, y, z, yaw, rig, **kw):
+    k = NIGHT[kind]; I = intensity(kind)
+    return dict(kind=kind, mesh=k["mesh"], x=x, y=y, z=z, yaw=yaw, scale=(1.0, 1.0, 1.0),
+                h=k["h"], half=k["half"], I=I, pool=pool_of(I, k["h"]), watts=watts(I), cd=candela(I, rig),
+                temp=NIGHT["temp_k"], shadow=True, smoke=dict(NIGHT["smoke"]), **kw)
+
+
+def night(P, off_street=False, rig=None):
+    """Where fire stands, and the lanterns that are lit -- the souq's, and
+    (off_street) a derived district's, by the same rules:
+
+    1. a pyre either side of every fight and the gate, on the street at
+       arc length +-(r + half + fight_clear) from it, walked out until clear
+       of the fight (SITE_RADIUS, check 6's), alternate kerbs;
+    2. a brazier every street_step_m +- step_jitter, a hashed kerb, skipped
+       in a fight, within prop_clear_m of a prop, min_gap_m of another fire,
+       or in the mouth of a spur;
+    3. two braziers at every way out, either side of its spur, door_in_m
+       inside the rim;
+    4. a lantern lit in each stall whose front is within lit_within_m of the
+       centre line, at its glass, aimed out of its arch.
+
+    P needs path, sites, doors, props and idx; street (the spurs), solids
+    ((x, y, half), what a fire may not stand in) and, for lanterns, blocks
+    and meshes, when it has them."""
+    rig = _world_rig() if rig is None else rig
+    path, sites = P["path"], P["sites"]
+    s_ = _arc(path); total = s_[-1]
+    spurs = _spurs(P); solids = P.get("solids", [])
+    z = 0.0 if off_street else STREET_Z_CM
+    fires = []
+
+    def clear(x, y, half):
+        if any(math.hypot(s["x"] - x, s["y"] - y) <= SITE_RADIUS + half + NIGHT["site_margin_cm"] for s in sites):
+            return False
+        if any(_seg_dist(x, y, a, b) < w + half + NIGHT["site_margin_cm"] for a, b, w in spurs):
+            return False
+        return not any(math.hypot(sx - x, sy - y) < sh + half + NIGHT["site_margin_cm"] for sx, sy, sh in solids)
+
+    def near_prop(x, y, d):
+        return any(math.hypot(p["x"] - x, p["y"] - y) < d for p in P["props"])
+
+    # 1. the fights and the gate
+    for s in sites:
+        i0 = min(range(len(path)), key=lambda k: (path[k][0] - s["x"]) ** 2 + (path[k][1] - s["y"]) ** 2)
+        half = NIGHT["pyre"]["half"]
+        for sign in (-1, 1):
+            ss = s_[i0] + sign * (s["r"] + half + NIGHT["fight_clear_m"] * 100.0)
+            for _ in range(80):
+                x, y, yaw = _kerb(path, s_, ss, sign, half, off_street)
+                if clear(x, y, half):
+                    break
+                ss += sign * 50.0
+            else:
+                continue
+            if 0.0 < ss < total:
+                fires.append(_fire("pyre", x, y, z, yaw, rig, s=ss, site=(s["kind"], s["i"])))
+    # 2. the street between
+    step = NIGHT["street_step_m"] * 100.0; half = NIGHT["brazier"]["half"]
+    ss, n = step * 0.5, 0
+    while ss < total - 500.0:
+        j = (hash01(P["idx"] * 4051 + n * 29 + 5) - 0.5) * 2.0 * NIGHT["step_jitter"]
+        at_s = ss + j * step
+        side = 1.0 if hash01(P["idx"] * 4051 + n * 29 + 6) < 0.5 else -1.0
+        x, y, yaw = _kerb(path, s_, at_s, side, half, off_street)
+        if clear(x, y, half) and not near_prop(x, y, NIGHT["prop_clear_m"] * 100.0) \
+                and all(abs(f["s"] - at_s) > NIGHT["min_gap_m"] * 100.0 for f in fires):
+            fires.append(_fire("brazier", x, y, z, yaw, rig, s=at_s))
+        ss += step; n += 1
+    # 3. every way out
+    door_fires = []
+    for side, (dx, dy) in sorted(P["doors"].items()):
+        r = math.hypot(dx, dy); tx, ty = -dy / r, dx / r; ux, uy = dx / r, dy / r
+        off = STREET_HALF_WIDTH * 1.6 * 0.5 + half + NIGHT["door_off_m"] * 100.0
+        for sg in (-1, 1):
+            x = dx + tx * off * sg - ux * NIGHT["door_in_m"] * 100.0
+            y = dy + ty * off * sg - uy * NIGHT["door_in_m"] * 100.0
+            door_fires.append(_fire("brazier", x, y, 0.0, math.degrees(math.atan2(uy, ux)), rig, door=side))
+    # 4. the lanterns
+    lanterns = []
+    L = NIGHT["lantern"]
+    for bi, b in enumerate(P.get("blocks", [])):
+        if b["kind"] != "stall":
+            continue
+        m = P["meshes"][b["mesh"]]
+        fx, fy, _ = _to_world(b, 0.0, -m["d"] * 0.5, 0.0)
+        if dist_to_path(path, fx, fy) >= L["lit_within_m"] * 100.0:
+            continue
+        lx, ly, lz, _ = lantern_local(m["w"] / 100.0, m["d"] / 100.0, m["h"] / 100.0)
+        x, y, gz = _to_world(b, lx * 100.0, ly * 100.0, lz * 100.0)
+        h = gz / 100.0
+        I = (L["pool_m"] ** 2 + h * h) ** 1.5 / h
+        lanterns.append(dict(kind="lantern", x=x, y=y, z=gz, yaw=b["yaw"], pitch=-L["aim_down"], cone=L["cone"],
+                             h=h, I=I, watts=watts(I), cd=candela(I, rig), stall=bi, shadow=False,
+                             hex=NIGHT["lantern_hex"]))
+    return fires, door_fires, lanterns
+
+
+def _dress(P):
+    """Kerb props at the browser's density per metre (DRESS), after the
+    fires: skipped in a fight, near a fire, on another prop, in a spur's
+    mouth or in a block."""
+    path, sites = P["path"], P["sites"]; s_ = _arc(path); total = s_[-1]
+    spurs = _spurs(P); every = DRESS["every_m"] * 100.0
+    fires = [p for p in P["props"] if p["kind"] in FIRE_KINDS]
+    kinds, acc = [], 0.0
+    for k, w in DRESS["kinds"]:
+        acc += w; kinds.append((acc, k))
+    mesh_of = dict(crate="SM_Souq_Crate", crate_broken="SM_Souq_CrateBroken", barrel="SM_Souq_Barrel")
+    out = []
+    ss, n = every * 0.5, 0
+    while ss < total - 160.0 * PX:
+        seed = P["idx"] * 6007 + n * 37
+        at_s = ss + (hash01(seed + 1) - 0.5) * 2.0 * DRESS["jitter"] * every
+        side = 1.0 if hash01(seed + 2) < 0.5 else -1.0
+        kind = next(k for a, k in kinds if hash01(seed + 3) * acc <= a)
+        m = P["meshes"][mesh_of[kind]]; half = max(m["w"], m["d"]) * 0.5
+        x, y, yaw = _kerb(path, s_, at_s, side, half)
+        ok = all(math.hypot(s["x"] - x, s["y"] - y) > SITE_RADIUS + half for s in sites)
+        ok = ok and all(math.hypot(f["x"] - x, f["y"] - y) >= DRESS["fire_clear_m"] * 100.0 for f in fires)
+        ok = ok and all(math.hypot(p["x"] - x, p["y"] - y) > half + max(P["meshes"][p["mesh"]]["w"], P["meshes"][p["mesh"]]["d"]) * 0.5
+                        + DRESS["gap_cm"] for p in P["props"] + out)
+        ok = ok and all(_seg_dist(x, y, a, b) >= w + half for a, b, w in spurs)
+        ok = ok and all(math.hypot(b["x"] - x, b["y"] - y) > max(b["w"], b["dep"]) * 0.5 for b in P["blocks"])
+        if ok:
+            out.append(dict(kind=kind, mesh=mesh_of[kind], x=x, y=y, z=STREET_Z_CM, scale=(1.0, 1.0, 1.0),
+                            yaw=yaw + (hash01(seed + 4) - 0.5) * 30.0, t=at_s / total, dressing=True))
+        ss += every; n += 1
+    return out
+
+
+def _puddles(P):
+    """Wet stone: one puddle beside each street fire, so it holds the fire,
+    and hashed extras every PUDDLE every_m, wholly on the flagstones."""
+    path = P["path"]; s_ = _arc(path); total = s_[-1]
+    fires = [p for p in P["props"] if p["kind"] in FIRE_KINDS]
+    spots = [(f["s"], f["x"], f["y"], k) for k, f in enumerate(fires)]
+    k0 = len(spots); ss = PUDDLE["every_m"] * 100.0 * 0.5
+    while ss < total - 300.0:
+        spots.append((ss, None, None, len(spots))); ss += PUDDLE["every_m"] * 100.0
+    out = []
+    for s0, fx, fy, k in spots:
+        seed = P["idx"] * 7121 + k * 53
+        r = lerp(*PUDDLE["r_cm"], hash01(seed + 1)); asp = lerp(*PUDDLE["aspect"], hash01(seed + 2))
+        reach = r * (1.0 + PUDDLE["wobble"])
+        if fx is None:
+            at_s = s0 + (hash01(seed + 3) - 0.5) * PUDDLE["every_m"] * 100.0 * 0.5
+            across = (hash01(seed + 4) * 2.0 - 1.0) * (STREET_HALF_WIDTH - 10.0 - reach)
+        else:
+            d = lerp(*PUDDLE["near_fire_m"], hash01(seed + 3)) * 100.0
+            at_s = s0 + (d if hash01(seed + 5) < 0.5 else -d)
+            x0, y0, tx, ty = _at(path, s_, s0)
+            side = 1.0 if (fx - x0) * -ty + (fy - y0) * tx > 0 else -1.0     # the fire's own kerb
+            across = side * hash01(seed + 4) * (STREET_HALF_WIDTH - 10.0 - reach)
+        x, y, tx, ty = _at(path, s_, at_s)
+        x, y = x - ty * across, y + tx * across
+        if dist_to_path(path, x, y) + reach > STREET_HALF_WIDTH - 10.0:
+            continue                         # where the spiral bends, the kerb is nearer than it looks
+        if any(math.hypot(p["x"] - x, p["y"] - y) < reach + max(P["meshes"][p["mesh"]]["w"], P["meshes"][p["mesh"]]["d"]) * 0.5
+               for p in P["props"]):
+            continue
+        if any(math.hypot(q["x"] - x, q["y"] - y) < reach + q["reach"] for q in out):
+            continue
+        out.append(dict(slot="Wet", kind="puddle", mesh="SM_Souq_Puddle", x=x, y=y, z=STREET_Z_CM + PUDDLE["z_cm"],
+                        yaw=math.degrees(math.atan2(ty, tx)) + (hash01(seed + 6) - 0.5) * 60.0,
+                        scale=(2.0 * r / 100.0, 2.0 * r * asp / 100.0, 1.0), reach=reach, near_fire=fx is not None))
+    return out
 
 
 # ------------------------------------------------------------------- data
@@ -371,6 +859,9 @@ def plan(bearing=None, street_mesh="SM_Souq_Street"):
             dl = math.hypot(dx, dy) or 1.0; lx, ly = -dy / dl, dx / dl           # the left normal
             side = -1.0 if z < 0.5 else 1.0
             across = side * (STREET_HALF_WIDTH - 40.0)
+            # half the browser's crates are broken (Unreal-only: seed + 36)
+            if kind == "crate" and hashv(x_px, seed + 36) < 0.5:
+                kind = "crate_broken"
             props.append(dict(kind=kind, x=cx - lx * across, y=cy - ly * across, z=STREET_Z_CM,
                               yaw=math.degrees(math.atan2(dy, dx)) + (hashv(x_px, seed + 35) - 0.5) * 30.0, t=t))
         x_px += 265.0
@@ -418,23 +909,57 @@ def plan(bearing=None, street_mesh="SM_Souq_Street"):
     cw, ch = (p * CM_PER_DRAWN_PX for p in BROWSER_ART["crate_px"])
     bw, bh = (p * CM_PER_DRAWN_PX for p in BROWSER_ART["barrel_px"])
     meshes["SM_Souq_Crate"] = dict(kind="crate", w=cw, d=cw, h=ch)
+    # the browser's crate, broken: its footprint exactly, the lid gone (the
+    # night; Unreal-only), no taller than the crate
+    meshes["SM_Souq_CrateBroken"] = dict(kind="crate_broken", w=cw, d=cw, h=ch * 0.80)
     meshes["SM_Souq_Barrel"] = dict(kind="barrel", w=bw, d=bw, h=bh)
     meshes["SM_Souq_Ground"] = dict(kind="ground", w=E * 2, d=E * 2, h=0.0)
-    for i in range(3):      # the three banner colours: a one-metre quad each, scaled per stall
-        meshes["SM_Souq_Banner%d" % i] = dict(kind="banner", w=100.0, d=0.0, h=100.0)
+    # the three banner colours, each torn two ways (a, b): a one-metre quad
+    # each, cut into TATTER strips, scaled per stall
+    for i in range(3):
+        for tear in "ab":
+            meshes["SM_Souq_Banner%d%s" % (i, tear)] = dict(kind="banner", w=100.0, d=0.0, colour=i, tear=tear,
+                                                            h=(1.0 - min(banner_hem(i, tear)) + TATTER["tip"]) * 100.0)
+        # an awning per colour: a metre wide, AWNING out and drop in metres
+        meshes["SM_Souq_Awning%d" % i] = dict(kind="awning", w=100.0, d=AWNING["out"] * 100.0,
+                                              h=(AWNING["drop"] + max(awning_hem(i)) + AWNING["tip"]) * 100.0, colour=i)
     meshes[street_mesh] = dict(kind="street", w=E * 2, d=E * 2, h=3.0)
+    # what burns, and the wet: an iron bowl on three legs, a fire basket up a
+    # pole, a puddle a metre across at scale 1 (all Unreal-only)
+    meshes["SM_Souq_Brazier"] = dict(kind="brazier", w=NIGHT["brazier"]["half"] * 2.0, d=NIGHT["brazier"]["half"] * 2.0, h=95.0)
+    meshes["SM_Souq_Cresset"] = dict(kind="cresset", w=NIGHT["pyre"]["half"] * 2.0, d=NIGHT["pyre"]["half"] * 2.0, h=290.0)
+    meshes["SM_Souq_Puddle"] = dict(kind="puddle", w=100.0, d=100.0, h=0.0)
     for p in props:
-        p["mesh"] = "SM_Souq_Crate" if p["kind"] == "crate" else "SM_Souq_Barrel"; p["scale"] = (1.0, 1.0, 1.0)
+        p["mesh"] = {"crate": "SM_Souq_Crate", "crate_broken": "SM_Souq_CrateBroken"}.get(p["kind"], "SM_Souq_Barrel")
+        p["scale"] = (1.0, 1.0, 1.0)
     # a crate in a fight is a wall in it: dropped by build_world's own block
     # test (a site's radius plus the thing's half-width), like a plot would be
     props = [p for p in props if all(math.hypot(s["x"] - p["x"], s["y"] - p["y"]) > SITE_RADIUS + max(meshes[p["mesh"]]["w"], meshes[p["mesh"]]["d"]) * 0.5
                                      for s in sites)]
     if gate:
         gate["mesh"], gate["scale"] = "SM_Souq_GateWall", (1.0, 1.0, 1.0)
+    # the stalls' cloth: which tear a banner takes (the salt's parity) and
+    # which stalls hang an awning (salt + 9, only the tall variant, whose
+    # awning clears a man's head)
+    for b in blocks:
+        if b["kind"] == "stall":
+            b["tear"] = "ab"[b["salt"] % 2]
+            b["awning"] = hash01(b["salt"] + 9) < AWNING["share"] and meshes[b["mesh"]]["h"] == AWNING["variant_h"]
 
-    return dict(stage=stage, idx=idx, E=E, phase=phase, path=path, sites=sites, doors=doors, actors=actors,
-                street=street, blocks=blocks, rim=rim, props=props, gate=gate, minaret=minaret, meshes=meshes, vocab=v,
-                bearing=bearing, street_mesh=street_mesh)
+    P = dict(stage=stage, idx=idx, E=E, phase=phase, path=path, sites=sites, doors=doors, actors=actors,
+             street=street, blocks=blocks, rim=rim, props=props, gate=gate, minaret=minaret, meshes=meshes, vocab=v,
+             bearing=bearing, street_mesh=street_mesh)
+    # --- the night: fires where crates may stand, the doors lit, the
+    #     lanterns that face the street lit, the kerb dressed, the stone wet
+    P["solids"] = [(b["x"], b["y"], max(b["w"], b["dep"]) * 0.5) for b in blocks]
+    if gate:
+        P["solids"].append((gate["x"], gate["y"], max(GATE_BOX[0], GATE_BOX[1]) * 0.5))
+    fires, P["door_fires"], P["lanterns"] = night(P)
+    P["props"] = props + fires
+    P["props"] += _dress(P)
+    P["puddles"] = _puddles(P)
+    P["rim_rects"] = [(w["x"], w["y"], w["yaw"], RIM_SEGMENT * 0.92, WALL_THICK * 100.0) for w in rim]
+    return P
 
 
 def instances(P):
@@ -443,13 +968,19 @@ def instances(P):
            dict(slot="Street", mesh=P["street_mesh"], x=0.0, y=0.0, z=0.0, yaw=0.0, scale=(1, 1, 1))]
     for b in P["blocks"]:
         out.append(dict(slot="Structures" if b["kind"] != "minaret" else "Landmark", mesh=b["mesh"],
-                        x=b["x"], y=b["y"], z=0.0, yaw=b["yaw"], scale=b["scale"], kind=b["kind"], banner=b.get("banner", 0)))
+                        x=b["x"], y=b["y"], z=0.0, yaw=b["yaw"], scale=b["scale"], kind=b["kind"], banner=b.get("banner", 0),
+                        tear=b.get("tear", "a")))
         if b["kind"] == "stall":
-            out.append(banner_of(out[-1], P["meshes"][b["mesh"]]))
+            stall = out[-1]
+            out.append(banner_of(stall, P["meshes"][b["mesh"]]))
+            if b.get("awning"):
+                out.append(awning_of(stall, P["meshes"][b["mesh"]]))
     for w in P["rim"]:
         out.append(dict(slot="Rim", mesh=w["mesh"], x=w["x"], y=w["y"], z=0.0, yaw=w["yaw"], scale=w["scale"], kind="wall"))
-    for p in P["props"]:
+    for p in P["props"] + P.get("door_fires", []):
         out.append(dict(slot="Props", mesh=p["mesh"], x=p["x"], y=p["y"], z=p["z"], yaw=p["yaw"], scale=p["scale"], kind=p["kind"]))
+    for q in P.get("puddles", []):
+        out.append(dict(slot=q.get("slot", "Wet"), mesh=q["mesh"], x=q["x"], y=q["y"], z=q["z"], yaw=q["yaw"], scale=q["scale"], kind="puddle"))
     if P["gate"]:
         g = P["gate"]
         out.append(dict(slot="Gates", mesh=g["mesh"], x=g["x"], y=g["y"], z=0.0, yaw=g["yaw"], scale=g["scale"], kind="gate"))
@@ -513,6 +1044,11 @@ def check(P, against_levels=True):
     # 5. the sizes drawn in the browser came through the figure, not the distance constant
     m = P["meshes"]["SM_Souq_Crate"]
     assert abs(m["w"] - BROWSER_ART["crate_px"][0] * CM_PER_DRAWN_PX) < 1e-6, "the crate is not the browser's crate"
+    # 20. (the night) a broken crate is the browser's crate, broken: its footprint exactly, no taller
+    cb = P["meshes"]["SM_Souq_CrateBroken"]
+    assert abs(cb["w"] - m["w"]) < 1e-6 and abs(cb["d"] - m["d"]) < 1e-6, \
+        "the broken crate is %.0f x %.0f cm, not the browser's crate's %.0f" % (cb["w"], cb["d"], m["w"])
+    assert cb["h"] <= m["h"], "the broken crate stands taller than a whole one"
     # 6. every prop is at the kerb -- on the street, out of its middle lane, and out of every fight
     for p in P["props"]:
         m = P["meshes"][p["mesh"]]; half = max(m["w"], m["d"]) * 0.5
@@ -538,20 +1074,218 @@ def check(P, against_levels=True):
     for b in P["blocks"]:
         for sc in b["scale"]:
             assert 0.80 <= sc <= 1.25, "%s at (%.0f, %.0f) is scaled %.2f from its variant" % (b["kind"], b["x"], b["y"], sc)
+    # 10. the palette is soot stone, over the ink
+    check_palette()
+    # 11. fires and the dressing stand where crates may: check 6 above
+    #     walks P["props"], and the street's fires and kerb dressing are in it
+    assert any(p["kind"] in FIRE_KINDS for p in P["props"]), "no fire stands on the street"
+    # 12-17. the night: every fight and door lit, pools not floodlight, the
+    #        lit lanterns the lanterns, a light budget, the units
+    stats = check_night(night_of(P))
+    # 18. warm fire, a cold hard moon
+    assert NIGHT["temp_k"] <= 2200.0, "the fire burns at %.0f K, not a flame's 1800" % NIGHT["temp_k"]
+    lan = _lin(_hex(NIGHT["lantern_hex"]))
+    assert lan[0] / lan[2] >= 3.0, "the lantern's light is not the browser's warm #ffdc8c (R/B %.1f)" % (lan[0] / lan[2])
+    mc = MOON["colour"]
+    assert mc[2] / mc[0] >= 1.4, "the moon is warm (B/R %.2f): the only warm light is what burns" % (mc[2] / mc[0])
+    assert MOON["angle"] <= 1.0, "the moon is soft (%.1f degrees): its cast shadows smear under the cel cut" % MOON["angle"]
+    # 19. the street is lined at the browser's density per metre
+    kerb = [p for p in P["props"] if p["kind"] in ("crate", "crate_broken", "barrel")]
+    per = len(kerb) / max(1.0, stats["between_m"]) * 100.0
+    lo, hi = DRESS["per_100m"]
+    assert lo <= per <= hi, "the street is bare: %.1f kerb props per 100 m between fights (the browser's 11)" % per \
+        if per < lo else "the street is cluttered: %.1f kerb props per 100 m (the browser's 11)" % per
+    # 21. puddles lie on the flagstones, darker and glossier than the street, and wade-through
+    rows = instances(P)
+    for q in (r for r in rows if r.get("kind") == "puddle"):
+        reach = max(q["scale"][0], q["scale"][1]) * 50.0 * (1.0 + PUDDLE["wobble"])
+        d = dist_to_path(P["path"], q["x"], q["y"])
+        assert d + reach <= STREET_HALF_WIDTH - 10.0 + 1e-6, "a puddle hangs over the sand, %.0f cm out" % (d + reach)
+        assert abs(q["z"] - (STREET_Z_CM + PUDDLE["z_cm"])) < 1e-6, "a puddle is not on the flagstones' face"
+        assert q["slot"] == "Wet", "a puddle is solid"
+    flag = palette("M_Souq_Flagstone"); flag_y = (_luma(flag[0]) + _luma(flag[1])) * 0.5
+    assert _luma(tones("M_Souq_Puddle")["puddle"]) <= PUDDLE["darker"] * flag_y, "a puddle is as light as the street"
+    assert ROUGH["puddle"] <= PUDDLE["gloss"] and ROUGH["flagstone"][0] >= 0.50, \
+        "a puddle does not shine (roughness %.2f against the street's %.2f)" % (ROUGH["puddle"], ROUGH["flagstone"][0])
+    # 22. an awning hangs over its own plot, clear of the street and a man's head
+    for a in (r for r in rows if r.get("kind") == "awning"):
+        low = a["z"] - P["meshes"][a["mesh"]]["h"] - STREET_Z_CM
+        assert low >= AWNING["min_clear_cm"], "an awning hangs to %.2f m over the street" % (low / 100.0)
+        assert a["variant_h"] == AWNING["variant_h"], "an awning hangs on a %.0f cm stall" % a["variant_h"]
+        yr = math.radians(a["yaw"]); c_, s_ = math.cos(yr), math.sin(yr)
+        for u in (-0.5, -0.25, 0.0, 0.25, 0.5):
+            lx, ly = u * a["scale"][0] * 100.0, -AWNING["out"] * 100.0
+            x, y = a["x"] + lx * c_ - ly * s_, a["y"] + lx * s_ + ly * c_
+            assert dist_to_path(P["path"], x, y) >= STREET_HALF_WIDTH + AWNING["clear_street_cm"], \
+                "an awning reaches over the street, %.0f cm from its centre line" % dist_to_path(P["path"], x, y)
+            for s in P["sites"]:
+                assert math.hypot(s["x"] - x, s["y"] - y) > s["r"], "an awning hangs into the %s %d fight" % (s["kind"], s["i"])
+    # 23. the cloth is torn
+    for i in range(3):
+        for label, cut, height in (("banner %d%s" % (i, "a"), [1.0 - c for c in banner_hem(i, "a")], 1.0),
+                                   ("banner %d%s" % (i, "b"), [1.0 - c for c in banner_hem(i, "b")], 1.0),
+                                   ("awning %d" % i, [AWNING["drop"] + t for t in awning_hem(i)], AWNING["drop"] + AWNING["tongue"][1])):
+            assert len(cut) >= 5 and max(cut) - min(cut) >= 0.15 * height, \
+                "the %s hangs clean: %d tongues within %.2f of each other" % (label, len(cut), max(cut) - min(cut))
     print("checked: %snothing solid stands in" % ("the plan agrees with build_levels.py to the centimetre, " if against_levels else ""))
     print("the street or a fight or off the edge, every door is a gap, the way through stays in,")
     print("every crate is on the street, the gate is beside the road in its actor's box, one minaret.")
+    print("The night: soot stone over the ink (floor %.3f), %d fires and %d at the doors, every fight and"
+          % (WEATHER["lo"], stats["fires"], stats["door_fires"]))
+    print("door lit, %.0f %% of the way between fights in %d pools (longest dark run %d m), %d lights"
+          % (stats["lit"] * 100.0, stats["pools"], stats["dark_run_m"], stats["lights"]))
+    print("(%d shadowed), %.1f kerb props per 100 m, puddles on the flagstones, the cloth torn." % (stats["shadowed"], per))
 
 
-def bite():
-    """Each check, broken on purpose."""
+def check_palette():
+    """10 (and build_world 29): every colour a material can bake to lies in
+    the soot band [the ink floor, HI], the browser's order is kept, stone
+    is grey (R/B at most 1.50, purity at most 0.55), a cloth is faded
+    (purity at most 0.55) and Kuwait's red stays the look's accent."""
+    floor = ink_floor(); names = {v: k for k, v in BROWSER_ART.items() if isinstance(v, str)}
+    # a power keeps the order of what it weathers only while it rises
+    assert WEATHER["gamma"] > 0.0, "the weathering does not keep the browser's order (gamma %.2f)" % WEATHER["gamma"]
+    for name in PALETTE:
+        for key, c in tones(name).items():
+            y = _luma(c)
+            hexes = PALETTE[name]["hex"]
+            what = names.get(hexes[int(key[-1])], hexes[int(key[-1])]) if key.startswith("colour") else key
+            assert y >= floor - 1e-9, "%s's %s is %.4f, as dark as the ink: in the world's shadow it would be under %.1fx the ink (floor %.3f)" \
+                % (name, what, y, 2.0, floor)
+            assert y <= WEATHER["hi"], "%s is %.2f, paler than soot stone (at most %.2f)" % (what, y, WEATHER["hi"])
+    for name, row in PALETTE.items():
+        for h, c in zip(row["hex"], palette(name)):
+            what = names.get(h, h); pur = 1.0 - min(c[:3]) / max(max(c[:3]), 1e-9)
+            if name == "M_Souq_Cloth0":
+                red = (c[0] - max(c[1], c[2])) / c[0]
+                assert red >= LOOK["ACCENT_FROM"], "the red banner is %.2f pure: red is no longer the look's accent (%.2f)" \
+                    % (red, LOOK["ACCENT_FROM"])
+            elif "chroma" in row:
+                assert pur <= 0.55, "the %s banner shouts (purity %.2f)" % (("red", "green", "gold")[BROWSER_ART["banners"].index(h)], pur)
+            else:
+                if h != RUST:
+                    assert c[0] / c[2] <= 1.50, "%s R/B %.2f: brown mud, not soot stone" % (what, c[0] / c[2])
+                assert pur <= 0.55, "%s is %.2f pure: paint, not stone" % (what, pur)
+
+
+def night_of(P):
+    """The souq's night, as check_night reads it."""
+    return dict(name="the souq", path=P["path"], sites=P["sites"], doors=P["doors"], street=P["street"],
+                fires=[p for p in P["props"] if p["kind"] in FIRE_KINDS], door_fires=P["door_fires"],
+                lanterns=P["lanterns"], rim_rects=P["rim_rects"], blocks=P["blocks"], meshes=P["meshes"])
+
+
+def check_night(Q, off_street=False, rig=None):
+    """12-17, for the souq and (build_world 31) each derived district."""
+    name = Q["name"]; path = Q["path"]
+    fires, door_fires = Q["fires"], Q["door_fires"]; allf = fires + door_fires
+    # 12. every fight and the gate lit, no fire in one
+    for s in Q["sites"]:
+        e = ground_light(allf, s["x"], s["y"])
+        assert e >= 1.0, "%s: %s %d is fought by moonlight alone (%.2f of the moon)" % (name, s["kind"], s["i"] + 1, e)
+        for f in allf:
+            assert math.hypot(f["x"] - s["x"], f["y"] - s["y"]) > s["r"] + f["half"], \
+                "%s: a %s stands in the %s %d fight" % (name, f["kind"], s["kind"], s["i"] + 1)
+    # 13. pools, not floodlight: the centre line between fights, every metre
+    s_ = _arc(path); flags = []
+    for k in range(int(s_[-1] / 100.0)):
+        x, y, _, _ = _at(path, s_, k * 100.0)
+        if any(math.hypot(s["x"] - x, s["y"] - y) < s["r"] for s in Q["sites"]):
+            flags.append(None); continue
+        flags.append(ground_light(allf, x, y) >= 1.0)
+    runs, cur, pools, prev = [], 0, 0, False
+    for fl in flags:
+        if fl is None:
+            runs.append(cur); cur = 0; prev = False; continue     # a fight ends a run: it is lit
+        if fl:
+            runs.append(cur); cur = 0; pools += 0 if prev else 1
+        else:
+            cur += 1
+        prev = fl
+    runs.append(cur)
+    seen = [f for f in flags if f is not None]
+    share = sum(seen) / float(max(1, len(seen)))
+    lo, hi = NIGHT["lit_share"]
+    assert share <= hi, "%s is floodlit: %.0f %% of the way between fights out-lights the moon" % (name, share * 100.0)
+    assert share >= lo, "%s is dark: %.0f %% of the way between fights out-lights the moon" % (name, share * 100.0)
+    assert max(runs) <= NIGHT["dark_run_m"], "%s has an %d m dark run between fights" % (name, max(runs))
+    # 14. every way out is marked, and not blocked
+    for side, (dx, dy) in sorted(Q["doors"].items()):
+        near = [f for f in door_fires if math.hypot(f["x"] - dx, f["y"] - dy) <= 600.0]
+        assert len(near) >= 2, "%s: the %s door is dark" % (name, side)
+        a = nearest_on_path(path, dx, dy)
+        for f in near:
+            clear = _seg_dist(f["x"], f["y"], a, (dx, dy)) - STREET_HALF_WIDTH * 0.8 - f["half"]
+            assert clear >= 50.0, "%s: a fire stands in the way out at the %s door (%.0f cm off its spur)" % (name, side, clear)
+            for r in Q["rim_rects"]:
+                assert _rect_dist(f["x"], f["y"], r) - f["half"] >= 100.0, "%s: a fire at the %s door is against the rim wall" % (name, side)
+    # 15. the lit lanterns are the lanterns: at the glass, out of the arch, only those that face the street
+    if Q.get("blocks"):
+        want = set()
+        for bi, b in enumerate(Q["blocks"]):
+            if b["kind"] != "stall":
+                continue
+            m = Q["meshes"][b["mesh"]]
+            fx, fy, _ = _to_world(b, 0.0, -m["d"] * 0.5, 0.0)
+            if dist_to_path(path, fx, fy) < NIGHT["lantern"]["lit_within_m"] * 100.0:
+                want.add(bi)
+        assert {l["stall"] for l in Q["lanterns"]} == want, \
+            "%s: %d lanterns are lit, not the %d whose stalls face the street" % (name, len(Q["lanterns"]), len(want))
+        for l in Q["lanterns"]:
+            b = Q["blocks"][l["stall"]]; m = Q["meshes"][b["mesh"]]
+            lx, ly, lz, lr = lantern_local(m["w"] / 100.0, m["d"] / 100.0, m["h"] / 100.0)
+            gx, gy, gz = _to_world(b, lx * 100.0, ly * 100.0, lz * 100.0)
+            off = math.sqrt((gx - l["x"]) ** 2 + (gy - l["y"]) ** 2 + (gz - l["z"]) ** 2)
+            assert off <= lr * 100.0 + 1e-6, "%s: a lantern's light is %.0f cm from its glass" % (name, off)
+            ya, pa = math.radians(l["yaw"]), math.radians(l["pitch"]); yb = math.radians(b["yaw"])
+            aim = (math.sin(ya) * math.cos(pa), -math.cos(ya) * math.cos(pa), math.sin(pa))
+            assert aim[0] * math.sin(yb) - aim[1] * math.cos(yb) >= 0.6 and aim[2] < -0.3, \
+                "%s: a lantern lights its own shutter, not the street" % name
+    # 16. the light budget
+    lights = allf + Q["lanterns"]
+    shadowed = sum(1 for l in lights if l["shadow"]); smoke = sum(1 for l in lights if l.get("smoke"))
+    B = NIGHT["budget"]
+    assert len(lights) <= B["lights"] and shadowed <= B["shadowed"] and smoke <= B["smoke"], \
+        "%s has %d lights (%d shadowed, %d smoke volumes): over %d / %d / %d" % (name, len(lights), shadowed, smoke,
+                                                                                B["lights"], B["shadowed"], B["smoke"])
+    # 17. the units: each fire's pool, back from its Blender watts and its UE candela
+    mb, mu = moon_blender(), moon_ue(rig)
+    for f in allf:
+        want = NIGHT[f["kind"]].get("pool_m") or pool_of(intensity(f["kind"]), f["h"])
+        for what, I in (("Blender watts", f["watts"] / (4.0 * math.pi * mb)), ("UE candela", f["cd"] / mu)):
+            got = pool_of(I, f["h"])
+            assert abs(got / want - 1.0) <= 0.01, "%s: a %s's %s make a %.1f m pool, not %.1f m (%.1fx)" \
+                % (name, f["kind"], what, got, want, want / max(got, 1e-9))
+    return dict(fires=len(fires), door_fires=len(door_fires), lit=share, pools=pools, dark_run_m=max(runs),
+                lights=len(lights), shadowed=shadowed, smoke=smoke, between_m=float(len(seen)))
+
+
+class _override:
+    """Tables changed for one sabotage and put back after: (table, key,
+    value) with a table a dict (NIGHT, WEATHER, ...) or globals()."""
+    def __init__(self, changes):
+        self.changes = changes; self.saved = []
+    def __enter__(self):
+        for t, k, v in self.changes:
+            self.saved.append((t, k, t[k])); t[k] = v
+    def __exit__(self, *exc):
+        for t, k, v in reversed(self.saved):
+            t[k] = v
+
+
+def bite(verbose=True):
+    """Each check, broken on purpose: (label, bit, the check's own words)."""
+    import copy
     cases = []
-    def case(label, mutate, expect):
-        P = plan(); mutate(P)
-        try:
-            check(P, against_levels=("levels" in label)); cases.append((label, False, "did not bite"))
-        except AssertionError as e:
-            cases.append((label, expect in str(e), str(e)[:90]))
+    base = plan()
+    def case(label, mutate, expect, tables=()):
+        with _override(list(tables)):
+            P = plan() if tables else copy.deepcopy(base)
+            mutate(P)
+            try:
+                check(P, against_levels=("levels" in label)); cases.append((label, False, "did not bite"))
+            except AssertionError as e:
+                cases.append((label, expect in str(e), str(e)[:110]))
     def move_wave(P): a = next(a for a in P["actors"] if a["kind"] == "WaveMarker"); a["x"] += 50.0
     def onto_street(P): b = P["blocks"][0]; nx, ny = nearest_on_path(P["path"], b["x"], b["y"]); b["x"], b["y"] = nx, ny
     def into_fight(P):
@@ -592,11 +1326,162 @@ def bite():
     case("crate sized by distance", crate_by_distance, "browser's crate")
     case("crate in a fight", crate_in_fight, "in a fight")
     case("crate under the street", crate_sunk, "under the street")
-    print("\n%-28s %s" % ("check", "when the plan is broken"))
-    for label, ok, msg in cases:
-        print("  %-26s %s  %s" % (label, "BITES " if ok else "SILENT", msg))
-    n = sum(1 for _, ok, _ in cases if ok); print("  %d of %d bite" % (n, len(cases)))
-    return n == len(cases)
+    # --- the night, 2026-09-28
+    W, N, G = WEATHER, NIGHT, globals()
+    none = lambda P: None
+    # 10. the palette
+    case("pale souq (gamma 0.45)", none, "paler than soot stone", [(W, "gamma", 0.45)])
+    case("inky souq (lo 0.002)", none, "as dark as the ink", [(W, "lo", 0.002)])
+    case("brown souq", none, "brown mud", [(W, "cast", (1.10, 1.0, 0.88)), (W, "chroma", 0.5)])
+    case("painted stone (blue cast)", none, "paint, not stone", [(W, "cast", (0.6, 1.0, 1.6))])
+    case("loud cloth", none, "banner shouts", [(W, "cloth_chroma", 1.0)])
+    case("red lost", none, "no longer the look's accent", [(W, "blood_chroma", 0.4)])
+    case("order inverted (gamma < 0)", none, "order", [(W, "gamma", -0.1)])
+    def unclamped(c, k):
+        return tuple(v * k for v in c[:3]) + (1.0,)
+    case("grime not held at the floor", none, "as dark as the ink", [(G, "_toward", unclamped)])
+    # 11. fires stand where crates may
+    def fires_of(P): return [p for p in P["props"] if p["kind"] in FIRE_KINDS]
+    def no_fires(P): P["props"] = [p for p in P["props"] if p["kind"] not in FIRE_KINDS]
+    def brazier_in_lane(P):
+        f = next(f for f in fires_of(P) if f["kind"] == "brazier"); f["x"], f["y"] = nearest_on_path(P["path"], f["x"], f["y"])
+    def brazier_in_fight(P):
+        s = next(s for s in P["sites"] if s["kind"] == "wave" and s["i"] == 0); f = next(f for f in fires_of(P) if f["kind"] == "brazier")
+        f["x"], f["y"] = s["x"] + 200.0, s["y"]
+    case("no fire on the street", no_fires, "no fire stands")
+    case("brazier in the lane", brazier_in_lane, "middle of the street")
+    case("brazier in a fight", brazier_in_fight, "in a fight")
+    # 12. every fight lit
+    def dark_fight(P): P["props"] = [p for p in P["props"] if p.get("site") != ("wave", 1)]
+    case("dark fight (wave 2's pyres)", dark_fight, "wave 2 is fought by moonlight alone")
+    # 13. pools, not floodlight
+    case("floodlit (a fire every 6 m)", none, "floodlit", [(N, "street_step_m", 6.0), (N, "min_gap_m", 0.0)])
+    case("dark street (every 90 m)", none, "dark run", [(N, "street_step_m", 90.0)])
+    case("dim braziers (1.5 m pools)", none, "is dark", [(N["brazier"], "pool_m", 1.5), (N, "street_step_m", 16.0), (N, "min_gap_m", 0.0)])
+    def dark_run(P):
+        fs = sorted((f for f in fires_of(P) if f["kind"] == "brazier"), key=lambda f: f["s"])
+        k = max(range(len(fs) - 1), key=lambda i: fs[i + 1]["s"] - fs[i]["s"])
+        drop = {id(fs[k]), id(fs[k + 1])}
+        P["props"] = [p for p in P["props"] if id(p) not in drop]
+    case("one long dark stretch", dark_run, "dark run")
+    # 14. the ways out
+    def unlit_door(P): P["door_fires"].remove(next(f for f in P["door_fires"] if f["door"] == "East"))
+    def fire_in_doorway(P):
+        # onto the spur's centre line, 3 m in from the door
+        f = next(f for f in P["door_fires"] if f["door"] == "East"); dx, dy = P["doors"]["East"]
+        ax, ay = nearest_on_path(P["path"], dx, dy); L = math.hypot(dx - ax, dy - ay)
+        f["x"], f["y"] = dx + (ax - dx) / L * 300.0, dy + (ay - dy) / L * 300.0
+    def fire_on_rim(P):
+        # 5.9 m from a door toward its nearest rim wall's nearest point:
+        # still the door's fire, now at the wall (the door whose wall is
+        # nearest: 7.0 m, where the gap is 11 m either side of a door)
+        side = min(P["doors"], key=lambda k: min(_rect_dist(P["doors"][k][0], P["doors"][k][1], r) for r in P["rim_rects"]))
+        f = next(f for f in P["door_fires"] if f["door"] == side); dx, dy = P["doors"][side]
+        def nearest_pt(r):
+            a = math.radians(r[2]); ux, uy = math.cos(a), math.sin(a)
+            t = max(-r[3] * 0.5, min(r[3] * 0.5, (dx - r[0]) * ux + (dy - r[1]) * uy))
+            return r[0] + ux * t, r[1] + uy * t
+        px, py = min((nearest_pt(r) for r in P["rim_rects"]), key=lambda q: math.hypot(q[0] - dx, q[1] - dy))
+        L = math.hypot(px - dx, py - dy); f["x"], f["y"] = dx + (px - dx) / L * 590.0, dy + (py - dy) / L * 590.0
+    case("unlit door", unlit_door, "the East door is dark")
+    case("fire in the doorway", fire_in_doorway, "stands in the way out")
+    case("door fire against the rim", fire_on_rim, "against the rim wall")
+    # 15. the lanterns
+    def lantern_astray(P): P["lanterns"][0]["x"] += 100.0
+    def lantern_into_wall(P): P["lanterns"][0]["yaw"] += 180.0
+    def lantern_unlit(P): P["lanterns"].pop(0)
+    case("lantern astray (+1 m)", lantern_astray, "from its glass")
+    case("lantern into its wall", lantern_into_wall, "lights its own shutter")
+    case("a street lantern unlit", lantern_unlit, "lanterns are lit, not the")
+    # 16. the budget
+    case("every lantern lit", none, "lights (", [(N["lantern"], "lit_within_m", 1e6)])
+    # 17. the units
+    def watts_as_candela(P):
+        for f in fires_of(P): f["watts"] = f["I"] * moon_blender()
+    def candela_as_lux(P):
+        for f in fires_of(P): f["cd"] = f["I"]
+    case("watts as candela (no 4 pi)", watts_as_candela, "Blender watts make a")
+    case("candela without the moon", candela_as_lux, "UE candela make a")
+    # 18. warm fire, cold hard moon
+    case("warm moon", none, "the moon is warm", [(MOON, "colour", (1.0, 0.85, 0.63))])
+    case("soft moon (12 degrees)", none, "the moon is soft", [(MOON, "angle", 12.0)])
+    case("white-hot fire (6500 K)", none, "burns at", [(N, "temp_k", 6500.0)])
+    case("cold lantern", none, "lantern's light", [(N, "lantern_hex", "#8cb4ff")])
+    # 19. the street lined
+    case("bare street (no dressing)", none, "the street is bare", [(DRESS, "every_m", 1e6)])
+    case("cluttered street (every 3 m)", none, "cluttered", [(DRESS, "every_m", 3.0), (DRESS, "gap_cm", 0.0)])
+    # 20. the broken crate
+    def broken_by_distance(P): P["meshes"]["SM_Souq_CrateBroken"]["w"] = BROWSER_ART["crate_px"][0] * PX
+    def broken_tall(P): P["meshes"]["SM_Souq_CrateBroken"]["h"] = P["meshes"]["SM_Souq_Crate"]["h"] + 5.0
+    case("broken crate by distance", broken_by_distance, "the broken crate is")
+    case("broken crate taller", broken_tall, "taller than a whole one")
+    # 21. puddles
+    def puddle_on_sand(P):
+        q = P["puddles"][0]; x, y = nearest_on_path(P["path"], q["x"], q["y"]); dx, dy = q["x"] - x, q["y"] - y
+        d = math.hypot(dx, dy) or 1.0; q["x"], q["y"] = x + dx / d * 400.0, y + dy / d * 400.0
+    def puddle_sunk(P): P["puddles"][0]["z"] = STREET_Z_CM - 1.0
+    def puddle_solid(P): P["puddles"][0]["slot"] = "Props"
+    case("puddle on the sand (4 m out)", puddle_on_sand, "hangs over the sand")
+    case("puddle under the flagstones", puddle_sunk, "not on the flagstones")
+    case("solid puddle", puddle_solid, "a puddle is solid")
+    case("matte puddle", none, "does not shine", [(ROUGH, "puddle", 0.8)])
+    case("light puddle", none, "as light as the street", [(G, "PUDDLE_TONE", 1.0)])
+    # 22. awnings
+    def awning_low(P):
+        b = min((b for b in P["blocks"] if b["kind"] == "stall" and P["meshes"][b["mesh"]]["h"] != AWNING["variant_h"]), key=lambda b: b["scale"][2])
+        b["awning"] = True
+    def awning_short_variant(P):
+        b = max((b for b in P["blocks"] if b["kind"] == "stall" and P["meshes"][b["mesh"]]["h"] != AWNING["variant_h"]), key=lambda b: b["scale"][2])
+        b["awning"] = True
+    case("awning over the street (out 4 m)", none, "reaches over the street", [(AWNING, "out", 4.0)])
+    case("awning at head height", awning_low, "hangs to 1.")
+    case("awning on a short variant", awning_short_variant, "hangs on a 300 cm stall")
+    case("awning into a fight (out 10 m)", none, "fight", [(AWNING, "out", 10.0), (AWNING, "clear_street_cm", -1e6)])
+    # 23. torn cloth
+    case("clean hem", none, "hangs clean", [(TATTER, "cut", (0.0, 0.0))])
+    case("clean awning", none, "hangs clean", [(AWNING, "tongue", (0.0, 0.0))])
+    if verbose:
+        print("\n%-28s %s" % ("check", "when the plan is broken"))
+        for label, ok, msg in cases:
+            print("  %-34s %s  %s" % (label, "BITES " if ok else "SILENT", msg))
+        n = sum(1 for _, ok, _ in cases if ok); print("  %d of %d bite" % (n, len(cases)))
+    return all(ok for _, ok, _ in cases)
+
+
+def bite_meshes(verbose=True):
+    """check_meshes() (24-26) and check_bake() (10, on the baked texels),
+    each broken on purpose, in bpy: every kind built, and for the bake
+    cases every material baked at 32 px, into a scratch folder."""
+    import tempfile, shutil
+    P = plan(); out = tempfile.mkdtemp(prefix="souq_bite_")
+    cases = []
+    def run(label, flags, expect, bake=False, tables=()):
+        with _override(list(tables)):
+            S = Souq(P, out=out, fast=True); S.SABOTAGE = set(flags)
+            try:
+                S.build_kinds(); S.check_meshes()
+                if bake:
+                    S.bake_tiles(size=32); S.check_bake()
+                cases.append((label, expect is None, "passes"))
+            except AssertionError as e:
+                cases.append((label, expect is not None and expect in str(e), str(e)[:110]))
+    def unclamped(c, k):
+        return tuple(v * k for v in c[:3]) + (1.0,)
+    run("(unbroken, baked)", (), None, bake=True)
+    run("no plinth", {"no_plinth"}, "stands in no damp plinth")
+    run("plinth round a third", {"short_plinth"}, "fronts")
+    run("plinth up the wall", {"tall_plinth"}, "damp band reaches")
+    run("banner wound in", {"banner_wound_in"}, "wound away from the street")
+    run("awning wound up", {"awning_wound_up"}, "wound away from the street")
+    run("banner 20 x 20", {"banner_budget"}, "over its 32 budget")
+    run("grime under the floor (baked)", (), "under the ink floor", bake=True, tables=[(globals(), "_toward", unclamped)])
+    shutil.rmtree(out, ignore_errors=True)
+    if verbose:
+        print("\n%-34s %s" % ("check_meshes / check_bake", "when the meshes are broken"))
+        for label, ok, msg in cases:
+            print("  %-32s %s  %s" % (label, "BITES " if ok and label[0] != "(" else ("PASSES" if ok else "SILENT"), msg))
+        print("  unbroken %s; %d of %d bite" % ("passes" if cases[0][1] else "FAILS", sum(1 for c in cases[1:] if c[1]), len(cases) - 1))
+    return all(ok for _, ok, _ in cases)
 
 
 def describe(P):
@@ -611,8 +1496,21 @@ def describe(P):
               " ".join(s.get("fighters", [])) if s["kind"] == "wave" else s["gate"]["Type"]))
     for side, (x, y) in P["doors"].items():
         print("  door %-5s at (%6.0f, %6.0f), bearing %.0f" % (side, x, y, P["bearing"][side]))
-    print("  plots: " + ", ".join("%s %d" % kv for kv in sorted(kinds.items())) + "; rim %d segments; props %d (%d crates, %d barrels)" % (
-        len(P["rim"]), len(P["props"]), sum(1 for p in P["props"] if p["kind"] == "crate"), sum(1 for p in P["props"] if p["kind"] == "barrel")))
+    print("  plots: " + ", ".join("%s %d" % kv for kv in sorted(kinds.items())) + "; rim %d segments" % len(P["rim"]))
+    fires = [p for p in P["props"] if p["kind"] in FIRE_KINDS]
+    kerb = [p for p in P["props"] if p["kind"] not in FIRE_KINDS]
+    print("  the night: %d pyres and %d braziers on the street, %d at the doors, %d lanterns lit of %d; %d lights, %d shadowed"
+          % (sum(f["kind"] == "pyre" for f in fires), sum(f["kind"] == "brazier" for f in fires), len(P["door_fires"]),
+             len(P["lanterns"]), sum(1 for b in P["blocks"] if b["kind"] == "stall"),
+             len(fires) + len(P["door_fires"]) + len(P["lanterns"]), len(fires) + len(P["door_fires"])))
+    b0, p0 = intensity("brazier"), intensity("pyre"); l0 = P["lanterns"][0] if P["lanterns"] else None
+    print("    brazier %.0f cd / %.0f W (pool %.1f m), pyre %.0f cd / %.0f W (pool %.1f m)%s"
+          % (candela(b0), watts(b0), pool_of(b0, NIGHT["brazier"]["h"]), candela(p0), watts(p0), pool_of(p0, NIGHT["pyre"]["h"]),
+             ", a lantern %.1f cd / %.0f W at %.2f m" % (l0["cd"], l0["watts"], l0["h"]) if l0 else ""))
+    print("  the kerb: %d props (%d the browser's; %d crates, %d broken, %d barrels); %d puddles; %d awnings"
+          % (len(kerb), sum(1 for p in kerb if not p.get("dressing")), sum(p["kind"] == "crate" for p in kerb),
+             sum(p["kind"] == "crate_broken" for p in kerb), sum(p["kind"] == "barrel" for p in kerb), len(P["puddles"]),
+             sum(1 for b in P["blocks"] if b.get("awning"))))
     if P["minaret"]:
         print("  minaret at (%.0f, %.0f), %.1f m" % (P["minaret"]["x"], P["minaret"]["y"], P["minaret"]["h"] / 100.0))
     if P["gate"]:
@@ -643,8 +1541,17 @@ def draw(P, path):
         g.polygon(pts, fill=col)
         if b["kind"] == "minaret":
             g.ellipse([to(b["x"] - 500, b["y"] + 500), to(b["x"] + 500, b["y"] - 500)], outline=(255, 230, 150))
-    for p in P["props"]:
-        x, y = to(p["x"], p["y"]); g.ellipse([x - 2, y - 2, x + 2, y + 2], fill=(220, 190, 120) if p["kind"] == "crate" else (150, 170, 190))
+    for q in P.get("puddles", []):
+        x, y = to(q["x"], q["y"]); r = max(1.5, q["scale"][0] * 50.0 * sc); g.ellipse([x - r, y - r, x + r, y + r], fill=(90, 110, 130))
+    for p in P["props"] + P.get("door_fires", []):
+        x, y = to(p["x"], p["y"])
+        if p["kind"] in FIRE_KINDS:
+            r = p["pool"] * 100.0 * sc; g.ellipse([x - r, y - r, x + r, y + r], outline=(150, 70, 20))
+            g.ellipse([x - 3, y - 3, x + 3, y + 3], fill=(255, 140, 40))
+        else:
+            g.ellipse([x - 2, y - 2, x + 2, y + 2], fill=(220, 190, 120) if p["kind"].startswith("crate") else (150, 170, 190))
+    for l in P.get("lanterns", []):
+        x, y = to(l["x"], l["y"]); g.point((x, y), fill=(255, 220, 140))
     for s in P["sites"]:
         x, y = to(s["x"], s["y"]); r = s["r"] * sc
         g.ellipse([x - r, y - r, x + r, y + r], outline=(250, 170, 90) if s["kind"] == "wave" else (90, 200, 255))
@@ -654,6 +1561,8 @@ def draw(P, path):
         x, y = to(dx, dy); g.ellipse([x - 5, y - 5, x + 5, y + 5], fill=(120, 255, 120)); g.text((x + 8, y - 6), side, fill=(200, 255, 200))
     g.text((16, 16), "SOUQ AL-DAWAR, built: the street on the spiral, stalls and warehouses either side, the rim gapped", fill=(220, 220, 220))
     g.text((16, 32), "at every way out, crates down the street, the cracked wall beside the road, one minaret.", fill=(220, 220, 220))
+    g.text((16, 48), "The night: fires (orange, ringed by the pool where each out-lights the moon), lit lanterns, puddles (slate).",
+           fill=(220, 220, 220))
     os.makedirs(os.path.dirname(path), exist_ok=True); im.save(path); print("drew", path)
 
 
@@ -669,21 +1578,58 @@ def _lin(rgba):
 # Unreal build): the souq weathered. The browser's colours do not move --
 # they are its painting of the souq and its source of truth -- the Unreal
 # souq takes each of them through one transform, the way hero/finish.fabric
-# takes the kit: in linear light, its chroma cut to WEATHER["chroma"] of
-# what it was, its level to WEATHER["level"], and a cold cast, so warm
-# mud-brick and sun-bleached sand go to a grey, soot-dark stone and a
-# faded cloth. The lantern is not weathered: what burns is the only warm
-# light in the dark, and it keeps its colour.
-WEATHER = dict(level=0.50, chroma=0.40, cloth_chroma=0.60, cast=(0.97, 1.00, 1.04))
-
-
+# takes the kit. 2026-09-26 it was linear (chroma 0.40, level 0.50, a
+# cold cast), which left mud-brick brown (R/B 1.83) and could not hold the
+# pale sources down without pushing the dark grounds under the ink. Since
+# 2026-09-28 it is WEATHER's curve (above): chroma 0.28, a colder cast, and
+# the luminance a power of the browser's from the ink floor up. The
+# lantern is not weathered: what burns keeps its colour.
 def _worn(h, chroma=None):
-    """A browser colour, weathered: linear RGBA."""
+    """A browser colour, weathered: linear RGBA (see WEATHER)."""
     c = _lin(_hex(h))[:3]
-    y = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    y = _luma(c)
     k = WEATHER["chroma"] if chroma is None else chroma
-    out = tuple(max(0.0, (y + (v - y) * k) * WEATHER["level"] * t) for v, t in zip(c, WEATHER["cast"]))
-    return out + (1.0,)
+    g = [max(0.0, (y + (v - y) * k) * t) for v, t in zip(c, WEATHER["cast"])]
+    want = WEATHER["lo"] * (max(y, 1e-6) / WEATHER["y_lo"]) ** WEATHER["gamma"]
+    s = want / max(_luma(g), 1e-9)
+    return tuple(v * s for v in g) + (1.0,)
+
+
+def _toward(c, k):
+    """A darker tone of the weathered colour c: k of its luminance, same
+    hue, never under the floor. Soot, damp, mortar and a puddle are this."""
+    y = _luma(c)
+    s = max(WEATHER["lo"], k * y) / max(y, 1e-9)
+    return tuple(v * s for v in c[:3]) + (1.0,)
+
+
+def palette(name):
+    """A material's weathered colours, in PALETTE's order: linear RGBA."""
+    row = PALETTE[name]
+    k = WEATHER[row["chroma"]] if "chroma" in row else None
+    return [_worn(h, k) for h in row["hex"]]
+
+
+def tones(name):
+    """Every colour a material's bake can reach, darkest grime included --
+    what check() holds to the floor and material() paints with."""
+    cols = palette(name)
+    out = {"colour%d" % i: c for i, c in enumerate(cols)}
+    if PALETTE[name].get("soot"):
+        out["soot"] = _toward(cols[0], SOOT["dark"])
+    if name == "M_Souq_Flagstone":
+        out["mortar"] = _toward(cols[2], MORTAR)
+        out["soot"] = _toward(cols[1], 1.0 - WEAR["flagstone"])
+    if name == "M_Souq_MudBrick":
+        out["mortar"] = cols[2]
+    if name == "M_Souq_Damp":
+        out["damp"] = _toward(cols[0], DAMP["tone"])
+        out["salt"] = _toward(cols[1], DAMP["salt_tone"])
+        del out["colour0"], out["colour1"]
+    if name == "M_Souq_Puddle":
+        flag = palette("M_Souq_Flagstone")
+        out = {"puddle": _toward(tuple((a + b) * 0.5 for a, b in zip(flag[0][:3], flag[1][:3])), PUDDLE_TONE)}
+    return out
 
 
 class Souq:
@@ -699,7 +1645,7 @@ class Souq:
         for d in (self.models, self.textures, self.renders): os.makedirs(d, exist_ok=True)
         bpy.ops.wm.read_factory_settings(use_empty=True)
         sc = bpy.context.scene; sc.unit_settings.system = "METRIC"; sc.unit_settings.length_unit = "METERS"
-        self.mats = {}; self.kinds = {}; self.placed = []
+        self.mats = {}; self.kinds = {}; self.placed = []; self.baked_floor = {}
 
     # ------------------------------------------------------------ materials
     def _periodic(self, nt, uv_out):
@@ -724,8 +1670,29 @@ class Souq:
         nt.links.new(vec, n.inputs["Vector"]); nt.links.new(w, n.inputs["W"])
         return n.outputs["Fac"]
 
+    def _streaks(self, nt, uv_out, across, down):
+        """Periodic noise that changes fast across a wall and slowly down
+        it: the torus vector's across pair scaled by `across`, its down pair
+        by `down` -- a bigger circle in noise space is more noise round it,
+        and it still closes, so the tile still repeats. Soot runs."""
+        vec, w = self._periodic(nt, uv_out)
+        sep = nt.nodes.new("ShaderNodeSeparateXYZ"); nt.links.new(vec, sep.inputs[0])
+        comb = nt.nodes.new("ShaderNodeCombineXYZ")
+        for i, k in ((0, across), (1, across), (2, down)):
+            m = nt.nodes.new("ShaderNodeMath"); m.operation = "MULTIPLY"; m.inputs[1].default_value = k
+            nt.links.new(sep.outputs[i], m.inputs[0]); nt.links.new(m.outputs[0], comb.inputs[i])
+        mw = nt.nodes.new("ShaderNodeMath"); mw.operation = "MULTIPLY"; mw.inputs[1].default_value = down
+        nt.links.new(w, mw.inputs[0])
+        n = nt.nodes.new("ShaderNodeTexNoise"); n.noise_dimensions = "4D"
+        n.inputs["Scale"].default_value = 1.0; n.inputs["Detail"].default_value = 4.0
+        nt.links.new(comb.outputs[0], n.inputs["Vector"]); nt.links.new(mw.outputs[0], n.inputs["W"])
+        return n.outputs["Fac"]
+
     def material(self, name, kind):
-        """A procedural material in tile space: UV * TILE is metres."""
+        """A procedural material in tile space: UV * TILE is metres. Every
+        colour comes from PALETTE through tones(), the same rows check()
+        holds to the soot band; grime mixes toward a tone held at the floor,
+        so nothing here bakes darker than the ink allows."""
         bpy = self.bpy
         if name in self.mats: return self.mats[name]
         mat = bpy.data.materials.new(name); mat.use_nodes = True
@@ -733,11 +1700,27 @@ class Souq:
         uv = nt.nodes.new("ShaderNodeUVMap"); uv.uv_map = "UVMap"
         metres = nt.nodes.new("ShaderNodeVectorMath"); metres.operation = "SCALE"; metres.inputs["Scale"].default_value = TILE
         nt.links.new(uv.outputs["UV"], metres.inputs[0])
-        A = BROWSER_ART
+        T = tones(name) if name in PALETTE else {}
         def mix(a, b, fac):
             m = nt.nodes.new("ShaderNodeMix"); m.data_type = "RGBA"
-            m.inputs["A"].default_value = a; m.inputs["B"].default_value = b
-            nt.links.new(fac, m.inputs["Factor"]); return m.outputs["Result"]
+            for sock, v in (("A", a), ("B", b)):
+                if isinstance(v, tuple): m.inputs[sock].default_value = v
+                else: nt.links.new(v, m.inputs[sock])
+            if isinstance(fac, float): m.inputs["Factor"].default_value = fac
+            else: nt.links.new(fac, m.inputs["Factor"])
+            return m.outputs["Result"]
+        def ramp(fac, lo, hi):
+            r = nt.nodes.new("ShaderNodeMapRange"); r.clamp = True
+            r.inputs["From Min"].default_value = lo; r.inputs["From Max"].default_value = hi
+            nt.links.new(fac, r.inputs["Value"]); return r.outputs["Result"]
+        def scaled(fac, k):
+            m = nt.nodes.new("ShaderNodeMath"); m.operation = "MULTIPLY"; m.inputs[1].default_value = k
+            nt.links.new(fac, m.inputs[0]); return m.outputs[0]
+        def soot(col):
+            """SOOT's streaks down a wall, toward the wall's own soot tone."""
+            if "soot" not in T: return col
+            st = self._streaks(nt, uv.outputs["UV"], SOOT["across"], SOOT["down"])
+            return mix(col, T["soot"], ramp(st, SOOT["lo"], SOOT["hi"]))
         def bump(height, strength, dist=0.004):
             b = nt.nodes.new("ShaderNodeBump"); b.inputs["Strength"].default_value = strength; b.inputs["Distance"].default_value = dist
             nt.links.new(height, b.inputs["Height"]); nt.links.new(b.outputs["Normal"], bsdf.inputs["Normal"])
@@ -748,78 +1731,103 @@ class Souq:
             if kind == "brick":
                 br.inputs["Brick Width"].default_value = BRICK[0]; br.inputs["Row Height"].default_value = BRICK[1]
                 br.inputs["Mortar Size"].default_value = 0.012; br.offset = 0.5; br.offset_frequency = 2
-                c1, c2, mortar = _worn(A["brick"]), _worn(A["brick_dark"]), _worn(A["pier"])
+                c1, c2, mortar = T["colour0"], T["colour1"], T["mortar"]
             else:
                 br.inputs["Brick Width"].default_value = SLAB; br.inputs["Row Height"].default_value = SLAB
                 br.inputs["Mortar Size"].default_value = 0.016; br.offset = 0.0; br.offset_frequency = 2
-                c1, c2, mortar = _worn(A["ground"][0]), _worn(A["ground"][1]), _worn(A["ground_dark"])
+                c1, c2, mortar = T["colour0"], T["colour1"], T["mortar"]
             br.inputs["Color1"].default_value = c1; br.inputs["Color2"].default_value = c2; br.inputs["Mortar"].default_value = mortar
-            br.inputs["Bias"].default_value = 0.0; br.inputs["Brick Width"].default_value = br.inputs["Brick Width"].default_value
+            br.inputs["Bias"].default_value = 0.0
             grime = self._noise(nt, uv.outputs["UV"], 6.0)
-            # wear: darken by a periodic noise
-            dark = nt.nodes.new("ShaderNodeMix"); dark.data_type = "RGBA"; dark.blend_type = "MULTIPLY"
-            dark.inputs["Factor"].default_value = 0.35 if kind == "flagstone" else 0.25
-            nt.links.new(br.outputs["Color"], dark.inputs["A"])
-            ramp = nt.nodes.new("ShaderNodeValToRGB"); ramp.color_ramp.elements[0].color = (0.55, 0.5, 0.45, 1); ramp.color_ramp.elements[1].color = (1, 1, 1, 1)
-            nt.links.new(grime, ramp.inputs["Fac"]); nt.links.new(ramp.outputs["Color"], dark.inputs["B"])
-            nt.links.new(dark.outputs["Result"], bsdf.inputs["Base Color"])
-            bsdf.inputs["Roughness"].default_value = 0.88 if kind == "brick" else 0.80
+            # wear: toward the soot tone where the grime noise is low (it was
+            # a multiply until 2026-09-28, which took the mortar under the floor)
+            inv = nt.nodes.new("ShaderNodeMath"); inv.operation = "SUBTRACT"; inv.inputs[0].default_value = 1.0
+            nt.links.new(ramp(grime, 0.3, 0.7), inv.inputs[1])
+            col = mix(br.outputs["Color"], T["soot"], scaled(inv.outputs[0], WEAR[kind] if kind in WEAR else 0.25))
+            if kind == "brick":
+                col = soot(col)
+            nt.links.new(col, bsdf.inputs["Base Color"])
+            if kind == "flagstone":
+                # wet in the hollows: roughness low where the grime is low, so a fire streaks across the street
+                rr = nt.nodes.new("ShaderNodeMapRange"); rr.clamp = True
+                rr.inputs["To Min"].default_value = ROUGH["flagstone"][0]; rr.inputs["To Max"].default_value = ROUGH["flagstone"][1]
+                nt.links.new(ramp(grime, 0.3, 0.7), rr.inputs["Value"]); nt.links.new(rr.outputs["Result"], bsdf.inputs["Roughness"])
+            else:
+                bsdf.inputs["Roughness"].default_value = ROUGH["brick"]
             # the mortar is recessed; the grime is bumpy
             add = nt.nodes.new("ShaderNodeMath"); add.operation = "ADD"; nt.links.new(br.outputs["Fac"], add.inputs[0])
-            fine = self._noise(nt, uv.outputs["UV"], 40.0, 2.0); sc = nt.nodes.new("ShaderNodeMath"); sc.operation = "MULTIPLY"; sc.inputs[1].default_value = 0.15
-            nt.links.new(fine, sc.inputs[0]); nt.links.new(sc.outputs[0], add.inputs[1])
-            inv = nt.nodes.new("ShaderNodeMath"); inv.operation = "SUBTRACT"; inv.inputs[0].default_value = 1.0; nt.links.new(add.outputs[0], inv.inputs[1])
-            bump(inv.outputs[0], 0.9, 0.006)
+            fine = self._noise(nt, uv.outputs["UV"], 40.0, 2.0)
+            nt.links.new(scaled(fine, 0.15), add.inputs[1])
+            inv2 = nt.nodes.new("ShaderNodeMath"); inv2.operation = "SUBTRACT"; inv2.inputs[0].default_value = 1.0; nt.links.new(add.outputs[0], inv2.inputs[1])
+            bump(inv2.outputs[0], 0.9, 0.006)
         elif kind == "mud":
             n = self._noise(nt, uv.outputs["UV"], 5.0)
-            nt.links.new(mix(_worn(A["brick"]), _worn(A["brick_dark"]), n), bsdf.inputs["Base Color"])
-            bsdf.inputs["Roughness"].default_value = 0.92
+            nt.links.new(soot(mix(T["colour0"], T["colour1"], n)), bsdf.inputs["Base Color"])
+            bsdf.inputs["Roughness"].default_value = ROUGH["mud"]
             # a rendered wall: coarse trowel marks and a fine grit
             coarse = self._noise(nt, uv.outputs["UV"], 14.0, 2.0); fine = self._noise(nt, uv.outputs["UV"], 90.0, 2.0)
             mixh = nt.nodes.new("ShaderNodeMath"); mixh.operation = "ADD"; nt.links.new(coarse, mixh.inputs[0])
-            sc = nt.nodes.new("ShaderNodeMath"); sc.operation = "MULTIPLY"; sc.inputs[1].default_value = 0.35
-            nt.links.new(fine, sc.inputs[0]); nt.links.new(sc.outputs[0], mixh.inputs[1])
+            nt.links.new(scaled(fine, 0.35), mixh.inputs[1])
             bump(mixh.outputs[0], 0.45, 0.004)
         elif kind == "plaster":
             n = self._noise(nt, uv.outputs["UV"], 9.0)
-            nt.links.new(mix(_worn(A["skyline"]), _worn(A["brick"]), n), bsdf.inputs["Base Color"])
-            bsdf.inputs["Roughness"].default_value = 0.85; bump(self._noise(nt, uv.outputs["UV"], 30.0, 2.0), 0.35, 0.003)
+            nt.links.new(soot(mix(T["colour0"], T["colour1"], n)), bsdf.inputs["Base Color"])
+            bsdf.inputs["Roughness"].default_value = ROUGH["plaster"]; bump(self._noise(nt, uv.outputs["UV"], 30.0, 2.0), 0.35, 0.003)
         elif kind == "sand":
             # THEME.souq.floor: sun-bleached stones (#e0b077) and trodden dark
             # patches (#4a2c10) over the ground colour, as two blotch layers
             n = self._noise(nt, uv.outputs["UV"], 4.0)
-            base = mix(_worn(A["ground"][0]), _worn(A["ground"][1]), n)
+            base = mix(T["colour0"], T["colour1"], n)
             light = self._noise(nt, uv.outputs["UV"], 2.5); lr = nt.nodes.new("ShaderNodeMath"); lr.operation = "GREATER_THAN"; lr.inputs[1].default_value = 0.62
             nt.links.new(light, lr.inputs[0])
             dark = self._noise(nt, uv.outputs["UV"], 3.5); dr = nt.nodes.new("ShaderNodeMath"); dr.operation = "GREATER_THAN"; dr.inputs[1].default_value = 0.66
             nt.links.new(dark, dr.inputs[0])
-            m1 = nt.nodes.new("ShaderNodeMix"); m1.data_type = "RGBA"; m1.inputs["B"].default_value = _worn(A["ground_light"])
-            nt.links.new(base, m1.inputs["A"]); nt.links.new(lr.outputs[0], m1.inputs["Factor"])
-            m2 = nt.nodes.new("ShaderNodeMix"); m2.data_type = "RGBA"; m2.inputs["B"].default_value = _worn(A["ground_dark"])
-            nt.links.new(m1.outputs["Result"], m2.inputs["A"]); nt.links.new(dr.outputs[0], m2.inputs["Factor"])
-            nt.links.new(m2.outputs["Result"], bsdf.inputs["Base Color"])
-            bsdf.inputs["Roughness"].default_value = 0.95; bump(self._noise(nt, uv.outputs["UV"], 60.0, 2.0), 0.25, 0.002)
+            m1 = mix(base, T["colour2"], lr.outputs[0])
+            nt.links.new(mix(m1, T["colour3"], dr.outputs[0]), bsdf.inputs["Base Color"])
+            bsdf.inputs["Roughness"].default_value = ROUGH["sand"]; bump(self._noise(nt, uv.outputs["UV"], 60.0, 2.0), 0.25, 0.002)
         elif kind.startswith("cloth"):
-            col = A["banners"][int(kind[-1])]
             wave = nt.nodes.new("ShaderNodeTexWave"); wave.wave_type = "BANDS"; wave.bands_direction = "X"
             wave.inputs["Scale"].default_value = 240.0 / TILE; nt.links.new(uv.outputs["UV"], wave.inputs["Vector"])
             wave2 = nt.nodes.new("ShaderNodeTexWave"); wave2.wave_type = "BANDS"; wave2.bands_direction = "Y"
             wave2.inputs["Scale"].default_value = 240.0 / TILE; nt.links.new(uv.outputs["UV"], wave2.inputs["Vector"])
             weave = nt.nodes.new("ShaderNodeMath"); weave.operation = "MULTIPLY"
             nt.links.new(wave.outputs["Fac"], weave.inputs[0]); nt.links.new(wave2.outputs["Fac"], weave.inputs[1])
-            bsdf.inputs["Base Color"].default_value = _worn(col, WEATHER["cloth_chroma"]); bsdf.inputs["Roughness"].default_value = 0.72
+            bsdf.inputs["Base Color"].default_value = T["colour0"]; bsdf.inputs["Roughness"].default_value = ROUGH["cloth"]
             if "Sheen Weight" in bsdf.inputs: bsdf.inputs["Sheen Weight"].default_value = 0.4
             bump(weave.outputs[0], 0.25, 0.0008)
         elif kind == "wood":
             wave = nt.nodes.new("ShaderNodeTexWave"); wave.wave_type = "BANDS"; wave.bands_direction = "Y"
             wave.inputs["Scale"].default_value = 18.0 / TILE; wave.inputs["Distortion"].default_value = 1.4; wave.inputs["Detail"].default_value = 2.0
             nt.links.new(uv.outputs["UV"], wave.inputs["Vector"])
-            nt.links.new(mix(_worn(A["crate"]), _worn(A["crate_edge"]), wave.outputs["Fac"]), bsdf.inputs["Base Color"])
-            bsdf.inputs["Roughness"].default_value = 0.62; bump(wave.outputs["Fac"], 0.3, 0.0015)
+            nt.links.new(mix(T["colour0"], T["colour1"], wave.outputs["Fac"]), bsdf.inputs["Base Color"])
+            bsdf.inputs["Roughness"].default_value = ROUGH["wood"]; bump(wave.outputs["Fac"], 0.3, 0.0015)
         elif kind == "iron":
-            bsdf.inputs["Base Color"].default_value = _worn(A["barrel"]); bsdf.inputs["Metallic"].default_value = 0.85
-            bsdf.inputs["Roughness"].default_value = 0.45
+            # rust where a noise is over RUST_AT above; one metallic value,
+            # since the bake carries one (0.85 -> ROUGH metallic 0.55)
+            rn = self._noise(nt, uv.outputs["UV"], RUST_AT["scale"])
+            rm = ramp(rn, RUST_AT["above"], RUST_AT["above"] + 0.04)
+            nt.links.new(mix(T["colour0"], T["colour1"], rm), bsdf.inputs["Base Color"])
+            rr = nt.nodes.new("ShaderNodeMapRange"); rr.clamp = True
+            rr.inputs["To Min"].default_value = ROUGH["iron"]; rr.inputs["To Max"].default_value = ROUGH["rust"]
+            nt.links.new(rm, rr.inputs["Value"]); nt.links.new(rr.outputs["Result"], bsdf.inputs["Roughness"])
+            bsdf.inputs["Metallic"].default_value = ROUGH["metallic"]
+            bump(rn, 0.3, 0.002)
+        elif kind == "damp":
+            # the wall's wet foot: the pier's stone, darker, with a salt bloom
+            n = self._noise(nt, uv.outputs["UV"], 12.0)
+            salt = ramp(n, DAMP["salt_above"], DAMP["salt_above"] + 0.03)
+            nt.links.new(mix(T["damp"], T["salt"], scaled(salt, DAMP["salt"])), bsdf.inputs["Base Color"])
+            bsdf.inputs["Roughness"].default_value = ROUGH["damp"]; bump(self._noise(nt, uv.outputs["UV"], 30.0, 2.0), 0.3, 0.003)
+        elif kind == "puddle":
+            bsdf.inputs["Base Color"].default_value = T["puddle"]; bsdf.inputs["Roughness"].default_value = ROUGH["puddle"]
+        elif kind == "ember":
+            # what burns: exempt from the floor, its light is its own
+            bsdf.inputs["Base Color"].default_value = EMBER["base"] + (1.0,); bsdf.inputs["Roughness"].default_value = ROUGH["ember"]
+            if "Emission Color" in bsdf.inputs:
+                bsdf.inputs["Emission Color"].default_value = EMBER["emission"] + (1.0,)
+                bsdf.inputs["Emission Strength"].default_value = EMBER["strength"]
         elif kind == "glass":
+            A = BROWSER_ART
             bsdf.inputs["Base Color"].default_value = _lin(_hex(A["lantern"])); bsdf.inputs["Roughness"].default_value = 0.2
             if "Emission Color" in bsdf.inputs:
                 bsdf.inputs["Emission Color"].default_value = _lin(_hex(A["lantern"])); bsdf.inputs["Emission Strength"].default_value = 3.0
@@ -828,22 +1836,23 @@ class Souq:
             br = nt.nodes.new("ShaderNodeTexBrick"); nt.links.new(metres.outputs[0], br.inputs["Vector"])
             br.inputs["Scale"].default_value = 1.0; br.inputs["Brick Width"].default_value = BRICK[0]; br.inputs["Row Height"].default_value = BRICK[1]
             br.inputs["Mortar Size"].default_value = 0.012; br.offset = 0.5; br.offset_frequency = 2
-            br.inputs["Color1"].default_value = _worn(A["wall_gate"]); br.inputs["Color2"].default_value = _worn("#8c7656")
-            br.inputs["Mortar"].default_value = _worn("#6d5c44")
-            nt.links.new(br.outputs["Color"], bsdf.inputs["Base Color"]); bsdf.inputs["Roughness"].default_value = 0.9
+            br.inputs["Color1"].default_value = T["colour0"]; br.inputs["Color2"].default_value = T["colour1"]
+            br.inputs["Mortar"].default_value = T["colour2"]
+            nt.links.new(soot(br.outputs["Color"]), bsdf.inputs["Base Color"]); bsdf.inputs["Roughness"].default_value = ROUGH["gatewall"]
             inv = nt.nodes.new("ShaderNodeMath"); inv.operation = "SUBTRACT"; inv.inputs[0].default_value = 1.0; nt.links.new(br.outputs["Fac"], inv.inputs[1])
             bump(inv.outputs[0], 0.9, 0.006)
         elif kind == "crack":
-            bsdf.inputs["Base Color"].default_value = _worn("#140e0a"); bsdf.inputs["Roughness"].default_value = 1.0
+            # a hole, not a surface: as dark as the browser paints it
+            bsdf.inputs["Base Color"].default_value = _lin(_hex(CRACK)); bsdf.inputs["Roughness"].default_value = 1.0
         self.mats[name] = mat
         return mat
 
-    def bake_tiles(self):
+    def bake_tiles(self, size=None):
         """Every material baked once, on a tile, to textures that repeat --
         the noise is sampled on a torus, the bricks fit the tile whole -- so
         one 1K tile is 2 mm per texel on every wall in the district."""
         bpy = self.bpy
-        size = 512 if self.fast else 1024
+        size = size or (512 if self.fast else 1024)
         bpy.ops.mesh.primitive_plane_add(size=1.0); tile = bpy.context.object; tile.name = "BakeTile"
         # a plane's default UVs run 0..1 across it, which is exactly the tile
         sc = bpy.context.scene; sc.render.engine = "CYCLES"; sc.cycles.device = "CPU"; sc.cycles.samples = 1
@@ -861,13 +1870,25 @@ class Souq:
                 tex.image = img
                 bpy.ops.object.select_all(action="DESELECT"); tile.select_set(True); bpy.context.view_layer.objects.active = tile
                 if m == "albedo":
-                    # emission would bake into the colour; the lantern's glow is the engine's to make
+                    # emission would bake into the colour; the lantern's glow is the engine's to make.
+                    # Cycles' diffuse colour is the base times (1 - metallic), plus the sheen's
+                    # albedo (the hero's bake found the same): both off for this pass, or the
+                    # iron bakes at 0.45 of itself and the cloth lighter (2026-09-28)
+                    keep = {k: bsdf.inputs[k].default_value for k in ("Metallic", "Sheen Weight") if k in bsdf.inputs}
+                    for k in keep: bsdf.inputs[k].default_value = 0.0
                     bpy.ops.object.bake(type="DIFFUSE", pass_filter={"COLOR"}, margin=4)
+                    for k, v in keep.items(): bsdf.inputs[k].default_value = v
                 elif m == "normal":
                     bpy.ops.object.bake(type="NORMAL", margin=4)
                 else:
                     bpy.ops.object.bake(type="ROUGHNESS", margin=4)
                 img.save(); imgs[m] = img
+                if m == "albedo":
+                    # the floor, measured on what was baked: the darkest half-percent's luminance
+                    import numpy as np
+                    px = np.array(img.pixels[:], dtype=np.float32).reshape(-1, 4)[:, :3]
+                    lin = np.where(px <= 0.04045, px / 12.92, ((px + 0.055) / 1.055) ** 2.4)
+                    self.baked_floor[name] = float(np.percentile(lin @ np.array([0.2126, 0.7152, 0.0722]), 0.5))
             nt.nodes.remove(tex)
             # the shipped material: the three maps, on the mesh's own UVs
             baked = bpy.data.materials.new(name + "_baked"); baked.use_nodes = True
@@ -895,6 +1916,21 @@ class Souq:
                         slot.material = out[slot.material.name.replace("_procedural", "")]
         self.mats = out
         return out
+
+    BAKE_EXEMPT = ("M_Souq_Crack", "M_Souq_Glass", "M_Souq_Ember")     # a hole, and what burns
+    SABOTAGE = set()      # --bite-meshes: what the builders get wrong on purpose
+
+    def check_bake(self, tol=0.003):
+        """10, on the bake itself: every material's darkest half-percent of
+        baked albedo is at the ink floor or over it (tol: one 8-bit sRGB step
+        near 0.06 linear is 0.002). The crack is a hole and the ember and the
+        lantern's glass burn: exempt."""
+        floor = ink_floor()
+        for name, y in sorted(self.baked_floor.items()):
+            if name in self.BAKE_EXEMPT:
+                continue
+            assert y >= floor - tol, "%s bakes to %.4f in its darkest texels, under the ink floor %.3f" % (name, y, floor)
+        return {k: round(v, 4) for k, v in self.baked_floor.items()}
 
     # --------------------------------------------------------------- meshes
     def _new(self, name, bm, materials, uv_tile=TILE, smooth=False):
@@ -935,6 +1971,18 @@ class Souq:
             bmesh.ops.transform(bm, matrix=M, verts=verts)
         return made
 
+    def _plinth(self, bm, cx, cy, w, d, mat, yaw=0.0):
+        """The damp band at a building's foot: PLINTH h tall, PLINTH proud
+        of the wall on every side, no floor (it stands on the ground)."""
+        if "no_plinth" in self.SABOTAGE:
+            return []
+        p, h = PLINTH["proud"], PLINTH["h"] * (1.6 if "tall_plinth" in self.SABOTAGE else 1.0)
+        if "short_plinth" in self.SABOTAGE:        # round only the left third of the building
+            cx, w = cx - w / 3.0, w / 3.0
+        made = self._box(bm, cx, cy, 0.0, w + 2.0 * p, d + 2.0 * p, h, mat, yaw=yaw)
+        bm.faces.remove(made[0])                  # the bottom
+        return made
+
     def _slat(self, bm, centre, size, mat, deg_about_y):
         """A thin box centred at `centre`, turned about its own Y (the face
         normal) by `deg_about_y`: a crate's diagonal brace."""
@@ -957,6 +2005,13 @@ class Souq:
             f = bm.faces.new(list(reversed(lo))); f.material_index = mat
         if r_top > 1e-6:
             f = bm.faces.new(hi); f.material_index = mat
+
+    def _disc(self, bm, cx, cy, z, r, mat, segs=16):
+        """One flat n-gon facing up: an ember bed."""
+        f = bm.faces.new([bm.verts.new((cx + math.cos(2 * math.pi * i / segs) * r, cy + math.sin(2 * math.pi * i / segs) * r, z))
+                          for i in range(segs)])
+        f.material_index = mat
+        return f
 
     def _dome(self, bm, cx, cy, z0, r, mat, segs=24, rings=8, squash=1.0):
         prev = None
@@ -1014,15 +2069,18 @@ class Souq:
         # cracked wall -- and on the rim.
         mud = self.material("M_Souq_Mud", "mud"); plaster = self.material("M_Souq_Plaster", "plaster")
         wood = self.material("M_Souq_Wood", "wood"); iron = self.material("M_Souq_Iron", "iron"); glass = self.material("M_Souq_Glass", "glass")
-        mats = [mud, plaster, wood, iron, glass]
+        damp = self.material("M_Souq_Damp", "damp")
+        mats = [mud, plaster, wood, iron, glass, damp]
         bm = bmesh.new()
         pier_w, pier_h, arch = self._arch_profile(w, h)
         # the body, its front pulled back by the recess; the parapet lip on top
         self._box(bm, 0, RECESS * 0.5, 0.0, w, d - RECESS, h, 0, batter=BATTER)
+        self._plinth(bm, 0, RECESS * 0.5, w, d - RECESS, 5)
         self._box(bm, 0, 0, h, w + 0.10, d + 0.10, 0.12, 1)
         # the piers, full depth of the recess, in front of the body
         for sx in (-1, 1):
             self._box(bm, sx * (w * 0.5 - pier_w * 0.5), -d * 0.5 + RECESS * 0.5, 0.0, pier_w, RECESS, pier_h, 0, batter=BATTER * 0.5)
+            self._plinth(bm, sx * (w * 0.5 - pier_w * 0.5), -d * 0.5 + RECESS * 0.5, pier_w, RECESS, 5)
         # the arch: a solid above the parabola, from pier top to the parapet, the recess deep
         yf, yb = -d * 0.5, -d * 0.5 + RECESS
         top = h
@@ -1044,12 +2102,13 @@ class Souq:
         # the banner is placed with the stall as its own mesh, coloured by the
         # plot's index, so a stall variant is not tripled for a rectangle of
         # cloth. The lantern at the apex, on a short rod, is here.
-        A = BROWSER_ART; yb2 = yf + RECESS * 0.45
-        lx = -w * 0.5 + w * A["lantern_x"] / A["bay_w"]; lr = A["lantern_r"] * CM_PER_DRAWN_PX / 100.0
+        # (the lantern's place is lantern_local's, which the night lights it at)
+        A = BROWSER_ART
+        lx, yb2, gz, lr = lantern_local(w, d, h)
         apex = h * A["arch_peak"] / A["arch_outer"]
         self._cyl(bm, lx, yb2, apex - LANTERN_DROP, 0.008, LANTERN_DROP, 3, segs=8)
-        self._cyl(bm, lx, yb2, apex - LANTERN_DROP - lr * 2.2, lr * 0.75, lr * 2.2, 4, segs=12, r_top=lr)
-        self._cyl(bm, lx, yb2, apex - LANTERN_DROP - lr * 2.2 - 0.02, lr * 0.5, 0.02, 3, segs=12)
+        self._cyl(bm, lx, yb2, gz - lr * 1.1, lr * 0.75, lr * 2.2, 4, segs=12, r_top=lr)
+        self._cyl(bm, lx, yb2, gz - lr * 1.1 - 0.02, lr * 0.5, 0.02, 3, segs=12)
         o = self._new(name, bm, mats)
         self.kinds[name] = o
         return o
@@ -1057,8 +2116,10 @@ class Souq:
     def build_warehouse(self, name, w, d, h, dome):
         import bmesh
         mud = self.material("M_Souq_Mud", "mud"); plaster = self.material("M_Souq_Plaster", "plaster"); wood = self.material("M_Souq_Wood", "wood")
+        damp = self.material("M_Souq_Damp", "damp")
         bm = bmesh.new()
         self._box(bm, 0, 0, 0.0, w, d, h, 0, batter=BATTER * 1.5)
+        self._plinth(bm, 0, 0, w, d, 3)
         if dome:
             drum = min(w, d) * 0.28
             self._cyl(bm, 0, 0, h, drum, 0.5, 1, segs=32)
@@ -1068,37 +2129,42 @@ class Souq:
             self._crenels(bm, w, d, h, 0, BATTER * 1.5)
         # a door on the front
         self._box(bm, 0, -d * 0.5 + 0.03, 0.02, 1.2, 0.08, 2.2, 2)
-        o = self._new(name, bm, [mud, plaster, wood]); self.kinds[name] = o; return o
+        o = self._new(name, bm, [mud, plaster, wood, damp]); self.kinds[name] = o; return o
 
     def build_wall(self, name, L, thick, h):
         import bmesh
-        brick = self.material("M_Souq_MudBrick", "brick")
+        brick = self.material("M_Souq_MudBrick", "brick"); damp = self.material("M_Souq_Damp", "damp")
         bm = bmesh.new()
         self._box(bm, 0, 0, 0.0, L, thick, h, 0, batter=0.06)
+        self._plinth(bm, 0, 0, L, thick, 1)
         self._crenels(bm, L, thick, h, 0, 0.06)
-        o = self._new(name, bm, [brick]); self.kinds[name] = o; return o
+        o = self._new(name, bm, [brick, damp]); self.kinds[name] = o; return o
 
     def build_minaret(self, name, h):
         """index.html:minaret(): a shaft 0.096 h wide, a balcony at 0.72 h,
         a cap to 1.16 h, a finial to 1.22 h."""
         import bmesh
         mud = self.material("M_Souq_Mud", "mud"); plaster = self.material("M_Souq_Plaster", "plaster")
+        damp = self.material("M_Souq_Damp", "damp")
         bm = bmesh.new()
         r = 0.048 * h
         self._box(bm, 0, 0, 0.0, r * 2.6, r * 2.6, 0.6, 0)
+        self._plinth(bm, 0, 0, r * 2.6, r * 2.6, 2)
         self._cyl(bm, 0, 0, 0.6, r, h - 0.6, 0, segs=32)
         self._cyl(bm, 0, 0, 0.72 * h, 0.082 * h, 0.045 * h, 1, segs=32)
         self._dome(bm, 0, 0, h, 0.075 * h, 1, segs=32, rings=10, squash=0.16 * h / (0.075 * h))
         self._cyl(bm, 0, 0, 1.16 * h - 0.02, 0.012 * h, 0.06 * h + 0.02, 1, segs=8)
-        o = self._new(name, bm, [mud, plaster], smooth=True); self.kinds[name] = o; return o
+        o = self._new(name, bm, [mud, plaster, damp], smooth=True); self.kinds[name] = o; return o
 
     def build_gate(self, name, w, d, h):
         """drawGate 'wall': mud brick with a crack running down it, the
         browser's polyline scaled to the AbilityGate's box."""
         import bmesh
         wall = self.material("M_Souq_GateWall", "gatewall"); crack = self.material("M_Souq_Crack", "crack")
+        damp = self.material("M_Souq_Damp", "damp")
         bm = bmesh.new()
         self._box(bm, 0, 0, 0.0, w, d, h, 0)
+        self._plinth(bm, 0, 0, w, d, 2)
         # (-4,-74) (3,-54) (-6,-34) (4,-14) (-2,0) in a 60 x 76 box, from the top down
         pts = [(-4, -74), (3, -54), (-6, -34), (4, -14), (-2, 0)]
         for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
@@ -1112,7 +2178,7 @@ class Souq:
             face_pts = [bm.verts.new((cx + vx * math.cos(math.radians(ang)) - vz * math.sin(math.radians(ang)), -d * 0.5 - 0.002,
                                       cz + vx * math.sin(math.radians(ang)) + vz * math.cos(math.radians(ang)))) for vx, vz in verts]
             f = bm.faces.new(face_pts); f.material_index = 1          # wound to -Y, the wall's front; reversed() faced into the wall
-        o = self._new(name, bm, [wall, crack]); self.kinds[name] = o; return o
+        o = self._new(name, bm, [wall, crack, damp]); self.kinds[name] = o; return o
 
     def build_crate(self, name, s, h):
         import bmesh
@@ -1196,16 +2262,126 @@ class Souq:
             bm.faces.new(vs); self.spurs["built"] += 1
         o = self._new(name, bm, [flag]); self.kinds[name] = o; return o
 
-    def build_banner(self, name, i):
-        """A one-metre quad of cloth, its front -Y like every kind, scaled to
-        the banner's size per stall by its row. Wound so its normal is -Y:
-        the first version faced the shutter."""
+    def _face(self, bm, pts, mat, flip=False):
+        vs = [bm.verts.new(p) for p in (reversed(pts) if flip else pts)]
+        f = bm.faces.new(vs); f.material_index = mat
+        return f
+
+    def build_banner(self, name, i, tear):
+        """The cloth hung in the arch, torn: a one-metre quad cut into
+        TATTER strips a slit apart, each hem raised by banner_hem (the same
+        numbers check() holds), with a torn point in the middle of each.
+        Its front -Y like every kind, scaled to the banner's size per stall
+        by its row. Wound so its normal is -Y: the first version faced the
+        shutter."""
         import bmesh
         cloth = self.material("M_Souq_Cloth%d" % i, "cloth%d" % i)
         bm = bmesh.new()
-        vs = [bm.verts.new((-0.5, 0, -0.5)), bm.verts.new((0.5, 0, -0.5)), bm.verts.new((0.5, 0, 0.5)), bm.verts.new((-0.5, 0, 0.5))]
-        bm.faces.new(vs)
+        n = TATTER["strips"]; slit = TATTER["slit"] * 0.5; wrong = "banner_wound_in" in self.SABOTAGE
+        if "banner_budget" in self.SABOTAGE:
+            for gx in range(20):
+                for gz in range(20):
+                    x0, z0 = -0.5 + gx / 20.0, -0.5 + gz / 20.0
+                    self._face(bm, [(x0, 0, z0), (x0 + 0.05, 0, z0), (x0 + 0.05, 0, z0 + 0.05), (x0, 0, z0 + 0.05)], 0, wrong)
+        else:
+            for k, cut in enumerate(banner_hem(i, tear)):
+                x0 = -0.5 + k / float(n) + (slit if k else 0.0); x1 = -0.5 + (k + 1) / float(n) - (slit if k < n - 1 else 0.0)
+                zb = -0.5 + cut
+                self._face(bm, [(x0, 0, zb), ((x0 + x1) * 0.5, 0, zb - TATTER["tip"]), (x1, 0, zb), (x1, 0, 0.5), (x0, 0, 0.5)], 0, wrong)
         o = self._new(name, bm, [cloth]); self.kinds[name] = o; return o
+
+    def build_awning(self, name, i):
+        """Torn cloth off a stall's parapet: from the attach line (the row's
+        origin) out AWNING out and down AWNING drop in nine columns, each
+        with a ragged tongue hanging off its outer edge by awning_hem. A
+        metre wide; its row scales only the width. Wound to face the street
+        below it (out and down), which is the side anyone sees."""
+        import bmesh
+        cloth = self.material("M_Souq_Cloth%d" % i, "cloth%d" % i)
+        bm = bmesh.new()
+        n = AWNING["tongues"]; o, dr = AWNING["out"], AWNING["drop"]; wrong = "awning_wound_up" in self.SABOTAGE
+        for k, t in enumerate(awning_hem(i)):
+            x0, x1 = -0.5 + k / float(n), -0.5 + (k + 1) / float(n)
+            self._face(bm, [(x0, 0, 0), (x1, 0, 0), (x1, -o, -dr), (x0, -o, -dr)], 0, wrong)
+            if t > 0.01:
+                g = 0.004
+                self._face(bm, [(x0 + g, -o, -dr), (x0 + g, -o, -dr - t), ((x0 + x1) * 0.5, -o, -dr - t - AWNING["tip"]),
+                                (x1 - g, -o, -dr - t), (x1 - g, -o, -dr)], 0, wrong)
+        o_ = self._new(name, bm, [cloth]); self.kinds[name] = o_; return o_
+
+    def build_brazier(self, name):
+        """An iron bowl, r 0.20 at the foot to 0.30 at the rim, the rim at
+        0.95 m, on three legs, an ember bed just under the rim."""
+        import bmesh
+        iron = self.material("M_Souq_Iron", "iron"); ember = self.material("M_Souq_Ember", "ember")
+        bm = bmesh.new()
+        from mathutils import Matrix
+        segs = 16
+        self._cyl(bm, 0, 0, 0.70, 0.20, 0.25, 0, segs=segs, r_top=0.30)
+        top = [f for f in bm.faces if len(f.verts) == segs and abs(f.calc_center_median().z - 0.95) < 1e-6]
+        for f in top: bm.faces.remove(f)                      # an open bowl...
+        self._disc(bm, 0, 0, 0.92, 0.285, 1, segs=segs)      # ...filled with embers
+        for k in range(3):                                    # three legs, splayed
+            made = self._box(bm, 0.0, 0.0, 0.0, 0.035, 0.035, 0.74, 0)
+            vs = list({v for f in made for v in f.verts})
+            M = Matrix.Rotation(2.0 * math.pi * k / 3.0, 4, "Z") @ Matrix.Translation((0.24, 0.0, 0.0)) @ Matrix.Rotation(math.radians(-8.0), 4, "Y")
+            bmesh.ops.transform(bm, matrix=M, verts=vs)
+        o = self._new(name, bm, [iron, ember]); self.kinds[name] = o; return o
+
+    def build_cresset(self, name):
+        """A fire basket up a pole: a 7 cm iron pole 2.7 m tall on a foot
+        plate, a six-bar basket r 0.22 round an ember bed at 2.75 m."""
+        import bmesh
+        iron = self.material("M_Souq_Iron", "iron"); ember = self.material("M_Souq_Ember", "ember")
+        bm = bmesh.new()
+        self._cyl(bm, 0, 0, 0.0, 0.25, 0.03, 0, segs=12)
+        self._cyl(bm, 0, 0, 0.03, 0.035, 2.67, 0, segs=8)
+        self._cyl(bm, 0, 0, 2.62, 0.22, 0.03, 0, segs=12)
+        self._disc(bm, 0, 0, 2.75, 0.20, 1, segs=12)
+        for k in range(6):
+            a = 2.0 * math.pi * k / 6.0
+            self._box(bm, math.cos(a) * 0.21, math.sin(a) * 0.21, 2.62, 0.02, 0.02, 0.28, 0, yaw=math.degrees(a))
+        o = self._new(name, bm, [iron, ember]); self.kinds[name] = o; return o
+
+    def build_crate_broken(self, name, s, h):
+        """The browser's crate, broken: its footprint exactly (four corner
+        posts at the corners), the lid gone, two side boards missing, the
+        brace snapped, one board lying across what is left."""
+        import bmesh
+        wood = self.material("M_Souq_Wood", "wood")
+        bm = bmesh.new()
+        e = 0.06
+        self._box(bm, 0, 0, 0.0, s, s, 0.03, 0)                                        # the floor
+        for k, (sx, sy) in enumerate(((-1, -1), (1, -1), (1, 1), (-1, 1))):             # the posts, two snapped short
+            self._box(bm, sx * (s - e) * 0.5, sy * (s - e) * 0.5, 0.0, e, e, h if k % 2 == 0 else h * 0.62, 0)
+        for z in (0.03, h * 0.40, h * 0.78):                                            # the back: three boards
+            self._box(bm, 0, (s - 0.02) * 0.5, z, s - 2 * e, 0.02, 0.12, 0)
+        self._box(bm, -(s - 0.02) * 0.5, 0, 0.03, 0.02, s - 2 * e, 0.12, 0)          # a side: one board left of three
+        self._box(bm, 0, -(s - 0.02) * 0.5, 0.03, s - 2 * e, 0.02, 0.12, 0)          # the front: its bottom board
+        self._slat(bm, (0.0, -(s - 0.02) * 0.5 - 0.012, h * 0.30), (s * 0.55, 0.02, e), 0, 35.0)   # the brace, snapped
+        self._slat(bm, (0.02, 0.0, h * 0.62), (math.hypot(s, s) * 0.62, 0.12, 0.02), 0, 0.0)       # a board lying across
+        bm.verts.ensure_lookup_table()
+        from mathutils import Matrix
+        last = list(bm.verts)[-8:]
+        bmesh.ops.transform(bm, matrix=Matrix.Translation((0, 0, h * 0.62)) @ Matrix.Rotation(math.radians(38.0), 4, "Z")
+                            @ Matrix.Translation((0, 0, -h * 0.62)), verts=last)
+        o = self._new(name, bm, [wood], uv_tile=TILE); self.kinds[name] = o; return o
+
+    def build_puddle(self, name):
+        """Standing water: a 20-gon a metre across at scale 1, its edge
+        wobbled by this build's hash (PUDDLE wobble), flat, facing up."""
+        import bmesh
+        wet = self.material("M_Souq_Puddle", "puddle")
+        bm = bmesh.new()
+        n = PUDDLE["sides"]
+        c = bm.verts.new((0, 0, 0))
+        ring = []
+        for k in range(n):
+            a = 2.0 * math.pi * k / n; r = 0.5 * (1.0 + PUDDLE["wobble"] * (2.0 * hash01(9901 + k * 13) - 1.0))
+            ring.append(bm.verts.new((math.cos(a) * r, math.sin(a) * r, 0.0)))
+        for k in range(n):
+            f = bm.faces.new((c, ring[k], ring[(k + 1) % n])); f.material_index = 0
+        o = self._new(name, bm, [wet]); self.kinds[name] = o; return o
 
     def build_kinds(self):
         P = self.P
@@ -1218,10 +2394,16 @@ class Souq:
             elif k == "minaret":   self.build_minaret(name, m["shaft"] / 100.0)
             elif k == "gate":      self.build_gate(name, w, d, h)
             elif k == "crate":     self.build_crate(name, w, h)
+            elif k == "crate_broken": self.build_crate_broken(name, w, h)
             elif k == "barrel":    self.build_barrel(name, w, h)
             elif k == "ground":    self.build_ground(name, P["E"] / 100.0)
             elif k == "street":    self.build_street(name, P)
-            elif k == "banner":    self.build_banner(name, int(name[-1]))
+            elif k == "banner":    self.build_banner(name, m["colour"], m["tear"])
+            elif k == "awning":    self.build_awning(name, m["colour"])
+            elif k == "brazier":   self.build_brazier(name)
+            elif k == "cresset":   self.build_cresset(name)
+            elif k == "puddle":    self.build_puddle(name)
+            else: raise KeyError(k)
         return self.kinds
 
     # ------------------------------------------------------------ placement
@@ -1299,7 +2481,11 @@ class Souq:
                    meshes={k: dict(kind=m["kind"], w_cm=m["w"], d_cm=m["d"], h_cm=m["h"], fbx="SM_%s.fbx" % k[3:] if not k.startswith("SM_") else k + ".fbx")
                            for k, m in self.P["meshes"].items()},
                    instances=[{k: v for k, v in r.items() if k != "object"} for r in rows],
-                   actors=self.P["actors"])
+                   actors=self.P["actors"],
+                   # the night (Unreal-only): the tables, and every light the editor spawns (spawn_night)
+                   night=dict(NIGHT=NIGHT, MOON=MOON, moon_blender_w_m2=moon_blender(), moon_ue_lux=moon_ue(),
+                              fires=[p for p in self.P["props"] if p["kind"] in FIRE_KINDS], door_fires=self.P["door_fires"],
+                              lanterns=self.P["lanterns"]))
         with open(os.path.join(self.models, "SouqAlDawar_placement.json"), "w", encoding="utf-8") as fh:
             json.dump(man, fh, indent=1)
         return written, gltf
@@ -1315,12 +2501,18 @@ class Souq:
         ys = [acc[p["attributes"]["POSITION"]]["max"][1] for m in j["meshes"] for p in m["primitives"]]
         return dict(meshes=len(j["meshes"]), nodes=len(nodes), tris=tris, images=len(j.get("images", [])), tallest_m=max(ys))
 
+    BUILDINGS = ("stall", "warehouse", "wall", "minaret", "gate")
+    MASONRY = ("M_Souq_Mud", "M_Souq_Plaster", "M_Souq_MudBrick", "M_Souq_GateWall")
+
     def check_meshes(self):
         """What a mesh has to be to leave: UVs, a material, a footprint that
-        is its plot's, a triangle count under budget, no loose geometry."""
+        is its plot's, a triangle count under budget, no loose geometry --
+        and since 2026-09-28 (the night): 24, every building stands in its
+        damp plinth; 25, cloth faces its street."""
         import bmesh
-        budget = {"ground": 400, "street": 2000, "stall": 6000, "warehouse": 6000, "wall": 1500, "minaret": 4000, "banner": 2,
-                  "gate": 200, "crate": 400, "barrel": 600}
+        budget = {"ground": 400, "street": 2000, "stall": 6000, "warehouse": 6000, "wall": 1500, "minaret": 4000, "banner": 32,
+                  "gate": 200, "crate": 400, "barrel": 600, "awning": 64, "brazier": 600, "cresset": 400, "crate_broken": 500,
+                  "puddle": 40}
         report = {}
         for name, m in self.P["meshes"].items():
             o = self.kinds[name]; me = o.data
@@ -1336,35 +2528,124 @@ class Souq:
                 assert h >= m["h"] / 100.0 - 0.01, "%s is %.2f m tall, its plot %.2f" % (name, h, m["h"] / 100.0)
             loose = sum(1 for v in me.vertices if not any(v.index in p.vertices for p in me.polygons))
             assert loose == 0, "%s has %d loose vertices" % (name, loose)
+            mats = [mm.name.split(".")[0].replace("_procedural", "") for mm in me.materials]
+            if m["kind"] in self.BUILDINGS:
+                report_plinth = self._plinth_cover(name, me, mats)
+            else:
+                report_plinth = None
+            if m["kind"] in ("banner", "awning"):
+                want = (0.0, -1.0, 0.0) if m["kind"] == "banner" else (0.0, -0.7071, -0.7071)
+                bad = sum(1 for p in me.polygons if p.normal.dot(want) <= 0.0)
+                assert bad == 0, "%s: %d of its faces are wound away from the street (a one-sided engine material culls them)" % (name, bad)
             report[name] = dict(tris=tris, w=round(w, 2), d=round(d, 2), h=round(h, 2))
+            if report_plinth is not None:
+                report[name]["plinth"] = round(report_plinth, 3)
         return report
+
+    def _plinth_cover(self, name, me, mats):
+        """24: M_Souq_Damp faces exist, every one of them under PLINTH h + 1
+        cm, and they front at least 90 % of the masonry that meets the
+        ground: points along the foot of every masonry wall face, 20 cm up,
+        each covered if a damp face with the same facing lies within 3 cm
+        outside it and spans it."""
+        from mathutils import Vector
+        di = [i for i, n in enumerate(mats) if n == "M_Souq_Damp"]
+        mi = [i for i, n in enumerate(mats) if n in self.MASONRY]
+        damp = [p for p in me.polygons if p.material_index in di]
+        assert damp, "%s stands in no damp plinth" % name
+        top = max(me.vertices[v].co.z for p in damp for v in p.vertices)
+        assert top <= PLINTH["h"] + 0.01, "%s's damp band reaches %.2f m, over the plinth's %.2f" % (name, top, PLINTH["h"])
+        walls = [p for p in me.polygons if p.material_index in mi and abs(p.normal.z) < 0.2
+                 and min(me.vertices[v].co.z for v in p.vertices) < 0.05]
+        dfaces = []
+        for p in damp:
+            if abs(p.normal.z) > 0.2: continue
+            vs = [me.vertices[v].co for v in p.vertices]; n = p.normal.copy()
+            t = Vector((-n.y, n.x, 0.0)).normalized()
+            us = [v.dot(t) for v in vs]
+            dfaces.append((n, vs[0].dot(n), min(us), max(us), t))
+        total = covered = 0
+        for p in walls:
+            vs = [me.vertices[v].co for v in p.vertices]
+            foot = [v for v in vs if v.z < 0.05]
+            if len(foot) < 2: continue
+            a, b = min(foot, key=lambda v: v.x + v.y * 1e-3), max(foot, key=lambda v: v.x + v.y * 1e-3)
+            for k in range(10):
+                q = a.lerp(b, (k + 0.5) / 10.0); q = Vector((q.x, q.y, 0.2))
+                total += 1
+                for n, off, u0, u1, t in dfaces:
+                    if n.dot(p.normal) > 0.99 and -0.005 <= q.dot(n) - off + PLINTH["proud"] <= 0.03 and u0 - 1e-4 <= q.dot(t) <= u1 + 1e-4:
+                        covered += 1; break
+        share = covered / float(max(1, total))
+        assert share >= 0.90, "%s's damp plinth fronts %.0f %% of its masonry's foot, not 90 %%" % (name, share * 100.0)
+        return share
 
     # -------------------------------------------------------------- renders
     def sun(self):
-        """build_levels' Souq rig: 24 degrees up, from where he walks in (the
-        West door), down the length of the market as the browser has it.
-        Since 2026-09-26 (the dark) a dim, cold, overcast light -- energy 5
-        -> 1.6, (1.00, 0.85, 0.63) -> an ashen blue-grey, the sun's disc
-        spread wide so shadows go soft as under cloud -- and a dim slate
-        sky, where it was a warm dusk; the lanterns are left the only warm
-        light. The open world's own sun is build_world.py's WORLD_RIG."""
+        """The moon: build_levels' Souq rig's direction, 24 degrees up from
+        where he walks in (the West door), down the length of the market.
+        2026-09-26 (the dark) it was a dim ashen overcast (energy 1.6,
+        (0.74, 0.80, 0.90), a 12-degree disc, sky #4a545c x 0.35); since
+        2026-09-28 it is MOON: colder (B/R 1.60), a little dimmer (1.2), and
+        hard -- the moon's own 0.55-degree disc, so a cast shadow is a shape
+        the cel cut draws clean, not a smear it cuts into a wobbly band --
+        under a darker, colder sky (#3a4656 x 0.25: moon to shade about
+        10:1). The warm light is the fires' (lights()). The open world's
+        own moon is build_world.py's WORLD_RIG."""
         bpy = self.bpy
         from mathutils import Vector
-        light = bpy.data.lights.new("Sun", type="SUN"); light.energy = 1.6; light.color = (0.74, 0.80, 0.90); light.angle = math.radians(12.0)
-        o = bpy.data.objects.new("Sun", light); bpy.context.scene.collection.objects.link(o)
+        light = bpy.data.lights.new("Moon", type="SUN"); light.energy = MOON["energy"]; light.color = MOON["colour"]
+        light.angle = math.radians(MOON["angle"])
+        o = bpy.data.objects.new("Moon", light); bpy.context.scene.collection.objects.link(o)
         wx, wy = self.P["doors"].get("West", (-1.0, 0.0)); az = math.atan2(wy, wx)
-        el = math.radians(SUN_PITCH)
+        el = math.radians(NIGHT["moon_pitch"])
         d = Vector((-math.cos(az) * math.cos(el), -math.sin(az) * math.cos(el), -math.sin(el)))   # the light travels from the door inward
         o.rotation_euler = (-d).to_track_quat("Z", "Y").to_euler()
         world = bpy.data.worlds.new("Souq"); bpy.context.scene.world = world; world.use_nodes = True
-        bg = world.node_tree.nodes["Background"]; bg.inputs[0].default_value = _lin(_hex("#4a545c")); bg.inputs[1].default_value = 0.35
+        bg = world.node_tree.nodes["Background"]; bg.inputs[0].default_value = _lin(_hex(MOON["sky"])); bg.inputs[1].default_value = MOON["sky_strength"]
         return o
+
+    def lights(self):
+        """The night's lights, from the plan -- the same rows the editor
+        spawns (spawn_night), so the renders and the engine cannot disagree
+        about where a light is: a point light per fire at its height, its
+        colour the blackbody at NIGHT temp_k and its power its watts; a spot
+        per lit lantern out of its arch, the browser's lantern colour. Each
+        carries night_fire = 1 so a preview can put it in a light group.
+        No smoke here: the world spec's Principled Volume column (density
+        0.25 x noise round the fire) rendered as a solid glowing ellipsoid
+        over each cresset, and still read as a blob at 0.08 with soft edges
+        (the fast build, 2026-09-28), so, as that spec's own fallback says,
+        smoke is the engine's only (spawn_night's LocalFogVolume)."""
+        bpy = self.bpy
+        from mathutils import Vector
+        P = self.P
+        coll = bpy.data.collections.new("Night"); bpy.context.scene.collection.children.link(coll)
+        fires = [p for p in P["props"] if p["kind"] in FIRE_KINDS] + P["door_fires"]
+        made = []
+        for i, f in enumerate(fires):
+            L = bpy.data.lights.new("Fire_%02d" % i, "POINT"); L.energy = f["watts"]; L.shadow_soft_size = 0.15
+            L.color = (1.0, 1.0, 1.0); L.use_temperature = True; L.temperature = f["temp"]
+            o = bpy.data.objects.new("Fire_%02d" % i, L); o.location = (f["x"] / 100.0, f["y"] / 100.0, f["z"] / 100.0 + f["h"])
+            o["night_fire"] = 1; coll.objects.link(o); made.append(o)
+        lan = _lin(_hex(NIGHT["lantern_hex"]))[:3]
+        for i, l in enumerate(P["lanterns"]):
+            L = bpy.data.lights.new("Lantern_%02d" % i, "SPOT"); L.energy = l["watts"]; L.color = lan
+            L.spot_size = math.radians(2.0 * l["cone"]); L.spot_blend = 0.4; L.shadow_soft_size = 0.05
+            o = bpy.data.objects.new("Lantern_%02d" % i, L); o.location = (l["x"] / 100.0, l["y"] / 100.0, l["z"] / 100.0)
+            ya, pa = math.radians(l["yaw"]), math.radians(l["pitch"])
+            aim = Vector((math.sin(ya) * math.cos(pa), -math.cos(ya) * math.cos(pa), math.sin(pa)))
+            o.rotation_euler = aim.to_track_quat("-Z", "Y").to_euler()
+            o["night_fire"] = 1; coll.objects.link(o); made.append(o)
+        self.night_lights = dict(lights=len(made))
+        return made
 
     def render(self, name, cam_loc, look_at, lens=35, res=(1600, 900), samples=None):
         bpy = self.bpy
         from mathutils import Vector
-        cam_data = bpy.data.cameras.new("Cam"); cam_data.lens = lens; cam_data.clip_end = 2000.0
-        cam = bpy.data.objects.new("Cam", cam_data); cam.location = cam_loc
+        cam_name = "Cam_" + os.path.splitext(name)[0]          # previews address a camera by its render's name
+        cam_data = bpy.data.cameras.new(cam_name); cam_data.lens = lens; cam_data.clip_end = 2000.0
+        cam = bpy.data.objects.new(cam_name, cam_data); cam.location = cam_loc
         cam.rotation_euler = (Vector(look_at) - Vector(cam_loc)).to_track_quat("-Z", "Y").to_euler()
         bpy.context.scene.collection.objects.link(cam); bpy.context.scene.camera = cam
         sc = bpy.context.scene; sc.render.engine = "CYCLES"; sc.cycles.device = "CPU"
@@ -1378,17 +2659,29 @@ class Souq:
         sc.render.filepath = os.path.join(self.renders, name); bpy.ops.render.render(write_still=True)
         return sc.render.filepath           # the camera stays: the .blend is opened and rendered from
 
-    def renders_of_the_place(self):
+    def cameras(self):
+        """Where each render looks from and at (metres): the three places
+        and the fight."""
         P = self.P; E = P["E"] / 100.0
-        out = []
-        out.append(self.render("souq-overview.png", (E * 0.9, -E * 1.1, E * 0.75), (0, 0, 0), lens=28))
+        out = {"souq-overview.png": ((E * 0.9, -E * 1.1, E * 0.75), (0, 0, 0), 28)}
         s = next(s for s in P["sites"] if s["kind"] == "wave" and s["i"] == 1)
         nx, ny = nearest_on_path(P["path"], s["x"], s["y"]); ax, ay = spiral(min(1.0, s["t"] + 0.03), E * 100, P["phase"])
-        out.append(self.render("souq-street.png", (nx / 100.0, ny / 100.0, 1.65), (ax / 100.0, ay / 100.0, 1.4), lens=26))
+        out["souq-street.png"] = ((nx / 100.0, ny / 100.0, 1.65), (ax / 100.0, ay / 100.0, 1.4), 26)
         if P["gate"]:
             g = P["gate"]; a = math.radians(g["yaw"])
-            out.append(self.render("souq-gate.png", (g["x"] / 100.0 + math.sin(a) * 7.5 + math.cos(a) * 3.0, g["y"] / 100.0 - math.cos(a) * 7.5 + math.sin(a) * 3.0, 1.6),
-                                   (g["x"] / 100.0, g["y"] / 100.0, 1.4), lens=32))
+            out["souq-gate.png"] = ((g["x"] / 100.0 + math.sin(a) * 7.5 + math.cos(a) * 3.0, g["y"] / 100.0 - math.cos(a) * 7.5 + math.sin(a) * 3.0, 1.6),
+                                    (g["x"] / 100.0, g["y"] / 100.0, 1.4), 32)
+        cx, cy = s["x"] / 100.0, s["y"] / 100.0
+        bx, by = spiral(min(1.0, s["t"] + 0.01), P["E"], P["phase"]); dx, dy = bx / 100.0 - cx, by / 100.0 - cy
+        dl = math.hypot(dx, dy) or 1.0; fx, fy = dx / dl, dy / dl; lx, ly = -fy, fx
+        out["souq-fight.png"] = ((cx - fx * 2.2 + lx * 4.8, cy - fy * 2.2 + ly * 4.8, 1.7), (cx, cy, 1.15), 40)
+        return out
+
+    def renders_of_the_place(self):
+        out = []
+        for name, (loc, at, lens) in self.cameras().items():
+            if name != "souq-fight.png":
+                out.append(self.render(name, loc, at, lens=lens))
         return out
 
     # ---------------------------------------------------------------- scene
@@ -1443,7 +2736,10 @@ class Souq:
         heads = {r.name: (r.matrix_world @ r.pose.bones["head"].matrix).translation.copy() for _, r, _ in rigs}
         for kind, rig, mesh in rigs:
             other = next(r for k, r, _ in rigs if (k == "Saud") != (kind == "Saud"))
-            CR.set_world_translation(rig, "CTRL_look", heads[other.name])
+            # Saud looks at the man's sternum (his head joint less 0.30 m, about
+            # 11 degrees down at 1.5 m), not his head: look = 1 at the head
+            # levelled his gaze and undid the guard's chin tuck (the stance, 2026-09-28)
+            CR.set_world_translation(rig, "CTRL_look", heads[other.name] - Vector((0.0, 0.0, 0.30)) if kind == "Saud" else heads[other.name])
             CR.set_prop(rig, "CTRL_head", "look", 1.0)
         # every man stands ON the street: his lowest evaluated vertex at the
         # flagstones, not in them
@@ -1475,6 +2771,58 @@ def import_meshes(names):
         t.options = ui; tasks.append(t)
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
     return {name: unreal.load_asset("%s/%s" % (MESH_DIR, name)) for name in names}
+
+
+NO_COLLISION = ("Wet", "Cloth")      # a puddle is walked through, an awning hangs overhead
+
+
+def spawn_night(spawn, fires, lanterns, ox=0.0, oy=0.0, rig=None, folder="Night"):
+    """Inside the editor: the night's lights from the plan's own rows, the
+    same rows lights() puts in the Blender renders -- a PointLight per fire
+    in candela (each row's cd, sized against WORLD_RIG's moon), 1800 K, its
+    attenuation three pools out, shadowed, lighting the fog; a
+    LocalFogVolume (UE 5.3+) column of smoke over it; an unshadowed
+    SpotLight per lit lantern out of its arch, in the browser's lantern
+    colour. `spawn` is the caller's (it names its Rotator arguments).
+    Returns (lights, smoke volumes). Read-reviewed, not run: no engine has
+    opened this project, and the property names are UE 5.4's as documented."""
+    import unreal  # noqa: E402  (only importable inside the editor)
+    lights = volumes = 0
+    for i, f in enumerate(fires):
+        x, y, z = ox + f["x"], oy + f["y"], f["z"] + f["h"] * 100.0
+        a = spawn(unreal.PointLight, "Fire_%02d_%s" % (i, f["kind"]), x, y, z, folder=folder)
+        c = a.get_component_by_class(unreal.PointLightComponent)
+        c.set_editor_property("intensity_units", unreal.LightUnits.CANDELAS)
+        c.set_intensity(f["cd"])
+        c.set_editor_property("use_temperature", True); c.set_editor_property("temperature", f["temp"])
+        c.set_attenuation_radius(f["pool"] * 3.0 * 100.0)
+        c.set_cast_shadows(bool(f["shadow"]))
+        c.set_editor_property("volumetric_scattering_intensity", 3.0)
+        c.set_editor_property("source_radius", 15.0)
+        lights += 1
+        sm = f.get("smoke")
+        if sm and hasattr(unreal, "LocalFogVolume"):
+            v = spawn(unreal.LocalFogVolume, "Smoke_%02d" % i, x, y, z + sm["h_m"] * 50.0, folder=folder)
+            v.set_actor_scale3d(unreal.Vector(sm["r_m"], sm["r_m"], sm["h_m"] * 0.5))    # a unit sphere of 1 m radius, scaled
+            vc = v.get_component_by_class(unreal.LocalFogVolumeComponent)
+            vc.set_editor_property("radial_fog_extinction", sm["extinction"])
+            vc.set_editor_property("fog_albedo", unreal.LinearColor(0.25, 0.23, 0.22, 1.0))
+            vc.set_editor_property("fog_phase_g", 0.6)
+            volumes += 1
+    col = _lin(_hex(NIGHT["lantern_hex"]))
+    for i, l in enumerate(lanterns):
+        a = spawn(unreal.SpotLight, "Lantern_%02d" % i, ox + l["x"], oy + l["y"], l["z"], folder=folder)
+        # UE's light shines along the actor's X: yaw so X is the arch's front (the stall's local -Y)
+        a.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=l["pitch"], yaw=l["yaw"] - 90.0), False)
+        c = a.get_component_by_class(unreal.SpotLightComponent)
+        c.set_editor_property("intensity_units", unreal.LightUnits.CANDELAS)
+        c.set_intensity(l["cd"])
+        c.set_light_color(unreal.LinearColor(col[0], col[1], col[2], 1.0))
+        c.set_inner_cone_angle(30.0); c.set_outer_cone_angle(l["cone"])
+        c.set_attenuation_radius(NIGHT["lantern"]["pool_m"] * 3.0 * 100.0)
+        c.set_cast_shadows(False)
+        lights += 1
+    return lights, volumes
 
 
 def build_in_editor(P):
@@ -1514,6 +2862,7 @@ def build_in_editor(P):
         c = a.get_component_by_class(unreal.StaticMeshComponent); c.set_static_mesh(mesh[r["mesh"]])
         a.set_actor_scale3d(unreal.Vector(*r["scale"])); a.set_mobility(unreal.ComponentMobility.STATIC)
         if r["slot"] in ("Street", "Ground"): c.set_collision_enabled(unreal.CollisionEnabled.QUERY_AND_PHYSICS)
+        if r["slot"] in NO_COLLISION: c.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
     if P["gate"]:
         g = P["gate"]
         gate = next((a for a in have if isinstance(a, unreal.AbilityGate)), None)
@@ -1570,6 +2919,8 @@ def main():
     if "--world" in a:
         build_world_street(os.path.abspath(a[a.index("--out") + 1]) if "--out" in a else None)
         return
+    if "--bite-meshes" in a:
+        sys.exit(0 if bite_meshes() else 1)
     P = plan()
     if "--bite" in a:
         sys.exit(0 if bite() else 1)
@@ -1593,9 +2944,13 @@ def main():
     S = Souq(P, out=out, fast="--fast" in a)
     S.build_kinds(); stamp("built %d mesh kinds" % len(S.kinds))
     S.bake_tiles(); stamp("baked %d materials to tiles" % len(S.mats))
+    fl = S.check_bake(); stamp("the bake holds the ink floor %.3f: darkest texels %s" % (WEATHER["lo"], ", ".join(
+        "%s %.3f" % (k.replace("M_Souq_", ""), v) for k, v in sorted(fl.items()))))
     rep = S.check_meshes(); stamp("checked the meshes: " + ", ".join("%s %d" % (k.replace("SM_Souq_", ""), v["tris"]) for k, v in rep.items()))
     S.place(); stamp("placed %d instances" % len(S.placed))
     S.sun()
+    S.lights()
+    stamp("the night: the moon and %d lights (smoke is the engine's)" % S.night_lights["lights"])
     written, gltf = S.export(); stamp("exported %d files, %.1f MB" % (len(written), sum(written.values()) / 1e6))
     rt = S.verify_gltf(gltf); stamp("glTF read back: %d meshes, %d nodes, %d tris, %d images, tallest %.1f m" % (
         rt["meshes"], rt["nodes"], rt["tris"], rt["images"], rt["tallest_m"]))

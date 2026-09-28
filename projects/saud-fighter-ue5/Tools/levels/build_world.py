@@ -59,6 +59,7 @@ Docs/world-map.png, and stops. That is how it was checked without an engine.
 import json
 import math
 import os
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -128,10 +129,67 @@ DEFAULT_VOCAB = _vocab("block", "tower", "wall", "concrete", False, 16, 0.55, 4,
 # disc spread to 8 degrees so shadows go soft as under cloud; the sky light
 # 1.4 -> 0.5; the fog a dark cold grey (it was a warm dust, 0.86 0.72
 # 0.56) and more than three times as thick. The same direction as before,
-# so every shadow still falls the way it did. The anime look's own air
-# (Tools/look/anime_look.py HAZE) is tuned to the same grey.
-WORLD_RIG = dict(pitch=-38, yaw=-125, sun=(0.72, 0.78, 0.88), lux=2.0, angle=8.0,
-                 sky=0.5, fog=(0.20, 0.23, 0.25), fogd=0.040, expo=1.02)
+# so every shadow still falls the way it did.
+#
+# 2026-09-28, the night ("make all game like dark anime adult style"): the
+# one light is the MOON. Same pitch and yaw, so every shadow still falls
+# the same way; colder (0.72, 0.78, 0.88) -> (0.58, 0.68, 0.95), B/R 1.22
+# -> 1.64; hard -- 8 degrees -> the moon's own 0.55, so a cast shadow is a
+# shape the cel cut draws clean; the sky light 0.5 -> 0.30, so a shadow
+# side falls to the dark tones and a fire's pool reads. 2.0 lux kept: it
+# is the exposure anchor, and every fire's candela in the world is sized
+# against it (build_souq.moon_ue). The fog is the look's own air, read from
+# Tools/look/anime_look.py at run time (never copied): HAZE's colour from
+# HAZE_NEAR_CM, fogd 0.040 -> 0.050, falling off with height 0.5. The look
+# reads this table (anime_look._world_rig, with ast) for its own checks:
+# keep it a dict(...) of literals and LOOK["..."] values. Unreal-only, not
+# the browser's (build_levels.py's per-stage rigs are its, untouched).
+_LOOK_DIR = os.path.join(PROJECT, "Tools", "look")
+if _LOOK_DIR not in sys.path:
+    sys.path.insert(0, _LOOK_DIR)
+from anime_look import LOOK   # noqa: E402  (plain Python at import)
+WORLD_RIG = dict(pitch=-38, yaw=-125, sun=(0.58, 0.68, 0.95), lux=2.0, angle=0.55,
+                 sky=0.30, fog=LOOK["HAZE"], fogd=0.050, fog_start=LOOK["HAZE_NEAR_CM"],
+                 fog_falloff=0.5, expo=1.02)
+# The air a fire lights (Unreal-only): the height fog volumetric, so every
+# fire's light scatters into a halo, and a thin low mist under it. The mist
+# numbers are the first thing to tune by eye in the editor.
+AIR = dict(volumetric=True, scattering=0.6, albedo=(140, 148, 158), extinction=1.0, start_cm=100.0,
+           view_m=60.0, mist=dict(density=0.06, falloff=0.5, offset=0.0))
+
+# ------------------------------------------------------- the ground's colour
+# THE BROWSER'S per-theme ground pair, [the way through, the ground], copied
+# with its line and held to it by check() 27: index.html THEME.<theme>.ground
+# at :2172 souq, :2239 gym, :2302 towers, :2375 failaka, :2455 desert,
+# :2533 fishmarket, :2626 marina, :2698 highway, :2772 arena.
+THEME_GROUND = {
+    "Souq": ("#a5713f", "#7c5230"), "Gym": ("#4a3b2c", "#332a20"), "Towers": ("#2a3552", "#1a2136"),
+    "Failaka": ("#c3a173", "#8e7350"), "Desert": ("#c2a274", "#8b7047"), "Fishmarket": ("#9aa6a4", "#6e7877"),
+    "Marina": ("#3b3350", "#241f33"), "Highway": ("#4a4a52", "#2c2c33"), "Arena": ("#5b4a63", "#38293f"),
+}
+BROWSER_INDEX = os.path.abspath(os.path.join(PROJECT, "..", "saud-fighter", "index.html"))
+# What each primitive is painted as (Unreal-only): its role, and each role's
+# colour from its theme's pair through the souq's one weathering
+# (build_souq._worn: the same soot band, the same ink floor) -- the way
+# through the lighter of the pair, the ground and what stands tall the
+# darker, blocks and the rim between. Water and iron are Unreal-only colours.
+ROLE_OF_KIND = dict(
+    flagstone="paving", concrete="paving", boards="paving", asphalt="paving", sand="paving", paving="paving",
+    jetty="paving",
+    ground="ground", plateau="ground",
+    hall="block", shed="block", block="block", front="block", ruin="block", wreck="block", tent="block",
+    seating="block",
+    chimney="tall", crane="tall", tower="tall", mast="tall", stone="tall", pylon="tall", rock="tall",
+    floodlight="tall",
+    wall="rim", quay="rim", hoarding="rim", rail="rim", barrier="rim", dune="rim", bowl="rim", beach="rim",
+    shallows="water",
+    brazier="iron", pyre="iron",
+)
+ROLES = dict(paving=(0,), ground=(1,), tall=(1,), block=(0, 1), rim=(0, 1))
+WATER = (0.012, 0.016, 0.020)        # the shallows, Unreal-only; held at the ink floor like everything
+ROLE_ROUGH = dict(paving=0.85, ground=0.95, tall=0.90, block=0.90, rim=0.90, water=0.06, iron=0.60)
+WAY_THROUGH = 1.20                   # the paving at least this many times its ground's luminance
+FIRE_POST = dict(brazier=(60.0, 95.0), pyre=(7.0, 290.0))   # a derived district's fire as a post: across, tall (cm)
 
 
 # ------------------------------------------------------------ the island
@@ -425,6 +483,32 @@ def district_ground(d, idx, scenery):
     local = []
     blocks_of(E, phase, idx, path, sites, v, local)
     rim_of(E, [(dd[0], dd[1]) for dd in doors], v, idx, local)
+
+    # --- the night (2026-09-28): the souq's rules, with each fire just off
+    #     the paving (where this world already lets a solid stand) -- a
+    #     pyre either side of every fight and the gate, a brazier every 30 m,
+    #     two at every way out. Each fire is a post (FIRE_POST), solid, with
+    #     its light row on it; build() caps it in embers and lights it.
+    street = [dict(a=path[i - 1], b=path[i], width=STREET_HALF_WIDTH * 2.0) for i in range(1, len(path))]
+    for s_ in sites:
+        nx, ny = nearest_on_path(path, s_["x"], s_["y"])
+        if math.hypot(s_["x"] - nx, s_["y"] - ny) >= 100.0:
+            street.append(dict(a=(nx, ny), b=(s_["x"], s_["y"]), width=STREET_HALF_WIDTH * 1.3))
+    for dx, dy, *_ in doors:
+        street.append(dict(a=nearest_on_path(path, dx, dy), b=(dx, dy), width=STREET_HALF_WIDTH * 1.6))
+    rim_rects = [(p["x"], p["y"], p["yaw"], p["sx"], p["sy"]) for p in local if p["kind"] == v["rim"]]
+    Q = dict(name=d["stage"]["Name"], path=path, sites=sites, idx=idx, props=[], street=street,
+             doors={side: (dx, dy) for dx, dy, side, *_ in doors},
+             solids=[(p["x"], p["y"], max(p["sx"], p["sy"]) * 0.5) for p in local if p["kind"] != v["rim"]],
+             rim_rects=rim_rects)
+    fires, door_fires, lanterns = SOUQ.night(Q, off_street=True, rig=WORLD_RIG)
+    Q.update(fires=fires, door_fires=door_fires, lanterns=lanterns)
+    d["night"] = Q
+    for f in fires + door_fires:
+        across, tall = FIRE_POST[f["kind"]]
+        local.append(dict(kind=f["kind"], shape="post", solid=True, x=f["x"], y=f["y"], z=GROUND_Z + tall * 0.5,
+                          sx=across, sy=across, sz=tall, yaw=0.0, fire=f))
+
     for p in local:
         p["x"] += ox; p["y"] += oy
     here.extend(local)
@@ -609,7 +693,10 @@ def plan(stages, world):
                                 sx=span, sy=STREET_HALF_WIDTH * 5.0, sz=100.0,
                                 yaw=math.degrees(math.atan2(by - ay, bx - ax)),
                                 district=None, road=(idx, link["To"])))
+            n0 = len(scenery)
             paving(ax, ay, bx, by, STREET_HALF_WIDTH * 1.6, v["paving"], scenery)
+            for p in scenery[n0:]:
+                p["road"] = (idx, link["To"])      # coloured as the district it leaves
 
     # --- every doorway opens onto the one that answers it
     exits = [a for a in actors if a["kind"] == "Exit"]
@@ -624,6 +711,52 @@ def plan(stages, world):
     return dict(order=order, arena=arena_idx, origins=origins, radius=radius,
                 districts=districts, actors=actors, scenery=scenery,
                 animals=animals, stages=stages)
+
+
+# ------------------------------------------------------------ the colours
+def theme_of(p, P):
+    """The theme a scenery piece is painted in: its district's, or, for a
+    road, the district it leaves."""
+    if p.get("district") is not None:
+        return P["districts"][p["district"]]["stage"]["Theme"]
+    if p.get("road"):
+        return P["districts"][p["road"][0]]["stage"]["Theme"]
+    return None
+
+
+def role_colour(theme, role):
+    """A role's linear colour in a theme, through the souq's weathering."""
+    if role == "water":
+        return SOUQ._toward(WATER + (1.0,), 1.0)[:3]          # held at the floor
+    if role == "iron":
+        return SOUQ._worn(SOUQ.BROWSER_ART["barrel"])[:3]
+    cols = [SOUQ._worn(THEME_GROUND[theme][i])[:3] for i in ROLES[role]]
+    return tuple(sum(c[k] for c in cols) / len(cols) for k in range(3))
+
+
+def materials_of(P):
+    """(theme, role) -> (linear colour, roughness) for every primitive the
+    world builds: what build() makes a material instance of."""
+    out = {}
+    for p in P["scenery"]:
+        if p.get("mesh") or p["kind"] not in ROLE_OF_KIND:
+            continue
+        theme, role = theme_of(p, P), ROLE_OF_KIND[p["kind"]]
+        out[(theme, role)] = (role_colour(theme, role), ROLE_ROUGH[role])
+    return out
+
+
+def _browser_grounds():
+    """index.html's THEME.<theme>.ground, parsed (check 27)."""
+    import re
+    src = open(BROWSER_INDEX, encoding="utf-8").read()
+    got = {}
+    for theme in THEME_GROUND:
+        m = re.search(r"\n\s*%s:\s*\{" % theme.lower(), src)
+        assert m, "index.html has no THEME.%s" % theme.lower()
+        g = re.compile(r"ground:\s*\[\s*'(#[0-9a-fA-F]{6})'\s*,\s*'(#[0-9a-fA-F]{6})'\s*\]").search(src, m.end())
+        got[theme] = (g.group(1).lower(), g.group(2).lower())
+    return got
 
 
 # ------------------------------------------------------------------ check
@@ -731,10 +864,171 @@ def check(P):
         if a["kind"] == "Exit":
             assert a["props"]["DestinationExit"] in names, a["name"]
 
+    # --- the night, 2026-09-28 -------------------------------------------
+    # 28. no primitive builds engine-grey: every one resolves to a role
+    grey = {}
+    for p in P["scenery"]:
+        if not p.get("mesh") and p["kind"] not in ROLE_OF_KIND:
+            grey[p["kind"]] = grey.get(p["kind"], 0) + 1
+    assert not grey, ", ".join("%d %ss" % (n, k) for k, n in sorted(grey.items())) + " would build engine-grey"
+    # 29. every district's palette is in the souq's soot band, over the ink
+    floor = SOUQ.ink_floor()
+    for (theme, role), (col, _r) in sorted(materials_of(P).items(), key=str):
+        y = SOUQ._luma(col)
+        if role == "iron":
+            continue                                   # the souq's iron, held by its own check
+        assert y >= floor - 1e-9, "%s's %s is %.4f, as dark as the ink (floor %.3f)" % (theme, role, y, floor)
+        assert y <= SOUQ.WEATHER["hi"], "%s's %s is %.3f, paler than soot stone (at most %.2f)" % (theme, role, y, SOUQ.WEATHER["hi"])
+        pur = 1.0 - min(col) / max(max(col), 1e-9)
+        assert pur <= 0.55, "%s's %s is %.2f pure: paint, not stone" % (theme, role, pur)
+        if role != "water":
+            assert col[0] / col[2] <= 1.50, "%s's %s R/B %.2f: brown mud, not soot stone" % (theme, role, col[0] / col[2])
+    # 30. the way through reads: in every district its paving is lighter than its ground
+    for idx, d in D.items():
+        theme = d["stage"]["Theme"]
+        if theme == "Souq":
+            continue                                   # the souq's street is flagstone meshes, its own check's
+        k = SOUQ._luma(role_colour(theme, "paving")) / SOUQ._luma(role_colour(theme, "ground"))
+        assert k >= WAY_THROUGH, "the way through %s does not read: its paving is %.2fx its ground (at least %.2f)" \
+            % (d["stage"]["Name"], k, WAY_THROUGH)
+    # 27. THEME_GROUND is the browser's
+    for theme, pair in _browser_grounds().items():
+        assert tuple(h.lower() for h in THEME_GROUND[theme]) == pair, \
+            "THEME_GROUND %s is %s, not the browser's %s (index.html THEME.%s.ground)" % (theme, THEME_GROUND[theme], pair, theme.lower())
+    # 32. the fog is the look's air; the moon cold and hard
+    r = WORLD_RIG; haze = LOOK["HAZE"]
+    nf, nh = [c / sum(r["fog"]) for c in r["fog"]], [c / sum(haze) for c in haze]
+    off = max(abs(a - b) / b for a, b in zip(nf, nh))
+    assert off <= 0.03, "the fog's hue is %.0f %% off the look's air (HAZE %s): two airs" % (off * 100.0, haze)
+    assert abs(r["fog_start"] - LOOK["HAZE_NEAR_CM"]) < 1e-6, "the fog starts at %.0f cm, the look's air at %.0f" \
+        % (r["fog_start"], LOOK["HAZE_NEAR_CM"])
+    assert r["sun"][2] / r["sun"][0] >= 1.4, "the world's light is warm (B/R %.2f): the moon is cold, only fire is warm" \
+        % (r["sun"][2] / r["sun"][0])
+    assert r["angle"] <= 1.0, "the moon is soft (%.1f degrees): its shadows smear under the cel cut" % r["angle"]
+    # 33. the light budget, every district: the souq, the derived, their doors
+    B = SOUQ.NIGHT["budget"]
+    for idx, d in D.items():
+        Q = d.get("night") or (SOUQ.night_of(d["souq"]) if "souq" in d else None)
+        if Q is None:
+            continue                                   # the island: moonlight only (a named follow-up)
+        lights = Q["fires"] + Q["door_fires"] + Q["lanterns"]
+        shadowed = sum(1 for l in lights if l["shadow"]); smoke = sum(1 for l in lights if l.get("smoke"))
+        assert len(lights) <= B["lights"] and shadowed <= B["shadowed"] and smoke <= B["smoke"], \
+            "%s has %d lights, %d shadowed, %d smoke volumes: over the budget %d / %d / %d" \
+            % (d["stage"]["Name"], len(lights), shadowed, smoke, B["lights"], B["shadowed"], B["smoke"])
+    # 31. every derived district's night, by the souq's rules (12-17), and
+    #     its fires off the paving and out of every block
+    for idx, d in D.items():
+        if "night" not in d:
+            continue
+        Q = d["night"]
+        SOUQ.check_night(Q, off_street=True, rig=WORLD_RIG)
+        blocks = [p for p in P["scenery"] if p["district"] == idx and p["solid"] and not p.get("fire")
+                  and p["kind"] not in ("ground", d["vocab"]["rim"])]
+        for f in Q["fires"] + Q["door_fires"]:
+            for a, b, w in SOUQ._spurs(Q):
+                assert SOUQ._seg_dist(f["x"], f["y"], a, b) >= w + f["half"], \
+                    "%s: a %s stands on the paving out to a site or a door" % (Q["name"], f["kind"])
+            for p in blocks:
+                assert math.hypot(p["x"] - d["ox"] - f["x"], p["y"] - d["oy"] - f["y"]) >= max(p["sx"], p["sy"]) * 0.5 + f["half"], \
+                    "%s: a %s stands inside a %s" % (Q["name"], f["kind"], p["kind"])
+
     print("checked: no district overlaps another, nothing solid stands in a street or a")
     print("fight or off an edge, every way out is a gap in its own rim, and every")
     print("doorway opens onto the one that answers it. The island passes its own")
     print("checks at the bearings this world gives it, and stands on no neighbour.")
+    print("The night: no primitive builds engine-grey, every district's colours are the browser's")
+    print("grounds in the soot band over the ink, every way through reads, the fog is the look's air")
+    print("under a cold hard moon, and every district's fires light its fights and doors in pools,")
+    print("within the light budget.")
+
+
+# ------------------------------------------------------------------ bite
+def bite(verbose=True):
+    """Every check here proved to bite, run as `python3 build_world.py
+    --bite`: each case breaks one thing (a table for the whole plan, or the
+    plan after it is made) and the check meant to catch it must say so in
+    its own words. The first three are the sabotages this file's checks were
+    once proved with by hand (CLAUDE.md, "The game is played on one seamless
+    world"); the rest guard the night (27-33)."""
+    import io
+    import contextlib
+    cases = []
+    G, T, R = globals(), THEME_GROUND, WORLD_RIG
+    stages, world = load()
+
+    def case(label, expect, tables=(), mutate=None):
+        with SOUQ._override(list(tables)):
+            with contextlib.redirect_stdout(io.StringIO()):
+                try:
+                    P = plan(stages, world)
+                    if mutate:
+                        mutate(P)
+                    check(P)
+                    cases.append((label, False, "did not bite"))
+                except AssertionError as e:
+                    cases.append((label, expect in str(e), str(e)[:110]))
+
+    def district(P, name):
+        return next(d for d in P["districts"].values() if d["stage"]["Name"] == name)
+
+    def island_of(P):
+        return next(d for d in P["districts"].values() if "island" in d)
+    # --- the three sabotages this file's checks were first proved with, by hand
+    case("ring measured to the island's stone", "is not clear of", [(G, "reach_of", lambda st: extent_of(st))])
+    def doors_off(P):
+        I = island_of(P)["island"]; side = sorted(I["bearing"])[0]; I["bearing"][side] += 10.0
+    case("island doors off by 10 degrees", "wrong bearing", mutate=doors_off)
+    def board_gone(P):
+        I = island_of(P)["island"]
+        boards = [p for p in I["scenery"] if p["kind"] == "jetty"]
+        side = boards[len(boards) // 2]; ang = math.atan2(side["y"], side["x"])
+        run = sorted((p for p in boards if abs(math.atan2(p["y"], p["x"]) - ang) < 0.01), key=lambda p: math.hypot(p["x"], p["y"]))
+        I["scenery"].remove(run[len(run) // 2])
+    case("a missing jetty board", "hole in it", mutate=board_gone)
+    # --- 27-30: the colours
+    case("theme drift (Towers, one digit)", "not the browser's", [(T, "Towers", ("#2a3553", "#1a2136"))])
+    roles = {k: v for k, v in ROLE_OF_KIND.items() if k != "barrier"}
+    case("unpainted barrier", "84 barriers would build engine-grey", [(G, "ROLE_OF_KIND", roles)])
+    case("pale desert", "paler than soot stone", [(T, "Desert", ("#f4ecd8", "#e8dcc0"))])
+    case("inky marina", "as dark as the ink", [(T, "Marina", ("#3b3350", "#050308"))])
+    case("painted gym (red)", "paint, not stone", [(T, "Gym", ("#ff2000", "#c01800"))])
+    case("brown gym", "brown mud", [(T, "Gym", ("#e07020", "#904010"))])
+    case("street as ground", "does not read", [(ROLES, "paving", (1,))])
+    # --- 31: each derived district's night
+    def dark_fight(P):
+        Q = district(P, "BaytAlDarb")["night"]
+        Q["fires"] = [f for f in Q["fires"] if f.get("site") != ("wave", 2)]
+    case("dark fight (BaytAlDarb wave 3)", "wave 3 is fought by moonlight alone", mutate=dark_fight)
+    def fire_on_paving(P):
+        d = district(P, "BaytAlDarb")
+        post = next(p for p in P["scenery"] if p.get("fire") and p["district"] == d["stage"]["Index"])
+        x, y = nearest_on_path(d["path"], post["x"] - d["ox"], post["y"] - d["oy"]); post["x"], post["y"] = d["ox"] + x, d["oy"] + y
+    case("fire on the paving", "things stand in the street", mutate=fire_on_paving)
+    def fire_on_spur(P):
+        Q = district(P, "BaytAlDarb")["night"]; a, b, w = SOUQ._spurs(Q)[-1]
+        f = Q["fires"][len(Q["fires"]) // 2]; f["x"], f["y"] = (a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5
+    case("fire on a door's paving", "stands on the paving out to", mutate=fire_on_spur)
+    def fire_in_block(P):
+        d = district(P, "BaytAlDarb"); Q = d["night"]
+        b = next(p for p in P["scenery"] if p["district"] == d["stage"]["Index"] and p["kind"] == d["vocab"]["block"])
+        f = Q["fires"][len(Q["fires"]) // 2]; f["x"], f["y"] = b["x"] - d["ox"], b["y"] - d["oy"]
+    case("fire inside a block", "stands inside a", mutate=fire_in_block)
+    # --- 32: the air and the moon
+    case("warm fog", "two airs", [(R, "fog", (0.58, 0.47, 0.38))])
+    case("fog from afar (15 m)", "the fog starts", [(R, "fog_start", 1500.0)])
+    case("a sun, not the moon", "warm", [(R, "sun", (1.00, 0.88, 0.70)), (R, "angle", 8.0)])
+    case("soft moon (8 degrees)", "the moon is soft", [(R, "angle", 8.0)])
+    # --- 33: the budget
+    def fires_x4(P):
+        Q = district(P, "AlTariqAlMasdud")["night"]; Q["fires"] = [dict(f) for f in Q["fires"] for _ in range(4)]
+    case("fires x4 (AlTariqAlMasdud)", "over the budget", mutate=fires_x4)
+    if verbose:
+        print("\n%-38s %s" % ("check", "when the world is broken"))
+        for label, ok, msg in cases:
+            print("  %-36s %s  %s" % (label, "BITES " if ok else "SILENT", msg))
+        print("  %d of %d bite" % (sum(1 for c in cases if c[1]), len(cases)))
+    return all(ok for _, ok, _ in cases)
 
 
 # --------------------------------------------------------------- describe
@@ -756,8 +1050,29 @@ def describe(P):
         print("  %-18s (%8.0f, %8.0f) %7.0f m %7d %7d %5d"
               % (d["stage"]["Name"], d["ox"], d["oy"], d["extent"] * 2.0 / 100.0,
                  paving_n, block_n, rim_n))
-    roads = sum(1 for p in P["scenery"] if p.get("road"))
+    roads = sum(1 for p in P["scenery"] if p.get("road") and p["kind"] == "ground")
     print("\n  %d roads between districts, each with ground carried under it" % roads)
+    # the night, per district
+    print("\n  the night (moon %.3f lux on the ground; a brazier %.0f cd, a pyre %.0f cd):"
+          % (SOUQ.moon_ue(WORLD_RIG), SOUQ.candela(SOUQ.intensity("brazier"), WORLD_RIG), SOUQ.candela(SOUQ.intensity("pyre"), WORLD_RIG)))
+    print("  district            fires doors lanterns lights shadowed  lit   dark run  fights (x moon)")
+    total = 0
+    for idx in [P["arena"]] + P["order"]:
+        d = P["districts"][idx]
+        Q = d.get("night") or (SOUQ.night_of(d["souq"]) if "souq" in d else None)
+        if Q is None:
+            print("  %-18s  moonlight only (the island: a named follow-up)" % d["stage"]["Name"]); continue
+        st = SOUQ.check_night(Q, off_street="night" in d, rig=WORLD_RIG)
+        light = [SOUQ.ground_light(Q["fires"] + Q["door_fires"], s["x"], s["y"]) for s in Q["sites"]]
+        total += st["fires"] + st["door_fires"]
+        print("  %-18s %5d %5d %8d %6d %8d %4.0f %%  %5d m   %.2f-%.2f"
+              % (d["stage"]["Name"], st["fires"], st["door_fires"], len(Q["lanterns"]), st["lights"], st["shadowed"],
+                 st["lit"] * 100.0, st["dark_run_m"], min(light), max(light)))
+    print("  %d fires in all" % total)
+    mats = materials_of(P)
+    print("\n  %d material instances of M_World_Prim, (theme, role) -> linear luma:" % len(mats))
+    for theme in sorted({t for t, _ in mats}):
+        print("    %-10s " % theme + ", ".join("%s %.3f" % (r, SOUQ._luma(c)) for (t, r), (c, _) in sorted(mats.items()) if t == theme))
     kinds = {}
     for p in P["scenery"]:
         kinds[p["kind"]] = kinds.get(p["kind"], 0) + 1
@@ -823,6 +1138,9 @@ def draw(P, path):
                    fill=(96, 92, 84), width=2)
             continue
         x, y = to(p["x"], p["y"])
+        if p["kind"] in ("brazier", "pyre"):                  # the night's fires, orange
+            g.ellipse([x - 2, y - 2, x + 2, y + 2], fill=(255, 140, 40))
+            continue
         if not p["solid"]:
             g.point((x, y), fill=(120, 108, 86))              # paving
         else:
@@ -851,12 +1169,65 @@ def draw(P, path):
     g.text((16, 32), "JAZIRAT AL-HAJAR is build_island.py's island -- shallows, beach, stone, "
                      "rocks, jetties, animals -- round this world's doors.",
            fill=(200, 200, 200))
+    g.text((16, 48), "The night: every fire orange -- a pyre either side of each fight, a brazier every 30 m, "
+                     "two at each way out. The island is moonlit only.", fill=(200, 200, 200))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im.save(path)
     print("drew", path)
 
 
 # ----------------------------------------------------------------- editor
+MAT_DIR = "/Game/Materials/World"
+
+
+def _world_materials(P):
+    """Inside the editor: M_World_Prim (a VectorParameter 'Base' into the
+    base colour, a ScalarParameter 'Rough' into roughness), M_World_Ember
+    (what burns: emissive), and one MaterialInstanceConstant of the first
+    per (theme, role) the world builds -- so no primitive stands in the
+    engine's default grey. Read-reviewed, not run."""
+    import unreal  # noqa: E402  (only importable inside the editor)
+    EAL = unreal.EditorAssetLibrary
+    MEL = unreal.MaterialEditingLibrary
+    AT = unreal.AssetToolsHelpers.get_asset_tools()
+
+    def asset(name, cls, factory):
+        path = "%s/%s" % (MAT_DIR, name)
+        if EAL.does_asset_exist(path):
+            return unreal.load_asset(path), False
+        return AT.create_asset(name, MAT_DIR, cls, factory), True
+
+    prim, new = asset("M_World_Prim", unreal.Material, unreal.MaterialFactoryNew())
+    if new:
+        base = MEL.create_material_expression(prim, unreal.MaterialExpressionVectorParameter, -400, 0)
+        base.set_editor_property("parameter_name", "Base")
+        rough = MEL.create_material_expression(prim, unreal.MaterialExpressionScalarParameter, -400, 200)
+        rough.set_editor_property("parameter_name", "Rough")
+        MEL.connect_material_property(base, "", unreal.MaterialProperty.MP_BASE_COLOR)
+        MEL.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+        MEL.recompile_material(prim)
+    ember, new = asset("M_World_Ember", unreal.Material, unreal.MaterialFactoryNew())
+    if new:
+        e = SOUQ.EMBER
+        col = MEL.create_material_expression(ember, unreal.MaterialExpressionConstant3Vector, -400, 0)
+        col.set_editor_property("constant", unreal.LinearColor(*(e["base"] + (1.0,))))
+        glow = MEL.create_material_expression(ember, unreal.MaterialExpressionConstant3Vector, -400, 200)
+        glow.set_editor_property("constant", unreal.LinearColor(*tuple(c * e["strength"] for c in e["emission"]) + (1.0,)))
+        MEL.connect_material_property(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
+        MEL.connect_material_property(glow, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+        MEL.recompile_material(ember)
+    mis = {}
+    for (theme, role), (colour, rough) in sorted(materials_of(P).items(), key=str):
+        mi, _new = asset("MI_World_%s_%s" % (theme, role), unreal.MaterialInstanceConstant,
+                         unreal.MaterialInstanceConstantFactoryNew())
+        MEL.set_material_instance_parent(mi, prim)
+        MEL.set_material_instance_vector_parameter_value(mi, "Base", unreal.LinearColor(colour[0], colour[1], colour[2], 1.0))
+        MEL.set_material_instance_scalar_parameter_value(mi, "Rough", rough)
+        EAL.save_loaded_asset(mi)
+        mis[(theme, role)] = mi
+    return mis, ember
+
+
 def build(P):
     import unreal  # noqa: E402  (only importable inside the editor)
 
@@ -888,12 +1259,18 @@ def build(P):
         a.set_folder_path("%s/%s" % (FOLDER, folder or "World"))
         return a
 
-    def piece(name, shape, x, y, z, sx, sy, sz, yaw, solid, folder):
+    # every primitive in its theme's colour (2026-09-28): the engine's grey
+    # is six to eight times paler than the souq's stone
+    mis, ember = _world_materials(P)
+
+    def piece(name, shape, x, y, z, sx, sy, sz, yaw, solid, folder, material=None):
         a = spawn(unreal.StaticMeshActor, name, x, y, z, yaw, folder=folder)
         comp = a.get_component_by_class(unreal.StaticMeshComponent)
         comp.set_static_mesh(mesh[shape])
         a.set_actor_scale3d(unreal.Vector(sx / 100.0, sy / 100.0, sz / 100.0))
         a.set_mobility(unreal.ComponentMobility.STATIC)
+        if material is not None:
+            comp.set_material(0, material)
         if not solid:
             comp.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
         return a
@@ -921,14 +1298,23 @@ def build(P):
             a.set_mobility(unreal.ComponentMobility.STATIC)
             if p["slot"] in ("Street", "Ground"):
                 c.set_collision_enabled(unreal.CollisionEnabled.QUERY_AND_PHYSICS)
+            if p["slot"] in SOUQ.NO_COLLISION:
+                c.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
             continue
         if p["district"] is not None and "island" in P["districts"][p["district"]]:
             folder = island_folder.get(p["kind"], "Island/Ruins")
         else:
             folder = ("Ground" if p["kind"] == "ground" else
                       ("Street" if not p["solid"] else "Structures"))
+        mi = mis.get((theme_of(p, P), ROLE_OF_KIND.get(p["kind"])))
+        if p.get("fire"):
+            folder = "Night"
         piece("%s_%d" % (p["kind"], i), p["shape"], p["x"], p["y"], p["z"],
-              p["sx"], p["sy"], p["sz"], p.get("yaw", 0.0), p["solid"], folder)
+              p["sx"], p["sy"], p["sz"], p.get("yaw", 0.0), p["solid"], folder, mi)
+        if p.get("fire"):
+            # the fire's top: an ember bed on the post's cap
+            piece("%s_%d_embers" % (p["kind"], i), "disc", p["x"], p["y"], p["z"] + p["sz"] * 0.5 + 1.0,
+                  p["sx"] * 0.9, p["sy"] * 0.9, 2.0, 0.0, False, folder, ember)
 
     # --- the island's animals, as build_island.py makes them: one empty
     #     actor per animal with its parts attached, ambient only
@@ -1007,14 +1393,14 @@ def build(P):
         if a["kind"] == "Exit":
             made[a["name"]].set_editor_property("destination_exit", made[a["props"]["DestinationExit"]])
 
-    # --- one sun over the whole ring
+    # --- one moon over the whole ring
     r = WORLD_RIG
-    sun = spawn(unreal.DirectionalLight, "Sun", 0, 0, 20000, folder="Lighting")
+    sun = spawn(unreal.DirectionalLight, "Moon", 0, 0, 20000, folder="Lighting")
     sun.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=r["pitch"], yaw=r["yaw"]), False)
     light = sun.get_component_by_class(unreal.DirectionalLightComponent)
     light.set_intensity(r["lux"])
     light.set_light_color(unreal.LinearColor(*r["sun"]))
-    light.set_editor_property("light_source_angle", r["angle"])   # overcast: soft shadows
+    light.set_editor_property("light_source_angle", r["angle"])   # the moon's disc: hard shadows
     light.set_editor_property("atmosphere_sun_light", True)
     sky = spawn(unreal.SkyLight, "SkyLight", 0, 0, 18000, folder="Lighting")
     sl = sky.get_component_by_class(unreal.SkyLightComponent)
@@ -1025,6 +1411,33 @@ def build(P):
     fc = fog.get_component_by_class(unreal.ExponentialHeightFogComponent)
     fc.set_editor_property("fog_density", r["fogd"])
     fc.set_editor_property("fog_inscattering_luminance", unreal.LinearColor(*r["fog"]))
+    fc.set_editor_property("start_distance", r["fog_start"])
+    fc.set_editor_property("fog_height_falloff", r["fog_falloff"])
+    # the air a fire lights: volumetric, and a thin low mist (AIR)
+    fc.set_editor_property("enable_volumetric_fog", AIR["volumetric"])
+    fc.set_editor_property("volumetric_fog_scattering_distribution", AIR["scattering"])
+    fc.set_editor_property("volumetric_fog_albedo", unreal.Color(r=AIR["albedo"][0], g=AIR["albedo"][1], b=AIR["albedo"][2], a=255))
+    fc.set_editor_property("volumetric_fog_extinction_scale", AIR["extinction"])
+    fc.set_editor_property("volumetric_fog_start_distance", AIR["start_cm"])
+    fc.set_editor_property("volumetric_fog_distance", AIR["view_m"] * 100.0)
+    mist = fc.get_editor_property("second_fog_data")
+    mist.set_editor_property("fog_density", AIR["mist"]["density"])
+    mist.set_editor_property("fog_height_falloff", AIR["mist"]["falloff"])
+    mist.set_editor_property("fog_height_offset", AIR["mist"]["offset"])
+    fc.set_editor_property("second_fog_data", mist)
+
+    # --- the night's lights, every district that has them: the souq's
+    #     fires and lanterns from its own plan, a derived district's from
+    #     its night; the same rows the checks proved
+    night_lights = night_smoke = 0
+    for d in P["districts"].values():
+        Q = d.get("night") or (SOUQ.night_of(d["souq"]) if "souq" in d else None)
+        if Q is None:
+            continue
+        n, v = SOUQ.spawn_night(spawn, Q["fires"] + Q["door_fires"], Q["lanterns"], d["ox"], d["oy"],
+                                folder="Night/%s" % d["stage"]["Name"])
+        night_lights += n; night_smoke += v
+    unreal.log("The night: %d lights, %d smoke volumes" % (night_lights, night_smoke))
 
     if not ELL.save_current_level():
         unreal.log_error("Could not save %s" % path)
@@ -1047,6 +1460,11 @@ def _enum_name(s):
 # only when build_souq.py --world loads this file by its own name to read
 # the souq's plan out of it.
 if __name__ != "build_world":
+    if "--bite" in sys.argv:
+        _t0 = __import__("time").time()
+        _ok = bite()
+        print("  (%.0f s)" % (__import__("time").time() - _t0))
+        sys.exit(0 if _ok else 1)
     _stages, _world = load()
     _plan = plan(_stages, _world)
     check(_plan)

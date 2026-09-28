@@ -13,30 +13,12 @@
 
 using namespace SaudHud;
 
-namespace
-{
-	// 2026-09-26, "use darker theme style like Demon's Souls": the HUD of a
-	// dark fantasy rather than a manga page. The ink and the bone are the
-	// look's own (Tools/look/anime_look.py LOOK INK and BONE, which checks
-	// these two against its own): dark translucent plates keylined in a
-	// dull bronze, lettering in bone, the bars the Souls' three -- a deep
-	// blood-red health, a moss-green stamina, and the rage an ember gold --
-	// in an empty trough near black, and the damage trail a dim gold that
-	// drains, as a Souls bar's does. Until that day: paper panels with a
-	// heavy ink border, Saud's bright band red (#ff1a3c) for his health,
-	// an amber stamina and a hot rage gold.
-	const FLinearColor InkC(0.0022f, 0.0019f, 0.0017f, 1.f);
-	const FLinearColor BoneC(0.56f, 0.52f, 0.44f, 1.f);
-	const FLinearColor PlateC(0.006f, 0.006f, 0.007f, 0.78f);   // a dark plate, the world through it
-	const FLinearColor TroughC(0.010f, 0.011f, 0.014f, 0.92f);  // an empty bar
-	const FLinearColor BronzeC = FLinearColor::FromSRGBColor(FColor(0x6b, 0x55, 0x33));
-	const FLinearColor TrailC = FLinearColor::FromSRGBColor(FColor(0xa8, 0x86, 0x3c));
-	const FLinearColor HealthC = FLinearColor::FromSRGBColor(FColor(0x9b, 0x16, 0x16));
-	const FLinearColor EnemyRed = FLinearColor::FromSRGBColor(FColor(0x6e, 0x0e, 0x12));
-	const FLinearColor StaminaC = FLinearColor::FromSRGBColor(FColor(0x4a, 0x6e, 0x33));
-	const FLinearColor RageC = FLinearColor::FromSRGBColor(FColor(0xa0, 0x6a, 0x22));
-	const FLinearColor EmberC = FLinearColor::FromSRGBColor(FColor(0xe8, 0x74, 0x2a));
-}
+// 2026-09-28, "make all game like dark anime adult style": every colour the
+// HUD draws is SaudHud::Colour (Combat/SaudAnime.h), the look's own ink,
+// bone, blood and ember among them -- Tools/look/anime_look.py holds those
+// four to its LOOK -- and every shape is SaudHud::Build's. Until that day
+// this file held the palette itself (InkC, BoneC, a bronze keyline, a moss
+// stamina, an oxblood enemy red) and drew each plate and bar on its own.
 
 void ASaudHUD::DrawHUD()
 {
@@ -49,74 +31,41 @@ void ASaudHUD::DrawHUD()
 	const float Dt = FMath::Clamp(static_cast<float>(FApp::GetDeltaTime()), 0.f, 0.1f);
 	Clock += Dt;
 
-	const FPage Page = FPage::For(Canvas->ClipX, Canvas->ClipY);
-	const FLayout L = Lay(Page);
-	DrawStreetBars(Page, L, Dt);
-	DrawPlayer(Page, L, Dt);
-	DrawCombo(Page, L, Dt);
-	DrawBoss(Page, L, Dt);
+	FHudState State;
+	State.Clock = Clock;
+	GatherStreet(State, Dt);
+	GatherPlayer(State, Dt);
+	GatherBoss(State, Dt);
+
+	Build(FPage::For(Canvas->ClipX, Canvas->ClipY), State, List);
+	Emit();
 }
 
-/* ------------------------------------------------------------ the panels */
+/* ------------------------------------------------------ the game's state */
 
-void ASaudHUD::DrawPlayer(const FPage& Page, const FLayout& L, float Dt)
-{
-	const ASaudCharacter* Saud = Cast<ASaudCharacter>(GetOwningPawn());
-	if (!Saud)
-	{
-		return;
-	}
-	const float HealthF = Saud->GetHealthFraction();
-	PlayerGhost.Tick(HealthF, Dt);
-
-	Panel(Page, L.PlayerPanel, PlateC);
-	Text(TEXT("SAUD"), L.Name.X, L.Name.Y, Page.Px(NameText), BoneC);
-	InkBar(Page, L.Health, HealthF, PlayerGhost.Value, HealthC);
-	InkBar(Page, L.Stamina, Saud->MaxStamina > 0.f ? Saud->GetStamina() / Saud->MaxStamina : 0.f,
-	       0.f, StaminaC);
-
-	// Rage: five small blocks, a dull gold, glowing to ember and pulsing
-	// once all five are full -- the finisher is ready.
-	const float Rage = Saud->GetRageFraction();
-	const bool bReady = Saud->IsRageReady();
-	const float Pulse = bReady ? 0.5f + 0.5f * FMath::Sin(Clock * 9.f) : 0.f;
-	for (int32 i = 0; i < RageBlocks; ++i)
-	{
-		const FLinearColor Fill = bReady ? FMath::Lerp(RageC, EmberC, 0.4f + 0.6f * Pulse) : RageC;
-		InkBar(Page, L.Rage[i], RageBlock(Rage, i), 0.f, Fill);
-	}
-}
-
-void ASaudHUD::DrawCombo(const FPage& Page, const FLayout& L, float Dt)
+void ASaudHUD::GatherPlayer(FHudState& State, float Dt)
 {
 	const ASaudCharacter* Saud = Cast<ASaudCharacter>(GetOwningPawn());
 	const int32 Combo = Saud ? Saud->ComboCount : 0;
 	SinceComboHit = Combo > LastCombo ? 0.f : SinceComboHit + Dt;
 	LastCombo = Combo;
-	if (Combo < 2)
+	State.Combo = Combo;
+	State.SinceCombo = SinceComboHit;
+	if (!Saud)
 	{
+		State.bPlayer = false;
 		return;
 	}
-	const float Punch = ComboPunch(SinceComboHit);
-	const float R = L.ComboRadius * (0.85f + 0.15f * Punch);
-
-	// The seal: a bronze-rimmed serrated disc, dark inside, the count in
-	// bone and HITS in ember.
-	FPoint Outer[2 * BurstPoints], Inner[2 * BurstPoints];
-	for (int32 i = 0; i < 2 * BurstPoints; ++i)
-	{
-		Outer[i] = BurstPoint(L.Combo, R, Combo, i);
-		Inner[i] = BurstPoint(L.Combo, R - Page.Px(Ink * 1.5f), Combo, i);
-	}
-	Poly(Outer, 2 * BurstPoints, BronzeC);
-	Poly(Inner, 2 * BurstPoints, PlateC);
-
-	const float H = Page.Px(ComboText) * Punch * 0.8f;
-	Text(FString::FromInt(Combo), L.Combo.X, L.Combo.Y - 0.62f * H, H, BoneC, true);
-	Text(TEXT("HITS"), L.Combo.X, L.Combo.Y + 0.40f * H, Page.Px(NameText) * 0.9f, EmberC, true);
+	const float HealthF = Saud->GetHealthFraction();
+	PlayerGhost.Tick(HealthF, Dt);
+	State.Health = HealthF;
+	State.Ghost = PlayerGhost.Value;
+	State.Stamina = Saud->MaxStamina > 0.f ? Saud->GetStamina() / Saud->MaxStamina : 0.f;
+	State.Rage = Saud->GetRageFraction();
+	State.bRageReady = Saud->IsRageReady();
 }
 
-void ASaudHUD::DrawBoss(const FPage& Page, const FLayout& L, float Dt)
+void ASaudHUD::GatherBoss(FHudState& State, float Dt)
 {
 	// The nearest living boss, kept while he lives.
 	AEnemyFighter* B = Boss.Get();
@@ -140,11 +89,12 @@ void ASaudHUD::DrawBoss(const FPage& Page, const FLayout& L, float Dt)
 		}
 		Boss = B;
 		// Start the trail where he is, not at full: a boss met already hurt
-		// has no cut to show.
+		// has no cut to show. And his banner wipes open from now.
 		BossGhost = FGhost();
 		if (B)
 		{
 			BossGhost.Value = BossGhost.Last = B->GetHealthFraction();
+			BossFoundAt = Clock;
 		}
 	}
 	if (!B)
@@ -153,17 +103,14 @@ void ASaudHUD::DrawBoss(const FPage& Page, const FLayout& L, float Dt)
 	}
 	const float F = B->GetHealthFraction();
 	BossGhost.Tick(F, Dt);
-
-	// A dark plate at the foot of the screen, his name in bone over a thin
-	// oxblood bar, as a Souls boss is named; the name goes to ember when
-	// he is enraged.
-	Panel(Page, L.BossPanel, PlateC);
-	Text(B->DisplayName.ToString().ToUpper(), L.BossName.X, L.BossName.Y, Page.Px(BossNameText),
-	     B->bEnraged ? EmberC : BoneC);
-	InkBar(Page, L.BossHealth, F, BossGhost.Value, EnemyRed);
+	State.bBoss = true;
+	State.BossHealth = F;
+	State.BossGhost = BossGhost.Value;
+	State.bBossEnraged = B->bEnraged;
+	State.BossSince = Clock - BossFoundAt;
 }
 
-void ASaudHUD::DrawStreetBars(const FPage& Page, const FLayout& L, float Dt)
+void ASaudHUD::GatherStreet(FHudState& State, float Dt)
 {
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC)
@@ -182,7 +129,7 @@ void ASaudHUD::DrawStreetBars(const FPage& Page, const FLayout& L, float Dt)
 		M.Since = (M.LastHealth >= 0.f && H < M.LastHealth) ? 0.f : M.Since + Dt;
 		M.LastHealth = H;
 		M.Ghost.Tick(E->GetHealthFraction(), Dt);
-		if (!E->IsAlive() || M.Since > EnemyBarSeconds)
+		if (!E->IsAlive() || M.Since > EnemyBarSeconds || State.NumStreet >= MaxStreetBars)
 		{
 			continue;
 		}
@@ -192,9 +139,8 @@ void ASaudHUD::DrawStreetBars(const FPage& Page, const FLayout& L, float Dt)
 		{
 			continue;
 		}
-		const FRect R = {static_cast<float>(S.X) - 0.5f * L.EnemyBarW, static_cast<float>(S.Y),
-		                 L.EnemyBarW, L.EnemyBarH};
-		InkBar(Page, R, E->GetHealthFraction(), M.Ghost.Value, EnemyRed);
+		State.Street[State.NumStreet++] = {static_cast<float>(S.X), static_cast<float>(S.Y),
+		                                   E->GetHealthFraction(), M.Ghost.Value};
 	}
 	// Forget the ones that have gone.
 	for (auto It = Marks.CreateIterator(); It; ++It)
@@ -208,85 +154,63 @@ void ASaudHUD::DrawStreetBars(const FPage& Page, const FLayout& L, float Dt)
 
 /* -------------------------------------------------------------- drawing */
 
-void ASaudHUD::Poly(const FPoint* Points, int32 Count, const FLinearColor& Colour)
+void ASaudHUD::Emit()
 {
-	if (Count < 3)
+	int32 Done = 0;
+	for (int32 i = 0; i < List.NumTexts; ++i)
+	{
+		const FHudText& T = List.Texts[i];
+		Flush(Done, T.TrisBefore);
+		Done = T.TrisBefore;
+		switch (T.Slot)
+		{
+		case EHudText::Name:
+			Text(T, TEXT("SAUD"));
+			break;
+		case EHudText::Count:
+			Text(T, FString::FromInt(T.Value));
+			break;
+		case EHudText::Hits:
+			Text(T, TEXT("HITS"));
+			break;
+		case EHudText::BossName:
+			if (const AEnemyFighter* B = Boss.Get())
+			{
+				Text(T, B->DisplayName.ToString().ToUpper());
+			}
+			break;
+		}
+	}
+	Flush(Done, List.NumTris);
+}
+
+void ASaudHUD::Flush(int32 From, int32 To)
+{
+	if (To <= From)
 	{
 		return;
 	}
-	// A fan from the centroid: the starburst is not convex, but it is
-	// star-shaped about its centre, which is all a fan needs.
-	FVector2D C(0.f, 0.f);
-	for (int32 i = 0; i < Count; ++i)
+	// One triangle item for the run, each vertex its own colour and alpha.
+	TArray<FCanvasUVTri> Batch;
+	Batch.Reserve(To - From);
+	for (int32 i = From; i < To; ++i)
 	{
-		C += FVector2D(Points[i].X, Points[i].Y);
+		const FHudTri& T = List.Tris[i];
+		FCanvasUVTri U;
+		U.V0_Pos = FVector2D(T.V[0].P.X, T.V[0].P.Y);
+		U.V1_Pos = FVector2D(T.V[1].P.X, T.V[1].P.Y);
+		U.V2_Pos = FVector2D(T.V[2].P.X, T.V[2].P.Y);
+		U.V0_Color = FLinearColor(T.V[0].C.R, T.V[0].C.G, T.V[0].C.B, T.V[0].C.A);
+		U.V1_Color = FLinearColor(T.V[1].C.R, T.V[1].C.G, T.V[1].C.B, T.V[1].C.A);
+		U.V2_Color = FLinearColor(T.V[2].C.R, T.V[2].C.G, T.V[2].C.B, T.V[2].C.A);
+		Batch.Add(U);
 	}
-	C /= static_cast<float>(Count);
-	TArray<FCanvasUVTri> Tris;
-	Tris.Reserve(Count);
-	for (int32 i = 0; i < Count; ++i)
-	{
-		const FPoint& A = Points[i];
-		const FPoint& B = Points[(i + 1) % Count];
-		FCanvasUVTri T;
-		T.V0_Pos = C;
-		T.V1_Pos = FVector2D(A.X, A.Y);
-		T.V2_Pos = FVector2D(B.X, B.Y);
-		T.V0_Color = T.V1_Color = T.V2_Color = Colour;
-		Tris.Add(T);
-	}
-	FCanvasTriangleItem Item(Tris, GWhiteTexture);
+	FCanvasTriangleItem Item(Batch, GWhiteTexture);
 	Item.BlendMode = SE_BLEND_Translucent;
 	Canvas->DrawItem(Item);
 }
 
-void ASaudHUD::InkBar(const FPage& Page, const FRect& R, float Fill, float Ghost, const FLinearColor& Colour)
-{
-	FPoint Q[4];
-	// The keyline: the whole bar, grown by a thin bronze edge, then the
-	// dark trough, the draining trail and the bar.
-	const float B = FMath::Max(1.f, Page.Px(Ink * 0.75f));
-	const FRect Outer = {R.X - B, R.Y - B, R.W + 2.f * B, R.H + 2.f * B};
-	BarQuad(Outer, 1.f, Q);
-	Poly(Q, 4, BronzeC);
-	BarQuad(R, 1.f, Q);
-	Poly(Q, 4, TroughC);
-	if (Ghost > Fill)
-	{
-		BarQuad(R, Ghost, Q);
-		Poly(Q, 4, TrailC);
-	}
-	if (Fill > 0.f)
-	{
-		BarQuad(R, Fill, Q);
-		Poly(Q, 4, Colour);
-	}
-}
-
-void ASaudHUD::Panel(const FPage& Page, const FRect& R, const FLinearColor& Fill)
-{
-	// A panel is a bar that is always full: a dark plate in a bronze
-	// keyline. The plate is translucent, so the keyline is drawn as four
-	// strips round it rather than a quad under it, or the bronze would
-	// show through.
-	FPoint Q[4];
-	const float B = FMath::Max(1.f, Page.Px(Ink));
-	const FRect Edges[4] = {
-		{R.X - B, R.Y - B, R.W + 2.f * B, B},     // top
-		{R.X - B, R.Y + R.H, R.W + 2.f * B, B},   // bottom
-		{R.X - B, R.Y, B, R.H},                   // left
-		{R.X + R.W, R.Y, B, R.H},                 // right
-	};
-	for (const FRect& E : Edges)
-	{
-		BarQuad(E, 1.f, Q);
-		Poly(Q, 4, BronzeC);
-	}
-	BarQuad(R, 1.f, Q);
-	Poly(Q, 4, Fill);
-}
-
-void ASaudHUD::Text(const FString& S, float X, float Y, float HeightPx, const FLinearColor& Colour, bool bCentre)
+void ASaudHUD::Text(const FHudText& T, const FString& S)
 {
 	UFont* Font = GEngine ? GEngine->GetLargeFont() : nullptr;
 	if (!Font || S.IsEmpty())
@@ -294,18 +218,30 @@ void ASaudHUD::Text(const FString& S, float X, float Y, float HeightPx, const FL
 		return;
 	}
 	const float Native = FMath::Max(1.f, static_cast<float>(Font->GetMaxCharHeight()));
-	const float Scale = HeightPx / Native;
-	FCanvasTextItem Item(FVector2D(X, Y), FText::FromString(S), Font, Colour);
-	Item.Scale = FVector2D(Scale, Scale);
-	// Lettering with an ink keyline, so it reads over the world as well
-	// as over a plate.
-	Item.bOutlined = true;
-	Item.OutlineColor = InkC;
-	if (bCentre)
+	const float Scale = T.Height / Native;
+	float X = T.At.X;
+	if (T.bCentre)
 	{
 		float W = 0.f, H = 0.f;
 		Canvas->StrLen(Font, S, W, H);
-		Item.Position.X -= 0.5f * W * Scale;
+		X -= 0.5f * W * Scale;
 	}
-	Canvas->DrawItem(Item);
+	// The ink stroke: the text eight times in ink, T.Stroke away round it,
+	// then the fill over them -- heavy lettering that reads over the world,
+	// a blood splat or an impact frame alike.
+	static const FVector2D Round[8] = {{1.f, 0.f}, {-1.f, 0.f}, {0.f, 1.f}, {0.f, -1.f},
+	                                   {0.7071f, 0.7071f}, {-0.7071f, 0.7071f}, {0.7071f, -0.7071f},
+	                                   {-0.7071f, -0.7071f}};
+	const FLinearColor InkC(Colour::Ink.R, Colour::Ink.G, Colour::Ink.B, 1.f);
+	const FText Line = FText::FromString(S);
+	for (const FVector2D& D : Round)
+	{
+		FCanvasTextItem Stroke(FVector2D(X, T.At.Y) + D * T.Stroke, Line, Font, InkC);
+		Stroke.Scale = FVector2D(Scale, Scale);
+		Canvas->DrawItem(Stroke);
+	}
+	FCanvasTextItem Fill(FVector2D(X, T.At.Y), Line, Font,
+	                     FLinearColor(T.Colour.R, T.Colour.G, T.Colour.B, T.Colour.A));
+	Fill.Scale = FVector2D(Scale, Scale);
+	Canvas->DrawItem(Fill);
 }

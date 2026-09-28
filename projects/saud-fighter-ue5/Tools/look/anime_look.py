@@ -53,11 +53,14 @@ same steps, line for line):
      needles, a point at the blow and full width at the edge, bone over
      dark ground and ink over light, and never over an impact frame.
   7. The impact frame: for a frame or two the whole picture goes to ink and
-     its TONE -- a blow's blood since 2026-09-28 (ember before) -- the lit
-     side the tone, the rest ink, and can be flipped. 7c: on an impact
+     its TONE -- since 2026-09-28 a blow's blood, a burning punch's ember,
+     a parry's bone (every blow's was ember before) -- the lit side the
+     tone, the rest ink, and can be flipped. 7c: on an impact
      frame with the blow on screen, focus lines run in to it and ink is
      flung round it, both by flipping the cut, so the frame stays exactly
      two colours.
+  7d. The mark (since 2026-09-28): where a heavy blow lands, a bone needle
+     star with an ink edge for the freeze, and blood drops flung out of it.
   8. HAWK FIST's fire (since 2026-09-26, "build flame fire hit for Saud"):
      the flame on Saud's fist while the talent is lit, and the burst on
      the man a burning punch hit. They are the browser's own drawings --
@@ -67,6 +70,9 @@ same steps, line for line):
      number and where it comes from), and made the look's: the glow banded,
      an ink line round the flame, and the flame drawn BEHIND the hand so
      the knuckles stay legible, which is the browser's own note on it.
+     Since 2026-09-28 its sparks are streaks, not round discs.
+  9. The wound (since 2026-09-28): when the player is hit hard, a flat,
+     torn blood border round the frame, for 0.30 s.
   8b. Film grain, boiling on twos, and the page's tooth, still -- on every
      frame but an impact frame (since 2026-09-28).
 
@@ -74,9 +80,9 @@ Steps 1-5 and the impact frame's drawing are M_Anime_Post, before
 tonemapping. Steps 6, 7c, 8 and 8b and the impact frame's hard cut are a
 second material, M_Anime_Frame, after tonemapping -- after TSR and bloom,
 which would otherwise blend a one-frame cut through their history (found by
-review, 2026-09-24). Its order: the vignette, the fire, the cut, 7c, the
-speed lines, the grain; the fire is drawn before the cut, so on an impact
-frame it is cut with everything else. Steps 6, 7 and 8 and the boil are
+review, 2026-09-24). Its order: the vignette, the fire, the mark, the cut,
+7c, the speed lines, the wound, the grain; the fire and the mark are drawn
+before the cut, so on an impact frame they are cut with everything else. Steps 6, 7 and 8 and the boil are
 driven by the game through the Material Parameter Collection MPC_Anime
 (Combat/SaudAnime.h and Combat/SaudFire.h have the timings and the names);
 everything else is a constant from LOOK, written into the HLSL when the
@@ -120,14 +126,16 @@ sun hard and its fill low.
 WHAT THE CHECKS PROVE. The boil of the brush, the grain and the splatter
 are hashes, frac(sin(x) * 43758.5453), with x up to about 3e4 radians; a
 GPU's fp32 sin does not reproduce numpy's float64 bit for bit. The checks
-on them are statistical and prove the numpy mirror, not the engine.
+on them are statistical and prove the numpy mirror, not the engine. So are
+the mark's star and drops and the wound's torn edge (the same hash).
 
 RUN
   python3 Tools/look/anime_look.py            checks: HLSL generated, the
                                              preview's steps on synthetic
                                              input (a lit sphere), sabotage
   python3 Tools/look/anime_look.py --bite     every sabotage, each must be
-                                             caught (--jobs N, default 3)
+                                             caught, once the unbroken look
+                                             passes (--jobs N, default 3)
   (in the editor) py Tools/look/anime_look.py  builds MPC_Anime,
                                              M_Anime_Post and M_Anime_Frame
                                              in /Game/Materials/Anime/
@@ -331,10 +339,11 @@ LOOK = {
     # 7. impact frame. 2026-09-26, the dark: its light half is an EMBER --
     # a blood-orange, the colour of what burns -- where it was paper
     # (a warm newsprint, 0.93 0.88 0.78). BONE is the HUD's lettering, dim
-    # parchment on dark panels; SaudHUD.cpp draws in INK and BONE, checked
-    # below.
+    # parchment; since 2026-09-28 the HUD's palette is SaudHud::Colour in
+    # SaudAnime.h, whose INK, BONE, BLOOD and EMBER are checked below.
     # 2026-09-28, the dark seinen: the impact frame's light half is its
-    # TONE -- a blow's is BLOOD -- and EMBER is kept for what burns, deeper
+    # TONE -- a blow's BLOOD, a parry's BONE, a burning punch's EMBER
+    # (MPC_Anime.ImpactTone) -- and EMBER is kept for what burns, deeper
     # (0.80, 0.26, 0.07 before: display luma 0.605 -> 0.532, a blood-orange,
     # not a pumpkin). M_Anime_Post still draws the frame's light half in
     # EMBER: it is the mask M_Anime_Frame cuts at IMPACT_CUT, and blood's
@@ -361,6 +370,31 @@ LOOK = {
     "SPLAT_TO": 0.34,
     "SPLAT_R": (0.008, 0.022),
     "SPLAT_STRETCH": 2.4,
+    # 7d. the mark where a heavy blow lands (2026-09-28; SaudAnime.h
+    # MarkHold / MarkSpark / MarkSeconds, the frames below, checked against
+    # it): a needle star in BONE with an ink edge (MARK_INK_PX, 1080 lines),
+    # MARK_PX figure pixels to its longest tip (about 32 cm), its core
+    # MARK_CORE of that, MARK_SPIKES points alternating long and short, each
+    # as sharp as MARK_SHARP; full for MARK_HOLD_F film frames, shrinking to
+    # nothing at MARK_SPARK_F; MARK_DROPS drops of BLOOD flung from
+    # MARK_DROP_FROM to MARK_DROP_TO of its radius and falling MARK_DROP_FALL,
+    # gone at MARK_F. Depth-tested as the burst is (BURST_BEHIND_CM), and
+    # drawn before the cut, so on an impact frame it is cut with the rest.
+    "MARK_PX": 26.0,
+    "MARK_CORE": 0.18,
+    "MARK_SPIKES": 14,
+    "MARK_LONG": (0.80, 1.00),
+    "MARK_SHORT": (0.45, 0.65),
+    "MARK_SHARP": 3.0,
+    "MARK_INK_PX": 2.2,
+    "MARK_DROPS": 9,
+    "MARK_DROP_FROM": 0.55,
+    "MARK_DROP_TO": 1.70,
+    "MARK_DROP_R": (0.035, 0.075),
+    "MARK_DROP_FALL": 0.35,
+    "MARK_HOLD_F": 2,
+    "MARK_SPARK_F": 4,
+    "MARK_F": 6,
     # 8. HAWK FIST's fire: what the look adds to the browser's drawing
     # (the drawing itself is FIRE, below). The flame is drawn only on
     # pixels this far BEHIND the fist's centre, so the hand itself covers
@@ -370,6 +404,11 @@ LOOK = {
     "BURST_BEHIND_CM": 40.0,
     "FIRE_INK_PX": 2.2,       # the ink line round the flame, at 1080 lines (the world's)
     "GLOW_STEPS": 3,          # the glow's gradient cut to this many flat rings
+    # a spark is drawn as a streak from where it is back to where it was
+    # this long before (2026-09-28): an ember's trail, not the round
+    # translucent disc (a bokeh bubble) the browser's circle became here.
+    # The look's own number; FIRE's sizes and timings are the browser's.
+    "SPARK_STREAK_S": 1.0 / 24.0,
     # 8b. grain and paper (2026-09-28), last in M_Anime_Frame, never on an
     # impact frame: a hash per 1080-line pixel reseeded by Boil (film grain
     # on twos), up to +-GRAIN in the mid-tones and none at black or white,
@@ -378,6 +417,21 @@ LOOK = {
     "GRAIN": 0.03,
     "PAPER": 0.025,
     "PAPER_PX": 4.0,
+    # 9. the wound (2026-09-28): when the PLAYER is hit heavy or knocked
+    # down, a flat blood border round the frame -- flat tones, not a
+    # vignette's gradient -- WOUND_BAND of the screen's height deep plus up
+    # to WOUND_TEAR more in WOUND_TEETH torn teeth per screen height, at
+    # WOUND_ALPHA, its inner edge antialiased over WOUND_AA; the depth times
+    # (0.35 + 0.65 * MPC_Anime.Wound). After the speed lines, before the
+    # grain; never on an impact frame. Held WOUND_HOLD_F film frames, gone at
+    # WOUND_S (SaudAnime.h WoundHold / WoundSeconds, checked against it).
+    "WOUND_ALPHA": 0.62,
+    "WOUND_BAND": 0.045,
+    "WOUND_TEAR": 0.022,
+    "WOUND_TEETH": 22.0,
+    "WOUND_AA": 0.0015,
+    "WOUND_S": 0.30,
+    "WOUND_HOLD_F": 1,
     # the defaults of the game-driven parameters
     "KEY": 1.0,
 }
@@ -446,9 +500,18 @@ MPC_SCALARS = (
     ("BurnDepth", 0.0),
     ("BurnScale", 0.0),
     ("BurnSeed", 0.0),      # a new set of sparks every burst
+    # the hit effects of the dark seinen (2026-09-28, SaudAnime::Param)
+    ("ImpactTone", 0.0),    # the impact frame's light half: 0 blood, 1 ember, 2 bone
+    ("Wound", 0.0),         # 0..1, the player's wound border
+    ("MarkAge", -1.0),      # seconds since a heavy blow landed; < 0: no mark
+    ("MarkX", 0.5), ("MarkY", 0.5),          # where it landed, 0..1 of the viewport, Y down
+    ("MarkDepth", 0.0),     # scene depth there, cm
+    ("MarkScale", 0.0),     # one figure pixel there, as a share of the viewport's height
+    ("MarkSeed", 0.0),      # a new star and new drops every mark
 )
 FIRE_PARAMS = ("FireHeat", "FireX", "FireY", "FireDirX", "FireDirY", "FireDepth", "FireScale", "FireTime",
                "BurnAge", "BurnX", "BurnY", "BurnDepth", "BurnScale", "BurnSeed")
+HIT_PARAMS = ("ImpactTone", "Wound", "MarkAge", "MarkX", "MarkY", "MarkDepth", "MarkScale", "MarkSeed")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
@@ -513,6 +576,17 @@ def _sub(code):
         "SPEED_A": _f(L["SPEED_ALPHA"]), "IMPACT_CUT": _f(L["IMPACT_CUT"]),
         "FIRE_BEHIND": _f(L["FIRE_BEHIND_CM"]), "BURST_BEHIND": _f(L["BURST_BEHIND_CM"]),
         "FIRE_INK": _f(L["FIRE_INK_PX"]), "GLOW_STEPS": _f(L["GLOW_STEPS"]),
+        "MARK_PX": _f(L["MARK_PX"]), "MARK_CORE": _f(L["MARK_CORE"]), "MARK_SPIKES": _f(L["MARK_SPIKES"]),
+        "MARK_LONG0": _f(L["MARK_LONG"][0]), "MARK_LONG1": _f(L["MARK_LONG"][1]),
+        "MARK_SHORT0": _f(L["MARK_SHORT"][0]), "MARK_SHORT1": _f(L["MARK_SHORT"][1]),
+        "MARK_SHARP": _f(L["MARK_SHARP"]), "MARK_INK": _f(L["MARK_INK_PX"]), "MARK_DROPS": str(int(L["MARK_DROPS"])),
+        "MARK_DROP_FROM": _f(L["MARK_DROP_FROM"]), "MARK_DROP_TO": _f(L["MARK_DROP_TO"]),
+        "MARK_DROP_R0": _f(L["MARK_DROP_R"][0]), "MARK_DROP_R1": _f(L["MARK_DROP_R"][1]),
+        "MARK_DROP_FALL": _f(L["MARK_DROP_FALL"]),
+        "MARK_HOLD": _f(L["MARK_HOLD_F"] / 24.0), "MARK_SPARK": _f(L["MARK_SPARK_F"] / 24.0),
+        "MARK_S": _f(L["MARK_F"] / 24.0),
+        "WOUND_A": _f(L["WOUND_ALPHA"]), "WOUND_BAND": _f(L["WOUND_BAND"]), "WOUND_TEAR": _f(L["WOUND_TEAR"]),
+        "WOUND_TEETH": _f(L["WOUND_TEETH"]), "WOUND_AA": _f(L["WOUND_AA"]),
     }
     import re
     names = sorted(pairs, key=len, reverse=True)
@@ -727,17 +801,21 @@ return Out;
 def hlsl_frame():
     """M_Anime_Frame's Custom node: after tonemapping, so after TSR and
     bloom, in display values. Inputs: Impact, Speed, SpeedCentreX,
-    SpeedCentreY, SpeedSeed, Boil, the FIRE_PARAMS, Scene. Returns float3.
-    In order:
+    SpeedCentreY, SpeedSeed, Boil, the FIRE_PARAMS, the HIT_PARAMS, Scene.
+    Returns float3. In order:
 
     The vignette (2026-09-26, the dark): the picture's corners taken down
        by VIGNETTE, before the fire (a flame is light) and the cut.
     8. HAWK FIST's fire (hlsl_fire()).
+    7d. The mark where a heavy blow landed (2026-09-28): a bone needle
+       star with an ink edge and blood drops, before the cut.
     7b. The impact frame cut to exactly two colours: whatever TSR's
        history, bloom or the tonemapper did to M_Anime_Post's ember and
        ink, a pixel brighter than IMPACT_CUT is the impact's TONE and the
-       rest ink, so one film frame is one hard cut. The tone is a blow's
-       blood (ToneD).
+       rest ink, so one film frame is one hard cut. The tone is
+       MPC_Anime.ImpactTone: a blow's blood, a burning punch's ember, a
+       parry's bone (ToneD). M_Anime_Post still draws the light half in
+       ember: it is only the mask the cut reads here.
     7c. With the blow on screen (Speed > 0), the cut is flipped along focus
        lines running in to it and in ink flung round it: tone for ink and
        ink for tone, so the frame stays those two colours.
@@ -745,6 +823,8 @@ def hlsl_frame():
        projects is a fraction of the viewport, which is not the buffer's
        UV under dynamic resolution or a screen percentage -- and never on
        an impact frame (they were drawn over the cut until 2026-09-28).
+    9. The wound (2026-09-28): a flat, torn blood border when the player
+       is hit hard; not on an impact frame.
     8b. Film grain and the page's tooth, not on an impact frame."""
     return _sub(r"""
 // ---- anime look (frame), generated by Tools/look/anime_look.py -- do not hand-edit
@@ -766,9 +846,45 @@ float Vr = length((VUV - 0.5) * float2(Aspect, 1.0)) / (0.5 * sqrt(Aspect * Aspe
 // black iris round the panel; an impact frame is the whole screen)
 float3 Out = S * (1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr) * (1.0 - Imp));
 """) + hlsl_fire() + _sub(r"""
-// 7b. the cut (the fire is cut with everything else): the light half in
-// the impact's tone -- a blow's blood -- and the rest ink
-float3 ToneD = BLOOD_D;
+// 7d. the mark where a heavy blow landed, in units of its radius (MARK_PX
+// figure px, scaled to the man's distance): a bone needle star with an ink
+// edge, full for MARK_HOLD s and shrinking to nothing at MARK_SPARK s, and
+// blood drops flung out of it and falling, gone at MARK_S s; on the man hit
+// and what is behind him, never on a man BURST_BEHIND cm nearer
+if (MarkAge >= 0.0 && MarkAge < MARK_S)
+{
+    float Rm = max(MARK_PX * max(MarkScale, 1e-6), 1e-9);
+    float2 Mv = (VUV - float2(MarkX, MarkY)) * float2(Aspect, 1.0) / Rm;
+    float Mb = D > MarkDepth - BURST_BEHIND ? 1.0 : 0.0;
+    float Mr = length(Mv);
+    if (MarkAge < MARK_SPARK)
+    {
+        float Mk = MarkAge < MARK_HOLD ? 1.0 : 1.0 - (MarkAge - MARK_HOLD) / (MARK_SPARK - MARK_HOLD);
+        float Mu = (atan2(Mv.y, Mv.x) / 6.2831853 + 0.5) * MARK_SPIKES;
+        float Mc = floor(Mu);
+        float Mh = frac(sin(Mc * 12.9898 + MarkSeed * 78.233) * 43758.5453);
+        float Tip = fmod(Mc, 2.0) < 0.5 ? lerp(MARK_LONG0, MARK_LONG1, Mh) : lerp(MARK_SHORT0, MARK_SHORT1, Mh);
+        float Edge = (MARK_CORE + (Tip - MARK_CORE) * pow(1.0 - abs(2.0 * frac(Mu) - 1.0), MARK_SHARP)) * Mk;
+        float Wi = MARK_INK / 1080.0 / Rm;
+        Out = lerp(Out, Mr < Edge ? BONE_D : INK_D, (Mr < Edge + Wi ? 1.0 : 0.0) * Mb);
+    }
+    float Tm = MarkAge / MARK_S;
+    for (int m = 0; m < MARK_DROPS; m++)
+    {
+        float Ha = frac(sin((m + 71.0) * 12.9898 + MarkSeed * 78.233) * 43758.5453);
+        float Hd = frac(sin((m + 83.0) * 12.9898 + MarkSeed * 78.233) * 43758.5453);
+        float Hr = frac(sin((m + 97.0) * 12.9898 + MarkSeed * 78.233) * 43758.5453);
+        float Dd = MARK_DROP_FROM + (MARK_DROP_TO - MARK_DROP_FROM) * (1.0 - (1.0 - Tm) * (1.0 - Tm)) * (0.6 + 0.4 * Hd);
+        float Rd = lerp(MARK_DROP_R0, MARK_DROP_R1, Hr) * (1.0 - 0.5 * Tm);
+        float2 Pd = float2(cos(6.2831853 * Ha), sin(6.2831853 * Ha)) * Dd + float2(0.0, MARK_DROP_FALL * Tm * Tm);
+        Out = lerp(Out, BLOOD_D, (length(Mv - Pd) < Rd ? 1.0 : 0.0) * Mb);
+    }
+}
+
+// 7b. the cut (the fire and the mark are cut with everything else): the
+// light half in the impact's tone -- a blow's blood, a burning punch's
+// ember, a parry's bone -- and the rest ink
+float3 ToneD = ImpactTone < 0.5 ? BLOOD_D : (ImpactTone < 1.5 ? EMBER_D : BONE_D);
 float Cut = dot(Out, LUMA) > IMPACT_CUT ? 1.0 : 0.0;
 Out = lerp(Out, lerp(INK_D, ToneD, Cut), Imp);
 
@@ -818,6 +934,20 @@ float Streak = (abs(frac(Ang) - 0.5) < 0.5 * Wide && Rnd >= 0.45 && Rad > Start)
 bool Dark = dot(Out, LUMA) < SPEED_LIGHT_BELOW;
 float3 LineC = Rnd > 1.0 - SPEED_RED ? BLOOD_D : (Dark ? BONE_D : INK_D);
 Out = lerp(Out, LineC, Streak * Speed * (Dark ? SPEED_A_LIGHT : SPEED_A) * (Fighter ? SPEED_ON_FIGHTER : 1.0) * (1.0 - Imp));
+
+// 9. the wound, when the player is hit hard: a flat blood border, its inner
+// edge torn -- teeth along each edge, the depth between two neighbours'
+// hashes -- deeper the harder; not on an impact frame
+if (Wound > 0.0 && Imp < 0.5)
+{
+    float Ex = min(VUV.x, 1.0 - VUV.x) * Aspect;
+    float Ey = min(VUV.y, 1.0 - VUV.y);
+    float Al = (Ex < Ey ? VUV.y : VUV.x * Aspect) * WOUND_TEETH;
+    float T0 = frac(sin(floor(Al) * 12.9898 + 7.0 * 78.233) * 43758.5453);
+    float T1 = frac(sin((floor(Al) + 1.0) * 12.9898 + 7.0 * 78.233) * 43758.5453);
+    float Band = (WOUND_BAND + WOUND_TEAR * lerp(T0, T1, frac(Al))) * (0.35 + 0.65 * Wound);
+    Out = lerp(Out, BLOOD_D, WOUND_A * (1.0 - smoothstep(Band - WOUND_AA, Band + WOUND_AA, min(Ex, Ey))));
+}
 
 // 8b. film grain, a hash per 1080-line pixel reseeded by Boil (on twos),
 // heaviest in the mid-tones; and the page's tooth, a still value noise.
@@ -874,6 +1004,7 @@ def hlsl_fire():
         "SC_HOT": _f3(_rgb(sc[0])), "SC_PALE": _f3(_rgb(sc[1])), "SA": _f(sc[0][3]),
         "FIRE_BEHIND": _f(L["FIRE_BEHIND_CM"]), "BURST_BEHIND": _f(L["BURST_BEHIND_CM"]),
         "FIRE_INK": _f(L["FIRE_INK_PX"]), "GLOW_STEPS": _f(L["GLOW_STEPS"]), "INK_D": _f3(display(L["INK"])),
+        "STREAK": _f(L["SPARK_STREAK_S"]),
     }
     return r"""
 // 8. HAWK FIST (Combat/SaudFire.h): the flame on Saud's fist, and the
@@ -956,7 +1087,14 @@ if (BurnAge >= 0.0)
         {
             float2 At = float2(cos(A) * Sp * (1.0 - exp(-%(DRAG)s * BurnAge)) / %(DRAG)s,
                                (sin(A) * Sp - %(LIFT)s) * BurnAge + 0.5 * %(GRAV)s * BurnAge * BurnAge);
-            float Hit = length(Bv - At) <= Rad ? 1.0 : 0.0;
+            // an ember's streak: from here back to where it was a film
+            // frame ago (the look's; the browser draws a round spark)
+            float Tb = max(BurnAge - %(STREAK)s, 0.0);
+            float2 Bk = float2(cos(A) * Sp * (1.0 - exp(-%(DRAG)s * Tb)) / %(DRAG)s,
+                               (sin(A) * Sp - %(LIFT)s) * Tb + 0.5 * %(GRAV)s * Tb * Tb);
+            float2 Sg = At - Bk;
+            float Hs = saturate(dot(Bv - Bk, Sg) / max(dot(Sg, Sg), 1e-6));
+            float Hit = length(Bv - Bk - Sg * Hs) <= Rad ? 1.0 : 0.0;
             Out = lerp(Out, Pale ? %(SC_PALE)s : %(SC_HOT)s, Hit * saturate((Life - BurnAge) / %(LIFE_MAX)s) * %(SA)s * Bb);
         }
     }
@@ -1181,7 +1319,10 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0):
     if impact > 0.0:
         paper = np.where(sky, 1.0, (1.0 - shad) * (1.0 - inkw))
         paper = lerp(paper, 1.0 - paper, invert)
-        out = lerp(out, lerp(ink, np.array(L["EMBER"]), paper[..., None]), impact)
+        # (tone_in_post: the tone drawn here instead -- a blow's blood is
+        # under IMPACT_CUT on the screen, so the cut would take it all to ink)
+        light = L["BLOOD"] if "tone_in_post" in _FLAGS else L["EMBER"]
+        out = lerp(out, lerp(ink, np.array(light), paper[..., None]), impact)
     return out, {"T": T, "deep": deep, "shadow": shad, "ink": inkw, "hatch": hatch,
                  "screentone": screen, "rim": rim, "weight": weight}
 
@@ -1261,21 +1402,96 @@ def fire(out, D, fire=None, burn=None):
             rad = lerp(F["SPARK_R"][0], F["SPARK_R"][1], h[3])
             if age < life:
                 drag = F["SPARK_DRAG"]
-                at = (math.cos(A) * sp * (1.0 - math.exp(-drag * age)) / drag,
-                      (math.sin(A) * sp - F["SPARK_LIFT"]) * age + 0.5 * F["SPARK_G"] * age * age)
-                hit = np.hypot(bv[..., 0] - at[0], bv[..., 1] - at[1]) <= rad
+                where = lambda t: (math.cos(A) * sp * (1.0 - math.exp(-drag * t)) / drag,
+                                   (math.sin(A) * sp - F["SPARK_LIFT"]) * t + 0.5 * F["SPARK_G"] * t * t)
+                at = where(age)
+                # an ember's streak, back to where it was SPARK_STREAK_S ago
+                bk = where(max(age - L["SPARK_STREAK_S"], 0.0))
+                sg = (at[0] - bk[0], at[1] - bk[1])
+                hs = np.clip(((bv[..., 0] - bk[0]) * sg[0] + (bv[..., 1] - bk[1]) * sg[1])
+                             / max(sg[0] * sg[0] + sg[1] * sg[1], 1e-6), 0.0, 1.0)
+                hit = np.hypot(bv[..., 0] - bk[0] - sg[0] * hs, bv[..., 1] - bk[1] - sg[1] * hs) <= rad
                 c = F["SPARK_COL"][1 if pale else 0]
                 a = hit * min(1.0, (life - age) / F["SPARK_LIFE"][1]) * c[3] * bb
                 out = lerp(out, np.array(_rgb(c)), a[..., None])
     return out
 
 
+def mark_step(out, D, mark):
+    """Step 7d on a display-valued picture: the mark where a heavy blow
+    landed. `mark` is age (s), x, y (viewport, y down), depth (cm), scale
+    (a figure px as a share of the height), seed. hlsl_frame() line for
+    line."""
+    import numpy as np
+    L = LOOK
+    age = mark["age"]
+    mark_s, spark_s, hold_s = L["MARK_F"] / 24.0, L["MARK_SPARK_F"] / 24.0, L["MARK_HOLD_F"] / 24.0
+    if age < 0.0 or age >= mark_s:
+        return out
+    H, W = out.shape[:2]
+    lerp = lambda a, b, t: a + (b - a) * t
+    fr = lambda v: v - np.floor(v)
+    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    rm = max(L["MARK_PX"] * max(mark["scale"], 1e-6), 1e-9)
+    mvx = ((xx + 0.5) / W - mark["x"]) * (W / H) / rm
+    mvy = ((yy + 0.5) / H - mark["y"]) / rm
+    mb = np.ones((H, W), bool) if "mark_through_men" in _FLAGS else D > mark["depth"] - L["BURST_BEHIND_CM"]
+    mr = np.hypot(mvx, mvy)
+    seed = mark["seed"]
+    if age < spark_s:
+        mk = 1.0 if age < hold_s else 1.0 - (age - hold_s) / (spark_s - hold_s)
+        mu = (np.arctan2(mvy, mvx) / (2 * math.pi) + 0.5) * L["MARK_SPIKES"]
+        mc = np.floor(mu)
+        mh = fr(np.sin(mc * 12.9898 + seed * 78.233) * 43758.5453)
+        tip = np.where(np.mod(mc, 2.0) < 0.5, lerp(L["MARK_LONG"][0], L["MARK_LONG"][1], mh),
+                       lerp(L["MARK_SHORT"][0], L["MARK_SHORT"][1], mh))
+        edge = (L["MARK_CORE"] + (tip - L["MARK_CORE"]) * (1.0 - np.abs(2.0 * fr(mu) - 1.0)) ** L["MARK_SHARP"]) * mk
+        wi = L["MARK_INK_PX"] / 1080.0 / rm
+        col = np.where((mr < edge)[..., None], np.array(display(L["BONE"])), np.array(display(L["INK"])))
+        if "soft_star" in _FLAGS:
+            col = 0.5 * (col + out)
+        out = np.where(((mr < edge + wi) & mb)[..., None], col, out)
+    tm = age / mark_s
+    blood = np.array(display(L["BLOOD"]))
+    for i in range(int(L["MARK_DROPS"])):
+        ha, hd, hr = (fr(math.sin((i + k) * 12.9898 + seed * 78.233) * 43758.5453) for k in (71.0, 83.0, 97.0))
+        dd = L["MARK_DROP_FROM"] + (L["MARK_DROP_TO"] - L["MARK_DROP_FROM"]) * (1.0 - (1.0 - tm) ** 2) * (0.6 + 0.4 * hd)
+        rd = lerp(L["MARK_DROP_R"][0], L["MARK_DROP_R"][1], hr) * (1.0 - 0.5 * tm)
+        px, py = math.cos(2 * math.pi * ha) * dd, math.sin(2 * math.pi * ha) * dd + L["MARK_DROP_FALL"] * tm * tm
+        out = np.where(((np.hypot(mvx - px, mvy - py) < rd) & mb)[..., None], blood, out)
+    return out
+
+
+def wound_step(out, wound):
+    """Step 9 on a display-valued picture: the wound border, `wound`
+    MPC_Anime.Wound (0..1). hlsl_frame() line for line."""
+    import numpy as np
+    L = LOOK
+    if wound <= 0.0:
+        return out
+    H, W = out.shape[:2]
+    fr = lambda v: v - np.floor(v)
+    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    u, v = (xx + 0.5) / W, (yy + 0.5) / H
+    asp = W / H
+    ex = np.minimum(u, 1.0 - u) * asp
+    ey = np.minimum(v, 1.0 - v)
+    al = np.where(ex < ey, v, u * asp) * L["WOUND_TEETH"]
+    h = lambda i: fr(np.sin(i * 12.9898 + 7.0 * 78.233) * 43758.5453)
+    t0, t1 = h(np.floor(al)), h(np.floor(al) + 1.0)
+    band = (L["WOUND_BAND"] + L["WOUND_TEAR"] * (t0 + (t1 - t0) * fr(al))) * (0.35 + 0.65 * wound)
+    a = L["WOUND_ALPHA"] * (1.0 - _smooth(band - L["WOUND_AA"], band + L["WOUND_AA"], np.minimum(ex, ey)))
+    return out + (np.array(display(L["BLOOD"])) - out) * a[..., None]
+
+
 def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None, fist=None, burn=None,
-          boil=0.0, tone=None):
+          boil=0.0, tone=0.0, mark=None, wound=0.0):
     """M_Anime_Frame's steps on a display-valued picture S (H,W,3, 0..1),
-    in its order: the vignette, the fire (needs D, the depth), the impact
-    frame's cut and 7c, the speed lines, the grain and the paper. `tone`
-    is the impact's light half, a linear colour: a blow's BLOOD if None."""
+    in its order: the vignette, the fire (needs D, the depth), the mark
+    (needs D), the impact frame's cut and 7c, the speed lines, the wound,
+    the grain and the paper. `tone` is MPC_Anime.ImpactTone -- 0 a blow's
+    BLOOD, 1 a burning punch's EMBER, 2 a parry's BONE (None is 0); `mark`
+    a dict for mark_step(); `wound` MPC_Anime.Wound."""
     import numpy as np
     L = LOOK
     H, W = S.shape[:2]
@@ -1294,10 +1510,15 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
     out = S * (1.0 - vig * _smooth(L["VIGNETTE_FROM"], L["VIGNETTE_TO"], vr))[..., None]
     if (fist is not None or burn is not None) and D is not None:
         out = fire(out, D, fist, burn)
+    if mark is not None and D is not None:
+        out = mark_step(out, D, mark)
     ink_d = np.array(display(L["INK"]))
-    tone_d = np.array(display(L["BLOOD"] if tone is None else tone))
-    if "ember_blows" in _FLAGS:
+    tone = 0.0 if tone is None else float(tone)
+    tone_d = np.array(display(L["BLOOD"] if tone < 0.5 else (L["EMBER"] if tone < 1.5 else L["BONE"])))
+    if "ember_blows" in _FLAGS and tone < 0.5:
         tone_d = np.array(display(L["EMBER"]))
+    if "blood_parry" in _FLAGS and tone >= 1.5:
+        tone_d = np.array(display(L["BLOOD"]))
     # the blow, on the screen
     vx = ((xv + 0.5) / W - centre[0]) * asp
     vy = (yv + 0.5) / H - centre[1]
@@ -1347,6 +1568,9 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
         a = (streak * speed * np.where(dark, L["SPEED_ALPHA_LIGHT"], L["SPEED_ALPHA"])
              * np.where(fighter, L["SPEED_ON_FIGHTER"], 1.0))
         out = lerp(out, line, a[..., None])
+    if not imp or "wound_on_impact" in _FLAGS:
+        # 9. the wound: a flat, torn blood border, not on an impact frame
+        out = wound_step(out, wound)
     if not imp:
         # 8b. film grain on twos, heaviest in the mid-tones, and the page's
         # tooth, still
@@ -1369,15 +1593,15 @@ def to_display(lin):
 
 
 def look(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, speed=0.0,
-         centre=(0.5, 0.5), seed=0.0, fist=None, burn=None, boil=0.0, tone=None):
+         centre=(0.5, 0.5), seed=0.0, fist=None, burn=None, boil=0.0, tone=0.0, mark=None, wound=0.0):
     """Both materials, in the engine's order: M_Anime_Post, the
     tonemapper's stand-in, M_Anime_Frame. Returns display values (0..1)
     and M_Anime_Post's masks. `fist` and `burn` are HAWK FIST's (fire());
-    `boil` is MPC_Anime.Boil, `tone` the impact frame's light half
+    `boil` is MPC_Anime.Boil; `tone`, `mark` and `wound` the hit effects
     (frame())."""
     out, m = preview(C, A, N, D, fighter, key=key, impact=impact, invert=invert, boil=boil)
     return frame(to_display(out), fighter, impact=impact, speed=speed, centre=centre, seed=seed,
-                 D=D, fist=fist, burn=burn, boil=boil, tone=tone), m
+                 D=D, fist=fist, burn=burn, boil=boil, tone=tone, mark=mark, wound=wound), m
 
 
 def to_8bit(disp):
@@ -1523,7 +1747,15 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          "no_grain", "grain_bias", "static_grain",
          "lines_through_cut", "ember_blows", "no_focus", "blunt_focus", "no_splatter", "far_splatter",
          "laser_lines", "ink_on_dark", "all_blood",
-         "old_fog", "old_sky", "soft_sun", "bright_fill")
+         "old_fog", "old_sky",
+         # 2026-09-28, the hit effects: the tone, the mark, the wound, the
+         # sparks, the HUD's palette and the order OnBlow and OnBurn come in
+         "blood_parry", "tone_in_post",
+         "no_mark", "short_hold", "soft_star", "lingering_mark", "dry_drops", "still_drops", "long_drops",
+         "mark_through_men",
+         "wound_centre", "soft_wound", "pale_wound", "straight_wound", "wound_on_impact", "round_sparks",
+         "hud_blood_drift", "wound_timing", "burn_before_blow",
+         "soft_sun", "bright_fill")
 
 
 def check(bite=None, rig=None):
@@ -1626,6 +1858,34 @@ def check(bite=None, rig=None):
             LOOK["HAZE"] = (0.13, 0.145, 0.15)
         if bite == "old_sky":
             LOOK["SKY_LEVEL"] = 0.30; LOOK["SKY_TINT"] = (0.86, 0.93, 1.00)
+        if bite == "no_mark":
+            LOOK["MARK_PX"] = 0.0
+        if bite == "lingering_mark":
+            LOOK["MARK_SPARK_F"] = 24
+        if bite == "still_drops":
+            LOOK["MARK_DROP_TO"] = LOOK["MARK_DROP_FROM"]
+        if bite == "soft_wound":
+            LOOK["WOUND_AA"] = 0.02
+        if bite == "pale_wound":
+            LOOK["WOUND_ALPHA"] = 0.30
+        if bite == "wound_timing":
+            LOOK["WOUND_S"] = 0.50
+        if bite == "short_hold":
+            LOOK["MARK_HOLD_F"] = 1
+        if bite == "dry_drops":
+            LOOK["MARK_DROPS"] = 0
+        if bite == "long_drops":
+            LOOK["MARK_F"] = 12
+        if bite == "wound_centre":
+            LOOK["WOUND_BAND"] = 0.6
+        if bite == "straight_wound":
+            LOOK["WOUND_TEAR"] = 0.0
+        if bite == "round_sparks":
+            LOOK["SPARK_STREAK_S"] = 0.0
+        if bite == "hud_blood_drift":
+            LOOK["BLOOD"] = (0.2705, 0.0070, 0.0144)      # #8E1420, the look's blood until 2026-09-28
+        if bite in ("blood_parry", "tone_in_post", "mark_through_men", "wound_on_impact", "soft_star"):
+            _FLAGS.add(bite)
         if bite in ("iris_impact", "rim_all_round", "rim_on_world", "tone_on_lit", "tone_in_deep",
                     "static_brush", "grain_bias", "static_grain", "lines_through_cut", "ember_blows",
                     "blunt_focus", "far_splatter"):
@@ -1747,22 +2007,39 @@ def check(bite=None, rig=None):
         #    2026-09-28 (ember before, and the two told apart by luma, which
         #    blood -- 0.24 on the screen -- never passes: they are told apart
         #    by CIELAB distance now)
-        f0, _ = look(C, A, N, D, on, impact=1.0)
-        f1, _ = look(C, A, N, D, on, impact=1.0, invert=1.0)
-        colours = np.unique(np.round(f0.reshape(-1, 3), 4), axis=0)
-        de = _delta_e(colours[0], colours[-1]) if len(colours) == 2 else 0.0
-        assert len(colours) == 2 and de >= 50.0, \
-            "the impact frame is exactly two colours, far apart (%d, dE %.0f)" % (len(colours), de)
+        #    Since 2026-09-28 every tone: a blow's blood (0), a burning
+        #    punch's ember (1), a parry's bone (2) -- each exactly {ink, its
+        #    tone}, the tone lighting the lit side and ink when flipped.
         inkd, bloodd = np.array(display(LOOK["INK"])), np.array(display(LOOK["BLOOD"]))
         is_c = lambda f, c: np.abs(f - c).max(axis=2) < 1e-6
-        assert (is_c(f0, inkd) | is_c(f0, bloodd)).all() and bloodd[0] > 4.0 * bloodd[1], \
-            "a blow's impact frame is ink and its blood"
+        hue = lambda c: math.degrees(math.atan2(math.sqrt(3) * (c[1] - c[2]), 2 * c[0] - c[1] - c[2]))
+        frames = {}
+        for t in (0.0, 1.0, 2.0):
+            ft, _ = look(C, A, N, D, on, impact=1.0, tone=t)
+            fti, _ = look(C, A, N, D, on, impact=1.0, invert=1.0, tone=t)
+            colours = np.unique(np.round(ft.reshape(-1, 3), 4), axis=0)
+            de = _delta_e(colours[0], colours[-1]) if len(colours) == 2 else 0.0
+            assert len(colours) == 2 and de >= 50.0, \
+                "the impact frame is exactly two colours, far apart (tone %d: %d, dE %.0f)" % (t, len(colours), de)
+            flat_px = ft.reshape(-1, 3)
+            tc = flat_px[np.argmax(flat_px @ luma)]
+            assert (is_c(ft, inkd) | is_c(ft, tc)).all() and is_c(ft, inkd).any(), "an impact frame is ink and its tone"
+            assert is_c(ft, tc)[lit].mean() > 0.95 and is_c(fti, inkd)[lit].mean() > 0.95, "and it flips"
+            frames[t] = (ft, tc)
+        f0, tc0 = frames[0.0]
+        dh = abs((hue(tc0) - hue(bloodd) + 180.0) % 360.0 - 180.0)
+        assert dh <= 15.0 and tc0[0] > 4.0 * tc0[1], "a blow's impact frame is blood (hue %.0f off, r/g %.1f)" % (
+            dh, tc0[0] / max(tc0[1], 1e-6))
+        tc1 = frames[1.0][1]
+        assert 10.0 <= hue(tc1) <= 40.0 and tc1.max() - tc1.min() > 0.4, \
+            "a burning punch's frame is an ember, not paper (hue %.0f, chroma %.2f)" % (hue(tc1), tc1.max() - tc1.min())
+        tc2 = frames[2.0][1]
+        assert tc2.max() - tc2.min() < 0.1 and tc2 @ luma > 0.5, "a parry's frame is bone"
         em = np.array(LOOK["EMBER"])
         assert em[0] > 2.0 * em[1] and em[1] > em[2], "what burns is an ember, not paper"
-        assert is_c(f0, bloodd)[lit].mean() > 0.95 and is_c(f1, inkd)[lit].mean() > 0.95, "and it flips"
         # ... and fills the screen: the vignette does not cut an iris into
         # it (the sky strip across the top is tone-lit edge to edge)
-        assert is_c(f0, bloodd)[:n // 5].mean() > 0.99, "the impact frame is the whole screen, not an iris"
+        assert is_c(f0, tc0)[:n // 5].mean() > 0.99, "the impact frame is the whole screen, not an iris"
         # 6. speed lines: clear at the blow, streaked away from it, not on a fighter
         base, _ = look(C, A, N, D, on)
         sp, _ = look(C, A, N, D, on, speed=1.0, centre=(0.5, 0.5), seed=3.0)
@@ -1802,75 +2079,10 @@ def check(bite=None, rig=None):
         assert np.abs(base_v[n // 2, n // 2] - plain[n // 2, n // 2]).max() < 1e-9, "the vignette leaves the middle"
         corner = (base_v[:c, :c] @ luma).mean() / max((plain[:c, :c] @ luma).mean(), 1e-6)
         assert corner < 0.65, "the vignette takes the corners into the dark (%.2f)" % corner
-        # 8. HAWK FIST. The flame on the small ball in front of the sphere
-        #    (a fist over a chest, 6 figure px across at this scale),
-        #    pointing right: it is drawn on what is behind the fist -- the
-        #    chest, the wall -- and never on the fist.
-        base2, _ = look(C2, A2, N2, D2, on2)
-        fx, fy = (0.20 + 1) / 2, (0.25 + 1) / 2                # the ball's centre on the screen
-        fdepth = 300.0 - 0.507 * 100.0 - 10.0                  # the ball's centre, behind its surface
-        scale = 0.012                                           # a figure px: 1.2 % of the height
-        fist = dict(heat=1.0, x=fx, y=fy, dir=(1.0, 0.0), depth=fdepth, scale=scale, time=0.3)
-        lit2, _ = look(C2, A2, N2, D2, on2, fist=fist)
-        cold, _ = look(C2, A2, N2, D2, on2, fist=dict(fist, heat=0.0))
-        diff = np.abs(lit2 - base2).sum(axis=2) > 0.05
-        assert np.abs(cold - base2).max() < 1e-9, "no flame on a cold fist"
-        u2, v2 = (xx + 0.5) / n, (yy + 0.5) / n
-        hand = (u - 0.20) ** 2 + (v - 0.25) ** 2 < 0.13 ** 2
-        assert diff[hand].mean() == 0.0, "the flame is behind the hand: the knuckles stay legible"
-        px = lambda q: q * scale                                # figure px to viewport heights
-        ahead = (u2 > fx + px(8)) & (u2 < fx + px(12)) & (np.abs(v2 - fy) < px(1.5))
-        assert diff[ahead].mean() > 0.9, "the tongues run out ahead of the fist along the forearm"
-        farf = (u2 < fx - px(32)) | (u2 > fx + px(32)) | (np.abs(v2 - fy) > px(32))
-        assert diff[farf].mean() == 0.0, "and nothing further than the glow"
-        # flat: on a flat wall the fire adds a handful of colours (the
-        # glow's rings, the three tongues, the ink), not a gradient
-        Cw, Aw, Nw, Dw, onw = _flat(n, 0.30)
-        # (counted without the vignette, which shades the wall under it a
-        # little differently in every ring of pixels, and without the grain
-        # and the paper, which touch every pixel)
-        keep_f = LOOK["VIGNETTE"], LOOK["GRAIN"], LOOK["PAPER"]
-        LOOK["VIGNETTE"], LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0, 0.0
-        wall0, _ = look(Cw, Aw, Nw, Dw, onw)
-        wall1, _ = look(Cw, Aw, Nw, Dw, onw, fist=dict(fist, x=0.5, y=0.5, depth=200.0))
-        LOOK["VIGNETTE"], LOOK["GRAIN"], LOOK["PAPER"] = keep_f
-        dw = np.abs(wall1 - wall0).sum(axis=2) > 0.05
-        # (the glow's three rings, each tongue over each ring it crosses,
-        # the ink: at most sixteen; a gradient is hundreds)
-        cols = np.unique(np.round(wall1[dw], 3), axis=0)
-        assert 4 <= len(cols) <= 16, "the flame is flat tones, %d colours" % len(cols)
-        inkd = np.array(display(LOOK["INK"]))
-        inked = dw & (np.abs(wall1 - inkd).sum(axis=2) < 0.02)
-        assert inked.sum() > 100, "and there is an ink line round it"
-        # the burst on the man hit: a ring growing from the point, sparks
-        # flying out of it and dying, nothing after the last one; a man
-        # nearer the camera hides it
-        bx, by, bscale = 0.5, 0.5, 0.004
-        burn = dict(age=0.10, x=bx, y=by, depth=240.0, scale=bscale, seed=3.0)
-        early, _ = look(C, A, N, D, on, burn=dict(burn, age=0.02))
-        mid, _ = look(C, A, N, D, on, burn=burn)
-        late, _ = look(C, A, N, D, on, burn=dict(burn, age=0.40))
-        over_b, _ = look(C, A, N, D, on, burn=dict(burn, age=0.60))
-        rr2 = np.hypot(u2 - bx, v2 - by) / bscale                  # figure px from the burst
-        de_ = np.abs(early - base).sum(axis=2) > 0.05
-        dm = np.abs(mid - base).sum(axis=2) > 0.05
-        dl = np.abs(late - base).sum(axis=2) > 0.05
-        assert np.abs(over_b - base).max() < 1e-9, "the burst is over after the last spark"
-        assert de_.sum() > 0 and dm.sum() > 0 and dl.sum() > 0, "the burst is drawn while it lasts"
-        ring_r = lambda age: FIRE["RING_FROM"] + (FIRE["RING_TO"] - FIRE["RING_FROM"]) * age / FIRE["RING_S"]
-        ringc = np.array(_rgb(FIRE["RING_COL"]))
-        ell = np.hypot(u2 - bx, (v2 - by) / FIRE["RING_SQUASH"]) / bscale
-        on_ring = dm & (np.abs(mid - lerp(base, ringc, (1 - 0.10 / FIRE["RING_S"]) * FIRE["RING_A"])).sum(axis=2) < 0.05)
-        assert on_ring.sum() > 50 and abs(np.median(ell[on_ring]) - ring_r(0.10)) < 2.0, "the ring is at its radius for its age"
-        band = lambda age: np.abs(ell - ring_r(age)) <= 0.5 * (FIRE["RING_W"] * (1 - age / FIRE["RING_S"]) + 1) + 1.0
-        se, sl = de_ & ~band(0.02), dl                             # the ring is gone by 0.40
-        assert se.sum() > 0 and sl.sum() > 0, "there are sparks early and late"
-        assert np.median(rr2[sl]) > 2.0 * np.median(rr2[se]), "the sparks fly out from the blow"
-        hidden, _ = look(C, A, N, D, on, burn=dict(burn, x=0.75, depth=900.0))   # the man hit is behind the sphere
-        dh = np.abs(hidden - base).sum(axis=2) > 0.05
-        assert dh[on].sum() == 0 and dh[~on].sum() > 0, "a man in front hides the burst on the man behind him"
-
         # ------------------------------------------------ 2026-09-28, the dark seinen
+        # (before the fire: the flame's flat-tones count is taken on a lit
+        # wall, and screentone let onto the lit side would be caught there
+        # first, for the wrong reason)
         # 1b. the rim: on a band of the sphere 3.6-4.4 px inside its edge
         #     (past his heaviest line), in the sector away from the key and
         #     the one toward it, against the same sphere with no rim
@@ -1951,6 +2163,75 @@ def check(bite=None, rig=None):
         assert abs(dg.mean()) < 0.01, "neither lightens nor darkens the picture (%.4f)" % dg.mean()
         boiled = (np.abs(g0 - g7).sum(axis=2) > 1e-6).mean()
         assert boiled > 0.5, "the grain boils on twos (%.2f of the pixels)" % boiled
+        # 8. HAWK FIST. The flame on the small ball in front of the sphere
+        #    (a fist over a chest, 6 figure px across at this scale),
+        #    pointing right: it is drawn on what is behind the fist -- the
+        #    chest, the wall -- and never on the fist.
+        base2, _ = look(C2, A2, N2, D2, on2)
+        fx, fy = (0.20 + 1) / 2, (0.25 + 1) / 2                # the ball's centre on the screen
+        fdepth = 300.0 - 0.507 * 100.0 - 10.0                  # the ball's centre, behind its surface
+        scale = 0.012                                           # a figure px: 1.2 % of the height
+        fist = dict(heat=1.0, x=fx, y=fy, dir=(1.0, 0.0), depth=fdepth, scale=scale, time=0.3)
+        lit2, _ = look(C2, A2, N2, D2, on2, fist=fist)
+        cold, _ = look(C2, A2, N2, D2, on2, fist=dict(fist, heat=0.0))
+        diff = np.abs(lit2 - base2).sum(axis=2) > 0.05
+        assert np.abs(cold - base2).max() < 1e-9, "no flame on a cold fist"
+        u2, v2 = (xx + 0.5) / n, (yy + 0.5) / n
+        hand = (u - 0.20) ** 2 + (v - 0.25) ** 2 < 0.13 ** 2
+        assert diff[hand].mean() == 0.0, "the flame is behind the hand: the knuckles stay legible"
+        px = lambda q: q * scale                                # figure px to viewport heights
+        ahead = (u2 > fx + px(8)) & (u2 < fx + px(12)) & (np.abs(v2 - fy) < px(1.5))
+        assert diff[ahead].mean() > 0.9, "the tongues run out ahead of the fist along the forearm"
+        farf = (u2 < fx - px(32)) | (u2 > fx + px(32)) | (np.abs(v2 - fy) > px(32))
+        assert diff[farf].mean() == 0.0, "and nothing further than the glow"
+        # flat: on a flat wall the fire adds a handful of colours (the
+        # glow's rings, the three tongues, the ink), not a gradient
+        Cw, Aw, Nw, Dw, onw = _flat(n, 0.30)
+        # (counted without the vignette, which shades the wall under it a
+        # little differently in every ring of pixels, and without the grain
+        # and the paper, which touch every pixel)
+        keep_f = LOOK["VIGNETTE"], LOOK["GRAIN"], LOOK["PAPER"]
+        LOOK["VIGNETTE"], LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0, 0.0
+        wall0, _ = look(Cw, Aw, Nw, Dw, onw)
+        wall1, _ = look(Cw, Aw, Nw, Dw, onw, fist=dict(fist, x=0.5, y=0.5, depth=200.0))
+        LOOK["VIGNETTE"], LOOK["GRAIN"], LOOK["PAPER"] = keep_f
+        dw = np.abs(wall1 - wall0).sum(axis=2) > 0.05
+        # (the glow's three rings, each tongue over each ring it crosses,
+        # the ink: at most sixteen; a gradient is hundreds)
+        cols = np.unique(np.round(wall1[dw], 3), axis=0)
+        assert 4 <= len(cols) <= 16, "the flame is flat tones, %d colours" % len(cols)
+        inkd = np.array(display(LOOK["INK"]))
+        inked = dw & (np.abs(wall1 - inkd).sum(axis=2) < 0.02)
+        assert inked.sum() > 100, "and there is an ink line round it"
+        # the burst on the man hit: a ring growing from the point, sparks
+        # flying out of it and dying, nothing after the last one; a man
+        # nearer the camera hides it
+        bx, by, bscale = 0.5, 0.5, 0.004
+        burn = dict(age=0.10, x=bx, y=by, depth=240.0, scale=bscale, seed=3.0)
+        early, _ = look(C, A, N, D, on, burn=dict(burn, age=0.02))
+        mid, _ = look(C, A, N, D, on, burn=burn)
+        late, _ = look(C, A, N, D, on, burn=dict(burn, age=0.40))
+        over_b, _ = look(C, A, N, D, on, burn=dict(burn, age=0.60))
+        rr2 = np.hypot(u2 - bx, v2 - by) / bscale                  # figure px from the burst
+        de_ = np.abs(early - base).sum(axis=2) > 0.05
+        dm = np.abs(mid - base).sum(axis=2) > 0.05
+        dl = np.abs(late - base).sum(axis=2) > 0.05
+        assert np.abs(over_b - base).max() < 1e-9, "the burst is over after the last spark"
+        assert de_.sum() > 0 and dm.sum() > 0 and dl.sum() > 0, "the burst is drawn while it lasts"
+        ring_r = lambda age: FIRE["RING_FROM"] + (FIRE["RING_TO"] - FIRE["RING_FROM"]) * age / FIRE["RING_S"]
+        ringc = np.array(_rgb(FIRE["RING_COL"]))
+        ell = np.hypot(u2 - bx, (v2 - by) / FIRE["RING_SQUASH"]) / bscale
+        on_ring = dm & (np.abs(mid - lerp(base, ringc, (1 - 0.10 / FIRE["RING_S"]) * FIRE["RING_A"])).sum(axis=2) < 0.05)
+        assert on_ring.sum() > 50 and abs(np.median(ell[on_ring]) - ring_r(0.10)) < 2.0, "the ring is at its radius for its age"
+        band = lambda age: np.abs(ell - ring_r(age)) <= 0.5 * (FIRE["RING_W"] * (1 - age / FIRE["RING_S"]) + 1) + 1.0
+        se, sl = de_ & ~band(0.02), dl                             # the ring is gone by 0.40
+        assert se.sum() > 0 and sl.sum() > 0, "there are sparks early and late"
+        assert np.median(rr2[sl]) > 2.0 * np.median(rr2[se]), "the sparks fly out from the blow"
+        hidden, _ = look(C, A, N, D, on, burn=dict(burn, x=0.75, depth=900.0))   # the man hit is behind the sphere
+        dh = np.abs(hidden - base).sum(axis=2) > 0.05
+        assert dh[on].sum() == 0 and dh[~on].sum() > 0, "a man in front hides the burst on the man behind him"
+
+        # ------------------------------------------------ 2026-09-28, the impact frame
         # 7. the impact frame the game draws: impact AND speed lines at once
         #    (SaudAnime::ForBlow gives every impact speed lines, full for
         #    their first 35 %) -- 14,944 colours until 2026-09-28
@@ -1976,9 +2257,98 @@ def check(bite=None, rig=None):
             "the splatter lands no further than it flies (%.3f)" % (rr[spl].max() if spl.any() else 0.0)
         assert spl[on].sum() > 300, "ink splatter round the blow, over the man (%d px)" % spl[on].sum()
 
+        # ------------------------------------------------ 2026-09-28, the hit effects
+        # 7. ...and with the mark and the wound up as well: the mark is cut
+        #    with everything else, the wound is not drawn on an impact frame
+        mk0 = dict(age=0.0, x=0.5, y=0.5, depth=240.0, scale=0.004, seed=3.0)
+        fm, _ = look(C, A, N, D, on, impact=1.0, speed=1.0, centre=(0.5, 0.5), seed=3.0, mark=mk0, wound=1.0)
+        cols = np.unique(np.round(fm.reshape(-1, 3), 4), axis=0)
+        assert len(cols) == 2, "an impact frame with the mark and the wound up is still two colours (%d)" % len(cols)
+        # (the mark, the wound and the sparks on a flat wall, without the
+        # vignette, the grain and the paper, which touch every pixel; at half
+        # the sphere's size, 360 lines, which is plenty for them)
+        nh = n // 2
+        yh, xh = np.mgrid[0:nh, 0:nh]
+        Cw, Aw, Nw, Dw, onw = _flat(nh, 0.30)
+        keep_h = LOOK["VIGNETTE"], LOOK["GRAIN"], LOOK["PAPER"]
+        LOOK["VIGNETTE"], LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0, 0.0
+        wall, _ = look(Cw, Aw, Nw, Dw, onw)
+        mk = dict(age=0.0, x=0.5, y=0.5, depth=900.0, scale=0.004, seed=5.0)
+        on_wall = lambda **kw: look(Cw, Aw, Nw, Dw, onw, **kw)[0]
+        drops, LOOK["MARK_DROPS"] = LOOK["MARK_DROPS"], 0
+        s0, s1, s4 = (on_wall(mark=dict(mk, age=a)) for a in (0.0, 1.9 / 24.0, 4.0 / 24.0))
+        LOOK["MARK_DROPS"] = drops
+        d1, d5, d6 = (on_wall(mark=dict(mk, age=a)) for a in (1.0 / 24.0, 5.0 / 24.0, 6.0 / 24.0))
+        w1 = on_wall(wound=1.0)
+        # (the sparks alone: the ring off)
+        ring_a, FIRE["RING_A"] = FIRE["RING_A"], 0.0
+        sp0 = on_wall(burn=dict(age=0.20, x=0.5, y=0.5, depth=900.0, scale=0.004, seed=3.0))
+        streak, LOOK["SPARK_STREAK_S"] = LOOK["SPARK_STREAK_S"], 0.0
+        sp1 = on_wall(burn=dict(age=0.20, x=0.5, y=0.5, depth=900.0, scale=0.004, seed=3.0))
+        LOOK["SPARK_STREAK_S"] = streak
+        FIRE["RING_A"] = ring_a
+        LOOK["VIGNETTE"], LOOK["GRAIN"], LOOK["PAPER"] = keep_h
+        # 7d. the mark: a bone star with an ink edge where the blow landed,
+        #     standing through the freeze (2/24 s), gone by 4/24; its blood
+        #     drops flung out and falling, gone at 6/24
+        bone_d = np.array(display(LOOK["BONE"]))
+        ch0 = np.abs(s0 - wall).sum(axis=2) > 1e-6
+        ch1 = np.abs(s1 - wall).sum(axis=2) > 1e-6
+        assert ch0.sum() > 300, "the mark is drawn where the blow landed (%d px)" % ch0.sum()
+        assert ch1.sum() == ch0.sum(), "it stands through the freeze (%d px, then %d)" % (ch0.sum(), ch1.sum())
+        starry = (is_c(s0, bone_d) | is_c(s0, inkd))[ch0].mean()
+        assert starry >= 0.8, "the star is bone with an ink edge (%.2f)" % starry
+        assert np.abs(s4 - wall).max() < 1e-9, "the star is gone by 4/24 s"
+        rm = np.hypot(((xh + 0.5) / nh - 0.5), ((yh + 0.5) / nh - 0.5)) / (LOOK["MARK_PX"] * mk["scale"])
+        b1, b5 = is_c(d1, bloodd), is_c(d5, bloodd)
+        assert b1.sum() > 20 and b5.sum() > 20, "the mark's drops are blood (%d, %d px)" % (b1.sum(), b5.sum())
+        fly = np.median(rm[b5]) / max(np.median(rm[b1]), 1e-6)
+        assert fly > 1.5, "and are flung out from it (%.2fx as far at 5/24 s as at 1/24)" % fly
+        assert np.abs(d6 - wall).max() < 1e-9, "nothing is left of the mark at 6/24 s"
+        hid, _ = look(C, A, N, D, on, mark=dict(mk, x=0.75, depth=900.0))     # the man hit is behind the sphere
+        dmh = np.abs(hid - base).sum(axis=2) > 1e-6
+        assert dmh[on].sum() == 0 and dmh[~on].sum() > 0, "a man in front hides the mark on the man behind him"
+        # 9. the wound: the middle of the screen untouched; a border of blood
+        #    all round it, flat (a few tones and a thin antialiased edge, not
+        #    a vignette's gradient), its inner edge torn
+        u01, v01 = (xh + 0.5) / nh, (yh + 0.5) / nh
+        c0, c1 = int(0.2 * nh), int(0.8 * nh)
+        assert np.abs(w1 - wall)[c0:c1, c0:c1].max() < 1e-9, "the wound leaves the middle of the screen alone"
+        edge_d = np.minimum(np.minimum(u01, 1 - u01), np.minimum(v01, 1 - v01))
+        chw = np.abs(w1 - wall).sum(axis=2) > 1e-6
+        aw = ((w1 - wall) @ luma) / ((bloodd - wall) @ luma)
+        soft = chw & (aw < LOOK["WOUND_ALPHA"] - 1e-3)
+        share_aa = soft.sum() / max(chw.sum(), 1)
+        tones = len(np.unique(np.round(w1[chw & ~soft], 3), axis=0))
+        assert share_aa <= 0.15 and tones <= 6, \
+            "the wound is flat tones, not a gradient (%.2f of it antialiased, %d tones)" % (share_aa, tones)
+        inb = edge_d < LOOK["WOUND_BAND"]
+        halfway = (np.abs(w1 - bloodd).sum(axis=2) <= 0.5 * np.abs(wall - bloodd).sum(axis=2))[inb].mean()
+        assert halfway >= 0.9, "the wound is a border of blood (%.2f of it at least halfway)" % halfway
+        cols_top = slice(int(0.2 * nh), int(0.8 * nh))
+        depth_top = (aw[: nh // 2, cols_top] >= 0.5 * LOOK["WOUND_ALPHA"]).sum(axis=0) / nh   # the top edge's
+        assert np.ptp(depth_top) >= 0.6 * LOOK["WOUND_TEAR"] - 1e-9 and np.ptp(depth_top) > 0, \
+            "the wound's inner edge is torn (%.4f of the height)" % np.ptp(depth_top)
+        # 8. HAWK FIST's sparks are streaks, an ember's trail, not round
+        #    discs: at 0.20 s, once they have flown apart, they cover at
+        #    least 1.5 times what the same sparks drawn round do (1.77x
+        #    measured; at 0.05 s they are still one blob, 1.02x)
+        a_st = (np.abs(sp0 - wall).sum(axis=2) > 1e-6).sum()
+        a_rd = (np.abs(sp1 - wall).sum(axis=2) > 1e-6).sum()
+        grow = a_st / max(a_rd, 1)
+        assert grow >= 1.5, "HAWK FIST's sparks are streaks, not discs (%.2fx)" % grow
+
+        # the names and numbers the C++ shares with this (SaudAnime.h,
+        # SaudFire.h), the HUD's palette, and the order OnBlow and OnBurn
+        # arrive in -- here, so a sabotage can bite them
+        _check_names(bite)
+
         # the world's lighting (build_world.WORLD_RIG, the WORLD's own; read,
         # not set, here): a hard sun, so cast shadows are ink shapes and not
-        # smears, and a low fill, so a shadow side falls to the dark tones
+        # smears, and a low fill, so a shadow side falls to the dark tones.
+        # (The fog's hue is not held here: the world takes LOOK["HAZE"] and
+        # LOOK["HAZE_NEAR_CM"] for its height fog itself, and its own check
+        # is the one that guards the two staying one air.)
         rig = _world_rig() if rig is None else rig
         if bite == "soft_sun":
             rig["angle"] = 8.0
@@ -2017,9 +2387,12 @@ def _delta_e(a, b):
     return math.dist(lab(a), lab(b))
 
 
-def _check_names():
+def _check_names(bite=None):
     """MPC_Anime's parameters are the names Combat/SaudAnime.h writes, and
-    both materials read the ones they are given."""
+    both materials read the ones they are given; the numbers the C++ shares
+    with this table (the fire's, the mark's and the wound's timings, the
+    HUD's ink, bone, blood and ember) are this table's; and a burning
+    punch's OnBurn reaches the look after the same blow's OnBlow."""
     h = open(os.path.join(ROOT, "Source", "SaudFighter", "Combat", "SaudAnime.h")).read()
     fh = open(os.path.join(ROOT, "Source", "SaudFighter", "Combat", "SaudFire.h")).read()
     for name, _ in MPC_SCALARS:
@@ -2060,14 +2433,47 @@ def _check_names():
                               r"|\b(?:SOFT|INK|EMBER|VIGNETTE|HAZE|BLOOD|BONE|GRAIN|PAPER)\b", code))
         assert not left, "placeholders left in %s: %s" % (path, sorted(left))
         assert "EyeAdaptationLookup" not in code, "the buffer is pre-exposed; do not expose it twice"
-    # the HUD is drawn in the look's own ink and bone
-    hud = open(os.path.join(ROOT, "Source", "SaudFighter", "Game", "SaudHUD.cpp")).read()
-    for var, key in (("InkC", "INK"), ("BoneC", "BONE")):
-        m = re.search(r"FLinearColor %s\(([0-9.]+)f, ([0-9.]+)f, ([0-9.]+)f" % var, hud)
-        assert m, "SaudHUD.cpp has no %s" % var
+    # the HUD is drawn in the look's own ink, bone, blood and ember:
+    # SaudHud::Colour in SaudAnime.h (since 2026-09-28; SaudHUD.cpp's InkC
+    # and BoneC before, which no longer exist)
+    pal = h[h.index("namespace Colour"):]
+    pal = pal[:pal.index("\n\t}")]
+    for var, key in (("Ink", "INK"), ("Bone", "BONE"), ("Blood", "BLOOD"), ("Ember", "EMBER")):
+        m = re.search(r"constexpr FRgba %s\{([0-9.]+)f, ([0-9.]+)f, ([0-9.]+)f" % var, pal)
+        assert m, "SaudAnime.h's SaudHud::Colour has no %s" % var
         got = tuple(float(v) for v in m.groups())
         assert all(abs(a - b) < 1e-6 for a, b in zip(got, LOOK[key])), (
-            "SaudHUD.cpp's %s is %s, the look's %s is %s" % (var, got, key, LOOK[key]))
+            "SaudHud::Colour::%s is %s, the look's %s is %s" % (var, got, key, LOOK[key]))
+    # the mark's and the wound's timings are the header's
+    for var, key in (("MarkHold", "MARK_HOLD_F"), ("MarkSpark", "MARK_SPARK_F"), ("MarkSeconds", "MARK_F"),
+                     ("WoundHold", "WOUND_HOLD_F")):
+        m = re.search(r"constexpr float %s = (?:([0-9.]+)f \* )?Frame;" % var, h)
+        assert m, "SaudAnime.h has no %s in film frames" % var
+        frames = float(m.group(1)) if m.group(1) else 1.0
+        assert abs(frames - LOOK[key]) < 1e-6, "SaudAnime.h's %s is %g frames, LOOK's %s %g" % (
+            var, frames, key, LOOK[key])
+    m = re.search(r"constexpr float WoundSeconds = ([0-9.]+)f;", h)
+    assert m and abs(float(m.group(1)) - LOOK["WOUND_S"]) < 1e-6, "SaudAnime.h's WoundSeconds is not LOOK's WOUND_S"
+    # OnBurn after OnBlow: FState::MarkBurning turns the impact frame the
+    # same blow started ember, and it can only find it on its first tick if
+    # the blow reached the look first. AFighterBase's sweep calls ReceiveHit
+    # (which hands the blow to USaudFeelSubsystem::OnBlow, which hands it to
+    # the look's OnBlow) and then OnHitLanded (where ASaudCharacter calls
+    # the look's OnBurn).
+    src = lambda *p: open(os.path.join(ROOT, "Source", "SaudFighter", *p)).read()
+    fb = src("Combat", "FighterBase.cpp")
+    recv, landed = "const FHitResultData Hit = Target->ReceiveHit(this, Attack);", "OnHitLanded(Target, Hit);"
+    if bite == "burn_before_blow":
+        fb = fb.replace(recv, "\0").replace(landed, recv).replace("\0", landed)
+    body = lambda text, head: text[text.index(head):text.index("\n}\n", text.index(head))]
+    assert recv in fb and landed in fb and fb.index(recv) < fb.index(landed), \
+        "FighterBase.cpp hands a blow to ReceiveHit (OnBlow) before OnHitLanded (OnBurn)"
+    assert "Feel->OnBlow(" in body(fb, "FHitResultData AFighterBase::ReceiveHit("), \
+        "AFighterBase::ReceiveHit hands the blow to USaudFeelSubsystem::OnBlow"
+    assert "Look->OnBlow(" in body(src("Game", "SaudFeelSubsystem.cpp"), "void USaudFeelSubsystem::OnBlow("), \
+        "USaudFeelSubsystem::OnBlow hands it to the look"
+    assert "Look->OnBurn(" in body(src("Combat", "SaudCharacter.cpp"), "void ASaudCharacter::OnHitLanded("), \
+        "ASaudCharacter::OnHitLanded is where a burning punch reaches the look"
 
 
 # ------------------------------------------------------------------- editor
@@ -2075,7 +2481,7 @@ def _check_names():
 MATERIALS = {
     MATERIAL_PATH: (hlsl, ("Impact", "ImpactInvert", "Key", "Boil"), "BL_SCENE_COLOR_AFTER_DOF"),
     FRAME_PATH: (hlsl_frame, ("Impact", "Speed", "SpeedCentreX", "SpeedCentreY", "SpeedSeed", "Boil")
-                 + FIRE_PARAMS, "BL_SCENE_COLOR_AFTER_TONEMAPPING"),
+                 + FIRE_PARAMS + HIT_PARAMS, "BL_SCENE_COLOR_AFTER_TONEMAPPING"),
 }
 
 
@@ -2154,6 +2560,15 @@ if __name__ == "__main__":
             os.environ.setdefault(var, "1")
         jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 3
         t0 = time.time()
+        # the unbroken look first: while it fails a check (WORLD_RIG from a
+        # build_world.py that has not caught up, say), every sabotage would
+        # be "caught" by that same failure, and the count would prove nothing
+        try:
+            check()
+        except AssertionError as e:
+            print("the unbroken look fails its own checks, so no sabotage can be counted: %s" % e)
+            sys.exit(1)
+        print("  %-19s passes" % "(unbroken)", flush=True)
         caught = 0
         with multiprocessing.get_context("fork").Pool(jobs) as pool:
             for b, (ok, why) in zip(BITES, pool.imap(_bite, BITES)):
@@ -2163,6 +2578,5 @@ if __name__ == "__main__":
         sys.exit(0 if caught == len(BITES) else 1)
     else:
         check()
-        _check_names()
         print("anime look: two materials generated (%d + %d lines), preview holds its checks, "
               "MPC names agree with SaudAnime.h" % (hlsl().count("\n"), hlsl_frame().count("\n")))

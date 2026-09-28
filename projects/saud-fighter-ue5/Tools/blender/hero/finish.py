@@ -174,6 +174,50 @@ def body_charts():
     charts.append((lambda c: True, "cyl", (Vector((0, 0.005, 0.86)), Vector((0, 0.005, 1.56)), F, 0.0, 1.0), (0.00, 0.50, 0.50, 0.70)))
     return charts
 
+def tank_charts():
+    """A sleeveless top's own layout (2026-09-28): one cylinder round the
+    trunk, from under its hem (1.04) to over its straps (1.60), across the
+    whole width and the lower 62 % of the image -- about 0.24 x 0.23 mm a
+    texel at 4K. On the body's layout it shared a fifth of the image, the
+    trunk's catch-all, with the sleeves' arm charts. Started above the hem
+    (1.10), the hem's rows clamped onto one line of texels
+    (check_uv_flat)."""
+    F = Vector((0, -1, 0))
+    return [(lambda c: True, "cyl", (Vector((0, 0.005, TANK_CHART[0])), Vector((0, 0.005, TANK_CHART[1])), F, 0.0, 1.0),
+             (0.00, 0.00, 1.00, 0.62))]
+
+
+TANK_CHART = (1.04, 1.60)     # the tank cylinder's span, for the flat-UV check's sabotage
+UV_FLAT = 0.02                # check_uv_flat: a face with less than this share of the median texels per area is flat
+UV_FLAT_MOST = 0.002          # ...and at most this share of the faces may be
+
+
+def check_uv_flat(obj, assert_=True):
+    """No face of `obj` collapsed in its UVs (2026-09-28, the scan's rule
+    for the trousers, held on the tank): each face's UV area over its 3D
+    area at least UV_FLAT of the median, all but UV_FLAT_MOST of them --
+    a cylinder chart cannot open a face that stands radial to its axis,
+    and the collapse leaves a few such fins in the fold down each flank
+    under the armhole (Saud's fast build: 3 of 3,476, facing forward at
+    x 0.16-0.19). Returns (flat, of)."""
+    me = obj.data
+    if not len(me.polygons):
+        return 0, 0
+    uvl = me.uv_layers.active.data
+    ratio = []
+    for p in me.polygons:
+        a3 = p.area
+        uv = [uvl[i].uv for i in p.loop_indices]
+        a2 = 0.5 * abs(sum(uv[i].x * uv[(i + 1) % len(uv)].y - uv[(i + 1) % len(uv)].x * uv[i].y for i in range(len(uv))))
+        ratio.append(a2 / max(a3, 1e-12))
+    ratio = np.array(ratio)
+    flat = int((ratio < UV_FLAT * np.median(ratio)).sum())
+    if assert_:
+        assert flat <= UV_FLAT_MOST * len(ratio), "flat UVs: %d of the %s's %d faces have under %.0f %% of the median texels per area, want %.1f %% at most" % (
+            flat, obj.name, len(ratio), UV_FLAT * 100, UV_FLAT_MOST * 100)
+    return flat, len(ratio)
+
+
 def pants_charts():
     """The trousers' own layout (the scan, 2026-09-28). On the body's they
     took the legs' two quarter-width strips and the trunk's catch-all, which
@@ -251,18 +295,37 @@ def fabric(c):
     return _unlab((FABRIC_KNEE - (FABRIC_KNEE - L) * FABRIC_KEEP, a * FABRIC_CHROMA, b * FABRIC_CHROMA))
 
 
-def palette_for(spec):
+# A kit entry's keys (pipeline.KIT, the Unreal build's own and NOT the
+# browser's): the colours of the top, trousers and band, which slot is the
+# man's one accent, his hands, the tape's colour and the blood on it, scabs
+# on bare knuckles, his stubble, the glove's finish and the trousers'
+# roughness.
+KIT_KEYS = ("top", "bottom", "band", "accent", "hands", "tape", "tape_blood", "scabs", "beard",
+            "glove_rough", "glove_coat", "pants_rough")
+TAPE = 'e8e2d4'         # the browser's hand tape, bone white
+
+
+def palette_for(spec, kit=None, top="tee", bottom="track"):
     """Linear colours and the kit for one fighter, from his roster entry.
 
     The browser build draws the beard as a translucent wash over the skin
     (`beard: 'rgba(24,17,12,.94)'`); a bake wants one colour, so it is
     composited over the skin here. The shoe is a touch off the trousers,
     as build_saud.PALETTE had it. Nothing in here is a colour somebody
-    chose: it is the roster, read.
+    chose: it is the roster, read -- except, since 2026-09-28, what `kit`
+    says (pipeline.KIT: the Unreal build's own kit, labelled so; the
+    browser keeps its colours) and the cut of the top and the trousers
+    (pipeline.TOPS, BOTTOMS: 'tee' or a garments.TANKS cut, 'track' or
+    'jogger'). With neither, the roster exactly.
     """
     from . import roster
-    c, look = spec["col"], spec["look"]
-    beard = look.get("beard")
+    kit = dict(kit or {})
+    bad = set(kit) - set(KIT_KEYS)
+    assert not bad, "no such kit key: %s (%s)" % (sorted(bad), ", ".join(KIT_KEYS))
+    c, look = dict(spec["col"]), spec["look"]
+    for k in ("top", "bottom", "band"):
+        if k in kit: c[k] = kit[k]
+    beard = kit.get("beard", look.get("beard"))
     # The wash's alpha, kept beside the composited colour: the colour is
     # what a .30 wash lands on the skin, but the shadow a beard casts and
     # the relief it adds are painted separately in hero.face, and at full
@@ -277,18 +340,93 @@ def palette_for(spec):
     else:
         beard = None
     hair = None if look.get("bald") else look.get("hair", "#1e150f")
+    hands = kit.get("hands", look.get("hands"))
     return dict(
         skin=lin(srgb(c["skin"])), hair=lin(srgb(hair)) if hair else None,
         beard=lin(srgb(beard)) if beard else None, beard_k=beard_k,
         tee=fabric(lin(srgb(c["top"]))), pants=fabric(lin(srgb(c["bottom"]))), band=fabric(lin(srgb(c["band"]))),
         shoe=fabric(lin(srgb('101216'))),
-        lip=lin(srgb('c98a78')), tape=lin(srgb('e8e2d4')), nail=lin(srgb('f4dccb')),
+        lip=lin(srgb('c98a78')), tape=lin(srgb(kit.get("tape", TAPE))), nail=lin(srgb('f4dccb')),
         # the kit: what the browser lists for him and nothing it does not
-        tape_on=(look.get("hands") == "wraps"), patch=bool(look.get("patch")),
+        # (and what the Unreal build's KIT adds: wraps on the brawler)
+        tape_on=(hands == "wraps"), patch=bool(look.get("patch")),
         stripe=bool(look.get("stripe")), watch=bool(look.get("watch")),
-        scar=bool(look.get("scar")), gloves=(look.get("hands") == "gloves"),
+        scar=bool(look.get("scar")), gloves=(hands == "gloves"),
         bald=bool(look.get("bald")), no_tee=not look.get("tee", True),
-        build=float(look.get("build", 1.0)), name=spec["name"])
+        build=float(look.get("build", 1.0)), name=spec["name"],
+        # the Unreal build's own (pipeline.KIT, TOPS, BOTTOMS); every default
+        # is what was painted before
+        top=top or "tee", bottom=bottom or "track", accent=kit.get("accent"),
+        tape_blood=fabric(lin(srgb(kit["tape_blood"]))) if kit.get("tape_blood") else None,
+        scabs=lin(srgb(kit["scabs"])) if kit.get("scabs") else None,
+        glove_rough=kit.get("glove_rough", 0.40), glove_coat=kit.get("glove_coat", 0.25),
+        pants_rough=kit.get("pants_rough", PANTS_ROUGH))
+
+# The grim kit, held (2026-09-28, the five men's; Saud's kit is the
+# browser's and is not held): every slot a man shows that is not his one
+# declared accent -- the top, the trousers, the shoe, the band -- dark
+# (L* <= 34 after fabric), muted (C* <= 16) and not a red that reads as an
+# accent (purity (r - max(g, b)) / r, the grade's red measure, under
+# 0.78); at most one accent, and that one a red that reads (purity >=
+# 0.80); worn tape, not bone white (L* <= 60); the five tops apart
+# (Delta E 76 >= 10) and none of them his own skin (>= 22: the brawler's
+# rust tee was 17.4, and read as a bare chest).
+KIT_RULES = dict(dark_L=34.0, dark_C=16.0, purity=0.78, accent_purity=0.80, tape_L=60.0, apart=10.0, skin=22.0)
+KIT_SLOTS = (("tee", "top"), ("pants", "bottom"), ("shoe", "shoe"), ("band", "band"))
+
+
+def _purity(c):
+    c = np.asarray(c, float)
+    return float((c[0] - max(c[1], c[2])) / max(c[0], 1e-9))
+
+
+def kit_numbers(pal):
+    """{slot: (L*, C*, purity)} for the slots a man shows (no top on a man
+    with none), and his tape's L* when he wears it."""
+    out = {}
+    for key, slot in KIT_SLOTS:
+        if key == "tee" and pal["no_tee"]:
+            continue
+        L, a, b = _lab(pal[key])
+        out[slot] = (float(L), float(np.hypot(a, b)), _purity(pal[key]))
+    if pal["tape_on"]:
+        out["tape"] = (float(_lab(pal["tape"])[0]), 0.0, 0.0)
+    return out
+
+
+def check_kit(pals, assert_=True):
+    """`pals` {kind: palette_for(...)}: each man's grim kit (KIT_RULES),
+    then, over all of them, the tops apart. Returns {kind: kit_numbers}."""
+    R = KIT_RULES
+    out = {k: kit_numbers(p) for k, p in pals.items()}
+    if not assert_:
+        return out
+    for kind, pal in pals.items():
+        acc = pal.get("accent")
+        accents = [] if acc is None else ([acc] if isinstance(acc, str) else list(acc))
+        assert len(accents) <= 1, "more than one accent on %s: %s, want one at most" % (kind, accents)
+        for slot, (L, C, pur) in out[kind].items():
+            if slot == "tape":
+                assert L <= R["tape_L"], "bone tape on %s: L* %.1f, want %.0f at most" % (kind, L, R["tape_L"])
+                continue
+            if slot in accents:
+                assert pur >= R["accent_purity"], "a weak accent: %s's %s purity %.2f, want %.2f" % (
+                    kind, slot, pur, R["accent_purity"])
+                continue
+            assert pur < R["purity"], "an undeclared accent: %s's %s purity %.2f, want under %.2f (or declare it)" % (
+                kind, slot, pur, R["purity"])
+            assert L <= R["dark_L"], "pastel: %s's %s L* %.1f after fabric, want %.0f at most" % (kind, slot, L, R["dark_L"])
+            assert C <= R["dark_C"], "shouts: %s's %s C* %.1f after fabric, want %.0f at most" % (kind, slot, C, R["dark_C"])
+        if not pal["no_tee"]:
+            d = float(np.linalg.norm(_lab(pal["tee"]) - _lab(pal["skin"])))
+            assert d >= R["skin"], "the top reads as skin: %s's top Delta E %.1f from his skin, want %.0f" % (kind, d, R["skin"])
+    tops = [(k, _lab(p["tee"])) for k, p in pals.items() if not p["no_tee"]]
+    for i, (ka, la) in enumerate(tops):
+        for kb, lb in tops[i + 1:]:
+            d = float(np.linalg.norm(la - lb))
+            assert d >= R["apart"], "the same kit: %s's and %s's tops Delta E %.1f apart, want %.0f" % (ka, kb, d, R["apart"])
+    return out
+
 
 def saud_palette():
     """Today's Saud, exactly as paint() used to spell him."""
@@ -314,12 +452,18 @@ def saud_palette():
 # between vertices.
 KIT_FEATHER = 0.0006
 
-def kit_colour(P, kind, pal, joints_l, base=None, parts=None):
+SCAB_OUT = 0.015          # a knuckle's striking face, this far from the joint out along (back + along the hand)
+SCAB_R = 0.0035
+
+
+def kit_colour(P, kind, pal, joints_l, base=None, parts=None, edge=None):
     """Colour for positions P (N,3) of one material, linear, and how much of
     it is kit rather than the base (N,), 0..1. `base` is what to start from
     for the skin (the shaded body); the garments start from their own colour.
     Returns (rgb (N,3), kit (N,)). `parts`, a dict, gets the skin's tape
-    and nail weights apart ("tape", "nail"), for the roughness."""
+    and nail weights apart ("tape", "nail"), for the roughness. `edge` is,
+    for a tank, each point's distance to the top's armholes and neck
+    (garment_edge): the binding is painted inside it."""
     from . import face as FA
     ramp = FA.ramp; f = KIT_FEATHER
     n = len(P)
@@ -351,6 +495,28 @@ def kit_colour(P, kind, pal, joints_l, base=None, parts=None):
             over(wrap * on, tape)
             if parts is not None:
                 parts["tape"] = np.maximum(parts.get("tape", np.zeros(n)), np.clip(wrap * on, 0, 1))
+            if pal.get("tape_blood") is not None:
+                # dried blood on the tape's last turn, over the knuckles
+                # (pipeline.KIT, 2026-09-28): broken up, not a painted band
+                bl = wrap * on * ramp(t, 0.085 - f, 0.085 + f) * ramp(FA.fbm(P, 180.0, 3, 71.0 + s), 0.53, 0.57)
+                over(0.8 * bl, pal["tape_blood"])
+                if parts is not None:
+                    parts["blood"] = np.maximum(parts.get("blood", np.zeros(n)), np.clip(bl, 0, 1))
+        for s in ((1, -1) if (pal.get("scabs") is not None and not pal["tape_on"] and joints_l) else ()):
+            # scabs on bare knuckles (the thug's): on each knuckle's striking
+            # face, SCAB_OUT from the joint out along the back of the hand and
+            # the hand's own line, broken up
+            wr = np.array(Jp("hand_l")) * np.array([s, 1, 1]); he = np.array(Jp("hand_end_l")) * np.array([s, 1, 1])
+            d = (he - wr) / np.linalg.norm(he - wr)
+            out_ = (np.array([0.0, 1.0, 0.0]) + d) / np.linalg.norm(np.array([0.0, 1.0, 0.0]) + d)
+            sc = np.zeros(n)
+            for fi in ("f0", "f1", "f2", "f3"):
+                k0 = np.array(joints_l[fi][0]) * np.array([s, 1, 1]) + out_ * SCAB_OUT
+                sc = np.maximum(sc, ramp(np.linalg.norm(P - k0, axis=1), SCAB_R + f, SCAB_R - f))
+            sc = sc * ramp(FA.fbm(P, 500.0, 2, 73.0 + s), 0.40, 0.48)
+            over(sc, pal["scabs"])
+            if parts is not None:
+                parts["scab"] = np.maximum(parts.get("scab", np.zeros(n)), np.clip(sc, 0, 1))
         for s in (1, -1):
             # nails: the last 9 mm of each fingertip, the back side
             for fi, r in [("f%d" % i, 0.0085) for i in range(4)] + [("thumb", 0.0095)]:
@@ -385,10 +551,19 @@ def kit_colour(P, kind, pal, joints_l, base=None, parts=None):
             over(inpatch * (1 - hoist) * (1 - top) * (1 - bot), lin(srgb('f3f5f8')))
             over(inpatch * (1 - hoist) * bot, lin(srgb('c8102e')))
             over(inpatch * hoist, lin(srgb('101216')))
-        # collar rib and hems a shade lighter, the stitching line
-        collar = ramp(z, 1.548 - f, 1.548 + f) * ramp(np.hypot(x, y - 0.004), 0.095 + f, 0.095 - f)
-        over(collar, np.asarray(tee) * 1.6)
-        if parts is not None: parts["collar"] = collar
+        if pal.get("top", "tee") == "tee":
+            # collar rib and hems a shade lighter, the stitching line
+            collar = ramp(z, 1.548 - f, 1.548 + f) * ramp(np.hypot(x, y - 0.004), 0.095 + f, 0.095 - f)
+            over(collar, np.asarray(tee) * 1.6)
+            if parts is not None: parts["collar"] = collar
+        elif edge is not None:
+            # a tank (2026-09-28): its armholes and neck bound with a rib a
+            # shade lighter, as the tee's collar, inside the edge
+            from . import garments as G
+            wb = G.TANKS[pal["top"]]["binding"]
+            binding = ramp(edge, wb + f, wb - f)
+            over(binding, np.asarray(tee) * 1.6)
+            if parts is not None: parts["binding"] = binding
         kit[:] = 1.0
     elif kind == "pants":
         wb = ramp(z, 1.050 - f, 1.050 + f) * ramp(z, 1.076 + f, 1.076 - f)
@@ -410,6 +585,40 @@ def kit_colour(P, kind, pal, joints_l, base=None, parts=None):
         # stripe, wraps) reads for a man, so a glove is no different.
         kit[:] = 1.0
     return col, kit
+
+
+def garment_edge(obj, P, zmin=1.20, step=0.001):
+    """How far each of P (N,3) is from `obj`'s open edges above `zmin` --
+    a tank's armholes and neck, not its hem -- in metres (1.0 for a point
+    that cannot be within 12 mm of one). The edges are the shell's own, as
+    shell() relaxed them and fit() draped them, walked in `step`s into a
+    KD-tree, so the distance is to the edge line within half a step."""
+    from mathutils import kdtree
+    me = obj.data
+    n = len(P); out = np.ones(n)
+    if not len(me.polygons):
+        return out
+    co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get("co", co); co = co.reshape(-1, 3)
+    E = np.empty(len(me.edges) * 2, dtype=np.int64); me.edges.foreach_get("vertices", E); E = E.reshape(-1, 2)
+    # an open edge is one used by a single face
+    use = np.zeros(len(me.edges), dtype=np.int64)
+    ek = {tuple(sorted(e)): i for i, e in enumerate(E.tolist())}
+    for p in me.polygons:
+        for k in p.edge_keys: use[ek[k]] += 1
+    pts = []
+    for a, b in E[use == 1]:
+        pa, pb = co[a], co[b]
+        if min(pa[2], pb[2]) < zmin: continue
+        k = max(1, int(np.ceil(np.linalg.norm(pb - pa) / step)))
+        pts.extend(pa + (pb - pa) * (i / k) for i in range(k + 1))
+    if not pts:
+        return out
+    kd = kdtree.KDTree(len(pts))
+    for i, q in enumerate(pts): kd.insert(q, i)
+    kd.balance()
+    near = np.nonzero(P[:, 2] > zmin - 0.012)[0]
+    out[near] = [kd.find(q)[2] for q in P[near]]
+    return out
 
 
 def paint(obj, kind, joints_l, pal=None):
@@ -442,7 +651,8 @@ def paint(obj, kind, joints_l, pal=None):
         col[:, :3], _rel, _on = FA.shade(P, skin, hair, beard, base_rgb=col[:, :3], beard_k=pal.get("beard_k", 1.0), scar=pal.get("scar", False))
         col[:, :3], _kit = kit_colour(P, "skin", pal, joints_l, base=col[:, :3])     # wraps, nails
     elif kind in ("hair", "shoe", "tee", "pants", "glove"):
-        col[:, :3], _kit = kit_colour(P, kind, pal, joints_l)
+        edge = garment_edge(obj, P) if kind == "tee" and pal.get("top", "tee") != "tee" else None
+        col[:, :3], _kit = kit_colour(P, kind, pal, joints_l, edge=edge)
     elif kind == "eye":
         # The broad strokes only. The iris is 11 mm across and the limbal ring
         # is 0.4 mm; the globe has 64 x 40 vertices, which is 2.8 by 4.5 deg,
@@ -454,7 +664,9 @@ def paint(obj, kind, joints_l, pal=None):
         cosang = (q @ f) / r
         col[:, :3] = lin(srgb('f2efe8'))
         iris = cosang > 0.86; pupil = cosang > 0.975
-        col[iris, :3] = lin(srgb('6d4a2a')); col[pupil, :3] = lin(srgb('050405'))
+        # (the man's own iris since 2026-09-28: face.LOOK, '#6d4a2a' as it was)
+        from . import face as FA
+        col[iris, :3] = lin(srgb(FA.LOOK["iris"])); col[pupil, :3] = lin(srgb('050405'))
     attr = me.color_attributes.get("Col") or me.color_attributes.new("Col", 'FLOAT_COLOR', 'POINT')
     attr.data.foreach_set("color", col.reshape(-1))
     return col
@@ -819,7 +1031,9 @@ def repaint_head(obj, imgs, size, pal=None):
         r = (0.56
              - 0.16 * np.clip(tzone, 0, 1)
              + 0.07 * np.clip(cheek, 0, 1)
-             - 0.26 * np.clip(lipw, 0, 1)
+             # the lips' gloss: face.LOOK['lip_gloss'] (0.26 as it was;
+             # a mouth set hard is matt, not wet)
+             - FA.LOOK["lip_gloss"] * np.clip(lipw, 0, 1)
              + 0.05 * (FA.fbm(P, 700.0, 3, 61.0) - 0.5)
              # the band above the hairline that is skin material painted
              # hair (assembly.HAIR_MARGIN): as matt as the hair material
@@ -832,13 +1046,20 @@ def repaint_head(obj, imgs, size, pal=None):
              # glossy as the cheek above it
              + 0.12 * extra.get("beard", 0.0))
         r = np.clip(r, 0.18, 0.80)
+        if "nose_tape" in extra:
+            # tape is paper, not skin
+            tw = np.clip(extra["nose_tape"], 0, 1)
+            r = r * (1 - tw) + FA.LOOK["nose_tape"].get("rough", 0.80) * tw
         buf = np.zeros(cov.shape); buf[cov] = r
         rough[..., :3] = np.where(m[..., None], buf[..., None], rough[..., :3])
         _img_write(imgs["roughness"], _dilate(rough, m, 3))
     return int(m.sum()), coherent
 
 
-def fabric_surface(P, kind, parts):
+PANTS_ROUGH = 0.55        # the track trousers' roughness at rest (a man's KIT may give his own)
+
+
+def fabric_surface(P, kind, parts, pal=None):
     """The cloth's own surface, per texel (2026-09-27, "improve clothes":
     fabric texture): a tone to multiply the colour by, a relief (metres)
     for the normal map, and a roughness. The garments had one colour, the
@@ -853,14 +1074,33 @@ def fabric_surface(P, kind, parts):
     and a shade lighter where they rub, over the knees and the seat; the
     waistband's elastic matt (0.72), the stripe a smoother tape (0.46).
     FA.fbm spreads about 0.12 either side of 0.5, so a (fbm - 0.5) / 0.12
-    is about -1..1."""
+    is about -1..1.
+
+    2026-09-28, the Unreal build's own cuts (pipeline.TOPS, BOTTOMS): `kind`
+    is 'tee' (the jersey; a 'singlet' is the same cotton), 'compression'
+    (Saud's tank: a compression knit, a fine heather and no slub, 0.04 mm
+    of relief, 0.68 +- 0.02 and the binding 0.80), 'pants' / 'track' (the
+    tricot, its roughness at rest pal['pants_rough']: 0.55, or a street
+    man's cotton drill, 0.76) or 'jogger' (Saud's: a brushed performance
+    knit, lighter where it wears, not shinier; 0.78, the band 0.72, the
+    stripe 0.52)."""
     from . import face as FA
     n = len(P); x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    if kind == "compression":
+        heather = (FA.fbm(P, 220.0, 2, 41.0) - 0.5) / 0.12
+        knit = (FA.fbm(P, 650.0, 2, 45.0) - 0.5) / 0.12
+        binding = parts.get("binding", np.zeros(n))
+        tone = 1.0 + 0.015 * heather + 0.03 * binding
+        rel = 0.00004 * knit
+        rough = np.clip(0.68 + 0.02 * heather, 0.60, 0.76)
+        return tone, rel, rough * (1 - binding) + 0.80 * binding
+    if kind == "singlet":
+        kind = "tee"
     if kind == "tee":
         heather = (FA.fbm(P, 220.0, 2, 41.0) - 0.5) / 0.12
         slub = (FA.fbm(P * np.array([1.0, 1.0, 0.22]), 150.0, 2, 43.0) - 0.5) / 0.12
         knit = (FA.fbm(P, 650.0, 2, 45.0) - 0.5) / 0.12
-        collar = parts.get("collar", np.zeros(n))
+        collar = np.maximum(parts.get("collar", np.zeros(n)), parts.get("binding", np.zeros(n)))
         tone = 1.0 + 0.020 * heather + 0.012 * slub + 0.03 * collar
         rel = 0.00006 * knit + 0.00004 * slub
         rough = np.clip(0.85 + 0.025 * heather + 0.04 * collar, 0.78, 0.93)
@@ -875,12 +1115,51 @@ def fabric_surface(P, kind, parts):
     seat = np.exp(-((z - 0.955) / 0.045) ** 2) * np.clip((y - 0.06) / 0.03, 0, 1) * (np.abs(x) < 0.13)
     wear = np.clip(np.maximum(wear, seat), 0, 1)
     band = parts.get("waistband", np.zeros(n)); stripe = parts.get("stripe", np.zeros(n))
+    if kind == "jogger":
+        knit = (FA.fbm(P, 650.0, 2, 53.0) - 0.5) / 0.12
+        tone = 1.0 + 0.02 * grain + 0.03 * wear
+        rel = 0.00005 * knit
+        rough = 0.78 + 0.02 * grain - 0.03 * wear
+        rough = rough * (1 - band) + 0.72 * band
+        rough = rough * (1 - stripe) + 0.52 * stripe
+        return tone, rel, np.clip(rough, 0.52, 0.86)
+    base = (pal or {}).get("pants_rough", PANTS_ROUGH)
     tone = 1.0 + 0.015 * grain + 0.05 * wear
     rel = 0.00003 * grain + 0.00002 * twill * (1 - band)
-    rough = 0.55 + 0.025 * grain - 0.09 * wear
+    rough = base + 0.025 * grain - 0.09 * wear
     rough = rough * (1 - band) + 0.72 * band
     rough = rough * (1 - stripe) + 0.46 * stripe
-    return tone, rel, np.clip(rough, 0.40, 0.80)
+    return tone, rel, np.clip(rough, 0.40, max(0.80, base + 0.06))
+
+# The fabrics held to what they were cut for (2026-09-28): the jogger's
+# brushed knit and the compression knit are matt, not the tricot's leather
+# sheen (p5 0.48) or the jersey's chalk (p50 0.85). (percentile, lo, hi)
+# on the garment's roughness, per fabric -- the cloth's, not its trim: the
+# stripe's smooth tape (0.52), the waistband's elastic and a tank's
+# binding are left out (`parts`), or the jogger's p5 is the stripe's
+# (0.65 measured over his legs, the stripe a sixth of the outer leg).
+FABRIC_RULES = {"jogger": (5, 0.70, 1.0), "compression": (50, 0.62, 0.74)}
+FABRIC_TRIM = ("stripe", "waistband", "binding", "collar")
+
+
+def check_fabric(rough, fk, assert_=True, parts=None):
+    """A garment's per-texel roughness `rough` against FABRIC_RULES[fk]
+    (a fabric with no rule passes), over the cloth: the texels where no
+    FABRIC_TRIM part of `parts` (kit_colour's) is over a half. Returns
+    the percentile measured."""
+    if fk not in FABRIC_RULES:
+        return None
+    q, lo, hi = FABRIC_RULES[fk]
+    rough = np.asarray(rough)
+    cloth = np.ones(len(rough), bool)
+    for k in FABRIC_TRIM:
+        if parts and k in parts:
+            cloth &= np.asarray(parts[k]) <= 0.5
+    v = float(np.percentile(rough[cloth] if cloth.any() else rough, q))
+    if assert_:
+        assert lo <= v <= hi, "the wrong fabric: the %s's roughness p%d is %.2f, want %.2f-%.2f" % (fk, q, v, lo, hi)
+    return v
+
 
 def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
     """Repaint the kit's texels from kit_colour, the way repaint_head does
@@ -913,14 +1192,27 @@ def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
         rgb0, kit0 = kit_colour(P, kind, pal, joints_l, base=base, parts=parts)
         tape_w = parts.get("tape", np.zeros(len(P)))
         rel, vein = FA.body_relief(P, joints_l, build=pal.get("build", 1.0), tape=tape_w)
-        base = base * (1.0 - 0.07 * vein)[:, None] * (1.0 + np.outer(vein, np.array([-0.03, 0.0, 0.035])))
+        # (how much darker a vein is: face.LOOK['vein_darken'], 0.07 as it was)
+        base = base * (1.0 - FA.LOOK["vein_darken"] * vein)[:, None] * (1.0 + np.outer(vein, np.array([-0.03, 0.0, 0.035])))
+        # a man's scars below the face (face.LOOK['scars'], 2026-09-28):
+        # tissue paler than the skin round it, standing proud
+        base, srel, _score = FA.body_scars(P, base, pal["skin"], tape=tape_w)
+        rel = rel + srel
         rgb, kit = kit_colour(P, kind, pal, joints_l, base=base, parts=parts)
+        # a scab stands a little proud of the knuckle
+        rel = rel + 0.0002 * parts.get("scab", np.zeros(len(P)))
         live = np.ones(len(P), bool)
     else:
-        rgb, kit = kit_colour(P, kind, pal, joints_l, parts=parts)
+        edge = garment_edge(obj, P) if kind == "tee" and pal.get("top", "tee") != "tee" else None
+        rgb, kit = kit_colour(P, kind, pal, joints_l, parts=parts, edge=edge)
         live = kit > 0.002
         if kind in ("tee", "pants"):
-            ftone, frel, frough = fabric_surface(P, kind, parts)
+            # the fabric: the tee's jersey or the top's own cut, the track's
+            # tricot or the jogger's knit (pipeline.TOPS, BOTTOMS)
+            fk = (pal.get("top", "tee") if kind == "tee" else
+                  ("pants" if pal.get("bottom", "track") == "track" else pal["bottom"]))
+            ftone, frel, frough = fabric_surface(P, fk, parts, pal)
+            check_fabric(frough, fk, parts=parts)
             rgb = rgb * ftone[:, None]
     if not live.any():
         return 0
@@ -967,6 +1259,10 @@ def repaint_kit(obj, kind, imgs, size, pal, joints_l, keep=None):
         tape_w = parts.get("tape", np.zeros(len(P))); nail_w = parts.get("nail", np.zeros(len(P)))
         r = r * (1 - tape_w) + 0.82 * tape_w
         r = r * (1 - nail_w) + 0.30 * nail_w
+        # dried blood on the tape, a scab: rough, dull (pipeline.KIT)
+        for k in ("blood", "scab"):
+            w = parts.get(k, np.zeros(len(P)))
+            r = r * (1 - w) + 0.70 * w
         rough = _img_array(imgs["roughness"])
         rb = np.zeros(cov.shape); rb[cov] = r
         rough[..., :3] = np.where(m[..., None], rb[..., None], rough[..., :3])
@@ -996,16 +1292,21 @@ def repaint_eye(obj, imgs, size, centre, radius):
     d = radius * np.arccos(np.clip(cosang, -1.0, 1.0))
     ang = np.arctan2(q[:, 2], q[:, 0])
 
-    sclera = FA.hex_lin('f0ece3')
-    iris_c = FA.hex_lin('6d4a2a')
-    iris_hi = FA.hex_lin('9a6c3c')
+    # the man's own eye (face.LOOK, 2026-09-28): his iris, and his sclera
+    # with how much vascular tint it carries -- '#6d4a2a' and ('#f0ece3',
+    # 0.10) as they were. The fibres' highlight keeps its ratio to the iris.
+    sclera = FA.hex_lin(FA.LOOK["sclera"][0])
+    iris_c = FA.hex_lin(FA.LOOK["iris"])
+    iris_hi = (FA.hex_lin('9a6c3c') if FA.LOOK["iris"].lstrip('#') == '6d4a2a'
+               else iris_c * (FA.hex_lin('9a6c3c') / FA.hex_lin('6d4a2a')))
     limb = FA.hex_lin('2a1c12')
     rgb = np.tile(sclera, (len(P), 1))
     # the sclera is not white: it is warmer and darker toward the corners,
     # and carries a faint vascular tint
     corner = np.clip((d - IRIS_R) / 0.008, 0.0, 1.0)
     rgb *= (1.0 - 0.22 * corner)[:, None]
-    rgb = rgb * (1 - (0.10 * corner)[:, None]) + FA.hex_lin('d9b6a6')[None, :] * (0.10 * corner)[:, None]
+    vasc = float(FA.LOOK["sclera"][1])
+    rgb = rgb * (1 - (vasc * corner)[:, None]) + FA.hex_lin('d9b6a6')[None, :] * (vasc * corner)[:, None]
 
     # iris: radial fibre, brighter toward the limbus, darker at the pupil
     t = np.clip(d / IRIS_R, 0.0, 1.0)

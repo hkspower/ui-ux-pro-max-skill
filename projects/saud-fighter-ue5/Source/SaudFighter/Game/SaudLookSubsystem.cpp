@@ -86,18 +86,31 @@ void USaudLookSubsystem::Deinitialize()
 
 void USaudLookSubsystem::OnBlow(const AFighterBase* InVictim, const FHitResultData& Hit, bool bHeavy)
 {
-	const SaudAnime::FBlowLook L = SaudAnime::ForBlow(bHeavy, Hit.bBlocked, Hit.bParried, Hit.bKnockdown);
+	// The wound is the player's alone: "you were hurt".
+	const bool bVictimIsPlayer = InVictim && InVictim->IsPlayerControlled();
+	const SaudAnime::FBlowLook L = SaudAnime::ForBlow(bHeavy, Hit.bBlocked, Hit.bParried, Hit.bKnockdown,
+	                                                  bVictimIsPlayer);
 	if (L.Impact.Seconds <= 0.f && L.SpeedSeconds <= 0.f)
 	{
 		return;
 	}
 	Look.Add(L);
 	Victim = InVictim;
+	if (L.MarkLife > 0.f && InVictim)
+	{
+		// the mark stays where the blow landed on him, whatever he does next
+		MarkVictim = InVictim;
+		MarkOffset = Hit.ImpactPoint - InVictim->GetActorLocation();
+	}
 }
 
 void USaudLookSubsystem::OnBurn(const AFighterBase* InVictim)
 {
 	Burned = InVictim;
+	// ASaudCharacter::OnHitLanded calls this after AFighterBase::ReceiveHit
+	// has handed the same blow to OnBlow (anime_look.py checks that order in
+	// the source): the impact frame it started is on its first tick.
+	Look.MarkBurning();
 }
 
 void USaudLookSubsystem::Tick(float DeltaTime)
@@ -113,6 +126,9 @@ void USaudLookSubsystem::Tick(float DeltaTime)
 
 	Write(ESlot::Impact, SaudAnime::Param::Impact, Look.ImpactValue());
 	Write(ESlot::Invert, SaudAnime::Param::ImpactInvert, Look.InvertValue());
+	Write(ESlot::Tone, SaudAnime::Param::ImpactTone, Look.ToneValue());
+	Write(ESlot::Wound, SaudAnime::Param::Wound, Look.WoundValue());
+	WriteMark();
 	// The brush and the grain boil on twos, every frame, whatever else is
 	// drawn: the same seed the speed lines are redrawn on.
 	Write(ESlot::Boil, SaudAnime::Param::Boil, Look.Seed());
@@ -199,6 +215,29 @@ void USaudLookSubsystem::WriteFire(const ASaudCharacter* Saud)
 		}
 	}
 	Write(ESlot::BurnAge, SaudFire::Param::BurnAge, Age);
+}
+
+void USaudLookSubsystem::WriteMark()
+{
+	// The mark at the point of contact, projected as the fire's burst is:
+	// where it is on the screen, how deep, how big a figure pixel is there.
+	// Off the screen (or the man gone) it is simply not drawn.
+	float Age = Look.MarkAge();
+	const AFighterBase* V = MarkVictim.Get();
+	float X = 0.f, Y = 0.f, Depth = 0.f, Scale = 0.f;
+	if (Age >= 0.f && (!V || !Project(V->GetActorLocation() + MarkOffset, X, Y, Depth, Scale)))
+	{
+		Age = -1.f;
+	}
+	if (Age >= 0.f)
+	{
+		Write(ESlot::MarkX, SaudAnime::Param::MarkX, X);
+		Write(ESlot::MarkY, SaudAnime::Param::MarkY, Y);
+		Write(ESlot::MarkDepth, SaudAnime::Param::MarkDepth, Depth);
+		Write(ESlot::MarkScale, SaudAnime::Param::MarkScale, Scale);
+		Write(ESlot::MarkSeed, SaudAnime::Param::MarkSeed, Look.MarkSeed());
+	}
+	Write(ESlot::MarkAge, SaudAnime::Param::MarkAge, Age);
 }
 
 bool USaudLookSubsystem::Project(const FVector& At, float& OutX, float& OutY, float& OutDepth, float& OutScale) const

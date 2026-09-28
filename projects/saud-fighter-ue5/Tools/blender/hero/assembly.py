@@ -196,6 +196,53 @@ CAULIFLOWER = [(math.radians(132), 0.0190, 0.0060), (math.radians(162), 0.0190, 
                (math.radians(196), 0.0190, 0.0065), (math.radians(226), 0.0190, 0.0060)]
 CAULIFLOWER_OUT = 0.0065     # their centres this far out from the ear's mid-plane
 
+CAULI_MIN = 0.003            # check_cauliflower: at least this much further out, over the upper third
+EAR_UPPER = (0.009, 0.023)   # the ear's upper third, z about EAR_Z
+
+
+def ear_profile(body):
+    """How far out each ear's outer surface stands over its upper third:
+    {'l' (+x), 'r'}: for each 1 mm row of z in EAR_UPPER about EAR_Z, the
+    outermost |x| a ray from outside meets across the ear's depth (EAR_Y
+    +-20 mm), metres; nan where a row meets nothing past the skull."""
+    import numpy as np
+    tb = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+    out = {}
+    for s, side in ((1, "l"), (-1, "r")):
+        rows = []
+        for z in np.arange(EAR_Z + EAR_UPPER[0], EAR_Z + EAR_UPPER[1] + 1e-6, 0.001):
+            xs = []
+            for y in np.arange(EAR_Y - 0.020, EAR_Y + 0.0201, 0.001):
+                h = tb.ray_cast(Vector((0.3 * s, y, z)), Vector((-s, 0, 0)))
+                if h[0] is not None and abs(h[0].x) > 0.06:
+                    xs.append(abs(h[0].x))
+            rows.append(max(xs) if xs else float("nan"))
+        out[side] = np.array(rows)
+    return out
+
+
+def check_cauliflower(on, plain, ears, assert_=True):
+    """A cauliflower ear (EARS: {'l': k, 'r': k}, 2026-09-28) stands out:
+    over its upper third, row by row, its outer surface at least CAULI_MIN
+    (3 mm) further out on average than the same ear built plain.
+    `on` and `plain` are ear_profile()s of the head with his ears and the
+    same head with plain ones. Returns {side: dict(mean, min, max)} for
+    each ear held."""
+    import numpy as np
+    out = {}
+    for side in ("l", "r"):
+        if not (ears or {}).get(side):
+            continue
+        d = on[side] - plain[side]
+        d = d[~np.isnan(d)]
+        out[side] = dict(mean=float(d.mean()) if len(d) else 0.0, min=float(d.min()) if len(d) else 0.0,
+                         max=float(d.max()) if len(d) else 0.0)
+        if assert_:
+            assert out[side]["mean"] >= CAULI_MIN, "no cauliflower: his %s ear %.1f mm further out than plain over its upper third, want %.0f" % (
+                "left" if side == "l" else "right", out[side]["mean"] * 1000, CAULI_MIN * 1000)
+    return out
+
+
 def ear(s, cauliflower=0.0):
     """Helix as a flattened ring, lobe below, a dish cut into the front.
 
@@ -377,16 +424,17 @@ def mien_numbers(body):
     out["brow_z"] = float(zz[i])
     return out
 
-def check_mien(body, holds=None, assert_=True):
+def check_mien(body, holds=None, assert_=True, numbers=None):
     """The built face's mien: every man's jaw at its angle at least JAW_GAP
     (8 mm) narrower than his cheekbones -- the built face's form of
     anatomy.check_head's rule on the bone tables against a brick-shaped
-    jaw -- and a man's own HOLDS. Returns the numbers."""
+    jaw -- and a man's own HOLDS. `numbers`: mien_numbers already
+    measured (then `body` is not read). Returns the numbers."""
     holds = dict(holds or {})
     bad = set(holds) - set(MIEN_HOLDS)
     if bad:
         raise KeyError("no such mien hold: %s (%s)" % (sorted(bad), ", ".join(MIEN_HOLDS)))
-    m = mien_numbers(body)
+    m = mien_numbers(body) if numbers is None else numbers
     if not assert_:
         return m
     gap = holds.get("jaw_gap", JAW_GAP)

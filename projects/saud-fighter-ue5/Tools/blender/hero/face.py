@@ -201,7 +201,7 @@ LOOK_DEFAULT = dict(
     # the contour's frequency (per metre), line width, stretch along the
     # limb, one or two families of lines, and its seed
     vein_style="worley", vein_k=None, vein_height=0.00035, vein_darken=0.07,
-    vein_scale=45.0, vein_width=0.012, vein_stretch=4.0, vein_lines=2, vein_seed=33.0,
+    vein_scale=45.0, vein_width=0.012, vein_stretch=4.0, vein_lines=2, vein_seed=34.0,
     # the body's grooves (sternum, linea alba, the lines between the abs,
     # the spinal furrow) as a multiplier
     cut=1.0,
@@ -255,17 +255,22 @@ def scar_tissue(col, core, pucker, skin):
     """Scar tissue on skin colours `col` (N,3 linear): the core lifted x1.45
     in linear light with a quarter of its chroma out -- healed tissue has
     no blood and less melanin, it is PALER than the skin round it -- and
-    the pucker darkened .30 toward the man's own shadow tone."""
-    lift = np.clip(col * 1.45, 0.0, 1.0)
+    the pucker darkened SCAR_PUCKER toward the man's own shadow tone (.30
+    was asked for as about -5 L*; on the painted skull it measured -2.1 to
+    -3.5 beside the brow scars, so .50). The lift is
+    of the skin where `col` is darker than it (a brow, a beard, a crease:
+    scar tissue grows no hair), of `col` where it is lighter."""
+    lift = np.clip(np.maximum(col, np.asarray(skin, dtype=float)[None, :]) * 1.45, 0.0, 1.0)
     lum = lift @ np.array([0.2126, 0.7152, 0.0722])
     lift = lum[:, None] + 0.75 * (lift - lum[:, None])
     w = 0.90 * np.clip(core, 0, 1)[:, None]
     col = col * (1 - w) + np.clip(lift, 0.0, 1.0) * w
-    p = 0.30 * np.clip(pucker, 0, 1)[:, None]
+    p = SCAR_PUCKER * np.clip(pucker, 0, 1)[:, None]
     return col * (1 - p) + _tone(skin, SHADOW)[None, :] * p
 
 
 SCAR_RELIEF = (0.0008, 0.0002)      # the core proud, the pucker sunk (metres)
+SCAR_PUCKER = 0.50                   # how far the pucker darkens toward the shadow tone
 
 # The browser's one scar (`look.scar`: AL-WAHSH, ZAYOS), as a stroke: down
 # out of his left brow onto the cheekbone, where shade(scar=True) draws it.
@@ -497,12 +502,8 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
             mask = line * side
             over(mask, tone(SCAR), 0.60)
             rel += mask * 0.0004
-    elif sc_core is not None:
-        w_c = sc_core * on_face; w_p = sc_puck * on_face
-        col[:] = scar_tissue(col, w_c, w_p, skin)
-        rel += w_c * SCAR_RELIEF[0] - w_p * SCAR_RELIEF[1]
-        if out is not None:
-            out["scar"] = w_c; out["pucker"] = w_p
+    # (a man's own strokes are laid last, over the lips, the beard and the
+    # grain -- scar tissue grows no hair and has no lip colour: _last)
 
     # ---- 6. the eyes: lash line and lid crease ------------------------
     # The lash lines ride the lid margins sculpt.drape_eyes cuts -- the
@@ -544,6 +545,8 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
     lower = ramp(z, mid - t_lo - f, mid - t_lo + f) * ramp(z, mid + f, mid - f)
     lips = np.clip((upper + lower) * ramp(u, 1.02, 0.93), 0, 1) * ramp(fwd, 0.35, 0.65)
     over(lips, tone(LIP), M["lip_k"])
+    if out is not None:
+        out["lips"] = lips * on_face
     over(np.clip(upper, 0, 1) * lips, tone(LIP_DEEP), M["lip_deep"])  # the upper lip reads darker
     rel += (upper * 0.0007 + lower * 0.0012) * np.clip(taper, 0, 1)
     mouthline = ramp(z, mid - 0.0009, mid) * ramp(z, mid + 0.0009, mid) * ramp(u, 1.00, 0.90)
@@ -579,7 +582,7 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
         blotch = fbm(P, 90.0, 3, 41.0) - 0.5
         col[:] = np.clip(col * (1.0 + (0.20 * blotch + 0.10 * pore) * on_face)[:, None], 0.0, 1.0)
         rel += (0.00010 * pore + 0.00022 * blotch) * on_face
-        _nose_tape(P, fwd, on_face, col, rel, out)
+        _last(P, fwd, on_face, col, rel, out, skin, sc_core, sc_puck)
         rel *= on_face
         return col, rel, on_face
     jaw_top = MOUTH_Z - 0.0117 + 0.052 * smooth(np.clip((lat - 0.18) / 0.72, 0, 1)) ** 1.35
@@ -656,10 +659,24 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
     blotch = fbm(P, 90.0, 3, 41.0) - 0.5
     col[:] = np.clip(col * (1.0 + (0.20 * blotch + 0.10 * pore) * on_face)[:, None], 0.0, 1.0)
     rel += (0.00010 * pore + 0.00022 * blotch) * on_face
-    _nose_tape(P, fwd, on_face, col, rel, out)
+    _last(P, fwd, on_face, col, rel, out, skin, sc_core, sc_puck)
 
     rel *= on_face
     return col, rel, on_face
+
+
+def _last(P, fwd, on_face, col, rel, out, skin, sc_core, sc_puck):
+    """What is laid over everything else on the face (LOOK's, 2026-09-28):
+    a man's scars as tissue -- lifted, a pucker either side, 0.8 mm proud
+    (scar_tissue), over the lips, the beard and the grain, since healed
+    tissue carries none of them -- and then the tape over a broken nose."""
+    if sc_core is not None:
+        w_c = sc_core * on_face; w_p = sc_puck * on_face
+        col[:] = scar_tissue(col, w_c, w_p, skin)
+        rel += w_c * SCAR_RELIEF[0] - w_p * SCAR_RELIEF[1]
+        if out is not None:
+            out["scar"] = w_c; out["pucker"] = w_p
+    _nose_tape(P, fwd, on_face, col, rel, out)
 
 
 def _nose_tape(P, fwd, on_face, col, rel, out=None):
@@ -1320,7 +1337,8 @@ def check_brows(slant_min=0.0, assert_=True):
     Y = np.array([[A.head_surface_y(x, z) for x in xs] for z in zs])
     P = np.stack([X.ravel(), Y.ravel(), Z.ravel()], 1)
     out = {}
-    shade(P, np.array([0.5, 0.35, 0.28]), np.array([0.02, 0.015, 0.01]), None, out=out)
+    dark = np.array([0.02, 0.015, 0.01])
+    shade(P, np.array([0.5, 0.35, 0.28]), dark, dark if LOOK["brow_colour"] == "beard" else None, out=out)
     b = out["brow"].reshape(Z.shape)
     gap = float(b[:, xs < 0.005].max())
     live = [j for j in range(len(xs)) if b[:, j].max() > 0.5]
@@ -1342,9 +1360,11 @@ def paint_numbers(skin, hair, beard, beard_k=1.0, scar=False, strokes=None):
     on the skull's surface (numpy): the brows' L* against the skin round
     them, the glabella furrow's against the midline between, how far the
     lips' line drops from the middle to the corners, each face scar's
-    centre and pucker against the skin 5-9 mm off it (`strokes`: the scars
-    to look for -- this man's, whatever LOOK now paints; by default LOOK's,
-    or the browser's brow scar), and the nose tape's weight at its middle."""
+    centre and pucker against the same points painted with no scar at all
+    -- so a scar through a brow, a lip or a beard is measured against
+    that, not against the skin beside it (`strokes`: the scars to look for
+    -- this man's, whatever LOOK now paints; by default LOOK's, or the
+    browser's brow scar) -- and the nose tape's weight at its middle."""
     P, X, Z = _face_grid()
     out = {}
     rgb, _rel, on = shade(P, skin, hair, beard, beard_k=beard_k, scar=scar, out=out)
@@ -1372,15 +1392,26 @@ def paint_numbers(skin, hair, beard, beard_k=1.0, scar=False, strokes=None):
         strokes = [s for s in (LOOK["scars"] or ()) if s.get("at", "face") == "face"] if LOOK["scars"] is not None else (
             [BROW_SCAR] if scar else [])
     res["scars"] = []
+    strokes = [s for s in strokes if s.get("at", "face") == "face"]
+    if strokes:
+        saved = LOOK["scars"]
+        try:
+            LOOK["scars"] = []
+            rgb0, _r0, _o0 = shade(P, skin, hair, beard, beard_k=beard_k, scar=False)
+        finally:
+            LOOK["scars"] = saved
+        dL = L - lstar(rgb0)
+    # the pucker where it lies on skin: over a brow, a beard or the lips
+    # it darkens toward a shadow tone lighter than they are
+    hairless = ((out["brow"] < 0.05) & (out.get("beard", np.zeros(len(P))) < 0.05)
+                & (out.get("lips", np.zeros(len(P))) < 0.05))
     for s in strokes:
-        if s.get("at", "face") != "face":
-            continue
         d, t = _seg_dist(P[:, 0], P[:, 2], np.asarray(s["a"], float), np.asarray(s["b"], float))
         mid = (t > 0.3) & (t < 0.7) & (on > 0.9)
-        c = mid & (d < 0.3 * s["w"]); zn = mid & (d > 0.005) & (d < 0.009)
-        pk = mid & (np.abs(d - (s["w"] + 0.0012)) < 0.0004)
-        res["scars"].append(dict(centre=float(L[c].mean() - L[zn].mean()) if c.any() and zn.any() else 0.0,
-                                 pucker=float(L[pk].mean() - L[zn].mean()) if pk.any() and zn.any() else 0.0))
+        c = mid & (d < 0.3 * s["w"])
+        pk = (t > 0.1) & (t < 0.9) & (on > 0.9) & hairless & (d < s["w"] + 0.003) & (out.get("pucker", np.zeros(len(P))) > 0.5)
+        res["scars"].append(dict(centre=float(dL[c].mean()) if c.any() else 0.0,
+                                 pucker=float(dL[pk].mean()) if pk.sum() >= 20 else None))
     T = LOOK["nose_tape"]
     if T and "nose_tape" in out:
         at = (np.abs(P[:, 0] - 0.5 * (T["x"][0] + T["x"][1])) < 0.002) & (np.abs(P[:, 2] - T["z"]) < 0.001)
@@ -1395,8 +1426,9 @@ def check_paint(skin, hair, beard, beard_k=1.0, scar=False, strokes=None, grim=F
     (`grim`), the glabella furrow at least 4 L* dark and the mouth's
     corners at least 3 mm under its middle (a frown, not a smile); every
     scar looked for (`strokes`, see paint_numbers) at least 6 L* PALER than
-    the skin round it with a pucker at least 3 darker; the tape where a man
-    wears it (`tape`). Returns the numbers."""
+    the same face painted without it, with a pucker at least 3 darker where
+    it lies on bare skin; the tape where a man wears it (`tape`). Returns
+    the numbers."""
     r = paint_numbers(skin, hair, beard, beard_k, scar, strokes)
     if not assert_:
         return r
@@ -1407,9 +1439,10 @@ def check_paint(skin, hair, beard, beard_k=1.0, scar=False, strokes=None, grim=F
         assert r["frown"] >= R["frown"], "no frown: the mouth's corners %.1f mm under its middle, want %.0f" % (
             r["frown"] * 1000, R["frown"] * 1000)
     for k, s in enumerate(r["scars"]):
-        assert s["centre"] >= R["scar"], "a dark scar: scar %d's centre %.1f L* against the skin round it, want +%.0f (paler)" % (
+        assert s["centre"] >= R["scar"], "a dark scar: scar %d's centre %.1f L* against the same face unscarred, want +%.0f (paler)" % (
             k, s["centre"], R["scar"])
-        assert s["pucker"] <= R["pucker"], "no pucker: scar %d's edge %.1f L*, want %.0f" % (k, s["pucker"], R["pucker"])
+        assert s["pucker"] is None or s["pucker"] <= R["pucker"], "no pucker: scar %d's edge %.1f L*, want %.0f" % (
+            k, s["pucker"], R["pucker"])
     if tape:
         assert r.get("tape", 0.0) >= R["tape"], "no tape: %.2f over the bridge, want %.2f" % (r.get("tape", 0.0), R["tape"])
     return r

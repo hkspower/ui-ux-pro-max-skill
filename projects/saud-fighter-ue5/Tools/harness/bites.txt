@@ -1,0 +1,58 @@
+# Every sabotage Tools/harness/bite.sh applies, one a line:
+#   test|file|sed expression|text of the FAIL line it must cause
+# Each breaks one rule the anime test holds; each must be caught by the check
+# written for it. (Since 2026-09-28: the eight sabotages CLAUDE.md recorded
+# as "eight of eight" in 2026-09-24 were manual; these are the same rules and
+# the new ones, scripted.) No sed expression may contain a bar.
+
+# ---- blows: which get an impact frame, of what shape and tone
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#return L;   // a light hit#L.Impact = {Frame, false, false, ETone::Blood}; L.SpeedSeconds = 0.30f; return L;   // a light hit#|a light hit gets no impact frame
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#{2.f \* Frame, false, true, ETone::Blood}#{2.f * Frame, true, false, ETone::Blood}#|a knockdown: two frames, the second flipped
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Impact = {Frame, false, false, ETone::Blood};#L.Impact = {3.f * Frame, false, false, ETone::Blood};#|the heavy's impact frame fits inside its hitstop
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#{2.f \* Frame, true, false, ETone::Bone}#{2.f * Frame, true, false, ETone::Blood}#|a parry is cut in bone
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#return L;   // a light hit#L.MarkLife = MarkSeconds; return L;   // a light hit#|the mark is only on heavy clean hits and knockdowns
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float MarkHold = 2.f \* Frame;#constexpr float MarkHold = 1.f * Frame;#|the mark stands for the whole heavy freeze
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float MarkSpark = 4.f \* Frame;#constexpr float MarkSpark = 7.f * Frame;#|the star goes before the drops
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#if (bVictimIsPlayer)#if ((void)bVictimIsPlayer, true)#|the wound only when the player is hit heavy or knocked down
+
+# ---- the picture's state
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#return ImpactElapsed < Impact.Seconds ? 1.f : 0.f;#return ImpactElapsed < Impact.Seconds ? 1.f - ImpactElapsed / Impact.Seconds : 0.f;#|knockdown: second frame flipped
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float SpeedHold = 0.35f;#constexpr float SpeedHold = 1.35f;#|and thin before they go, not cut off
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Impact.Seconds >= Left#L.Impact.Seconds >= Left * 0.f#|a shorter impact never replaces a longer one running
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float OnTwos = 2.f \* Frame;#constexpr float OnTwos = Frame;#|the seed changes 12 times a second: on twos
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Boil = SAUD_TEXT("Boil")#Boil = SAUD_TEXT("Boil2")#|the boil is written as Boil
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Impact.Tone = ETone::Ember;#Impact.Tone = ETone::Blood;#|a burning punch's own frame goes ember
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Impact.Seconds > 0.f && ImpactElapsed <= 0.f#Impact.Seconds > 0.f#|a burning punch's own frame goes ember, and nothing else does
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#static_cast<float>(static_cast<int>(Impact.Tone)) : 0.f#0.f : 0.f#|a burning punch's own frame goes ember
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float MarkSeconds = 6.f \* Frame;#constexpr float MarkSeconds = 12.f * Frame;#|the mark runs in real time and is gone at 6/24 s
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#MarkSerial = (MarkSerial + 1) % 997;#MarkSerial = 0;#|a new mark restarts it, with a new seed
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float WoundHold = Frame;#constexpr float WoundHold = 0.5f;#|the wound is held one frame, then falls straight to nothing at 0.30 s
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float WoundSeconds = 0.30f;#constexpr float WoundSeconds = 0.60f;#|the wound is held one frame, then falls straight to nothing at 0.30 s
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#if (L.WoundAmp > 0.f && L.WoundAmp >= WoundValue())#if (L.WoundAmp >= 0.f)#|a lighter blow never cuts a running wound short
+
+# ---- the HUD, as Build draws it
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#ComboFromRight = 172.f#ComboFromRight = 120.f#|every vertex the HUD draws is inside the title-safe area
+# the bug the old rect check missed: a keyline drawn outside its bar, on the safe line
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Health = {X + P.Px(26.f)#L.Health = {X#|every vertex the HUD draws is inside the title-safe area
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Name = {X + P.Px(26.f), Y + P.Px(10.f)};#L.Name = {X + P.Px(26.f), Y + P.Px(150.f)};#|every text is inside title-safe, on its own backing
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#WashW = 700.f#WashW = 1100.f#|the player's corner, the combo and the boss's banner never overlap
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#BannerH = 104.f#BannerH = 400.f#|nothing is drawn in the fight
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#WashAlpha = 0.86f#WashAlpha = 1.0f#;s#WashFadeFrom = 0.50f#WashFadeFrom = 1.0f#|the HUD's backing takes at most 10.5 % of the screen
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#HitsText = 34.f#HitsText = 24.f#|no text the player reads is under 1/36 of the screen
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#TextStroke = 3.f#TextStroke = 1.f#|every text has an ink stroke of 2 screen px at 720 lines
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Blood{0.5271f, 0.0103f, 0.0137f, 1.f}#Blood{0.3325f, 0.0080f, 0.0080f, 1.f}#|every bar is 3:1 against its trough
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#TearPx = 7.f#TearPx = 160.f#|no triangle is inverted or degenerate
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float SplatRim = 1.f;#constexpr float SplatRim = 0.f;#|the combo's blood has an ink rim of 2 screen px
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr int MaxTris = 1024;#constexpr int MaxTris = 256;#|the worst case fits the draw list with room to spare
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#DripBelow = 0.30f#DripBelow = 1.0f#|blood drips from the health bar only at 30 % or under
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#R.X + Us\[k\] \* W, R.X + Half, R.X + W - Half#R.X + Us[k] * R.W, R.X + Half, R.X + R.W - Half#|and hangs under the fill, inside the wash
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#BannerRevealSeconds = 0.40f#BannerRevealSeconds = 0.f#|the boss's banner wipes open over 0.40 s
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#BannerCutInSeconds = 0.20f#BannerCutInSeconds = 0.f#|his name and the slash cut in at 0.20 s
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#const float F = FMath::Clamp(Fill, 0.f, 1.f) \* Span;#const float F = FMath::Clamp(Fill, 0.f, 1.f);#|the boss's bar is clipped as the band opens, never squeezed
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float Lean = 0.55f;#constexpr float Lean = 0.f;#|the bars lean like a slash, not a box
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#static constexpr float HoldSeconds = 0.45f;#static constexpr float HoldSeconds = 0.f;#|the ghost stays where the bar was
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#DrainPerSecond = 0.65f;#DrainPerSecond = 0.f;#|then drains down to it and never under
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#\* RageBlocks - static_cast<float>(Index)#* 4.f - static_cast<float>(Index)#|the rage blocks are the rage
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#: Radius \* (0.62f + 0.08f \* J)#: Radius * (0.84f + 0.16f * J)#|its tips stand out past its valleys
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#FMath::DegreesToRadians(7.f \* static_cast<float>(Count))#FMath::DegreesToRadians(0.f)#|and turns as the count rises
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#return 1.f + 0.35f \* FMath::Exp#return 1.f + 0.f * FMath::Exp#|the count punches and settles

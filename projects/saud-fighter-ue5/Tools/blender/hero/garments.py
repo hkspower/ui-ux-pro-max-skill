@@ -28,6 +28,76 @@ def pants_region(c):
     if 0.118 <= c.z <= 1.075 and abs(c.x) < 0.26: return True
     return False
 
+
+# ---- the sleeveless tops, 2026-09-28 --------------------------------------
+# "make Saud more aggressive and more fit look ... make all game like dark
+# anime adult style": the Unreal build's own tops, NOT the browser's, which
+# draws every man in a tee (`look.tee`). One sleeveless top, cut two ways
+# (pipeline.TOPS), each a row of numbers, and one region, one fit, one
+# strip rule, one edge paint and one hole check for both:
+#
+#   compression  Saud's: tight (the fit's hull pulled TANK_TENSION of the
+#                way to the skin), the armhole's bottom at the flank near
+#                1.28, a strap 132 mm off the midline from 1.48 up; his
+#                colours and the Kuwait flag patch as on his tee
+#   singlet      the thug's and AL-WAHSH's: a loose vest on the tee's own
+#                drape, a deep armhole (an ellipse about (0.205, 1.442),
+#                0.075 x 0.115, bottoming at 1.327) and scoops front and
+#                back, the strap 64 mm wide on the shoulder shelf
+#
+# `armhole` is the opening's inner edge as knots (z, |x|): above the first
+# knot everything further out than the edge is open. `scoops` are ellipses
+# (centre z, half-width, half-height) cut from the front (y < 0) and the
+# back. The neck opening is the tee's.
+TANKS = {
+    "compression": dict(
+        armhole=[(1.28, 0.1980), (1.30, 0.1962), (1.32, 0.1911), (1.34, 0.1837), (1.36, 0.1748), (1.38, 0.1650),
+                 (1.40, 0.1552), (1.42, 0.1463), (1.44, 0.1389), (1.46, 0.1338), (1.48, 0.1320), (1.70, 0.1320)],
+        # a back scoop (2026-09-28, from the fast build's kick render):
+        # without it the tank climbed the trapezius behind the neck to
+        # 1.561, 30-90 mm off the midline -- a stand-up collar at the nape
+        # once the head turned; 1.51-1.55 with it, the straps over the traps
+        scoops=(("back", 1.580, 0.085, 0.070),), offset=0.0030, fold=0.0006, binding=0.008),
+    "singlet": dict(
+        armhole=[(1.3270, 0.2050), (1.3462, 0.1635), (1.3653, 0.1491), (1.3845, 0.1400), (1.4037, 0.1343),
+                 (1.4228, 0.1310), (1.4420, 0.1300), (1.4612, 0.1310), (1.4803, 0.1343), (1.4995, 0.1400),
+                 (1.5187, 0.1491), (1.5378, 0.1635), (1.5570, 0.2050), (1.5580, 0.3000), (1.7000, 0.3000)],
+        scoops=(("front", 1.540, 0.080, 0.130), ("back", 1.560, 0.075, 0.080)), offset=0.0060, fold=0.0010,
+        binding=0.006),
+}
+SLEEVES = {"tee": True, "compression": False, "singlet": False}
+TANK_TENSION = 0.55       # how much of the hull's reach the compression top takes (1.0 the tee's drape)
+
+
+def armhole_x(z, cut):
+    """The armhole's inner edge, |x| at height z (np-friendly), for a tank
+    cut: 1.0 (nothing open) below its bottom."""
+    k = TANKS[cut]["armhole"]
+    zs = [a for a, _ in k]; xs = [b for _, b in k]
+    return np.where(np.asarray(z) < zs[0], 1.0, np.interp(z, zs, xs))
+
+
+def tank_region(c, cut, margin=0.0):
+    """The tank's trunk, as tee_region's without the sleeves and with its
+    cut's armholes and scoops taken out; `margin` shrinks it inward from
+    every edge (the strip keeps a band of skin inside every one)."""
+    m = margin
+    if not (1.062 + m <= c.z <= 1.575 - m and abs(c.x) < 0.24):
+        return False
+    if c.z > 1.505 - m and math.hypot(c.x, c.y - 0.004) < 0.074 + m: return False       # neck opening
+    if c.z > 1.505 - m and c.y < -0.03 and math.hypot(c.x, c.y + 0.02) < 0.085 + m: return False   # scoop at the front
+    row = TANKS[cut]
+    k = row["armhole"]
+    if c.z > k[0][0] - m and abs(c.x) > float(armhole_x(c.z, cut)) - m: return False
+    for side, cz, a, b in row["scoops"]:
+        if (c.y < 0) == (side == "front") and (c.x / (a + m)) ** 2 + ((c.z - cz) / (b + m)) ** 2 < 1.0: return False
+    return True
+
+
+def top_region(top):
+    """The region test for a top ('tee' or a TANKS cut)."""
+    return tee_region if top == "tee" else (lambda c: tank_region(c, top))
+
 def shell(body, name, region, offset, thickness, fold=0.0, fold_size=0.14):
     """Duplicate the faces in `region`, push them out, thicken, and fold."""
     bm = bmesh.new(); bm.from_mesh(body.data)
@@ -74,8 +144,11 @@ def soles():
         out.append(o)
     return out
 
-def dress(body, tee=True):
-    """`tee=False` is ZAYOS (`look.tee: false`): shell() still runs, with
+def dress(body, tee=True, top="tee", bottom="track"):
+    """The top (`top`: 'tee', or a TANKS cut) and the trousers (`bottom`:
+    'track' or 'jogger', LEG_FIT) on the body, fitted and checked.
+
+    `tee=False` is ZAYOS (`look.tee: false`): shell() still runs, with
     a region that keeps nothing, so the returned object is a real, empty
     Tee -- zero faces, zero vertices -- rather than None. Everything after
     this already copies, decimates, UV-unwraps, paints, binds and joins a
@@ -86,16 +159,25 @@ def dress(body, tee=True):
     only skipping the (also checked, on the hair precedent) bake of it."""
     # the cloud noise is a millimetre now, only irregularity: the folds are
     # fit()'s, where cloth actually folds, and the fit is fit()'s drape
-    t = shell(body, "Tee", tee_region if tee else (lambda c: False), 0.006, 0.0025, fold=0.0010, fold_size=0.16)
-    pants = shell(body, "Pants", pants_region, 0.010, 0.003, fold=0.0012, fold_size=0.20)
-    for g, kind in ((t, "tee"), (pants, "pants")):
-        info = fit(g, kind, body)
+    assert top in SLEEVES, "no such top: %r (%s)" % (top, ", ".join(SLEEVES))
+    assert bottom in LEG_FIT, "no such trousers: %r (%s)" % (bottom, ", ".join(LEG_FIT))
+    # (a tank's shell sits closer and folds less: TANKS' offset and fold)
+    off, fold = (0.006, 0.0010) if top == "tee" else (TANKS[top]["offset"], TANKS[top]["fold"])
+    t = shell(body, "Tee", top_region(top) if tee else (lambda c: False), off, 0.0025, fold=fold, fold_size=0.16)
+    pants = shell(body, "Pants", pants_region, 0.010 if bottom == "track" else JOGGER_OFFSET, 0.003, fold=0.0012, fold_size=0.20)
+    # fit() is called (g, kind, body) for the tee and the track trousers,
+    # as always; the cut goes as a keyword only when it is not those
+    for g, kind, cut in ((t, "tee", top), (pants, "pants", bottom)):
+        info = fit(g, kind, body) if cut in ("tee", "track") else fit(g, kind, body, cut=cut)
         if info.get("moved"):
             print("cloth     : %-5s draped %d verts (up to %.0f mm), folds to %.1f mm, %d held off the skin"
-                  % (kind, info["moved"], info["drape_max"] * 1000, info["fold_max"] * 1000, info["pushed"]))
+                  % (cut, info["moved"], info["drape_max"] * 1000, info["fold_max"] * 1000, info["pushed"]))
     if check_cloth_in_dress:
-        ck = check_cloth(t, pants, body)
+        ck = check_cloth(t, pants, body, top=top, bottom=bottom)
         print("cloth     : " + "  ".join("%s %.4f" % kv for kv in ck.items()))
+        if tee and top != "tee":
+            cov, of = check_bare(body, t)
+            print("cloth     : bare arms: %d of %d outer upper-arm faces under the %s" % (cov, of, top))
     return t, pants, soles()
 
 
@@ -246,7 +328,15 @@ def _noise(P, scale, seed):
     return (np.sin(1.7 * x + 2.3 * z + seed) + np.sin(2.9 * y - 1.3 * z + 1.7 * seed)
             + np.sin(1.1 * x + 3.7 * y + 0.9 * z + 2.9 * seed)) / 3.0
 
-CLEAR = {"tee": 0.0030, "pants": 0.0045}   # the closest cloth comes to the skin
+CLEAR = {"tee": 0.0030, "pants": 0.0045,   # the closest cloth comes to the skin
+         "compression": 0.0022}             # (a cut CLEAR does not name takes its kind's)
+# The trouser legs' drape, per cut: (slope, taper (from, to) as a fraction
+# down the leg, max_grow). 'track' as it was; 'jogger' (Saud, 2026-09-28)
+# narrows faster under the thigh and gathers from the lower shin: 7-8 mm
+# off the leg where the track stands 10-12 (slope 0.10 made the knee worse,
+# 14.3 mm).
+LEG_FIT = {"track": (0.16, (0.86, 0.98), 0.025), "jogger": (0.30, (0.78, 0.96), 0.016)}
+JOGGER_OFFSET = 0.007     # the jogger's shell off the skin (the track's 0.010)
 FOLD_SCALE = 1.0          # the folds' amplitude, for the check's sabotage
 TEE_SLOPE = 0.35          # how fast the tee may narrow under what it hangs from (0.20 tented it off the lats)
 ANGLE_SMOOTH = 10         # passes rounding each slice's hang across angles (was 3)
@@ -257,16 +347,31 @@ PELVIS_Z = 0.93           # the seat's drape stops above the crotch (0.90)
 MIN_CLEAR = 0.002         # check_cloth's floor, whatever CLEAR is set to
 check_cloth_in_dress = True   # --cloth-check checks each dressing itself
 
-def fit(g, kind, body=None):
+def fit(g, kind, body=None, cut=None):
     """Drape and fold one garment in place ("tee" or "pants"). Canonical
-    positions (before a man's size). See the note above."""
+    positions (before a man's size). See the note above. `cut` is the
+    top's (None the tee, or a TANKS cut) or the trousers' (None 'track',
+    or a LEG_FIT cut)."""
     me = g.data
     n = len(me.vertices)
     if n == 0: return dict(moved=0)
     P = np.empty(n * 3); me.vertices.foreach_get("co", P); P = P.reshape(n, 3)
     D = np.zeros((n, 3))
     X = np.array([1.0, 0, 0]); Y = np.array([0, 1.0, 0]); Z = np.array([0, 0, 1.0])
-    if kind == "tee":
+    cut = cut or ("tee" if kind == "tee" else "track")
+    if cut == "compression":
+        # A compression top hugs: each slice's hull (it bridges the spinal
+        # furrow and the hollows between the abs) with no hang from what is
+        # above it, and only TANK_TENSION of that reach -- the waist and the
+        # abs show through it. Faded out over the chest, where the straps
+        # lie on the trapezius as the shell does. No waist or armpit folds.
+        up = np.nonzero(P[:, 2] < 1.46)[0]
+        out = _drape_region(P, up, np.array([0.0, 0.004, 1.46]), -Z, X, Y, 0.006, slope=4.0, max_grow=0.010)
+        if len(out):
+            grow, dirv = out
+            w = TANK_TENSION * (1.0 - _smoothstep(1.40, 1.46, P[up, 2]))
+            D[up] += dirv * (grow * w)[:, None]
+    elif kind == "tee":
         rows = A.TRUNK_ROWS
         zs = [r[0] for r in rows]; rx = np.interp(P[:, 2], zs, [r[2] for r in rows])
         # The trunk: everything inside the sides, and below the armpit the
@@ -296,8 +401,10 @@ def fit(g, kind, body=None):
             w = (1.0 - _smoothstep(1.30, 1.37, P[trunk, 2])) * (1.0 - side) \
                 + (1.0 - _smoothstep(1.22, 1.30, P[trunk, 2])) * _smoothstep(ARM_CLEAR[0], ARM_CLEAR[1], arm_d[trunk]) * side
             D[trunk] += dirv * (grow * w)[:, None]
-        # the sleeves: looser toward the cuff, and hanging off the arm
-        for sgn in (1, -1):
+        # the sleeves: looser toward the cuff, and hanging off the arm (a
+        # singlet has none: run on it, this pushed the armhole's side 1-8 mm
+        # off the arm)
+        for sgn in ((1, -1) if SLEEVES[cut] else ()):
             sh = np.array(Jp("upperarm_l")) * np.array([sgn, 1, 1]); el = np.array(Jp("lowerarm_l")) * np.array([sgn, 1, 1])
             d = el - sh; L = np.linalg.norm(d); d /= L
             t = (P - sh) @ d / L
@@ -329,8 +436,9 @@ def fit(g, kind, body=None):
             # hull took in the seat and pushed the inner thigh's cloth 68 mm
             # into the other leg (the first preview)
             leg = np.nonzero((P[:, 0] * sgn > 0.004) & (P[:, 2] < 0.87))[0]
-            out = _drape_region(P, leg, hip, ax, u, v, 0.010, slope=0.16,
-                                taper=lambda f: _smoothstep(0.86, 0.98, f), max_grow=0.025)
+            slope, (ta, tb), mg = LEG_FIT[cut]
+            out = _drape_region(P, leg, hip, ax, u, v, 0.010, slope=slope,
+                                taper=lambda f, ta=ta, tb=tb: _smoothstep(ta, tb, f), max_grow=mg)
             if len(out):
                 grow, dirv = out
                 w = 1.0 - _smoothstep(0.82, 0.87, P[leg, 2])
@@ -351,7 +459,9 @@ def fit(g, kind, body=None):
     Nn = np.empty(n * 3); me.vertices.foreach_get("normal", Nn); Nn = Nn.reshape(n, 3)
     F = np.zeros(n)
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
-    if kind == "tee":
+    if cut == "compression":
+        pass
+    elif kind == "tee":
         # slack above the hem, round the waist: soft horizontal folds
         env = _smoothstep(1.070, 1.095, z) * (1 - _smoothstep(1.17, 1.22, z))
         F += 0.0015 * env * (0.6 + 0.4 * _noise(P, 30.0, 11.0)) * np.sin(2 * np.pi * (z - 1.07) / 0.034 + 1.8 * _noise(P, 18.0, 1.0))
@@ -393,7 +503,7 @@ def fit(g, kind, body=None):
     if body is not None:
         from mathutils.bvhtree import BVHTree
         tb = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
-        need = CLEAR[kind]
+        need = CLEAR.get(cut, CLEAR[kind])
         for i in range(n):
             loc, nrm, _, d = tb.find_nearest(Vector(P[i]))
             if loc is None: continue
@@ -406,7 +516,12 @@ def fit(g, kind, body=None):
                 fold_max=float(np.abs(F).max()))
 
 
-def check_cloth(tee, pants, body, assert_=True):
+FURROW_MAX = {"tee": 0.001, "singlet": 0.001, "compression": 0.003}   # how far a top may follow the spinal furrow
+TANK_HANG = 0.006         # a compression top stands at most this far off the waist at 1.14
+JOGGER_FIT = ((0.52, 0.010), (0.70, 0.009))   # the jogger's median off the leg at the knee and the calf, at most
+
+
+def check_cloth(tee, pants, body, assert_=True, top="tee", bottom="track"):
     """The clothes on the body, canonical, 2026-09-27 ("improve clothes"):
 
     the tee bridges the spinal furrow -- at 1.14 its back is no more than
@@ -466,15 +581,38 @@ def check_cloth(tee, pants, body, assert_=True):
         loc, nrm, _, d = tb.find_nearest(Vector(q))
         if loc is not None: span = max(span, d)
     out["crotch_span"] = span
+    # the jogger (2026-09-28): how far each leg stands off the skin at the
+    # knee and the calf, the median over a ring of the leg
+    if bottom == "jogger":
+        for tq, _most in JOGGER_FIT:
+            ds = []
+            for sgn in (1, -1):
+                hip = np.array(Jp("thigh_l")) * np.array([sgn, 1, 1]); ank = np.array(Jp("foot_l")) * np.array([sgn, 1, 1])
+                ax = ank - hip; L = np.linalg.norm(ax); ax /= L
+                t = (Pn - hip) @ ax / L
+                for q in Pn[(np.abs(t - tq) < 0.015) & (Pn[:, 0] * sgn > 0.004)]:
+                    loc, nrm, _, d = tb.find_nearest(Vector(q))
+                    if loc is not None: ds.append(d)
+            out["leg_off_%02d" % round(tq * 100)] = float(np.median(ds)) if ds else 1.0
     if not assert_:
         return out
     if len(T):
-        assert out["tee_furrow"] <= 0.001, "skin-tight: the tee sinks %.1f mm into the spinal furrow" % (out["tee_furrow"] * 1000)
+        fmax = FURROW_MAX[top]
+        assert out["tee_furrow"] <= fmax, "skin-tight: the %s sinks %.1f mm into the spinal furrow, want %.0f at most" % (
+            top, out["tee_furrow"] * 1000, fmax * 1000)
+        if top == "compression":
+            assert out["tee_hang"] <= TANK_HANG, "not compression: the tank stands %.1f mm off the waist, want %.0f at most" % (
+                out["tee_hang"] * 1000, TANK_HANG * 1000)
     for kind in ("tee", "pants"):
         if kind in worst:
             assert worst[kind] >= MIN_CLEAR, "the %s goes %.1f mm from the skin (into it below 0), want %.0f" % (kind, worst[kind] * 1000, MIN_CLEAR * 1000)
     assert out["cuff_swing"] >= 0.002, "no folds: the trousers swing %.1f mm above the cuff, want 2" % (out["cuff_swing"] * 1000)
     assert out["crotch_span"] <= 0.015, "a skirt: cloth between the legs %.0f mm off the skin, want 15 at most" % (out["crotch_span"] * 1000)
+    if bottom == "jogger":
+        for tq, most in JOGGER_FIT:
+            v = out["leg_off_%02d" % round(tq * 100)]
+            assert v <= most, "not fitted: the joggers stand %.1f mm off the leg at %.0f %% of it, want %.0f at most" % (
+                v * 1000, tq * 100, most * 1000)
     return out
 
 
@@ -502,3 +640,104 @@ def check_legs_apart(pants, crotch_z, assert_=True):
             across, min(where), max(where), crotch_z)
     return across, gap
 
+
+BARE_MOST = 0.02          # check_bare: the share of the outer upper arm a sleeveless top may cover
+
+
+def check_bare(body, top, assert_=True):
+    """A sleeveless top leaves the arms bare (2026-09-28): the body's faces
+    on the outer half of each upper arm, from the shoulder joint to 35 % of
+    the way to the elbow and within 0.11 m of its axis -- the deltoid, which
+    the tank is there to show -- and a ray from each out along its normal
+    must not meet the top within 20 mm; at most BARE_MOST of them may.
+    Returns (covered, of)."""
+    from mathutils.bvhtree import BVHTree
+    dg = bpy.context.evaluated_depsgraph_get()
+    tb = BVHTree.FromObject(top, dg)
+    me = body.data
+    covered = of = 0
+    for s in (1, -1):
+        sh = Vector((Jp("upperarm_l").x * s, Jp("upperarm_l").y, Jp("upperarm_l").z))
+        el = Vector((Jp("lowerarm_l").x * s, Jp("lowerarm_l").y, Jp("lowerarm_l").z))
+        d = el - sh; L = d.length; d = d / L
+        for p in me.polygons:
+            c = p.center
+            t = (c - sh).dot(d) / L
+            if not (0.0 <= t <= 0.35): continue
+            r = (c - sh) - d * ((c - sh).dot(d))
+            if r.length > 0.11 or r.x * s <= 0.0: continue          # the outer half: away from the trunk
+            of += 1
+            hit = tb.ray_cast(c + p.normal * 0.0005, p.normal, 0.020)
+            if hit[0] is not None: covered += 1
+    if assert_:
+        assert of and covered <= BARE_MOST * of, "sleeves: the %s covers %d of the %d outer upper-arm faces (%.0f %%), want %.0f %% at most" % (
+            top.name, covered, of, 100.0 * covered / max(of, 1), BARE_MOST * 100)
+    return covered, of
+
+
+HOLE_REACH = 0.060        # a stripped face must have a garment (or his own skin) this near along its normal
+HOLE_MOST = 0.0005        # ...all but this share of them
+
+
+def check_holes(body, idx, garments, assert_=True):
+    """No holes where the skin is stripped (2026-09-28): the body faces
+    `idx` (pipeline.under_garments' strip) are deleted after the bind, and
+    one with no garment over it would be a hole into the body. A stripped
+    face is exposed unless a ray from it out along its normal meets a
+    garment -- or his own skin -- within HOLE_REACH; at most HOLE_MOST
+    (0.05 %) of them may be. The one rule for every top, sleeved or not.
+
+    Measured on the fast builds before the reach was set: the rule as
+    first written (a garment within 45 mm) failed every man in the track
+    trousers and the tee -- AL-WAHSH 173 of 124,423 faces (0.14 %), AL-SAQR
+    282 of 136,838 (0.21 %): under the seat, where the trousers bridge the
+    fold, the faces looking down meet the cloth 45-58 mm off; in the
+    armpit and between the thighs a face looks at his own skin, inside the
+    cloth with it. At 60 mm, with his skin counted: AL-SAQR 45 (0.033 %),
+    Saud 0; the tee's sleeve strip left on under a tank, 0.9-1.8 %.
+    Returns (exposed, of)."""
+    from mathutils.bvhtree import BVHTree
+    dg = bpy.context.evaluated_depsgraph_get()
+    trees = [BVHTree.FromObject(g, dg) for g in list(garments) + [body] if len(g.data.polygons)]
+    me = body.data
+    exposed = 0
+    for i in idx:
+        p = me.polygons[i]
+        o = p.center + p.normal * 0.0002
+        if not any(t.ray_cast(o, p.normal, HOLE_REACH)[0] is not None for t in trees):
+            exposed += 1
+    n = max(len(idx), 1)
+    if assert_:
+        assert exposed <= HOLE_MOST * n, "holes: %d of the %d stripped body faces (%.3f %%) have no garment or skin within %.0f mm, want %.2f %% at most" % (
+            exposed, len(idx), 100.0 * exposed / n, HOLE_REACH * 1000, HOLE_MOST * 100)
+    return exposed, len(idx)
+
+
+def stripped(c, top="tee", no_tee=False, seen=True):
+    """Whether the body face at `c` (its centre, canonical coordinates) is
+    under the garments and never seen, and so stripped (pipeline's
+    under_garments; its history is there). The trousers' region from 0.16
+    to 1.04; under a tee its trunk from 1.10 to 1.50 -- but not the skin
+    within 12 cm round the neck above 1.45, where the collar stands off it
+    -- and the top of each sleeve, the upper arm's first tenth (`seen`
+    False: its first 0.30, and the neck with it, which is how the budget
+    counts it); under a tank (2026-09-28) the tank's region shrunk 20 mm
+    inside every edge, so a band of skin is kept under each, and no arm at
+    all: a sleeveless top leaves the arm to be seen. `no_tee` (ZAYOS): the
+    trousers only."""
+    if no_tee:
+        return 0.16 <= c.z <= 1.04 and pants_region(c)
+    if 0.16 <= c.z <= 1.04 and pants_region(c):
+        return True
+    if top != "tee":
+        return tank_region(c, top, margin=0.020)
+    if (1.10 <= c.z <= 1.50 and abs(c.x) < 0.24 and tee_region(c)
+            and not (seen and c.z > 1.45 and math.hypot(c.x, c.y - 0.004) < 0.12)):
+        return True
+    for s in (1, -1):
+        sh = Vector((Jp("upperarm_l").x * s, Jp("upperarm_l").y, Jp("upperarm_l").z))
+        el = Vector((Jp("lowerarm_l").x * s, Jp("lowerarm_l").y, Jp("lowerarm_l").z))
+        t = (c - sh).dot(el - sh) / (el - sh).length_squared
+        if -0.25 < t < (0.10 if seen else 0.30) and _pt_seg(c, sh, el) < 0.095 and c.z > 1.30:
+            return True
+    return False

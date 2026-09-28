@@ -464,6 +464,38 @@ def dorsum_hump(scale=None, table=None, shift=None):
     k = int(np.argmax(crest[seg] - chord))
     return float((crest[seg] - chord)[k]), float(zs[seg][k])
 
+NOSE_MID = NOSE_TIP + 0.0225   # check_nose's mid-bridge: halfway from the tip to the nasion
+
+def check_nose(scale=None, shift=None, looks=None, assert_=True):
+    """A man's nose reads as what his NOSES entry says it is (2026-09-28;
+    `looks` is his pipeline.NOSE_LOOKS entry): dict(looks='broken' |
+    'aquiline' | 'flattened', and any of deviation=, hump=, dorsum= as
+    (lo, hi), metres, None for an open end) -- the crest's distance off
+    the midline (_nose_widths), the dorsal hump over the nasion-tip chord
+    (dorsum_hump) and the dorsum's height at mid-bridge (NOSE_MID, the
+    crest across x: a flattened nose is pushed in there). The shared
+    nose: 0 off, a 1.61 mm hump, the dorsum 15.7 mm. A man with no entry
+    is not held. Returns dict(deviation, hump, dorsum)."""
+    xs = np.arange(-0.010, 0.010, 0.00025)
+    out = dict(deviation=_nose_widths(scale, shift=shift)["deviation"], hump=dorsum_hump(scale, shift=shift)[0],
+               dorsum=float(_field(xs, NOSE_MID, scale, shift=shift).max()))
+    if not assert_ or not looks:
+        return out
+    bad = set(looks) - {"looks", "deviation", "hump", "dorsum"}
+    if bad:
+        raise KeyError("no such nose look: %s (looks, deviation, hump, dorsum)" % sorted(bad))
+    what = dict(deviation="the crest %.2f mm off the midline", hump="a %.2f mm dorsal hump",
+                dorsum="the dorsum %.2f mm high at mid-bridge")
+    for key in ("deviation", "hump", "dorsum"):
+        if key not in looks:
+            continue
+        lo, hi = looks[key]; v = out[key]
+        ok = (lo is None or v >= lo) and (hi is None or v <= hi)
+        want = ("%.1f-%.1f" % (lo * 1000, hi * 1000) if lo is not None and hi is not None else
+                "%.1f or more" % (lo * 1000) if lo is not None else "%.1f or less" % (hi * 1000))
+        assert ok, ("not %s: " + what[key] + ", want %s") % (looks["looks"], v * 1000, want)
+    return out
+
 def check_profile(scale=None, table=None, shift=None):
     """What about the nose a render will not tell you until it is too late,
     and all of which went wrong before:

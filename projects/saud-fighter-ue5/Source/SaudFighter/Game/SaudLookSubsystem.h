@@ -36,6 +36,13 @@ struct FHitResultData;
  * punch lands, the man it landed on, into MPC_Anime. The state itself
  * (the eased flame, the burst's clock) is the player's, in game time.
  *
+ * The hit effects of the dark seinen (since 2026-09-28) go through the
+ * same collection: the impact frame's tone (a blow's blood, a parry's bone,
+ * a burning punch's ember -- OnBurn retags the frame OnBlow just started),
+ * the wound border when the player is the one hit, and the mark where a
+ * heavy blow landed, projected each tick from the victim as he moves, the
+ * same way the fire's burst is.
+ *
  * If the assets are not there (the editor script has not been run), it
  * logs once and does nothing: the game is exactly the game without it.
  */
@@ -51,7 +58,9 @@ public:
 	void OnBlow(const AFighterBase* Victim, const FHitResultData& Hit, bool bHeavy);
 
 	/** A burning HAWK FIST punch landed on Victim: the burst is drawn on
-	    him for as long as ASaudCharacter's SaudFire::FState says. */
+	    him for as long as ASaudCharacter's SaudFire::FState says, and the
+	    impact frame that same blow started (OnBlow runs first, in the same
+	    call) goes ember. */
 	void OnBurn(const AFighterBase* Victim);
 
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
@@ -78,6 +87,11 @@ private:
 	/** Who the last burning punch landed on: the burst is drawn on him. */
 	TWeakObjectPtr<const AFighterBase> Burned;
 
+	/** Who the last mark was made on, and where on him the blow landed
+	    (Hit.ImpactPoint less his location): the mark follows him. */
+	TWeakObjectPtr<const AFighterBase> MarkVictim;
+	FVector MarkOffset = FVector::ZeroVector;
+
 	/** The MPC_Anime scalars written through Write(), a slot each. Sized
 	    (since 2026-09-28) for every scalar the look and the hit effects
 	    write each frame, the impact's tone, the wound and the hit mark's
@@ -97,6 +111,7 @@ private:
 	void Set(const TCHAR* Name, float Value);
 	bool VictimOnScreen(float& OutX, float& OutY) const;
 	void WriteFire(const ASaudCharacter* Saud);
+	void WriteMark();
 	/** A world point as the fire parameters want it: viewport fraction (Y
 	    down), scene depth in cm, and the size of one figure pixel there as
 	    a fraction of the viewport's height. False when it cannot be seen. */
