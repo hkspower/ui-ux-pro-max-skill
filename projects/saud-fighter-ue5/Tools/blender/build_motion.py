@@ -158,9 +158,25 @@ def inclination(move):
 SUPPORT_FOOT = (0.05, -0.55, -0.83)     # heel up, weight over the ball
 
 
-def _strikes(base=None):
+# A strike's torso aims (spine_01-03, neck_01, head) are absolute, written
+# for the boxer's upright guard: a jab's spine_03 aims 11.5 degrees forward.
+# Thrown from a guard hunched further than that they STRAIGHTEN the back --
+# measured on Saud's stance of 2026-09-28 (spine_03 22 degrees forward), the
+# jab's lean fell from 10.4 cm to 2.9 and the knee's from 11.8 to 3.2. For
+# the stances named here each torso aim a strike sets is instead the turn
+# that takes the BOXER'S guard to it, applied to this man's own guard: he
+# leans from his own hunch. Aims a strike does not set are left alone.
+RELATIVE_TORSO = {"mma"}
+TORSO = ("spine_01", "spine_02", "spine_03", "neck_01", "head")
+
+
+def _strikes(base=None, stance=None):
     import build_saud as L
     G = dict(L.GUARD if base is None else base)
+    if "upright" in SABOTAGE and stance == "mma":
+        # --bite "upright": Saud stood on his stance as it was until
+        # 2026-09-28, which the stance check has to tell from this one
+        G = dict(L.MMA_GUARD_2026_09_26)
     if "guard" in SABOTAGE:
         # the guard's arms as they were until 2026-09-24
         for s, x in (("l", 1.0), ("r", -1.0)):
@@ -262,6 +278,15 @@ def _strikes(base=None):
 
     # ---- and the one that is not a strike: what he does between them
     S["Guard"] = (dict(G), {})
+    if stance in RELATIVE_TORSO and "abs_torso" not in SABOTAGE:
+        from mathutils import Vector
+        for mv, (shape, _tw) in S.items():
+            if mv == "Guard":
+                continue
+            for n in TORSO:
+                if n in shape and n in G and tuple(shape[n]) != tuple(G[n]):
+                    q = Vector(L.GUARD[n]).normalized().rotation_difference(Vector(shape[n]).normalized())
+                    shape[n] = tuple((q @ Vector(G[n]).normalized()).normalized())
     if "palms" in SABOTAGE:
         for shape, _tw in S.values():
             for k in L.PALMS:
@@ -771,15 +796,51 @@ SABOTAGE = set()
 # cross 24 to his right, 7-15 cm under the chin: two punches that never met.
 LAND_X = {"Jab": 0.0, "Cross": 0.0, "Hook": -0.05}
 CHIN_UNDER_HEAD = 0.10
+# ...and at WHOSE chin (2026-09-28). A punch used to land at the height of
+# the thrower's own chin, "a man in the same guard" -- true of nobody: every
+# pair (motion_hits.PAIRS) has Saud on one side, and the men stand in five
+# different guards. Saud's head came down 2.1 cm with his stance of that day
+# and the pairs' 8 cm chin mark failed about twenty times (a street man's
+# jab 9 cm over Saud's chin). A set's jab, cross and hook now land on the
+# chin of the men it is paired with, their grounded guard heads less
+# CHIN_UNDER_HEAD, averaged when there are several (Saud's four opponents);
+# a set with no pairs lands on its own. Captured once per build by
+# author_all (capture_chins); `CHIN_OF` is each set's own.
+VICTIM_CHIN, CHIN_OF = {}, {}
+MOTION_SETS = ("Saud", "Street", "Boss", "Saqr", "Zayos")
+CHIN_TOL = 0.015      # the fist's tip at contact, off the chin it is thrown at
 
 
-def landing(au, g, move, fk, s):
+def set_stance(key):
+    """The stance factor a set's clips are struck at (plan's c["stance"])."""
+    return (saud_character() if key in (SAUD["key"], STREET["key"]) else character(BOSSES[key]["kind"]))["stance"]
+
+
+def capture_chins(au, S):
+    """Each set's own chin, from its guard grounded as its clips ground it,
+    and the chin each set's punches land on."""
+    VICTIM_CHIN.clear(); CHIN_OF.clear()
+    for key in MOTION_SETS:
+        guard, _ = S[GUARD_OF.get(key, "boxer")]["Guard"]
+        g = au.capture_guard(aims_at(guard, guard, 0.0, set_stance(key)))
+        CHIN_OF[key] = g["head"].z + g["dz"] - CHIN_UNDER_HEAD
+    for key in MOTION_SETS:
+        them = [v for a, v in H.PAIRS if a == key]
+        VICTIM_CHIN[key] = sum(CHIN_OF[v] for v in them) / len(them) if them else CHIN_OF[key]
+
+
+def landing(au, g, move, fk, s, key=None):
     """How far the fist must go, at its contact pose `fk`, for its tip to
-    land where LAND_X and the chin say."""
+    land where LAND_X and the chin say -- the chin of the men set `key` is
+    thrown at (VICTIM_CHIN), or the thrower's own without one."""
     from mathutils import Vector
     m = fk["hand_" + s]
     tip = m @ Vector((0.0, au.pb["hand_" + s].length, 0.0))
-    want = Vector((LAND_X[move], tip.y, g["head"].z + g["dz"] - CHIN_UNDER_HEAD))
+    chin = VICTIM_CHIN.get(key) if "own_chin" not in SABOTAGE else None
+    if chin is None:
+        # --bite "own_chin": the thrower's own chin, as before 2026-09-28
+        chin = g["head"].z + g["dz"] - CHIN_UNDER_HEAD
+    want = Vector((LAND_X[move], tip.y, chin))
     d = want - tip
     # ...with the elbow as bent as the strike's own: moved across and up,
     # at its own depth the arm would lock straight (0.598 m of 0.599 on the
@@ -924,11 +985,11 @@ def author_strike(au, c, S):
     if c["move"] in LINE and "line" not in SABOTAGE:
         full = pose(c["amp"])[4]
         ends = (pose(0.0)[4]["hand_" + striker].translation.copy(),
-                full["hand_" + striker].translation + landing(au, g, c["move"], full, striker))
+                full["hand_" + striker].translation + landing(au, g, c["move"], full, striker, c["boss"]))
     elif c["move"] in LAND_X and c["move"] not in LINE:
         # the hook keeps its arc, bent onto the jaw as it arrives
         striker = "r"
-        bend = landing(au, g, c["move"], pose(c["amp"])[4], striker)
+        bend = landing(au, g, c["move"], pose(c["amp"])[4], striker, c["boss"])
     frames, plant, drops = [], {s: {} for s in planted}, []
     for f in range(c["frames"]):
         t = f / float(FPS)
@@ -1146,6 +1207,19 @@ def author_dash(au, c, S):
     return frames
 
 
+# A strike that leans in leans the chest at least this much further than the
+# guard already has it (degrees, spine_03 toward where the chest faces), at
+# contact. Measured 2026-09-28 over all five sets' Jab, Cross, Hook and Knee:
+# 12.7 at the least (AL-WAHSH's jab, whose peek-a-boo guard already holds
+# the jab's chest aim) to 28-31 (the crosses); Saud's 18.6-28.0. With the
+# strikes' torso aims absolute again (--bite "abs_torso") Saud's jab adds
+# 2.6, his hook 4.7 and his knee 4.9 (his cross 9.2). 8 sits between: the
+# sabotage's jab 5.4 under it, the clean's least 4.7 over. The check first
+# written for this -- no less than the guard's lean less 3 degrees -- did not
+# bite: the browser's lean, added on top, keeps even the sabotaged jab's
+# chest 2.6 degrees over its guard.
+LEAN_IN = 8.0
+
 BLOCK_FWD = 0.19      # the block's wrists, in front of the head joint
 BLOCK_CLEAR = 0.14    # the least any knuckle stands in front of it (the brow is 10 cm)
 
@@ -1297,6 +1371,27 @@ def author_floor(au, c, S, keys_of):
     return frames
 
 
+# The stances whose death lets the hunch go and whose win straightens out of
+# it (motion_hits.death_keys, author_victory), 2026-09-28. Saud's neck is
+# flexed 26 degrees and his head pitched 14: turned back with the torso as
+# every fall turns the guard's neck, his dead head stayed 32-33 cm off the
+# floor (the "lies dead" check is 30), and the win's 0.22 rad of chin-up
+# over a tucked chin ended 3.8 degrees above level (11.2 in the old stance).
+# The other stances are left exactly as they were.
+RELEASE = {"mma"}
+
+
+def relaxed(au):
+    """A man standing easy, as aims: the boxer's upright neck and head
+    (build_saud.GUARD) and the collarbones along their rest."""
+    import build_saud as L
+    out = {"neck_01": L.GUARD["neck_01"], "head": L.GUARD["head"]}
+    for s in SIDES:
+        b = au.rig.data.bones["clavicle_" + s]
+        out["clavicle_" + s] = tuple((b.tail_local - b.head_local).normalized())
+    return out
+
+
 def floor_beside(g):
     """How far the rear foot slides in, to the lead's side, on the way down."""
     from mathutils import Vector
@@ -1314,6 +1409,11 @@ def floor_frame(au, g, aims, p, prev, extra=None):
     from mathutils import Vector, Matrix
     x = extra or {}
     aims = x.get("aims", aims)
+    if p.get("relax", 0.0) > 0.0:
+        # the hunch let go (motion_hits.death_keys): the neck, the head and
+        # the collarbones toward a man standing easy, before the tilt turns
+        # them back with the torso
+        aims = aims_at(aims, relaxed(au), p["relax"], 1.0)
     gp = g["pelvis"].translation
     side = {"l": 1.0, "r": -1.0}
     beside = floor_beside(g)
@@ -1381,7 +1481,11 @@ def author_all(clips):
     au = M.Author(rig)
     print("%6.1fs  rig: %d bones, control layer on" % (time.time() - t0, len(rig.data.bones)))
     import build_saud as L
-    S = {name: _strikes(g) for name, g in L.GUARDS.items()}
+    S = {name: _strikes(g, name) for name, g in L.GUARDS.items()}
+    capture_chins(au, S)
+    print("%6.1fs  chins: %s; punches land on %s" % (time.time() - t0,
+          ", ".join("%s %.3f" % (k, CHIN_OF[k]) for k in MOTION_SETS),
+          ", ".join("%s's at %.3f" % (k, VICTIM_CHIN[k]) for k in MOTION_SETS)))
     authored = []
     for c in clips:
         authored.append((c, AUTHOR[c["kind"]](au, c, S[c["guard"]])))
@@ -1588,6 +1692,13 @@ def verify(rig, made):
     back to the guard; a block puts the fists at the forehead; a hit sends
     the head back, the heavy one further; Down ends on the floor and never
     goes through it; GetUp starts where Down ended and ends in the guard.
+
+    Added 2026-09-28 with Saud's stance, each bitten the same way: the
+    guard IS the stance meant (build_saud.MMA_SPEC through measure_stance,
+    "upright"); a jab, cross and hook land on the chin they are thrown at
+    (VICTIM_CHIN, "own_chin"); a strike leans from its own guard, not out
+    of it (LEAN_IN, "abs_torso"); and in motion_hits, Saud's death lets the
+    hunch go ("no_relax") and his win ends chin up ("no_chin").
     """
     import bpy
     import rig_full_ik as CR
@@ -1607,6 +1718,19 @@ def verify(rig, made):
     def apart(a, b):
         return max((a[n] - b[n]).length for n in a)
 
+    def chest_tilt(frame):
+        """How far spine_03 leans toward where the chest faces (its own Z,
+        flattened), degrees."""
+        from mathutils import Vector
+        bpy.context.scene.frame_set(frame)
+        bpy.context.view_layer.update()
+        m = (rig.matrix_world @ rig.pose.bones["spine_03"].matrix).to_3x3()
+        y, z = m.col[1], m.col[2]
+        fh = Vector((z.x, z.y, 0.0)).normalized()
+        return math.degrees(math.atan2(y.dot(fh), y.z))
+
+    import build_saud as L
+    specs = {"mma": L.MMA_SPEC}
     by_name = {c["move"] + "@" + c["boss"]: (c, act) for c, act, _f in made}
     for c, act, frames in made:
         rig.animation_data.action = act
@@ -1691,6 +1815,19 @@ def verify(rig, made):
                 fails.append("%s: the loop jumps %.1f cm from its last frame to its first (a step is %.1f)" % (
                     c["name"], wrap * 100, step * 100))
             rig.animation_data.action = act
+        # ---- the stance is the one it is meant to be (2026-09-28): the
+        # guard's first frame, measured as build_saud measures the rig
+        # (measure_stance), against the stance's own intent (its SPEC)
+        spec = specs.get(c["guard"])
+        if c["kind"] == "guard" and spec:
+            bpy.context.scene.frame_set(1); bpy.context.view_layer.update()
+            m = L.measure_stance(rig)
+            c["stance_m"] = m
+            miss = L.stance_misses(m, spec)
+            if miss:
+                fails.append("%s: not the stance it is meant to be -- %s" % (c["name"], "; ".join(
+                    "%s %.2f, want %s..%s" % (k, v, "" if lo is None else lo, "" if hi is None else hi)
+                    for k, v, lo, hi in miss)))
         if c["kind"] == "strike":
             tip = TIP[c["limb"]]
             guard = at(1, tip)
@@ -1743,6 +1880,26 @@ def verify(rig, made):
                     fails.append("%s should lean in and the head went %.1f cm" % (c["name"], went))
                 if lean < 0 and went > -2.0:
                     fails.append("%s should lean away and the head went %.1f cm" % (c["name"], went))
+                # ...and from his own guard, not out of it (2026-09-28): a
+                # strike that leans in leans the chest LEAN_IN further than
+                # the guard already has it -- measured toward where the
+                # chest faces, so a cross's turn does not read as leaning
+                # back. Written for an upright guard, the strikes' torso
+                # aims straightened a hunched one (RELATIVE_TORSO).
+                if lean > 0:
+                    tg, tc = chest_tilt(1), chest_tilt(c["contact"] + 1)
+                    c["tilt"] = (tg, tc)
+                    if tc - tg < LEAN_IN:
+                        fails.append("%s: the back straightens out of the guard -- spine_03 %.1f deg forward at "
+                                     "contact against %.1f in the guard, want %.0f more" % (
+                                         c["name"], tc, tg, LEAN_IN))
+            # ---- it lands on the chin it is thrown at (VICTIM_CHIN)
+            if c["move"] in LAND_X and VICTIM_CHIN.get(c["boss"]) is not None:
+                dz = contact.z - VICTIM_CHIN[c["boss"]]
+                c["chin_cm"] = dz * 100.0
+                if abs(dz) > CHIN_TOL:
+                    fails.append("%s: the fist lands %.1f cm %s the chin it is thrown at (%.3f m), want within %.1f" % (
+                        c["name"], abs(dz) * 100, "over" if dz > 0 else "under", VICTIM_CHIN[c["boss"]], CHIN_TOL * 100))
             # a straight punch is straight: the wrist goes down the line from
             # the guard to the contact, off it by no more than 5 mm
             if c["move"] in LINE:
@@ -1834,6 +1991,22 @@ def verify(rig, made):
     lines = [c["line_mm"] for c in strikes if c.get("line_mm") is not None]
     if lines:
         print("        straight punches: worst %.1f mm off the line" % max(lines))
+    chins = [c for c in strikes if c.get("chin_cm") is not None]
+    if chins:
+        w = max(chins, key=lambda c: abs(c["chin_cm"]))
+        print("        punches land on the chin they are thrown at: worst %+.2f cm (%s)" % (w["chin_cm"], w["name"]))
+    tilts = [c for c in strikes if c.get("tilt")]
+    if tilts:
+        w = min(tilts, key=lambda c: c["tilt"][1] - c["tilt"][0])
+        print("        strikes lean from the guard: least %+.1f deg on the guard's lean (%s, %.1f -> %.1f), the check %+.0f" % (
+            w["tilt"][1] - w["tilt"][0], w["name"], w["tilt"][0], w["tilt"][1], LEAN_IN))
+    for c, _a, _f in made:
+        if c.get("stance_m"):
+            m = c["stance_m"]
+            print("        %s: head %.3f m, %+.1f cm over the lead ankle, pitched %.1f down; shoulders %.1f/%.1f cm under it; "
+                  "weight %.2f on the lead; knees %.1f/%.1f; hips bladed %.1f; spine_02 %.3f m" % (
+                      c["name"], m["head_z"], m["head_over_lead_ankle"], m["head_pitch"], m["sh_l_under_head"],
+                      m["sh_r_under_head"], m["weight_lead"], m["knee_l"], m["knee_r"], m["hips_blade"], m["spine02_z"]))
     H.report(made)
 
 
@@ -1977,6 +2150,13 @@ def bite():
         ("death lies flat", "death_sit", ["A_Saud_Death"],             "does not lie dead"),
         ("victory raised", "victory_low", ["A_Street_Victory"],        "is not raised"),
         ("block in front", "block_in", ["A_Saud_Block"],               "in the forehead"),
+        # Saud's stance of 2026-09-28
+        ("stance",         "upright",  ["A_Saud_Guard"],                "not the stance it is meant to be"),
+        ("punch height",   "own_chin", ["A_Saud_Jab", "A_Street_Jab"],  "the chin it is thrown at"),
+        ("lean from guard", "abs_torso", ["A_Saud_Jab", "A_Saud_Cross", "A_Saud_Hook", "A_Saud_Knee"],
+         "straightens out of the guard"),
+        ("death relaxes",  "no_relax", ["A_Saud_Death"],                "does not lie dead"),
+        ("victory chin",   "no_chin",  ["A_Saud_Victory"],              "the chin is not up"),
     ]
     results = []
     for label, sab, names, expect in cases:

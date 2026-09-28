@@ -837,8 +837,17 @@ PALMS = ("palm_l", "palm_r")
 # Squarer hips than a boxer's comes from that width: the feet are set
 # across as well as ahead, not in a line. The rear foot turns 18 degrees
 # out, where GUARD pointed it straight ahead.
-MMA_GUARD = dict(GUARD)
-MMA_GUARD.update(
+# That stance as it stood until 2026-09-28 is the table below (its legs
+# re-solved 2026-09-26: the rear foot turned out 30 degrees, the hips
+# bladed 15). Kept, and used by nothing that builds: build_motion --bite "upright" stands him on it to
+# prove the stance check below knows the difference. Measured on the rig
+# (rig_full_ik.stance, measure_stance): torso 3.5 degrees forward, neck 8,
+# the head pitched 6.8 down with its joint 13.4 cm BEHIND the lead ankle,
+# the shoulders 23.3/22.6 cm under the head joint (no shrug), weight 50/50,
+# hips bladed 14.9 -- upright and passive, the author's word for it was
+# "more aggressive".
+MMA_GUARD_2026_09_26 = dict(GUARD)
+MMA_GUARD_2026_09_26.update(
     spine_01=(0.000, -0.080, 1.000),
     spine_02=(0.000, -0.100, 1.000),
     spine_03=(0.000, -0.060, 1.000),
@@ -859,6 +868,97 @@ MMA_GUARD.update(
     palm_l=(-0.150, 1.000, 0.000),
     **{"twist:pelvis": -0.260},   # the hips bladed 15 degrees; a boxer's are 25
 )
+
+# Saud's stance since 2026-09-28 (Unreal build only -- the browser draws its
+# own guard and none of these numbers is its): asked as "make Saud more
+# aggressive", the same MMA stance hunted forward. The head forward and down
+# over the lead foot, the chin tucked, the shoulders shrugged up round the
+# jaw and rolled in, more knee, the weight forward, more blade, the rear hand
+# at the cheek and the lead long. It is SOLVED, not typed: MMA_SOLVE holds
+# the targets and the scratch solver that turned them into the aims below
+# did it the way every stance here is solved (the legs by two-bone geometry
+# from where the feet stand, the lead knee's bend and where the weight is;
+# the spine and neck as forward angles; the arms as a two-bone solve per
+# side, on this skeleton, for a fist placed in the head's own frame). The
+# clavicles are aimed for the first time in any stance: the shrug and the
+# roll, turned into the chest's bladed frame (which also switches on the
+# clavicle aims build_motion's Jab, Cross and Hook always carried: aims_at
+# blends only the bones a guard names).
+#
+# Measured on the rig (rig_full_ik.stance), before -> after: head joint
+# 1.601 -> 1.580 m, 13.4 cm behind the lead ankle -> 1.1; head 5.6 -> 14.4 cm
+# ahead of the pelvis; head pitch 6.8 -> 14.1 degrees down; neck 8 -> 26;
+# torso 3.5 -> 7.8; shoulders 23.3/22.6 -> 18.8/17.4 cm under the head joint;
+# hips bladed 14.9 -> 20.1; knees 38.0/45.3 -> 42.0/47.5; weight on the lead
+# 0.50 -> 0.60; feet 49/40 -> 40/42 cm (across/stagger); fists in the head
+# frame lead 44.9 fwd -> 42.0, rear 29.0 -> 18.0; both soles on the floor.
+# Two budgets bound it, both from the pairs (build_motion / motion_hits):
+# spine_02 no lower than 1.190 m (the Boss Special's chest mark) and the
+# pelvis no lower than 0.883, which is what caps the lead knee at 42; the
+# head dropped 2.1 cm, which the pairs allow only because punches now land
+# on the chin of the man they are thrown at (build_motion.VICTIM_CHIN).
+MMA_SOLVE = dict(
+    twist=-0.35,                    # the pelvis, radians (-0.35 is 20 degrees of blade)
+    feet_across=0.40, feet_stagger=0.42,          # ball to ball, metres
+    foot_yaw=(-5.0, -35.0),         # lead 5 degrees in, rear 35 out
+    foot_pitch=(15.7, 23.0),        # lead flat (the rest's pitch), rear heel up
+    lead_knee=42.0, weight_lead=0.60,
+    spine=(6.0, 10.0, 22.0),        # spine_01/02/03, degrees forward
+    neck=26.0, head=14.0,
+    clavicle_roll=0.15, clavicle_shrug=0.18,     # in the chest's own (bladed) frame
+    fists={"l": (0.100, -0.06, 0.42), "r": (-0.070, -0.02, 0.18)},  # head frame: across, up, forward (m)
+    elbow_poles={"l": (0.0, -0.1, -1.0), "r": (-0.2, 0.3, -1.0)},
+    hand_tilt={"l": 0.15, "r": 0.30},
+    palms=((-0.10, 1.0, 0.0), (0.45, 0.89, 0.0)),
+)
+MMA_GUARD = dict(GUARD)
+MMA_GUARD.update(
+    spine_01=(0.000, -0.104, 0.995),
+    spine_02=(0.000, -0.174, 0.985),
+    spine_03=(0.000, -0.375, 0.927),
+    neck_01=(0.000, -0.438, 0.899),
+    head=(0.000, -0.242, 0.970),
+    thigh_l=(0.032, -0.495, -0.868),
+    calf_l=(0.069, 0.213, -0.975),
+    foot_l=(-0.084, -0.959, -0.271),
+    thigh_r=(-0.242, -0.099, -0.965),
+    calf_r=(-0.009, 0.551, -0.835),
+    foot_r=(-0.528, -0.754, -0.391),
+    clavicle_l=(0.859, -0.477, 0.184),
+    clavicle_r=(-0.965, 0.189, 0.184),
+    upperarm_l=(-0.101, -0.637, -0.764),
+    lowerarm_l=(-0.104, -0.491, 0.865),
+    hand_l=(-0.098, -0.613, 0.784),
+    upperarm_r=(0.260, -0.711, -0.653),
+    lowerarm_r=(0.118, -0.112, 0.987),
+    hand_r=(0.117, -0.389, 0.914),
+    palm_l=(-0.100, 1.000, 0.000),
+    palm_r=(0.450, 0.890, 0.000),
+    **{"twist:pelvis": -0.350},   # the hips bladed 20 degrees
+)
+# What the stance has to be, held by build_motion.verify on A_Saud_Guard's
+# first frame through measure_stance. Each is the INTENT of the stance or
+# one of the pair budgets above, as (low, high); None is open. Measured on
+# that frame (the clip, not the rig: the clip is struck at his set's stance
+# factor, 1.031 wider, and grounded on the balls, which straightens the
+# rear knee -- 41.0 in the clip where the rig stands it at 47.5; the old
+# stance's clip had 34.8/38.0 where its rig had 38.0/45.3): head -1.1 cm
+# over the lead ankle, pitched 14.1, shoulders 18.8/17.4 under the head
+# joint, weight 0.60, knees 42.0/41.0, hips 20.1, head 1.577 m, spine_02
+# 1.193 m. The old stance's first frame misses eight of these (build_motion
+# --bite "upright").
+MMA_SPEC = {
+    "head_over_lead_ankle": (-6.0, 6.0),     # the head over the lead foot, not behind it
+    "head_pitch": (10.0, 20.0),              # the chin tucked, looking out from under the brow
+    "sh_l_under_head": (None, 21.0),         # the shoulders shrugged up round the jaw
+    "sh_r_under_head": (None, 21.0),
+    "weight_lead": (0.55, 0.65),             # forward, not 50/50
+    "knee_l": (40.0, None),                  # sat down in the stance
+    "knee_r": (40.0, None),
+    "hips_blade": (17.0, 23.0),              # bladed more than 15, less than a boxer's 25
+    "head_z": (1.56, None),                  # the pair budgets
+    "spine02_z": (1.190, None),
+}
 
 
 # The bosses' own stances (2026-09-25, "posture and stance": how each man
@@ -954,6 +1054,80 @@ STANCE_OF = {"saud": "mma", "saqr": "kickboxer", "boss": "peekaboo", "zayos": "h
 def guard_for(name):
     """The guard a man stands in: his own (STANCE_OF), else the boxer's."""
     return GUARDS[STANCE_OF.get(str(name).lower(), "boxer")]
+
+
+def measure_stance(arm_obj):
+    """What a stance IS, read off the posed bones alone (no mesh), so the
+    rig file posed through rig_full_ik.stance, the pipeline's limb_targets
+    and a baked clip frame are all measured the same way. The man faces -Y
+    and +X is his left; lengths are cm unless named _z (metres), angles
+    degrees. Fists, elbows and wrists are measured the way build_motion.
+    hands_check measures them: in the head bone's own frame (its X across,
+    its Y up the neck, its Z the way the face looks)."""
+    import rig_full_ik as CR
+    pb, W = arm_obj.pose.bones, arm_obj.matrix_world
+
+    def P(n, tail=False):
+        return W @ (pb[n].tail if tail else pb[n].head)
+
+    def yaw_of(a, b):
+        d = P(a) - P(b)
+        return math.degrees(math.atan2(-d.y, d.x))
+
+    o = {}
+    ball = {s: P("ball_" + s) for s in "lr"}
+    ank = {s: P("foot_" + s) for s in "lr"}
+    pel, h = P("pelvis"), P("head")
+    o["pelvis_z"], o["spine02_z"], o["head_z"] = pel.z, P("spine_02").z, h.z
+    o["feet_across"] = (ball["l"].x - ball["r"].x) * 100.0
+    o["feet_stagger"] = (ball["r"].y - ball["l"].y) * 100.0
+    ab = (ank["l"] - ank["r"]).to_2d()
+    # 0 all on the rear foot, 1 all on the lead: the pelvis between the ankles
+    o["weight_lead"] = (pel - ank["r"]).to_2d().dot(ab) / ab.length_squared
+    for s in "lr":
+        th = P("calf_" + s) - P("thigh_" + s)
+        ca = P("foot_" + s) - P("calf_" + s)
+        o["knee_" + s] = math.degrees(th.angle(ca))
+        f = ball[s] - ank[s]
+        o["footyaw_" + s] = math.degrees(math.atan2(f.x, -f.y))
+        o["heel_" + s] = CR._toe_and_heel(arm_obj, None, s)[1] * 100.0
+    o["rear_heel"] = o["heel_r"] - o["heel_l"]
+    v = P("neck_01") - pel
+    o["torso_fwd"] = math.degrees(math.atan2(-v.y, v.z))
+    v = h - P("neck_01")
+    o["neck_fwd"] = math.degrees(math.atan2(-v.y, v.z))
+    hm = (W @ pb["head"].matrix).to_3x3()
+    fwd = Vector((hm[0][2], hm[1][2], hm[2][2])).normalized()
+    o["head_pitch"] = math.degrees(math.asin(max(-1.0, min(1.0, -fwd.z))))     # + looks down
+    o["head_yaw"] = math.degrees(math.atan2(fwd.x, -fwd.y))
+    o["head_over_lead_ankle"] = -(h.y - ank["l"].y) * 100.0                    # + ahead of it
+    o["head_ahead_pelvis"] = -(h.y - pel.y) * 100.0
+    o["hips_blade"] = yaw_of("thigh_l", "thigh_r")
+    o["shoulders_blade"] = yaw_of("upperarm_l", "upperarm_r")
+    Hm = (W @ pb["head"].matrix).inverted()
+    for s in "lr":
+        o["sh_%s_under_head" % s] = (h.z - P("upperarm_" + s).z) * 100.0
+        fist = P("hand_" + s, tail=True)
+        loc = Hm @ fist
+        o["fist_%s_fwd" % s], o["fist_%s_across" % s], o["fist_%s_up" % s] = loc.z * 100.0, abs(loc.x) * 100.0, loc.y * 100.0
+        el, sh = P("lowerarm_" + s), P("upperarm_" + s)
+        o["elbow_%s_margin" % s] = (abs((Hm @ sh).x) - abs((Hm @ el).x)) * 100.0
+        fa = (P("lowerarm_" + s, True) - el).normalized()
+        hd = (fist - P("hand_" + s)).normalized()
+        o["wrist_" + s] = math.degrees(fa.angle(hd))
+        m = (W @ pb["hand_" + s].matrix).to_3x3()
+        o["palm_" + s] = (m @ palm_local(arm_obj, s)).normalized().y
+    return o
+
+
+def stance_misses(measured, spec):
+    """Each (name, value, lo, hi) of `measured` outside `spec`'s range."""
+    out = []
+    for k, (lo, hi) in spec.items():
+        v = measured[k]
+        if (lo is not None and v < lo) or (hi is not None and v > hi):
+            out.append((k, v, lo, hi))
+    return out
 
 # The fist. The mesh is built as a loose fist (anatomy.hand: 72/109/36
 # degrees) with the thumb laid along the index finger, and a hand posed at

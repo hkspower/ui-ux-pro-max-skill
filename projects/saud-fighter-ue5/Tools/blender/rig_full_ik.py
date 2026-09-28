@@ -6,6 +6,10 @@
     CR.verify(rig, mesh)           does each control do what it says
     CR.snap_fk_to_ik(rig, "l", "hand")   take over a solved limb in FK, unmoved
     CR.snap_ik_to_fk(rig, "l", "foot")   hand an FK limb back to IK, unmoved
+                                   (keep_roll=True: a foot up on its ball stays up)
+    CR.pose_from(rig, targets)     pose him through the controls to a posed
+                                   skeleton (a clip frame's bone matrices)
+    CR.widget_edges(rig, name)     a control's widget, as drawn, in world space
     CR.strip_for_export(rig, mesh) the mannequin's 62 bones and nothing else
 
     python3 rig_full_ik.py --roundtrip hero/build/Thug.blend
@@ -512,13 +516,33 @@ def snap_fk_to_ik(rig, side, limb):
     for n, m in held:
         pb[n].matrix = m; _update()
 
-def snap_ik_to_fk(rig, side, limb):
+def toe_roll_of(rig, side):
+    """How far the FK foot is rolled up onto its ball, as the rig's `roll`
+    (0..1): the ball's turn against the foot, from their rest, over the
+    slider's full TOE_ROLL. A heel roll leaves the ball where the foot has
+    it and reads 0; so does a foot flat on the floor."""
+    b, pb = rig.data.bones, rig.pose.bones
+    r0 = b["foot_" + side].matrix_local.to_3x3().inverted() @ b["ball_" + side].matrix_local.to_3x3()
+    rt = pb["foot_" + side].matrix.to_3x3().inverted() @ pb["ball_" + side].matrix.to_3x3()
+    ang = (rt @ r0.inverted()).to_quaternion().angle
+    ang = min(ang, 2.0 * math.pi - ang)
+    return max(0.0, min(1.0, ang / TOE_ROLL))
+
+
+def snap_ik_to_fk(rig, side, limb, keep_roll=False):
     """Hand a limb from FK to IK without it moving: the control goes where
     the end bone is (they share a rest, so the matrix copies straight
     across), the pole goes out along the limb's present bend, any foot roll
     is zeroed, and the switch goes to IK. The pole is placed from the bend
     rather than left where it was, because a pole left behind turns the
-    whole limb about its own line the moment the solver takes over."""
+    whole limb about its own line the moment the solver takes over.
+
+    `keep_roll` (a foot, 2026-09-28): the roll is not zeroed but read off
+    the FK foot (toe_roll_of) and set, and the control is placed where that
+    roll puts the ankle ON the foot -- CTRL_foot = foot @ inv(inv(CTRL_foot)
+    @ MCH_ankle), the pivots' own offset taken back out -- so a foot up on
+    its ball stays up on it. Zeroed, the ball of a clip's rolled rear foot
+    sank 11.8 mm (a cross) to 42 mm (a kick's support foot)."""
     import build_saud as legacy
     ctrl, pole, bones = _chain(limb, side)
     pb = rig.pose.bones
@@ -527,11 +551,70 @@ def snap_ik_to_fk(rig, side, limb):
     a, b, c = pb[upper].head.copy(), pb[lower].head.copy(), pb[lower].tail.copy()
     end_m = pb[end].matrix.copy()
     fallback = Vector((0, 1, 0)) if limb == "hand" else Vector((0, -1, 0))
+    roll = toe_roll_of(rig, side) if (keep_roll and limb == "foot") else 0.0
     if "roll" in pb[ctrl].keys():
-        set_prop(rig, ctrl, "roll", 0.0)
+        set_prop(rig, ctrl, "roll", roll)
     pb[ctrl].matrix = end_m; _update()
+    if roll:
+        rel = pb[ctrl].matrix.inverted() @ pb["MCH_ankle_" + side].matrix
+        pb[ctrl].matrix = end_m @ rel.inverted(); _update()
     set_translation(rig, pole, legacy._pole_from(a, b, c, fallback))
     set_prop(rig, ctrl, "fk", 0.0)
+    return roll
+
+
+# the bones pose_from() sets in FK: the torso the rig's docstring names as
+# its FK controls, and the collarbones, which have no control of their own
+FK_BODY = ("spine_01", "spine_02", "spine_03", "neck_01", "head", "clavicle_l", "clavicle_r")
+# --bite only: "roll_dropped" has pose_from zero the roll, as snap_ik_to_fk
+# did before 2026-09-28
+SABOTAGE = set()
+
+
+def pose_from(rig, targets, fist=1.0):
+    """Pose the rig THROUGH its controls to a posed skeleton: `targets` is
+    {deform bone: its matrix in the armature's space} -- a baked clip frame,
+    or a pose read off another rig. CTRL_root and CTRL_hips go on root and
+    the pelvis (they share their rests); the spine, the neck, the head and
+    the collarbones are set as FK (the deform bones are the FK controls,
+    CTRL_chest and CTRL_head stay at rest, `look` 0); each limb is set in FK
+    and handed to IK with snap_ik_to_fk, the feet keeping their roll; the
+    fists closed by the slider. Returns {"roll_l", "roll_r"}. Not the
+    fingers: the slider is what an animator has for them."""
+    pb = rig.pose.bones
+    reset(rig)
+    _pose_mode(rig)
+    for s in SIDES:
+        set_prop(rig, "CTRL_hand_" + s, "fk", 1.0); set_prop(rig, "CTRL_foot_" + s, "fk", 1.0)
+    if "root" in targets:
+        pb["CTRL_root"].matrix = targets["root"]; _update()
+    pb["CTRL_hips"].matrix = targets["pelvis"]; _update()
+    for n in FK_BODY:
+        pb[n].matrix = targets[n]; _update()
+    for s in SIDES:
+        for n in ("thigh", "calf", "foot", "ball", "upperarm", "lowerarm", "hand"):
+            pb["%s_%s" % (n, s)].matrix = targets["%s_%s" % (n, s)]; _update()
+    out = {}
+    for s in SIDES:
+        snap_ik_to_fk(rig, s, "hand")
+        out["roll_" + s] = snap_ik_to_fk(rig, s, "foot", keep_roll="roll_dropped" not in SABOTAGE)
+        set_prop(rig, "CTRL_hand_" + s, "fist", fist)
+    return out
+
+
+def widget_edges(rig, name):
+    """A control's custom shape as the viewport draws it: the widget's edges
+    through the bone's world matrix and its custom-shape transform, in
+    world space. Sizes are metres (use_custom_shape_bone_size is off)."""
+    from mathutils import Euler
+    pbone = rig.pose.bones[name]
+    ob = pbone.custom_shape
+    if ob is None:
+        return []
+    m = rig.matrix_world @ pbone.matrix @ Matrix.LocRotScale(
+        pbone.custom_shape_translation, Euler(pbone.custom_shape_rotation_euler), pbone.custom_shape_scale_xyz)
+    vs = [m @ v.co for v in ob.data.vertices]
+    return [(vs[e.vertices[0]], vs[e.vertices[1]]) for e in ob.data.edges]
 
 def _aim(rig, directions):
     """build_saud.pose()'s aiming -- each named bone's Y put on a world
@@ -894,6 +977,32 @@ def verify(rig, mesh, scale=1.0):
             fails.append("pin: out of reach, %s stretched %.1f mm past its length" % (upper[:-2], (reach - length) * 1000))
         if math.degrees(line) > 2.0:
             fails.append("pin: out of reach, %s pointed %.1f deg off the line to its target" % (upper[:-2], math.degrees(line)))
+    # 10 pose_from: a posed skeleton read as bone matrices comes back
+    # through the controls -- the guard, with the rear foot rolled up onto
+    # its ball and the lead hand moved off its aim -- every deform bone
+    # within 2 mm, head and tail. Measured on the six rigs (2026-09-28): the
+    # worst is always the lead knee, 0.78-1.11 mm (the leg solver's own
+    # answer for the pole's plane); with the roll zeroed, as snap_ik_to_fk
+    # did, the rolled foot's ball is 34 mm off.
+    stance(rig, legacy.GUARD)
+    _pose_mode(rig)
+    set_prop(rig, "CTRL_foot_r", "roll", 0.6)
+    set_translation(rig, "CTRL_hand_l", pb["CTRL_hand_l"].matrix.translation + Vector((0.04, -0.06, 0.05)))
+    for s in SIDES:
+        set_prop(rig, "CTRL_hand_" + s, "fist", 1.0)
+    deform = [b.name for b in rig.data.bones if b.use_deform]
+    want = {n: pb[n].matrix.copy() for n in deform}
+    want["root"] = pb["root"].matrix.copy()
+    got = pose_from(rig, want)
+    off, where = 0.0, None
+    for n in deform:
+        tail = Vector((0.0, rig.data.bones[n].length, 0.0))
+        for e, (p, q) in (("head", (pb[n].head, want[n].translation)), ("tail", (pb[n].tail, want[n] @ tail))):
+            if (p - q).length > off:
+                off, where = (p - q).length, "%s.%s" % (n, e)
+    if off > 0.002 * scale:
+        fails.append("pose_from: posed back through the controls, %s is %.1f mm off (roll read %.2f, set 0.60)" % (
+            where, off * 1000, got["roll_r"]))
     # 6 what would ship
     reset(rig)
     from hero.pipeline import MANNEQUIN
@@ -913,7 +1022,7 @@ def verify(rig, mesh, scale=1.0):
     reset(rig)
     assert not fails, "the control rig does not do what it says:\n  " + "\n  ".join(fails)
     print("control rig verified: hand IK reaches, fk switch, toe and heel roll, look, fist, pivot, "
-          "IK/FK snap, pole pins, no stretch, export set, rigid head")
+          "IK/FK snap, pole pins, no stretch, pose_from with the roll kept, export set, rigid head")
     return True
 
 
@@ -1046,6 +1155,7 @@ def bite(blend):
     cases = []
     def case(label, sabotage, expect):
         rig, mesh = load()
+        SABOTAGE.clear()
         sabotage(rig, mesh)
         try:
             verify(rig, mesh, scale=scale)
@@ -1094,6 +1204,8 @@ def bite(blend):
         for v in mesh.data.vertices:
             if abs((mesh.matrix_world @ v.co).z - hz) < 0.01:
                 gh.add([v.index], 0.5, "REPLACE"); gn.add([v.index], 0.5, "REPLACE")
+    def roll_dropped(rig, mesh):
+        SABOTAGE.add("roll_dropped")
     def let_stretch(rig, mesh):
         for n in ("thigh_l", "calf_l"):
             rig.pose.bones[n].ik_stretch = 0.3
@@ -1114,6 +1226,8 @@ def bite(blend):
     case("pole pin",               kill_pole,      "pin: moving CTRL_knee_l")
     case("no stretch",             let_stretch,    "stretched")
     case("rigid head",             split_head,     "head:")
+    case("pose_from keeps roll",   roll_dropped,   "pose_from:")
+    SABOTAGE.clear()
     print("\n%-22s %s   (scale %.3f)" % ("check", "when its mechanism is broken", scale))
     for label, ok, msg in cases:
         print("  %-20s %s  %s" % (label, ("OK    " if msg == "passes" else "BITES ") if ok else "SILENT", msg[:90]))

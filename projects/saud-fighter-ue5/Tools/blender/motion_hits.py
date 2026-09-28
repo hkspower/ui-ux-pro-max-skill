@@ -325,7 +325,7 @@ def stand_frame(au, g, aims_g, P):
 
 
 def _norm(keys):
-    return [(u, dict(dict(side=0.0, turn=0.0, fold=0.0), **p)) for u, p in keys]
+    return [(u, dict(dict(side=0.0, turn=0.0, fold=0.0, relax=0.0), **p)) for u, p in keys]
 
 
 def side_keys(g):
@@ -366,27 +366,41 @@ FALL_KEYS = {"Down_Side": side_keys, "Down_Fold": fold_keys}
 VICTORY_SECONDS = 2.0          # SaudFeel::VictorySeconds is this, and the harness holds it to the clip
 VICTORY_ARMS = {"Saud": ("r",), "Street": ("r",), "Boss": ("l", "r"), "Saqr": ("l",), "Zayos": ("l", "r")}
 RAISE = 0.52                   # the raised wrist above its shoulder, metres
+# The win's chin, at its last frame: the head's forward this far above level
+# at least, for the stances in B.RELEASE (Saud's +14.4 since 2026-09-28; the
+# other stances are not held to it: they are as they were, +3.4 to +11.2).
+VICTORY_CHIN = 8.0
+# How far a released stance's death has let the hunch go at each of its keys
+# (B.RELEASE, build_motion.floor_frame's `relax`): not at all as the blow
+# lands, all of it by the time he is on the floor.
+RELAX_RAMP = (0.0, 0.1, 0.6, 1.0, 1.0, 1.0)
 
 
-def death_keys(g):
+def death_keys(g, relax=False):
     """Back and down past where Down stops, onto the floor flat; the pelvis
     goes back as far as the planted feet let the legs reach (0.62: at 0.78
-    the leg could not, and the settle sank him through the floor)."""
+    the leg could not, and the settle sank him through the floor). With
+    `relax` the stance's hunch is let go on the way down (RELAX_RAMP)."""
     gz = g["pelvis"].translation.z + g["dz"]
     if "death_sit" in B.SABOTAGE:
         end = dict(pz=0.30, py=0.45, tilt=1.00, rear=1.0, hand=1.0, look=0.4)
     else:
         end = dict(pz=0.11, py=0.62, tilt=1.52, rear=1.0, hand=1.0, look=0.15)
-    return _norm([(0.00, dict(pz=gz, py=0.00, tilt=0.00, rear=0.0, hand=0.0, look=0.0)),
+    keys = _norm([(0.00, dict(pz=gz, py=0.00, tilt=0.00, rear=0.0, hand=0.0, look=0.0)),
                   (0.14, dict(pz=gz - 0.07, py=0.03, tilt=0.18, rear=0.0, hand=0.0, look=0.1)),
                   (0.40, dict(pz=0.42, py=0.26, tilt=0.62, rear=1.0, hand=0.3, look=0.2)),
                   (0.66, dict(pz=0.17, py=0.50, tilt=1.20, rear=1.0, hand=0.85, look=0.2)),
                   (0.86, end), (1.00, dict(end))])
+    if relax:
+        for (_u, p), r in zip(keys, RELAX_RAMP):
+            p["relax"] = r
+    return keys
 
 
 def author_death(au, c, S):
     aims, g = _guard(au, c, S)
-    keys = death_keys(g)
+    # --bite "no_relax": the ramp held at 0, the hunch kept to the floor
+    keys = death_keys(g, relax=c["guard"] in B.RELEASE and "no_relax" not in B.SABOTAGE)
     N = c["frames"]
     frames, plant = [], {s: {} for s in B.SIDES}
     for f in range(N):
@@ -409,6 +423,11 @@ def author_victory(au, c, S):
     lift = RAISE * (0.2 if "victory_low" in B.SABOTAGE else 1.0)
     side = {"l": 1.0, "r": -1.0}
     raise_aims = {}
+    if c["guard"] in B.RELEASE and "no_chin" not in B.SABOTAGE:
+        # straightening out of the hunch: the neck, the head and the
+        # collarbones to a man standing easy, and the chin-up on top of it
+        # (--bite "no_chin" leaves them in the guard: +3.8 degrees)
+        raise_aims.update(B.relaxed(au))
     for s in up:
         x = side[s]
         raise_aims.update({"upperarm_" + s: (0.15 * x, -0.05, 0.99), "lowerarm_" + s: (0.05 * x, -0.08, 0.99),
@@ -619,10 +638,10 @@ def author_combo(au, c, S):
             s = {"lead_arm": "l", "rear_arm": "r"}[sh["limb"]]
             a = frame(m["start"])[4]["hand_" + s].translation.copy()
             full = frame(m["start"] + m["su"])[4]
-            b = full["hand_" + s].translation + B.landing(au, g, m["move"], full, s)
+            b = full["hand_" + s].translation + B.landing(au, g, m["move"], full, s, c["boss"])
             lines[i] = (s, a, b)
         elif m["move"] in B.LAND_X:
-            bends[i] = ("r", B.landing(au, g, m["move"], frame(m["start"] + m["su"])[4], "r"))
+            bends[i] = ("r", B.landing(au, g, m["move"], frame(m["start"] + m["su"])[4], "r", c["boss"]))
 
     def hands(t, k, fk):
         out = {}
@@ -742,6 +761,11 @@ def verify(rig, made, fails):
                     c["name"], back, pe["pelvis"].z * 100, pe["head"].z * 100))
         elif c["kind"] == "victory":
             pe = pose(act, N)
+            hm = (rig.matrix_world @ rig.pose.bones["head"].matrix).to_3x3()
+            c["chin_deg"] = math.degrees(math.asin(max(-1.0, min(1.0, hm.col[2].normalized().z))))
+            if c["guard"] in B.RELEASE and c["chin_deg"] < VICTORY_CHIN:
+                fails.append("%s: the chin is not up at the end of the win -- the face %+.1f deg over level, want %+.0f" % (
+                    c["name"], c["chin_deg"], VICTORY_CHIN))
             for s in c.get("raised", ()):
                 over = pe["hand_end_" + s].z - pe["head"].z
                 c.setdefault("over_cm", []).append(over * 100)
@@ -842,6 +866,14 @@ def report(made):
     wins = [min(c["over_cm"]) for c, _a, _f in made if c.get("over_cm")]
     if wins:
         print("        victories: every raised fist at least %.0f cm over the head" % min(wins))
+    for c, _a, _f in made:
+        if c.get("chin_deg") is not None:
+            print("        %s ends with the face %+.1f deg over level%s" % (
+                c["name"], c["chin_deg"], " (held to %+.0f)" % VICTORY_CHIN if c["guard"] in B.RELEASE else ""))
+    for c, _a, _f in made:
+        if c.get("death"):
+            d = c["death"]
+            print("        %s: torso %.0f deg back, pelvis %.1f cm, head %.1f cm up" % (c["name"], d["back"], d["pelvis"], d["head"]))
     falls = [c for c, _a, _f in made if c.get("end_cm") is not None]
     if falls:
         print("        falls end on Down's last frame, worst %.2f cm off" % max(c["end_cm"] for c in falls))
