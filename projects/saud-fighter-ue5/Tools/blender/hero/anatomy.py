@@ -128,6 +128,151 @@ BACK_MUSCLES = {
 BACK_SEAT = 0.015
 BACK_WIDEN = 1.25          # the across radii, for the part a deeper seat hides
 
+# ------------------------------------------------------------- physiques
+# One man's trunk where it is not the canonical one (2026-09-28, "make Saud
+# more aggressive and more fit look", the Unreal build only: these numbers
+# are not the browser's, which draws every man from one figure). The body
+# above IS Saud's and the Brawler's (the same sc and build), and through
+# build_field everyone else's, so a leaner Saud cannot be a change to the
+# canonical rows: it is a physique, swapped in as module state before
+# anything is built -- pipeline.apply_man, from pipeline.PHYSIQUE, like
+# face.set_hair -- and set_physique(None) puts the canonical rows back.
+# One process per man (build_fighters); a suite that builds several bodies
+# in one process resets it.
+CANON_TRUNK_ROWS = list(TRUNK_ROWS)
+CANON_BACK_MUSCLES = dict(BACK_MUSCLES)
+PHYSIQUES = {
+    # Lean: the waist narrower (the front 8 mm flatter, the sides 11 mm in
+    # at 1.14) and the V's widest point carried up under the arm; the rows
+    # from the hips (2 mm in) to the shoulder shelf (2 mm out) move, and the
+    # pelvis floor, the trochanters and the neck -- the crotch at 0.899,
+    # the neck's girth -- are the canon's.
+    # The lat wider and prouder at the armpit and gone sooner (its lower
+    # point at 8 mm proud left the lat rule 6.7 against its 6).
+    "lean": dict(
+        TRUNK_ROWS=[
+            (0.900, 0.010, 0.150, 0.106),
+            (0.930, 0.010, 0.172, 0.116),
+            (0.960, 0.008, 0.178, 0.118),
+            (1.020, 0.003, 0.160, 0.108),
+            (1.080, -0.003, 0.140, 0.097),
+            (1.140, -0.005, 0.133, 0.093),
+            (1.200, -0.002, 0.150, 0.101),
+            (1.270, 0.005, 0.180, 0.112),
+            (1.340, 0.010, 0.196, 0.116),
+            (1.400, 0.012, 0.206, 0.106),
+            (1.455, 0.006, 0.214, 0.096),
+            (1.478, 0.000, 0.216, 0.090),
+            (1.505, 0.000, 0.152, 0.078),
+            (1.530, 0.002, 0.078, 0.064),
+        ],
+        BACK_MUSCLES={
+            "lat": [(0.176, 1.345, 0.014, 0.042), (0.166, 1.290, 0.013, 0.058), (0.140, 1.228, 0.011, 0.060),
+                    (0.104, 1.172, 0.004, 0.046), (0.068, 1.124, 0.001, 0.034)],
+            "erector": CANON_BACK_MUSCLES["erector"],
+        },
+        # its own proportions, held instead of the canonical band where it
+        # names one (bands()): a lean fighter's waist, and the V
+        BANDS={"waist": (0.74, 0.79), "chest": (1.02, 1.12), "hips": (0.90, 1.00), "v": (1.45, 1.70)},
+    ),
+}
+PHYSIQUE = None
+
+def set_physique(name=None):
+    """Swap in one man's trunk rows and back muscles (PHYSIQUES), or the
+    canonical ones for None. Unknown names raise."""
+    global TRUNK_ROWS, BACK_MUSCLES, PHYSIQUE
+    if name is None:
+        TRUNK_ROWS, BACK_MUSCLES, PHYSIQUE = list(CANON_TRUNK_ROWS), dict(CANON_BACK_MUSCLES), None
+        return
+    if name not in PHYSIQUES:
+        raise KeyError("no such physique: %r (%s)" % (name, ", ".join(sorted(PHYSIQUES))))
+    p = PHYSIQUES[name]
+    TRUNK_ROWS, BACK_MUSCLES, PHYSIQUE = list(p["TRUNK_ROWS"]), dict(p["BACK_MUSCLES"]), name
+
+def trunk_at(ang, z, rows=None):
+    """The trunk loft at angle `ang` round its section (0 straight forward,
+    -Y; +pi/2 his left, +X) and height z: the point and its outward
+    normal, rows interpolated straight as the loft bridges them."""
+    r = rows or TRUNK_ROWS
+    zz = min(max(z, r[0][0]), r[-1][0])
+    for r0, r1 in zip(r, r[1:]):
+        if r0[0] <= zz <= r1[0]: break
+    t = (zz - r0[0]) / (r1[0] - r0[0])
+    cy, rx, ry = [a + (b - a) * t for a, b in zip(r0[1:], r1[1:])]
+    p = Vector((rx * math.sin(ang), cy - ry * math.cos(ang), z))
+    n = Vector((math.sin(ang) / rx, -math.cos(ang) / ry, 0.0)).normalized()
+    return p, n
+
+def pillow(name, centre, axes, frame=None, ex=0.62):
+    """A belly with a flat top and steep edges -- not a pebble: a UV sphere
+    whose across and long coordinates are pushed toward a square, |u| ** ex
+    (ex 1.0 is the ellipsoid), its proud axis left round. `frame` is the
+    (across, proud, long) directions; axes the half-sizes along them."""
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=32, ring_count=20, location=(0, 0, 0))
+    o = bpy.context.object; o.name = name
+    for v in o.data.vertices:
+        x, y, z = v.co
+        v.co = (math.copysign(abs(x) ** ex, x), y, math.copysign(abs(z) ** ex, z))
+    X_, Y_, Z_ = frame or (Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)))
+    R = Matrix((Vector(X_) * axes[0], Vector(Y_) * axes[1], Vector(Z_) * axes[2])).transposed()
+    o.matrix_world = Matrix.Translation(Vector(centre)) @ R.to_4x4()
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    return o
+
+def seated(name, ang, z, axes, along, sink):
+    """An ellipsoid seated on the trunk loft: its centre `sink` under the
+    surface at (ang, z), axes (across, proud, long), the long axis along
+    `along` laid into the surface and the proud one its normal."""
+    p, n = trunk_at(ang, z)
+    c = p - n * sink
+    zax = Vector(along); zax = (zax - n * zax.dot(n)).normalized()
+    yax = n; xax = yax.cross(zax)
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=24, ring_count=14, location=(0, 0, 0))
+    o = bpy.context.object; o.name = name
+    R = Matrix((xax * axes[0], yax * axes[1], zax * axes[2])).transposed()
+    o.matrix_world = Matrix.Translation(c) @ R.to_4x4()
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    return o
+
+# The lean physique's definition, built into the 3.5 mm pass (assembly.build)
+# rather than the 6 mm base, whose smoothing (0.40 x 3) blurred 2 mm bellies
+# away: the canonical rectus measured six 2 mm pebbles, rows 2.6 mm over
+# the grooves and a 0.4 mm linea alba; its oblique lay inside the loft
+# (-0.1 mm at its angle) and there was no serratus at all.
+# The rectus: three rows of flat-topped bellies, (z centre, half-height,
+# half-width, how far proud of the loft's front), their centres RECTUS_X
+# off the midline -- a 12 mm linea alba between them.
+RECTUS = [(1.246, 0.027, 0.027, 0.0065), (1.178, 0.029, 0.028, 0.0070), (1.108, 0.030, 0.028, 0.0070)]
+RECTUS_X = 0.034
+RECTUS_EX = 0.75
+# the external oblique, a band down and forward on the flank, (angle, z):
+# slanted, it reads as the oblique line; beads read as a column of bumps and
+# a vertical chain as a bar
+OBLIQUE = [(1.36, 1.225), (1.28, 1.170), (1.18, 1.115), (1.08, 1.070)]
+# the serratus, three slips on the ribs under the pec's edge, (angle, z)
+SERRATUS = [(0.94, 1.312), (1.00, 1.284), (1.06, 1.256)]
+
+def definition(physique=None):
+    """The fine-pass parts of a physique, left side only (the caller
+    mirrors them): nothing for the canonical body."""
+    if physique is None:
+        return []
+    assert physique == "lean", "no definition for the %r physique" % physique
+    from .assembly import chain
+    out = []
+    for k, (zc, hz, hx, pr) in enumerate(RECTUS):
+        y = trunk_surface(RECTUS_X, zc, back=False)[0].y
+        out.append(pillow("rectus%d" % k, (RECTUS_X, y + 0.010 - pr, zc), (hx, 0.010, hz), ex=RECTUS_EX))
+    if len(OBLIQUE) >= 2:
+        pts, radii = [], []
+        for ang, z in OBLIQUE:
+            p, n = trunk_at(ang, z); pts.append(p - n * 0.012); radii.append((0.032, 0.012 + 0.0050))
+        out.extend(chain("oblique", pts, radii, lambda c: trunk_at(math.atan2(c.x, -(c.y + 0.004)), c.z)[1]))
+    for k, (ang, z) in enumerate(SERRATUS):
+        out.append(seated("serratus%d" % k, ang, z, (0.011, 0.0065, 0.024), (0.0, -0.8, -0.6), 0.002))
+    return out
+
 def trunk():
     # (z, cy, rx, ry): half-width across, half-depth; cy shifts the section
     # forward/back. Hips wide and low, waist the narrow of the V, ribcage the
@@ -837,7 +982,7 @@ def measure(body, check=True):
     n = len(body.data.vertices); P = np.empty(n * 3); body.data.vertices.foreach_get("co", P)
     for k, v in proportions(P.reshape(n, 3)).items():
         g[k] = v
-    print("body      : " + "  ".join("%s %.3f" % (k, v) for k, v in g.items() if k in PROPORTIONS))
+    print("body      : " + "  ".join("%s %.3f" % (k, v) for k, v in g.items() if k in bands() or k == "v"))
     if check:
         check_proportions(g)
     return g
@@ -855,6 +1000,17 @@ PROPORTIONS = {
     "thigh": (0.56, 0.66), "knee": (0.36, 0.42), "calf": (0.37, 0.43), "crotch": (0.885, 0.915),
     "hip_step": (0.88, 1.05),
 }
+
+def bands():
+    """The proportions this body is held to: PROPORTIONS, with a physique's
+    own bands where it names them (2026-09-28). The V ('v', proportions())
+    is held only for a physique that names it -- the lean one: measured, the
+    canonical body is 1.39 and the brawler's heavier waist lower still, and
+    the band is the lean man's point, not every man's."""
+    out = dict(PROPORTIONS)
+    if PHYSIQUE is not None:
+        out.update(PHYSIQUES[PHYSIQUE].get("BANDS", {}))
+    return out
 
 
 def _girth_of(P, c, d, R):
@@ -891,13 +1047,135 @@ def proportions(P):
     def half(z0, xmax):
         mm = (np.abs(z - z0) < 0.003) & (np.abs(x) < xmax); return float(np.abs(x[mm]).max()) if mm.any() else 0.0
     out["hip_step"] = half(1.00, 0.23) / max(half(0.96, 0.23), 1e-6)
+    # the V (2026-09-28): the trunk's half-width at its widest over 1.14-1.34
+    # over its narrowest over 1.08-1.16, the arms left out
+    T = P[_trunk_mask(P)]
+    def trunk_half(z0):
+        b = T[(np.abs(T[:, 2] - z0) < 0.003) & (np.abs(T[:, 0]) < 0.30)]
+        return float(np.abs(b[:, 0]).max()) if len(b) else float("nan")
+    hw = {round(float(zz), 2): trunk_half(zz) for zz in np.arange(1.40, 1.04, -0.02)}
+    wide = max(hw[k] for k in hw if 1.14 <= k <= 1.34)
+    narrow = min(hw[k] for k in hw if 1.08 <= k <= 1.16)
+    out["v"] = wide / max(narrow, 1e-6)
     return out
 
 
+def _trunk_mask(P):
+    """The points not on the arms: farther from the upper arm's axis than
+    0.112 m and from the forearm's than 0.075 (past the shoulder joint)."""
+    keep = np.ones(len(P), bool)
+    for s in (1, -1):
+        m = np.array([s, 1, 1])
+        sh, el, wr = (np.array(Jp(k)) * m for k in ("upperarm_l", "lowerarm_l", "hand_l"))
+        for a, b, R in ((sh, el, 0.112), (el, wr, 0.075)):
+            d = b - a; L = np.linalg.norm(d); d = d / L
+            t = np.clip((P - a) @ d, 0.0, L)
+            dist = np.linalg.norm(P - (a + np.outer(t, d)), axis=1)
+            keep &= ~((dist < R) & ((P - a) @ d > 0.0))
+    return keep
+
+
 def check_proportions(g):
-    bad = ["%s %.3f (%.2f-%.2f)" % (k, g.get(k, 0.0), lo, hi) for k, (lo, hi) in PROPORTIONS.items()
+    bad = ["%s %.3f (%.2f-%.2f)" % (k, g.get(k, 0.0), lo, hi) for k, (lo, hi) in bands().items()
            if not (lo <= g.get(k, 0.0) <= hi)]
     assert not bad, "the body is off an athletic male's proportions: " + ", ".join(bad)
+
+
+def physique_numbers(P):
+    """The definition of a body's trunk and shoulder, on the fine body
+    (pass two) at canonical coordinates, 2026-09-28. In mm:
+
+    abs      the rectus rows over the tendinous grooves between them (at
+             x 36 mm, grooves at 1.210 and 1.141), the lesser of the two
+    linea    the linea alba: the midline behind the bellies (x 30 mm)
+    oblique  the flank over the trunk loft at angle 1.20 (z 1.08-1.17)
+    serratus the ripple along angle 1.00 over the ribs (z 1.225-1.330),
+             its run taken out
+    delt     the deltoid's cap: the upper arm's up-and-out radius at t
+             0.05-0.25 over its radius at the insertion (t 0.45) -- a cap,
+             not a tube fattest at the biceps
+    tie      the dip across the front at z 1.40 from the pec into the
+             anterior deltoid, under the chord between the two
+    """
+    P = np.asarray(P)
+    T = P[_trunk_mask(P)]
+    out = {}
+    def front_y(x, z, bx=0.003, bz=0.003):
+        b = P[(np.abs(np.abs(P[:, 0]) - x) < bx) & (np.abs(P[:, 2] - z) < bz) & (P[:, 1] < 0)]
+        return float(b[:, 1].min()) if len(b) else float("nan")
+    col = {round(float(z), 3): front_y(0.036, z) for z in np.arange(1.290, 1.060, -0.004)}
+    rows = [1.244, 1.176, 1.106]; grooves = [1.210, 1.141]
+    cap = [min(col[k] for k in col if abs(k - r) < 0.010) for r in rows]
+    grv = [max(col[k] for k in col if abs(k - g_) < 0.008) for g_ in grooves]
+    out["abs"] = min(g_ - max(c1, c2) for g_, c1, c2 in zip(grv, cap[:-1], cap[1:]))
+    out["linea"] = min(front_y(0.0, r) - front_y(0.030, r) for r in rows)
+    obl = []
+    for z in (1.08, 1.11, 1.14, 1.17):
+        p, n = trunk_at(1.20, z)
+        q = T[np.abs(T[:, 2] - z) < 0.003]
+        rel = (q - np.array(p))[:, :2]
+        nn = np.array(n[:2]); tang = np.array([-nn[1], nn[0]])
+        near = np.abs(rel @ tang) < 0.006
+        obl.append(float((rel[near] @ nn).max()) if near.any() else float("nan"))
+    out["oblique"] = min(obl)
+    line = []
+    for z in np.arange(1.330, 1.225, -0.003):
+        p, n = trunk_at(1.00, z)
+        q = P[np.abs(P[:, 2] - z) < 0.002]
+        r2 = (q - np.array(p))[:, :2]; n2 = np.array(n[:2])
+        q = q[np.linalg.norm(r2 - np.outer(r2 @ n2, n2), axis=1) < 0.004]
+        line.append(float(((q - np.array(p))[:, :2] @ n2).max()) if len(q) else np.nan)
+    line = np.array(line)
+    good = ~np.isnan(line)
+    tr = np.convolve(np.where(good, line, np.nanmean(line)), np.ones(9) / 9, mode="same")
+    out["serratus"] = float(np.nanmax((line - tr)[4:-4]) - np.nanmin((line - tr)[4:-4]))
+    ua, la = np.array(Jp("upperarm_l")), np.array(Jp("lowerarm_l"))
+    d = la - ua; L = np.linalg.norm(d); d = d / L
+    f = np.array([0.0, -1.0, 0.0]); f = f - d * (f @ d); f = f / np.linalg.norm(f); s_ = np.cross(d, f)
+    up = -s_ if (-s_)[2] > 0 else s_
+    q = P - ua; t = q @ d / L; r = q - np.outer(q @ d, d)
+    rad = np.linalg.norm(r, axis=1); dirn = r / np.maximum(rad, 1e-9)[:, None]
+    side = (dirn @ up) > 0.85
+    def R(t0):
+        m = side & (np.abs(t - t0) < 0.02) & (rad < 0.14) & (P[:, 0] > 0.15)
+        return float(rad[m].max()) if m.any() else float("nan")
+    out["delt"] = max(R(x) for x in (0.05, 0.10, 0.15, 0.20, 0.25)) - R(0.45)
+    xs = np.arange(0.08, 0.25, 0.005)
+    ys = []
+    for x in xs:
+        b = P[(np.abs(P[:, 0] - x) < 0.003) & (np.abs(P[:, 2] - 1.40) < 0.004) & (P[:, 1] < 0.0)]
+        ys.append(float(b[:, 1].min()) if len(b) else np.nan)
+    ys = -np.array(ys)
+    i0 = int(np.nanargmax(ys[:6])); i1 = len(xs) - 8 + int(np.nanargmax(ys[-8:]))
+    chord = ys[i0] + (ys[i1] - ys[i0]) * (np.arange(len(xs)) - i0) / max(i1 - i0, 1)
+    out["tie"] = float(np.nanmax((chord - ys)[i0:i1 + 1]))
+    return out
+
+
+# What the lean physique is held to (check_physique), each floor 1-2 mm
+# under the prototype's clean number and each bitten by the body built
+# without the thing it guards (2026-09-28): abs 4.5 (none: -1.7), linea 4.0
+# (the bellies at 20 mm, met: 1.3), oblique 5.3 (none: 0.0), serratus 5.1
+# (none: 0.8), deltoid cap +2.6 (the canonical one deltoid: -5.2), the
+# pec-to-deltoid dip 23.8 (no tie-in: 31.7).
+PHYSIQUE_RULES = (("abs", ">=", 0.0035, "no abs: the rectus rows %.1f mm over the grooves, want 3.5"),
+                  ("linea", ">=", 0.0025, "no linea alba: the midline %.1f mm behind the bellies, want 2.5"),
+                  ("oblique", ">=", 0.0030, "no oblique: the flank %.1f mm over the loft at its angle, want 3"),
+                  ("serratus", ">=", 0.0030, "no serratus: the ribs' ripple %.1f mm, want 3"),
+                  ("delt", ">=", 0.0010, "no deltoid cap: the shoulder %.1f mm over the biceps' radius, want 1"),
+                  ("tie", "<=", 0.027, "the pec and the deltoid apart: a %.1f mm dip between them, want 27 or less"))
+
+def check_physique(P, assert_=True):
+    """The lean physique's definition on the fine body (physique_numbers):
+    held for a man built lean, reported for everyone else (the canonical
+    body measured abs 2.6, linea 0.4, oblique -0.1, serratus 1.6, delt
+    -5.2, tie 31.7 on the prototype). Returns the numbers."""
+    out = physique_numbers(P)
+    if assert_:
+        for k, op, lim, msg in PHYSIQUE_RULES:
+            ok = out[k] >= lim if op == ">=" else out[k] <= lim
+            assert ok, msg % (out[k] * 1000)
+    return out
 
 def build(stage_render=True):
     t = time.time()

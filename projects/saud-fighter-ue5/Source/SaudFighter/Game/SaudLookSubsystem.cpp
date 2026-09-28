@@ -34,6 +34,10 @@ void USaudLookSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
 	Look = SaudAnime::FState();
+	for (float& Last : Written)
+	{
+		Last = -1.f;
+	}
 
 	Collection = LoadObject<UMaterialParameterCollection>(nullptr, SaudAnime::CollectionPath,
 	                                                     nullptr, LOAD_NoWarn | LOAD_Quiet);
@@ -107,8 +111,11 @@ void USaudLookSubsystem::Tick(float DeltaTime)
 	// not. Real time, as USaudFeelSubsystem does.
 	Look.Tick(FMath::Clamp(static_cast<float>(FApp::GetDeltaTime()), 0.f, 0.1f));
 
-	Write(0, SaudAnime::Param::Impact, Look.ImpactValue());
-	Write(1, SaudAnime::Param::ImpactInvert, Look.InvertValue());
+	Write(ESlot::Impact, SaudAnime::Param::Impact, Look.ImpactValue());
+	Write(ESlot::Invert, SaudAnime::Param::ImpactInvert, Look.InvertValue());
+	// The brush and the grain boil on twos, every frame, whatever else is
+	// drawn: the same seed the speed lines are redrawn on.
+	Write(ESlot::Boil, SaudAnime::Param::Boil, Look.Seed());
 
 	float Speed = Look.SpeedValue();
 	float X = 0.5f, Y = 0.5f;
@@ -118,12 +125,12 @@ void USaudLookSubsystem::Tick(float DeltaTime)
 		// from one edge; off screen, they are simply not drawn.
 		Speed = 0.f;
 	}
-	Write(2, SaudAnime::Param::Speed, Speed);
+	Write(ESlot::Speed, SaudAnime::Param::Speed, Speed);
 	if (Speed > 0.f)
 	{
 		UKismetMaterialLibrary::SetScalarParameterValue(this, Collection, SaudAnime::Param::SpeedCentreX, X);
 		UKismetMaterialLibrary::SetScalarParameterValue(this, Collection, SaudAnime::Param::SpeedCentreY, Y);
-		Write(3, SaudAnime::Param::SpeedSeed, Look.Seed());
+		Write(ESlot::Seed, SaudAnime::Param::SpeedSeed, Look.Seed());
 	}
 
 	// HAWK FIST: the flame on the player's fist and the burst on the man
@@ -172,7 +179,7 @@ void USaudLookSubsystem::WriteFire(const ASaudCharacter* Saud)
 			Set(SaudFire::Param::FireTime, Saud->GetFire().Clock);
 		}
 	}
-	Write(4, SaudFire::Param::FireHeat, Heat);
+	Write(ESlot::FireHeat, SaudFire::Param::FireHeat, Heat);
 
 	float Age = -1.f;
 	const AFighterBase* V = Burned.Get();
@@ -191,7 +198,7 @@ void USaudLookSubsystem::WriteFire(const ASaudCharacter* Saud)
 			Set(SaudFire::Param::BurnSeed, Saud->GetFire().BurstSeed);
 		}
 	}
-	Write(5, SaudFire::Param::BurnAge, Age);
+	Write(ESlot::BurnAge, SaudFire::Param::BurnAge, Age);
 }
 
 bool USaudLookSubsystem::Project(const FVector& At, float& OutX, float& OutY, float& OutDepth, float& OutScale) const
@@ -224,13 +231,14 @@ bool USaudLookSubsystem::Project(const FVector& At, float& OutX, float& OutY, fl
 	return OutDepth > 0.f && OutScale > 0.f && OutX >= -0.2f && OutX <= 1.2f && OutY >= -0.2f && OutY <= 1.2f;
 }
 
-void USaudLookSubsystem::Write(int32 Slot, const TCHAR* Name, float Value)
+void USaudLookSubsystem::Write(ESlot Slot, const TCHAR* Name, float Value)
 {
-	if (Written[Slot] == Value)
+	float& Last = Written[static_cast<int32>(Slot)];
+	if (Last == Value)
 	{
 		return;
 	}
-	Written[Slot] = Value;
+	Last = Value;
 	Set(Name, Value);
 }
 

@@ -38,7 +38,33 @@ def chain(name, pts, radii, out_dir, step=0.010):
             out.append(o)
     return out
 
-def masses():
+# One man's mass where it is not the canonical body's (pipeline.MASS,
+# 2026-09-28, the Unreal men): a factor on a named mass's size, about its
+# own centre -- an ellipsoid's axes, each link of a chain. Built at
+# canonical scale, before build_field takes him to his size, so every body
+# check still measures him. The names are the masses' own; a name masses()
+# does not build raises.
+DELT_OFF = 0.052        # the lean deltoid heads' centres off the arm's axis, at arm 1.30
+
+def delt_heads(arm_scale=1.30):
+    """The deltoid in three heads -- lateral, anterior, posterior -- as
+    pillows in the upper arm's own frame, grown with the arm (they are
+    sized for Saud's 1.30): a cap that stands over the biceps and ties
+    into the pec, where the one canonical ellipsoid sat inside the arm."""
+    ua, la = Jp("upperarm_l"), Jp("lowerarm_l")
+    d = (la - ua).normalized(); f = Vector((0, -1, 0)); f = (f - d * f.dot(d)).normalized(); s = d.cross(f)
+    up = -s if (-s).z > 0 else s
+    L = (la - ua).length; k = arm_scale / 1.30
+    out = []
+    for name, dirv, along, ax in (("delt_lat", up, 0.10, (0.032, 0.030, 0.074)),
+                                  ("delt_ant", (f * 0.85 + up * 0.5).normalized(), 0.06, (0.026, 0.026, 0.066)),
+                                  ("delt_post", (-f * 0.8 + up * 0.6).normalized(), 0.08, (0.024, 0.020, 0.060))):
+        c = ua + d * (along * L) + dirv * (DELT_OFF * k)
+        zax = d; yax = dirv; xax = yax.cross(zax)
+        out.append(A.pillow(name, c, tuple(a * k for a in ax), (xax, yax, zax), ex=1.0))
+    return out
+
+def masses(physique=None, mass=None, arm_scale=1.0):
     """The muscle that sits proud of the lofts. Rewritten 2026-09-25 ("make
     full body fix"): the pec was one ball on each side of the chest and the
     rectus one 26 cm sausage either side of the midline -- both read as
@@ -46,7 +72,39 @@ def masses():
     tee. A pec is a fan, from the sternum out and up to the armpit, thicker
     below; the rectus is three pairs of bellies with the linea alba between
     them; the obliques stand proud of the flank; the erectors stand either
-    side of a spinal groove."""
+    side of a spinal groove.
+
+    2026-09-28: `physique` 'lean' (Saud's) leaves out the rectus sheet and
+    bellies and the buried oblique -- the defined ones go into the fine
+    pass, anatomy.definition -- and the one deltoid, for three heads grown
+    with the arm (arm_scale) and the pec's clavicular head carried out
+    under the anterior one (pec_tie). `mass` is {name: factor}, above."""
+    out = _masses()
+    if physique is not None:
+        assert physique == "lean", "no masses for the %r physique" % physique
+        keep = []
+        for o in out:
+            if o.name.split(".")[0] in ("rectus_sheet", "rectus0", "rectus1", "rectus2", "oblique", "delt"):
+                bpy.data.objects.remove(o, do_unlink=True)
+            else:
+                keep.append(o)
+        out = keep + delt_heads(arm_scale)
+        out.append(ellipsoid("pec_tie", (0.140, -0.060, 1.402), (0.022, 0.028, 0.066), (0.92, 0.30, 0.12)))
+    if mass:
+        names = {o.name.split(".")[0] for o in out}
+        bad = set(mass) - names
+        if bad:
+            raise KeyError("no such mass: %s (masses() builds %s)" % (sorted(bad), ", ".join(sorted(names))))
+        for o in out:
+            k = mass.get(o.name.split(".")[0])
+            if k is None or k == 1.0:
+                continue
+            me = o.data
+            c = sum((v.co for v in me.vertices), Vector()) / len(me.vertices)
+            me.transform(Matrix.Translation(c) @ Matrix.Scale(k, 4) @ Matrix.Translation(-c))
+    return out
+
+def _masses():
     out = []
     # The deltoid is a teardrop that flows down the arm, not a ball on the
     # shelf. It was neither: sliced perpendicular to the humerus the arm was
@@ -128,12 +186,25 @@ def face_parts():
     # out of the new one.
     return [ellipsoid("adam", (0, -0.043, 1.560), (0.010, 0.008, 0.012))]
 
-def ear(s):
+# A cauliflower ear (pipeline.EARS, 2026-09-28, the Unreal men: a fighter's
+# ear after the blows): four lumps over the upper helix and the scapha
+# inside it, (angle round the helix ring from its bottom, radius of the
+# ring they sit on, half-size), standing out from the ear's side. Measured
+# on a built head: over the ear's upper third (z +9 to +23 mm about EAR_Z)
+# its outer surface stands 3.0-4.2 mm further out than the plain ear's.
+CAULIFLOWER = [(math.radians(132), 0.0190, 0.0060), (math.radians(162), 0.0190, 0.0065),
+               (math.radians(196), 0.0190, 0.0065), (math.radians(226), 0.0190, 0.0060)]
+CAULIFLOWER_OUT = 0.0065     # their centres this far out from the ear's mid-plane
+
+def ear(s, cauliflower=0.0):
     """Helix as a flattened ring, lobe below, a dish cut into the front.
 
     An ear runs from the brow down to the base of the nose -- 1.693 to 1.640
     here, so about 53 mm, and it was 40 mm, which is why it read as a paddle
     stuck on the side of the head rather than as an ear.
+
+    `cauliflower` (0 none, 1 full) swells the upper helix and scapha with
+    CAULIFLOWER's lumps, their size in proportion.
     """
     side = A.head_surface_x(EAR_Y, EAR_Z)
     assert abs(EAR_X - side - 0.0061) < 0.0015, (
@@ -148,7 +219,15 @@ def ear(s):
     bpy.ops.object.transform_apply(scale=True, rotation=True)
     lobe = ellipsoid("lobe", c + Vector((0.002 * s, -0.003, -0.0250)), (0.0062, 0.0105, 0.0088))
     back = ellipsoid("earback", c + Vector((-0.003 * s, 0.005, 0)), (0.0052, 0.0150, 0.0240))
-    return [helix, lobe, back]
+    parts = [helix, lobe, back]
+    if cauliflower > 0.0:
+        k = float(cauliflower)
+        for i, (u, r, h) in enumerate(CAULIFLOWER):
+            # the ring as the helix is laid: 0.72 of its radius front to
+            # back, its bottom at u = 0 (see the torus's scale and turn)
+            at = c + Vector((CAULIFLOWER_OUT * k * s, 0.72 * r * math.sin(u), -r * math.cos(u)))
+            parts.append(ellipsoid("cauli%d" % i, at, (0.0060 * k, h * k, h * k)))
+    return parts
 
 from .sculpt import EYE_R, EYE_SEAT, EYE_X      # the globe, shared with the drape
 # Where the globe's centre sits, measured back from the bare skull surface:
@@ -251,6 +330,78 @@ def check_eye_open(body, eyes, step=0.0005):
     assert shown_f >= 0.92, "the eye is shut: the globe shows over %.0f %% of the fissure, want 92" % (shown_f * 100)
     assert leak_f <= 0.03, "the lids do not close over the globe: it shows outside them over %.0f %% of the fissure's area" % (leak_f * 100)
     return shown_f, leak_f
+
+# The mien, on the built head (2026-09-28, "make Saud more aggressive",
+# the Unreal men): what the face's sculpt, the eye's drape and relax and
+# the smoothing leave between them, which only the built mesh can say.
+# Every man is held to JAW_GAP; a man's pipeline.HOLDS add his own floors
+# and ceilings: brow_over (how far the brow crest stands in front of the
+# upper lid's margin at the pupil -- the eye under the brow, in its shadow),
+# hollow (the cheek's hollow under the chord from the cheekbone's crest down
+# to the jaw at x 46 mm), jaw_max (across the jaw's angles) and jaw_gap (his
+# own jaw rule, in place of JAW_GAP). brow_slant is face.check_brows', a
+# paint hold, carried in the same entry.
+JAW_GAP = 0.008
+MIEN_HOLDS = ("brow_over", "hollow", "jaw_max", "jaw_gap", "brow_slant")
+
+def mien_numbers(body):
+    """check_mien's measures, by rays on the built head (metres)."""
+    import numpy as np
+    from .sculpt import aperture, EYE_X
+    dg = bpy.context.evaluated_depsgraph_get()
+    tb = BVHTree.FromObject(body, dg)
+    def front_y(x, z):
+        h = tb.ray_cast(Vector((x, -0.4, z)), Vector((0, 1, 0)))
+        return h[0].y if h[0] is not None else float("nan")
+    def side_x(y, z):
+        h = tb.ray_cast(Vector((0.3, y, z)), Vector((-1, 0, 0)))
+        return h[0].x if h[0] is not None else float("nan")
+    def half_w(z, ymin=-0.11, ymax=0.035):
+        return float(np.nanmax([side_x(y, z) for y in np.arange(ymin, ymax, 0.001)]))
+    out = {}
+    # across the cheekbones, in front of the ear; across the jaw's angles
+    out["cheek"] = 2 * max(half_w(z, ymax=-0.012) for z in (1.648, 1.652, 1.656, 1.660))
+    out["jaw"] = 2 * max(half_w(z) for z in (1.596, 1.600, 1.604))
+    out["gap"] = out["cheek"] - out["jaw"]
+    # the cheek at x 46 mm, from the jaw (1.606) up over the cheekbone
+    zc = np.arange(1.606, 1.6605, 0.001); yc = -np.array([front_y(0.046, z) for z in zc])
+    top = int(np.nanargmax(yc))
+    chord = yc[0] + (yc[top] - yc[0]) * (zc - zc[0]) / max(zc[top] - zc[0], 1e-9)
+    out["hollow"] = float(np.nanmax((chord - yc)[:top + 1]))
+    # the brow's crest over the pupil against the upper lid's margin there
+    up = float(aperture(np.array([EYE_X]))[0][0])
+    zz = np.arange(1.680, 1.710, 0.0005)
+    yb = [front_y(EYE_X, z) for z in zz]
+    i = int(np.nanargmin(yb))
+    out["brow_over"] = front_y(EYE_X, up + 0.0006) - yb[i]
+    out["brow_z"] = float(zz[i])
+    return out
+
+def check_mien(body, holds=None, assert_=True):
+    """The built face's mien: every man's jaw at its angle at least JAW_GAP
+    (8 mm) narrower than his cheekbones -- the built face's form of
+    anatomy.check_head's rule on the bone tables against a brick-shaped
+    jaw -- and a man's own HOLDS. Returns the numbers."""
+    holds = dict(holds or {})
+    bad = set(holds) - set(MIEN_HOLDS)
+    if bad:
+        raise KeyError("no such mien hold: %s (%s)" % (sorted(bad), ", ".join(MIEN_HOLDS)))
+    m = mien_numbers(body)
+    if not assert_:
+        return m
+    gap = holds.get("jaw_gap", JAW_GAP)
+    assert m["gap"] >= gap, "a brick: the jaw %.1f mm across at its angles, only %.1f narrower than the cheekbones (%.1f), want %.0f" % (
+        m["jaw"] * 1000, m["gap"] * 1000, m["cheek"] * 1000, gap * 1000)
+    if "brow_over" in holds:
+        assert m["brow_over"] >= holds["brow_over"], "no brow over the eye: the crest %.2f mm in front of the upper lid, want %.1f" % (
+            m["brow_over"] * 1000, holds["brow_over"] * 1000)
+    if "hollow" in holds:
+        assert m["hollow"] >= holds["hollow"], "no hollow under the cheekbone: %.2f mm under the chord, want %.1f" % (
+            m["hollow"] * 1000, holds["hollow"] * 1000)
+    if "jaw_max" in holds:
+        assert m["jaw"] <= holds["jaw_max"], "too wide a jaw: %.1f mm across at its angles, want %.1f or less" % (
+            m["jaw"] * 1000, holds["jaw_max"] * 1000)
+    return m
 
 def eyeballs():
     """The globes.
@@ -769,19 +920,34 @@ def check_hair(parts, style):
 def union_remesh(parts, voxel, name):
     return A.union_remesh(parts, voxel, name)
 
-def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, gloves=False):
+def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, gloves=False,
+          physique=None, mass=None, noses=None, ears=None, holds=None):
     """voxel_scale > 1 is a coarse, quick body for checking the stages after
     this one. `face_scale`, `hair_style` and `arm_scale` are one man's
     differences from another on the same skull and limbs -- see
     sculpt.sculpt_face, hair_parts and anatomy.arm. `gloves` unions
     anatomy.glove() over the fingers, both sides -- see anatomy.glove for
-    why the fingers are still built underneath it."""
+    why the fingers are still built underneath it.
+
+    2026-09-28, the rest of a man's differences (pipeline's tables, set by
+    pipeline.apply_man): `physique` the trunk anatomy.set_physique has
+    already swapped in (asserted) -- its masses and its fine-pass
+    definition; `mass` factors on masses(); `noses` his NOSES entry
+    (sculpt.with_nose); `ears` {'l': k, 'r': k}, the cauliflower on his
+    left (+x) and right ear; `holds` his check_mien holds."""
+    assert A.PHYSIQUE == physique, (
+        "the trunk is the %r physique and this man is built %r: anatomy.set_physique first (pipeline.apply_man)"
+        % (A.PHYSIQUE, physique))
+    ears = dict(ears or {})
+    bad = set(ears) - {"l", "r"}
+    if bad:
+        raise KeyError("no such ear: %s (l, r)" % sorted(bad))
     vs = voxel_scale
     t = time.time()
     legacy.reset_scene()
     # ---- pass one: the base at 6 mm, smoothed hard
     base_parts = [A.trunk(), A.neck(), A.head()]
-    left = A.arm(arm_scale) + A.leg() + [A.shoe()] + masses()
+    left = A.arm(arm_scale) + A.leg() + [A.shoe()] + masses(physique, mass, arm_scale)
     right = [mirror_x(o) for o in left]
     base = union_remesh(base_parts + left + right, 0.006 * vs, "Base")
     A.smooth(base, 0.40, 3)
@@ -808,7 +974,9 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     if gloves:
         gl = A.glove(thumb=jl["thumb"]); glove_parts = gl + [mirror_x(o) for o in gl]
     hands = union_remesh(hl + hr + glove_parts, 0.0025 * vs, "Hands"); A.smooth(hands, 0.5, 3)
-    face = face_parts() + ear(1) + ear(-1)
+    face = face_parts() + ear(1, ears.get("l", 0.0)) + ear(-1, ears.get("r", 0.0))
+    # the physique's definition, at this pass so its edges survive
+    defn = A.definition(physique); defn = defn + [mirror_x(o) for o in defn]
     hair = hair_parts(hair_style)
     if hair:
         check_hair(hair, hair_style)
@@ -816,7 +984,7 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     # the hairline test that keeps hair above the plane does not strip it
     fringe = [o for o in hair if o.name.startswith("fringe") and not o.name.startswith("fringetop")]
     hair = [o for o in hair if o not in fringe]
-    groups = {"skin": [base, hands] + face, "hair": hair}
+    groups = {"skin": [base, hands] + face + defn, "hair": hair}
     if fringe:
         groups["fringe"] = fringe
     # remember the sources for material assignment: BVH per group
@@ -826,11 +994,12 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
         for o in objs:
             tmp = o.data.copy(); tmp.transform(o.matrix_world); bm.from_mesh(tmp); bpy.data.meshes.remove(tmp)
         trees[g] = BVHTree.FromBMesh(bm); bm.free()
-    body = union_remesh([base, hands] + face + hair + fringe, 0.0035 * vs, "Body")
+    body = union_remesh([base, hands] + face + defn + hair + fringe, 0.0035 * vs, "Body")
     A.smooth(body, 0.5, 2)
     from . import sculpt
     subdivide_eyes(body)
-    peak, moved = sculpt.sculpt_face(body, A.head_surface_y, scale=face_scale)
+    scale, shift = sculpt.with_nose(face_scale, noses)
+    peak, moved = sculpt.sculpt_face(body, A.head_surface_y, scale=scale, shift=shift)
     A.smooth(body, 0.3, 1)
     sculpt.drape_eyes(body, A.head_surface_y)
     relaxed = relax_eyes(body)
@@ -839,10 +1008,17 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     # The pipeline builds through here, not through anatomy.build(), so the
     # stature and heads-tall checks have to be called here or they never run.
     A.measure(body, check=(vs <= 1.0))
+    import numpy as np
+    n = len(body.data.vertices); P = np.empty(n * 3); body.data.vertices.foreach_get("co", P)
+    ph = A.check_physique(P.reshape(n, 3), assert_=(physique is not None and vs <= 1.0))
+    print("physique  : %s  " % (physique or "canonical, reported") + "  ".join("%s %.1f" % (k, v * 1000) for k, v in ph.items()))
     eyes = eyeballs()
     shown, leak = check_eye_open(body, eyes)
     print("eyes      : globe shows over %.0f %% of the fissure, %.1f %% outside the lids (%d faces of the eye region collapsed)"
           % (shown * 100, leak * 100, relaxed))
+    mien = check_mien(body, holds, assert_=(vs <= 1.0))
+    print("mien      : " + "  ".join("%s %.2f" % (k, v * 1000) for k, v in mien.items() if k != "brow_z")
+          + " mm  (brow crest at %.4f)" % mien["brow_z"])
     return body, trees, eyes, jl
 
 def above_hairline(c, margin=0.0):

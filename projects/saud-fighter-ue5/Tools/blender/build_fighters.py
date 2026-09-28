@@ -7,8 +7,8 @@
     python3 build_fighters.py --coarse         a rough body, to check the stages
     python3 build_fighters.py --check          the roster and the palette only
     python3 build_fighters.py --hair-check     every cut's geometry checked, and the check bitten
-    python3 build_fighters.py --nose-check     every man's nose profile and widths, and the check bitten
-    python3 build_fighters.py --eye-check      the eye's shape and the open eye on a built head, both bitten
+    python3 build_fighters.py --nose-check     every man's nose (FACES, NOSES): profile, widths about its crest, bitten
+    python3 build_fighters.py --eye-check      the eye's shape (every man's lids, Saud's hooded) and the open eye on a built head, bitten
     python3 build_fighters.py --head-check     the skull and neck tables, and the check bitten
     python3 build_fighters.py --neck-check     the neck and its join to the shoulders on the built base, bitten
     python3 build_fighters.py --back-check     the lats, the V and the spinal furrow on the built base, bitten
@@ -32,8 +32,11 @@ the rig, saves the animator's .blend, strips the control layer and exports
 exactly the mannequin's 62 bones.
 
 ONE PROCESS PER MAN. The hero modules hold module state -- the joint table,
-the face layout, the skull rows -- and a man's build mutates the joints.
-Each fighter is built in its own interpreter so nothing carries over.
+the face layout, the skull rows, and since 2026-09-28 a man's lids and
+trunk (pipeline.apply_man: sculpt.set_eye, anatomy.set_physique) -- and a
+man's build mutates the joints. Each fighter is built in its own
+interpreter so nothing carries over; a suite that builds several men's
+heads or bodies in one process resets the state itself.
 """
 import os, sys, json, time, subprocess
 
@@ -114,15 +117,34 @@ def hair_check():
 
 
 def nose_check():
-    """--nose-check: every man's face amplitudes through
-    sculpt.check_profile -- projection, nasion, bridge, tip, alae, no
-    nostril slot -- then each rule broken once (2026-09-26). Numpy only."""
+    """--nose-check: every man's face amplitudes and his nose (FACES, NOSES)
+    through sculpt.check_profile -- the crest on the midline, projection,
+    nasion, bridge, tip, alae measured both sides of the nose's own crest,
+    no nostril slot -- then each rule broken once (2026-09-26; the knocked
+    nose 2026-09-28). Numpy only."""
     from hero import sculpt, pipeline
-    # the men without a FACES entry (the bosses) are the table as it stands
+    # "the rest" is the table as it stands, every factor 1 (no man since
+    # 2026-09-28, when every man got a FACES entry)
     for kind in list(pipeline.FACES) + ["the rest"]:
-        peak, at, nas = sculpt.check_profile(pipeline.FACES.get(kind))
-        print("  %-8s clean   peak %.1f mm at %.4f, nasion %.4f" % (kind, peak * 1000, at, nas))
+        scale, shift = sculpt.with_nose(pipeline.FACES.get(kind), pipeline.NOSES.get(kind))
+        peak, at, nas = sculpt.check_profile(scale, shift=shift)
+        w = sculpt._nose_widths(scale, shift=shift)
+        hump, _ = sculpt.dorsum_hump(scale, shift=shift)
+        print("  %-8s clean   peak %.1f mm at %.4f, nasion %.4f; bridge %.1f tip %.1f alae %.1f, off the midline %.1f, hump %.2f mm" % (
+            kind, peak * 1000, at, nas, w["bridge"] * 1000, w["tip"] * 1000, w["alae"] * 1000, w["deviation"] * 1000, hump * 1000))
     caught, total = sculpt.bite()
+    # the slot measured out both ways from the crest (2026-09-28): the
+    # brawler's broken nose with its base left on the midline has a 3 mm
+    # slot on its RIGHT, which the old one-sided measure (his left) missed
+    left = {k: v for k, v in pipeline.NOSES["brawler"].items() if k not in ("ala", "alar_crease", "nostril")}
+    scale, shift = sculpt.with_nose(pipeline.FACES["brawler"], left)
+    total += 1
+    try:
+        sculpt.check_profile(scale, shift=shift)
+        print("  %-13s NOT caught" % "base left")
+    except AssertionError as e:
+        ok = "slot" in str(e); caught += ok
+        print("  %-13s %s  %s" % ("base left", "caught" if ok else "WRONG CHECK", e))
     print("  %d of %d nose sabotages caught" % (caught, total))
     if caught != total:
         sys.exit(1)
@@ -162,13 +184,42 @@ def eye_check():
         try: bite(label, word, sculpt.check_eye_shape)
         finally: with_(**old)
 
-    def head(drape=True):
+    # One man's lids (pipeline.EYES, 2026-09-28): each through the shape
+    # rules clean, Saud's hooded; then the hooded rules broken, and the open
+    # rule proved to still hold every man not marked hooded. set_eye() is
+    # the shared lids again after each (module state: one process builds
+    # several heads here).
+    from hero import pipeline
+    try:
+        for kind, kw in pipeline.EYES.items():
+            sculpt.set_eye(**kw)
+            print("  %-8s clean   " % kind + ("hooded " if sculpt.HOODED else "open   ")
+                  + "  ".join("%s %.2f" % (k, v * 1000) for k, v in sculpt.check_eye_shape().items()))
+        saud = {k: v for k, v in pipeline.EYES["saud"].items() if k != "hooded"}
+        lids = [("hooded, open", dict(hooded=True), "not hooded"),
+                ("on the pupil", dict(saud, hooded=True, UP_AT_PUPIL=0.0029), "pupil"),
+                ("a slit", dict(saud, hooded=True, UP_AT_PUPIL=0.00306, DN_AT_PUPIL=0.00486), "tall"),
+                ("Saud's lids open", dict(saud, hooded=False), "asleep"),
+                ("thug at .0035", dict(pipeline.EYES["thug"], UP_AT_PUPIL=0.0035), "asleep")]
+        for label, kw, word in lids:
+            sculpt.set_eye(**kw)
+            bite(label, word, sculpt.check_eye_shape)
+    finally:
+        sculpt.set_eye()
+    try:
+        sculpt.set_eye(lid=0.003); print("  %-15s NOT caught" % "misspelt lid"); total += 1
+    except KeyError as e:
+        total += 1; caught += "no such eye number" in str(e)
+        print("  %-15s caught  %s" % ("misspelt lid", e))
+
+    def head(drape=True, kind=None):
         legacy.reset_scene()
         base = A.union_remesh([A.head(), A.neck()], 0.006, "Base"); A.smooth(base, 0.40, 3)
         body = A.union_remesh([base] + ASM.face_parts() + ASM.ear(1) + ASM.ear(-1) + ASM.hair_parts("quiff"), 0.0035, "Body")
         A.smooth(body, 0.5, 2)
         ASM.subdivide_eyes(body)
-        sculpt.sculpt_face(body, A.head_surface_y)
+        scale, shift = sculpt.with_nose(pipeline.FACES.get(kind), pipeline.NOSES.get(kind)) if kind else (None, None)
+        sculpt.sculpt_face(body, A.head_surface_y, scale=scale, shift=shift)
         A.smooth(body, 0.3, 1)
         if drape:
             sculpt.drape_eyes(body, A.head_surface_y)
@@ -180,6 +231,15 @@ def eye_check():
     old = with_(LID_UPPER=-0.004, LID_LOWER=-0.004)
     try: bite("lids behind", "lids do not close", head)
     finally: with_(**old)
+    # Saud's own head, his face and his hooded lids: open clean, and still
+    # shut without the drape at his narrower fissure
+    try:
+        sculpt.set_eye(**pipeline.EYES["saud"])
+        shown, leak = head(kind="saud")
+        print("  saud     clean   globe over %.0f %% of the fissure, %.1f %% outside the lids" % (shown * 100, leak * 100))
+        bite("saud, no drape", "shut", lambda: head(drape=False, kind="saud"))
+    finally:
+        sculpt.set_eye()
     print("  %d of %d eye sabotages caught" % (caught, total))
     if caught != total:
         sys.exit(1)

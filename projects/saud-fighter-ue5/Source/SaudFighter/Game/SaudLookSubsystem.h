@@ -21,7 +21,8 @@ struct FHitResultData;
  * carrying the material, so every camera -- the player's boom, a cutscene's,
  * a respawn's -- sees the same picture with nothing wired per level; the
  * level builders do not need to know it exists. Every tick it writes the
- * impact frame, the speed lines and their centre into MPC_Anime from
+ * impact frame, the speed lines and their centre, and the boil (the seed
+ * the ink's brush and the film grain move on, on twos) into MPC_Anime from
  * SaudAnime::FState, in real time, because the impact frame is drawn during
  * the freeze. USaudFeelSubsystem::OnBlow hands every blow on.
  *
@@ -77,10 +78,22 @@ private:
 	/** Who the last burning punch landed on: the burst is drawn on him. */
 	TWeakObjectPtr<const AFighterBase> Burned;
 
-	/** Last values written, so an idle frame writes nothing. */
-	float Written[7] = {-1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f};
+	/** The MPC_Anime scalars written through Write(), a slot each. Sized
+	    (since 2026-09-28) for every scalar the look and the hit effects
+	    write each frame, the impact's tone, the wound and the hit mark's
+	    included; it was seven magic numbers. */
+	enum class ESlot : uint8
+	{
+		Impact, Invert, Speed, Seed, FireHeat, BurnAge, Boil,
+		Tone, Wound, MarkAge, MarkX, MarkY, MarkDepth, MarkScale, MarkSeed,
+		Count
+	};
 
-	void Write(int32 Slot, const TCHAR* Name, float Value);
+	/** Last values written, so an idle frame writes nothing; -1 from the
+	    world's BeginPlay until the first write. */
+	float Written[static_cast<int32>(ESlot::Count)] = {};
+
+	void Write(ESlot Slot, const TCHAR* Name, float Value);
 	void Set(const TCHAR* Name, float Value);
 	bool VictimOnScreen(float& OutX, float& OutY) const;
 	void WriteFire(const ASaudCharacter* Saud);

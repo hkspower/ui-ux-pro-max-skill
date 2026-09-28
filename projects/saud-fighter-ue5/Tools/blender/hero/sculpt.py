@@ -101,7 +101,63 @@ FACE = [
     ("jaw1",      0.032, 1.5880, 0.014, 0.016, 0.008,  +0.0030, True),
     ("jaw2",      0.0507, 1.5960, 0.014, 0.018, 0.009,  +0.0036, True),
     ("jaw3",      0.0626, 1.6100, 0.013, 0.020, 0.012,  +0.0038, True),
+    # ---- OPTIONAL (2026-09-28, "make Saud more aggressive", the Unreal
+    # men): forms the shared rows cannot make by scaling, at factor 0 on
+    # every man whose pipeline.FACES entry does not name them (factor()).
+    # Narrower sigmas than the cheekbone (22/16 mm) and the chin (19/14),
+    # which is why they are rows of their own and not factors on those.
+    # the brow ridge pulled down over the upper lid -- the seinen scowl's
+    # overhang (the eye sits under it, in the brow's shadow)
+    ("brow_low",  0.0270, 1.6940, 0.019, 0.014, 0.0058, +0.0050, True),
+    # the corrugator, bunched at the inner end of the brow
+    ("corrugator", 0.0145, 1.6950, 0.0065, 0.010, 0.0050, +0.0018, True),
+    # the cheekbone's lower edge, a hard edge over a lean cheek
+    ("zygoma",    0.0505, 1.6520, 0.013, 0.014, 0.0070, +0.0028, True),
+    # the jaw's angle, marked
+    ("gonion",    0.0600, 1.5985, 0.009, 0.014, 0.0070, +0.0022, True),
+    # two mental tubercles: a square chin
+    ("chin_sq",   0.0115, 1.5850, 0.008, 0.012, 0.0090, +0.0016, True),
 ]
+OPTIONAL = {"brow_low", "corrugator", "zygoma", "gonion", "chin_sq"}
+FEATURES = {r[0] for r in FACE}
+
+def factor(scale, name):
+    """A man's factor on one row: what his FACES entry says, else 1.0 --
+    and 0.0 for an OPTIONAL row he does not name, so the forms added for
+    one man's face are not on everyone else's."""
+    return (scale or {}).get(name, 0.0 if name in OPTIONAL else 1.0)
+
+def with_nose(scale=None, noses=None):
+    """One man's FACES factors and his pipeline.NOSES entry, {feature:
+    dict(dx=, dz=, k=)}, as the (scale, shift) sculpt_face and
+    check_profile take: k multiplies the feature's factor, dx / dz move it
+    (metres; +x is his left). Unknown features or keys raise."""
+    sc = dict(scale or {}); shift = {}
+    for name, n in (noses or {}).items():
+        if name not in FEATURES:
+            raise KeyError("no such face feature for a nose: %r" % name)
+        bad = set(n) - {"dx", "dz", "k"}
+        if bad:
+            raise KeyError("no such nose number %s on %r (dx, dz, k)" % (sorted(bad), name))
+        if "k" in n:
+            sc[name] = factor(sc, name) * n["k"]
+        if n.get("dx", 0.0) or n.get("dz", 0.0):
+            shift[name] = (float(n.get("dx", 0.0)), float(n.get("dz", 0.0)))
+    return sc, shift
+
+def _rows(table=None, scale=None, shift=None):
+    """The table as the rows a man's face is built from: (x, z, sx, sy, sz,
+    amp) each, his factors on the amplitudes, a mirrored feature listed
+    twice -- and a feature with a shift moved off the midline, a mirrored
+    one as two rows at +x+dx and -x+dx (a knocked nose is not symmetric)."""
+    shift = shift or {}
+    out = []
+    for name, x, z, sx, sy, sz, amp, mirror in (table or FACE):
+        a = amp * factor(scale, name)
+        dx, dz = shift.get(name, (0.0, 0.0))
+        for sgn in ((1, -1) if mirror else (1,)):
+            out.append((name, sgn * x + dx, z + dz, sx, sy, sz, a))
+    return out
 
 # ---- the eye ------------------------------------------------------------
 # The globe: 24 mm across, its centre EYE_SEAT behind the bare skull line at
@@ -249,13 +305,43 @@ def drape_eyes(body, surface_y):
     me.update()
     return moved
 
-def check_eye_shape(ap=None):
+# One man's lids (2026-09-28, the Unreal men): pipeline.EYES, set through
+# set_eye by pipeline.apply_man before anything is built or painted --
+# aperture(), drape_eyes, near_margin / relax_eyes, check_eye_open and the
+# lash paint all read these module numbers at call time, so one call moves
+# them together. One process per man (build_fighters), like face.set_hair;
+# a suite that builds several heads in one process resets with set_eye().
+# HOODED: the lid set low on purpose (Saud's scowl), which check_eye_shape
+# holds to its own rules instead of the open eye's.
+HOODED = False
+_EYE_DEFAULT = dict(UP_AT_PUPIL=UP_AT_PUPIL, DN_AT_PUPIL=DN_AT_PUPIL, UP_ROUND=UP_ROUND, UP_PEAK=UP_PEAK)
+PUPIL_R = 0.00205        # finish.PUPIL_R: the painted pupil's radius
+
+def set_eye(hooded=False, **kw):
+    """Reset the lids to the shared numbers, then apply one man's: any of
+    UP_AT_PUPIL, DN_AT_PUPIL, UP_ROUND, UP_PEAK. Unknown keys raise."""
+    global HOODED
+    bad = set(kw) - set(_EYE_DEFAULT)
+    if bad:
+        raise KeyError("no such eye number: %s (%s)" % (sorted(bad), ", ".join(sorted(_EYE_DEFAULT))))
+    g = globals()
+    g.update(_EYE_DEFAULT); g.update({k: float(v) for k, v in kw.items()})
+    HOODED = bool(hooded)
+
+def check_eye_shape(ap=None, hooded=None):
     """The fissure as a man's (numpy): 26-31 mm wide, 8.5-11 mm tall at the
     pupil, the upper lid over 0.5-2 mm of the iris (under it he stares, over
     it he is asleep), the lower within 0.8 mm of the iris's bottom, the outer
     corner 1-4 mm above the inner, the upper lid's crest inside the pupil
-    and the lower's low point outside it. Returns the numbers."""
+    and the lower's low point outside it. Returns the numbers.
+
+    A HOODED eye (set_eye(hooded=True), 2026-09-28) is held instead to: the
+    upper lid over at least 2 mm of the iris ('not hooded' under it), at
+    least 1 mm of iris still showing over the pupil (the lid is never on
+    the pupil: still open), and 8.0-11 mm tall. `hooded` defaults to the
+    module's HOODED; the other rules are everyone's."""
     ap = ap or aperture
+    hooded = HOODED if hooded is None else bool(hooded)
     xs = np.linspace(X_MED - 0.004, X_LAT + 0.004, 2001)
     up, dn = ap(xs)
     open_ = up - dn > 1e-5
@@ -268,24 +354,31 @@ def check_eye_shape(ap=None):
     ends = ap(np.array([lo, hi]))
     tilt = float(ends[0][1] - ends[0][0])
     crest = float(xs[np.argmax(up)]); low = float(xs[np.argmin(dn)])
+    clear = u_p - (EYE_Z + PUPIL_R)              # iris showing over the pupil
     assert 0.026 <= width <= 0.031, "eye fissure %.1f mm wide, want 26-31" % (width * 1000)
-    assert 0.0005 <= cover <= 0.002, "upper lid over %.1f mm of the iris, want 0.5-2 (staring or asleep)" % (cover * 1000)
+    if hooded:
+        assert cover >= 0.002, "not hooded: the upper lid over %.1f mm of the iris, want 2 or more" % (cover * 1000)
+        assert clear >= 0.001, "the lid on the pupil: %.1f mm of iris over it, want 1 or more" % (clear * 1000)
+    else:
+        assert 0.0005 <= cover <= 0.002, "upper lid over %.1f mm of the iris, want 0.5-2 (staring or asleep)" % (cover * 1000)
     assert abs(under) <= 0.0008, "lower lid %.1f mm off the iris's bottom, want within 0.8" % (under * 1000)
-    assert 0.0085 <= u_p - d_p <= 0.011, "eye fissure %.1f mm tall, want 8.5-11" % ((u_p - d_p) * 1000)
+    tall = 0.0080 if hooded else 0.0085
+    assert tall <= u_p - d_p <= 0.011, "eye fissure %.1f mm tall, want %.1f-11" % ((u_p - d_p) * 1000, tall * 1000)
     assert 0.001 <= tilt <= 0.004, "canthal tilt %.1f mm, want the outer corner 1-4 above the inner" % (tilt * 1000)
     assert crest < EYE_X < low, "no almond: upper crest at %.1f, lower low at %.1f mm, pupil %.1f" % (crest * 1000, low * 1000, EYE_X * 1000)
-    return dict(width=width, height=u_p - d_p, cover=cover, under=under, tilt=tilt)
+    return dict(width=width, height=u_p - d_p, cover=cover, under=under, tilt=tilt, clear=clear)
 
-def sculpt_face(body, surface_y, z_min=1.556, scale=None):
+def sculpt_face(body, surface_y, z_min=1.556, scale=None, shift=None):
     """Displace the head's vertices by the feature field.
 
     `scale` is {feature name: factor} on the amplitudes -- how one man's
     face differs from another's on the same skull: a heavier brow, a wider
     jaw, a smaller chin. The layout (where the features ARE) is shared; it
     is the eight-heads layout every face here is drawn to, and the browser
-    build draws every fighter's head from the one skull too.
+    build draws every fighter's head from the one skull too. The one
+    exception is `shift`, {feature: (dx, dz)} (with_nose), a man's broken
+    nose knocked off the midline (2026-09-28, the Unreal men).
     """
-    scale = scale or {}
     me = body.data
     n = len(me.vertices)
     P = np.empty(n * 3); me.vertices.foreach_get("co", P); P = P.reshape(n, 3)
@@ -298,17 +391,16 @@ def sculpt_face(body, surface_y, z_min=1.556, scale=None):
         y = surface_y(x, z) 
         d = ((Ph[:, 0] - x) / sx) ** 2 + ((Ph[:, 1] - y) / sy) ** 2 + ((Ph[:, 2] - z) / sz) ** 2
         return amp * np.exp(-0.5 * d)
-    for name, x, z, sx, sy, sz, amp, mirror in FACE:
-        amp = amp * scale.get(name, 1.0)
-        D += add(x, z, sx, sy, sz, amp)
-        if mirror: D += add(-x, z, sx, sy, sz, amp)
+    for name, x, z, sx, sy, sz, amp in _rows(FACE, scale, shift):
+        if amp != 0.0:                  # an OPTIONAL row he does not name
+            D += add(x, z, sx, sy, sz, amp)
     # Apply along the normal, then only where the face is (front hemisphere
     # of the head): features must not leak onto the back of the skull.
     front = np.clip((-N[idx, 1] + 0.55) / 0.9, 0.0, 1.0)
     P[idx] += N[idx] * (D * front)[:, None]
     me.vertices.foreach_set("co", P.reshape(-1))
     me.update()
-    check_profile(scale)
+    check_profile(scale, shift=shift)
     return float(np.abs(D).max()), int((np.abs(D) > 0.0005).sum())
 
 # The features that make the nose, for check_profile's widths: the rest of
@@ -316,23 +408,63 @@ def sculpt_face(body, surface_y, z_min=1.556, scale=None):
 NOSE_PARTS = ("radix", "bridge1", "bridge2", "bridge3", "tip", "columella",
               "ala", "alar_crease", "nostril")
 
-def _field(x, z, scale=None, table=None, only=None):
+def _field(x, z, scale=None, table=None, only=None, shift=None):
     """The displacement the table would build at (x, z), x and z arrays."""
-    scale = scale or {}
     d = np.zeros(np.broadcast(x, z).shape)
-    for name, fx, fz, sx, sy, sz, amp, mirror in (table or FACE):
+    for name, fx, fz, sx, sy, sz, amp in _rows(table, scale, shift):
         if only and name not in only: continue
-        amp = amp * scale.get(name, 1.0)
-        for sgn in ((1, -1) if mirror else (1,)):
-            d = d + amp * np.exp(-0.5 * (((x - sgn * fx) / sx) ** 2 + ((z - fz) / sz) ** 2))
+        if amp != 0.0:
+            d = d + amp * np.exp(-0.5 * (((x - fx) / sx) ** 2 + ((z - fz) / sz) ** 2))
     return d
 
-def midline(lo=1.590, hi=1.740, step=0.001, scale=None, table=None):
+def midline(lo=1.590, hi=1.740, step=0.001, scale=None, table=None, shift=None):
     """The face's profile down the midline, as the field would build it."""
     zs = np.arange(lo, hi, step)
-    return zs, _field(0.0, zs, scale, table)
+    return zs, _field(0.0, zs, scale, table, shift=shift)
 
-def check_profile(scale=None, table=None):
+def _nose_widths(scale=None, table=None, shift=None, xs=None):
+    """The nose's widths about its own crest, both sides (2026-09-28): the
+    full width at half the crest's height across the bridge (24 mm above
+    the tip) and across the tip, the alae's spread where the field is over
+    1 mm, and how far the crest is off the midline. Measured from the
+    midline out one side and doubled, as it was, the brawler's broken nose
+    (2.75 mm off) read 26 mm across the tip, over the 24 allowed, when it
+    is 18.75 about its own crest."""
+    xs = np.arange(-0.040, 0.0400001, 0.00025) if xs is None else xs
+    def across(z):
+        return _field(xs, z, scale, table, NOSE_PARTS, shift)
+    def width(z):
+        g = across(z); i = int(np.argmax(g)); half = g[i] / 2.0
+        r = i
+        while r < len(g) - 1 and g[r] >= half: r += 1
+        l = i
+        while l > 0 and g[l] >= half: l -= 1
+        return float(xs[r] - xs[l]), float(xs[i])
+    bridge, bridge_x = width(NOSE_TIP + 0.024)
+    tip, tip_x = width(NOSE_TIP)
+    g = across(NOSE_TIP - 0.007); on = xs[g > 0.001]
+    alae = float(on.max() - on.min()) if len(on) else 0.0
+    return dict(bridge=bridge, tip=tip, alae=alae, bridge_x=bridge_x, tip_x=tip_x,
+                deviation=max(abs(bridge_x), abs(tip_x)))
+
+def dorsum_hump(scale=None, table=None, shift=None):
+    """How far the nose's crest stands over the chord from the nasion to
+    the tip, and where (for telling a broken, an aquiline and a flattened
+    nose apart, 2026-09-28): the crest is the field's highest point across
+    x at each height, wherever the nose has been knocked to. Returns
+    (height m, z)."""
+    zs = np.arange(1.630, 1.700, 0.0005); xs = np.arange(-0.010, 0.010, 0.00025)
+    crest = np.array([_field(xs, z, scale, table, shift=shift).max() for z in zs])
+    it = int(np.argmax(crest)); ztip = zs[it]
+    win = (zs > ztip + 0.005) & (zs < BROW_Z)
+    zw, cw = zs[win], crest[win]
+    inas = int(np.argmin(cw)); zn, cn = zw[inas], cw[inas]
+    seg = (zs >= ztip) & (zs <= zn)
+    chord = crest[it] + (cn - crest[it]) * (zs[seg] - ztip) / (zn - ztip)
+    k = int(np.argmax(crest[seg] - chord))
+    return float((crest[seg] - chord)[k]), float(zs[seg][k])
+
+def check_profile(scale=None, table=None, shift=None):
     """What about the nose a render will not tell you until it is too late,
     and all of which went wrong before:
 
@@ -350,8 +482,20 @@ def check_profile(scale=None, table=None):
     field spread 69), and no slot -- across the nostril row, no hollow
     deeper than 2.5 mm between the midline and the ala (it was 4.1, the
     dark bar across every face).
+
+    Since 2026-09-28 a man's nose may be knocked off the midline (`shift`,
+    pipeline.NOSES: the brawler's is broken), so the widths are measured
+    both sides of the nose's own crest (_nose_widths), the slot out both
+    ways from the crest across the nostril row (one side only, a nose
+    knocked to his left hid a 3 mm slot on its right), and the crest may
+    stand at most 4 mm off the midline. The peak and the nasion are still
+    the midline's.
     """
-    zs, d = midline(scale=scale, table=table)
+    # the deviation first: a nose off the midline also moves the midline's
+    # peak, and the rule that names what is wrong is this one
+    w = _nose_widths(scale, table, shift)
+    assert w["deviation"] <= 0.004, "nose deviation: its crest %.1f mm off the midline, want <= 4" % (w["deviation"] * 1000)
+    zs, d = midline(scale=scale, table=table, shift=shift)
     peak = float(d.max()); at = float(zs[int(d.argmax())])
     assert 0.020 <= peak <= 0.030, "nose field peak %.1f mm, want 20-30" % (peak * 1000)
     assert abs(at - NOSE_TIP) < 0.008, "nose peaks at %.3f, not at the tip %.3f" % (at, NOSE_TIP)
@@ -361,25 +505,26 @@ def check_profile(scale=None, table=None):
     assert len(turns) >= 2, "no nasion: the midline from brow to nose tip has no dip"
     nas = float(zw[turns[0]])           # the dip, then the glabella above it
     assert dw[turns[0]] < dw[turns[1]], "the turn below the glabella is a bump, not a dip"
-    xs = np.arange(0.0, 0.040, 0.0005)
-    def across(z):
-        return _field(xs, z, scale, table, NOSE_PARTS)
-    def width(z):                       # full width at half the midline height
-        g = across(z)
-        return 2.0 * float(xs[np.argmax(g < g[0] / 2)])
-    bridge = width(NOSE_TIP + 0.024); tip = width(NOSE_TIP)
-    g = across(NOSE_TIP - 0.007); alae = 2.0 * float(xs[g > 0.001].max())
-    f = _field(xs[xs <= 0.0165], NOSE_Z + 0.0015, scale, table)
-    slot = max(float(f[i:].max() - f[i]) for i in range(len(f)))
-    assert bridge <= 0.017, "bridge %.0f mm wide at half height, want <= 17" % (bridge * 1000)
-    assert tip <= 0.024, "tip lobule %.0f mm wide, want <= 24" % (tip * 1000)
-    assert alae <= 0.048, "alae spread %.0f mm, want <= 48" % (alae * 1000)
+    # the slot across the nostril row, out both ways from the nose's own
+    # crest there (the columella; the midline on a straight nose)
+    zr = NOSE_Z + 0.0015
+    xc = np.arange(-32, 33) * 0.00025
+    x0 = float(xc[int(np.argmax(_field(xc, zr, scale, table, NOSE_PARTS, shift)))])
+    xs = np.arange(0.0, 0.0165001, 0.0005)
+    def slot_of(sgn):
+        f = _field(x0 + sgn * xs, zr, scale, table, shift=shift)
+        return max(float(f[i:].max() - f[i]) for i in range(len(f)))
+    slot = max(slot_of(1), slot_of(-1))
+    assert w["bridge"] <= 0.017, "bridge %.0f mm wide at half height, want <= 17" % (w["bridge"] * 1000)
+    assert w["tip"] <= 0.024, "tip lobule %.0f mm wide, want <= 24" % (w["tip"] * 1000)
+    assert w["alae"] <= 0.048, "alae spread %.0f mm, want <= 48" % (w["alae"] * 1000)
     assert slot <= 0.0025, "nostril slot %.1f mm deep across the front, want <= 2.5" % (slot * 1000)
     return peak, at, nas
 
 def bite():
-    """check_profile broken once per rule, numpy only (2026-09-26): each
-    must be refused, with its own word. Returns (caught, total)."""
+    """check_profile broken once per rule, numpy only (2026-09-26; the
+    knocked nose 2026-09-28): each must be refused, with its own word.
+    Returns (caught, total)."""
     def swap(table, name, **kw):
         keys = ("x", "z", "sx", "sy", "sz", "amp")
         out = []
@@ -398,6 +543,10 @@ def bite():
         ("bulb tip",     swap(FACE, "tip", sx=0.0125), "tip lobule"),
         ("flared alae",  swap(FACE, "ala", x=0.016, sx=0.0098), "alae"),
         ("nostril slot", swap(FACE, "nostril", x=0.0078, sx=0.0045, sz=0.0045, amp=-0.0080), "slot"),
+        # 2026-09-28: the plain nose knocked 6 mm off the midline (the
+        # bridge, the tip and the columella) -- more than a broken nose
+        ("knocked 6 mm", [(r[0], r[1] + (0.006 if r[0] in ("bridge2", "bridge3", "tip", "columella") else 0.0))
+                          + tuple(r[2:]) for r in FACE], "deviation"),
     ]
     caught = 0
     for label, table, word in bites:

@@ -119,6 +119,9 @@ static void State()
 
     Check(std::strcmp(Param::Impact, "Impact") == 0 && std::strcmp(Param::SpeedSeed, "SpeedSeed") == 0,
           "parameter names (anime_look.py checks the other side)");
+    // The brush and the grain boil on the same seed (2026-09-28): the name
+    // M_Anime_Post and M_Anime_Frame read it by.
+    Check(std::strcmp(Param::Boil, "Boil") == 0, "the boil is written as Boil (anime_look.py checks the other side)");
 }
 
 using namespace SaudHud;

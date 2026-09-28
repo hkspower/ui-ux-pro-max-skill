@@ -61,6 +61,10 @@ namespace SaudAnime
 		constexpr const SaudChar* SpeedCentreY = SAUD_TEXT("SpeedCentreY");
 		constexpr const SaudChar* SpeedSeed = SAUD_TEXT("SpeedSeed");
 		constexpr const SaudChar* Key = SAUD_TEXT("Key");
+		/** The ink's brush pressure and the film grain move on twos: FState::
+		    Seed(), written every tick (SpeedSeed only while the speed lines
+		    are up). Since 2026-09-28. */
+		constexpr const SaudChar* Boil = SAUD_TEXT("Boil");
 	}
 
 	// ------------------------------------------------------------- the frame

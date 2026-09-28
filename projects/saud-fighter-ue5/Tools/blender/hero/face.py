@@ -147,6 +147,191 @@ LIP       = '#c07c6c'
 LIP_DEEP  = '#8d4f45'
 LASH      = '#120c08'
 SCAR      = '#caa48f'    # healed scar tissue: paler than the zone it crosses, no blood in it
+BROW_BALD = '#17120e'    # a bald man's brows when he has no beard to take them from (pipeline.PAINT)
+
+# ---- one man's paint, 2026-09-28 -----------------------------------------
+# "make Saud more aggressive ... make all game like dark anime adult style",
+# the Unreal build only: every number here is this build's and NOT the
+# browser's, which paints no face at all. The face above is painted from
+# one set of numbers for every man; LOOK is where a man's differ -- the
+# brows' slant and weight, the scowl's furrow, the lids' crease and lash, a
+# thinner harder mouth, the creases of a man past eighteen, the eye's own
+# colours, his scars, a strip of tape on a broken nose, the grey in a
+# beard, and the body's veins and grooves. Module state, like HAIR: set by
+# pipeline.apply_man from pipeline.PAINT (and VEINS) before anything is
+# painted, one process per man; a suite that paints several men in one
+# process resets it with set_look(). EVERY DEFAULT IS THE NUMBER THAT WAS
+# WRITTEN INLINE BEFORE, so a man with no entry paints exactly as before.
+LOOK_DEFAULT = dict(
+    # the brows (section 5): dropped whole; the inner end dropped against
+    # the tail, the scowl; the arch; the bar's thickness (its sigma); where
+    # the inner end starts; the colour -- None his hair's, 'beard' his
+    # beard's, or a hex (a bald man's brows were painted in his hair
+    # colour, which is his skin: AL-WAHSH and ZAYOS had none)
+    brow_drop=0.0, brow_slant=0.0, brow_arch=0.0032, brow_thick=0.0042, brow_in=0.0100, brow_colour=None,
+    # the glabella's furrow: two short vertical creases between the brows'
+    # inner ends, (darken, relief in metres)
+    furrow=(0.0, 0.0),
+    # the eye: the upper lid's crease (its height over EYE_Z, how dark),
+    # the upper lash line (its thickness, how dark), the shadow under it
+    lid_fold=(0.0075, 0.34), lash=(0.0007, 0.72), under_eye=0.16,
+    # the mouth: the lips' thickness at the middle (upper, lower), how far
+    # their line drops to the corners, the cupid's bow, the lips' colour
+    # weight and the upper lip's deeper tone, the seam (how dark, how deep),
+    # the corners' shadow, and how much glossier than the skin the lips are
+    # (finish.repaint_head's roughness)
+    lip_up=0.0040, lip_lo=0.0052, lip_drop=0.0024, lip_bow=0.58, lip_k=0.92, lip_deep=0.26,
+    lip_seam=(0.80, 0.0012), lip_corner=0.30, lip_gloss=0.26,
+    # the nasolabial fold (darken, relief), a shadow under the cheekbone,
+    # the moustache's share of the beard
+    nasolabial=(0.14, 0.0), hollow_shade=0.0, mous=1.0,
+    # the eye itself (finish.repaint_eye): the iris, and the sclera with
+    # how much vascular tint it carries toward the corners
+    iris='#6d4a2a', sclera=('#f0ece3', 0.10),
+    # scar tissue: None is the browser's one brow scar as it was painted
+    # (shade(scar=True)); a list is this man's strokes (scar_strokes)
+    scars=None,
+    # a strip of tape: dict(z=, x=(x0, x1), h= half-height, colour=, rough=)
+    nose_tape=None,
+    # grey hairs in the beard, 0..1
+    beard_grey=0.0,
+    # the veins (body_relief): 'worley', the cell-boundary net as it was,
+    # or 'contour', lines along the limb; their strength (None: from the
+    # man's build, as it was), relief, how much they darken the skin, and
+    # the contour's frequency (per metre), line width, stretch along the
+    # limb, one or two families of lines, and its seed
+    vein_style="worley", vein_k=None, vein_height=0.00035, vein_darken=0.07,
+    vein_scale=45.0, vein_width=0.012, vein_stretch=4.0, vein_lines=2, vein_seed=33.0,
+    # the body's grooves (sternum, linea alba, the lines between the abs,
+    # the spinal furrow) as a multiplier
+    cut=1.0,
+)
+LOOK = dict(LOOK_DEFAULT)
+
+def set_look(**knobs):
+    """One man's paint: LOOK_DEFAULT with `knobs` over it. set_look() puts
+    every default back. A knob this module does not have raises."""
+    bad = set(knobs) - set(LOOK_DEFAULT)
+    if bad:
+        raise KeyError("no such look knob: %s" % sorted(bad))
+    LOOK.clear(); LOOK.update(LOOK_DEFAULT); LOOK.update(knobs)
+
+
+def brow_rgb(hair, beard):
+    """The brows' colour: LOOK['brow_colour'] -- his hair's (None), his
+    beard's ('beard') or a hex."""
+    c = LOOK["brow_colour"]
+    if c is None:
+        return np.asarray(hair, dtype=float)
+    if c == "beard":
+        assert beard is not None, "brows in the beard's colour on a man with no beard"
+        return np.asarray(beard, dtype=float)
+    return hex_lin(c)
+
+
+def _seg_dist(u, v, a, b):
+    """Distance in a plane from points (u, v) to the segment a-b, and the
+    fraction along it (0..1)."""
+    du, dv = b[0] - a[0], b[1] - a[1]
+    L2 = max(du * du + dv * dv, 1e-12)
+    t = np.clip(((u - a[0]) * du + (v - a[1]) * dv) / L2, 0.0, 1.0)
+    return np.hypot(u - (a[0] + t * du), v - (a[1] + t * dv)), t
+
+
+def scar_masks(d, t, w, P, seed=0.0):
+    """A healed scar's tissue about its centre line, from each point's
+    distance `d` off it and fraction `t` along it: (core, pucker), 0..1.
+    The core is the pale ridge, `w` the half-width, tapering to the ends
+    and ragged along its edge; the pucker is the darker pulled skin
+    either side of it."""
+    taper = np.clip(np.sin(np.pi * t), 0.25, 1.0) ** 0.5
+    wid = w * taper * (0.92 + 0.12 * np.clip((fbm(P, 380.0, 2, 61.0 + seed) - 0.5) / 0.12, -1.0, 1.0))
+    core = ramp(d, wid, 0.40 * wid)
+    pucker = np.exp(-0.5 * ((d - (wid + 0.0012)) / 0.0006) ** 2) * (0.35 + 0.65 * taper)
+    return core, np.clip(pucker - core, 0.0, 1.0)
+
+
+def scar_tissue(col, core, pucker, skin):
+    """Scar tissue on skin colours `col` (N,3 linear): the core lifted x1.45
+    in linear light with a quarter of its chroma out -- healed tissue has
+    no blood and less melanin, it is PALER than the skin round it -- and
+    the pucker darkened .30 toward the man's own shadow tone."""
+    lift = np.clip(col * 1.45, 0.0, 1.0)
+    lum = lift @ np.array([0.2126, 0.7152, 0.0722])
+    lift = lum[:, None] + 0.75 * (lift - lum[:, None])
+    w = 0.90 * np.clip(core, 0, 1)[:, None]
+    col = col * (1 - w) + np.clip(lift, 0.0, 1.0) * w
+    p = 0.30 * np.clip(pucker, 0, 1)[:, None]
+    return col * (1 - p) + _tone(skin, SHADOW)[None, :] * p
+
+
+SCAR_RELIEF = (0.0008, 0.0002)      # the core proud, the pucker sunk (metres)
+
+# The browser's one scar (`look.scar`: AL-WAHSH, ZAYOS), as a stroke: down
+# out of his left brow onto the cheekbone, where shade(scar=True) draws it.
+BROW_SCAR = dict(at="face", a=(0.010, BROW_Z + 0.006), b=(0.052, BROW_Z + 0.006 - 0.62 * 0.042), w=0.0017)
+
+
+def scar_strokes(P, strokes):
+    """(core, pucker) of a man's scars at P, 0..1 -- every stroke in
+    `strokes` that this point can carry, the strongest of each. A stroke is
+    a dict: `at` 'face' (on the head, in (x, z), x signed: + his left),
+    'front' or 'back' (on the trunk, in (x, z), gated to its side), or a
+    limb -- 'upperarm_l', 'lowerarm_r', ... -- with `t` (t0, t1) along it
+    from its joint, `side` ('outer', 'inner', 'flexor' or 'back') and
+    `across` (a slash across the limb rather than a cut along it). `w` is
+    the half-width; `stitches` adds the dots a stitched wound leaves either
+    side of its line (every 7 mm, 4 mm out, 1 mm across)."""
+    n = len(P)
+    core = np.zeros(n); puck = np.zeros(n)
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    for k, s in enumerate(strokes):
+        at = s.get("at", "face")
+        if at in ("face", "front", "back"):
+            a, b = np.asarray(s["a"], float), np.asarray(s["b"], float)
+            d, t = _seg_dist(x, z, a, b)
+            gate = np.ones(n) if at == "face" else (ramp(y, 0.000, -0.020) if at == "front" else ramp(y, 0.000, 0.020))
+            L = float(np.hypot(*(b - a)))
+            along = t * L
+            dirn = (b - a) / max(L, 1e-9); nrm = np.array([-dirn[1], dirn[0]])
+            side_off = (x - a[0]) * nrm[0] + (z - a[1]) * nrm[1]
+        else:
+            from .anatomy import Jp
+            limb, lr = at.rsplit("_", 1)
+            sg = 1.0 if lr == "l" else -1.0
+            m = np.array([sg, 1.0, 1.0])
+            j0 = {"upperarm": "upperarm_l", "lowerarm": "lowerarm_l"}[limb]
+            j1 = {"upperarm": "lowerarm_l", "lowerarm": "hand_l"}[limb]
+            p0, p1 = np.array(Jp(j0)) * m, np.array(Jp(j1)) * m
+            tt, r, fr, sd = _seg_frame(P, p0, p1)
+            Llimb = float(np.linalg.norm(p1 - p0))
+            # the angle round the limb, 0 at the side the stroke is on: out
+            # (away from the trunk, +x on his left), in, the front (the
+            # flexor side of a forearm in the A-pose) or the back
+            ang = np.arctan2(sd, fr)
+            outward = np.arctan2(-sg * 1.0, 0.0)          # sd points in toward the trunk on his left
+            centre = {"outer": outward, "inner": outward + np.pi, "flexor": 0.0, "back": np.pi}[s.get("side", "outer")]
+            da = (ang - centre + np.pi) % (2 * np.pi) - np.pi
+            arc = da * np.maximum(r, 1e-6)
+            t0, t1 = s["t"]
+            if s.get("across"):
+                a = np.array([t0 * Llimb, -0.022]); b = np.array([t1 * Llimb, 0.022])
+            else:
+                a = np.array([t0 * Llimb, 0.0]); b = np.array([t1 * Llimb, 0.0])
+            d, t = _seg_dist(tt * Llimb, arc, a, b)
+            gate = (r < 0.09).astype(float) * (np.abs(da) < 1.6)
+            L = float(np.hypot(*(b - a))); along = t * L
+            dirn = (b - a) / max(L, 1e-9); nrm = np.array([-dirn[1], dirn[0]])
+            side_off = (tt * Llimb - a[0]) * nrm[0] + (arc - a[1]) * nrm[1]
+        c, p = scar_masks(d, t, s["w"], P, seed=float(k))
+        if s.get("stitches"):
+            # a dot either side of the line every 7 mm, 4 mm out
+            ph = (along / 0.007) % 1.0
+            dot = np.exp(-0.5 * (((ph - 0.5) * 0.007) ** 2 + (np.abs(side_off) - 0.004) ** 2) / 0.0010 ** 2)
+            dot = dot * (t > 0.02) * (t < 0.98)
+            c = np.maximum(c, 0.85 * dot)
+        core = np.maximum(core, c * gate); puck = np.maximum(puck, p * gate)
+    return core, np.clip(puck - core, 0.0, 1.0)
 
 
 def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None):
@@ -216,14 +401,22 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
     # ---- 3. the creases: where light does not reach -------------------
     # A face is read by its shadows more than its colours. None of these
     # existed before, which is the other half of why he looked like wax.
-    darken(blob(P, 0.031, EYE_Z + 0.0075, 0.020, 0.0055), 0.34)                 # upper lid fold
-    darken(blob(P, 0.033, EYE_Z - 0.0115, 0.017, 0.0045), 0.16)                 # under the eye
+    # (The weights and places are LOOK's since 2026-09-28; the defaults are
+    # the numbers written here before.)
+    M = LOOK
+    darken(blob(P, 0.031, EYE_Z + M["lid_fold"][0], 0.020, 0.0055), M["lid_fold"][1])   # upper lid fold
+    darken(blob(P, 0.033, EYE_Z - 0.0115, 0.017, 0.0045), M["under_eye"])       # under the eye
     darken(blob(P, 0.011, EYE_Z - 0.002, 0.005, 0.012), 0.22)                   # side of the nose root
     darken(blob(P, 0.0205, NOSE_Z + 0.0065, 0.0028, 0.0060), 0.20)              # the alar crease
     nasolabial = bar(P, 0.0195, 0.040, lambda u: NOSE_Z + 0.009 - 0.62 * (u - 0.0195), 0.0038)
-    darken(nasolabial, 0.14)                                            # faint at his age
+    darken(nasolabial, M["nasolabial"][0])                              # faint at his age (0.14)
+    if M["nasolabial"][1]:
+        rel -= nasolabial * M["nasolabial"][1]
+    if M["hollow_shade"]:
+        darken(blob(P, 0.047, 1.6300, 0.012, 0.0085), M["hollow_shade"])   # under the cheekbone
     darken(blob(P, 0.000, MOUTH_Z - 0.0133, 0.016, 0.0040, mirror=False), 0.26)   # under the lower lip
-    darken(blob(P, 0.026, MOUTH_Z - 0.0004, 0.005, 0.0055), 0.30)                 # mouth corners
+    # the mouth corners, following the lips' line down to them (lip_drop)
+    darken(blob(P, 0.026, MOUTH_Z - 0.0004 - (M["lip_drop"] - 0.0024), 0.005, 0.0055), M["lip_corner"])
     # under the jaw: along its lower border, which rises from the chin to
     # the angle since the skull was redrawn (2026-09-26) -- it was a level
     # band at the old chin line
@@ -253,24 +446,63 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
     # They were one Gaussian a side with sigma 26 mm at x = +-31 mm, which
     # overlap to 0.96 weight at the midline: a single bar straight across
     # the forehead. A brow is ~40 mm long and the gap between them is ~18 mm.
-    brow = bar(P, 0.010, 0.050, BROW_Z - 0.0022, 0.0042, feather=0.0022, arch=0.0032)
-    brow = brow * ramp(ax, 0.0085, 0.0135)                              # keep the glabella clear
+    # Since 2026-09-28 its line, weight and colour are LOOK's: dropped, the
+    # inner end pulled down against the tail (the scowl), the arch; with
+    # the defaults, the brow as it was.
+    b0 = M["brow_in"]
+    if (M["brow_drop"], M["brow_slant"]) == (0.0, 0.0):
+        zline = BROW_Z - 0.0022
+    else:
+        zline = lambda u: (BROW_Z - 0.0022 - M["brow_drop"]
+                           - M["brow_slant"] * np.clip(1.0 - (u - b0) / (0.050 - b0), 0.0, 1.0) ** 1.5)
+    brow = bar(P, b0, 0.050, zline, M["brow_thick"], feather=0.0022, arch=M["brow_arch"])
+    brow = brow * ramp(ax, b0 - 0.0015, b0 + 0.0035)                    # keep the glabella clear
     brow = brow * (0.72 + 0.56 * fbm(P, 900.0, 2, 11.0))                # hairs, not paint
     brow = np.clip(brow, 0, 1) * ramp(fwd, 0.25, 0.55)
-    over(brow, hair, 0.94)
+    # scar tissue grows no hair: a brow a scar crosses is split by it
+    strokes = [s for s in (M["scars"] or ()) if s.get("at", "face") == "face"]
+    sc_core = sc_puck = None
+    if strokes:
+        sc_core, sc_puck = scar_strokes(P, strokes)
+        brow = brow * (1.0 - np.clip(1.6 * sc_core, 0.0, 1.0))
+    over(brow, brow_rgb(hair, beard), 0.94)
     rel += brow * 0.0009
+    if out is not None:
+        out["brow"] = brow * on_face
+
+    # the glabella's furrow -- the scowl: two short vertical creases
+    # between the brows' inner ends, 5 mm off the midline, 12 mm long
+    if M["furrow"][0] or M["furrow"][1]:
+        fur = (np.exp(-0.5 * ((ax - 0.0050) / 0.0007) ** 2) * ramp(z, BROW_Z - 0.0105, BROW_Z - 0.0070)
+               * ramp(z, BROW_Z + 0.0015, BROW_Z - 0.0020)) * ramp(fwd, 0.40, 0.70)
+        darken(np.clip(fur, 0, 1), M["furrow"][0])
+        rel -= np.clip(fur, 0, 1) * M["furrow"][1]
+        if out is not None:
+            out["furrow"] = np.clip(fur, 0, 1) * on_face
 
     # ---- 5b. a boxer's scar --------------------------------------------
     # One side only -- a real scar is not symmetric -- running down out of
     # the brow onto the cheekbone, the classic cut-man's cut. Paler than
     # the skin it crosses (SCAR, no blood in healed tissue) and a shallow
     # RIDGE, not a groove: scar tissue sits slightly proud, it does not sink.
-    if scar:
-        line = bar(P, 0.010, 0.052, lambda u: BROW_Z + 0.006 - 0.62 * (u - 0.010), 0.0017, feather=0.0022)
-        side = ramp(x, -0.006, 0.006)          # his left (+x) only
-        mask = line * side
-        over(mask, tone(SCAR), 0.60)
-        rel += mask * 0.0004
+    # That is the browser's `look.scar` as it was painted. SCAR as a tone
+    # (the ratio of #caa48f to Saud's #f0d8c4) lands DARKER on a dark man
+    # -- 5.2 L* darker on AL-WAHSH -- and 3.4 mm wide under 0.4 mm of relief
+    # it never showed; a man with LOOK['scars'] is painted as tissue
+    # instead: lifted, a pucker either side, 0.8 mm proud (scar_tissue).
+    if M["scars"] is None:
+        if scar:
+            line = bar(P, 0.010, 0.052, lambda u: BROW_Z + 0.006 - 0.62 * (u - 0.010), 0.0017, feather=0.0022)
+            side = ramp(x, -0.006, 0.006)          # his left (+x) only
+            mask = line * side
+            over(mask, tone(SCAR), 0.60)
+            rel += mask * 0.0004
+    elif sc_core is not None:
+        w_c = sc_core * on_face; w_p = sc_puck * on_face
+        col[:] = scar_tissue(col, w_c, w_p, skin)
+        rel += w_c * SCAR_RELIEF[0] - w_p * SCAR_RELIEF[1]
+        if out is not None:
+            out["scar"] = w_c; out["pucker"] = w_p
 
     # ---- 6. the eyes: lash line and lid crease ------------------------
     # The lash lines ride the lid margins sculpt.drape_eyes cuts -- the
@@ -279,15 +511,17 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
     # the lid's own skin. Since 2026-09-26: they followed an arch over the
     # old Gaussian lids, which were closed over most of the globe.
     from .sculpt import aperture, X_MED, X_LAT, Z_MED
-    lash = bar(P, X_MED, X_LAT, lambda u: aperture(u)[0] + 0.0004, 0.0007, feather=0.0016)
-    over(lash * ramp(fwd, 0.30, 0.60), hex_lin(LASH), 0.72)
+    lash = bar(P, X_MED, X_LAT, lambda u: aperture(u)[0] + 0.0004, M["lash"][0], feather=0.0016)
+    over(lash * ramp(fwd, 0.30, 0.60), hex_lin(LASH), M["lash"][1])
     rel -= lash * 0.0003
     lower_lash = bar(P, X_MED + 0.002, X_LAT, lambda u: aperture(u)[1] - 0.0003, 0.0005, feather=0.0016)
     over(lower_lash * ramp(fwd, 0.30, 0.60), hex_lin(LASH), 0.32)
     # the caruncle: the pink of the inner corner, which the fissure opens on
     # (the globe's white stops 4 mm short of it)
     over(blob(P, X_MED + 0.0022, Z_MED + 0.0003, 0.0017, 0.0015), tone(BLOOD), 0.75)
-    rel += blob(P, 0.031, EYE_Z + 0.0085, 0.019, 0.0040) * 0.0011               # the lid's own fold
+    # the lid's own fold, a millimetre over its painted crease (lid_fold)
+    fold_z = EYE_Z + 0.0085 if M["lid_fold"][0] == 0.0075 else EYE_Z + M["lid_fold"][0] + 0.0010
+    rel += blob(P, 0.031, fold_z, 0.019, 0.0040) * 0.0011
 
     # ---- 7. the mouth -------------------------------------------------
     # A mouth is not a rectangle. Built from the line between the lips
@@ -299,20 +533,24 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
     HW = 0.0240
     u = np.clip(ax / HW, 0.0, 1.35)
     taper = np.clip(1.0 - u * u, 0.0, 1.0)
-    mid = MOUTH_Z - 0.0024 * u * u                                        # the lips' line drops at the corners
-    bow = 0.58 * np.exp(-(((u - 0.27) / 0.24) ** 2)) - 0.34 * np.exp(-((u / 0.16) ** 2))
-    t_up = 0.0040 * taper ** 0.55 * (1.0 + bow)
-    t_lo = 0.0052 * taper ** 0.50
+    # (LOOK's since 2026-09-28: the drop to the corners, the bow, the lips'
+    # thickness and weight, the seam; the defaults are the numbers before)
+    mid = MOUTH_Z - M["lip_drop"] * u * u                                 # the lips' line drops at the corners
+    bow = M["lip_bow"] * np.exp(-(((u - 0.27) / 0.24) ** 2)) - 0.34 * np.exp(-((u / 0.16) ** 2))
+    t_up = M["lip_up"] * taper ** 0.55 * (1.0 + bow)
+    t_lo = M["lip_lo"] * taper ** 0.50
     f = 0.0007
     upper = ramp(z, mid - f, mid + f) * ramp(z, mid + t_up + f, mid + t_up - f)
     lower = ramp(z, mid - t_lo - f, mid - t_lo + f) * ramp(z, mid + f, mid - f)
     lips = np.clip((upper + lower) * ramp(u, 1.02, 0.93), 0, 1) * ramp(fwd, 0.35, 0.65)
-    over(lips, tone(LIP), 0.92)
-    over(np.clip(upper, 0, 1) * lips, tone(LIP_DEEP), 0.26)           # the upper lip reads darker
+    over(lips, tone(LIP), M["lip_k"])
+    over(np.clip(upper, 0, 1) * lips, tone(LIP_DEEP), M["lip_deep"])  # the upper lip reads darker
     rel += (upper * 0.0007 + lower * 0.0012) * np.clip(taper, 0, 1)
     mouthline = ramp(z, mid - 0.0009, mid) * ramp(z, mid + 0.0009, mid) * ramp(u, 1.00, 0.90)
-    over(mouthline * ramp(fwd, 0.35, 0.65), tone(LIP_DEEP), 0.80)
-    rel -= mouthline * 0.0012
+    over(mouthline * ramp(fwd, 0.35, 0.65), tone(LIP_DEEP), M["lip_seam"][0])
+    rel -= mouthline * M["lip_seam"][1]
+    if out is not None:
+        out["mouthline"] = mouthline * ramp(fwd, 0.35, 0.65) * on_face
     # philtrum: two ridges and the groove between them
     rel += (bar(P, 0.0035, 0.0085, 1.6265, 0.0055) * 0.0007
             - blob(P, 0.000, 1.6265, 0.0028, 0.0055, mirror=False) * 0.0008)
@@ -341,6 +579,7 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
         blotch = fbm(P, 90.0, 3, 41.0) - 0.5
         col[:] = np.clip(col * (1.0 + (0.20 * blotch + 0.10 * pore) * on_face)[:, None], 0.0, 1.0)
         rel += (0.00010 * pore + 0.00022 * blotch) * on_face
+        _nose_tape(P, fwd, on_face, col, rel, out)
         rel *= on_face
         return col, rel, on_face
     jaw_top = MOUTH_Z - 0.0117 + 0.052 * smooth(np.clip((lat - 0.18) / 0.72, 0, 1)) ** 1.35
@@ -352,7 +591,7 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
     # 1.629 and the alae at 1.636 -- and 56 mm wide against a 34 mm nose.
     lip_top = mid + t_up
     mous = ramp(z, NOSE_Z - 0.0022, NOSE_Z - 0.0052) * ramp(z, lip_top - 0.0008, lip_top + 0.0014) * ramp(ax, 0.0230, 0.0180)
-    beard_w = np.clip(np.maximum(beard_w, mous * ramp(fwd, 0.45, 0.75)), 0, 1)
+    beard_w = np.clip(np.maximum(beard_w, M["mous"] * mous * ramp(fwd, 0.45, 0.75)), 0, 1)
     beard_w = beard_w * (1.0 - 0.96 * np.clip(lips + mouthline, 0, 1))
     # stubble: the cut ends of hairs, crisp, a follicle a cell -- gappier
     # where a beard really is thinner. It was a smooth noise at 0.8 mm
@@ -394,6 +633,11 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
         col[:] = np.clip(col * (1.0 - w + w * tint[None, :]), 0.0, 1.0)
     wash(bw, 0.90)
     rel += bw * 0.0006 * beard_k
+    if M["beard_grey"]:
+        # grey coming in through the beard: a sparser set of cut ends in
+        # the temples' grey (GREY_HAIR), over the dark ones
+        gf = follicles(P, 0.0016, 0.00045, 29.0)
+        over(np.clip(beard_w * dens, 0, 1) * gf, hex_lin(GREY_HAIR), M["beard_grey"])
     if out is not None:
         out["beard"] = np.clip(beard_w * dens, 0, 1) * on_face
     darken(np.clip(beard_w * dens, 0, 1) * 0.5, 0.20 * beard_k)           # the shadow a beard casts on skin
@@ -412,9 +656,29 @@ def shade(P, skin, hair, beard, base_rgb=None, beard_k=1.0, scar=False, out=None
     blotch = fbm(P, 90.0, 3, 41.0) - 0.5
     col[:] = np.clip(col * (1.0 + (0.20 * blotch + 0.10 * pore) * on_face)[:, None], 0.0, 1.0)
     rel += (0.00010 * pore + 0.00022 * blotch) * on_face
+    _nose_tape(P, fwd, on_face, col, rel, out)
 
     rel *= on_face
     return col, rel, on_face
+
+
+def _nose_tape(P, fwd, on_face, col, rel, out=None):
+    """LOOK['nose_tape']: a strip of tape across the bridge of a broken
+    nose (the brawler's), over everything else -- tape has no pores and no
+    beard -- standing 0.3 mm proud. Its roughness is repaint_head's."""
+    T = LOOK["nose_tape"]
+    if not T:
+        return
+    x, z = P[:, 0], P[:, 2]
+    f = 0.0006
+    x0, x1 = T["x"]; h = T["h"]
+    tape = (ramp(x, x0 - f, x0 + f) * ramp(x, x1 + f, x1 - f) * ramp(np.abs(z - T["z"]), h + f, h - f)
+            * ramp(fwd, 0.55, 0.75)) * on_face
+    w = np.clip(tape, 0, 1)[:, None]
+    col[:] = col * (1 - w) + hex_lin(T["colour"])[None, :] * w
+    rel += tape * 0.0003
+    if out is not None:
+        out["nose_tape"] = tape
 
 
 # The body is skin too. shade() only describes a head, so without this every
@@ -799,6 +1063,102 @@ def _seg_frame(P, a, b):
     return t, r, off @ f, off @ sd
 
 
+def vein_line(P, d, s=1):
+    """LOOK's 'contour' veins at P on a limb segment along the unit `d`,
+    0..1 (2026-09-28): iso-lines of a two-octave value noise whose
+    coordinates are squeezed `vein_stretch` times along the limb, so the
+    lines run with it the way the veins of a forearm do -- one family, or
+    two (the second at 0.8). `s` is the side (+1 his left), which seeds the
+    other arm apart from this one."""
+    V = LOOK
+    d = np.asarray(d, dtype=float)
+    Q = P - (1.0 - 1.0 / V["vein_stretch"]) * np.outer(P @ d, d)
+    lw = V["vein_width"]
+    seed = V["vein_seed"] + s
+    line = ramp(np.abs(fbm(Q, V["vein_scale"], 2, seed) - 0.5), lw, lw * 0.35)
+    if V["vein_lines"] > 1:
+        n2 = fbm(Q, V["vein_scale"], 2, seed + 38.0)
+        line = np.maximum(line, 0.8 * ramp(np.abs(n2 - 0.5), lw * 0.8, lw * 0.28))
+    return line
+
+
+def vein_numbers(side=1, r=0.038, build=1.0, step=0.0005):
+    """The veins on one forearm (numpy, no mesh), 2026-09-28: a cylinder of
+    radius `r` round the elbow-to-wrist axis over t 0.10-0.86, unrolled at
+    `step`. Returns
+
+      cover     the lines' share of the unrolled forearm (the raw line,
+                before where-weights), 0..1
+      aniso     their 6 mm autocorrelation along the limb over across it
+                (a net the same every way is about 1)
+      crossings how many veins (runs of the weighted mask over 0.5) a ring
+                crosses in the 96 mm of arc centred on the flexor side,
+                averaged along the forearm
+      width     their median width there, metres
+      peak      the relief's highest point there, metres
+    """
+    from .anatomy import Jp
+    m = np.array([side, 1.0, 1.0])
+    el, wr = np.array(Jp("lowerarm_l")) * m, np.array(Jp("hand_l")) * m
+    d = wr - el; L = float(np.linalg.norm(d)); d /= L
+    f = np.array([0.0, -1.0, 0.0]); f = f - d * (f @ d); f /= np.linalg.norm(f); sd = np.cross(d, f)
+    ts = np.arange(0.10, 0.86, step / L)
+    na = int(round(2 * np.pi * r / step))
+    angs = np.linspace(-np.pi, np.pi, na, endpoint=False)
+    T, AN = np.meshgrid(ts, angs)
+    P = el[None, :] + np.outer(T.ravel() * L, d) + r * (np.outer(np.cos(AN.ravel()), f) + np.outer(np.sin(AN.ravel()), sd))
+    rel, vein = body_relief(P, None, build=build)
+    Vw = vein.reshape(T.shape)
+    if LOOK["vein_style"] == "worley":
+        raw = ramp(worley_gap(P, 0.021, seed=17.0 + side), 0.17, 0.06).reshape(T.shape)
+    else:
+        raw = vein_line(P, d, side).reshape(T.shape)
+    def corr(a, axis, lag):
+        b = np.roll(a, lag, axis=axis)
+        return float(np.corrcoef(a.ravel(), b.ravel())[0, 1])
+    lag = int(round(0.006 / step))
+    along, across = corr(raw, 1, lag), corr(raw, 0, lag)
+    mid = na // 2; half = int(round(0.048 / step))
+    arc = Vw[mid - half: mid + half, :] > 0.5
+    runs = (arc[1:] & ~arc[:-1]).sum(0) + arc[0]
+    widths = []
+    for j in range(0, arc.shape[1], 8):
+        k = 0
+        for v in arc[:, j]:
+            if v: k += 1
+            elif k: widths.append(k * step); k = 0
+    peak = float((LOOK["vein_height"] * Vw[mid - half: mid + half, :]).max())
+    return dict(cover=float(raw.mean()), aniso=along / max(across, 1e-3), crossings=float(runs.mean()),
+                width=float(np.median(widths)) if widths else 0.0, peak=peak)
+
+
+VEIN_RULES = dict(cover=0.15, aniso=3.0)     # every man on 'contour': lines under 15 % of the arm, 3x longer than wide
+
+
+def check_veins(hold=None, build=1.0, assert_=True):
+    """The veins on both forearms (vein_numbers): lines, not a net -- at
+    most 15 % of the forearm, their 6 mm autocorrelation along the limb at
+    least 3 times that across it; and for a man whose VEINS name a hold
+    (`hold`: dict(crossings=(lo, hi), peak=m)), that many veins across the
+    flexor side and that bold. Returns {side: numbers}."""
+    out = {s: vein_numbers(s, build=build) for s in (1, -1)}
+    if not assert_:
+        return out
+    for s, v in out.items():
+        arm = "left" if s > 0 else "right"
+        assert v["cover"] <= VEIN_RULES["cover"], "a net: the veins cover %.0f %% of his %s forearm, want %.0f at most" % (
+            v["cover"] * 100, arm, VEIN_RULES["cover"] * 100)
+        assert v["aniso"] >= VEIN_RULES["aniso"], "scales, not veins: along/across %.1f on his %s forearm, want %.1f" % (
+            v["aniso"], arm, VEIN_RULES["aniso"])
+        if hold:
+            lo, hi = hold["crossings"]
+            assert lo <= v["crossings"] <= hi, "%.1f veins across the flexor side of his %s forearm, want %.0f-%.0f" % (
+                v["crossings"], arm, lo, hi)
+            assert v["peak"] >= hold["peak"], "faint veins: %.2f mm of relief on his %s forearm, want %.2f" % (
+                v["peak"] * 1000, arm, hold["peak"] * 1000)
+    return out
+
+
 def body_relief(P, joints_l=None, build=1.0, tape=None):
     """The skin's own relief below the face, in metres (+ is proud), and
     the vein mask, 0..1 -- 2026-09-25, "skin: surface detail". Everything
@@ -821,28 +1181,43 @@ def body_relief(P, joints_l=None, build=1.0, tape=None):
     n = len(P)
     rel = np.zeros(n); vein = np.zeros(n)
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
-    vk = float(np.clip(0.55 + 0.6 * (build - 1.0), 0.35, 1.0))
+    V = LOOK
+    assert V["vein_style"] in ("worley", "contour"), "no such vein style: %r" % V["vein_style"]
+    vk = float(np.clip(0.55 + 0.6 * (build - 1.0), 0.35, 1.0)) if V["vein_k"] is None else float(V["vein_k"])
     for s in (1, -1):
         m = np.array([s, 1.0, 1.0])
         sh, el, wr, he = (np.array(Jp(k)) * m for k in ("upperarm_l", "lowerarm_l", "hand_l", "hand_end_l"))
-        # ---- veins
+        # ---- veins: where they are (a weight per limb segment), then the lines
         w = np.zeros(n)
         t, r, fr, sd = _seg_frame(P, el, wr)
         band = smooth(np.clip((t - 0.04) / 0.10, 0, 1)) * (1.0 - smooth(np.clip((t - 0.86) / 0.10, 0, 1)))
         side = 0.55 + 0.45 * np.clip(fr / np.maximum(r, 1e-6), -1.0, 1.0)      # the flexor (front) side most
-        w = np.maximum(w, band * side * (r < 0.09))
+        w_fore = band * side * (r < 0.09)
+        w = np.maximum(w, w_fore)
         t, r, fr, sd = _seg_frame(P, sh, el)
         band = smooth(np.clip((t - 0.30) / 0.15, 0, 1)) * (1.0 - smooth(np.clip((t - 0.88) / 0.10, 0, 1)))
         inner = np.clip(sd / np.maximum(r, 1e-6), 0.0, 1.0)                     # toward the body
-        w = np.maximum(w, 0.55 * band * inner * (r < 0.09))
+        w_up = 0.55 * band * inner * (r < 0.09)
+        w = np.maximum(w, w_up)
         t, r, fr, sd = _seg_frame(P, wr, he)
         back = np.clip(-fr / np.maximum(r, 1e-6), 0.0, 1.0)                     # the back of the hand (+Y)
-        w = np.maximum(w, 0.8 * (t > -0.1) * (t < 1.1) * back * (r < 0.06))
-        if w.max() > 0:
+        w_hand = 0.8 * (t > -0.1) * (t < 1.1) * back * (r < 0.06)
+        w = np.maximum(w, w_hand)
+        if w.max() > 0 and V["vein_style"] == "worley":
+            # a cell-boundary net, the same every way -- as it was until
+            # 2026-09-28; on the big men's forearms it read as reptile scales
             sel = w > 0.02
             gap = worley_gap(P[sel], 0.021, seed=17.0 + s)
             line = ramp(gap, 0.17, 0.06)
             vein[sel] = np.maximum(vein[sel], line * w[sel] * vk)
+        elif w.max() > 0:
+            # 'contour': lines running along the limb, each segment its own
+            # (vein_line), so none is seamed at the elbow or the wrist
+            for (a, b), ws in (((el, wr), w_fore), ((sh, el), w_up), ((wr, he), w_hand)):
+                sel = ws > 0.02
+                if sel.any():
+                    line = vein_line(P[sel], (b - a) / np.linalg.norm(b - a), s)
+                    vein[sel] = np.maximum(vein[sel], line * ws[sel] * vk)
         # ---- knuckles and creases
         if joints_l:
             for fi in ("f0", "f1", "f2", "f3", "thumb"):
@@ -868,15 +1243,17 @@ def body_relief(P, joints_l=None, build=1.0, tape=None):
     rel += 0.0009 * np.exp(-((z - zc) / 0.0055) ** 2) * span * front
     rel -= 0.0012 * np.exp(-((z - zc - 0.022) / 0.011) ** 2) * ramp(ax, 0.060, 0.080) * ramp(ax, 0.180, 0.160) * front
     rel -= 0.0015 * np.exp(-(((x) / 0.014) ** 2 + ((z - 1.474) / 0.011) ** 2)) * front
-    # ---- the sternum and the linea alba, the lines between the abs
+    # ---- the sternum and the linea alba, the lines between the abs (all
+    # four grooves times LOOK['cut'], a man's definition: 1.0 as they were)
+    cut = float(V["cut"])
     mid = np.exp(-(x / 0.005) ** 2) * ramp(y, -0.050, -0.070)
-    rel -= 0.0008 * mid * ramp(z, 1.220, 1.240) * ramp(z, 1.430, 1.410)
-    rel -= 0.0006 * mid * ramp(z, 1.075, 1.095) * ramp(z, 1.235, 1.215)
+    rel -= (0.0008 * cut) * mid * ramp(z, 1.220, 1.240) * ramp(z, 1.430, 1.410)
+    rel -= (0.0006 * cut) * mid * ramp(z, 1.075, 1.095) * ramp(z, 1.235, 1.215)
     for zg in (1.211, 1.141):
-        rel -= 0.0005 * np.exp(-((z - zg) / 0.004) ** 2) * ramp(ax, 0.070, 0.055) * ramp(y, -0.060, -0.080)
+        rel -= (0.0005 * cut) * np.exp(-((z - zg) / 0.004) ** 2) * ramp(ax, 0.070, 0.055) * ramp(y, -0.060, -0.080)
     # ---- the spinal furrow
-    rel -= 0.0010 * np.exp(-(x / 0.009) ** 2) * ramp(y, 0.050, 0.075) * ramp(z, 1.02, 1.06) * ramp(z, 1.46, 1.42)
-    rel += 0.00035 * vein
+    rel -= (0.0010 * cut) * np.exp(-(x / 0.009) ** 2) * ramp(y, 0.050, 0.075) * ramp(z, 1.02, 1.06) * ramp(z, 1.46, 1.42)
+    rel += V["vein_height"] * vein
     if tape is not None:
         rel = rel * (1.0 - tape); vein = vein * (1.0 - tape)
     return rel, vein
@@ -899,3 +1276,207 @@ def follicles(P, cell=0.0011, radius=0.00032, seed=0.0):
                 np.minimum(best, d, out=best)
     rr = radius / cell
     return ramp(best, rr, rr * 0.45)
+
+
+# ---- a man's marks on the body, and the paint's checks, 2026-09-28 ---------
+def body_scars(P, col, skin, tape=None):
+    """LOOK['scars'] below the face -- on the trunk and the limbs -- painted
+    as scar tissue over the body's colours `col` (N,3 linear), as
+    finish.repaint_kit paints the skin. Returns (colour, relief in metres,
+    the core's weight)."""
+    strokes = [s for s in (LOOK["scars"] or ()) if s.get("at", "face") != "face"]
+    n = len(P)
+    if not strokes:
+        return col, np.zeros(n), np.zeros(n)
+    core, puck = scar_strokes(P, strokes)
+    if tape is not None:
+        core = core * (1.0 - tape); puck = puck * (1.0 - tape)
+    return scar_tissue(col, core, puck, skin), core * SCAR_RELIEF[0] - puck * SCAR_RELIEF[1], core
+
+
+def lstar(rgb):
+    """CIE L* of linear colours (N,3)."""
+    Y = np.asarray(rgb, dtype=float) @ np.array([0.2126, 0.7152, 0.0722])
+    f = np.where(Y > 216 / 24389, np.cbrt(np.maximum(Y, 0.0)), (24389 / 27 * Y + 16) / 116)
+    return 116 * f - 16
+
+
+def _face_grid(step=0.0005, x=(-0.070, 0.070), z=(1.560, 1.790)):
+    """Points on the skull's front surface, a regular grid in (x, z)."""
+    xs = np.arange(x[0], x[1] + 1e-9, step); zs = np.arange(z[0], z[1] + 1e-9, step)
+    X, Z = np.meshgrid(xs, zs)
+    Y = np.array([A.head_surface_y(a, b) for a, b in zip(X.ravel(), Z.ravel())])
+    return np.stack([X.ravel(), Y, Z.ravel()], 1), X, Z
+
+
+def check_brows(slant_min=0.0, assert_=True):
+    """The brows as painted (numpy, on the skull's own surface): two of
+    them, not a bar -- under 5 % brow weight within 5 mm of the midline;
+    and for a man held to a scowl (HOLDS' brow_slant), the brow's inner end
+    at least `slant_min` under its TAIL (against its peak, the default
+    arch alone passed). Returns the numbers."""
+    xs = np.arange(0.0, 0.056, 0.0005); zs = np.arange(BROW_Z - 0.016, BROW_Z + 0.012, 0.0002)
+    X, Z = np.meshgrid(xs, zs)
+    Y = np.array([[A.head_surface_y(x, z) for x in xs] for z in zs])
+    P = np.stack([X.ravel(), Y.ravel(), Z.ravel()], 1)
+    out = {}
+    shade(P, np.array([0.5, 0.35, 0.28]), np.array([0.02, 0.015, 0.01]), None, out=out)
+    b = out["brow"].reshape(Z.shape)
+    gap = float(b[:, xs < 0.005].max())
+    live = [j for j in range(len(xs)) if b[:, j].max() > 0.5]
+    zc = [float((b[:, j] * zs).sum() / max(b[:, j].sum(), 1e-9)) for j in live]
+    inner, tail = zc[0], zc[-1]
+    res = dict(gap=gap, slant=tail - inner, inner_x=float(xs[live[0]]))
+    if assert_:
+        assert gap < 0.05, "one brow, not two: %.2f weight within 5 mm of the midline" % gap
+        assert not slant_min or tail - inner >= slant_min, "no scowl: the brow's inner end %.1f mm under its tail, want %.1f" % (
+            (tail - inner) * 1e3, slant_min * 1e3)
+    return res
+
+
+PAINT_RULES = dict(brow=-15.0, furrow=-4.0, frown=0.003, scar=6.0, pucker=-3.0, tape=0.90)
+
+
+def paint_numbers(skin, hair, beard, beard_k=1.0, scar=False, strokes=None):
+    """The face as LOOK paints it on this man's colours (linear), measured
+    on the skull's surface (numpy): the brows' L* against the skin round
+    them, the glabella furrow's against the midline between, how far the
+    lips' line drops from the middle to the corners, each face scar's
+    centre and pucker against the skin 5-9 mm off it (`strokes`: the scars
+    to look for -- this man's, whatever LOOK now paints; by default LOOK's,
+    or the browser's brow scar), and the nose tape's weight at its middle."""
+    P, X, Z = _face_grid()
+    out = {}
+    rgb, _rel, on = shade(P, skin, hair, beard, beard_k=beard_k, scar=scar, out=out)
+    L = lstar(rgb)
+    ax = np.abs(P[:, 0])
+    res = {}
+    brow = out["brow"]
+    near = (ax > 0.012) & (ax < 0.048) & (np.abs(P[:, 2] - (BROW_Z - 0.002)) < 0.010)
+    core = near & (brow > 0.5); zone = near & (brow < 0.05) & (out.get("scar", np.zeros(len(P))) < 0.05)
+    res["brow"] = float(L[core].mean() - L[zone].mean()) if core.any() and zone.any() else 0.0
+    if "furrow" in out:
+        band = np.abs(P[:, 2] - (BROW_Z - 0.0045)) < 0.004
+        f = band & (out["furrow"] > 0.5); z0 = band & (ax < 0.0015)
+        res["furrow"] = float(L[f].mean() - L[z0].mean()) if f.any() and z0.any() else 0.0
+    else:
+        res["furrow"] = 0.0
+    ml = out["mouthline"].reshape(X.shape)
+    xs = X[0]; zs = Z[:, 0]
+    def line_z(x0):
+        j = int(np.argmin(np.abs(xs - x0)))
+        col = ml[:, j]
+        return float((col * zs).sum() / max(col.sum(), 1e-9)) if col.max() > 0.3 else float("nan")
+    res["frown"] = line_z(0.0) - 0.5 * (line_z(0.0216) + line_z(-0.0216))
+    if strokes is None:
+        strokes = [s for s in (LOOK["scars"] or ()) if s.get("at", "face") == "face"] if LOOK["scars"] is not None else (
+            [BROW_SCAR] if scar else [])
+    res["scars"] = []
+    for s in strokes:
+        if s.get("at", "face") != "face":
+            continue
+        d, t = _seg_dist(P[:, 0], P[:, 2], np.asarray(s["a"], float), np.asarray(s["b"], float))
+        mid = (t > 0.3) & (t < 0.7) & (on > 0.9)
+        c = mid & (d < 0.3 * s["w"]); zn = mid & (d > 0.005) & (d < 0.009)
+        pk = mid & (np.abs(d - (s["w"] + 0.0012)) < 0.0004)
+        res["scars"].append(dict(centre=float(L[c].mean() - L[zn].mean()) if c.any() and zn.any() else 0.0,
+                                 pucker=float(L[pk].mean() - L[zn].mean()) if pk.any() and zn.any() else 0.0))
+    T = LOOK["nose_tape"]
+    if T and "nose_tape" in out:
+        at = (np.abs(P[:, 0] - 0.5 * (T["x"][0] + T["x"][1])) < 0.002) & (np.abs(P[:, 2] - T["z"]) < 0.001)
+        res["tape"] = float(out["nose_tape"][at].mean()) if at.any() else 0.0
+    return res
+
+
+def check_paint(skin, hair, beard, beard_k=1.0, scar=False, strokes=None, grim=False, tape=False, assert_=True):
+    """paint_numbers held to the grim face (2026-09-28): every man's brows at
+    least 15 L* darker than the skin round them (a bald man's, painted in
+    his skin, were 0.3 lighter); and for a man with a grim entry
+    (`grim`), the glabella furrow at least 4 L* dark and the mouth's
+    corners at least 3 mm under its middle (a frown, not a smile); every
+    scar looked for (`strokes`, see paint_numbers) at least 6 L* PALER than
+    the skin round it with a pucker at least 3 darker; the tape where a man
+    wears it (`tape`). Returns the numbers."""
+    r = paint_numbers(skin, hair, beard, beard_k, scar, strokes)
+    if not assert_:
+        return r
+    R = PAINT_RULES
+    assert r["brow"] <= R["brow"], "no brows: %.1f L* against the skin round them, want %.0f or darker" % (r["brow"], R["brow"])
+    if grim:
+        assert r["furrow"] <= R["furrow"], "no furrow: the glabella %.1f L* against the midline, want %.0f" % (r["furrow"], R["furrow"])
+        assert r["frown"] >= R["frown"], "no frown: the mouth's corners %.1f mm under its middle, want %.0f" % (
+            r["frown"] * 1000, R["frown"] * 1000)
+    for k, s in enumerate(r["scars"]):
+        assert s["centre"] >= R["scar"], "a dark scar: scar %d's centre %.1f L* against the skin round it, want +%.0f (paler)" % (
+            k, s["centre"], R["scar"])
+        assert s["pucker"] <= R["pucker"], "no pucker: scar %d's edge %.1f L*, want %.0f" % (k, s["pucker"], R["pucker"])
+    if tape:
+        assert r.get("tape", 0.0) >= R["tape"], "no tape: %.2f over the bridge, want %.2f" % (r.get("tape", 0.0), R["tape"])
+    return r
+
+
+def check_body_scars(strokes, skin, assert_=True):
+    """Each of `strokes` below the face -- a man's body scars, as his table
+    has them -- painted by body_scars (as finish.repaint_kit paints the
+    skin, with whatever LOOK now holds) at least 6 L* paler than the skin
+    8-12 mm off its centre line. Returns each stroke's lift."""
+    out = []
+    for s in strokes:
+        if s.get("at", "face") == "face":
+            continue
+        # points on and beside the stroke, generated in its own frame
+        P = _stroke_points(s)
+        col = np.tile(np.asarray(skin, float), (len(P), 1))
+        rgb, _rel, _c = body_scars(P, col, skin)
+        L = lstar(rgb)
+        d = _stroke_points(s, offsets=True)
+        c = np.abs(d) < 0.3 * s["w"]; zn = (np.abs(d) > 0.008) & (np.abs(d) < 0.012)
+        out.append(float(L[c].mean() - L[zn].mean()))
+    if assert_:
+        for k, v in enumerate(out):
+            assert v >= PAINT_RULES["scar"], "no body scar: stroke %d %.1f L* against the skin round it, want +%.0f" % (
+                k, v, PAINT_RULES["scar"])
+    return out
+
+
+def _stroke_points(s, offsets=False, n=60):
+    """Points across a body stroke's middle third (and, with `offsets`,
+    each point's signed distance off its line), in the stroke's own frame
+    -- on the trunk's plane for 'front'/'back', on the limb's cylinder."""
+    offs = np.linspace(-0.014, 0.014, 57)
+    ts = np.linspace(0.35, 0.65, n)
+    at = s.get("at")
+    if at in ("front", "back"):
+        a, b = np.asarray(s["a"], float), np.asarray(s["b"], float)
+        dv = (b - a) / np.linalg.norm(b - a); nv = np.array([-dv[1], dv[0]])
+        T, O = np.meshgrid(ts, offs)
+        xz = a[None, :] + np.outer(T.ravel() * np.linalg.norm(b - a), dv) + np.outer(O.ravel(), nv)
+        yv = -0.10 if at == "front" else 0.10
+        P = np.stack([xz[:, 0], np.full(len(xz), yv), xz[:, 1]], 1)
+        return O.ravel() if offsets else P
+    from .anatomy import Jp
+    limb, lr = at.rsplit("_", 1)
+    sg = 1.0 if lr == "l" else -1.0
+    m = np.array([sg, 1.0, 1.0])
+    p0 = np.array(Jp({"upperarm": "upperarm_l", "lowerarm": "lowerarm_l"}[limb])) * m
+    p1 = np.array(Jp({"upperarm": "lowerarm_l", "lowerarm": "hand_l"}[limb])) * m
+    d = p1 - p0; L = np.linalg.norm(d); d /= L
+    f = np.array([0.0, -1.0, 0.0]); f = f - d * (f @ d); f /= np.linalg.norm(f); sd = np.cross(d, f)
+    outward = np.arctan2(-sg, 0.0)
+    centre = {"outer": outward, "inner": outward + np.pi, "flexor": 0.0, "back": np.pi}[s.get("side", "outer")]
+    r = 0.045
+    t0, t1 = s["t"]
+    T, O = np.meshgrid(ts, offs)
+    tt = t0 + (t1 - t0) * T.ravel()
+    if s.get("across"):
+        # the line runs from (t0, -22 mm of arc) to (t1, +22): offsets are
+        # taken perpendicular to it in the unrolled plane
+        a = np.array([t0 * L, -0.022]); b = np.array([t1 * L, 0.022])
+        dv = (b - a) / np.linalg.norm(b - a); nv = np.array([-dv[1], dv[0]])
+        uv = a[None, :] + np.outer(T.ravel() * np.linalg.norm(b - a), dv) + np.outer(O.ravel(), nv)
+        tt, arc = uv[:, 0] / L, uv[:, 1]
+    else:
+        arc = O.ravel()
+    ang = centre + arc / r
+    P = p0[None, :] + np.outer(tt * L, d) + r * (np.outer(np.cos(ang), f) + np.outer(np.sin(ang), sd))
+    return O.ravel() if offsets else P

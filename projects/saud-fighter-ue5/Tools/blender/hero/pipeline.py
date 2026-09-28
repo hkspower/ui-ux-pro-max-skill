@@ -21,9 +21,12 @@ ONE BODY, EVERY MAN. Everything up to the bake runs at Saud's coordinates
 finished, painted, baked mesh is then taken to the man's own size through
 anatomy.scale_to, the browser build's own sc / build mapping, before the
 skeleton is built on it. What differs between two men on that body is his
-palette and kit (read from the roster), his hair, his beard, and a few
-face amplitudes (FACES below), which are the only numbers in this file the
-browser does not own.
+palette and kit (read from the roster), his hair, his beard -- and, the
+Unreal build's own and labelled so (the browser owns none of them): his
+cut where it is not the browser's (CUTS), his face (FACES, NOSES, EYES),
+his body (PHYSIQUE, MASS, LIMBS), his ears (EARS), the checks his face is
+held to (HOLDS), and, from 2026-09-28, his paint and kit (PAINT, TOPS,
+BOTTOMS, KIT, VEINS). apply_man(kind) sets all of it that is module state.
 """
 import bpy, os, sys, time, math, json
 from mathutils import Vector
@@ -56,46 +59,254 @@ assert len(MANNEQUIN) == 62
 # browser gives him a buzz, which in 3D was the skull in a brown helmet.
 CUTS = {"saqr": "crest", "thug": "hightop"}
 
+# ---- the Unreal men's own numbers --------------------------------------
+# Everything below is this build's and NOT the browser's: the browser draws
+# every man from one figure and one skull and tells them apart by hair,
+# beard and kit (README: "Silhouette does the work"), and its numbers
+# (roster.py reads them) do not move for any of it. Keyed by the roster's
+# kind, Saud ("saud") included. A man a table does not list takes the
+# shared number. What is built before the checkpoint is stamped beside it
+# (PRE_CHECKPOINT, man_stamp) and a --resume onto a checkpoint built with
+# other numbers is refused.
+#
+# 2026-09-28 (Riyadh), asked as "make Saud more aggressive and more fit
+# look; make full redesign, make all game like dark anime adult style":
+# every man's face grim -- a seinen fight manga's, not a mannequin's --
+# Saud's lean and his scowl hooded, the other five men's archetypes in
+# their faces, noses and bodies.
+
 # How one man's face differs from another's on the same skull: factors on
-# the amplitudes in sculpt.FACE. These are the ONE set of numbers here the
-# browser build does not own -- it draws every head from one skull and tells
-# the men apart by hair, beard and kit (README: "Silhouette does the work")
-# -- and they are kept small and few for that reason: a heavier brow and a
-# wider jaw on the man the roster calls stocky and bearded, a slighter chin
-# on the one it calls the smallest man on screen. Saud is the skull as
-# sculpted.
+# the amplitudes in sculpt.FACE (a name the entry leaves out is 1.0, or 0
+# for sculpt.OPTIONAL's rows).
 FACES = {
-    # tip 1.05, not 1.10: at 1.10 the old, broad nose field peaked at
-    # 30.1 mm and sculpt.check_profile holds every man to 20-30 (a real male
-    # nose). On the narrowed nose (2026-09-26) 1.05 peaks at 24.3.
+    # Saud: the seinen scowl -- the brow ridge pulled down over the eye
+    # (brow_low, corrugator: the crest 6.2 mm in front of the upper lid at
+    # the pupil, it was 1.25), a lean cheek under a hard cheekbone edge
+    # (hollow 1.9, cheek_fat .30, zygoma: the hollow 5.6 mm deep, it was
+    # 3.0), a squarer jaw and chin (gonion, chin_sq) with the masseter kept
+    # at .65 so it does not grow into the brawler's, and a thinner mouth
+    # set hard (the lips down, the line and the corners deeper). Supersedes
+    # "Saud is eighteen" (2026-09-20: brow .75, glabella .80, jaw .85, chin
+    # .85, masseter .65, hollow .85).
+    "saud":    dict(brow=0.70, glabella=1.00, temple=1.35, cheekbone=0.85, cheek_fat=0.30, hollow=1.90,
+                    masseter=0.65, jaw1=1.00, jaw2=1.00, jaw3=0.95, chin=0.90,
+                    lip_upper=0.70, lip_lower=0.72, mouthline=1.25, corner=1.80, mentolab=1.30,
+                    brow_low=1.0, corrugator=1.0, zygoma=1.0, gonion=1.0, chin_sq=1.0),
+    # the thug: gaunt and wiry -- a heavy brow, a hard cheekbone over a
+    # sunken cheek, thin lips (was chin .85, brow .90, cheekbone .90, tip
+    # .95, masseter .80: the smallest man on screen)
+    "thug":    dict(chin=0.90, brow=1.15, glabella=1.10, cheekbone=1.25, cheek_fat=0.45, hollow=2.2,
+                    masseter=1.0, tip=0.95, lip_upper=0.80, lip_lower=0.80),
+    # the brawler: as he was, stocky and bearded (tip 1.05, not 1.10: at
+    # 1.10 the old, broad nose field peaked at 30.1 mm and check_profile
+    # holds every man to 20-30; on the narrowed nose 1.05 peaks at 24.3)
     "brawler": dict(brow=1.35, glabella=1.20, jaw1=1.30, jaw2=1.30, jaw3=1.30, chin=1.25,
                     masseter=1.50, cheekbone=1.15, tip=1.05, hollow=0.60),
-    "thug":    dict(chin=0.85, brow=0.90, cheekbone=0.90, tip=0.95, masseter=0.80),
-    # Saud is eighteen. The baseline face (every amplitude at 1.0, no entry
-    # here until now) was sculpted to a grown man's fully set bone structure;
-    # the masseter, the brow ridge and the width of the jaw are the three
-    # that go on developing into a man's mid-twenties, so those are down the
-    # furthest -- more than thug's, which was never about age. Cheekbone and
-    # nose are set well before eighteen and are left alone. Chosen, the way
-    # thug's and brawler's amplitudes are; nothing here is measured off a
-    # specific eighteen-year-old.
-    "saud":    dict(brow=0.75, glabella=0.80, jaw1=0.85, jaw2=0.85, jaw3=0.85, chin=0.85,
-                    masseter=0.65, hollow=0.85),
+    # AL-SAQR, the falcon: a hawk's hard lean face
+    "saqr":    dict(brow=1.25, glabella=1.15, cheekbone=1.30, cheek_fat=0.60, hollow=1.8,
+                    jaw1=1.10, jaw2=1.10, jaw3=1.10, chin=1.10, masseter=1.10, lip_upper=0.85, lip_lower=0.85),
+    # AL-WAHSH, the veteran champion: heavy bone, deep-set eyes
+    "boss":    dict(brow=1.45, glabella=1.30, jaw1=1.35, jaw2=1.35, jaw3=1.35, chin=1.30,
+                    masseter=1.60, cheekbone=1.20, socket=1.40, lip_upper=0.90, lip_lower=0.90),
+    # ZAYOS, the giant: heavier again
+    "zayos":   dict(brow=1.60, glabella=1.40, jaw1=1.45, jaw2=1.45, jaw3=1.45, chin=1.35,
+                    masseter=1.70, cheekbone=1.25, socket=1.50, lip_upper=0.85, lip_lower=0.85),
+}
+
+# A man's nose where it is not the shared one: {feature: dict(dx=, dz=,
+# k=)} -- k on its amplitude (after FACES), dx / dz moving it (metres, +x
+# his left): sculpt.with_nose. check_profile measures the widths about the
+# nose's own crest and holds the crest within 4 mm of the midline.
+NOSES = {
+    # broken, knocked to his left: the crest 2.75 mm off the midline, a
+    # dorsal hump 2.84 mm over the nasion-tip chord (1.61 plain), the tip
+    # 18.75 mm wide. The nose's base (the alae, their creases, the
+    # nostrils) goes with it, 2.5 mm: left where it was, the columella
+    # knocked away from the right nostril left a 3.0 mm slot on that side.
+    "brawler": dict(bridge2=dict(dx=0.0012, k=1.30), bridge3=dict(dx=0.0022, k=1.05),
+                    tip=dict(dx=0.0030, k=0.98), columella=dict(dx=0.0020),
+                    ala=dict(dx=0.0025), alar_crease=dict(dx=0.0025), nostril=dict(dx=0.0025)),
+    # aquiline: the hump 4.16 mm, the tip hooked down 1.2 mm
+    "saqr":    dict(bridge2=dict(k=1.28), bridge3=dict(k=1.08), tip=dict(dz=-0.0012, k=0.96)),
+    # flattened, and knocked to his right: the dorsum 0.84 mm, the alae 43 mm
+    "boss":    dict(bridge1=dict(k=0.80), bridge2=dict(k=0.82, dx=-0.0010), bridge3=dict(k=0.90, dx=-0.0015),
+                    tip=dict(k=1.02, dx=-0.0012), ala=dict(k=1.08)),
+    # flattened: the dorsum 0.87 mm
+    "zayos":   dict(bridge1=dict(k=0.78), bridge2=dict(k=0.80), bridge3=dict(k=0.88), tip=dict(k=0.98),
+                    ala=dict(k=1.08)),
+}
+
+# A man's lids: sculpt.set_eye's numbers. Saud's HOODED -- a lid set low
+# over an eye that stays open (the fissure 9.6 -> 8.25 mm, the upper lid
+# over 2.40 mm of the iris, 1.2 mm of iris still over the pupil), which
+# check_eye_shape holds to its own rules; the five men's heavier but open
+# (the upper lid over 1.65-1.85 mm of the iris, 1.25 before; the open rule
+# allows 2).
+EYES = {
+    "saud":    dict(hooded=True, UP_AT_PUPIL=0.00325, DN_AT_PUPIL=0.0050, UP_ROUND=0.80, UP_PEAK=0.40),
+    "thug":    dict(UP_AT_PUPIL=0.0039),
+    "brawler": dict(UP_AT_PUPIL=0.0040),
+    "saqr":    dict(UP_AT_PUPIL=0.0038),
+    "boss":    dict(UP_AT_PUPIL=0.0039),
+    "zayos":   dict(UP_AT_PUPIL=0.0040),
+}
+
+# What a man's built face is held to beyond everyone's (assembly.check_mien;
+# brow_slant is face.check_brows'). Saud's: the brow at least 4.5 mm over
+# the lid, the hollow at least 4.5 mm, and his jaw at most 128.5 mm across
+# its angles so the brawler (129.7) keeps the widest.
+HOLDS = {
+    "saud": dict(brow_over=0.0045, hollow=0.0045, jaw_max=0.1285, brow_slant=0.0025),
+}
+
+# A man's trunk (anatomy.PHYSIQUES, set by anatomy.set_physique): Saud lean
+# -- a narrower waist, a stronger V, defined abs, obliques and serratus, a
+# deltoid cap grown with his arm and tied into the pec.
+PHYSIQUE = {
+    "saud": "lean",
+}
+
+# How much of each muscle mass a man carries against the canonical body's:
+# factors on assembly.masses by name. The trapezius stays at 1.0 on every
+# man: 1.08-1.20 took check_neck's girth to 0.465-0.475 (its band is
+# 0.40-0.46), and ZAYOS's lat at 1.10 broke the V (a 3 mm bulge).
+MASS = {
+    # wiry: a little less chest and shoulder
+    "thug":    dict(delt=0.95, pec=0.92, pec_up=0.92, oblique=0.90),
+    # the heavy man, heavier than Saud's frame at last: shoulders, chest
+    # and a thick waist
+    "brawler": dict(delt=1.18, pec=1.12, pec_up=1.12, oblique=1.35, rectus_sheet=1.30, lat=1.05),
+    # the lean V of a kicker
+    "saqr":    dict(delt=1.08, pec=0.95, oblique=0.70, rectus0=1.15, rectus1=1.15, rectus2=1.15, lat=0.95),
+    "boss":    dict(delt=1.15, pec=1.10, pec_up=1.10, oblique=1.20),
+    "zayos":   dict(delt=1.15, pec=1.10, pec_up=1.10),
 }
 
 # How thick a man's arm muscle reads, against anatomy.arm's own numbers --
 # the biceps and forearm flexor mass, not the elbow or wrist (see arm()'s
-# own per-ring weights, which is where a change here actually lands). Saud
-# only: requested 2026-09-20, alongside his face -- eighteen and still a
-# working pro fighter's arms, not a stripped-down teenager's. Thug and
-# Brawler are unlisted and stay at the plain 1.0 anatomy.arm already had.
-# 1.18 -> 1.30 on 2026-09-24, asked as "make arm stronger" (biceps girth
-# 0.442 -> 0.470 m, measured on the build): a heavyweight's
-# arms, the register the anime look's seinen fighters are drawn in, with the
-# elbow and wrist still the joint's own width (arm()'s ring weights).
+# own per-ring weights, which is where a change here actually lands).
+# Saud: requested 2026-09-20, alongside his face -- eighteen and still a
+# working pro fighter's arms, not a stripped-down teenager's; 1.18 -> 1.30
+# on 2026-09-24, asked as "make arm stronger" (biceps girth 0.442 -> 0.470
+# m, measured on the build): a heavyweight's arms, the register the anime
+# look's seinen fighters are drawn in, with the elbow and wrist still the
+# joint's own width (arm()'s ring weights). The others 2026-09-28: the
+# thug's arms at his l 0.804 were twigs, and the brawler, the "heavy" man,
+# had Saud's frame with thinner arms. ZAYOS is unlisted: his build is
+# already 1.60.
 LIMBS = {
-    "saud": 1.30,
+    "saud":    1.30,
+    "thug":    1.20,
+    "brawler": 1.40,
+    "saqr":    1.10,
+    "boss":    1.10,
 }
+
+# A cauliflower ear, {'l': k, 'r': k} on his left (+x) and right ear
+# (assembly.ear): the brawler's left, both of AL-WAHSH's.
+EARS = {
+    "brawler": dict(l=1.0),
+    "boss":    dict(l=1.0, r=1.0),
+}
+
+# Paint and kit, all of it after the checkpoint (2026-09-28; filled by the
+# face, body and five-men paint): face.set_look's knobs (PAINT), the top
+# and trousers' cut (TOPS, BOTTOMS -- built before the checkpoint, so
+# stamped), the kit's colours and pieces (KIT), the veins (VEINS). Empty:
+# every man paints and dresses as he did.
+PAINT = {}
+TOPS = {}
+BOTTOMS = {}
+KIT = {}
+VEINS = {}
+
+# The tables built before the checkpoint, and so stamped beside it: a
+# --resume onto a checkpoint built with any other entry would paint this
+# man's lash line on another man's lids, his tank over another's body.
+PRE_CHECKPOINT = ("FACES", "NOSES", "EYES", "PHYSIQUE", "MASS", "LIMBS", "EARS", "TOPS", "BOTTOMS")
+
+# What the tables said before 2026-09-28, which is what every checkpoint
+# without a .man stamp was built with (read with its .hair, as before).
+_LEGACY = dict(
+    FACES={"brawler": dict(brow=1.35, glabella=1.20, jaw1=1.30, jaw2=1.30, jaw3=1.30, chin=1.25,
+                           masseter=1.50, cheekbone=1.15, tip=1.05, hollow=0.60),
+           "thug": dict(chin=0.85, brow=0.90, cheekbone=0.90, tip=0.95, masseter=0.80),
+           "saud": dict(brow=0.75, glabella=0.80, jaw1=0.85, jaw2=0.85, jaw3=0.85, chin=0.85,
+                        masseter=0.65, hollow=0.85)},
+    LIMBS={"saud": 1.30},
+)
+
+
+def hair_style_of(spec):
+    """The cut: pipeline.CUTS, else the roster's `look.hairStyle`
+    (assembly.HAIR_STYLES); `quiff: true` is the name Saud's cut had before
+    there was more than one."""
+    bald = bool(spec["look"].get("bald"))
+    return "bald" if bald else CUTS.get(spec["kind"]) or spec["look"].get("hairStyle") or (
+        "quiff" if spec["look"].get("quiff") else "crop")
+
+
+def man_stamp(kind, hair_style):
+    """What of this man is built before the checkpoint: every
+    PRE_CHECKPOINT table's entry (None where he has none) and the cut, as
+    JSON would write it."""
+    g = globals()
+    out = {t: g[t].get(kind) for t in PRE_CHECKPOINT}
+    out["hair"] = hair_style
+    return json.loads(json.dumps(out, sort_keys=True))
+
+
+def legacy_stamp(kind, hair_style):
+    """man_stamp for a checkpoint written before the .man stamp existed:
+    the tables as they were, and the cut its .hair says."""
+    out = {t: _LEGACY.get(t, {}).get(kind) for t in PRE_CHECKPOINT}
+    out["hair"] = hair_style
+    return json.loads(json.dumps(out, sort_keys=True))
+
+
+def check_resume(check, kind, name, hair_style, bald=False):
+    """The --resume guard: the checkpoint at `check` must have been built
+    with this man's pre-checkpoint numbers (its .man stamp; before the
+    stamp, its .hair and the tables as they were). Refuses with 'rebuild
+    him without --resume'."""
+    want = man_stamp(kind, hair_style)
+    if os.path.exists(check + ".man"):
+        built = json.load(open(check + ".man"))
+    else:
+        # a checkpoint older than the stamp: the cut from its .hair (read as
+        # quiff for Saud, bald for the bald and crop for the rest before
+        # that), everything else as the tables were
+        cut = open(check + ".hair").read().strip() if os.path.exists(check + ".hair") else (
+            "quiff" if kind == "saud" else ("bald" if bald else "crop"))
+        built = legacy_stamp(kind, cut)
+    diff = sorted(k for k in set(want) | set(built) if want.get(k) != built.get(k))
+    assert not diff, "%s's checkpoint was built with other %s (%s): rebuild him without --resume" % (
+        name, "/".join(diff), "; ".join("%s %s -> %s" % (k, json.dumps(built.get(k)), json.dumps(want.get(k))) for k in diff))
+    return want
+
+
+def apply_man(kind, spec=None):
+    """Set every per-man number that is module state, before anything is
+    built, resumed or painted: the lids (sculpt.set_eye), the trunk
+    (anatomy.set_physique), the cut and the grey (face.set_hair), and the
+    paint (face.set_look, once PAINT has entries). Everything the tables
+    say that is passed as an argument instead (FACES, NOSES, MASS, LIMBS,
+    EARS, HOLDS) is B.build's. Returns the man's stamp."""
+    from . import roster, sculpt as SC, face as FA
+    spec = spec or roster.spec(kind)
+    men = {"saud"} | set(roster.enemies())
+    for t in ("CUTS", "FACES", "NOSES", "EYES", "HOLDS", "PHYSIQUE", "MASS", "LIMBS", "EARS",
+              "PAINT", "TOPS", "BOTTOMS", "KIT", "VEINS"):
+        bad = set(globals()[t]) - men
+        assert not bad, "pipeline.%s names no man in the roster: %s" % (t, sorted(bad))
+    hair_style = hair_style_of(spec)
+    assert hair_style in B.HAIR_STYLES, "%s: no hair style %r" % (spec["name"], hair_style)
+    SC.set_eye(**EYES.get(kind, {}))
+    A.set_physique(PHYSIQUE.get(kind))
+    FA.set_hair(hair_style, spec["look"].get("grey", 0.0))
+    if PAINT.get(kind) or hasattr(FA, "set_look"):
+        FA.set_look(**PAINT.get(kind, {}))
+    return man_stamp(kind, hair_style)
 
 
 def run(argv=None):
@@ -123,16 +334,15 @@ def build_fighter(spec, argv=None):
     no_tee = not spec["look"].get("tee", True)
     gloves = spec["look"].get("hands") == "gloves"
     assert bald or pal["hair"] is not None, "%s is not bald and has no hair colour" % name
-    face_scale = FACES.get(spec["kind"])
-    arm_scale = LIMBS.get(spec["kind"], 1.0)
-    # the cut: the roster's `look.hairStyle` (assembly.HAIR_STYLES), and how
-    # grey he is at the temples, `look.grey`. `quiff: true` is the name
-    # Saud's cut had before there was more than one.
-    hair_style = "bald" if bald else CUTS.get(spec["kind"]) or spec["look"].get("hairStyle") or (
-        "quiff" if spec["look"].get("quiff") else "crop")
-    assert hair_style in B.HAIR_STYLES, "%s: no hair style %r" % (name, hair_style)
-    from . import face as FA
-    FA.set_hair(hair_style, spec["look"].get("grey", 0.0))
+    kind = spec["kind"]
+    face_scale = FACES.get(kind)
+    arm_scale = LIMBS.get(kind, 1.0)
+    # every per-man number that is module state -- the lids, the trunk, the
+    # cut (the roster's `look.hairStyle` or CUTS) and how grey he is at the
+    # temples (`look.grey`), the paint -- set here, before the resume branch,
+    # so a resumed man is painted on his own lids and trunk
+    man = apply_man(kind, spec)
+    hair_style = man["hair"]
     if "--out" in argv:
         OUT = os.path.abspath(argv[argv.index("--out") + 1])
         UE5_MODELS = os.path.join(OUT, "ue5", "Models"); UE5_TEX = os.path.join(OUT, "ue5", "Textures", name)
@@ -165,13 +375,11 @@ def build_fighter(spec, argv=None):
     # so the stages after it can be re-run with --resume.
     CHECK = os.path.join(OUT, "built.blend" if low == "saud" else "built_%s.blend" % low)
     if "--resume" in argv and os.path.exists(CHECK):
-        # The cut is geometry, built before the checkpoint: resuming one
-        # built with another cut would paint this cut onto that one's hair.
-        built = open(CHECK + ".hair").read().strip() if os.path.exists(CHECK + ".hair") else (
-            "quiff" if low == "saud" else ("bald" if bald else "crop"))
-        assert built == hair_style, (
-            "%s's checkpoint was built with the %r cut and the roster now says %r: "
-            "rebuild him without --resume" % (name, built, hair_style))
+        # The cut, the face, the lids, the trunk, the masses, the arms, the
+        # ears and the garments' cut are geometry, built before the
+        # checkpoint: resuming one built with other numbers would paint
+        # this man onto that one (his lash line on another man's lids).
+        check_resume(CHECK, kind, name, hair_style, bald)
         bpy.ops.wm.open_mainfile(filepath=CHECK)
         O = bpy.data.objects
         body, tee, pants = O["Body"], O["Tee"], O["Pants"]
@@ -192,7 +400,8 @@ def build_fighter(spec, argv=None):
     else:
         body, trees, eyes, jl = B.build(voxel_scale=3.0 if "--coarse" in argv else 1.0,
                                         face_scale=face_scale, hair_style=hair_style, arm_scale=arm_scale,
-                                        gloves=gloves)
+                                        gloves=gloves, physique=PHYSIQUE.get(kind), mass=MASS.get(kind),
+                                        noses=NOSES.get(kind), ears=EARS.get(kind), holds=HOLDS.get(kind))
         slots = {}
         mats = {"skin": F.shader("%s_Skin" % name, "skin", 0.52, subsurface=SKIN_SSS, pores=PORES["skin"]),
                 # the hair's roughness matches the skin's: the material edge
@@ -242,6 +451,9 @@ def build_fighter(spec, argv=None):
         stamp("built: body %d tris, tee %d, pants %d" % (sum(len(p.vertices) - 2 for p in body.data.polygons),
               len(tee.data.polygons), len(pants.data.polygons)))
         json.dump({k: [list(p) for p in v] for k, v in jl.items()}, open(CHECK + ".json", "w"))
+        # the one pre-checkpoint stamp (check_resume); .hair is still written
+        # for a checkpoint read by a pipeline older than the stamp
+        json.dump(man, open(CHECK + ".man", "w"), indent=1, sort_keys=True)
         open(CHECK + ".hair", "w").write(hair_style + "\n")
         bpy.ops.wm.save_as_mainfile(filepath=CHECK)
 
@@ -596,7 +808,7 @@ def build_fighter(spec, argv=None):
                    materials=[m.name for m in mesh.data.materials], textures=sorted(os.listdir(UE5_TEX)),
                    gltf=os.path.getsize(gltf), fbx=os.path.getsize(fbx),
                    unity_fbx=os.path.getsize(ufbx) if ufbx else None,
-                   control_rig=control)
+                   control_rig=control, man=man)
     stamp("exported: %d tris, %d bones%s" % (total, summary["bones"],
                                              "" if ufbx else "  (Unreal only; --unity adds the Unity FBX)"))
     summary["roundtrip_gltf"] = R.verify_roundtrip(gltf)
