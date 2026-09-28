@@ -182,32 +182,62 @@ file, so nothing else has to change.
 
 ## `Content/Audio/Music/`
 
-Five cues, four files. Made 2026-09-10 (Riyadh) with ElevenLabs Music v2 on
-the flow below, one render each, then cut to loops: a bar-aligned 60 s
+Five cues, five files. Four made 2026-09-10 (Riyadh) with ElevenLabs Music
+v2 on the flow below, one render each, then cut to loops: a bar-aligned 60 s
 window from the body of the render (past any intro), the tail crossfaded
 into the head over 1.5 s so the seam is inaudible — measured: the jump
 across the seam is at or below the mean sample-to-sample step on every
 loop — and loudness-normalised so the Volume column sets the level.
 48 kHz, stereo, 16-bit. **Nobody has listened to them**: they were made and
 cut in an environment with no audio output, like the effects were. The
-Unity build plays the same four files from `Assets/Resources/Audio/Music`.
+Unity build (frozen) plays the 2026-09-10 files from
+`Assets/Resources/Audio/Music`; it does not get the 2026-09-28 stage loop.
+
+**2026-09-28 (Riyadh): the main theme, and the stage loop recast in its
+rhythm.** Asked as "create main game theme like same rhythm" with a link to
+a track on YouTube that cannot be fetched or heard from here, and settled
+with the author as: epic drums / orchestral, and both cues — a title theme
+for `Music_Menu`, which had no file, and `Music_Stage` made again in the
+same rhythm. Both are one render each on the same flow (nodes
+`3FMuoNHVe0pjxg61oE38` the theme, `dHp9JzL5gHvJpicapZa4` the loop), cut and
+checked by `Tools/audio/loop_cut.py`, which is the tool this section used
+to say did not exist. "Same rhythm" is by the author's description of the
+reference, not by anything heard: the prompt asked for a taiko-scale
+pattern — a heavy hit on 1 and 3, a doubled snap on the "and" of 2 and on
+4, sixteenth toms under it — at 120 BPM in D Hijaz, and the loop cutter
+measured both renders at exactly 120 BPM.
 
     https://elevenlabs.io/app/flows/hNoQD2fFLdMb3eyOQZqK
 
 | File | Cue | What it is |
 | --- | --- | --- |
-| `M_Stage.wav` | `Music_Stage` | The street. Darbuka and frame drum, sawtooth bass, oud stabs, D Hijaz at 100 BPM — the browser build's procedural loop, played by people. 25 bars. |
+| `M_Stage.wav` | `Music_Stage` | The street, recast 2026-09-28. Taiko-scale drums on the theme's pattern with darbuka accents, a distorted bass pulse on the kick, low-brass stabs, an oud riff over a choir pad, staccato strings on the offbeats. D Hijaz at 120 BPM, 28 bars (56.0 s), the window opened at 17.49 s of a 90 s render where the seam matched best (onsets r 0.86), tail into head over 1.5 s. Until this it was the 2026-09-10 loop: darbuka and frame drum, sawtooth bass, oud stabs at 100 BPM, 25 bars — the browser build's procedural loop, played by people. |
 | `M_Under.wav` | `Music_Under` | The cellars. Sub-bass drone, a darbuka echoing in stone, sparse low oud, metallic hits. 88 BPM, 22 bars. |
 | `M_Up.wav` | `Music_Up` | The roofs. Wind-like pads, oud and qanun ostinato, light frame drum, wide reverb. 104 BPM, 26 bars. |
 | `M_Boss.wav` | `Music_Boss` | The title fights — ZAYOS, AL-SAQR, AL-WAHSH. Darbuka over taiko-scale drums, distorted bass, brass stabs. 118 BPM, 29 bars. |
-| — | `Music_Menu` | Still no file. The Unity build has no menu; the row waits for the Unreal one. |
+| `M_Menu.wav` | `Music_Menu` | The title screen, made 2026-09-28. A whole piece, not a loop: eight quiet bars of a low string drone, a solo oud on the theme and a distant frame drum; then the full taiko-scale drums, the theme on low brass and unison strings over a choir pad, to a brass-and-drums climax and a hard cymbal-and-taiko ending. 84.2 s (1.70–85.95 s of a 90 s render, trimmed to where it rises out of and sinks back into silence, 20 ms ramps, no crossfade), so it plays through and its intro follows after the 1.5 s of quiet the model left at the end. -15.7 LUFS, the seam at -45 / -29 dBFS. |
 
 The renders were requested instrumental but the model's "instrumental"
 setting was left on auto, so each full render was put through Scribe: all
-four transcripts came back empty, so none of them carries a vocal line.
+six transcripts came back empty, so none of them carries a vocal line.
 That is the one thing about them that is verified. To recast one, re-roll
-that node on the flow and cut it again with the same windows (the cut was
-four ffmpeg lines; `Tools/audio` has none of this yet).
+that node on the flow and cut it again:
+
+    python3 Tools/audio/loop_cut.py RENDER Content/Audio/Music/M_X.wav --bpm 120 --bars 28 --lufs -15.7
+    python3 Tools/audio/loop_cut.py RENDER Content/Audio/Music/M_Menu.wav --whole --lufs -15.7
+    python3 Tools/audio/loop_cut.py --bite
+
+`loop_cut.py` (2026-09-28) is the 2026-09-10 cut written down and measured:
+it finds the body of the render, opens the window in the four bars after
+it where the two bars at the start best match the two bars past the end
+(spectral-flux onsets), crossfades the tail into the head, normalises the
+loudness, and refuses the file unless the window is bar-aligned (r ≥ 0.5),
+the seam step is at or under the loop's mean step, the loudness is within
+0.5 LU and the true peak under -1 dBTP, and no half second is under
+-40 dBFS. `--whole` is the title theme's cut: trimmed to silence at both
+ends, and the seam must lie in a fade. `--bite` breaks each rule on a
+render the script makes itself and every check fails as it should (8 of
+8). The 2026-09-10 loops were cut before it and were not re-cut with it.
 
 ## `Content/Audio/UI/`
 

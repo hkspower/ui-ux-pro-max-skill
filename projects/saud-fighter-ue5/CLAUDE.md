@@ -2836,6 +2836,34 @@ clip, 9-19x on the men of Saud's build and 17x in AL-WAHSH's knee strike
 not the web; the decimation leaves Saud's two shoes 310 faces (the other
 men 900-2,200), as it did before; and the 40 sole-bevel faces above.
 
+## The main theme -- 2026-09-28
+
+Asked as "create main game theme like same rhythm", with a link to a track
+on YouTube. The link cannot be fetched from here and nothing here has
+audio output, so the track was never heard; settled with the author as:
+the feel is epic drums / orchestral, and both cues -- a title theme for
+`Music_Menu`, the one cue that had no file, and `Music_Stage` recast in
+the same rhythm. Made with ElevenLabs Music v2 on the flow the other four
+loops came from, one render each at 120 BPM in D Hijaz (the game's key),
+verified instrumental the way the others were (Scribe: empty
+transcripts), and cut by `Tools/audio/loop_cut.py`, which is new -- the
+2026-09-10 cut written down and checked: the window opened where the seam
+matches best, bar alignment, the seam step, the loudness and the peak,
+no silence, each rule proved to bite (8 of 8) on a render the script makes
+itself. `M_Menu.wav` is an 84 s whole piece with its intro and ending
+(`--whole`); `M_Stage.wav` is 28 bars, 56 s, at the other loops' loudness.
+`Content/Audio/README.md` has the numbers. The browser build's procedural
+loop and every number it owns are untouched; the frozen Unity build keeps
+its 2026-09-10 `M_Stage`.
+
+**Not verified:** nobody has listened to either file; "same rhythm" is by
+the author's description of the reference, not by hearing it; no engine
+has imported the files, and whether a SoundWave loops is its import
+setting (Looping), which `SaudAudioSubsystem` does not set for any of the
+five, as before. **Seen, not touched:** nothing in the C++ ever starts a
+`Music_*` cue -- the five rows are in `DT_Sounds.csv` and no code plays
+them.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
@@ -2854,7 +2882,8 @@ men 900-2,200), as it did before; and the 40 sole-bevel faces above.
   `Combat/SaudArena.h`, `Combat/SaudFeel.h`, `Combat/SaudIK.h` and
   `Combat/SaudBrain.h`, which `Tools/harness/run.sh` compiles and executes —
   those files' arithmetic is checked, and no other C++ here is — and
-  `Tools/audio/master.py`, which is Python, runs, and has.
+  `Tools/audio/master.py` and `Tools/audio/loop_cut.py`, which are Python,
+  run, and have.
 - **iOS is Mac-only.** There is no cross-compile. `Tools/ios/build-ios.sh`
   checks for this and says so rather than failing halfway through a cook.
 
