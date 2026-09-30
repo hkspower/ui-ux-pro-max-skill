@@ -548,12 +548,37 @@ namespace SaudControls
 			Fan(Out, C, Ring, N, Fill, FillPart);
 			RimRing(Out, Ring, N, RimPx, Rim);
 		}
-		/** A rimmed ellipse turned by Tilt (radians): the pad's grips. */
-		inline void RimmedEllipse(FGlyphSink& Out, const FPoint& C, float A, float B, float Tilt, float RimPx,
-		                          const FRgba& Rim, const FRgba& Fill, EControlsPart FillPart)
+		/** The part of a ring under the line Y = ClipY (Sutherland-Hodgman
+		    against the one half-plane): the points inside, and where an edge
+		    crosses, the crossing. Out holds up to N + 2; returns how many. */
+		inline int ClipBelow(const FPoint* In, int N, float ClipY, FPoint* Out)
+		{
+			int M = 0;
+			for (int i = 0; i < N; ++i)
+			{
+				const FPoint& S = In[i];
+				const FPoint& E = In[(i + 1) % N];
+				const bool bS = S.Y >= ClipY, bE = E.Y >= ClipY;
+				if (bS != bE)
+				{
+					const float T = (ClipY - S.Y) / (E.Y - S.Y);
+					Out[M++] = {S.X + (E.X - S.X) * T, ClipY};
+				}
+				if (bE)
+				{
+					Out[M++] = E;
+				}
+			}
+			return M;
+		}
+		/** A rimmed ellipse turned by Tilt (radians), cut off flat above
+		    ClipY: the pad's grips hang under the body's bottom edge and never
+		    show through it. Its centre must be under the line. */
+		inline void RimmedEllipse(FGlyphSink& Out, const FPoint& C, float A, float B, float Tilt, float ClipY,
+		                          float RimPx, const FRgba& Rim, const FRgba& Fill, EControlsPart FillPart)
 		{
 			constexpr int N = 24;
-			FPoint Ring[N];
+			FPoint Ring[N], Cut[N + 2];
 			const float Ct = FMath::Cos(Tilt), St = FMath::Sin(Tilt);
 			for (int i = 0; i < N; ++i)
 			{
@@ -561,8 +586,13 @@ namespace SaudControls
 				const float X = A * FMath::Cos(T), Y = B * FMath::Sin(T);
 				Ring[i] = {C.X + X * Ct - Y * St, C.Y + X * St + Y * Ct};
 			}
-			Fan(Out, C, Ring, N, Fill, FillPart);
-			RimRing(Out, Ring, N, RimPx, Rim);
+			const int M = ClipBelow(Ring, N, ClipY, Cut);
+			if (M < 3)
+			{
+				return;
+			}
+			Fan(Out, C, Cut, M, Fill, FillPart);
+			RimRing(Out, Cut, M, RimPx, Rim);
 		}
 		/** The d-pad's cross: four arms Half long and 2 * ArmHalfW wide from
 		    C, each in its own colour (up, down, left, right). */
@@ -733,8 +763,8 @@ namespace SaudControls
 	constexpr float HeadBand = 100.f;        // left clear under the top safe line: the screen's title
 	constexpr float FootBand = 90.f;         // ...and over the bottom one: the prompt strip
 	constexpr float LabelText = 30.f;        // every word the player reads: 1/36 of the height
-	constexpr float BodyW = 400.f, BodyH = 200.f, BodyCorner = 50.f;
-	constexpr float GripX = 125.f, GripY = 105.f, GripA = 62.f, GripB = 110.f, GripTilt = 18.f;   // degrees
+	constexpr float BodyW = 400.f, BodyH = 200.f, BodyCorner = 30.f;
+	constexpr float GripX = 108.f, GripY = 105.f, GripA = 58.f, GripB = 108.f, GripTilt = 18.f;   // degrees
 	constexpr float PadRim = 3.f;
 	constexpr float BodyAlpha = 0.40f;       // the body's Ash wash over the dark
 	constexpr float DpadX = -115.f, DpadHalf = 50.f, DpadArm = 11.f;
@@ -925,10 +955,11 @@ namespace SaudControls
 
 		// the pad: two grips, the body over them, the d-pad cross (ink in an ash rim)
 		const float Tilt = FMath::DegreesToRadians(GripTilt);
-		RimmedEllipse(Out, {C.X - P.Px(GripX), C.Y + P.Px(GripY)}, P.Px(GripA), P.Px(GripB), Tilt, Rim, Ash, Body,
-		              EControlsPart::Body);
-		RimmedEllipse(Out, {C.X + P.Px(GripX), C.Y + P.Px(GripY)}, P.Px(GripA), P.Px(GripB), -Tilt, Rim, Ash, Body,
-		              EControlsPart::Body);
+		const float BodyBottom = C.Y + P.Px(0.5f * BodyH);
+		RimmedEllipse(Out, {C.X - P.Px(GripX), C.Y + P.Px(GripY)}, P.Px(GripA), P.Px(GripB), Tilt, BodyBottom, Rim, Ash,
+		              Body, EControlsPart::Body);
+		RimmedEllipse(Out, {C.X + P.Px(GripX), C.Y + P.Px(GripY)}, P.Px(GripA), P.Px(GripB), -Tilt, BodyBottom, Rim, Ash,
+		              Body, EControlsPart::Body);
 		RimmedBox(Out, C, P.Px(BodyW), P.Px(BodyH), P.Px(BodyCorner), true, Rim, Ash, Body, EControlsPart::Body);
 		const FPoint Dp = {C.X + P.Px(DpadX), C.Y};
 		DpadCross(Out, Dp, P.Px(DpadHalf) + Rim, P.Px(DpadArm) + Rim, Ash, Ash, Ash, Ash, EControlsPart::Rim);

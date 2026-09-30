@@ -56,3 +56,34 @@ anime|Source/SaudFighter/Combat/SaudAnime.h|s#\* RageBlocks - static_cast<float>
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#: Radius \* (0.62f + 0.08f \* J)#: Radius * (0.84f + 0.16f * J)#|its tips stand out past its valleys
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#FMath::DegreesToRadians(7.f \* static_cast<float>(Count))#FMath::DegreesToRadians(0.f)#|and turns as the count rises
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#return 1.f + 0.35f \* FMath::Exp#return 1.f + 0.f * FMath::Exp#|the count punches and settles
+
+# ---- the controls (2026-09-30): the table, the words, the keys, the glyphs
+controls|Source/SaudFighter/Combat/SaudControls.h|s#{EAction::Kick, EContext::Fight, EButton::FaceSouth}#{EAction::Kick, EContext::Fight, EButton::FaceWest}#|no pad button carries two fight actions
+controls|Source/SaudFighter/Combat/SaudControls.h|/EAction::Move, EContext::Fight, EButton::LeftStick/d|every fight action has a pad button
+controls|Source/SaudFighter/Combat/SaudControls.h|/EAction::Kick, EContext::Fight, SAUD_TEXT("K")/d|every fight action has a key
+controls|Source/SaudFighter/Combat/SaudControls.h|/EAction::FlipPad, EContext::Menu, EButton/d|every menu action has a pad button
+controls|Source/SaudFighter/Combat/SaudControls.h|s#{EAction::Back, EContext::Menu, EButton::FaceEast}#{EAction::Back, EContext::Menu, EButton::FaceSouth}#|Confirm and Back differ, on the pad and on the keyboard
+controls|Source/SaudFighter/Combat/SaudControls.h|s#{EAction::Confirm, EContext::Menu, EButton::FaceSouth}#{EAction::Confirm, EContext::Menu, EButton::FaceNorth}#|Confirm is the south button and Back the east
+controls|Source/SaudFighter/Combat/SaudControls.h|s#constexpr float NavRepeatFirst = 0.35f;#constexpr float NavRepeatFirst = 0.5f;#|navigation repeats after 0.35 s, then every 0.12 s
+controls|Source/SaudFighter/Combat/SaudControls.h|s#SAUD_TEXT("CROSS")#SAUD_TEXT("A")#|the labels differ between Xbox and PlayStation on the four face buttons and both shoulders
+controls|Source/SaudFighter/Combat/SaudControls.h|s#SAUD_TEXT("Gamepad_Special_Right")#SAUD_TEXT("Gamepad_Special_Rite")#|every UE key name is a real UE key name
+controls|Source/SaudFighter/Combat/SaudControls.h|s#SAUD_TEXT("Gamepad_Left2D")#SAUD_TEXT("Gamepad_LeftX")#|a stick its 2D axis, its click the thumbstick
+controls|Source/SaudFighter/Combat/SaudControls.h|s#SAUD_TEXT("dualsense")#SAUD_TEXT("dualsensex")#|DualSense, DualShock, PS5, Sony and PlayStation read as PlayStation
+# ---- the glyphs
+controls|Source/SaudFighter/Combat/SaudControls.h|s#constexpr float StickRing = 0.10f;#constexpr float StickRing = 0.f;#|no glyph is degenerate
+controls|Source/SaudFighter/Combat/SaudControls.h|s#constexpr float TabWide = 2.3f;#constexpr float TabWide = 3.0f;#|every glyph stays in its own box
+controls|Source/SaudFighter/Combat/SaudControls.h|s#if (!bPS)#if (bPS)#|a PlayStation face button none
+controls|Source/SaudFighter/Combat/SaudControls.h|s#bPS \&\& Button == EButton::FaceEast ? Blood : Ash#Ash#|the PlayStation circle's rim is Blood
+# ---- the diagram, as BuildControlsPage draws it
+controls|Source/SaudFighter/Combat/SaudControls.h|s#constexpr float LabelGap = 250.f;#constexpr float LabelGap = 650.f;#|every label is inside the title-safe area
+controls|Source/SaudFighter/Combat/SaudControls.h|s#constexpr float HeadBand = 100.f;#constexpr float HeadBand = 0.f;#|the diagram keeps the head band
+controls|Source/SaudFighter/Combat/SaudControls.h|s#RowPitch = 40.f;#RowPitch = 20.f;#|no label overlaps another
+controls|Source/SaudFighter/Combat/SaudControls.h|s#constexpr float LabelText = 30.f;#constexpr float LabelText = 24.f;#|no word the player reads is under 1/36 of the screen
+controls|Source/SaudFighter/Combat/SaudControls.h|s#L.Stroke = P.Px(SaudHud::TextStroke);#L.Stroke = 1.f;#|every word has an ink stroke of 2 screen px at 720 lines
+controls|Source/SaudFighter/Combat/SaudControls.h|s#const FRgba Body = SaudHud::WithAlpha(Ash, BodyAlpha);#const FRgba Body = {0.3f, 0.3f, 0.3f, BodyAlpha};#|the diagram is drawn in the HUD's palette
+controls|Source/SaudFighter/Combat/SaudControls.h|s#{FaceX, -FaceSpread, FaceSize, Right, 2}#{FaceX, -FaceSpread, FaceSize, None, 2}#|every button the fight binds is in the diagram, with a label
+controls|Source/SaudFighter/Combat/SaudControls.h|s#DiagramLabel(static_cast<EButton>(b), Sl.LabelSlot, Sl.LabelValue);#Sl.LabelSlot = EControlsText::ActionName; Sl.LabelValue = 3;#|every bound button's label is the action the table binds
+controls|Source/SaudFighter/Combat/SaudControls.h|s#Ash, EControlsPart::Line);#Ash, EControlsPart::Body);#|a leader runs from every labelled button's edge to its label
+controls|Source/SaudFighter/Combat/SaudControls.h|s#Out.Text(EControlsText::PadName, static_cast<int>(Family)#Out.Text(EControlsText::PadName, static_cast<int>(EPad::Xbox)#|the family's name is under the pad
+controls|Source/SaudFighter/Combat/SaudControls.h|s#Out.Text(EControlsText::KeyName, a, L.ListKey\[a\]#Out.Text(EControlsText::KeyName, 0, L.ListKey[a]#|the keyboard's list has every fight action with its key beside it
+controls|Source/SaudFighter/Combat/SaudControls.h|s#L.bListBeside = SafeW >= BlockWide;#L.bListBeside = SafeW < 0.f;#|the list stands beside the pad on 16:9 and under it on 4:3
