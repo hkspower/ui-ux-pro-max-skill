@@ -2864,6 +2864,53 @@ five, as before. **Seen, not touched (then done 2026-09-30, with the
 menu):** nothing in the C++ started a `Music_*` cue; the title plays
 `Music_Menu` and FIGHT starts `Music_Stage` now.
 
+## The theme, mastered -- 2026-09-30
+
+Asked as "improve theme song quality and improve low and mid and high
+level sound". Nothing here has audio output, so the cut was measured
+(2026-09-28) and mastered against a written target curve (2026-09-30):
+1/3-octave band power of the mono sum relative to its 250 Hz-2 kHz mean.
+The cut read 80 Hz +6.6 and 125 Hz +4.6 dB over the target (the D2 tonic,
+73.4 Hz, in the 80 Hz band), 5-16 kHz 3.8-7.5 dB under it (the render is a
+192 kbps MP3 with its lowpass near 16 kHz), slope -19.7 dB/decade against
+`M_Boss`'s -16.2. Three chains were built, refuted and judged on the same
+script; the winner is `Tools/audio/master_music.py`: high-pass 28 Hz,
+bells -6 dB at 76 Hz and -4 at 128 Hz with the 100 Hz dip refilled, +1.5
+at 3.5 kHz, a +4.5 dB shelf from 6 kHz and +3 at 12.5 kHz, three-band
+compression at 150 Hz / 2.5 kHz (1.5 / 1.6 / 1.3), the top band's side
+x1.1, a -2 dBFS limiter, -15.7 LUFS, the 20 ms ramps put back. Four
+ffmpeg passes, all IIR, bit-reproducible.
+
+Measured, cut -> master: share of the 20-20k total in dB, 20-60 -9.3 ->
+-8.9, 60-120 -2.7 -> -4.1, 120-250 -7.2 -> -7.0, 250-500 -12.6 -> -10.4,
+500-1k -13.2 -> -10.9, 1-2k -15.2 -> -12.7, 2-4k -18.3 -> -14.1, 4-8k
+-24.2 -> -18.6, 8-12k -31.5 -> -23.5, 12-16k -40.3 -> -30.9, 16-20k -55.0
+-> -47.3. Curve RMS deviation 3.23 -> 0.98 dB, 7 -> 0 bands out; slope
+-16.5 dB/decade; -20 dB bandwidth 12.5 -> 16 kHz; true peak -3.1 -> -1.7
+dBTP, PLR 12.6 -> 14.0, LRA 7.2 -> 8.9 LU; the compressor's largest swing
+2.36 dB in any second; correlation above 2.5 kHz -0.02 -> -0.09, mono-sum
+loss -1.3 -> -2.0 LU. The tool refuses its output unless sixteen rules
+hold (level, true peak twice, no clipping, `check_whole`, the ramps, the
+curve, no band moved over 8 dB, pumping, pre-echo, mono, the intro floor,
+PLR, the end silence) and its `--bite` breaks each on a synthetic mix, 10
+of 10. `Content/Audio/README.md` has the chain and the rules.
+
+The target is a model on two published slopes (Pestana et al., AES 8960,
+2013: about -5 dB/oct density 100 Hz-4 kHz; ProSoundWeb's classical
+long-term spectra: about -6 dB/oct above 1 kHz), both seen as search
+snippets only, constrained by `M_Boss` sitting inside it at every band. It
+is not a published orchestral curve.
+
+**Not verified:** nobody has listened to the master, or to the cut, or to
+either against the other; the MP3's 16 kHz cutoff cannot be undone and
+nothing above it is invented; the 6 kHz shelf lifts the MP3's coding
+artefacts by the same 4-8 dB as the music, unmeasured; a -5.6 dB notch on
+the tonic, an intro 1.9 dB quieter and the bass landing 0-8 ms behind the
+click on each taiko hit are changes of taste no one has heard; another
+ffmpeg build may not rebuild the file sample for sample. **Seen, not
+touched:** the relayed request for this run read "improve buttons layout
+with xbox and ps 5 controller"; nothing about controller layout was done.
+
 ## The main menu and the controls -- 2026-09-30
 
 Asked as "improve main menu" and "improve buttons layout with xbox and
@@ -2958,8 +3005,8 @@ screen.
   `Combat/SaudArena.h`, `Combat/SaudFeel.h`, `Combat/SaudIK.h` and
   `Combat/SaudBrain.h`, which `Tools/harness/run.sh` compiles and executes —
   those files' arithmetic is checked, and no other C++ here is — and
-  `Tools/audio/master.py` and `Tools/audio/loop_cut.py`, which are Python,
-  run, and have.
+  `Tools/audio/master.py`, `Tools/audio/loop_cut.py` and
+  `Tools/audio/master_music.py`, which are Python, run, and have.
 - **iOS is Mac-only.** There is no cross-compile. `Tools/ios/build-ios.sh`
   checks for this and says so rather than failing halfway through a cook.
 
