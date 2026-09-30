@@ -201,6 +201,13 @@
    "h_cm": 60.810810810810814,
    "fbx": "SM_Souq_Crate.fbx"
   },
+  "SM_Souq_CrateBroken": {
+   "kind": "crate_broken",
+   "w_cm": 63.24324324324324,
+   "d_cm": 63.24324324324324,
+   "h_cm": 48.64864864864865,
+   "fbx": "SM_Souq_CrateBroken.fbx"
+  },
   "SM_Souq_Barrel": {
    "kind": "barrel",
    "w_cm": 53.513513513513516,
@@ -215,26 +222,68 @@
    "h_cm": 0.0,
    "fbx": "SM_Souq_Ground.fbx"
   },
-  "SM_Souq_Banner0": {
+  "SM_Souq_Banner0a": {
    "kind": "banner",
    "w_cm": 100.0,
    "d_cm": 0.0,
-   "h_cm": 100.0,
-   "fbx": "SM_Souq_Banner0.fbx"
+   "h_cm": 103.36079414849246,
+   "fbx": "SM_Souq_Banner0a.fbx"
   },
-  "SM_Souq_Banner1": {
+  "SM_Souq_Banner0b": {
    "kind": "banner",
    "w_cm": 100.0,
    "d_cm": 0.0,
-   "h_cm": 100.0,
-   "fbx": "SM_Souq_Banner1.fbx"
+   "h_cm": 97.38930782015967,
+   "fbx": "SM_Souq_Banner0b.fbx"
   },
-  "SM_Souq_Banner2": {
+  "SM_Souq_Awning0": {
+   "kind": "awning",
+   "w_cm": 100.0,
+   "d_cm": 110.00000000000001,
+   "h_cm": 67.22673518817038,
+   "fbx": "SM_Souq_Awning0.fbx"
+  },
+  "SM_Souq_Banner1a": {
    "kind": "banner",
    "w_cm": 100.0,
    "d_cm": 0.0,
-   "h_cm": 100.0,
-   "fbx": "SM_Souq_Banner2.fbx"
+   "h_cm": 103.05335301478821,
+   "fbx": "SM_Souq_Banner1a.fbx"
+  },
+  "SM_Souq_Banner1b": {
+   "kind": "banner",
+   "w_cm": 100.0,
+   "d_cm": 0.0,
+   "h_cm": 89.45830866445951,
+   "fbx": "SM_Souq_Banner1b.fbx"
+  },
+  "SM_Souq_Awning1": {
+   "kind": "awning",
+   "w_cm": 100.0,
+   "d_cm": 110.00000000000001,
+   "h_cm": 64.46550276669876,
+   "fbx": "SM_Souq_Awning1.fbx"
+  },
+  "SM_Souq_Banner2a": {
+   "kind": "banner",
+   "w_cm": 100.0,
+   "d_cm": 0.0,
+   "h_cm": 102.37686111789112,
+   "fbx": "SM_Souq_Banner2a.fbx"
+  },
+  "SM_Souq_Banner2b": {
+   "kind": "banner",
+   "w_cm": 100.0,
+   "d_cm": 0.0,
+   "h_cm": 103.50839135100789,
+   "fbx": "SM_Souq_Banner2b.fbx"
+  },
+  "SM_Souq_Awning2": {
+   "kind": "awning",
+   "w_cm": 100.0,
+   "d_cm": 110.00000000000001,
+   "h_cm": 64.78144197353375,
+   "fbx": "SM_Souq_Awning2.fbx"
   },
   "SM_Souq_Street": {
    "kind": "street",
@@ -242,6 +291,27 @@
    "d_cm": 24480.0,
    "h_cm": 3.0,
    "fbx": "SM_Souq_Street.fbx"
+  },
+  "SM_Souq_Brazier": {
+   "kind": "brazier",
+   "w_cm": 60.0,
+   "d_cm": 60.0,
+   "h_cm": 95.0,
+   "fbx": "SM_Souq_Brazier.fbx"
+  },
+  "SM_Souq_Cresset": {
+   "kind": "cresset",
+   "w_cm": 50.0,
+   "d_cm": 50.0,
+   "h_cm": 290.0,
+   "fbx": "SM_Souq_Cresset.fbx"
+  },
+  "SM_Souq_Puddle": {
+   "kind": "puddle",
+   "w_cm": 100.0,
+   "d_cm": 100.0,
+   "h_cm": 0.0,
+   "fbx": "SM_Souq_Puddle.fbx"
   }
  },
  "instances": [
@@ -284,7 +354,8 @@
     1.0
    ],
    "kind": "minaret",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -299,11 +370,12 @@
     1.0153943309422928
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 332.77479924859597,
    "y": 1632.2865768907386,
@@ -328,7 +400,8 @@
     0.8318406208167727
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -343,11 +416,12 @@
     1.0575849103115524
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -1335.8709075376041,
    "y": 1210.9602024592966,
@@ -358,6 +432,22 @@
     1.0,
     1.5091089169180358
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": -1322.3374357264277,
+   "y": 1131.347785385637,
+   "z": 391.3064168152744,
+   "yaw": -56.355838703414356,
+   "scale": [
+    3.1149398514592557,
+    1.0,
+    1.0
+   ],
+   "stall_h": 401.8822659183899,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -372,11 +462,12 @@
     0.9974011306719451
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -1724.3584103240676,
    "y": -622.4629883577132,
@@ -401,7 +492,8 @@
     1.1600285828831824
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -416,11 +508,12 @@
     1.0804885297363749
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 31.59838948666598,
    "y": -1726.8478672741062,
@@ -445,11 +538,12 @@
     0.9951553739203238
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 1441.5153482201085,
    "y": -745.6817765507433,
@@ -474,11 +568,12 @@
     1.0732659463047551
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 2628.260888220235,
    "y": 1237.577992874495,
@@ -503,7 +598,8 @@
     1.139587834908658
    ],
    "kind": "warehouse",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -518,11 +614,12 @@
     1.114246987158874
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 754.9087740278895,
    "y": 2172.3965642748226,
@@ -547,11 +644,12 @@
     1.0452166571714891
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -565.2966703387515,
    "y": 2587.480534640863,
@@ -562,6 +660,22 @@
     1.0,
     1.4914601769271538
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": -517.3530093517373,
+   "y": 2511.1112816032683,
+   "z": 386.730163153451,
+   "yaw": -38.58465712584536,
+   "scale": [
+    3.5933727022035544,
+    1.0,
+    1.0
+   ],
+   "stall_h": 397.18232972516586,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -576,11 +690,12 @@
     1.1038913224055111
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -1110.2684992700235,
    "y": 2240.432182756649,
@@ -591,6 +706,22 @@
     1.0,
     1.5751853318896603
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": -1028.8172740218733,
+   "y": 2155.699175746917,
+   "z": 408.43978929003913,
+   "yaw": -31.25646252043522,
+   "scale": [
+    4.796201300394613,
+    1.0,
+    1.0
+   ],
+   "stall_h": 419.4787025140942,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -605,11 +736,12 @@
     0.985189731033031
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -1947.594023265269,
    "y": 1671.1395056138444,
@@ -634,11 +766,12 @@
     0.9212187105202534
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -1452.548491936741,
    "y": -2459.731089115335,
@@ -663,11 +796,12 @@
     0.8909117395229184
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 724.7730264695425,
    "y": -2707.2584460216444,
@@ -692,11 +826,12 @@
     0.9665193617256103
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 2001.4024415129259,
    "y": -1821.0493493183276,
@@ -721,11 +856,12 @@
     0.9500104410089893
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 3755.688129501982,
    "y": 670.4444690433485,
@@ -736,6 +872,22 @@
     1.0,
     1.3556067354152765
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": 3786.449087698811,
+   "y": 732.5085469534864,
+   "z": 351.50386317332607,
+   "yaw": 90.11402088316643,
+   "scale": [
+    2.6178934465583232,
+    1.0,
+    1.0
+   ],
+   "stall_h": 361.00396758341594,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -750,11 +902,12 @@
     0.9315636673508286
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 3333.7165170983003,
    "y": 2123.9742819273824,
@@ -779,11 +932,12 @@
     1.0307658803605773
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 2426.0157138946097,
    "y": 2831.792467779478,
@@ -794,6 +948,22 @@
     1.0,
     1.4708398031594199
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": 2373.9866667786264,
+   "y": 2933.1190066225927,
+   "z": 381.3833757334136,
+   "yaw": 131.49882449709534,
+   "scale": [
+    4.659862253657713,
+    1.0,
+    1.0
+   ],
+   "stall_h": 391.69103453701933,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -808,11 +978,12 @@
     1.045956733581825
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -1086.3121781949055,
    "y": 3509.7111939446054,
@@ -837,11 +1008,12 @@
     0.9887978835706954
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -2547.4436493424014,
    "y": 2560.3494402973147,
@@ -866,7 +1038,8 @@
     0.897971403127256
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -881,11 +1054,12 @@
     0.9247844488084459
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -3301.780546855017,
    "y": 616.6371948595024,
@@ -910,11 +1084,12 @@
     1.1198690883240554
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -3426.830706944968,
    "y": -915.93911458683,
@@ -939,11 +1114,12 @@
     1.0738480055638953
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 1953.9829579116245,
    "y": -3233.95044754923,
@@ -968,11 +1144,12 @@
     0.9303105710135243
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 2503.407335090656,
    "y": -2738.883863261822,
@@ -997,7 +1174,8 @@
     0.8691171224502643
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -1012,11 +1190,12 @@
     0.9176800122467684
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 3611.065071459808,
    "y": 2770.234072872409,
@@ -1041,11 +1220,12 @@
     0.9822170535580861
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 3199.976546637353,
    "y": 3449.5003688879883,
@@ -1056,6 +1236,22 @@
     1.0,
     1.401563599689416
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": 3178.927503440682,
+   "y": 3525.38254832933,
+   "z": 363.42030981649185,
+   "yaw": 129.5143941407756,
+   "scale": [
+    3.0371856890431457,
+    1.0,
+    1.0
+   ],
+   "stall_h": 373.24248035207273,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -1070,11 +1266,12 @@
     0.9664831078779667
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 2464.445646405789,
    "y": 4260.28428483171,
@@ -1099,11 +1296,12 @@
     1.0606266296283382
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -835.3696180698605,
    "y": 4701.710858279805,
@@ -1128,11 +1326,12 @@
     1.0959855877215177
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -1558.286593432544,
    "y": 4575.096315038098,
@@ -1157,11 +1356,12 @@
     0.9950848338058491
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -2453.3368731763867,
    "y": 4135.379805378152,
@@ -1186,11 +1386,12 @@
     0.8994533014599044
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -3237.8889286781978,
    "y": 2921.3105448640777,
@@ -1215,11 +1416,12 @@
     1.0465824234435415
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -4061.1907953888986,
    "y": 1853.70410724569,
@@ -1244,11 +1446,12 @@
     0.9614543653401355
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -4302.005863074069,
    "y": 1416.2137650936463,
@@ -1273,11 +1476,12 @@
     1.015406728709145
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -4262.672525946548,
    "y": -884.6901029501248,
@@ -1288,6 +1492,22 @@
     1.0,
     1.4489232341090497
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": -4217.167660301137,
+   "y": -771.6373923712252,
+   "z": 375.70048962238366,
+   "yaw": 81.95344993032245,
+   "scale": [
+    4.995282876210384,
+    1.0,
+    1.0
+   ],
+   "stall_h": 385.85455690947515,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -1302,7 +1522,8 @@
     0.8823563596783599
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -1317,7 +1538,8 @@
     0.87541614869789
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -1332,11 +1554,12 @@
     0.9336198846669923
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -1134.4339043778295,
    "y": -4207.014428119875,
@@ -1361,11 +1584,12 @@
     1.0704139195132605
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -905.2618057678072,
    "y": -4314.862194334224,
@@ -1390,11 +1614,12 @@
     1.106621883707556
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 4559.674373193143,
    "y": -1007.9208798647925,
@@ -1419,11 +1644,12 @@
     0.943061015851119
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 3584.588307408431,
    "y": 4561.10438465785,
@@ -1448,11 +1674,12 @@
     1.02325701057456
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 2166.884944145071,
    "y": 5280.507366265473,
@@ -1477,11 +1704,12 @@
     0.9111741351840011
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 1046.8516829608313,
    "y": 5786.469633743534,
@@ -1492,6 +1720,22 @@
     1.0,
     1.300189704736028
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": 969.0674435463776,
+   "y": 5843.890443774863,
+   "z": 337.1344300180804,
+   "yaw": 157.2645125668041,
+   "scale": [
+    3.966024581553017,
+    1.0,
+    1.0
+   ],
+   "stall_h": 346.24617136992043,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -1506,11 +1750,12 @@
     1.132177591254965
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 44.11275368925436,
    "y": 5804.035798425392,
@@ -1535,11 +1780,12 @@
     1.0110733076471807
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -2098.3559639831715,
    "y": 5441.074506781708,
@@ -1564,11 +1810,12 @@
     1.1165202289732434
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -4062.9001805890484,
    "y": 4161.967591129427,
@@ -1593,11 +1840,12 @@
     1.0370778996834005
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -4666.28095416094,
    "y": 3119.6901144766266,
@@ -1608,6 +1856,22 @@
     1.0,
     1.4798466682829259
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": -4740.036208205577,
+   "y": 3088.7266701589797,
+   "z": 383.71882288285815,
+   "yaw": -136.45738910768887,
+   "scale": [
+    3.15792349922201,
+    1.0,
+    1.0
+   ],
+   "stall_h": 394.08960187969217,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -1622,11 +1886,12 @@
     0.8818985630213357
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -5119.829083155292,
    "y": 2862.3219077732338,
@@ -1651,11 +1916,12 @@
     0.9048186483871131
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -5396.520547229227,
    "y": 355.9139337374584,
@@ -1680,11 +1946,12 @@
     0.918096380622234
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -5161.881931363464,
    "y": -1690.4061595273195,
@@ -1709,11 +1976,12 @@
     1.023452545610222
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -4798.475609213824,
    "y": -2425.4217162480018,
@@ -1738,11 +2006,12 @@
     1.0030349812727162
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -4124.691671272313,
    "y": -3428.0379877253886,
@@ -1767,11 +2036,12 @@
     0.9341375600307039
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -3390.170970825796,
    "y": -4053.5109993664983,
@@ -1782,6 +2052,22 @@
     1.0,
     1.3329571060683025
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": -3440.01379252378,
+   "y": -3935.990111226576,
+   "z": 345.63089721136043,
+   "yaw": 123.83142128327863,
+   "scale": [
+    5.2934936757978015,
+    1.0,
+    1.0
+   ],
+   "stall_h": 354.9722728116675,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -1796,11 +2082,12 @@
     1.0961966007249462
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -2742.040985544519,
    "y": -4719.4573720823355,
@@ -1811,6 +2098,22 @@
     1.0,
     1.564205435156903
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": -2783.5683878730883,
+   "y": -4633.898384246525,
+   "z": 405.5927422682301,
+   "yaw": 136.24442676237587,
+   "scale": [
+    3.7647982397555255,
+    1.0,
+    1.0
+   ],
+   "stall_h": 416.5547082754795,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -1825,11 +2128,12 @@
     1.0736137421465584
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -1732.7982515780768,
    "y": -4989.011861877261,
@@ -1840,6 +2144,22 @@
     1.0,
     1.5319810785895382
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": -1814.1444975274205,
+   "y": -4907.755558676881,
+   "z": 397.2370845942266,
+   "yaw": 150.01253575117457,
+   "scale": [
+    4.689603942013021,
+    1.0,
+    1.0
+   ],
+   "stall_h": 407.97322201569216,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -1854,11 +2174,12 @@
     0.9469099410519963
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 178.85361445119366,
    "y": -5583.573612403605,
@@ -1883,11 +2204,12 @@
     1.107157181133261
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 1114.4529090859864,
    "y": -5136.555899528515,
@@ -1912,7 +2234,8 @@
     0.8334565098452592
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -1927,11 +2250,12 @@
     1.0601859065844268
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 3486.8097617961866,
    "y": -4206.731975837637,
@@ -1956,11 +2280,12 @@
     1.0715601800606231
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 6429.821783879831,
    "y": -260.55885214379487,
@@ -1985,11 +2310,12 @@
     1.0639316994308452
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -1602.4428514612143,
    "y": 6405.222883874289,
@@ -2014,11 +2340,12 @@
     1.033578819051116
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -2729.8166498851574,
    "y": 6315.853559789218,
@@ -2043,11 +2370,12 @@
     0.8740310991226294
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -3588.226673218216,
    "y": 5825.326124859658,
@@ -2072,11 +2400,12 @@
     1.1239636892456029
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -4756.871307675517,
    "y": 5063.194343165541,
@@ -2101,11 +2430,12 @@
     0.9587282871442013
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -5256.582509404418,
    "y": 4198.44783964639,
@@ -2130,11 +2460,12 @@
     1.0195865580036283
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -5934.852404208676,
    "y": 3308.0351223820107,
@@ -2159,11 +2490,12 @@
     1.0055931684414656
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -6470.219604448006,
    "y": 2445.7995251022244,
@@ -2174,6 +2506,22 @@
     1.0,
     1.4349198844372917
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": -6566.828338270587,
+   "y": 2365.8459048212612,
+   "z": 372.06947232334227,
+   "yaw": -125.8842374766362,
+   "scale": [
+    5.126023371578656,
+    1.0,
+    1.0
+   ],
+   "stall_h": 382.1254040077569,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -2188,11 +2536,12 @@
     0.9071718240085338
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -6607.110004733195,
    "y": 2027.405646020358,
@@ -2217,11 +2566,12 @@
     1.0935129300860322
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -6872.886126930549,
    "y": 556.094450919472,
@@ -2246,11 +2596,12 @@
     1.112487902988269
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -6748.228801086544,
    "y": -736.6495347727558,
@@ -2275,11 +2626,12 @@
     1.0654063661142013
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -6398.167268102846,
    "y": -1573.6285061695162,
@@ -2304,11 +2656,12 @@
     1.032459745752399
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -5826.760870369698,
    "y": -3248.659238366603,
@@ -2333,11 +2686,12 @@
     0.9622420050050023
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -5441.294489351202,
    "y": -4032.9722397780974,
@@ -2362,11 +2716,12 @@
     0.9505998619650456
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -3789.491681471521,
    "y": -5633.365628657231,
@@ -2391,7 +2746,8 @@
     1.0482792076669951
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -2406,7 +2762,8 @@
     1.1316982901757988
    ],
    "kind": "warehouse",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -2421,7 +2778,8 @@
     1.0642382049983021
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -2436,7 +2794,8 @@
     1.1664238741440136
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -2451,11 +2810,12 @@
     0.9449590286274381
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 2585.7257521137503,
    "y": -5783.520868364643,
@@ -2480,11 +2840,12 @@
     0.9612697465298212
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 2935.288555704328,
    "y": -5550.1420713012385,
@@ -2509,11 +2870,12 @@
     0.9450865449298191
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 3948.0122623035377,
    "y": -5163.51910255331,
@@ -2538,11 +2900,12 @@
     1.0969910758927113
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 4686.662730551324,
    "y": -4360.199685310717,
@@ -2567,11 +2930,12 @@
     1.024478857345011
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 5205.920753520312,
    "y": -3957.851544968492,
@@ -2582,6 +2946,22 @@
     1.0,
     1.4618686062359834
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": 5110.485172689122,
+   "y": -3986.27513305574,
+   "z": 379.05717721765404,
+   "yaw": -146.76440130655834,
+   "scale": [
+    4.028130491264492,
+    1.0,
+    1.0
+   ],
+   "stall_h": 389.3019657911042,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -2596,11 +2976,12 @@
     0.977622852748426
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 6074.51804070118,
    "y": -2510.8909287848237,
@@ -2611,6 +2992,22 @@
     1.0,
     1.3950079564116318
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": 5983.649895842214,
+   "y": -2572.031530738311,
+   "z": 361.72045551691764,
+   "yaw": -128.6767798188849,
+   "scale": [
+    4.412955576953624,
+    1.0,
+    1.0
+   ],
+   "stall_h": 371.4966840444019,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -2625,11 +3022,12 @@
     1.129447507626663
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 6011.156631096321,
    "y": -2003.247136212499,
@@ -2654,11 +3052,12 @@
     0.9532553180639713
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 6238.880313416714,
    "y": -768.6223826800905,
@@ -2683,11 +3082,12 @@
     0.9904429216711631
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 7496.644757742436,
    "y": 496.3467678608069,
@@ -2712,11 +3112,12 @@
     1.0357355277129694
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 7111.905835788413,
    "y": 2000.2227652481974,
@@ -2741,11 +3142,12 @@
     1.0811291504579277
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 6607.70857253635,
    "y": 3252.610651294609,
@@ -2770,11 +3172,12 @@
     0.8778875993423223
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 6628.645117874289,
    "y": 3550.19023572813,
@@ -2799,11 +3202,12 @@
     1.0758306837106473
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 4520.4694729735265,
    "y": 5746.511137060932,
@@ -2828,11 +3232,12 @@
     1.047430589641964
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 3698.3006222037866,
    "y": 6490.8849039598845,
@@ -2857,11 +3262,12 @@
     1.0740867420486655
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 2862.486976879734,
    "y": 6886.119672923175,
@@ -2886,11 +3292,12 @@
     1.0603805565433457
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 1495.1857399895569,
    "y": 7343.04829707565,
@@ -2915,11 +3322,12 @@
     1.0418856482625865
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 1076.8904835007866,
    "y": 7528.606395379512,
@@ -2930,6 +3338,22 @@
     1.0,
     1.4867070311534705
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": 1168.7153087751287,
+   "y": 7474.293040767476,
+   "z": 385.497689857157,
+   "yaw": -16.335020494923636,
+   "scale": [
+    4.3655242362930915,
+    1.0,
+    1.0
+   ],
+   "stall_h": 395.9165463397828,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -2944,7 +3368,8 @@
     0.8977634530277065
    ],
    "kind": "warehouse",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -2959,11 +3384,12 @@
     0.8951466895230625
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -7651.509647438242,
    "y": -1882.314991823889,
@@ -2988,11 +3414,12 @@
     0.9331410456007402
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -7171.592629048425,
    "y": -3110.317365290465,
@@ -3017,11 +3444,12 @@
     0.8995550183608197
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -6877.116534701671,
    "y": -3929.6622887063895,
@@ -3046,11 +3474,12 @@
     0.9432909266651542
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -5922.573493863636,
    "y": -4676.523065460404,
@@ -3075,7 +3504,8 @@
     1.0981064286926538
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -3090,11 +3520,12 @@
     0.9800991761743532
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -5056.103464154952,
    "y": -5810.706864289551,
@@ -3119,7 +3550,8 @@
     0.8966463497210528
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -3134,11 +3566,12 @@
     1.113705331904014
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -761.127925941013,
    "y": -7661.494244716333,
@@ -3163,11 +3596,12 @@
     0.8819747616037584
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 1655.4528331241247,
    "y": -7377.822111620323,
@@ -3192,11 +3626,12 @@
     0.9899937912347505
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 3226.416902437443,
    "y": -7156.69429366397,
@@ -3221,11 +3656,12 @@
     0.9911287381924433
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 3847.770561690859,
    "y": -6290.356503941891,
@@ -3250,11 +3686,12 @@
     0.9264407051311462
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 4804.962559472305,
    "y": -5648.61610102273,
@@ -3265,6 +3702,22 @@
     1.0,
     1.321974165362648
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": 4725.21076751612,
+   "y": -5656.386684380019,
+   "z": 342.78306089852407,
+   "yaw": -154.0715005414057,
+   "scale": [
+    3.1718046707990566,
+    1.0,
+    1.0
+   ],
+   "stall_h": 352.04746794983555,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -3279,11 +3732,12 @@
     0.9731281661865016
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 5103.831534734012,
    "y": -5307.730820081601,
@@ -3308,11 +3762,12 @@
     1.0870382398483833
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 6385.771417497237,
    "y": -3853.9106619391587,
@@ -3323,6 +3778,22 @@
     1.0,
     1.5511370149020198
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": 6299.33261427837,
+   "y": -3903.4129384573816,
+   "z": 402.20414874390184,
+   "yaw": -132.7343314373626,
+   "scale": [
+    4.011836803664971,
+    1.0,
+    1.0
+   ],
+   "stall_h": 413.07453114238564,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -3337,11 +3808,12 @@
     0.912669797761585
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 6986.479547885542,
    "y": -2366.5295896850735,
@@ -3366,11 +3838,12 @@
     0.8999179918466174
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 7164.861312494085,
    "y": -1383.5048963960357,
@@ -3395,7 +3868,8 @@
     0.8254075472212129
    ],
    "kind": "warehouse",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -3410,11 +3884,12 @@
     1.002453948468362
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 8448.838773247204,
    "y": 187.25284705412685,
@@ -3425,6 +3900,22 @@
     1.0,
     1.430440409732814
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": 8402.427963280277,
+   "y": 64.8244645528605,
+   "z": 370.90796093329396,
+   "yaw": -100.37344328351693,
+   "scale": [
+    5.4375540874930675,
+    1.0,
+    1.0
+   ],
+   "stall_h": 380.9325004179776,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -3439,7 +3930,8 @@
     1.1197857893086827
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -3454,11 +3946,12 @@
     1.081416460757442
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 7758.111180827668,
    "y": 3635.545946119238,
@@ -3483,11 +3976,12 @@
     1.1072469536809297
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 6218.334551326843,
    "y": 5681.159852121109,
@@ -3512,7 +4006,8 @@
     1.068119435303458
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -3527,11 +4022,12 @@
     1.0464659162242762
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 5026.447473854983,
    "y": 6668.610174892491,
@@ -3556,11 +4052,12 @@
     1.03914262979818
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 4176.086549285121,
    "y": 7245.452674630829,
@@ -3571,6 +4068,22 @@
     1.0,
     1.4827929117446685
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": 4250.57583515428,
+   "y": 7167.41282593284,
+   "z": 384.48277302532665,
+   "yaw": -29.213703707011025,
+   "scale": [
+    4.353256133392819,
+    1.0,
+    1.0
+   ],
+   "stall_h": 394.8741993233084,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -3585,11 +4098,12 @@
     1.0748991195248407
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 3087.3446090944735,
    "y": 7778.410437623586,
@@ -3600,6 +4114,22 @@
     1.0,
     1.533815233411773
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": 3158.120779658272,
+   "y": 7700.079490262974,
+   "z": 397.71267422419106,
+   "yaw": -29.969281913730597,
+   "scale": [
+    4.2408854687741675,
+    1.0,
+    1.0
+   ],
+   "stall_h": 408.4616654194395,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -3614,11 +4144,12 @@
     1.0525491582670776
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 2306.5594615887876,
    "y": 8295.624593153581,
@@ -3629,6 +4160,22 @@
     1.0,
     1.50192320706192
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": 2408.2543753051177,
+   "y": 8231.520276069714,
+   "z": 389.44318855881875,
+   "yaw": -18.85224666409361,
+   "scale": [
+    4.938034149291167,
+    1.0,
+    1.0
+   ],
+   "stall_h": 399.9686801414895,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -3643,11 +4190,12 @@
     1.0385459048676036
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 1438.8163533600218,
    "y": 8170.214921502956,
@@ -3672,7 +4220,8 @@
     1.163385972477273
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -3687,11 +4236,12 @@
     1.0395907312701371
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -1713.155384479102,
    "y": 8149.49271226576,
@@ -3716,11 +4266,12 @@
     1.0528972494133138
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -2297.3230117646403,
    "y": 8162.815953442929,
@@ -3731,6 +4282,22 @@
     1.0,
     1.502419911815896
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": -2205.584629126673,
+   "y": 8161.709841627362,
+   "z": 389.5719822829261,
+   "yaw": 19.03355846962912,
+   "scale": [
+    3.6464001742839915,
+    1.0,
+    1.0
+   ],
+   "stall_h": 400.1009547770592,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -3745,7 +4312,8 @@
     1.089307120681584
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -3760,11 +4328,12 @@
     0.9204794280020056
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -6324.723973745642,
    "y": 5651.6928477681,
@@ -3789,11 +4358,12 @@
     0.9006120409200968
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -6929.204505288704,
    "y": -5205.727696371278,
@@ -3804,6 +4374,22 @@
     1.0,
     1.285118242880269
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": -6886.202634350257,
+   "y": -5307.07158869942,
+   "z": 333.2264551404358,
+   "yaw": -51.21523731036292,
+   "scale": [
+    4.47277947502014,
+    1.0,
+    1.0
+   ],
+   "stall_h": 342.2325755496368,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -3818,7 +4404,8 @@
     0.9059727381311324
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -3833,11 +4420,12 @@
     0.9824353922865028
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -5033.49464105852,
    "y": -7061.104668355436,
@@ -3862,11 +4450,12 @@
     1.1068549299352326
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -4294.602197324795,
    "y": -7363.102722193882,
@@ -3891,11 +4480,12 @@
     0.9838139921713268
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -2207.8817907764233,
    "y": -8375.238230310215,
@@ -3920,11 +4510,12 @@
     1.0746107083170147
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -1417.7034455161186,
    "y": -8500.164809951,
@@ -3935,6 +4526,22 @@
     1.0,
     1.5334036882760342
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": -1343.9798276583097,
+   "y": -8564.30683620656,
+   "z": 397.60596207729543,
+   "yaw": -23.278968590901822,
+   "scale": [
+    3.929679371695481,
+    1.0,
+    1.0
+   ],
+   "stall_h": 408.3520691604656,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -3949,11 +4556,12 @@
     0.9951463683899485
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -664.7807550712258,
    "y": -8787.541629035599,
@@ -3964,6 +4572,22 @@
     1.0,
     1.4200129403637798
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": -543.3810628131855,
+   "y": -8828.74413174345,
+   "z": 368.20415630428096,
+   "yaw": -7.742065149102368,
+   "scale": [
+    5.313397408330286,
+    1.0,
+    1.0
+   ],
+   "stall_h": 378.15561998818043,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -3978,11 +4602,12 @@
     0.91761875456286
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 1145.8761847284457,
    "y": -8867.432459697287,
@@ -4007,11 +4632,12 @@
     1.1117967115916834
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 3511.138302211608,
    "y": -7936.729143208382,
@@ -4036,11 +4662,12 @@
     0.9733816528349113
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 4013.3668952976486,
    "y": -7740.100881235408,
@@ -4065,7 +4692,8 @@
     1.073966882710727
    ],
    "kind": "warehouse",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -4080,7 +4708,8 @@
     1.0763121853762063
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -4095,11 +4724,12 @@
     0.9106226311498462
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 7375.804920875861,
    "y": -3673.35075427478,
@@ -4124,11 +4754,12 @@
     0.9877613775587902
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 8346.375735592474,
    "y": -1222.8155987094297,
@@ -4153,11 +4784,12 @@
     0.9491806397347038
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 9369.115687792842,
    "y": 264.2665804924775,
@@ -4182,11 +4814,12 @@
     0.9024164681243674
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 9396.376264259901,
    "y": 988.1868793421604,
@@ -4211,11 +4844,12 @@
     1.0627916963258612
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 8851.97869002149,
    "y": 3411.7275628113466,
@@ -4240,7 +4874,8 @@
     0.880025446276218
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -4255,7 +4890,8 @@
     1.0446283949076522
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -4270,11 +4906,12 @@
     1.0399627646624807
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 6330.899731942618,
    "y": 6817.573650972392,
@@ -4285,6 +4922,22 @@
     1.0,
     1.483963193983687
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": 6395.16028339144,
+   "y": 6702.676721267652,
+   "z": 384.78622292511784,
+   "yaw": -47.85183964456441,
+   "scale": [
+    5.417449499216645,
+    1.0,
+    1.0
+   ],
+   "stall_h": 395.18585057174266,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -4299,7 +4952,8 @@
     1.0624205507290692
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -4314,11 +4968,12 @@
     0.9873922428346076
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 4928.193493385373,
    "y": 8275.960276643993,
@@ -4343,11 +4998,12 @@
     1.0818871626389321
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 3667.4754741925303,
    "y": 8735.417762922514,
@@ -4372,11 +5028,12 @@
     1.021004320442934
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 1712.7143761739553,
    "y": 9353.351974326823,
@@ -4401,11 +5058,12 @@
     0.935040388501843
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 933.7815549910159,
    "y": 9427.157964386797,
@@ -4430,11 +5088,12 @@
     0.9346112099371866
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -224.4270976282751,
    "y": 9522.68238523074,
@@ -4459,11 +5118,12 @@
     1.0402159652085785
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -2159.5710129509525,
    "y": 9099.545676438187,
@@ -4488,7 +5148,8 @@
     0.948898224729895
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -4503,11 +5164,12 @@
     0.8786553707910798
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -5074.924786205258,
    "y": 7880.472619560437,
@@ -4532,11 +5194,12 @@
     1.0165953725533907
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -5262.352649007894,
    "y": 7693.373978089675,
@@ -4561,11 +5224,12 @@
     0.9861705608657807
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -6399.837446362279,
    "y": 6983.926674199914,
@@ -4590,11 +5254,12 @@
     0.9608540197931664
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -6989.935270950036,
    "y": 6539.16894421302,
@@ -4605,6 +5270,22 @@
     1.0,
     1.3710798584477186
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": -6881.599763009659,
+   "y": 6600.924440215733,
+   "z": 355.51598732347156,
+   "yaw": 45.258183005626705,
+   "scale": [
+    5.071854202261817,
+    1.0,
+    1.0
+   ],
+   "stall_h": 365.12452752140325,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -4619,11 +5300,12 @@
     0.967562341011463
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -7440.991942636578,
    "y": 5686.951457324476,
@@ -4634,6 +5316,22 @@
     1.0,
     1.3806522221126838
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": -7349.779995407217,
+   "y": 5737.230301443251,
+   "z": 357.99806617424133,
+   "yaw": 44.06970961200028,
+   "scale": [
+    4.2435800816762494,
+    1.0,
+    1.0
+   ],
+   "stall_h": 367.67368958435594,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -4648,11 +5346,12 @@
     0.9095270818190028
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -8545.802893167054,
    "y": 4354.027286265822,
@@ -4677,11 +5376,12 @@
     0.9063835778402277
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -8417.261407210135,
    "y": 3864.943768314092,
@@ -4706,7 +5406,8 @@
     0.8738619399619557
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -4721,11 +5422,12 @@
     0.9847576922818113
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -9284.047862123483,
    "y": 923.9713509410707,
@@ -4750,11 +5452,12 @@
     0.8730220798465855
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -9350.795437547255,
    "y": 144.364974507559,
@@ -4779,11 +5482,12 @@
     1.0278219879571318
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -9019.103290476303,
    "y": -2745.9823792839916,
@@ -4794,6 +5498,22 @@
     1.0,
     1.4666390489380134
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": -9026.528043023842,
+   "y": -2637.8735667066353,
+   "z": 380.2941355441387,
+   "yaw": 107.55460620552505,
+   "scale": [
+    4.44657385030829,
+    1.0,
+    1.0
+   ],
+   "stall_h": 390.57235542371006,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -4808,11 +5528,12 @@
     0.968734457009575
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 2222.7937903895086,
    "y": -9598.82172452725,
@@ -4837,11 +5558,12 @@
     0.9853376141391762
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 2709.421997609166,
    "y": -9267.284228148532,
@@ -4866,11 +5588,12 @@
     1.065990621334069
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 4839.409141119829,
    "y": -8120.79504898055,
@@ -4881,6 +5604,22 @@
     1.0,
     1.5211033519117985
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": 4909.734566140771,
+   "y": -8201.257586433325,
+   "z": 394.41652989360557,
+   "yaw": -32.86116854073182,
+   "scale": [
+    4.337568988655149,
+    1.0,
+    1.0
+   ],
+   "stall_h": 405.07643610694623,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -4895,11 +5634,12 @@
     1.0685196361056748
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 5496.32949738943,
    "y": -8029.153219078255,
@@ -4924,11 +5664,12 @@
     1.090520872107399
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 6200.667826256526,
    "y": -7075.137148640049,
@@ -4953,11 +5694,12 @@
     1.1258065378153248
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 7931.814874767835,
    "y": -4821.39953118215,
@@ -4982,11 +5724,12 @@
     0.9683437014834829
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 8986.65511179562,
    "y": -2649.2033545170075,
@@ -4997,6 +5740,22 @@
     1.0,
     1.38176717566786
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": 8924.855488137178,
+   "y": -2729.981133410467,
+   "z": 358.2871695488887,
+   "yaw": -111.52364994803548,
+   "scale": [
+    4.130102117663748,
+    1.0,
+    1.0
+   ],
+   "stall_h": 367.9706065637235,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -5011,11 +5770,12 @@
     0.9011653226367459
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 9352.629259932508,
    "y": -1648.6426619327776,
@@ -5040,7 +5800,8 @@
     0.9933464067364052
    ],
    "kind": "warehouse",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -5055,11 +5816,12 @@
     0.972262484168757
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 10332.70451035303,
    "y": 1448.5572526736423,
@@ -5084,11 +5846,12 @@
     1.1012456397957984
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 10072.526394150167,
    "y": 2853.0943125627236,
@@ -5113,11 +5876,12 @@
     0.9271432870805968
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 9757.668844710628,
    "y": 3786.1017072422774,
@@ -5142,7 +5906,8 @@
     0.9793261312335527
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -5157,11 +5922,12 @@
     1.0603591992567238
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 7573.761514704011,
    "y": 7056.602276934547,
@@ -5186,7 +5952,8 @@
     1.1073211320163896
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -5201,11 +5968,12 @@
     0.8980881709707681
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 4933.994125560612,
    "y": 9176.681556377116,
@@ -5230,11 +5998,12 @@
     1.0440418984914956
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 4583.3681231888495,
    "y": 9324.728456515182,
@@ -5259,11 +6028,12 @@
     1.1044794860171965
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 2190.1251553541206,
    "y": 10277.661100828389,
@@ -5288,11 +6058,12 @@
     1.0516309706191906
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 1566.3373493396393,
    "y": 10248.300534152142,
@@ -5317,11 +6088,12 @@
     0.9550721221211824
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 971.2192157469839,
    "y": 10469.842180783782,
@@ -5346,11 +6118,12 @@
     0.9955720836108284
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -68.35556460618754,
    "y": 10272.216409586372,
@@ -5375,11 +6148,12 @@
     0.912383559090906
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -1414.2550269914143,
    "y": 10253.346471605424,
@@ -5404,11 +6178,12 @@
     0.9125613239940797
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -3529.6528834548644,
    "y": 9732.988531353067,
@@ -5433,11 +6208,12 @@
     0.9507397383892381
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -4329.470108505755,
    "y": 9698.006603303922,
@@ -5462,7 +6238,8 @@
     0.9767215693847806
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -5477,11 +6254,12 @@
     0.8750213945918119
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -6362.314059122287,
    "y": 7960.61025540306,
@@ -5506,11 +6284,12 @@
     0.9254824631595825
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -7130.167642086404,
    "y": 7446.792772554373,
@@ -5535,11 +6314,12 @@
     0.9536937071153377
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -7910.1854316000845,
    "y": 6663.620974418039,
@@ -5564,11 +6344,12 @@
     0.8726085666383445
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -9104.440486896046,
    "y": 5199.64618806161,
@@ -5593,7 +6374,8 @@
     1.1013942281067437
    ],
    "kind": "warehouse",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -5608,11 +6390,12 @@
     0.9255375261428471
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -10081.941690405656,
    "y": 3365.5620608168038,
@@ -5637,11 +6420,12 @@
     1.0270077508159288
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -10100.393550559864,
    "y": 2096.335507264928,
@@ -5652,6 +6436,22 @@
     1.0,
     1.4654771823887704
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": -10062.710634855915,
+   "y": 2164.5147230590023,
+   "z": 379.9928678018936,
+   "yaw": 80.7411451803196,
+   "scale": [
+    3.097166365216158,
+    1.0,
+    1.0
+   ],
+   "stall_h": 390.26294531005294,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -5666,11 +6466,12 @@
     0.868799495824148
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -10224.600659317714,
    "y": 1065.4381856625866,
@@ -5695,11 +6496,12 @@
     0.9244463712431289
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -10554.725997373826,
    "y": 561.828155716227,
@@ -5724,11 +6526,12 @@
     0.9124300490434889
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -10432.68522298778,
    "y": -589.6855149868472,
@@ -5753,11 +6556,12 @@
     1.006384040560524
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -10443.803543697966,
    "y": -1657.599946044911,
@@ -5782,7 +6586,8 @@
     0.949877409892629
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -5797,11 +6602,12 @@
     1.087108861945392
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -9618.060713869865,
    "y": -4517.436888485573,
@@ -5826,11 +6632,12 @@
     0.9253814740627943
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -9302.728173568798,
    "y": -4959.894231374939,
@@ -5841,6 +6648,22 @@
     1.0,
     1.3204627074789914
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": -9314.61596932328,
+   "y": -4873.355853006002,
+   "z": 342.39114540323385,
+   "yaw": 117.02143965003455,
+   "scale": [
+    3.4830150892147476,
+    1.0,
+    1.0
+   ],
+   "stall_h": 351.6449601438618,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -5855,7 +6678,8 @@
     0.8329150401829118
    ],
    "kind": "warehouse",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -5870,11 +6694,12 @@
     1.0139248935734169
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -7810.719465345842,
    "y": -6872.918978519216,
@@ -5899,11 +6724,12 @@
     1.0961503726145376
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -6402.467233652488,
    "y": -8276.769252645836,
@@ -5914,6 +6740,22 @@
     1.0,
     1.5641394704736424
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": -6451.2596461213225,
+   "y": -8195.114162680668,
+   "z": 405.57563786737893,
+   "yaw": 141.60498390050745,
+   "scale": [
+    3.7558879885606755,
+    1.0,
+    1.0
+   ],
+   "stall_h": 416.5371415935243,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -5928,11 +6770,12 @@
     0.9657149691809199
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -5384.27307485149,
    "y": -8775.53767985473,
@@ -5957,11 +6800,12 @@
     0.9953620033678612
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -2728.803650155783,
    "y": -10259.21576039277,
@@ -5986,7 +6830,8 @@
     0.8604865306555209
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -6001,11 +6846,12 @@
     1.0770325392911881
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 5282.541799037803,
    "y": -9136.45481447777,
@@ -6030,11 +6876,12 @@
     0.931231563635248
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 5747.722501433489,
    "y": -8731.242515473406,
@@ -6059,11 +6906,12 @@
     0.9660745336991112
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 6481.5888091211655,
    "y": -8057.8453706388245,
@@ -6088,11 +6936,12 @@
     1.0449553913844858
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 7537.0807845911295,
    "y": -7029.112010570205,
@@ -6117,11 +6966,12 @@
     1.0694649072692057
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 8891.106209128193,
    "y": -5316.984186415342,
@@ -6132,6 +6982,22 @@
     1.0,
     1.5260609452298546
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning1",
+   "kind": "awning",
+   "x": 8826.720884180295,
+   "y": -5378.979622443724,
+   "z": 395.7020156896061,
+   "yaw": -120.04645169619093,
+   "scale": [
+    3.6269873456351367,
+    1.0,
+    1.0
+   ],
+   "stall_h": 406.3966647622982,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -6146,11 +7012,12 @@
     1.0815404827634574
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 9615.20641976395,
    "y": -4004.0737496492306,
@@ -6161,6 +7028,22 @@
     1.0,
     1.543292052139203
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": 9553.969969711596,
+   "y": -4076.944288126167,
+   "z": 400.1699786224792,
+   "yaw": -113.96862796459675,
+   "scale": [
+    3.8617813147176094,
+    1.0,
+    1.0
+   ],
+   "stall_h": 410.98538345011383,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -6175,11 +7058,12 @@
     0.924115152604291
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 10214.686190404267,
    "y": -2096.3426427131344,
@@ -6204,11 +7088,12 @@
     1.1104853457501735
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 10326.335736737143,
    "y": -1116.6750222637631,
@@ -6233,7 +7118,8 @@
     0.9127405303947681
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -6248,11 +7134,12 @@
     0.917795697131026
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 8683.431535112359,
    "y": 7545.34013939101,
@@ -6277,11 +7164,12 @@
     1.0042168699234846
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 7888.787533315518,
    "y": 8182.632733495895,
@@ -6306,11 +7194,12 @@
     0.9646971125223506
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": 6510.552155023002,
    "y": 9155.842463979847,
@@ -6335,11 +7224,12 @@
     1.108754776443329
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 5997.734639973096,
    "y": 9645.031375058172,
@@ -6364,11 +7254,12 @@
     1.0623539346918456
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": 3089.685343890674,
    "y": 10918.328000083804,
@@ -6393,11 +7284,12 @@
     1.0432024743081614
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -104.29827896513599,
    "y": 11478.01154153712,
@@ -6422,11 +7314,12 @@
     1.0907629405965802
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -2491.6466097746415,
    "y": 11004.205404833372,
@@ -6437,6 +7330,22 @@
     1.0,
     1.5564519348267938
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning0",
+   "kind": "awning",
+   "x": -2395.962265815638,
+   "y": 10984.955583469904,
+   "z": 403.58228802073467,
+   "yaw": 6.001015755760546,
+   "scale": [
+    3.9328946192797787,
+    1.0,
+    1.0
+   ],
+   "stall_h": 414.48991742670046,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -6451,11 +7360,12 @@
     1.0113114761101094
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -4921.804953289871,
    "y": 10239.239490467913,
@@ -6480,11 +7390,12 @@
     0.9627595615776954
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -6825.73677678443,
    "y": 8972.167196457747,
@@ -6495,6 +7406,22 @@
     1.0,
     1.3737989499084178
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": -6718.589414894837,
+   "y": 9010.013588928505,
+   "z": 356.2210377837473,
+   "yaw": 32.34319631765727,
+   "scale": [
+    4.677031789841163,
+    1.0,
+    1.0
+   ],
+   "stall_h": 365.84863339952426,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -6509,11 +7436,12 @@
     1.0481004931861142
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -7640.086114030941,
    "y": 8501.456976889534,
@@ -6538,11 +7466,12 @@
     0.9465002166079977
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -9400.900437172893,
    "y": 6512.37058708713,
@@ -6567,11 +7496,12 @@
     1.0946083815397691
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -9575.741485436834,
    "y": 5988.829976312487,
@@ -6596,11 +7526,12 @@
     0.8993447582582123
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -10745.263734158612,
    "y": 4100.889233993496,
@@ -6611,6 +7542,22 @@
     1.0,
     1.2833099081104942
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": -10646.621104675616,
+   "y": 4183.884768374699,
+   "z": 332.75756055553853,
+   "yaw": 54.033853348998775,
+   "scale": [
+    5.282301067251031,
+    1.0,
+    1.0
+   ],
+   "stall_h": 341.75100813812065,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -6625,11 +7572,12 @@
     0.9619787281362503
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -10866.585217802196,
    "y": 3296.2743861466406,
@@ -6654,11 +7602,12 @@
     0.9256332190006381
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -11182.001232303923,
    "y": 1234.6492114660948,
@@ -6669,6 +7618,22 @@
     1.0,
     1.3208219320923393
    ]
+  },
+  {
+   "slot": "Cloth",
+   "mesh": "SM_Souq_Awning2",
+   "kind": "awning",
+   "x": -11135.366386675181,
+   "y": 1305.765952939788,
+   "z": 342.4842910302361,
+   "yaw": 75.47138312932297,
+   "scale": [
+    3.4006447017577113,
+    1.0,
+    1.0
+   ],
+   "stall_h": 351.74062322024247,
+   "variant_h": 380.0
   },
   {
    "slot": "Structures",
@@ -6683,11 +7648,12 @@
     0.9384054862502507
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -11321.06804157176,
    "y": 65.19565038896766,
@@ -6712,11 +7678,12 @@
     0.882113839116524
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -11380.639032973568,
    "y": -597.2256764857631,
@@ -6741,11 +7708,12 @@
     0.9349598925288454
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": -11232.278933957843,
    "y": -1160.1426180383344,
@@ -6770,11 +7738,12 @@
     0.9976217055158001
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0b",
    "kind": "banner",
    "x": -10957.256502731594,
    "y": -2825.8122821025586,
@@ -6799,11 +7768,12 @@
     0.8967587447116756
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -10136.953370801692,
    "y": -5298.776660584109,
@@ -6828,11 +7798,12 @@
     1.0157597630675492
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2b",
    "kind": "banner",
    "x": -7269.351873120857,
    "y": -8851.312244781759,
@@ -6857,7 +7828,8 @@
     1.0973296398787074
    ],
    "kind": "warehouse",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
@@ -6872,11 +7844,12 @@
     1.0690524539780093
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -5187.1919810180525,
    "y": -10049.289221079138,
@@ -6901,11 +7874,12 @@
     1.072001831682214
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": -2817.687205473554,
    "y": -10839.550610467944,
@@ -6930,11 +7904,12 @@
     0.9070504722907636
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": -277.29227320149073,
    "y": -11446.958170160857,
@@ -6959,11 +7934,12 @@
     0.9138284117383072
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": -21.05657080829944,
    "y": -11423.495239066644,
@@ -6988,11 +7964,12 @@
     0.9858334612349745
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 2886.878232199494,
    "y": -10937.756697452169,
@@ -7017,11 +7994,12 @@
     1.026668876012298
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1a",
    "kind": "banner",
    "x": 8004.913311499852,
    "y": -8190.426093021268,
@@ -7046,11 +8024,12 @@
     0.9216565474443511
    ],
    "kind": "stall",
-   "banner": 0
+   "banner": 0,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner0",
+   "mesh": "SM_Souq_Banner0a",
    "kind": "banner",
    "x": 9384.02360456371,
    "y": -6246.853673146082,
@@ -7075,11 +8054,12 @@
     1.0958552103960169
    ],
    "kind": "stall",
-   "banner": 1
+   "banner": 1,
+   "tear": "b"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner1",
+   "mesh": "SM_Souq_Banner1b",
    "kind": "banner",
    "x": 10184.35891753226,
    "y": -5397.590653054651,
@@ -7104,11 +8084,12 @@
     1.0143659688076014
    ],
    "kind": "stall",
-   "banner": 2
+   "banner": 2,
+   "tear": "a"
   },
   {
    "slot": "Structures",
-   "mesh": "SM_Souq_Banner2",
+   "mesh": "SM_Souq_Banner2a",
    "kind": "banner",
    "x": 10416.454357542378,
    "y": -4684.53114251682,
@@ -8214,7 +9195,7 @@
   },
   {
    "slot": "Props",
-   "mesh": "SM_Souq_Crate",
+   "mesh": "SM_Souq_CrateBroken",
    "x": -2021.4146358868256,
    "y": -3135.0832342828667,
    "z": 3.0,
@@ -8224,7 +9205,7 @@
     1.0,
     1.0
    ],
-   "kind": "crate"
+   "kind": "crate_broken"
   },
   {
    "slot": "Props",
@@ -8242,7 +9223,7 @@
   },
   {
    "slot": "Props",
-   "mesh": "SM_Souq_Crate",
+   "mesh": "SM_Souq_CrateBroken",
    "x": 4599.05004815154,
    "y": -2661.2868699948185,
    "z": 3.0,
@@ -8252,11 +9233,11 @@
     1.0,
     1.0
    ],
-   "kind": "crate"
+   "kind": "crate_broken"
   },
   {
    "slot": "Props",
-   "mesh": "SM_Souq_Crate",
+   "mesh": "SM_Souq_CrateBroken",
    "x": 3384.843967509541,
    "y": 5240.53577456975,
    "z": 3.0,
@@ -8266,7 +9247,7 @@
     1.0,
     1.0
    ],
-   "kind": "crate"
+   "kind": "crate_broken"
   },
   {
    "slot": "Props",
@@ -8295,6 +9276,1630 @@
     1.0
    ],
    "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Cresset",
+   "x": -2900.45439561672,
+   "y": -657.4971745058157,
+   "z": 3.0,
+   "yaw": -95.19648416339868,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "pyre"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Cresset",
+   "x": -1856.5988527573247,
+   "y": -2447.9435321590304,
+   "z": 3.0,
+   "yaw": -53.07736828193731,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "pyre"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Cresset",
+   "x": 5767.655292665069,
+   "y": -302.4725833772984,
+   "z": 3.0,
+   "yaw": 78.95346501240964,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "pyre"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Cresset",
+   "x": 5030.686822824498,
+   "y": 2801.4599323117345,
+   "z": 3.0,
+   "yaw": 111.29940108362142,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "pyre"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Cresset",
+   "x": -8891.718293120875,
+   "y": 125.7445037391839,
+   "z": 3.0,
+   "yaw": -95.64571468369073,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "pyre"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Cresset",
+   "x": -8346.327064027586,
+   "y": -1922.777565794718,
+   "z": 3.0,
+   "yaw": -85.02567043574984,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "pyre"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Cresset",
+   "x": 5785.013251914652,
+   "y": -213.55923343275884,
+   "z": 3.0,
+   "yaw": 78.95346501240964,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "pyre"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Cresset",
+   "x": 5030.471839828866,
+   "y": 2802.011352213196,
+   "z": 3.0,
+   "yaw": 111.29940108362142,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "pyre"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": 1612.6100002680896,
+   "y": -3778.4909215510706,
+   "z": 3.0,
+   "yaw": 9.987734608227555,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": 3646.701659757418,
+   "y": -2819.9653480357115,
+   "z": 3.0,
+   "yaw": 39.1646970098406,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": 4200.601657299199,
+   "y": 5219.225814138026,
+   "z": 3.0,
+   "yaw": 132.7834975505666,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": 1361.52765853448,
+   "y": 6455.797206557861,
+   "z": 3.0,
+   "yaw": 157.78260988371352,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": -2339.438743004271,
+   "y": 7302.553969518727,
+   "z": 3.0,
+   "yaw": -170.16152101596913,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": -4898.38016412688,
+   "y": 5678.413342234158,
+   "z": 3.0,
+   "yaw": -145.28443104461337,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": -7468.5349849883705,
+   "y": 3911.3017761607516,
+   "z": 3.0,
+   "yaw": -123.99360737614009,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": -8591.426545198177,
+   "y": 1545.2211758173487,
+   "z": 3.0,
+   "yaw": -106.27124261227222,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": -7481.242858384616,
+   "y": -4824.874034536002,
+   "z": 3.0,
+   "yaw": -63.80076547196528,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": -5988.6208985727635,
+   "y": -6964.196053400726,
+   "z": 3.0,
+   "yaw": -46.12746193753501,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": -4686.118771194516,
+   "y": -8797.860254003856,
+   "z": 3.0,
+   "yaw": -31.997217477542826,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": -1392.9104848466832,
+   "y": -9640.46312788336,
+   "z": 3.0,
+   "yaw": -14.344042960712315,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": 1766.6362655475161,
+   "y": -10461.30190736894,
+   "z": 3.0,
+   "yaw": 3.2992890675872704,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": -2599.8767723032342,
+   "y": 361.3347989631869,
+   "z": 3.0,
+   "yaw": -115.99925310645327,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": -1678.5176548446989,
+   "y": -3463.264912074293,
+   "z": 3.0,
+   "yaw": -30.288380568744472,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": -1147.1381188291914,
+   "y": -3835.918378607698,
+   "z": 3.0,
+   "yaw": -20.195557589136982,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": 116.86789523441547,
+   "y": -3740.3132538661152,
+   "z": 3.0,
+   "yaw": -8.337060500398035,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": 1922.7250205398434,
+   "y": -3713.2524388091883,
+   "z": 3.0,
+   "yaw": 2.665124276896286,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": 2966.200842902396,
+   "y": -3926.97502803386,
+   "z": 3.0,
+   "yaw": 38.98575484185028,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": 3238.320370795295,
+   "y": -3128.975178616112,
+   "z": 3.0,
+   "yaw": 36.75991180190952,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": 4356.926263841357,
+   "y": -2064.5531277218906,
+   "z": 3.0,
+   "yaw": 55.1309459949228,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": 5376.101327317183,
+   "y": -1446.8817985862436,
+   "z": 3.0,
+   "yaw": 75.246628761341,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": 5688.101478060389,
+   "y": -612.2444078979806,
+   "z": 3.0,
+   "yaw": 66.48680694970656,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": 4863.576152750449,
+   "y": 3215.926627587877,
+   "z": 3.0,
+   "yaw": 125.21760474423286,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": 4548.918631985864,
+   "y": 3826.9563218474805,
+   "z": 3.0,
+   "yaw": 110.22797158201644,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": 4585.577102470541,
+   "y": 4768.452898926657,
+   "z": 3.0,
+   "yaw": 124.85407840321878,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": 3646.842197972213,
+   "y": 4990.714596306915,
+   "z": 3.0,
+   "yaw": 142.10821134327347,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": 3004.902589565413,
+   "y": 5550.749781157059,
+   "z": 3.0,
+   "yaw": 128.57093132556304,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": 2317.3922481310124,
+   "y": 6644.375940086292,
+   "z": 3.0,
+   "yaw": 161.32432775865092,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": 1369.6889285288246,
+   "y": 7043.62480817052,
+   "z": 3.0,
+   "yaw": 170.9184892661624,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": 778.6438009285765,
+   "y": 7218.290815482034,
+   "z": 3.0,
+   "yaw": 166.84155821812857,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": -1375.3304793661896,
+   "y": 6856.579753139338,
+   "z": 3.0,
+   "yaw": -191.4368645835477,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": -2053.569797199458,
+   "y": 6783.771204253858,
+   "z": 3.0,
+   "yaw": -158.37327517182874,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": -3242.5053877287774,
+   "y": 7077.741999893144,
+   "z": 3.0,
+   "yaw": -154.2491456277251,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": -3822.2592153344963,
+   "y": 6262.034129530473,
+   "z": 3.0,
+   "yaw": -155.94573056186488,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": -4697.946343353193,
+   "y": 6454.290540481915,
+   "z": 3.0,
+   "yaw": -164.03619896397763,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": -5468.933021124081,
+   "y": 5964.388458453192,
+   "z": 3.0,
+   "yaw": -131.1384017423722,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": -6048.003628853848,
+   "y": 4745.883917210867,
+   "z": 3.0,
+   "yaw": -122.47035241179674,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": -6622.358825891427,
+   "y": 4115.516495362358,
+   "z": 3.0,
+   "yaw": -124.67915424282326,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": -7981.641530044463,
+   "y": 3053.5546296478083,
+   "z": 3.0,
+   "yaw": -127.67139470277827,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": -7884.334368284712,
+   "y": 1895.3080444486247,
+   "z": 3.0,
+   "yaw": -99.9812568979635,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": -8143.0166317566445,
+   "y": 1078.3491599495187,
+   "z": 3.0,
+   "yaw": -114.05563794655517,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": -8273.406490994155,
+   "y": -2428.9588988668424,
+   "z": 3.0,
+   "yaw": -91.66240673959435,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": -8002.891723930252,
+   "y": -3544.322932423209,
+   "z": 3.0,
+   "yaw": -72.60412046607293,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": -8232.32351012595,
+   "y": -4531.241416264918,
+   "z": 3.0,
+   "yaw": -53.22516041803736,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": -7468.863628617576,
+   "y": -5976.261572490255,
+   "z": 3.0,
+   "yaw": -47.28576718450264,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": -6971.976819289737,
+   "y": -6678.475617890404,
+   "z": 3.0,
+   "yaw": -48.813350994689145,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": -6229.343458967858,
+   "y": -7521.823274781423,
+   "z": 3.0,
+   "yaw": -38.17259904759768,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": -5648.1757301557645,
+   "y": -8068.279859993185,
+   "z": 3.0,
+   "yaw": -26.038276027040524,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": -4964.491028046969,
+   "y": -8600.432684697616,
+   "z": 3.0,
+   "yaw": -31.54172917871526,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": -3785.057859043895,
+   "y": -8691.105615949375,
+   "z": 3.0,
+   "yaw": -26.155679128548776,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": -3067.652154215487,
+   "y": -9672.323678146055,
+   "z": 3.0,
+   "yaw": -32.36877369238356,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Crate",
+   "x": -2560.0259172040096,
+   "y": -9871.301949119472,
+   "z": 3.0,
+   "yaw": -14.085282064005431,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": -353.11475271353845,
+   "y": -9839.934506703828,
+   "z": 3.0,
+   "yaw": -1.645997347027473,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": 629.2837834146436,
+   "y": -10488.111608523606,
+   "z": 3.0,
+   "yaw": -2.2562155340268486,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": 1367.0551347737119,
+   "y": -9923.40691213726,
+   "z": 3.0,
+   "yaw": 18.147055815524876,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_CrateBroken",
+   "x": 2329.4544617054385,
+   "y": -9838.606844416661,
+   "z": 3.0,
+   "yaw": 8.455901589795335,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "crate_broken"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Barrel",
+   "x": 3150.5781637868085,
+   "y": -9693.210461878103,
+   "z": 3.0,
+   "yaw": 24.864473487699556,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "barrel"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": 406.00000000000074,
+   "y": 11940.0,
+   "z": 0.0,
+   "yaw": 90.0,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": -405.99999999999926,
+   "y": 11940.0,
+   "z": 0.0,
+   "yaw": 90.0,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": 11940.0,
+   "y": -406.0,
+   "z": 0.0,
+   "yaw": 0.0,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": 11940.0,
+   "y": 406.0,
+   "z": 0.0,
+   "yaw": 0.0,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": -11940.0,
+   "y": 406.0000000000015,
+   "z": 0.0,
+   "yaw": 180.0,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Props",
+   "mesh": "SM_Souq_Brazier",
+   "x": -11940.0,
+   "y": -405.9999999999985,
+   "z": 0.0,
+   "yaw": 180.0,
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "kind": "brazier"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -2771.0219775950522,
+   "y": -1012.5117410199265,
+   "z": 3.3,
+   "yaw": -92.79757687451074,
+   "scale": [
+    1.3966204998863043,
+    1.3604718677061494,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -1859.7777472307976,
+   "y": -2884.183252932435,
+   "z": 3.3,
+   "yaw": -74.5739800971299,
+   "scale": [
+    0.8294324177165281,
+    0.7648913446331451,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 5703.8246915603695,
+   "y": 288.1486778618851,
+   "z": 3.3,
+   "yaw": 97.05545231251246,
+   "scale": [
+    1.150738105221874,
+    1.0033444832341758,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 5456.162774399373,
+   "y": 2335.905772329946,
+   "z": 3.3,
+   "yaw": 76.69246475076261,
+   "scale": [
+    2.024222601903832,
+    1.2538428763475928,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -8774.429582895666,
+   "y": -330.06740952749124,
+   "z": 3.3,
+   "yaw": -95.45648125013219,
+   "scale": [
+    1.2204705965799447,
+    0.6740634484485593,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 5595.470022043781,
+   "y": 96.56413016658601,
+   "z": 3.3,
+   "yaw": 86.32924775472381,
+   "scale": [
+    1.9522965521989197,
+    1.613009749848961,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 1389.4788134026614,
+   "y": -4091.24217307652,
+   "z": 3.3,
+   "yaw": -11.058558075663823,
+   "scale": [
+    2.111508399934077,
+    1.3667349892194567,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 3842.7433234629,
+   "y": -2710.641574287988,
+   "z": 3.3,
+   "yaw": 51.843733868695665,
+   "scale": [
+    1.41677733759745,
+    1.3766947570452368,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 4362.479232543082,
+   "y": 4921.806349533396,
+   "z": 3.3,
+   "yaw": 105.75511024908832,
+   "scale": [
+    1.3155462095466977,
+    0.8683075145372604,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 1793.6950186343515,
+   "y": 6444.162940484757,
+   "z": 3.3,
+   "yaw": 162.1197331786108,
+   "scale": [
+    1.0921998794197965,
+    1.078281068257203,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -2718.405627256539,
+   "y": 6934.3423103291,
+   "z": 3.3,
+   "yaw": -189.19003870097202,
+   "scale": [
+    0.8110919601376032,
+    0.7063844578795595,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -5171.608400552298,
+   "y": 5536.588507873505,
+   "z": 3.3,
+   "yaw": -144.2815262120771,
+   "scale": [
+    1.1718846185138594,
+    1.0296165616152793,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -7679.89542357861,
+   "y": 3452.2719074788915,
+   "z": 3.3,
+   "yaw": -125.48600622125913,
+   "scale": [
+    1.0600325024147332,
+    0.7181259498105292,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -8639.005838564006,
+   "y": 987.9845938821505,
+   "z": 3.3,
+   "yaw": -92.33841878950199,
+   "scale": [
+    2.172994373619221,
+    1.2070373791017845,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -7744.599717092108,
+   "y": -4639.820751784393,
+   "z": 3.3,
+   "yaw": -89.79775066885284,
+   "scale": [
+    1.0175646553972157,
+    0.7981836021723548,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -5853.957034200512,
+   "y": -7437.4299760772765,
+   "z": 3.3,
+   "yaw": -52.755753162246094,
+   "scale": [
+    2.1003072917644556,
+    1.5587238887547707,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -4147.0532201318265,
+   "y": -8919.134292676294,
+   "z": 3.3,
+   "yaw": -9.231067672584139,
+   "scale": [
+    2.0376132629879273,
+    1.9164878946473933,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -1776.3347048479504,
+   "y": -9735.736769345564,
+   "z": 3.3,
+   "yaw": -11.833607825917895,
+   "scale": [
+    1.9190985273777563,
+    1.7456556290186531,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 2134.0674325887785,
+   "y": -10207.399063444143,
+   "z": 3.3,
+   "yaw": 6.25365497139055,
+   "scale": [
+    2.151411518538685,
+    1.441635048697686,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -2523.9552231193907,
+   "y": 123.06198816753485,
+   "z": 3.3,
+   "yaw": -139.4522147225637,
+   "scale": [
+    1.4997658073762539,
+    1.330375790588307,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -1727.7948617285817,
+   "y": -2746.9910094818933,
+   "z": 3.3,
+   "yaw": -41.78409810539289,
+   "scale": [
+    1.7074983780085073,
+    0.8704010286193907,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -384.1279979837867,
+   "y": -4069.9881383687275,
+   "z": 3.3,
+   "yaw": 4.861521255302279,
+   "scale": [
+    1.3097032016338828,
+    1.1660132634995606,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 2061.743714876283,
+   "y": -4074.403435320769,
+   "z": 3.3,
+   "yaw": 36.44067611908225,
+   "scale": [
+    1.404601574218367,
+    0.7134292047309299,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 4107.813016493936,
+   "y": -2869.5094101851964,
+   "z": 3.3,
+   "yaw": 35.321711590266254,
+   "scale": [
+    0.9598920202190888,
+    0.6910095257617287,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 5358.0533466579955,
+   "y": -1062.9497998188167,
+   "z": 3.3,
+   "yaw": 69.74146450023773,
+   "scale": [
+    2.1262152627834836,
+    1.2148061466962303,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 5789.142040561428,
+   "y": 716.9949049123463,
+   "z": 3.3,
+   "yaw": 77.55675831144141,
+   "scale": [
+    1.1854315749068007,
+    0.6398988853166394,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 5325.541593119182,
+   "y": 2495.704469406923,
+   "z": 3.3,
+   "yaw": 87.90195691021815,
+   "scale": [
+    1.667832831611206,
+    0.9727662180411193,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 3936.962363687558,
+   "y": 5143.92960546181,
+   "z": 3.3,
+   "yaw": 106.09982746587139,
+   "scale": [
+    1.4815763879761925,
+    0.9252121537876525,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 2926.022563145728,
+   "y": 5738.5495476412,
+   "z": 3.3,
+   "yaw": 136.2791203783945,
+   "scale": [
+    0.807449937310811,
+    0.7918744194410698,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 661.0097473547092,
+   "y": 6800.1978090145985,
+   "z": 3.3,
+   "yaw": 176.0965969715808,
+   "scale": [
+    1.8482241540088744,
+    1.0599701240995727,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -1557.8021942546432,
+   "y": 7034.277879285628,
+   "z": 3.3,
+   "yaw": -179.0254412002628,
+   "scale": [
+    2.1593071436469042,
+    1.086054058689333,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -3406.58491203257,
+   "y": 6904.785369966889,
+   "z": 3.3,
+   "yaw": -173.50300235368624,
+   "scale": [
+    1.9301791387903178,
+    1.4488071210624673,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -5517.857786918833,
+   "y": 5340.585009284197,
+   "z": 3.3,
+   "yaw": -113.36057441948537,
+   "scale": [
+    2.0056990626871025,
+    1.6544122537877761,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -7487.813188928738,
+   "y": 3535.868577566216,
+   "z": 3.3,
+   "yaw": -146.80270270515112,
+   "scale": [
+    1.7490106790668176,
+    1.606600740368613,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -8212.621199151445,
+   "y": 1866.3583882728626,
+   "z": 3.3,
+   "yaw": -115.89943968336621,
+   "scale": [
+    1.1865181318830331,
+    0.992276315559231,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -8487.987263999928,
+   "y": 93.18308063887713,
+   "z": 3.3,
+   "yaw": -84.09760434475784,
+   "scale": [
+    0.9792697178882193,
+    0.8168260887149494,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -8560.11334571157,
+   "y": -2603.5157887862474,
+   "z": 3.3,
+   "yaw": -63.82258102163971,
+   "scale": [
+    1.7076640193262114,
+    1.1036481860056901,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -7888.846714382422,
+   "y": -4776.401564859048,
+   "z": 3.3,
+   "yaw": -38.495618580779826,
+   "scale": [
+    2.0235299958902595,
+    1.2777394523326522,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -6812.298051473599,
+   "y": -6205.452403972968,
+   "z": 3.3,
+   "yaw": -48.16599355187161,
+   "scale": [
+    1.378231309546906,
+    1.1228574884902172,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -5678.5357831634,
+   "y": -7864.263862035548,
+   "z": 3.3,
+   "yaw": -26.31575462852044,
+   "scale": [
+    1.3864449492958157,
+    1.2582977005497784,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -3374.358572369169,
+   "y": -9353.01703580777,
+   "z": 3.3,
+   "yaw": -15.456978847565518,
+   "scale": [
+    1.31580531095298,
+    1.2499913797222852,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": -1959.4087066377253,
+   "y": -9915.143261667323,
+   "z": 3.3,
+   "yaw": -17.19780086640223,
+   "scale": [
+    1.8461817172874044,
+    1.2453614230733434,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 564.7597737020104,
+   "y": -10110.304098622682,
+   "z": 3.3,
+   "yaw": 9.743361954274725,
+   "scale": [
+    2.0216448558357274,
+    2.0120495464206805,
+    1.0
+   ],
+   "kind": "puddle"
+  },
+  {
+   "slot": "Wet",
+   "mesh": "SM_Souq_Puddle",
+   "x": 3136.7467098903994,
+   "y": -9939.762334548828,
+   "z": 3.3,
+   "yaw": 9.216964947098507,
+   "scale": [
+    1.8103174096535093,
+    1.0910590441574222,
+    1.0
+   ],
+   "kind": "puddle"
   },
   {
    "slot": "Gates",
@@ -8418,5 +11023,1459 @@
    "z": 110.0,
    "props": {}
   }
- ]
+ ],
+ "night": {
+  "NIGHT": {
+   "moon_pitch": 24.0,
+   "brazier": {
+    "h": 1.2,
+    "pool_m": 4.5,
+    "half": 30.0,
+    "mesh": "SM_Souq_Brazier"
+   },
+   "pyre": {
+    "h": 2.9,
+    "share": 0.7,
+    "at_m": 10.3,
+    "half": 25.0,
+    "mesh": "SM_Souq_Cresset"
+   },
+   "lantern": {
+    "pool_m": 2.0,
+    "aim_down": 40.0,
+    "cone": 55.0,
+    "lit_within_m": 10.0
+   },
+   "street_step_m": 30.0,
+   "step_jitter": 0.25,
+   "min_gap_m": 12.0,
+   "fight_clear_m": 1.0,
+   "prop_clear_m": 1.5,
+   "door_off_m": 1.2,
+   "door_in_m": 1.0,
+   "off_street_cm": 30.0,
+   "site_margin_cm": 30.0,
+   "temp_k": 1800.0,
+   "lantern_hex": "#ffdc8c",
+   "smoke": {
+    "r_m": 0.6,
+    "h_m": 4.0,
+    "extinction": 0.5
+   },
+   "budget": {
+    "shadowed": 32,
+    "lights": 96,
+    "smoke": 32
+   },
+   "lit_share": [
+    0.2,
+    0.5
+   ],
+   "dark_run_m": 40.0
+  },
+  "MOON": {
+   "energy": 1.2,
+   "colour": [
+    0.6,
+    0.7,
+    0.96
+   ],
+   "angle": 0.55,
+   "sky": "#3a4656",
+   "sky_strength": 0.25
+  },
+  "moon_blender_w_m2": 0.48808397169096024,
+  "moon_ue_lux": 1.2313229506513166,
+  "fires": [
+   {
+    "kind": "pyre",
+    "mesh": "SM_Souq_Cresset",
+    "x": -2900.45439561672,
+    "y": -657.4971745058157,
+    "z": 3.0,
+    "yaw": -95.19648416339868,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 2.9,
+    "half": 25.0,
+    "I": 295.73877670801227,
+    "pool": 9.0475835236573,
+    "watts": 1813.8972489887205,
+    "cd": 364.14994315812055,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 1367.7075419927128,
+    "site": [
+     "wave",
+     0
+    ]
+   },
+   {
+    "kind": "pyre",
+    "mesh": "SM_Souq_Cresset",
+    "x": -1856.5988527573247,
+    "y": -2447.9435321590304,
+    "z": 3.0,
+    "yaw": -53.07736828193731,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 2.9,
+    "half": 25.0,
+    "I": 295.73877670801227,
+    "pool": 9.0475835236573,
+    "watts": 1813.8972489887205,
+    "cd": 364.14994315812055,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 3417.707541992713,
+    "site": [
+     "wave",
+     0
+    ]
+   },
+   {
+    "kind": "pyre",
+    "mesh": "SM_Souq_Cresset",
+    "x": 5767.655292665069,
+    "y": -302.4725833772984,
+    "z": 3.0,
+    "yaw": 78.95346501240964,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 2.9,
+    "half": 25.0,
+    "I": 295.73877670801227,
+    "pool": 9.0475835236573,
+    "watts": 1813.8972489887205,
+    "cd": 364.14994315812055,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 13371.066493608516,
+    "site": [
+     "wave",
+     1
+    ]
+   },
+   {
+    "kind": "pyre",
+    "mesh": "SM_Souq_Cresset",
+    "x": 5030.686822824498,
+    "y": 2801.4599323117345,
+    "z": 3.0,
+    "yaw": 111.29940108362142,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 2.9,
+    "half": 25.0,
+    "I": 295.73877670801227,
+    "pool": 9.0475835236573,
+    "watts": 1813.8972489887205,
+    "cd": 364.14994315812055,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 16571.066493608516,
+    "site": [
+     "wave",
+     1
+    ]
+   },
+   {
+    "kind": "pyre",
+    "mesh": "SM_Souq_Cresset",
+    "x": -8891.718293120875,
+    "y": 125.7445037391839,
+    "z": 3.0,
+    "yaw": -95.64571468369073,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 2.9,
+    "half": 25.0,
+    "I": 295.73877670801227,
+    "pool": 9.0475835236573,
+    "watts": 1813.8972489887205,
+    "cd": 364.14994315812055,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 35995.17519996258,
+    "site": [
+     "wave",
+     2
+    ]
+   },
+   {
+    "kind": "pyre",
+    "mesh": "SM_Souq_Cresset",
+    "x": -8346.327064027586,
+    "y": -1922.777565794718,
+    "z": 3.0,
+    "yaw": -85.02567043574984,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 2.9,
+    "half": 25.0,
+    "I": 295.73877670801227,
+    "pool": 9.0475835236573,
+    "watts": 1813.8972489887205,
+    "cd": 364.14994315812055,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 38045.17519996258,
+    "site": [
+     "wave",
+     2
+    ]
+   },
+   {
+    "kind": "pyre",
+    "mesh": "SM_Souq_Cresset",
+    "x": 5785.013251914652,
+    "y": -213.55923343275884,
+    "z": 3.0,
+    "yaw": 78.95346501240964,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 2.9,
+    "half": 25.0,
+    "I": 295.73877670801227,
+    "pool": 9.0475835236573,
+    "watts": 1813.8972489887205,
+    "cd": 364.14994315812055,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 13461.65833953115,
+    "site": [
+     "gate",
+     0
+    ]
+   },
+   {
+    "kind": "pyre",
+    "mesh": "SM_Souq_Cresset",
+    "x": 5030.471839828866,
+    "y": 2802.011352213196,
+    "z": 3.0,
+    "yaw": 111.29940108362142,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 2.9,
+    "half": 25.0,
+    "I": 295.73877670801227,
+    "pool": 9.0475835236573,
+    "watts": 1813.8972489887205,
+    "cd": 364.14994315812055,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 16571.65833953115,
+    "site": [
+     "gate",
+     0
+    ]
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": 1612.6100002680896,
+    "y": -3778.4909215510706,
+    "z": 3.0,
+    "yaw": 9.987734608227555,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 7645.0391647243005
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": 3646.701659757418,
+    "y": -2819.9653480357115,
+    "z": 3.0,
+    "yaw": 39.1646970098406,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 10063.732553346905
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": 4200.601657299199,
+    "y": 5219.225814138026,
+    "z": 3.0,
+    "yaw": 132.7834975505666,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 19078.57750824556
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": 1361.52765853448,
+    "y": 6455.797206557861,
+    "z": 3.0,
+    "yaw": 157.78260988371352,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 22144.85614865161
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": -2339.438743004271,
+    "y": 7302.553969518727,
+    "z": 3.0,
+    "yaw": -170.16152101596913,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 25963.173133920023
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": -4898.38016412688,
+    "y": 5678.413342234158,
+    "z": 3.0,
+    "yaw": -145.28443104461337,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 28967.236144377955
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": -7468.5349849883705,
+    "y": 3911.3017761607516,
+    "z": 3.0,
+    "yaw": -123.99360737614009,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 32050.755041882698
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": -8591.426545198177,
+    "y": 1545.2211758173487,
+    "z": 3.0,
+    "yaw": -106.27124261227222,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 34594.341656228404
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": -7481.242858384616,
+    "y": -4824.874034536002,
+    "z": 3.0,
+    "yaw": -63.80076547196528,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 41193.248477175744
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": -5988.6208985727635,
+    "y": -6964.196053400726,
+    "z": 3.0,
+    "yaw": -46.12746193753501,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 43898.20958067236
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": -4686.118771194516,
+    "y": -8797.860254003856,
+    "z": 3.0,
+    "yaw": -31.997217477542826,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 46070.38425328638
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": -1392.9104848466832,
+    "y": -9640.46312788336,
+    "z": 3.0,
+    "yaw": -14.344042960712315,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 49446.55416587318
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": 1766.6362655475161,
+    "y": -10461.30190736894,
+    "z": 3.0,
+    "yaw": 3.2992890675872704,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "s": 52685.15678853731
+   }
+  ],
+  "door_fires": [
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": 406.00000000000074,
+    "y": 11940.0,
+    "z": 0.0,
+    "yaw": 90.0,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "door": "Door"
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": -405.99999999999926,
+    "y": 11940.0,
+    "z": 0.0,
+    "yaw": 90.0,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "door": "Door"
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": 11940.0,
+    "y": -406.0,
+    "z": 0.0,
+    "yaw": 0.0,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "door": "East"
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": 11940.0,
+    "y": 406.0,
+    "z": 0.0,
+    "yaw": 0.0,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "door": "East"
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": -11940.0,
+    "y": 406.0000000000015,
+    "z": 0.0,
+    "yaw": 180.0,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "door": "West"
+   },
+   {
+    "kind": "brazier",
+    "mesh": "SM_Souq_Brazier",
+    "x": -11940.0,
+    "y": -405.9999999999985,
+    "z": 0.0,
+    "yaw": 180.0,
+    "scale": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "h": 1.2,
+    "half": 30.0,
+    "I": 84.17983729046999,
+    "pool": 4.5,
+    "watts": 516.3123246169997,
+    "cd": 103.65256563784924,
+    "temp": 1800.0,
+    "shadow": true,
+    "smoke": {
+     "r_m": 0.6,
+     "h_m": 4.0,
+     "extinction": 0.5
+    },
+    "door": "West"
+   }
+  ],
+  "lanterns": [
+   {
+    "kind": "lantern",
+    "x": -1294.9971561407706,
+    "y": 1149.5430141396457,
+    "z": 339.29313092427344,
+    "yaw": -56.355838703414356,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.3929313092427345,
+    "I": 18.006359114121178,
+    "watts": 110.44099669640141,
+    "cd": 22.171643234886915,
+    "stall": 3,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -1730.0153555070103,
+    "y": -743.0752327193646,
+    "z": 319.9850424429775,
+    "yaw": -92.68531386869635,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.199850424429775,
+    "I": 16.791578049445654,
+    "watts": 102.9902049677467,
+    "cd": 20.675855429935304,
+    "stall": 4,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -1398.8728105183477,
+    "y": -2510.5144791773796,
+    "z": 295.54428917330256,
+    "yaw": -43.41398399640681,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.9554428917330258,
+    "I": 15.376502880648705,
+    "watts": 94.31092055207036,
+    "cd": 18.933440897698834,
+    "stall": 14,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -3239.783176186034,
+    "y": 705.9759911447784,
+    "z": 296.688245082716,
+    "yaw": 55.24097694115056,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.9668824508271596,
+    "I": 15.43960960716091,
+    "watts": 94.69798213015416,
+    "cd": 19.011145658393787,
+    "stall": 23,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -3425.9923078195807,
+    "y": -850.7805260049931,
+    "z": 275.53628426794563,
+    "yaw": 89.26281275060954,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.7553628426794563,
+    "I": 14.32386212933897,
+    "watts": 87.8546073684282,
+    "cd": 17.63730018182031,
+    "stall": 24,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 2048.4697988565435,
+    "y": -3198.592206230004,
+    "z": 264.2131052696762,
+    "yaw": 20.516522214718105,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.642131052696762,
+    "I": 13.772093701747947,
+    "watts": 84.4703665731322,
+    "cd": 16.957895053482694,
+    "stall": 25,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 2606.0688530776874,
+    "y": -2666.8784693617736,
+    "z": 228.89668142896545,
+    "yaw": 35.04529799104225,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.2889668142896546,
+    "I": 12.269418424676338,
+    "watts": 75.25379179202164,
+    "cd": 15.107616497448097,
+    "stall": 26,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -1232.883047865991,
+    "y": -4141.894974342786,
+    "z": 229.71091587570632,
+    "yaw": 146.51724846912958,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.2971091587570633,
+    "I": 12.300120646736534,
+    "watts": 75.44210215413493,
+    "cd": 15.14542084810681,
+    "stall": 40,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -965.0674904666826,
+    "y": -4277.45560380499,
+    "z": 263.36817141078706,
+    "yaw": 147.97530514386867,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.6336817141078708,
+    "I": 13.732231159839658,
+    "watts": 84.22587190148307,
+    "cd": 16.90881139075972,
+    "stall": 41,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 4615.883529838138,
+    "y": -903.2635397977662,
+    "z": 272.2768983495166,
+    "yaw": 61.76073211598439,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.722768983495166,
+    "I": 14.16171373365093,
+    "watts": 86.8600792509441,
+    "cd": 17.437643140798336,
+    "stall": 42,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 3520.1293247647586,
+    "y": 4613.972281634986,
+    "z": 302.55171154672706,
+    "yaw": 140.64211913339477,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.0255171154672706,
+    "I": 15.767939684099396,
+    "watts": 96.71177629657481,
+    "cd": 19.415426017517255,
+    "stall": 43,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 2077.652609844726,
+    "y": 5357.522892754108,
+    "z": 251.76552999313992,
+    "yaw": 139.2028547830523,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.5176552999313992,
+    "I": 13.203698140888761,
+    "watts": 80.98414418573857,
+    "cd": 16.25801655434845,
+    "stall": 44,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 960.2181547310659,
+    "y": 5822.7722876861535,
+    "z": 292.3218004809877,
+    "yaw": 157.2645125668041,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.923218004809877,
+    "I": 15.200412056511883,
+    "watts": 93.23087732936746,
+    "cd": 18.716616224540058,
+    "stall": 45,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 3413.486243354935,
+    "y": -4228.767619810269,
+    "z": 340.1275794497218,
+    "yaw": -163.27309608753137,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.401275794497218,
+    "I": 18.060747278930393,
+    "watts": 110.77458346382889,
+    "cd": 22.23861263046031,
+    "stall": 61,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 6410.036283050404,
+    "y": -366.2774746676848,
+    "z": 343.7766603150971,
+    "yaw": -100.60041805806802,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.437766603150971,
+    "I": 18.30041002639618,
+    "watts": 112.24454152327701,
+    "cd": 22.53371487183108,
+    "stall": 62,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -1725.2469062694506,
+    "y": 6362.983976107282,
+    "z": 261.773264600752,
+    "yaw": -161.0191555907865,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.6177326460075196,
+    "I": 13.657488880941429,
+    "watts": 83.76744431350903,
+    "cd": 16.81677950736835,
+    "stall": 63,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -2799.5653660796775,
+    "y": 6309.114977482974,
+    "z": 254.30514179616938,
+    "yaw": -174.4816510355701,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.543051417961694,
+    "I": 13.31634606619756,
+    "watts": 81.67506393625764,
+    "cd": 16.396722530124432,
+    "stall": 64,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -3679.88275185249,
+    "y": 5766.291360537559,
+    "z": 215.04949453269475,
+    "yaw": -147.2148196972147,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.1504949453269475,
+    "I": 11.778016827353888,
+    "watts": 72.2398075744163,
+    "cd": 14.502542432678247,
+    "stall": 65,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -4828.742780337224,
+    "y": 4999.976211018312,
+    "z": 276.5437333843167,
+    "yaw": -138.66514826824064,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.765437333843167,
+    "I": 14.3745180055388,
+    "watts": 88.16530235238258,
+    "cd": 17.69967392477051,
+    "stall": 66,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 6211.261310560807,
+    "y": -842.4191501414924,
+    "z": 305.8222354372088,
+    "yaw": -110.5187451566974,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.058222354372088,
+    "I": 15.954593679364981,
+    "watts": 97.85660813869497,
+    "cd": 19.645257365718535,
+    "stall": 88,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 4562.455970210097,
+    "y": 5694.7227852483265,
+    "z": 345.1467182082391,
+    "yaw": -50.96719616308951,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.451467182082391,
+    "I": 18.391155781148527,
+    "watts": 112.80112553547505,
+    "cd": 22.645452202331825,
+    "stall": 93,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 3755.4197949118734,
+    "y": 6455.223990597197,
+    "z": 257.7132771210279,
+    "yaw": -31.97755358107296,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.577132771210279,
+    "I": 13.470211588924965,
+    "watts": 82.6187895156226,
+    "cd": 16.586180679572646,
+    "stall": 94,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 2972.61260720736,
+    "y": 6823.113531060628,
+    "z": 264.27184478183756,
+    "yaw": -29.77515466243256,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.6427184478183756,
+    "I": 13.774871771897786,
+    "watts": 84.48740571104432,
+    "cd": 16.96131575501671,
+    "stall": 95,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 1608.2274101657324,
+    "y": 7297.208761027435,
+    "z": 340.1900268176371,
+    "yaw": -22.073049935556014,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.401900268176371,
+    "I": 18.064823751040947,
+    "watts": 110.79958627755938,
+    "cd": 22.243632084127725,
+    "stall": 96,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 1176.1108313584955,
+    "y": 7499.526491879827,
+    "z": 334.25651237775395,
+    "yaw": -16.335020494923636,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.3425651237775393,
+    "I": 17.681382335048106,
+    "watts": 108.44776979491918,
+    "cd": 21.7714918683855,
+    "stall": 97,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -7645.991004547332,
+    "y": -1952.4982205509145,
+    "z": 220.24484404249,
+    "yaw": -85.50397319691446,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.2024484404249,
+    "I": 11.955465886058445,
+    "watts": 73.32818145288685,
+    "cd": 14.721039531232641,
+    "stall": 99,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -1586.8588533249128,
+    "y": 8138.7924600713,
+    "z": 333.5202598423901,
+    "yaw": -4.842719511906519,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.335202598423901,
+    "I": 17.634353207188543,
+    "watts": 108.15931926909914,
+    "cd": 21.713583823902905,
+    "stall": 127,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -6243.770965864087,
+    "y": 5742.981328208753,
+    "z": 226.47779457536492,
+    "yaw": 48.433956268431345,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.264777945753649,
+    "I": 12.179369914971208,
+    "watts": 74.70148429333018,
+    "cd": 14.996737700776222,
+    "stall": 130,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -6862.847658109581,
+    "y": -5288.303929688958,
+    "z": 288.93328198287327,
+    "yaw": -51.21523731036292,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.8893328198287325,
+    "I": 15.017935702010993,
+    "watts": 92.11166881326052,
+    "cd": 18.491928901291928,
+    "stall": 131,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -4978.710729117766,
+    "y": -7089.519498217013,
+    "z": 241.72164438350256,
+    "yaw": -27.414463211882648,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.4172164438350254,
+    "I": 12.77530884270806,
+    "watts": 78.3566423812208,
+    "cd": 15.730530979685145,
+    "stall": 133,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -9258.14845752792,
+    "y": 993.1110907277829,
+    "z": 315.92878960199005,
+    "yaw": 69.46429867497085,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.1592878960199005,
+    "I": 16.54713499147152,
+    "watts": 101.49092714111444,
+    "cd": 20.37486708252436,
+    "stall": 167,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -9336.804394080766,
+    "y": 237.7824663612335,
+    "z": 214.8012321018673,
+    "yaw": 81.4821794341429,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.148012321018673,
+    "I": 11.769751022429656,
+    "watts": 72.18910972214397,
+    "cd": 14.492364557369434,
+    "stall": 168,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -9050.867408257845,
+    "y": -2645.5732496631585,
+    "z": 329.7446256339393,
+    "yaw": 107.55460620552505,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.2974462563393927,
+    "I": 17.395094421006885,
+    "watts": 106.6918388835974,
+    "cd": 21.41897898933245,
+    "stall": 169,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 2294.1793848277725,
+    "y": -9565.638609084486,
+    "z": 310.7882343519612,
+    "yaw": 24.93104525103237,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.107882343519612,
+    "I": 16.24278803024319,
+    "watts": 99.62423207374694,
+    "cd": 20.00011768420293,
+    "stall": 170,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 2773.8081061304,
+    "y": -9237.202224282697,
+    "z": 242.43571662082417,
+    "yaw": 25.04257594104308,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.4243571662082415,
+    "I": 12.804848989270928,
+    "watts": 78.53782521825543,
+    "cd": 15.766904440113608,
+    "stall": 171,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -6472.185680735025,
+    "y": -8221.520965919422,
+    "z": 351.66565659359975,
+    "yaw": 141.60498390050745,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 3.5166565659359974,
+    "I": 18.828625925308057,
+    "watts": 115.48432420099579,
+    "cd": 23.18411923106019,
+    "stall": 211,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -5458.252619920372,
+    "y": -8717.259694309854,
+    "z": 237.607696331954,
+    "yaw": 141.77044170205198,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.37607696331954,
+    "I": 12.6079053710348,
+    "watts": 77.3298825490494,
+    "cd": 15.524403242995152,
+    "stall": 212,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": -2820.766705605597,
+    "y": -10186.626966332868,
+    "z": 244.90215041109968,
+    "yaw": 141.71506399205975,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.4490215041109966,
+    "I": 12.907970521703657,
+    "watts": 79.17031537079266,
+    "cd": 15.89388034970436,
+    "stall": 213,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   },
+   {
+    "kind": "lantern",
+    "x": 2794.561675685663,
+    "y": -10967.655813421574,
+    "z": 242.55771647577666,
+    "yaw": -162.05410624688025,
+    "pitch": -40.0,
+    "cone": 55.0,
+    "h": 2.4255771647577666,
+    "I": 12.809910150134009,
+    "watts": 78.56886756538495,
+    "cd": 15.773136363641257,
+    "stall": 250,
+    "shadow": false,
+    "hex": "#ffdc8c"
+   }
+  ]
+ }
 }

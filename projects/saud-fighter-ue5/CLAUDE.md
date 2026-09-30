@@ -3024,6 +3024,173 @@ memory; no source was reachable. Judged from the contact sheet, not a
 rule: at 341 cm/s the forward walk reads as a jog with a shin-high foot
 (the 30 cm swing is what the runtime's 28 cm planted band demands).
 
+## The dark adult anime, redesigned -- 2026-09-28/30
+
+Asked as "make suad more aggrisive and more fitable look / make full
+redesign make all game like dark anime adult style / make render for suad
+ik", settled as the Unreal build only, over all the men, the look and
+lighting, the world and the souq, the HUD and the effects; Saud's face,
+body, stance and kit; and an IK pose sheet of him. Seven design surveys
+and a critic wrote the specs (`scratchpad/design/MERGE.md` was the binding
+plan); five tracks built them on disjoint files; every new rule was
+proved to bite; the men were then rebuilt whole. Nothing the browser
+build owns moved: every colour, cut and proportion below that is not the
+browser's is labelled Unreal-only in the table that carries it.
+
+**The men** (`hero/sculpt.py`, `anatomy.py`, `assembly.py`, `face.py`,
+`garments.py`, `finish.py`, `pipeline.py`; `build_fighters.py`). One set
+of Unreal-only tables in `pipeline.py`, keyed by man and checked against
+the roster: `FACES` for all six, `NOSES`, `EYES`, `HOLDS`, `PHYSIQUE`,
+`MASS`, `EARS`, `LIMBS`, `PAINT`, `TOPS`, `BOTTOMS`, `KIT`, `VEINS`.
+`apply_man` sets them before a build, and the checkpoint carries a
+`.man` stamp of them: a `--resume` onto a checkpoint built under other
+tables is refused ("rebuild him without --resume"; six such sabotages
+run through the real `--resume` branch).
+- **Saud, harder and fitter.** A lean physique (`anatomy.PHYSIQUES
+  ["lean"]`: the trunk rows and lats of a fighter cut to 0.77 m at the
+  waist, a V of 1.52; the abs as six bellies over a linea, obliques and
+  serratus as definition parts at the 3.5 mm pass, deltoid heads, a
+  pec tie-in; `check_physique` holds waist, chest, hips, the V, the
+  abs' relief 4.5 mm, the linea 4.0, obliques 5.3, serratus 5.0, the
+  delt 2.6, the tie 23.8); a harder face (`sculpt.FACE` gained five
+  optional rows -- a lowered brow, the corrugator, the zygoma, the
+  gonion, a squared chin -- that a man names or gets at 0; Saud's brows
+  dropped and slanted into a scowl, hollow cheeks, a squared jaw:
+  `check_mien` cheekbones 140.5 over a jaw of 127.0 mm, the brow 6.2 mm
+  proud, the hollow 5.6); hooded eyes (`set_eye(hooded=True)`: the lid
+  2.4 mm over the iris, held); a compression top and joggers instead
+  of the tee and track trousers (`garments.TANKS`, `fit(..., cut)`:
+  the compression a hull at tension 0.55, 2.2 mm off the skin; the
+  jogger 7 mm, held to 10 mm at the knee and 9 at the calf); veins
+  drawn as contour lines rather than a net (`face.vein_line`, 2-4
+  crossings of the forearm, at least 0.45 mm); a scowl painted
+  (`face.set_look`: brow_drop, brow_slant, furrow, lid_fold, a hard
+  thin mouth).
+- **The five men, each his own.** Noses shifted and shaped per man
+  (`NOSES`: the brawler's broken 2.8 mm to one side, AL-SAQR's
+  aquiline with a 4 mm hump, the bald men's flattened); lids per man;
+  a scar or two per man painted as tissue (`face.scar_strokes`: lifted
+  x1.45 with less chroma over the brow, beard and lips, a pucker of
+  0.50, relief); kit with a story (`KIT`: the brawler's taped nose and
+  split lip, AL-WAHSH's cauliflower ears (`assembly.ear(cauliflower=)`)
+  and greyed beard, ZAYOS's stitched slash across the chest and a flank
+  scar, knuckle scabs and blood on the last turn of the tape); singlets
+  for the thug and AL-WAHSH; the brawler's oxblood muted to #3a2522 /
+  #452f29 so the kit rule (chroma under 16 on any non-accent slot)
+  holds. Every jaw clears the 8 mm cheekbone-over-jaw rule (ZAYOS by
+  1.3 mm, the tightest).
+- **The rules and their suites.** Five new: `--face-check` (17),
+  `--physique-check` (10, the neck and back suites re-run on the lean
+  base), `--grim-check` (26: kit, paint, body, jaw, ears),
+  `--fabric-check`, `--vein-check`; the nose (12) and eye (15) suites
+  extended; `--cloth-check` gained the tank and jogger (16) and the
+  checkpoint rules through `--resume` (the shoe floor of 250 faces --
+  Saud has 45 at a body share of 0.76 and none at the tee's 0.66, so the
+  tank men build at 0.84, the tee men at 0.72; holes: at most 0.05 % of
+  stripped faces with no cloth or skin within 60 mm, on the pre-collapse
+  body, skin counted; flat tank UVs under 0.2 %). 122 sabotages over 13
+  suites, each caught by its own rule.
+
+**The look** (`Tools/look/anime_look.py`, `Combat/SaudAnime.h`,
+`Game/SaudLookSubsystem`). Per class: the fighters' terminator and rim
+apart from the world's; a screentone in the mid shadow of the world
+(17.8 % dotted) and a lighter one on a man; a brush line whose width
+follows the light (1.8 px lit, 3.8 in shadow at 1080) and boils at 12 Hz
+(`Boil`, written each tick); a rim light on a man's shadow edge; grain
+and paper over everything; the speed lines as needles (120, tapering,
+bone or ink by the ground). Blood is #C01A1F and the impact frame is ink
+and BLOOD now (ember for a burning punch, bone for a parry: `ETone`);
+a heavy hit or a knockdown leaves a MARK on the man hit -- a star at
+1/24 s, drops at 5/24 -- and the player's own screen takes a WOUND
+border when he is hit (0.30 s, 22 % of the screen, two tones). The
+haze is darker and nearer (0.045, 0.055, 0.075 from 4 m); INK 0.0022.
+The world's ink floor for albedo is 0.060 (2 x lum(INK) over the
+world's shadow tone times its level). 77 sabotages, each caught by its
+own rule; the unbroken check must pass before any is counted.
+
+**The HUD and the effects** (`SaudHud` in `Combat/SaudAnime.h`,
+`Game/SaudHUD.cpp`, `Tools/harness/tests/anime.cpp`, `bite.sh`,
+`bites.txt`, `hud_dump.cpp`, `Tools/look/hud_preview.py`). A torn
+ink-wash sweep, five leaning rage cuts, ash stamina, a blood health
+slash with a bone trail and drips under 30 %, the combo on an ink-rimmed
+22-tip blood splat, a boss named in an ink band that wipes open over
+0.40 s, street bars 124 x 10; the palette in `SaudHud::Colour` (Ink,
+Bone, Blood, Ember, Trough, Ash, Gold), which `anime_look.py` reads. One
+pure `Build()` over a fixed draw list, emitted as one triangle batch per
+run between texts, every text stroked eight times in ink. The harness
+checks it at seven screen shapes over every combo count and the drip
+cycle (title-safe, no overlaps, nothing in the fight box, text over 1/36
+of the height, the stroke, 3:1 bars, coverage under 10.5 %), and its 45
+sabotages are scripted in `bite.sh`. `hud_preview.py` rasterises the
+draw list outside the engine: `Docs/renders/hud-{1080,21x9,4x3,
+lowhealth}.png`.
+
+**The world** (`build_souq.py`, `Tools/levels/build_world.py`). Every
+browser colour through one weathering curve, LO = 0.060 x (y / 0.015)
+^ 0.29 (a power, because with the ink floor raised no affine curve
+could keep the browser's ground/paving ratios in order); soot, damp, a
+salt bloom, puddles, rust on the iron, a plinth at every masonry foot,
+torn banners and awnings, broken crates; the night -- a pyre either
+side of every fight and the gate, a brazier every 30 m, two at every
+door, 39 lit lanterns (66 lights in the souq, 181 fires over the
+world, 220 lights) -- and the sun replaced by a moon (energy 1.2, cold,
+0.55 degrees; the sky 0.30; a volumetric fog and a low mist). The
+albedo bake zeroes metallic and sheen during the colour pass (Cycles
+puts both into its diffuse colour: iron baked at 0.15 of itself).
+Instances 558 -> 715, mesh kinds 34 -> 44, materials 13 -> 16. Checks
+10-33; `--bite` 60, `--bite-meshes` 7, the world's 19. Blender smoke
+was dropped (a Principled Volume over a cresset rendered as a glowing
+blob); smoke is a `LocalFogVolume` in the engine only.
+
+**The preview** (`Tools/blender/anime_preview.py`). Light groups for the
+moon and the fires, `--night-check` (pools, the fire's warmth, the
+moon's cold, the fire's share of a fight site's light; 2 sabotages),
+`--street` for the souq's street and gate cameras, the blow's parry,
+burning, mark and wound frames, and `--graded-check`, which measures the
+GRADED picture at the engine's key rather than the preview's stand-in
+level (the look's tones scale with the key while INK is absolute, so
+the preview's level read a 2.8x shadow fill as 1.1x). `ik_sheet.py`
+renders through its `render_scene`.
+
+**Judgement from the renders** (the fast builds, before the whole
+ones): Saud reads stern and hard -- a scowl, not a snarl; the abs read
+as tiles under the compression top; the thug gaunt under a heavy brow;
+the brawler rough with his taped nose; AL-SAQR sharp under his crest;
+AL-WAHSH heavy and grim; ZAYOS brutal. Nine decimation slivers on the
+compression top's straps and armpits, each under 0.14 cm2, seen only in
+close-ups: not fixed (the tank's top share is the knob).
+
+**Built, 2026-09-30 (Riyadh):** the six men whole (no `--resume`),
+two at a time on four cores: Saud 51 min, 63,455 tris; AL-SAQR 50 min,
+67,572; the thug 50 min, 63,904; the brawler 50 min, 65,891; AL-WAHSH 46
+min, 64,912; ZAYOS 37 min, 56,389 -- 62 bones each; the iron arm 3.5 min.
+`rig_full_ik.py --bite` on every rig 17 of 17 (Saud's 10 stance cases
+too). All 197 clips re-struck on the new rigs into scratch, every motion
+check passing (read-back 0.01 mm), and every clip within 0.1 mm of the
+committed one -- the skeleton and the stances did not move, so
+`Content/Animation` is byte-unchanged; the rig's guard and the clip's
+still agree. `build_motion.py --bite` 74 of 74. The souq rebuilt with the
+fight scene (44 kinds, 715 instances, 16 materials, 9.5 min); the fight,
+street and gate previews, the men's sheet, the blow's frames; the night
+check passes and its 2 sabotages bite; the IK sheet's 9 panels pass and
+its 7 bite; `anime_look.py --bite` 77 of 77 (27 min). The face, physique,
+grim, fabric, vein, nose, eye and cloth suites ran on the fast builds
+when the rules were written, not again on the whole men. ZAYOS's build
+prints three Blender warnings that the tee's weight transfer has no
+vertices (he wears none) -- the other five logs are silent; taken as the
+bare chest's empty garment, not looked into.
+
+**Not verified:** no engine has imported any of the six men, built the
+materials, lit the world or drawn the HUD; the previews are Cycles
+through the numpy mirror at the preview's stand-in exposure. Open, not
+decided: `--graded-check` fails three of its six rules on the souq
+(fighter/world contrast 1.16 against 1.5 on the whole men, 1.30 on the
+fast ones; the gate's pools 1.37 against 2.0; the gate's fire hue 1.14
+against 1.4; the street passes all three) -- the thresholds are the
+specs' and the picture is the look's; retuning the look or restating the
+thresholds is a look decision recorded here as open. The engine's real
+buffer level under auto-exposure is unknown, as before.
+
 ## The theme, mastered -- 2026-09-30
 
 Asked as "improve theme song quality and improve low and mid and high
