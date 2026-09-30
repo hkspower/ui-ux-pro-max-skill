@@ -49,8 +49,12 @@
  * and a foot band (FootBand above the bottom one, for the prompt strip).
  * The keyboard list stands at the right of the pad when the safe area is
  * wide enough (16:9 and wider, 16:10), else under it in two columns (4:3).
- * LayControls() is the layout as data, so the harness can hold that every
- * label is where the layout says and says what the table binds.
+ * The pad's left side is the family's own: an Xbox pad's left stick is
+ * upper left with a small d-pad under it, a DualSense's d-pad is at the
+ * left middle with both sticks low. LayControls() is the layout as data,
+ * so the harness can hold that every label is where the layout says and
+ * says what the table binds, and that no leader crosses a button or another
+ * leader.
  *
  * Only the HUD's palette (SaudHud::Colour): Ink, Bone, Blood, Ember, Trough,
  * Ash, Gold. Header of free functions and plain structs, like SaudAnime.h,
@@ -609,7 +613,12 @@ namespace SaudControls
 	// ------------------------------------------------------------ the glyph
 	// Shares of a glyph's Size (its disc's diameter, a tab's height).
 	constexpr float GlyphRim = 0.06f;        // a button's rim, at least 1.5 px
-	constexpr float LetterShare = 0.62f;     // a letter's height
+	constexpr float LetterShare = 0.66f;     // a letter's height: 31.7 page px at the prompt strip's Size 48, over 1/36
+	constexpr float TriangleRadius = 0.34f;  // the PlayStation triangle's corners from its centre
+	constexpr float DpadGlyphArm = 0.30f;    // a d-pad glyph's arms, from the centre...
+	constexpr float DpadGlyphHead = 0.19f;   // ...the lit arm's arrowhead, half its base...
+	constexpr float DpadTip = 0.43f;         // ...and its tip
+	constexpr float DpadDimAlpha = 0.45f;    // the three unlit arms: Ash at this
 	constexpr float LetterStroke = 0.10f;    // the ink round it (3 page px at Size 30)
 	constexpr float ShapeStroke = 0.11f;     // a PlayStation shape's line
 	constexpr float TabWide = 2.3f;          // a shoulder tab's width
@@ -679,29 +688,21 @@ namespace SaudControls
 				Rect(Out, C.X - Hs, C.Y - Hs + Line, Line, 2.f * Hs - 2.f * Line, FillColour, EControlsPart::Label);
 				Rect(Out, C.X + Hs - Line, C.Y - Hs + Line, Line, 2.f * Hs - 2.f * Line, FillColour, EControlsPart::Label);
 			}
-			else                                       // triangle: hollow, point up
+			else                                       // triangle: hollow, point up, mitred corners
 			{
-				const float R = 0.34f * S;
-				FPoint V[3];
+				const float Ro = TriangleRadius * S, Ri = Ro - Line * 1.1547f;   // the inner triangle: a line in, mitred
+				FPoint V[3], W[3];
 				for (int i = 0; i < 3; ++i)
 				{
 					const float A = -0.5f * Pi + 2.f * Pi * static_cast<float>(i) / 3.f;
-					V[i] = {C.X + R * FMath::Cos(A), C.Y + R * FMath::Sin(A)};
+					V[i] = {C.X + Ro * FMath::Cos(A), C.Y + Ro * FMath::Sin(A)};
+					W[i] = {C.X + Ri * FMath::Cos(A), C.Y + Ri * FMath::Sin(A)};
 				}
 				for (int i = 0; i < 3; ++i)
 				{
-					const FPoint& P0 = V[i];
-					const FPoint& P1 = V[(i + 1) % 3];
-					// the bar along the edge, moved half a line inward (toward the centre)
-					const FPoint Mid = {0.5f * (P0.X + P1.X), 0.5f * (P0.Y + P1.Y)};
-					float Ix = C.X - Mid.X, Iy = C.Y - Mid.Y;
-					const float Il = FMath::Max(FMath::Sqrt(Ix * Ix + Iy * Iy), 1e-6f);
-					Ix /= Il;
-					Iy /= Il;
-					const FPoint At = {Mid.X + Ix * 0.5f * Line, Mid.Y + Iy * 0.5f * Line};
-					const float Len = FMath::Sqrt((P1.X - P0.X) * (P1.X - P0.X) + (P1.Y - P0.Y) * (P1.Y - P0.Y));
-					Bar(Out, At, Len + Line * 1.6f, Line, FMath::Atan2(P1.Y - P0.Y, P1.X - P0.X), FillColour,
-					    EControlsPart::Label);
+					const int j = (i + 1) % 3;
+					const FPoint Q[4] = {V[i], V[j], W[j], W[i]};
+					Quad4(Out, Q, FillColour, EControlsPart::Label);
 				}
 			}
 			break;
@@ -741,11 +742,18 @@ namespace SaudControls
 		case EButton::DpadRight:
 		{
 			RimmedDisc(Out, C, 0.5f * S, RimPx, Ash, InkColour);
-			const FRgba Dim = SaudHud::LerpColour(InkColour, FillColour, 0.45f);
-			DpadCross(Out, C, 0.38f * S, 0.10f * S,
+			const FRgba Dim = SaudHud::WithAlpha(Ash, DpadDimAlpha);
+			const float Half = DpadGlyphArm * S, Hw = 0.10f * S;
+			DpadCross(Out, C, Half, Hw,
 			          Button == EButton::DpadUp ? FillColour : Dim, Button == EButton::DpadDown ? FillColour : Dim,
 			          Button == EButton::DpadLeft ? FillColour : Dim, Button == EButton::DpadRight ? FillColour : Dim,
 			          EControlsPart::Label);
+			// the arrowhead on the lit arm: its base across the arm's end, its tip toward the rim
+			const float Dx = Button == EButton::DpadLeft ? -1.f : (Button == EButton::DpadRight ? 1.f : 0.f);
+			const float Dy = Button == EButton::DpadUp ? -1.f : (Button == EButton::DpadDown ? 1.f : 0.f);
+			const float Hb = DpadGlyphHead * S, Tip = DpadTip * S;
+			Tri3(Out, {C.X + Dx * Tip, C.Y + Dy * Tip}, {C.X + Dx * Half - Dy * Hb, C.Y + Dy * Half + Dx * Hb},
+			     {C.X + Dx * Half + Dy * Hb, C.Y + Dy * Half - Dx * Hb}, FillColour, EControlsPart::Label);
 			break;
 		}
 		case EButton::LeftStick:
@@ -767,9 +775,15 @@ namespace SaudControls
 	constexpr float GripX = 108.f, GripY = 105.f, GripA = 58.f, GripB = 108.f, GripTilt = 18.f;   // degrees
 	constexpr float PadRim = 3.f;
 	constexpr float BodyAlpha = 0.40f;       // the body's Ash wash over the dark
-	constexpr float DpadX = -115.f, DpadHalf = 50.f, DpadArm = 11.f;
+	/** The two pads differ on the left: a DualSense has its d-pad at the
+	    left middle and both sticks low; an Xbox pad has its left stick
+	    there and a smaller d-pad under it. The right stick is low on both. */
+	constexpr float PSDpadX = -115.f, PSDpadY = 0.f, PSDpadHalf = 50.f, PSDpadArm = 11.f;
+	constexpr float PSStickX = -50.f, PSStickY = 60.f;
+	constexpr float XboxStickX = -115.f, XboxStickY = 0.f;
+	constexpr float XboxDpadX = -52.f, XboxDpadY = 60.f, XboxDpadHalf = 36.f, XboxDpadArm = 9.f;
 	constexpr float FaceX = 115.f, FaceSpread = 48.f, FaceSize = 50.f;
-	constexpr float StickX = 50.f, StickY = 60.f, StickSize = 44.f;
+	constexpr float StickX = 50.f, StickY = 60.f, StickSize = 44.f;   // the right stick
 	constexpr float MenuX = 36.f, MenuY = -58.f, MenuSize = 32.f;
 	constexpr float ShoulderX = 120.f, ShoulderY = -123.f, ShoulderSize = 44.f;
 	constexpr float TriggerY = -176.f;       // clear of the shoulder's rim
@@ -777,6 +791,7 @@ namespace SaudControls
 	constexpr float LabelW = 242.f;          // the widest label, "BLOCK / PARRY", at LabelText
 	constexpr float RowTop = -185.f, RowPitch = 40.f;   // the side labels' rows (centres)
 	constexpr float TopRowY = -230.f, TopLabelX = 60.f; // the menu and view labels, over the pad
+	constexpr float UnderLabelX = 150.f;     // the stick clicks' labels, under the grips beside the caption
 	constexpr float LeadInset = 8.f;         // a leader stops this short of its label
 	constexpr float LeaderPx = 2.f;
 	constexpr float CaptionY = 237.f;        // the family's name under the pad
@@ -805,6 +820,8 @@ namespace SaudControls
 		FPoint PadCentre;
 		float LabelH = 0.f, Stroke = 0.f;
 		FSlot Slot[NumButtons];
+		FPoint DpadCentre;          // the cross, screen px
+		float DpadHalf = 0.f, DpadArm = 0.f;
 		FPoint CaptionAt;           // top-centre
 		bool bListBeside = false;
 		FPoint ListName[NumFightActions], ListKey[NumFightActions];   // top-left
@@ -829,30 +846,58 @@ namespace SaudControls
 		Value = 0;
 	}
 
-	inline FControlsLayout LayControls(const FPage& P)
+	/** Where every button sits and where its label goes, for one family (a
+	    Keyboard is laid out as Xbox). Every leader has its own origin on its
+	    button's edge, and none crosses another button or another leader:
+	    the face cluster's four go right, the left-hand buttons left, Menu
+	    and View up, the stick clicks down to under the grips. */
+	inline FControlsLayout LayControls(const FPage& P, EPad Pad)
 	{
-		enum { None, Left, Right, Top };
-		struct FSpec { float X, Y, Size; int Side; int Row; };
-		static const FSpec Spec[NumButtons] = {
-			{FaceX, FaceSpread, FaceSize, Right, 5},               // FaceSouth
-			{FaceX + FaceSpread, 0.f, FaceSize, Right, 3},         // FaceEast
-			{FaceX - FaceSpread, 0.f, FaceSize, Left, 2},          // FaceWest: out between the cluster and the d-pad
-			{FaceX, -FaceSpread, FaceSize, Right, 2},              // FaceNorth
-			{-ShoulderX, ShoulderY, ShoulderSize, Left, 1},        // LB
-			{ShoulderX, ShoulderY, ShoulderSize, Right, 1},        // RB
-			{-ShoulderX, TriggerY, ShoulderSize, Left, 0},         // LT
-			{ShoulderX, TriggerY, ShoulderSize, Right, 0},         // RT
-			{-StickX, StickY, 0.f, Left, 9},                       // L3: the stick, led from its bottom
-			{StickX, StickY, 0.f, Right, 9},                       // R3
-			{MenuX, MenuY, MenuSize, Top, 0},                      // Menu
-			{-MenuX, MenuY, MenuSize, Top, 0},                     // View
-			{DpadX, -0.5f * DpadHalf, 0.f, Left, 4},               // DpadUp: the cross's one label
-			{DpadX, 0.5f * DpadHalf, 0.f, None, 0},                // DpadDown
-			{DpadX - 0.5f * DpadHalf, 0.f, 0.f, None, 0},          // DpadLeft
-			{DpadX + 0.5f * DpadHalf, 0.f, 0.f, None, 0},          // DpadRight
-			{-StickX, StickY, StickSize, Left, 8},                 // LeftStick
-			{StickX, StickY, StickSize, Right, 8},                 // RightStick
+		enum { None, Left, Right, Top, Under };
+		enum { Edge, StickBottom, DpadArmEnd };
+		struct FSpec { float X, Y, Size; int Side; int Row; int From; };
+		static const FSpec PS[NumButtons] = {
+			{FaceX, FaceSpread, FaceSize, Right, 5, Edge},                 // FaceSouth
+			{FaceX + FaceSpread, 0.f, FaceSize, Right, 4, Edge},           // FaceEast
+			{FaceX - FaceSpread, 0.f, FaceSize, Right, 3, Edge},           // FaceWest: out between north and east
+			{FaceX, -FaceSpread, FaceSize, Right, 2, Edge},                // FaceNorth
+			{-ShoulderX, ShoulderY, ShoulderSize, Left, 1, Edge},          // LB
+			{ShoulderX, ShoulderY, ShoulderSize, Right, 1, Edge},          // RB
+			{-ShoulderX, TriggerY, ShoulderSize, Left, 0, Edge},           // LT
+			{ShoulderX, TriggerY, ShoulderSize, Right, 0, Edge},           // RT
+			{PSStickX, PSStickY, 0.f, Under, 0, StickBottom},              // L3: the stick, led from its bottom
+			{StickX, StickY, 0.f, Under, 0, StickBottom},                  // R3
+			{MenuX, MenuY, MenuSize, Top, 0, Edge},                        // Menu
+			{-MenuX, MenuY, MenuSize, Top, 0, Edge},                       // View
+			{PSDpadX, PSDpadY - 0.5f * PSDpadHalf, 0.f, Left, 4, DpadArmEnd},   // DpadUp: the cross's one label
+			{PSDpadX, PSDpadY + 0.5f * PSDpadHalf, 0.f, None, 0, Edge},    // DpadDown
+			{PSDpadX - 0.5f * PSDpadHalf, PSDpadY, 0.f, None, 0, Edge},    // DpadLeft
+			{PSDpadX + 0.5f * PSDpadHalf, PSDpadY, 0.f, None, 0, Edge},    // DpadRight
+			{PSStickX, PSStickY, StickSize, Left, 7, Edge},                // LeftStick
+			{StickX, StickY, StickSize, Right, 8, Edge},                   // RightStick
 		};
+		static const FSpec Xbox[NumButtons] = {
+			{FaceX, FaceSpread, FaceSize, Right, 5, Edge},
+			{FaceX + FaceSpread, 0.f, FaceSize, Right, 4, Edge},
+			{FaceX - FaceSpread, 0.f, FaceSize, Right, 3, Edge},
+			{FaceX, -FaceSpread, FaceSize, Right, 2, Edge},
+			{-ShoulderX, ShoulderY, ShoulderSize, Left, 1, Edge},
+			{ShoulderX, ShoulderY, ShoulderSize, Right, 1, Edge},
+			{-ShoulderX, TriggerY, ShoulderSize, Left, 0, Edge},
+			{ShoulderX, TriggerY, ShoulderSize, Right, 0, Edge},
+			{XboxStickX, XboxStickY, 0.f, Left, 5, StickBottom},           // L3: out left under the stick
+			{StickX, StickY, 0.f, Under, 0, StickBottom},                  // R3
+			{MenuX, MenuY, MenuSize, Top, 0, Edge},
+			{-MenuX, MenuY, MenuSize, Top, 0, Edge},
+			{XboxDpadX, XboxDpadY - 0.5f * XboxDpadHalf, 0.f, Under, 0, DpadArmEnd},   // DpadUp: the cross's label, under the grip
+			{XboxDpadX, XboxDpadY + 0.5f * XboxDpadHalf, 0.f, None, 0, Edge},
+			{XboxDpadX - 0.5f * XboxDpadHalf, XboxDpadY, 0.f, None, 0, Edge},
+			{XboxDpadX + 0.5f * XboxDpadHalf, XboxDpadY, 0.f, None, 0, Edge},
+			{XboxStickX, XboxStickY, StickSize, Left, 3, Edge},            // LeftStick: upper left
+			{StickX, StickY, StickSize, Right, 8, Edge},
+		};
+		const bool bPS = Pad == EPad::PlayStation;
+		const FSpec* Spec = bPS ? PS : Xbox;
 
 		FControlsLayout L;
 		L.LabelH = P.Px(LabelText);
@@ -868,6 +913,9 @@ namespace SaudControls
 		const float CX = L.bListBeside ? SafeCX - P.Px(0.5f * BlockWide - PadBlockHalf) : SafeCX;
 		const float CY = BandTop + P.Px(0.5f * (BandH - (DiagramBottom - DiagramTop)) - DiagramTop);
 		L.PadCentre = {CX, CY};
+		L.DpadCentre = {CX + P.Px(bPS ? PSDpadX : XboxDpadX), CY + P.Px(bPS ? PSDpadY : XboxDpadY)};
+		L.DpadHalf = P.Px(bPS ? PSDpadHalf : XboxDpadHalf);
+		L.DpadArm = P.Px(bPS ? PSDpadArm : XboxDpadArm);
 
 		for (int b = 0; b < NumButtons; ++b)
 		{
@@ -882,30 +930,39 @@ namespace SaudControls
 			Sl.bLabel = true;
 			DiagramLabel(static_cast<EButton>(b), Sl.LabelSlot, Sl.LabelValue);
 			const float W = TextWidth(ControlsText(Sl.LabelSlot, Sl.LabelValue), L.LabelH);
+			const float Sign = S.X > 0.f ? 1.f : -1.f;
 			if (S.Side == Top)
 			{
-				const float LX = CX + P.Px(S.X > 0.f ? TopLabelX : -TopLabelX);
+				const float LX = CX + Sign * P.Px(TopLabelX);
 				Sl.bLabelCentre = true;
 				Sl.LabelAt = {LX, CY + P.Px(TopRowY) - 0.5f * L.LabelH};
 				Sl.LeadTo = {LX, CY + P.Px(TopRowY + 0.5f * LabelText + LeadInset)};
 			}
+			else if (S.Side == Under)
+			{
+				const float LX = CX + Sign * P.Px(UnderLabelX);
+				Sl.bLabelCentre = true;
+				Sl.LabelAt = {LX, CY + P.Px(CaptionY) - 0.5f * L.LabelH};
+				Sl.LeadTo = {LX, CY + P.Px(CaptionY - 0.5f * LabelText - LeadInset)};
+			}
 			else
 			{
 				const float RowY = CY + P.Px(RowTop + RowPitch * static_cast<float>(S.Row));
-				const float Sign = S.Side == Right ? 1.f : -1.f;
+				const float Dir = S.Side == Right ? 1.f : -1.f;
 				Sl.LabelAt = {S.Side == Right ? CX + P.Px(LabelGap) : CX - P.Px(LabelGap) - W, RowY - 0.5f * L.LabelH};
-				Sl.LeadTo = {CX + Sign * P.Px(LabelGap - LeadInset), RowY};
+				Sl.LeadTo = {CX + Dir * P.Px(LabelGap - LeadInset), RowY};
 			}
-			// the leader leaves the glyph's edge toward its label; the click's
-			// leaves the stick's bottom, the d-pad's its left arm
-			const EButton Bt = static_cast<EButton>(b);
-			if (Bt == EButton::L3 || Bt == EButton::R3)
+			// the leader leaves the glyph's edge toward its label; a click's
+			// leaves the stick's bottom; the d-pad's the end of the arm that
+			// faces its label
+			if (S.From == StickBottom)
 			{
 				Sl.LeadFrom = {Sl.Centre.X, Sl.Centre.Y + 0.5f * P.Px(StickSize)};
 			}
-			else if (Bt == EButton::DpadUp)
+			else if (S.From == DpadArmEnd)
 			{
-				Sl.LeadFrom = {CX + P.Px(DpadX - DpadHalf), CY};
+				Sl.LeadFrom = S.Side == Under ? FPoint{L.DpadCentre.X, L.DpadCentre.Y + L.DpadHalf}
+				                              : FPoint{L.DpadCentre.X - L.DpadHalf, L.DpadCentre.Y};
 			}
 			else
 			{
@@ -948,7 +1005,7 @@ namespace SaudControls
 		using namespace Detail;
 		using namespace SaudHud::Colour;
 		const EPad Family = Shown == EPad::Keyboard ? EPad::Xbox : Shown;
-		const FControlsLayout L = LayControls(P);
+		const FControlsLayout L = LayControls(P, Family);
 		const FPoint C = L.PadCentre;
 		const float Rim = FMath::Max(1.f, P.Px(PadRim));
 		const FRgba Body = SaudHud::WithAlpha(Ash, BodyAlpha);
@@ -961,9 +1018,8 @@ namespace SaudControls
 		RimmedEllipse(Out, {C.X + P.Px(GripX), C.Y + P.Px(GripY)}, P.Px(GripA), P.Px(GripB), -Tilt, BodyBottom, Rim, Ash,
 		              Body, EControlsPart::Body);
 		RimmedBox(Out, C, P.Px(BodyW), P.Px(BodyH), P.Px(BodyCorner), true, Rim, Ash, Body, EControlsPart::Body);
-		const FPoint Dp = {C.X + P.Px(DpadX), C.Y};
-		DpadCross(Out, Dp, P.Px(DpadHalf) + Rim, P.Px(DpadArm) + Rim, Ash, Ash, Ash, Ash, EControlsPart::Rim);
-		DpadCross(Out, Dp, P.Px(DpadHalf), P.Px(DpadArm), Ink, Ink, Ink, Ink, EControlsPart::Body);
+		DpadCross(Out, L.DpadCentre, L.DpadHalf + Rim, L.DpadArm + Rim, Ash, Ash, Ash, Ash, EControlsPart::Rim);
+		DpadCross(Out, L.DpadCentre, L.DpadHalf, L.DpadArm, Ink, Ink, Ink, Ink, EControlsPart::Body);
 
 		// the leaders, under the glyphs so each leaves a button's edge
 		for (int b = 0; b < NumButtons; ++b)

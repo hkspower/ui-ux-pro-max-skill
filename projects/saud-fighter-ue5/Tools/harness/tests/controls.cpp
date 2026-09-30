@@ -412,6 +412,70 @@ static void Glyphs()
         }
     }
     std::printf("  at most %d triangles a glyph\n", MaxTris);
+
+    // the PlayStation triangle is a hollow triangle: every point of its
+    // bars inside its corners' circle (0.36 of the size), its corners reached
+    bool Mitred = true;
+    {
+        List.Reset();
+        Glyph(EButton::FaceNorth, EPad::PlayStation, C.X, C.Y, Size, SaudHud::Colour::Ink, SaudHud::Colour::Bone, List);
+        float Far = 0.f;
+        for (int t = 0; t < List.NumTris; ++t)
+        {
+            if (List.Tris[t].Part != EControlsPart::Label) continue;
+            for (int v = 0; v < 3; ++v)
+            {
+                const float D = Dist(List.Tris[t].P[v], C);
+                if (D > 0.36f * Size) Mitred = false;
+                Far = std::fmax(Far, D);
+            }
+        }
+        if (Far < 0.30f * Size) Mitred = false;
+    }
+    Check(Mitred, "the triangle's bars stop at its corners: a hollow triangle, not a serifed A");
+
+    // a d-pad glyph's lit arm reaches out to an arrowhead (0.40 of the size
+    // and more), the other three stay short (0.34 and less), and only the lit
+    // arm is in the fill
+    bool Arrowed = true;
+    for (int b = static_cast<int>(EButton::DpadUp); b <= static_cast<int>(EButton::DpadRight); ++b)
+    {
+        const EButton B = static_cast<EButton>(b);
+        const float Dx = B == EButton::DpadLeft ? -1.f : (B == EButton::DpadRight ? 1.f : 0.f);
+        const float Dy = B == EButton::DpadUp ? -1.f : (B == EButton::DpadDown ? 1.f : 0.f);
+        List.Reset();
+        Glyph(B, EPad::Xbox, C.X, C.Y, Size, SaudHud::Colour::Ink, SaudHud::Colour::Bone, List);
+        float Lit = 0.f, Unlit = 0.f;
+        for (int t = 0; t < List.NumTris; ++t)
+        {
+            if (List.Tris[t].Part != EControlsPart::Label) continue;
+            const bool bFill = SameRgb(List.Tris[t].C[0], SaudHud::Colour::Bone);
+            for (int v = 0; v < 3; ++v)
+            {
+                const float Rx = List.Tris[t].P[v].X - C.X, Ry = List.Tris[t].P[v].Y - C.Y;
+                const float Along = Rx * Dx + Ry * Dy;                 // out along the lit arm
+                const float Other = std::fmax(std::fabs(Rx * Dy), std::fabs(Ry * Dx));   // the cross arms
+                Lit = std::fmax(Lit, Along);
+                Unlit = std::fmax(Unlit, std::fmax(Other, -Along));
+                if (bFill && Along < -0.11f * Size) Arrowed = false;   // the fill only on the lit side
+            }
+            if (!bFill && !SameRgb(List.Tris[t].C[0], SaudHud::Colour::Ash)) Arrowed = false;
+        }
+        if (Lit < 0.40f * Size || Unlit > 0.34f * Size) Arrowed = false;
+    }
+    Check(Arrowed, "a d-pad glyph's lit arm reaches out with an arrowhead, in the fill; the other three are short and ash");
+
+    // at the prompt strip's size, 48 page px, every glyph's word is 30 px or
+    // over: 1/36 of the screen, the floor every word the player reads keeps
+    bool StripLegible = true;
+    for (int p = 0; p < 2; ++p)
+        for (int b = 0; b < NumButtons; ++b)
+        {
+            List.Reset();
+            Glyph(static_cast<EButton>(b), static_cast<EPad>(p), C.X, C.Y, 48.f, SaudHud::Colour::Ink, SaudHud::Colour::Bone, List);
+            for (int t = 0; t < List.NumTexts; ++t) if (List.Texts[t].Height < 30.f - 0.01f) StripLegible = false;
+        }
+    Check(StripLegible, "at the prompt strip's Size 48 every glyph word is 30 px, 1/36 of the screen");
     Check(NoNaN, "every glyph is numbers");
     Check(Wound, "no glyph is degenerate: every triangle has area, wound the same way");
     Check(Fits, "every glyph stays in its own box");
@@ -446,20 +510,71 @@ static void Page()
     std::printf("PAGE  (what BuildControlsPage draws)\n");
     bool NoNaN = true, AllIn = true, TextIn = true, Apart = true, Wound = true, Banded = true, Legible = true;
     bool Stroked = true, Palette = true, Labelled = true, Led = true, Listed = true, Captioned = true, Worded = true;
-    bool Shown = true, Fits = true;
+    bool Shown = true, Fits = true, Family2 = true, Clear = true, Origins = true;
     int Worst = 0, WorstTexts = 0, Tris1080[2] = {0, 0}, Texts1080[2] = {0, 0};
-    bool Beside169 = false, Under43 = true;
+    bool Beside169 = false, Under43 = true, ListSame = true;
     int NP = 0;
     const FBinding* Pad = PadBindings(NP);
     for (const auto& Sh : Shapes)
     {
         const FPage P = FPage::For(Sh[0], Sh[1]);
-        const FControlsLayout L = LayControls(P);
-        if (Sh[0] == 1920.f) Beside169 = L.bListBeside;
-        if (Sh[0] == 1600.f) Under43 = !L.bListBeside;
         for (int p = 0; p < 2; ++p)
         {
             const EPad Family = static_cast<EPad>(p);
+            const FControlsLayout L = LayControls(P, Family);
+            if (Sh[0] == 1920.f) Beside169 = L.bListBeside;
+            if (Sh[0] == 1600.f) Under43 = !L.bListBeside;
+            if (L.bListBeside != LayControls(P, EPad::Xbox).bListBeside) ListSame = false;
+            // the family's own left side: an Xbox pad's left stick is above
+            // its d-pad, a DualSense's d-pad above its left stick
+            const float StickY = L.Slot[static_cast<int>(EButton::LeftStick)].Centre.Y;
+            if (Family == EPad::Xbox ? !(StickY < L.DpadCentre.Y - P.Px(30.f)) : !(L.DpadCentre.Y < StickY - P.Px(30.f))) Family2 = false;
+            // every leader: its own origin, on its button's edge; through no
+            // other button; across no other leader
+            for (int b = 0; b < NumButtons; ++b)
+            {
+                const FSlot& S = L.Slot[b];
+                if (!S.bLabel) continue;
+                const EButton Bt = static_cast<EButton>(b);
+                // the glyph it leaves: itself, or the stick for a click, or the cross
+                const bool bClick = Bt == EButton::L3 || Bt == EButton::R3;
+                const bool bCross = Bt == EButton::DpadUp;
+                const int Own = bClick ? b + 8 : b;
+                if (bCross)
+                {
+                    if (Dist(S.LeadFrom, L.DpadCentre) < 0.9f * L.DpadHalf) Origins = false;
+                }
+                else if (Dist(S.LeadFrom, L.Slot[Own].Centre) < 0.45f * L.Slot[Own].Size) Origins = false;
+                for (int c = 0; c < NumButtons; ++c)
+                {
+                    if (c == b || !L.Slot[c].bLabel) continue;
+                    if (Dist(S.LeadFrom, L.Slot[c].LeadFrom) < P.Px(12.f)) Origins = false;
+                    // two leaders never cross (segment against segment)
+                    const FPoint& A0 = S.LeadFrom; const FPoint& A1 = S.LeadTo;
+                    const FPoint& B0 = L.Slot[c].LeadFrom; const FPoint& B1 = L.Slot[c].LeadTo;
+                    const float D1 = Cross(A0, A1, B0), D2 = Cross(A0, A1, B1), D3 = Cross(B0, B1, A0), D4 = Cross(B0, B1, A1);
+                    if (((D1 > 0.f) != (D2 > 0.f)) && ((D3 > 0.f) != (D4 > 0.f))) Clear = false;
+                }
+                for (int k = 0; k <= 64; ++k)
+                {
+                    const float T = static_cast<float>(k) / 64.f;
+                    const FPoint Q = {S.LeadFrom.X + (S.LeadTo.X - S.LeadFrom.X) * T, S.LeadFrom.Y + (S.LeadTo.Y - S.LeadFrom.Y) * T};
+                    for (int c = 0; c < NumButtons; ++c)
+                    {
+                        const FSlot& O = L.Slot[c];
+                        if (c == Own || O.Size <= 0.f) continue;
+                        const bool bTab = c >= static_cast<int>(EButton::LB) && c <= static_cast<int>(EButton::RT);
+                        if (bTab ? (std::fabs(Q.X - O.Centre.X) < 1.2f * O.Size && std::fabs(Q.Y - O.Centre.Y) < 0.5f * O.Size + 1.f)
+                                 : Dist(Q, O.Centre) < 0.5f * O.Size + 1.f) Clear = false;
+                    }
+                    if (!bCross)
+                    {
+                        const float Ax = std::fabs(Q.X - L.DpadCentre.X), Ay = std::fabs(Q.Y - L.DpadCentre.Y);
+                        const float H = L.DpadHalf + 1.f, W = L.DpadArm + 1.f;
+                        if ((Ax < W && Ay < H) || (Ax < H && Ay < W)) Clear = false;
+                    }
+                }
+            }
             List.Reset();
             BuildControlsPage(P, Family, List);
             if (List.bOverflow) Fits = false;
@@ -559,7 +674,8 @@ static void Page()
                 if (N && K && K->At.X < N->At.X + 0.62f * N->Height * static_cast<float>(std::strlen(ActionName(static_cast<EAction>(a))))) Listed = false;
             }
         }
-        std::printf("  %4.0f x %4.0f: the keyboard's list %s the pad\n", Sh[0], Sh[1], L.bListBeside ? "beside" : "under");
+        std::printf("  %4.0f x %4.0f: the keyboard's list %s the pad\n", Sh[0], Sh[1],
+                    LayControls(P, EPad::Xbox).bListBeside ? "beside" : "under");
     }
     std::printf("  at 1080p: xbox %d triangles, %d texts; playstation %d triangles, %d texts\n",
                 Tris1080[0], Texts1080[0], Tris1080[1], Texts1080[1]);
@@ -579,7 +695,10 @@ static void Page()
     Check(Worded, "the glyphs carry their words: the letters on Xbox, the shoulders and triggers on both");
     Check(Captioned, "the family's name is under the pad");
     Check(Listed, "the keyboard's list has every fight action with its key beside it");
-    Check(Beside169 && Under43, "the list stands beside the pad on 16:9 and under it on 4:3");
+    Check(Beside169 && Under43 && ListSame, "the list stands beside the pad on 16:9 and under it on 4:3, for both families alike");
+    Check(Family2, "on Xbox the left stick is above the d-pad; on PlayStation the d-pad is above the left stick");
+    Check(Clear, "no leader crosses another button or another leader");
+    Check(Origins, "every leader has its own origin, on its button's edge");
     Check(Fits && Worst <= 1200 && WorstTexts <= 48, "the worst case fits a list of 1200 triangles and 48 texts");
 }
 

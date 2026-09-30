@@ -81,9 +81,16 @@ controls|Source/SaudFighter/Combat/SaudControls.h|s#RowPitch = 40.f;#RowPitch = 
 controls|Source/SaudFighter/Combat/SaudControls.h|s#constexpr float LabelText = 30.f;#constexpr float LabelText = 24.f;#|no word the player reads is under 1/36 of the screen
 controls|Source/SaudFighter/Combat/SaudControls.h|s#L.Stroke = P.Px(SaudHud::TextStroke);#L.Stroke = 1.f;#|every word has an ink stroke of 2 screen px at 720 lines
 controls|Source/SaudFighter/Combat/SaudControls.h|s#const FRgba Body = SaudHud::WithAlpha(Ash, BodyAlpha);#const FRgba Body = {0.3f, 0.3f, 0.3f, BodyAlpha};#|the diagram is drawn in the HUD's palette
-controls|Source/SaudFighter/Combat/SaudControls.h|s#{FaceX, -FaceSpread, FaceSize, Right, 2}#{FaceX, -FaceSpread, FaceSize, None, 2}#|every button the fight binds is in the diagram, with a label
+controls|Source/SaudFighter/Combat/SaudControls.h|s#{FaceX, -FaceSpread, FaceSize, Right, 2, Edge}#{FaceX, -FaceSpread, FaceSize, None, 2, Edge}#|every button the fight binds is in the diagram, with a label
 controls|Source/SaudFighter/Combat/SaudControls.h|s#DiagramLabel(static_cast<EButton>(b), Sl.LabelSlot, Sl.LabelValue);#Sl.LabelSlot = EControlsText::ActionName; Sl.LabelValue = 3;#|every bound button's label is the action the table binds
 controls|Source/SaudFighter/Combat/SaudControls.h|s#Ash, EControlsPart::Line);#Ash, EControlsPart::Body);#|a leader runs from every labelled button's edge to its label
 controls|Source/SaudFighter/Combat/SaudControls.h|s#Out.Text(EControlsText::PadName, static_cast<int>(Family)#Out.Text(EControlsText::PadName, static_cast<int>(EPad::Xbox)#|the family's name is under the pad
 controls|Source/SaudFighter/Combat/SaudControls.h|s#Out.Text(EControlsText::KeyName, a, L.ListKey\[a\]#Out.Text(EControlsText::KeyName, 0, L.ListKey[a]#|the keyboard's list has every fight action with its key beside it
 controls|Source/SaudFighter/Combat/SaudControls.h|s#L.bListBeside = SafeW >= BlockWide;#L.bListBeside = SafeW < 0.f;#|the list stands beside the pad on 16:9 and under it on 4:3
+# ---- the PREVIEW track's findings (2026-09-30, later): the triangle, the families, the leaders, the d-pad prompt, the strip's letters
+controls|Source/SaudFighter/Combat/SaudControls.h|s#Ro - Line \* 1.1547f#Ro + Line * 0.5f#|the triangle's bars stop at its corners
+controls|Source/SaudFighter/Combat/SaudControls.h|s#XboxDpadY = 60.f#XboxDpadY = -60.f#|on Xbox the left stick is above the d-pad
+controls|Source/SaudFighter/Combat/SaudControls.h|s#{FaceX - FaceSpread, 0.f, FaceSize, Right, 3, Edge}#{FaceX - FaceSpread, 0.f, FaceSize, Left, 3, Edge}#|no leader crosses another button or another leader
+controls|Source/SaudFighter/Combat/SaudControls.h|s#Sl.LeadFrom = {Sl.Centre.X + Dx \* 0.5f \* Sl.Size, Sl.Centre.Y + Dy \* 0.5f \* Sl.Size};#Sl.LeadFrom = {Sl.Centre.X, Sl.Centre.Y + 0.5f * Sl.Size};#|every leader has its own origin
+controls|Source/SaudFighter/Combat/SaudControls.h|s#constexpr float DpadTip = 0.43f;#constexpr float DpadTip = 0.30f;#|lit arm reaches out with an arrowhead
+controls|Source/SaudFighter/Combat/SaudControls.h|s#constexpr float LetterShare = 0.66f;#constexpr float LetterShare = 0.60f;#|at the prompt strip's Size 48 every glyph word is 30 px
