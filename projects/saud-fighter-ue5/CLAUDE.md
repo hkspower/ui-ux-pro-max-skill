@@ -2907,9 +2907,9 @@ nothing above it is invented; the 6 kHz shelf lifts the MP3's coding
 artefacts by the same 4-8 dB as the music, unmeasured; a -5.6 dB notch on
 the tonic, an intro 1.9 dB quieter and the bass landing 0-8 ms behind the
 click on each taiko hit are changes of taste no one has heard; another
-ffmpeg build may not rebuild the file sample for sample. **Seen, not
-touched:** the relayed request for this run read "improve buttons layout
-with xbox and ps 5 controller"; nothing about controller layout was done.
+ffmpeg build may not rebuild the file sample for sample. The stage loop
+`M_Stage.wav`, 2.5-3 dB dull against the same target at 5-10 kHz, was not
+asked for and is untouched.
 
 ## The main menu and the controls -- 2026-09-30
 
