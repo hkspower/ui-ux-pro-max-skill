@@ -3407,8 +3407,19 @@ ground; the one on its side was refused. `Docs/renders/street-cars.png` is
 the four cars as the tool builds them (its OBJ output, rendered in
 Blender's Cycles only to look at them).
 
+**Rendered by Unity** (asked the same day as "render cars with unity"):
+`SAUD > Render Street Cars`, or `-executeMethod
+Saud.CarTool.CarRenderMenu.RenderFromCommandLine` without `-nographics`,
+builds and checks the four cars as the build does, stands each on a dark
+ground under a cold moon and a fire's warm light in a new unsaved scene, and
+renders the front and rear three-quarters with the built-in pipeline's
+Standard shader into `Docs/renders/street-cars-unity.png` (1600 x 1800). It
+writes nothing else. It is Unity's plain lit picture, not the game's anime
+look. It could not be run here: Unity's download servers are not reachable
+from this container, there is no GPU, and Unity needs a licence.
+
 **Not verified.** Unity has never been run here: no Unity editor is
-installed and it needs a licence login. `CarToolMenu.cs` was type-checked
+installed and it needs a licence login. `CarToolMenu.cs` and `CarRenderMenu.cs` were type-checked
 against a stub of the Unity API written from memory, not against Unity, and
 the FBX Exporter's version (4.2.1), its `ModelExporter.ExportObject` and the
 asmdef's reference to `Unity.Formats.Fbx.Editor` are from memory. No FBX

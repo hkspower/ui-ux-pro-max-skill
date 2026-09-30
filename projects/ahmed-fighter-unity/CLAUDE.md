@@ -24,10 +24,11 @@
 > parked street cars are built here, asked as "use unity for build cars
 > instead blender": `SAUD > Build Street Cars` reads
 > `../saud-fighter-ue5/Content/Models/Cars/cars.json` and writes each car's
-> FBX and paint into that project. It is an editor tool for the Unreal
+> FBX and paint into that project, and `SAUD > Render Street Cars` renders
+> them into its `Docs/renders/street-cars-unity.png`. It is an editor tool for the Unreal
 > game; the port around it stays frozen. `Editor/Core` is engine-free and
 > runs under Mono with its checks and sabotages (`Tools/cars/run.sh
-> [--bite]`); `Editor/CarToolMenu.cs` has never been compiled in Unity. It
+> [--bite]`); `Editor/CarToolMenu.cs` and `CarRenderMenu.cs` have never been compiled in Unity. It
 > needs the FBX Exporter package, added to `Packages/manifest.json`. The
 > story, the numbers and the rules are the Unreal build's:
 > `../saud-fighter-ue5/CLAUDE.md`, "The street cars, built in Unity".

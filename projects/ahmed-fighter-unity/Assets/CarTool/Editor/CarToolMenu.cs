@@ -13,6 +13,7 @@
 //                               with a mesh, materials and a prefab of each under
 //                               Assets/CarTool/Built/ to look at here.
 //   SAUD > Check Street Cars   builds and checks, writes nothing.
+//   SAUD > Render Street Cars  builds, checks and renders them in Unity (CarRenderMenu.cs).
 //
 // Batch, no window:
 //   Unity -batchmode -quit -projectPath <ahmed-fighter-unity> -executeMethod Saud.CarTool.CarToolMenu.BuildFromCommandLine
@@ -35,8 +36,8 @@ namespace Saud.CarTool
     {
         const string BUILT = "Assets/CarTool/Built";
 
-        static string UnrealRoot => Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "saud-fighter-ue5"));
-        static string SpecPath => Path.Combine(UnrealRoot, "Content", "Models", "Cars", "cars.json");
+        internal static string UnrealRoot => Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "saud-fighter-ue5"));
+        internal static string SpecPath => Path.Combine(UnrealRoot, "Content", "Models", "Cars", "cars.json");
 
         [MenuItem("SAUD/Build Street Cars")]
         public static void BuildMenu() { Run(true, true); }
@@ -119,19 +120,12 @@ namespace Saud.CarTool
 
                 // one material per slot, named M_Car_<Name>_<Slot>: Unreal's
                 // import (park_cars.build_in_editor) finds each slot by that name
-                var mats = new Material[car.Mesh.Slots.Count];
-                for (int s = 0; s < mats.Length; s++)
+                var mats = MakeMaterials(car, set, tex);
+                foreach (var m in mats)
                 {
-                    string slot = car.Mesh.Slots[s];
-                    var spec = slot == "Paint" ? car.Spec.Paint : set.Slots[slot];
-                    var m = new Material(Shader.Find("Standard")) { name = "M_Car_" + n + "_" + slot };
-                    m.SetColor("_Color", slot == "Paint" ? Color.white : Gamma(spec.Albedo));
-                    m.SetFloat("_Glossiness", (float)(1.0 - spec.Rough));
-                    if (slot == "Paint") m.SetTexture("_MainTex", tex);
                     string matAsset = BUILT + "/" + m.name + ".mat";
                     AssetDatabase.DeleteAsset(matAsset);
                     AssetDatabase.CreateAsset(m, matAsset);
-                    mats[s] = m;
                 }
 
                 var go = new GameObject("SM_Car_" + n);
@@ -159,12 +153,30 @@ namespace Saud.CarTool
             return true;
         }
 
+        /// <summary>A Standard material per slot, in the slot order of the mesh:
+        /// the paint textured, every other slot its flat weathered colour.</summary>
+        internal static Material[] MakeMaterials(BuiltCar car, CarSet set, Texture2D tex)
+        {
+            var mats = new Material[car.Mesh.Slots.Count];
+            for (int s = 0; s < mats.Length; s++)
+            {
+                string slot = car.Mesh.Slots[s];
+                var spec = slot == "Paint" ? car.Spec.Paint : set.Slots[slot];
+                var m = new Material(Shader.Find("Standard")) { name = "M_Car_" + car.Spec.Name + "_" + slot };
+                m.SetColor("_Color", slot == "Paint" ? Color.white : Gamma(spec.Albedo));
+                m.SetFloat("_Glossiness", (float)(1.0 - spec.Rough));
+                if (slot == "Paint") m.SetTexture("_MainTex", tex);
+                mats[s] = m;
+            }
+            return mats;
+        }
+
         /// <summary>The core's right-handed, z-up metres to Unity's left-handed,
         /// y-up metres: (x forward, y left, z up) -> (-y, z, x), the same car
         /// in the same place. Seen from outside, a face the core winds
         /// counter-clockwise still looks counter-clockwise on the screen, and
         /// Unity draws clockwise faces: every triangle is reversed.</summary>
-        static Mesh ToMesh(BuiltCar car)
+        internal static Mesh ToMesh(BuiltCar car)
         {
             var d = car.Mesh;
             var mesh = new Mesh { name = "SM_Car_" + car.Spec.Name };
