@@ -1595,11 +1595,28 @@ def _worn(h, chroma=None):
     return tuple(v * s for v in g) + (1.0,)
 
 
+def ink_hold(floor=None):
+    """Where a grime tone is held: the floor, one 8-bit sRGB step up. The
+    bake writes 8-bit sRGB and its darkest half-percent of texels dither one
+    code under the flat colour, so a tone held AT the floor (0.060, code
+    69.3) baked to 0.057 and passed check_bake only by its tolerance
+    (0.0004 to spare on the puddle at --fast). Held at the first code whose
+    lower neighbour is still at or over the floor (code 71, 0.0630 linear),
+    the darkest texel lands on the floor with no tolerance spent."""
+    floor = ink_floor() if floor is None else floor
+    def lin(s): return s / 12.92 if s <= 0.04045 else ((s + 0.055) / 1.055) ** 2.4
+    c = 1
+    while lin((c - 1) / 255.0) < floor:
+        c += 1
+    return lin(c / 255.0)
+
+
 def _toward(c, k):
     """A darker tone of the weathered colour c: k of its luminance, same
-    hue, never under the floor. Soot, damp, mortar and a puddle are this."""
+    hue, never under the floor (held one 8-bit step over it, ink_hold).
+    Soot, damp, mortar and a puddle are this."""
     y = _luma(c)
-    s = max(WEATHER["lo"], k * y) / max(y, 1e-9)
+    s = max(ink_hold(), k * y) / max(y, 1e-9)
     return tuple(v * s for v in c[:3]) + (1.0,)
 
 

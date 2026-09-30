@@ -895,7 +895,13 @@ def check(P):
     for theme, pair in _browser_grounds().items():
         assert tuple(h.lower() for h in THEME_GROUND[theme]) == pair, \
             "THEME_GROUND %s is %s, not the browser's %s (index.html THEME.%s.ground)" % (theme, THEME_GROUND[theme], pair, theme.lower())
-    # 32. the fog is the look's air; the moon cold and hard
+    # 32. the fog is the look's air; the moon cold and hard. WORLD_RIG takes
+    # its fog from LOOK["HAZE"] and its start from LOOK["HAZE_NEAR_CM"] by
+    # construction, so what this guards is the day someone types a colour or
+    # a distance into WORLD_RIG instead (as the warm-fog and fog-from-afar
+    # sabotages do): the world and the grade would then be two airs. It is
+    # the ONE fog-hue check (MERGE 2026-09-28): anime_look reads WORLD_RIG
+    # for its own rig checks (angle, sky) and has no fog-hue check of its own.
     r = WORLD_RIG; haze = LOOK["HAZE"]
     nf, nh = [c / sum(r["fog"]) for c in r["fog"]], [c / sum(haze) for c in haze]
     off = max(abs(a - b) / b for a, b in zip(nf, nh))
