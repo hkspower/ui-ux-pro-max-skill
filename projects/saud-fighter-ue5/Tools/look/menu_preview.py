@@ -17,9 +17,10 @@ holds no copy of them.
 STAND-INS, not the engine's:
   - the Title, the Settings and the Controls screen are drawn over a plain
     plate of the palette's Trough black. In the game the Title stands over
-    the level itself (the camera as it is), and a page opened from the
-    Title stands over the same; the level cannot be rendered here, so a
-    dark plate stands in for it. Whatever the level looks like, the wash,
+    the level itself -- since 2026-10-01 Saud live in his guard, framed by
+    ASaudTitleCamera, drawn over the souq by Tools/blender/title_preview.py
+    (menu-title-3d*.png) -- and a page opened from the Title stands over
+    the same; here a dark plate stands in for it. Whatever the level looks like, the wash,
     the plates and the scrim are what the eye is being asked about;
   - the Pause is drawn over Docs/renders/souq-fight-anime.png, the same
     render hud_preview.py uses, since a pause stands over a stopped fight

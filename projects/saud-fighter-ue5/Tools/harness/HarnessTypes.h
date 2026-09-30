@@ -50,6 +50,8 @@ namespace FMath
     inline float Cos(float V) { return std::cos(V); }
     inline float Sin(float V) { return std::sin(V); }
     inline float Atan2(float A, float B) { return std::atan2(A, B); }
+    inline float Tan(float V) { return std::tan(V); }
+    inline float Atan(float V) { return std::atan(V); }
     inline float DegreesToRadians(float D) { return D * 3.14159265358979f / 180.f; }
     inline float RadiansToDegrees(float R) { return R * 180.f / 3.14159265358979f; }
     inline float Min(float A, float B) { return A < B ? A : B; }

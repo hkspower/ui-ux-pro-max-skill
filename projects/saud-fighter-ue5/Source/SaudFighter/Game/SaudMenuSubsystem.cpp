@@ -1,10 +1,16 @@
 #include "Game/SaudMenuSubsystem.h"
+#include "Combat/FighterBase.h"
+#include "Combat/SaudMotionAnimInstance.h"
+#include "Combat/SaudMotionComponent.h"
 #include "Combat/SaudTypes.h"
 #include "Game/SaudAudioSubsystem.h"
 #include "Game/SaudFeelSubsystem.h"
 #include "Game/SaudGameInstance.h"
 #include "Game/SaudInputBindings.h"
+#include "Game/SaudTitleCamera.h"
 
+#include "Camera/PlayerCameraManager.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "EnhancedInputComponent.h"
@@ -31,6 +37,10 @@ namespace
 	    menu wants a firmer push so a rested thumb does not scroll). */
 	constexpr float StickDirection = 0.5f;
 	constexpr float TestBuzzSeconds = 0.3f;
+	/** FIGHT / CONTINUE: the title's camera hands over to his own this
+	    smoothly (seconds; the ease's exponent). */
+	constexpr float TitleBlendSeconds = 1.2f;
+	constexpr float TitleBlendExp = 2.f;
 
 	/** The contexts are swapped while the key that caused the swap is
 	    still down: ignore every held key until it is released, so Escape
@@ -66,6 +76,7 @@ void USaudMenuSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void USaudMenuSubsystem::Deinitialize()
 {
+	EndTitleShot(false);
 	if (MenuInput)
 	{
 		if (APlayerController* PC = InputOwner.Get())
@@ -133,6 +144,8 @@ void USaudMenuSubsystem::Open(EScreen Screen)
 		{
 			Audio->PlayMusic(TEXT("Music_Menu"));
 		}
+		bWantTitleShot = true;
+		StartTitleShot();
 	}
 }
 
@@ -174,6 +187,88 @@ void USaudMenuSubsystem::BeginFight()
 	}
 }
 
+/* ------------------------------------------------------- the live title */
+
+void USaudMenuSubsystem::StartTitleShot()
+{
+	UWorld* World = GetWorld();
+	APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
+	AFighterBase* Him = PC ? Cast<AFighterBase>(PC->GetPawn()) : nullptr;
+	if (!World || !Him)
+	{
+		return;
+	}
+	if (!TitleCamera.IsValid())
+	{
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Params.ObjectFlags |= RF_Transient;
+		TitleCamera = World->SpawnActor<ASaudTitleCamera>(ASaudTitleCamera::StaticClass(), FTransform::Identity, Params);
+	}
+	ASaudTitleCamera* Cam = TitleCamera.Get();
+	if (!Cam)
+	{
+		return;
+	}
+	Cam->Follow(Him);
+	PC->SetViewTarget(Cam);
+	KeepPosing(Him, true);
+	Posing = Him;
+}
+
+void USaudMenuSubsystem::EndTitleShot(bool bBlend)
+{
+	bWantTitleShot = false;
+	KeepPosing(Posing.Get(), false);
+	Posing = nullptr;
+	ASaudTitleCamera* Cam = TitleCamera.Get();
+	TitleCamera = nullptr;
+	if (!Cam)
+	{
+		return;
+	}
+	APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+	APawn* Pawn = PC ? PC->GetPawn() : nullptr;
+	if (bBlend && PC && Pawn)
+	{
+		// the world is running again by now (Close came first): the blend
+		// runs, and the camera goes once it is done
+		PC->SetViewTargetWithBlend(Pawn, TitleBlendSeconds, VTBlend_EaseInOut, TitleBlendExp);
+		Cam->SetLifeSpan(TitleBlendSeconds + 0.5f);
+	}
+	else
+	{
+		if (PC && Pawn)
+		{
+			PC->SetViewTarget(Pawn);
+		}
+		Cam->Destroy();
+	}
+}
+
+void USaudMenuSubsystem::KeepPosing(AFighterBase* Him, bool bOn)
+{
+	if (!Him)
+	{
+		return;
+	}
+	// Only these two: the mesh (its anim instance plays the clip) and the
+	// motion component (which picks it). The rest of him -- movement,
+	// abilities, the fight's timers -- stays held by the pause.
+	if (USkeletalMeshComponent* Mesh = Him->GetMesh())
+	{
+		Mesh->SetTickableWhenPaused(bOn);
+		if (USaudMotionAnimInstance* Anim = Cast<USaudMotionAnimInstance>(Mesh->GetAnimInstance()))
+		{
+			Anim->SetRealTime(bOn);
+		}
+	}
+	if (USaudMotionComponent* Motion = Him->FindComponentByClass<USaudMotionComponent>())
+	{
+		Motion->SetTickableWhenPaused(bOn);
+	}
+}
+
 /* ------------------------------------------------------------ the tick */
 
 void USaudMenuSubsystem::Tick(float DeltaTime)
@@ -182,6 +277,21 @@ void USaudMenuSubsystem::Tick(float DeltaTime)
 	if (!bOpen)
 	{
 		return;
+	}
+	// The level opens the title from the game mode's BeginPlay, which can
+	// come before his pawn is in it or his mesh has its anim instance: try
+	// again until the shot is up, and hold him posing every frame (cheap,
+	// and it catches an anim instance made after the shot was).
+	if (bWantTitleShot)
+	{
+		if (!TitleCamera.IsValid())
+		{
+			StartTitleShot();
+		}
+		else
+		{
+			KeepPosing(Posing.Get(), true);
+		}
 	}
 	// DeltaTime is the world's, which a pause holds at zero. The pulse and
 	// the wipe run on the frame's real length, as the HUD's clock does.
@@ -273,6 +383,7 @@ void USaudMenuSubsystem::Apply(EMenuEffect Effect)
 	{
 	case EMenuEffect::StartGame:
 		Close();
+		EndTitleShot(true);
 		Cue(TEXT("UI_Tap"));
 		BeginFight();
 		break;

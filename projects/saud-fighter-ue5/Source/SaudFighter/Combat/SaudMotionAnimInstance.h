@@ -76,6 +76,11 @@ public:
 	/** Start a clip. A clip already playing is left alone unless bRestart. */
 	void Play(UAnimSequence* Sequence, bool bLoop, bool bRestart);
 
+	/** On real time rather than the world's: under the title, which holds
+	    the world paused, he still breathes in his guard. A freeze (hit
+	    stop) is the world's time and is never real time. */
+	void SetRealTime(bool bOn) { bRealTime = bOn; }
+
 	UFUNCTION(BlueprintPure, Category = "Motion")
 	UAnimSequence* GetPlaying() const { return Playing; }
 
@@ -105,6 +110,7 @@ private:
 
 	float PlayTime = 0.f;
 	bool bLooping = false;
+	bool bRealTime = false;
 
 	/** The feet's rest height above the mesh's floor, so a foot's height in
 	    the clip is measured from its sole and not its ankle. From the

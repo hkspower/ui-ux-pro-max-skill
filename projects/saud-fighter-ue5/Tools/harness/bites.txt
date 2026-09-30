@@ -94,3 +94,14 @@ controls|Source/SaudFighter/Combat/SaudControls.h|s#{FaceX - FaceSpread, 0.f, Fa
 controls|Source/SaudFighter/Combat/SaudControls.h|s#Sl.LeadFrom = {Sl.Centre.X + Dx \* 0.5f \* Sl.Size, Sl.Centre.Y + Dy \* 0.5f \* Sl.Size};#Sl.LeadFrom = {Sl.Centre.X, Sl.Centre.Y + 0.5f * Sl.Size};#|every leader has its own origin
 controls|Source/SaudFighter/Combat/SaudControls.h|s#constexpr float DpadTip = 0.43f;#constexpr float DpadTip = 0.30f;#|lit arm reaches out with an arrowhead
 controls|Source/SaudFighter/Combat/SaudControls.h|s#constexpr float LetterShare = 0.66f;#constexpr float LetterShare = 0.60f;#|at the prompt strip's Size 48 every glyph word is 30 px
+
+# ---- the title's shot (Combat/SaudTitle.h, tests/title.cpp), 2026-10-01
+title|Source/SaudFighter/Combat/SaudTitle.h|s#constexpr float SweepDeg = 38.f;#constexpr float SweepDeg = 170.f;#|the camera stays in front of him, his face to it
+title|Source/SaudFighter/Combat/SaudTitle.h|s#return 0.5f \* (FreeLeft(P) + Margin + FreeRight(P) - Margin);#return 0.5f + 0.f * (FreeLeft(P) + FreeRight(P));#|the menu never covers him
+title|Source/SaudFighter/Combat/SaudTitle.h|s#F.Dist = FMath::Max(Distance,#F.Dist = FMath::Min(Distance,#|the menu never covers him
+title|Source/SaudFighter/Combat/SaudTitle.h|s#constexpr float Distance = 560.f;#constexpr float Distance = 300.f;#|he fills the frame
+title|Source/SaudFighter/Combat/SaudTitle.h|s#constexpr float EyeZ = 150.f;#constexpr float EyeZ = -20.f;#|the camera stays above the floor and off him
+title|Source/SaudFighter/Combat/SaudTitle.h|s#VFovDeg)) \* Aspect;#VFovDeg)) * (16.f / 9.f + 0.f * Aspect);#|the vertical field of view is held on every screen
+title|Source/SaudFighter/Combat/SaudTitle.h|s#S.Forward = Turn(To, -Off).GetSafeNormal();#S.Forward = Turn(To, -0.f * Off).GetSafeNormal();#|his middle stands where the menu leaves room
+title|Source/SaudFighter/Combat/SaudTitle.h|s#T / PeriodS);#T / PeriodS * 1.013f);#|the sweep loops without a jump
+title|Source/SaudFighter/Combat/SaudTitle.h|s#S.Eye = Feet + Out \* Fr.Dist#S.Eye = Out * Fr.Dist#|the shot is his, wherever he stands and whichever way he faces

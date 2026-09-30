@@ -9,6 +9,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
+#include "Misc/App.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 namespace
@@ -196,11 +197,15 @@ void USaudMotionAnimInstance::Play(UAnimSequence* Sequence, bool bLoop, bool bRe
 	bLooping = bLoop;
 }
 
-void USaudMotionAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
+void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 {
-	Super::NativeUpdateAnimation(DeltaSeconds);
+	Super::NativeUpdateAnimation(InDeltaSeconds);
 
-	// The clip's clock. DeltaSeconds is the world's, so a freeze holds it.
+	// The clip's clock. DeltaSeconds is the world's, so a freeze holds it
+	// -- except under the title (SetRealTime), where the world is paused.
+	const float DeltaSeconds = bRealTime
+		? FMath::Clamp(static_cast<float>(FApp::GetDeltaTime()), 0.f, 0.1f)
+		: InDeltaSeconds;
 	if (Playing)
 	{
 		const float Len = Playing->GetPlayLength();

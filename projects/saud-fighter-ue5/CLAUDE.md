@@ -3427,6 +3427,68 @@ has been written, so `Content/Models/Cars/` holds only `cars.json` until
 the tool is run in Unity; no engine has imported a car, and the placement's
 editor half has only met the mock.
 
+## The title, live -- 2026-10-01
+
+Asked as "make suad main menu game", settled with the author as the Unreal
+build: a live 3D title scene behind the menu that already exists. Until
+then the Title stood over the fight camera as the level opened, frozen,
+with Saud in his bind pose -- the title pauses the world, and the pause
+stopped his clip before it had started.
+
+**The shot is arithmetic** (`Combat/SaudTitle.h`, engine-free). The menu
+owns the left of the screen: its ink wash is `WashW` page units from the
+left safe line, half a 16:9 screen and nearly two thirds of a 4:3 one. So
+Saud's middle stands at the middle of what the wash leaves (`HoldX`: 0.724
+at 16:9); the vertical field of view is held at 32 degrees on every screen,
+so he is the same size on all of them; the camera stands 5.6 m in front of
+him at 1.5 m, aimed through him at 0.98 m, and further off where the room
+is narrow (`FrameFor`: 6.72 m at 4:3); and it sweeps a slow arc, 38 degrees
+either side of straight in front, 28 s there and back, never behind him.
+`Shoot()` is all of it: feet, facing, time and the screen's frame in, the
+eye, the view and the field of view out.
+
+**The engine half** (read-reviewed, never compiled): `ASaudTitleCamera`
+asks `Shoot()` every frame on real time, ticking through the pause, sweeps
+a 12 cm sphere on the camera channel from the aim out to the eye and pulls
+the eye in to the first wall (along the same line, so he keeps his place
+across the screen and only grows). `USaudMenuSubsystem` spawns it when the
+Title opens and makes it the view target; keeps his mesh and his motion
+component ticking through the pause and turns on
+`USaudMotionAnimInstance::SetRealTime`, so the guard's idle clip plays --
+and nothing else about him moves: movement, abilities and the fight's
+timers stay held; retries every tick until his pawn and his anim instance
+are there (the game mode's BeginPlay can come first); and on FIGHT /
+CONTINUE blends back to his own camera over 1.2 s, ease in and out, and
+lets the title camera go when the blend is done. Settings and Controls
+opened from the title keep the same shot under them. The Pause is
+unchanged. The anime look needs nothing: it is an unbound post-process
+volume, so the title's camera sees it as the boom does.
+
+**Checked:** `tests/title.cpp` at the seven screen shapes, every 1/60 s of
+a whole sweep, at three places and three facings -- the camera in front of
+him (within 60 degrees of his face), his box (the guard's fists 50 cm out,
+35 cm each side, 188 cm tall) right of the wash and touching no triangle or
+word the Title draws, inside title-safe, 45-90 % of the height, the eye
+100-250 cm up and never inside him, the vertical field of view held, his
+middle where the menu leaves room, the eye no faster than 120 cm/s and the
+view no faster than 20 degrees a second, the arc coming round to itself,
+and the shot turning and moving with him; `bite.sh` 87 of 87 (nine the
+title's). `Tools/harness/title_dump.cpp` + `Tools/blender/title_preview.py`
+render the souq from the shot in the anime look with the real Title drawn
+over it -- `Docs/renders/menu-title-3d.png` (16:9, the front of the sweep)
+and `menu-title-3d-4x3.png` (4:3, the sweep's end) -- and measure where he
+landed: at 16:9 his middle at 0.713 against the 0.724 the shot holds, his
+left at 0.655 against the wash's 0.498 (the shot aims through his middle;
+his guard stands a little to his left of it). In the preview the other
+three men are hidden and he holds the scene's guard pose still.
+
+**Not verified:** no engine has compiled any of it or drawn a frame. From
+memory: that a skeletal mesh component ticking through the pause updates
+its anim instance, that `FApp::GetDeltaTime()` is the frame's real length
+under a pause, and that `SetViewTargetWithBlend` blends once the world is
+running again. In a tight alley the pulled-in eye trades the framing for a
+view of him rather than of a wall -- nothing checks the framing then.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

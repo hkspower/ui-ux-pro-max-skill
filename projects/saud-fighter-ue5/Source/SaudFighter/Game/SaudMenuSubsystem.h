@@ -6,7 +6,9 @@
 #include "Combat/SaudMenu.h"
 #include "SaudMenuSubsystem.generated.h"
 
+class AFighterBase;
 class APlayerController;
+class ASaudTitleCamera;
 class UEnhancedInputComponent;
 class UInputAction;
 struct FInputActionInstance;
@@ -35,6 +37,13 @@ struct FInputActionValue;
  * otherwise wake near where CONTINUE put him); the menu's actions fire
  * through it (bTriggerWhenPaused on the actions) and this ticks through it
  * too, on real time, as the HUD does.
+ *
+ * The title is live since 2026-10-01: behind the menu the world is
+ * Saud himself, in his guard where the level put him, framed by an
+ * ASaudTitleCamera (Combat/SaudTitle.h's shot) sweeping slowly in front
+ * of him. The world stays paused; only his mesh and his motion component
+ * tick through it, on real time, so the guard breathes and nothing else
+ * moves. FIGHT / CONTINUE blends the view back to his own camera.
  */
 UCLASS()
 class SAUDFIGHTER_API USaudMenuSubsystem : public UTickableWorldSubsystem
@@ -84,6 +93,14 @@ private:
 	SaudControls::EAction HeldDirection() const;
 	int32 NavBit(const UInputAction* Action) const;
 
+	/** The live title: the camera on him, his guard ticking through the
+	    pause. Tried again from Tick until his pawn is there. */
+	void StartTitleShot();
+	/** Back to his own camera (a blend when bBlend), his ticks as they were. */
+	void EndTitleShot(bool bBlend);
+	/** His mesh and his motion component through the pause, on real time. */
+	static void KeepPosing(AFighterBase* Him, bool bOn);
+
 	// the bound handlers
 	void OnConfirm();
 	void OnBack();
@@ -110,4 +127,9 @@ private:
 	FVector2D Stick = FVector2D::ZeroVector;
 	SaudControls::EAction LastDirection = SaudControls::EAction::Count;
 	float Repeat = 0.f;
+
+	/** The live title: wanted from Open(Title) until EndTitleShot. */
+	bool bWantTitleShot = false;
+	TWeakObjectPtr<ASaudTitleCamera> TitleCamera;
+	TWeakObjectPtr<AFighterBase> Posing;
 };

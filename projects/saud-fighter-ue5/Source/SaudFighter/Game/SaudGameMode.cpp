@@ -60,7 +60,8 @@ void ASaudGameMode::BeginPlay()
 	// The title, unless the level was opened by a step through a doorway
 	// (?ArriveAt): then the fight is already on, and only its input context
 	// and its music are wanted. Under the title the pawn has no fight input
-	// and the camera stays as it is; FIGHT / CONTINUE starts it.
+	// and the title's camera frames him (ASaudTitleCamera, from the menu
+	// subsystem); FIGHT / CONTINUE starts it.
 	if (USaudMenuSubsystem* Menu = USaudMenuSubsystem::Get(this))
 	{
 		if (UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt")).IsEmpty())
