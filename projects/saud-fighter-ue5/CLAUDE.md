@@ -3479,7 +3479,9 @@ over it -- `Docs/renders/menu-title-3d.png` (16:9, the front of the sweep)
 and `menu-title-3d-4x3.png` (4:3, the sweep's end) -- and measure where he
 landed: at 16:9 his middle at 0.713 against the 0.724 the shot holds, his
 left at 0.655 against the wash's 0.498 (the shot aims through his middle;
-his guard stands a little to his left of it). In the preview the other
+his guard stands a little to his left of it); at 4:3, 38 degrees round,
+his middle at 0.811 against 0.799, his left at 0.726 against the wash's
+0.647, 48 % of the height. In the preview the other
 three men are hidden and he holds the scene's guard pose still.
 
 **Not verified:** no engine has compiled any of it or drawn a frame. From
