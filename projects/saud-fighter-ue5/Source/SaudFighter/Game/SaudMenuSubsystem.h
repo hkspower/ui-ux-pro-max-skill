@@ -30,11 +30,11 @@ struct FInputActionValue;
  * The contexts: the fight's mapping context is added only when a fight is
  * on (BeginFight; StartGame and Resume) and removed while a menu is open,
  * when the menu context is added at a higher priority; so Escape and Space
- * mean one thing at a time. The pause is UGameplayStatics::SetGamePaused;
- * the menu's actions fire through it (bTriggerWhenPaused on the actions,
- * bExecuteWhenPaused on the bindings) and this ticks through it too, on
- * real time, as the HUD does. The Title does not pause the world: nothing
- * can start a wave until Saud walks into one, and he cannot walk.
+ * mean one thing at a time. Both the Title and the Pause hold the world
+ * with UGameplayStatics::SetGamePaused (under the title a wave could
+ * otherwise wake near where CONTINUE put him); the menu's actions fire
+ * through it (bTriggerWhenPaused on the actions) and this ticks through it
+ * too, on real time, as the HUD does.
  */
 UCLASS()
 class SAUDFIGHTER_API USaudMenuSubsystem : public UTickableWorldSubsystem

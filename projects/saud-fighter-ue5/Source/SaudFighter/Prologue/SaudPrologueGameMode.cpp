@@ -33,7 +33,11 @@ void ASaudPrologueGameMode::BeginPlay()
 	// The title first, read from the profile as it is on entry: a first
 	// run has no save, so it says FIGHT, and the duel starts on it. The
 	// pawn has no fight input until then. (A door step, ?ArriveAt, would
-	// skip it; nothing opens this level that way.)
+	// skip it; nothing opens this level that way.) The level is marked seen
+	// when the fight starts (MarkSeen, from USaudMenuSubsystem::BeginFight),
+	// not here: a player who quits at that first title has not been through
+	// it. Once the fight is on, a player who quits partway has still been
+	// here; the prologue is not a gate anything is locked behind.
 	if (USaudMenuSubsystem* Menu = USaudMenuSubsystem::Get(this))
 	{
 		if (UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt")).IsEmpty())
@@ -46,19 +50,19 @@ void ASaudPrologueGameMode::BeginPlay()
 		}
 	}
 
-	// Marked now, on entry, the same moment ASaudGameMode marks a real
-	// stage visited -- not on the fall. A player who quits partway through
-	// has still been here; the prologue is not a gate anything is locked
-	// behind, so there is nothing to lose by not making him repeat it.
-	if (GI)
-	{
-		GI->GetMutableProgress().bSeenPrologue = true;
-		GI->SaveProgress();
-	}
-
 	if (AWaveDirector* Director = AWaveDirector::Get(GetWorld()))
 	{
 		Director->OnStageFailed.AddDynamic(this, &ASaudPrologueGameMode::HandleDuelFailed);
+	}
+}
+
+void ASaudPrologueGameMode::MarkSeen()
+{
+	USaudGameInstance* GI = GetGameInstance<USaudGameInstance>();
+	if (GI && !GI->GetProgress().bSeenPrologue)
+	{
+		GI->GetMutableProgress().bSeenPrologue = true;
+		GI->SaveProgress();
 	}
 }
 

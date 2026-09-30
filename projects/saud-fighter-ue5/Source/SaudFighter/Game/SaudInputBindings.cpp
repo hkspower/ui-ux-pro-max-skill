@@ -3,10 +3,8 @@
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
-#include "Framework/Application/SlateApplication.h"
 #include "GameFramework/InputDeviceSubsystem.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
-#include "Input/Events.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "InputCoreTypes.h"
@@ -75,29 +73,21 @@ void USaudInputBindings::Initialize(FSubsystemCollectionBase& Collection)
 	BuildActions();
 	BuildContexts();
 
-	// Every key press passes these before Slate routes it, gamepad buttons
-	// included (FSlateApplication::OnControllerButtonPressed makes an
-	// FKeyEvent of one). Analog stick motion does not; the first button does.
-	if (FSlateApplication::IsInitialized())
+	// The pad in use: the engine's device subsystem says when the player's
+	// most recent hardware device changes; the menu also asks each frame.
+	if (UInputDeviceSubsystem* Devices = GEngine ? GEngine->GetEngineSubsystem<UInputDeviceSubsystem>() : nullptr)
 	{
-		FSlateApplication& Slate = FSlateApplication::Get();
-		KeyDownHandle = Slate.OnApplicationPreInputKeyDownListener().AddUObject(this, &USaudInputBindings::HandleKeyDown);
-		MouseDownHandle =
-			Slate.OnApplicationMousePreInputButtonDownListener().AddUObject(this, &USaudInputBindings::HandleMouseDown);
+		Devices->OnInputHardwareDeviceChanged.AddDynamic(this, &USaudInputBindings::OnHardwareDeviceChanged);
 	}
 	UE_LOG(LogSaudInput, Log, TEXT("Input built from SaudControls.h: %d actions, two contexts."), Actions.Num());
 }
 
 void USaudInputBindings::Deinitialize()
 {
-	if (FSlateApplication::IsInitialized())
+	if (UInputDeviceSubsystem* Devices = GEngine ? GEngine->GetEngineSubsystem<UInputDeviceSubsystem>() : nullptr)
 	{
-		FSlateApplication& Slate = FSlateApplication::Get();
-		Slate.OnApplicationPreInputKeyDownListener().Remove(KeyDownHandle);
-		Slate.OnApplicationMousePreInputButtonDownListener().Remove(MouseDownHandle);
+		Devices->OnInputHardwareDeviceChanged.RemoveDynamic(this, &USaudInputBindings::OnHardwareDeviceChanged);
 	}
-	KeyDownHandle.Reset();
-	MouseDownHandle.Reset();
 	Super::Deinitialize();
 }
 
@@ -235,31 +225,15 @@ void USaudInputBindings::SetPad(SaudControls::EPad NewPad)
 	OnPadChanged.Broadcast(Pad);
 }
 
-void USaudInputBindings::HandleKeyDown(const FKeyEvent& Event)
+void USaudInputBindings::OnHardwareDeviceChanged(const FPlatformUserId UserId, const FInputDeviceId DeviceId)
 {
-	if (Event.GetKey().IsGamepadKey())
-	{
-		SetPad(PadFamilyFromDevice());
-	}
-	else
-	{
-		SetPad(SaudControls::EPad::Keyboard);
-	}
+	(void)UserId;
+	(void)DeviceId;
+	RefreshPad();
 }
 
-void USaudInputBindings::HandleMouseDown(const FPointerEvent& Event)
+FPlatformUserId USaudInputBindings::LocalUser() const
 {
-	(void)Event;
-	SetPad(SaudControls::EPad::Keyboard);
-}
-
-SaudControls::EPad USaudInputBindings::PadFamilyFromDevice() const
-{
-	const UInputDeviceSubsystem* Devices = GEngine ? GEngine->GetEngineSubsystem<UInputDeviceSubsystem>() : nullptr;
-	if (!Devices)
-	{
-		return SaudControls::EPad::Xbox;
-	}
 	FPlatformUserId User = PLATFORMUSERID_NONE;
 	if (const UGameInstance* GI = GetGameInstance())
 	{
@@ -272,9 +246,25 @@ SaudControls::EPad USaudInputBindings::PadFamilyFromDevice() const
 	{
 		User = IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser();
 	}
+	return User;
+}
+
+void USaudInputBindings::RefreshPad()
+{
+	// Not const: GetMostRecentlyUsedHardwareDevice may not be.
+	UInputDeviceSubsystem* Devices = GEngine ? GEngine->GetEngineSubsystem<UInputDeviceSubsystem>() : nullptr;
+	if (!Devices)
+	{
+		return;
+	}
+	const FHardwareDeviceIdentifier Device = Devices->GetMostRecentlyUsedHardwareDevice(LocalUser());
+	if (Device.PrimaryDeviceType == EHardwareDevicePrimaryType::KeyboardAndMouse)
+	{
+		SetPad(SaudControls::EPad::Keyboard);
+		return;
+	}
 	// Both names, so "DualSense" is found whichever field the platform put
 	// it in; anything else -- an Xbox pad, a generic one, no name -- is Xbox.
-	const FHardwareDeviceIdentifier Device = Devices->GetMostRecentlyUsedHardwareDevice(User);
 	const FString Name = Device.HardwareDeviceIdentifier.ToString() + TEXT(" ") + Device.InputClassName.ToString();
-	return SaudControls::PadFromDeviceName(*Name);
+	SetPad(SaudControls::PadFromDeviceName(*Name));
 }

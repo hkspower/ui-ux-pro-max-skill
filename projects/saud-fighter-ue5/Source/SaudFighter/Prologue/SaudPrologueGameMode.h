@@ -39,6 +39,11 @@ public:
 
 	virtual void BeginPlay() override;
 
+	/** The prologue has been seen: written to the profile and saved the
+	    moment its fight starts (USaudMenuSubsystem::BeginFight), so a
+	    player who quits at the first title still gets it next time. */
+	void MarkSeen();
+
 	/** Mirrors ASaudGameMode::BP_OnStageFailed: the bout is lost, the level
 	    has not changed under the player, and it is Blueprint's to decide what
 	    that looks like. */

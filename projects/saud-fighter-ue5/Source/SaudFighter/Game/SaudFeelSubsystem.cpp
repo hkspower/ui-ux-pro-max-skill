@@ -4,7 +4,10 @@
 #include "Game/SaudLookSubsystem.h"
 
 #include "Camera/CameraComponent.h"
+#include "Curves/RichCurve.h"
 #include "Engine/World.h"
+#include "GameFramework/ForceFeedbackEffect.h"
+#include "GameFramework/ForceFeedbackParameters.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
 #include "Kismet/GameplayStatics.h"
@@ -202,35 +205,74 @@ void USaudFeelSubsystem::RestoreCamera()
 
 /* ------------------------------------------------------------------- pad */
 
-void USaudFeelSubsystem::Buzz(const SaudFeel::FBlowFeel& F)
+APlayerController* USaudFeelSubsystem::PadOwner() const
 {
-	BuzzPad(F.BuzzStrength, SaudFeel::PadBuzzSeconds(F.Buzz));
-}
-
-void USaudFeelSubsystem::TestBuzz(float Seconds)
-{
-	BuzzPad(0.7f, Seconds);
-}
-
-void USaudFeelSubsystem::BuzzPad(float Strength, float Seconds)
-{
-	if (Seconds <= 0.f || Strength <= 0.f)
-	{
-		return;
-	}
 	// The profile's vibration switch, the same one the browser's haptic()
 	// reads (save.haptics).
 	const UWorld* World = GetWorld();
 	const USaudGameInstance* GI = World ? World->GetGameInstance<USaudGameInstance>() : nullptr;
 	if (GI && !GI->GetProgress().bVibration)
 	{
+		return nullptr;
+	}
+	return UGameplayStatics::GetPlayerController(World, 0);
+}
+
+void USaudFeelSubsystem::Buzz(const SaudFeel::FBlowFeel& F)
+{
+	const float Seconds = SaudFeel::PadBuzzSeconds(F.Buzz);
+	if (Seconds <= 0.f || F.BuzzStrength <= 0.f)
+	{
 		return;
 	}
-	if (APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0))
+	if (APlayerController* PC = PadOwner())
 	{
 		// All four motors: a blow is felt in both hands. The native overload,
 		// not the latent Blueprint one -- nothing waits on it.
-		PC->PlayDynamicForceFeedback(Strength, Seconds, true, true, true, true,
+		PC->PlayDynamicForceFeedback(F.BuzzStrength, Seconds, true, true, true, true,
 		                             EDynamicForceFeedbackAction::Start);
 	}
+}
+
+void USaudFeelSubsystem::TestBuzz(float Seconds)
+{
+	constexpr float Strength = 0.7f;
+	if (Seconds <= 0.f)
+	{
+		return;
+	}
+	APlayerController* PC = PadOwner();
+	if (!PC)
+	{
+		return;
+	}
+	// A dynamic force feedback does not advance while the game is paused,
+	// and the settings screen is open in a pause. An effect asset made
+	// here -- one channel on all four motors, a flat two-key curve at
+	// Strength over Seconds -- plays with bPlayWhilePaused.
+	if (!TestEffect)
+	{
+		TestEffect = NewObject<UForceFeedbackEffect>(this);
+		FForceFeedbackChannelDetails Channel;
+		Channel.bAffectsLeftLarge = true;
+		Channel.bAffectsLeftSmall = true;
+		Channel.bAffectsRightLarge = true;
+		Channel.bAffectsRightSmall = true;
+		TestEffect->ChannelDetails.Add(Channel);
+	}
+	if (TestEffect->ChannelDetails.Num() > 0)
+	{
+		FRichCurve* Curve = TestEffect->ChannelDetails[0].Curve.GetRichCurve();
+		Curve->Reset();
+		Curve->AddKey(0.f, Strength);
+		Curve->AddKey(Seconds, Strength);
+	}
+	// Duration 0: GetDuration() reads it back off the curve's range.
+	TestEffect->Duration = 0.f;
+
+	FForceFeedbackParameters Params;
+	Params.bLooping = false;
+	Params.bIgnoreTimeDilation = true;
+	Params.bPlayWhilePaused = true;
+	PC->ClientPlayForceFeedback(TestEffect, Params);
 }

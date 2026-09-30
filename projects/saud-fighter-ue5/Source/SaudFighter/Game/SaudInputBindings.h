@@ -7,8 +7,6 @@
 
 class UInputAction;
 class UInputMappingContext;
-struct FKeyEvent;
-struct FPointerEvent;
 
 /** The pad in the player's hand changed family (Xbox, PlayStation, or the
     keyboard): the menu's prompt strip redraws its glyphs. */
@@ -36,16 +34,18 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnSaudPadChanged, SaudControls::EPad);
  * when a fight starts and swaps it for the menu context, at a higher
  * priority, while a menu is open.
  *
- * The pad in use: every key press goes past FSlateApplication's pre-input
- * listeners before it is routed, so a gamepad key names the family (through
- * UInputDeviceSubsystem's most recently used hardware device and
- * SaudControls::PadFromDeviceName) and a keyboard or mouse key flips to
- * Keyboard. Chosen over polling the device subsystem each frame because a
- * press is the one moment the answer can change, and over its
- * OnInputHardwareDeviceChanged because that fires only when the DEVICE
- * changes, and a keyboard beside a pad is not always one. Stick movement
- * alone does not flip (Slate routes analog events past the listener); the
- * first button does.
+ * The pad in use: UInputDeviceSubsystem's most recently used hardware
+ * device for the local player (RefreshPad). A device whose
+ * PrimaryDeviceType is KeyboardAndMouse is the Keyboard; any other's name
+ * (HardwareDeviceIdentifier and InputClassName) goes through
+ * SaudControls::PadFromDeviceName for the family. Read two ways: the
+ * subsystem's OnInputHardwareDeviceChanged, which fires whenever the
+ * player's most recent device changes -- keyboard to pad and back
+ * included -- and a call from USaudMenuSubsystem::Tick each frame while a
+ * menu is open, so the prompt strip can never be a frame behind the hand.
+ * (FSlateApplication's pre-input key listeners were the first design;
+ * SlateApplication.cpp broadcasts them only under WITH_EDITOR, so a
+ * packaged game would never have detected a pad.)
  */
 UCLASS()
 class SAUDFIGHTER_API USaudInputBindings : public UGameInstanceSubsystem
@@ -76,6 +76,10 @@ public:
 	SaudControls::EPad PadInUse() const { return Pad; }
 	FOnSaudPadChanged OnPadChanged;
 
+	/** Reads the local player's most recently used hardware device and
+	    sets the pad in use from it (OnPadChanged fires when it changed). */
+	void RefreshPad();
+
 private:
 	void BuildActions();
 	void BuildContexts();
@@ -84,11 +88,13 @@ private:
 	bool Map(UInputMappingContext* InContext, UInputAction* InAction, const TCHAR* KeyName,
 	         bool bSwizzle, bool bNegate, bool bDeadZone);
 	void SetPad(SaudControls::EPad NewPad);
-	void HandleKeyDown(const FKeyEvent& Event);
-	void HandleMouseDown(const FPointerEvent& Event);
-	/** The family of the pad most recently used by the local player, by
-	    the hardware's name. */
-	SaudControls::EPad PadFamilyFromDevice() const;
+
+	/** UInputDeviceSubsystem::OnInputHardwareDeviceChanged. */
+	UFUNCTION()
+	void OnHardwareDeviceChanged(const FPlatformUserId UserId, const FInputDeviceId DeviceId);
+
+	/** The local player's platform user, for the device subsystem. */
+	FPlatformUserId LocalUser() const;
 
 	UPROPERTY()
 	TObjectPtr<UInputMappingContext> FightContext = nullptr;
@@ -104,6 +110,4 @@ private:
 	TObjectPtr<UInputAction> MenuStickAction = nullptr;
 
 	SaudControls::EPad Pad = SaudControls::EPad::Xbox;
-	FDelegateHandle KeyDownHandle;
-	FDelegateHandle MouseDownHandle;
 };

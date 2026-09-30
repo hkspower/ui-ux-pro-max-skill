@@ -267,7 +267,8 @@ USoundBase* USaudAudioSubsystem::Resolve(FName Cue, const FSoundCueDef& Row)
 
 bool USaudAudioSubsystem::BusEnabled(ESoundBus Bus) const
 {
-	const USaudGameInstance* GI = GetGameInstance<USaudGameInstance>();
+	// UGameInstanceSubsystem::GetGameInstance() is not a template.
+	const USaudGameInstance* GI = Cast<USaudGameInstance>(GetGameInstance());
 	if (!GI)
 	{
 		return true;

@@ -10,12 +10,13 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/PlayerController.h"
-#include "HAL/PlatformMisc.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Misc/App.h"
+#include "Prologue/SaudPrologueGameMode.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSaudMenu, Log, All);
 
@@ -96,8 +97,9 @@ void USaudMenuSubsystem::Open(EScreen Screen)
 	}
 
 	ReadSettings();
-	if (const USaudInputBindings* Bindings = USaudInputBindings::Get(this))
+	if (USaudInputBindings* Bindings = USaudInputBindings::Get(this))
 	{
+		Bindings->RefreshPad();
 		Menu.Pad = Bindings->PadInUse();
 	}
 	Menu.Shown = Menu.Pad == SaudControls::EPad::Keyboard ? SaudControls::EPad::Xbox : Menu.Pad;
@@ -117,18 +119,20 @@ void USaudMenuSubsystem::Open(EScreen Screen)
 		SetMenuContext(true);
 	}
 
-	USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this);
-	if (Screen == EScreen::Pause)
+	// Both screens hold the world: under the title a wave could otherwise
+	// wake within its site's radius of where CONTINUE put him. The menu and
+	// its music run on real time and the actions trigger through the pause.
+	if (!bPaused)
 	{
-		if (!bPaused)
-		{
-			UGameplayStatics::SetGamePaused(this, true);
-			bPaused = true;
-		}
+		UGameplayStatics::SetGamePaused(this, true);
+		bPaused = true;
 	}
-	else if (Audio)
+	if (Screen == EScreen::Title)
 	{
-		Audio->PlayMusic(TEXT("Music_Menu"));
+		if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this))
+		{
+			Audio->PlayMusic(TEXT("Music_Menu"));
+		}
 	}
 }
 
@@ -162,6 +166,12 @@ void USaudMenuSubsystem::BeginFight()
 	{
 		Audio->PlayMusic(TEXT("Music_Stage"));
 	}
+	// The prologue is marked seen when its fight starts, not when its level
+	// opens: a player who quits at the first title has not been through it.
+	if (ASaudPrologueGameMode* Prologue = GetWorld() ? GetWorld()->GetAuthGameMode<ASaudPrologueGameMode>() : nullptr)
+	{
+		Prologue->MarkSeen();
+	}
 }
 
 /* ------------------------------------------------------------ the tick */
@@ -179,8 +189,9 @@ void USaudMenuSubsystem::Tick(float DeltaTime)
 	Menu.Clock += Real;
 	Menu.Since += Real;
 
-	if (const USaudInputBindings* Bindings = USaudInputBindings::Get(this))
+	if (USaudInputBindings* Bindings = USaudInputBindings::Get(this))
 	{
+		Bindings->RefreshPad();
 		Menu.Pad = Bindings->PadInUse();
 	}
 
@@ -284,7 +295,9 @@ void USaudMenuSubsystem::Apply(EMenuEffect Effect)
 		break;
 
 	case EMenuEffect::QuitGame:
-		FPlatformMisc::RequestExit(false);
+		// Not FPlatformMisc::RequestExit: that closes the editor under PIE.
+		UKismetSystemLibrary::QuitGame(this, UGameplayStatics::GetPlayerController(GetWorld(), 0),
+		                               EQuitPreference::Quit, false);
 		break;
 
 	case EMenuEffect::ToggleSound:
@@ -439,20 +452,23 @@ void USaudMenuSubsystem::EnsureMenuInput(APlayerController* PC)
 		return;
 	}
 
-	MenuInput = NewObject<UEnhancedInputComponent>(PC, TEXT("SaudMenuInput"));
+	// NAME_None: a fixed name would re-construct a not-yet-collected old
+	// component in place on a respawn.
+	MenuInput = NewObject<UEnhancedInputComponent>(PC, NAME_None);
 	MenuInput->RegisterComponent();
 	// Nothing under this component on the stack hears a key while a menu
 	// is open (the fight context is gone by then too).
 	MenuInput->bBlockInput = true;
 
-	// Every binding fires through the pause. Nav actions are held (each
-	// frame while down) and released; the rest are a press.
+	// The actions fire through the pause by their own bTriggerWhenPaused
+	// (USaudInputBindings sets it on every menu action, Pause and the
+	// stick); an Enhanced Input binding carries no such flag. Nav actions
+	// are held (each frame while down) and released; the rest are a press.
 	const auto Bind = [this](const UInputAction* Action, ETriggerEvent Event, auto Handler)
 	{
 		if (Action)
 		{
-			FEnhancedInputActionEventBinding& Binding = MenuInput->BindAction(Action, Event, this, Handler);
-			Binding.bExecuteWhenPaused = true;
+			MenuInput->BindAction(Action, Event, this, Handler);
 		}
 	};
 	Bind(Bindings->Action(EAction::Confirm), ETriggerEvent::Started, &USaudMenuSubsystem::OnConfirm);
@@ -499,7 +515,15 @@ void USaudMenuSubsystem::OnFlip()
 
 void USaudMenuSubsystem::OnPauseKey()
 {
-	Act(EAction::Pause);
+	// Escape is Back AND Pause in the menu context. On Settings or Controls
+	// opened from the Pause, Back has already stepped back to the Pause
+	// screen by the time this fires; acting on Pause then would resume the
+	// game the player only meant to step back in. Only a press ON the pause
+	// screen resumes.
+	if (Menu.Screen == EScreen::Pause)
+	{
+		Act(EAction::Pause);
+	}
 }
 
 void USaudMenuSubsystem::OnNavHeld(const FInputActionInstance& Instance)

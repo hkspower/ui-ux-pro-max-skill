@@ -29,16 +29,6 @@ void ASaudHUD::DrawHUD()
 	{
 		return;
 	}
-	// Real time: the freeze stops the fight, not the page.
-	const float Dt = FMath::Clamp(static_cast<float>(FApp::GetDeltaTime()), 0.f, 0.1f);
-	Clock += Dt;
-
-	FHudState State;
-	State.Clock = Clock;
-	GatherStreet(State, Dt);
-	GatherPlayer(State, Dt);
-	GatherBoss(State, Dt);
-
 	// A menu, if one is open: over the fight on a pause (and anything
 	// opened from it), instead of the fight under the title (and anything
 	// opened from that). ReturnTo is the screen a menu was opened from --
@@ -46,6 +36,18 @@ void ASaudHUD::DrawHUD()
 	const USaudMenuSubsystem* Menu = USaudMenuSubsystem::Get(this);
 	const bool bMenu = Menu && Menu->IsOpen();
 	const bool bUnderTitle = bMenu && Menu->Model().ReturnTo == SaudMenu::EScreen::Title;
+
+	// Real time: the freeze stops the fight, not the page. A pause stops
+	// both: the trails and the boss's wipe hold under the menu (whose own
+	// clock the menu subsystem runs, in real time).
+	const float Dt = bMenu ? 0.f : FMath::Clamp(static_cast<float>(FApp::GetDeltaTime()), 0.f, 0.1f);
+	Clock += Dt;
+
+	FHudState State;
+	State.Clock = Clock;
+	GatherStreet(State, Dt);
+	GatherPlayer(State, Dt);
+	GatherBoss(State, Dt);
 
 	const FPage Page = FPage::For(Canvas->ClipX, Canvas->ClipY);
 	if (!bUnderTitle)

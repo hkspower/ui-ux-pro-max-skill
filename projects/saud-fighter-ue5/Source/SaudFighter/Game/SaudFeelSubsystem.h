@@ -8,6 +8,7 @@
 
 class AFighterBase;
 class UCameraComponent;
+class UForceFeedbackEffect;
 
 /**
  * The weight of a blow: the freeze, the camera's jolt and push-in, and the
@@ -38,7 +39,9 @@ public:
 
 	/** The settings screen's VIBRATION going on: a short buzz in both
 	    hands so the switch is felt, not read. Same motors, same profile
-	    switch, as a blow's. */
+	    switch, as a blow's -- but played as a force-feedback effect with
+	    bPlayWhilePaused, since PlayDynamicForceFeedback does not advance
+	    under the pause the settings screen is open in. */
 	void TestBuzz(float Seconds);
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -78,7 +81,12 @@ private:
 	void ApplyCamera();
 	void RestoreCamera();
 	void Buzz(const SaudFeel::FBlowFeel& F);
-	/** The pad, through the profile's vibration switch. */
-	void BuzzPad(float Strength, float Seconds);
+	/** The profile's vibration switch, and the local player. */
+	APlayerController* PadOwner() const;
 	UCameraComponent* FindCamera() const;
+
+	/** The test buzz's effect, made once at runtime (no asset) and
+	    re-keyed to each call's strength and length. */
+	UPROPERTY()
+	TObjectPtr<UForceFeedbackEffect> TestEffect = nullptr;
 };

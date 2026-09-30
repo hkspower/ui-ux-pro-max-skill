@@ -2963,6 +2963,21 @@ and gains a Dash and a Pause; `USaudAudioSubsystem::PlayMusic` keeps a
 handle so the title theme fades into the stage loop on FIGHT, and its
 UI-cue cooldown runs on real time so taps work while paused.
 
+**Reviewed adversarially before it was trusted** -- one reader over the
+engine C++ against UE 5.4 -- and it caught: a pause flag that lives on
+the legacy binding, not Enhanced Input's (the gate is the action's own
+`bTriggerWhenPaused`); a subsystem's `GetGameInstance<T>()` that is not a
+template there; pad detection wired to Slate listeners that broadcast only
+in editor builds (it reads the input-device subsystem now, on its
+device-changed delegate and each tick while a menu is open); Esc on a
+sub-screen opened from the pause firing Back and then Resume; the
+vibration test buzz silent under a pause (a force-feedback effect with
+`bPlayWhilePaused` now); the prologue marked seen before the first Title
+was confirmed (it is marked when the duel starts); a quit that closes the
+editor in PIE; a fixed component name re-used on respawn; a title that
+did not pause the world under a wave's reach (it pauses now, as the pause
+does); and the fight HUD's trails draining under a pause. All fixed.
+
 **Checked:** `tests/controls.cpp` and `tests/menu.cpp` in the harness at
 the seven screen shapes -- title-safe, text at least 1/36 of the height,
 the stroke, no plate or label overlapping another, exactly one focused
