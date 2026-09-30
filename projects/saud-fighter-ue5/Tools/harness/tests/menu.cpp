@@ -81,6 +81,7 @@ namespace SaudControls
 
 #include <cstdio>
 #include <cmath>
+#include <initializer_list>
 
 static int Fails = 0;
 static void Check(bool Ok, const char* What)
@@ -411,7 +412,9 @@ static void PageRules()
 	bool NoNaN = true, AllIn = true, TextIn = true, Legible = true, Stroked = true, Bright = true, Wound = true;
 	bool Apart = true, OneFocus = true, FocusReads = true, Labelled = true, Palette = true, Fits = true;
 	bool StripOnLine = true, StripPad = true, StripApart = true, ScrimWhole = true, Heading = true;
-	bool Continue = true, ValuesRead = true, Pulses = true, OffDiagram = true;
+	bool Continue = true, ValuesRead = true, Pulses = true, OffDiagram = true, BigGlyphs = true, StripWords = true;
+	float GapOf[4] = {-1.f, -1.f, -1.f, -1.f};   // slash bottom to the first plate, page px, per screen
+	bool GapsAgree = true;
 	int Builds = 0, WorstTris = 0, WorstTexts = 0;
 	const char* WorstName = "";
 	for (const auto& Sh : Shapes)
@@ -531,6 +534,7 @@ static void PageRules()
 								PadWords += bPadWord;
 								KeyWords += !bPadWord;
 								StripOnLine = StripOnLine && Near(X.At.Y + X.Height, P.Bottom(), 0.5f);
+								StripWords = StripWords && X.Height >= P.Px(32.f) - 0.01f;
 								const FBox B = TextBox(X);
 								if (bPrev && Overlap(Prev, B)) StripApart = false;
 								Prev = B;
@@ -544,6 +548,19 @@ static void PageRules()
 											for (const FMenuVert& V : List.Tris[u].V) Add(G, V.P);
 									StripApart = StripApart && G.Any && G.X1 <= B.X0 + 0.5f;
 								}
+							}
+							// every glyph couch-sized: the first (a face disc) stands
+							// its full 48 page px tall
+							if (Pad != EPad::Keyboard)
+							{
+								FBox First;
+								for (int t = 0; t < List.NumTris; ++t)
+									if (List.Tris[t].Part == EMenuPart::Glyph)
+									{
+										for (const FMenuVert& V : List.Tris[t].V) Add(First, V.P);
+										if (t + 1 < List.NumTris && List.Tris[t + 1].Part != EMenuPart::Glyph) break;
+									}
+								BigGlyphs = BigGlyphs && First.Any && First.Y1 - First.Y0 >= P.Px(48.f) - 0.5f;
 							}
 							const int Want = C.Screen == EScreen::Title ? 1 : (C.Screen == EScreen::Settings ? 3 : 2);
 							StripPad = StripPad && Words == Want
@@ -607,6 +624,11 @@ static void PageRules()
 							          && (!Sub || (Sub->At.Y >= S.Y1 - 0.5f && SameRgb(Sub->Colour, SaudHud::Colour::Bone)));
 							// and the wash is behind the heading: drawn first (after the scrim, when there is one)
 							Heading = Heading && List.Tris[CountPart(EMenuPart::Scrim)].Part == EMenuPart::Wash;
+							// the first plate the same distance under the slash on every screen
+							const float Gap = (ItemBox(0, true).Y0 - S.Y1) / P.Scale;
+							float& G = GapOf[static_cast<int>(C.Screen)];
+							if (G < 0.f) G = Gap;
+							else GapsAgree = GapsAgree && Near(G, Gap, 2.f);
 						}
 					}
 					// the focus pulse moves on the clock, and slowly
@@ -615,10 +637,18 @@ static void PageRules()
 						M.Focus = Focus;
 						FRgba F0, F1, F2;
 						M.Clock = 0.f;  Build(P, M, List); PlateFill(Focus, F0);
-						M.Clock = 1.3f; Build(P, M, List); PlateFill(Focus, F1);
+						// somewhere in the first second the breath has moved (its top
+						// is at a quarter period, 0.66 s at 0.38 Hz; fixed times, so a
+						// frozen or infinite frequency cannot pass by accident)
+						float Moved = 0.f;
+						for (float T : {0.33f, 0.66f, 1.0f})
+						{
+							M.Clock = T; Build(P, M, List); PlateFill(Focus, F1);
+							Moved = std::fmax(Moved, std::fabs(F1.R - F0.R) + std::fabs(F1.G - F0.G) + std::fabs(F1.B - F0.B));
+						}
 						M.Clock = 1.f / 60.f; Build(P, M, List); PlateFill(Focus, F2);
-						Pulses = Pulses && !SameRgb(F0, F1, 1e-3f) && SameRgb(F0, F2, 0.02f);
-						Builds += 3;
+						Pulses = Pulses && Moved > 5e-3f && Moved == Moved && SameRgb(F0, F2, 0.02f);
+						Builds += 5;
 					}
 				}
 			}
@@ -645,6 +675,11 @@ static void PageRules()
 	Check(ScrimWhole, "the pause (and what it opens, and the diagram) stands over a scrim covering the screen; the title has none");
 	Check(Heading, "the heading in bone over the wash, the blood slash under it, the sub-line under that");
 	Check(OffDiagram, "on the controls page the BACK plate and the strip stay off SaudControls' diagram");
+	Check(BigGlyphs, "the prompt strip's glyphs are couch-sized: 48 page px");
+	Check(StripWords, "the prompt strip's words are 32 page px or more");
+	std::printf("  the slash to the first plate: title %.0f, pause %.0f, settings %.0f page px\n", GapOf[0], GapOf[1], GapOf[2]);
+	Check(GapsAgree && GapOf[0] >= 0.f && GapOf[1] >= 0.f && GapOf[2] >= 0.f && Near(GapOf[0], GapOf[1], 2.f)
+	      && Near(GapOf[0], GapOf[2], 2.f), "the first plate sits the same distance under the slash on every screen");
 	std::printf("  %d builds: %d cases x %d pads x every focus x %d clocks at %d shapes\n", Builds,
 	            static_cast<int>(sizeof(Cases) / sizeof(Cases[0])), 3, 4, static_cast<int>(sizeof(Shapes) / sizeof(Shapes[0])));
 	std::printf("  worst case: %d triangles (%s), %d texts; capacity %d / %d\n", WorstTris, WorstName, WorstTexts,
@@ -678,6 +713,15 @@ static void PageRules()
 		std::printf("  contrast: focused plate %.2f (lowest through the pulse %.2f), its label %.2f on it, bone %.2f on ink\n",
 		            CFocus, Lowest, CLabel, CBone);
 		Check(Lowest >= 3.f && CLabel >= 3.f && CBone >= 7.f, "the focus stands 3:1 through its whole pulse");
+		// ...and never reads Ember: at most 15 % of the way toward it
+		float Furthest = 0.f;
+		for (int k = 0; k < 200; ++k)
+		{
+			const FRgba F = FocusFill(0.0137f * static_cast<float>(k));
+			Furthest = std::fmax(Furthest, (F.R - SaudHud::Colour::Blood.R) / (SaudHud::Colour::Ember.R - SaudHud::Colour::Blood.R));
+		}
+		std::printf("  the pulse goes at most %.0f %% of the way to ember\n", 100.f * Furthest);
+		Check(Furthest <= 0.15f + 1e-3f && Furthest > 0.05f, "the focus pulse stays blood: at most 15 % toward ember");
 	}
 }
 

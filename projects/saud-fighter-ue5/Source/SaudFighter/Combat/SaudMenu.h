@@ -507,20 +507,23 @@ namespace SaudMenu
 	constexpr float SlashRevealSeconds = 0.40f;  // wipes open like the boss banner
 	constexpr float SubText = 36.f;              // "KUWAIT FIGHTER"
 	constexpr float SubGap = 12.f;
-	constexpr float ItemsDown = 340.f;           // the first plate, down from the top safe line
+	/** The first plate hangs this far under the slash on every screen (the
+	    Title's sub-line sits inside the gap), so the column's top follows
+	    the heading actually drawn: 170 px "SAUD", 120 px "PAUSED". */
+	constexpr float ItemsGap = 80.f;
 	constexpr float PlateW = 560.f, PlateH = 66.f, PlateGap = 16.f;
 	constexpr float PlateLean = 0.55f;           // as the bars
 	constexpr float LabelText = 34.f;            // >= 1080 / 36
 	constexpr float LabelIn = 26.f;              // past the lean
 	constexpr float StripText = 32.f;            // the prompt strip
-	constexpr float GlyphSize = 34.f;            // a prompt glyph's size (its disc's diameter)
+	constexpr float GlyphSize = 48.f;            // a prompt glyph's size (its disc's diameter): couch-sized
 	constexpr float GlyphGap = 12.f;             // glyph to its word
 	constexpr float PromptGap = 48.f;            // between prompts
 	constexpr float ScrimAlpha = 0.78f;
 	constexpr float PlateAlpha = 0.88f;
 	constexpr float DimAlpha = 0.55f;            // the dim (ash) text and keylines: Bone / Ash at this
 	constexpr float PulseHz = 0.38f;             // the focus pulse: one breath in 2.6 s
-	constexpr float PulseToEmber = 0.35f;        // how far toward Ember at the top of it
+	constexpr float PulseToEmber = 0.15f;        // how far toward Ember at the top of it: it stays Blood (Ember is the HUD's "enraged")
 
 	/** A glyph's width in units of its Size: a shoulder is a tab, a trigger
 	    a narrower one (SaudControls' own shares), everything else a disc or
@@ -570,16 +573,18 @@ namespace SaudMenu
 		}
 		else
 		{
+			const float Top = L.Slash.Y + L.Slash.H + P.Px(ItemsGap);
 			for (int i = 0; i < L.NumItems; ++i)
 			{
-				L.Plate[i] = {X, Y + P.Px(ItemsDown + static_cast<float>(i) * (PlateH + PlateGap)), W, H};
+				L.Plate[i] = {X, Top + P.Px(static_cast<float>(i) * (PlateH + PlateGap)), W, H};
 			}
 		}
 		return L;
 	}
 
-	/** The focused plate's fill on the real-time clock: Blood breathing
-	    toward Ember, slowly. Never under Blood, so it is never nearer the
+	/** The focused plate's fill on the real-time clock: Blood breathing a
+	    little toward Ember, slowly -- never so far it reads Ember, which is
+	    the HUD's "enraged". Never under Blood, so it is never nearer the
 	    Trough than the palette promises (3:1). */
 	inline FRgba FocusFill(float Clock)
 	{
