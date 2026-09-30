@@ -1679,8 +1679,8 @@ manga page: Saud's panel with a leaning health bar and its paper damage
 trail, stamina, five rage blocks; the combo on a starburst; a boss banner;
 a short bar over a street man after he is hit. Its layout is `SaudHud` in
 the same header, checked for the title-safe area and couch-legible type at
-seven screen shapes. Both game modes set it. There are no menus in this
-build to restyle.
+seven screen shapes. Both game modes set it. There were no menus in this
+build to restyle until 2026-09-30 ("The main menu and the controls").
 
 **Reviewed adversarially before it was trusted** -- one reader over the
 C++, the HLSL and the editor script against UE 5.4 -- and it caught: a
@@ -2860,9 +2860,85 @@ its 2026-09-10 `M_Stage`.
 the author's description of the reference, not by hearing it; no engine
 has imported the files, and whether a SoundWave loops is its import
 setting (Looping), which `SaudAudioSubsystem` does not set for any of the
-five, as before. **Seen, not touched:** nothing in the C++ ever starts a
-`Music_*` cue -- the five rows are in `DT_Sounds.csv` and no code plays
-them.
+five, as before. **Seen, not touched (then done 2026-09-30, with the
+menu):** nothing in the C++ started a `Music_*` cue; the title plays
+`Music_Menu` and FIGHT starts `Music_Stage` now.
+
+## The main menu and the controls -- 2026-09-30
+
+Asked as "improve main menu" and "improve buttons layout with xbox and
+ps 5 controller", settled as the Unreal build and all of: the button
+mapping, a controls screen showing the layout on an Xbox pad and a PS5
+pad, and prompts that switch glyphs by the pad in use. There was no menu
+and no pause, and -- found on the way -- in a C++-only build **no input
+reached the game at all**: `ASaudCharacter`'s six input-asset pointers
+were null, the game modes spawn the C++ class, and `DefaultInput.ini`
+only described assets nobody had made.
+
+**One table is the decision** (`Combat/SaudControls.h`, engine-free): punch
+X / Square, kick A / Cross, dash B / Circle (and the browser's block tapped
+while moving, kept), rage Y / Triangle, block and parry on either shoulder,
+pause on Menu / Options; menus on the d-pad or stick, A / Cross confirms,
+B / Circle backs, a shoulder flips the diagram; the keyboard as the
+browser's (WASD, J K L, Space / U, Esc / P, Shift for the dash). Punch on
+the west button and kick on the south are the two most-reached face
+buttons on both pads; block is a shoulder because a block is a hold;
+either shoulder because half of players guard with the left hand; rage is
+the top button, the deliberate reach. Confirm-south / back-east is the
+Xbox and Western PS5 convention; Sony's regional swap is not reproduced.
+The same header draws the glyphs on the Canvas (Xbox letters, the
+PlayStation shapes as geometry, the circle's rim the one Blood accent) and
+the controls page: a pad outline per family -- an Xbox pad has its left
+stick upper-left and the d-pad under it, a DualSense the other way --
+every button labelled with its action by a leader that crosses nothing,
+the unbound ones "--", a keyboard column beside it.
+
+**The menu** (`Combat/SaudMenu.h`, engine-free) is Title (CONTINUE or
+FIGHT, CONTROLS, SETTINGS, QUIT), Pause (RESUME, CONTROLS, SETTINGS, QUIT
+TO TITLE) and Settings (DIFFICULTY, SOUND, MUSIC, VIBRATION -- the
+profile's own fields), in the dark seinen's look: a torn ink wash, "SAUD"
+in Bone over a Blood slash, leaning plates, the focused plate Blood
+breathing a little toward Ember, a prompt strip on the bottom safe line
+with the pad's own glyphs (words alone on a keyboard). English labels
+only: `FCanvasTextItem` does no Arabic shaping. `Navigate()` returns the
+effect the engine applies; `Build()` fills a draw list the HUD emits with
+its own batching and text stroke.
+
+**The engine half** (read-reviewed, never compiled): `USaudInputBindings`
+makes the input actions and the Fight and Menu mapping contexts at runtime
+from the table (`MapKey` by UE key name) and reads the pad in use from the
+most recently used hardware device on a pad press; `USaudMenuSubsystem`
+opens the Title on every level open without `?ArriveAt` (the world and the
+prologue), the Pause on the pad's Menu button / Esc / P with the game
+paused, swaps the contexts, saves each setting change, plays a test buzz
+for VIBRATION; `ASaudCharacter` fills its null actions from the subsystem
+and gains a Dash and a Pause; `USaudAudioSubsystem::PlayMusic` keeps a
+handle so the title theme fades into the stage loop on FIGHT, and its
+UI-cue cooldown runs on real time so taps work while paused.
+
+**Checked:** `tests/controls.cpp` and `tests/menu.cpp` in the harness at
+the seven screen shapes -- title-safe, text at least 1/36 of the height,
+the stroke, no plate or label overlapping another, exactly one focused
+item and it 3:1 against the rest, navigation never leaving range, every
+fight and menu action bound on the pad and the keyboard, labels different
+between the pads, the Xbox stick over its d-pad, no leader crossing a
+button or another leader, no glyph degenerate; `bite.sh` 78 of 78 (33 the
+controls'), 18 scratch sabotages on the menu. `Tools/harness/menu_dump.cpp`
++ `Tools/look/menu_preview.py` rasterise the screens the way
+`hud_preview.py` does: `Docs/renders/menu-*.png`; looking at the first
+pass is what caught the Xbox pad drawn as a DualSense, the triangle that
+read as an "A", the PUNCH leader across the pad, the hole under PAUSED,
+and prompt letters under the couch floor.
+
+**Not verified:** no engine has compiled any of it or drawn a screen; the
+UE key-name spellings, the Enhanced Input while-paused flags, the
+input-device subsystem's names and the Slate press listeners are from
+memory; a DualSense on Windows through XInput reports no Sony name and
+gets Xbox glyphs; text widths are an estimate (0.62 em a character) and
+the engine's Roboto may run wider. **Seen, not touched:** the browser
+build's TRAIN, HELP and AWARDS screens have no Unreal counterpart (no
+shop or achievements UI exists here), and a stage failed still shows no
+screen.
 
 ## Working rules
 
