@@ -3329,6 +3329,93 @@ build's TRAIN, HELP and AWARDS screens have no Unreal counterpart (no
 shop or achievements UI exists here), and a stage failed still shows no
 screen.
 
+## The street cars, built in Unity -- 2026-10-01
+
+Asked as "use unity for build cars instead blender", settled with the author
+as: a Unity tool that builds the cars and exports FBX into this project (the
+game stays Unreal), and parked Kuwaiti street cars -- scenery only, not
+drivable. There were no cars in any build before.
+
+**Four cars** (`Tools/levels/park_cars.py`, `CARS`): a full-size 4x4 with a
+roof rack, a long rear-drive saloon, a double-cab pickup with an open bed and
+a tailgate, and the saloon as a taxi with a roof sign and a painted band.
+Typical sizes of each kind, from memory, no make named or copied; the taxi's
+white and orange are this build's choice, not a real livery. Every colour is
+Unreal-only (the browser has no cars) and goes through the souq's weathering
+curve (`build_souq._worn`), held at the look's ink floor: the white SUV
+weathers to 0.19, the black saloon is held at 0.063.
+
+**Built by Unity** (`../ahmed-fighter-unity/Assets/CarTool`, the one live
+part of the frozen port). `SAUD > Build Street Cars` in the Unity editor, or
+`Unity -batchmode -quit -projectPath <ahmed-fighter-unity> -executeMethod
+Saud.CarTool.CarToolMenu.BuildFromCommandLine`, reads
+`Content/Models/Cars/cars.json`, builds each car, refuses to write anything
+if one fails a check, and writes `Content/Models/Cars/SM_Car_<Name>.fbx`
+(Unity's FBX Exporter, `com.unity.formats.fbx`) and
+`Content/Textures/Cars/T_Car_<Name>_Paint.png`. The builder is engine-free
+C# (`Editor/Core`): the lower body lofted along the car with the wheel
+arches cut out of it round each tyre, the cabin lofted on the belt with its
+glass, the bed, wheels (a tyre and a dished rim with five spokes), lamps, a
+grille, bumpers, plates, door mirrors, the rack and the sign -- every part a
+closed shell. One paint texture a car (1024 x 512): road dust up from the
+sills and over the roof, rust round the arches and the sills, soot runs
+under the windows, scratches, the door and bonnet seams one 8-bit step over
+the ink floor. About 10,000 triangles a car.
+
+**`cars.json` is written, never edited**: `python3 Tools/levels/park_cars.py
+--json` writes it from `CARS` and `SLOTS` with the weathered colours, and
+`--check` fails if it has drifted.
+
+**Placed by this project** (`park_cars.py`, called by `build_world.py`):
+along every district's street except the island's, at a density per theme
+(0.8 a 100 m in the souq to 3.5 in the towers), kinds by the theme's mix,
+parallel to the street and either way round. A district's car stands on the
+verge beside the paving, a souq car on its flagstones at the kerb; each is
+kept out of every fight and the gate, 2.5 m from every fire, off every block,
+crate, spur and the rim, 4 m from a way out, with at least 4 m of street left
+beside it; if its spot is taken it tries the other kerb and a little up and
+down the street. 85 cars: the souq 4, the arena 9, the towers and the
+highway 17 each, the desert 4. They are their own list (`P["cars"]`), not
+scenery, so no rule the world already held moved. Inside the editor
+`build_world.py` imports the FBX and the paint, makes `M_Car_Paint` and
+`M_Car_Flat` with an instance per slot (found by the Unity material's name,
+`M_Car_<Name>_<Slot>`), and places a StaticMeshActor per car under
+`Cars/<district>`. Which way Unreal lays a Unity-exported car is not
+assumed: each mesh is measured after import, turned onto its length, scaled
+to the spec, centred and stood on the ground, and one whose height is not
+the spec's (on its side) is refused.
+
+**Checked.** `park_cars.py --check`: every car at its kerb, clear of every
+fight, fire, block, crate, spur, rim and way out, the lane left, each street
+holding 50-130 % of its share, the world's rows the districts' own, the
+tables buildable (wheels under their arches, glass on the cabin), every
+colour between the ink floor and 0.22, and `cars.json` the tables' own.
+`--bite` breaks each and all 13 are caught. `build_world.py`'s own checks
+pass and its 19 sabotages still bite. The Unity side, under Mono
+(`../ahmed-fighter-unity/Tools/cars/run.sh`, the same `Editor/Core` the
+menu calls): all four cars built and checked -- every part closed and wound
+outward, no sliver faces, the length, body width, width over the mirrors
+and height the spec's, four tyres on the floor at their axles, the body
+clear over every tyre, glass front, back and both sides, left and right
+mirrored, under 25,000 triangles, every material slot a known one, UVs on
+the paint, unit normals, the paint's 8-bit texels between the floor and
+0.22 -- and `--bite` breaks each of those and all 12 are caught. The editor
+half of `park_cars.py` was driven once against a mock `unreal` whose import
+laid every car along Y in centimetres, off centre and under the floor, and
+one on its side: every upright car landed on its row, turned, on the
+ground; the one on its side was refused. `Docs/renders/street-cars.png` is
+the four cars as the tool builds them (its OBJ output, rendered in
+Blender's Cycles only to look at them).
+
+**Not verified.** Unity has never been run here: no Unity editor is
+installed and it needs a licence login. `CarToolMenu.cs` was type-checked
+against a stub of the Unity API written from memory, not against Unity, and
+the FBX Exporter's version (4.2.1), its `ModelExporter.ExportObject` and the
+asmdef's reference to `Unity.Formats.Fbx.Editor` are from memory. No FBX
+has been written, so `Content/Models/Cars/` holds only `cars.json` until
+the tool is run in Unity; no engine has imported a car, and the placement's
+editor half has only met the mock.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

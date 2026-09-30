@@ -226,6 +226,24 @@ def _load_souq():
 
 
 SOUQ = _load_souq()
+
+
+# ---------------------------------------------------------------- the cars
+# Parked along the streets (Tools/levels/park_cars.py, 2026-10-01): placed
+# here from each district's own street, fights, fires and blocks; built by
+# the Unity tool (ahmed-fighter-unity/Assets/CarTool). They are their own
+# list, P["cars"], and not scenery, so no rule above them moves: they are
+# held by park_cars' own checks.
+def _load_park():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("park_cars", os.path.join(HERE, "park_cars.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.use(SOUQ)
+    return mod
+
+
+PARK = _load_park()
 # The level's street mesh has its spurs out to the level's doors; the world's
 # doors are elsewhere, so its street is its own mesh, made by
 #     blender -b -P Tools/blender/build_souq.py -- --world
@@ -609,7 +627,7 @@ def souq(d, idx, scenery):
 def plan(stages, world):
     order, arena_idx, origins, radius = place_ring(stages, world)
     areas = {a["Index"]: a for a in world["Areas"]}
-    districts, actors, scenery, animals = {}, [], [], []
+    districts, actors, scenery, animals, cars = {}, [], [], [], []
 
     def act(kind, name, x, y, z=0.0, **props):
         actors.append(dict(kind=kind, name=name, x=x, y=y, z=z, props=props))
@@ -647,6 +665,7 @@ def plan(stages, world):
             souq(d, idx, scenery)
         else:
             district_ground(d, idx, scenery)
+        cars.extend(PARK.park_district(d, idx))
         sites = d["sites"]
 
         # --- the gameplay actors, as Tools/fab/lay_out_world.py places them
@@ -710,7 +729,7 @@ def plan(stages, world):
         p.setdefault("district", None)
     return dict(order=order, arena=arena_idx, origins=origins, radius=radius,
                 districts=districts, actors=actors, scenery=scenery,
-                animals=animals, stages=stages)
+                animals=animals, cars=cars, stages=stages)
 
 
 # ------------------------------------------------------------ the colours
@@ -939,6 +958,11 @@ def check(P):
                 assert math.hypot(p["x"] - d["ox"] - f["x"], p["y"] - d["oy"] - f["y"]) >= max(p["sx"], p["sy"]) * 0.5 + f["half"], \
                     "%s: a %s stands inside a %s" % (Q["name"], f["kind"], p["kind"])
 
+    # 34. the parked cars (park_cars.py): at the kerb, out of every fight,
+    #     fire, block, spur, rim and way out, the lane left, and cars.json
+    #     the tables' own
+    n_cars = PARK.check(P)
+
     print("checked: no district overlaps another, nothing solid stands in a street or a")
     print("fight or off an edge, every way out is a gap in its own rim, and every")
     print("doorway opens onto the one that answers it. The island passes its own")
@@ -947,6 +971,7 @@ def check(P):
     print("grounds in the soot band over the ink, every way through reads, the fog is the look's air")
     print("under a cold hard moon, and every district's fires light its fights and doors in pools,")
     print("within the light budget.")
+    print("The cars: %d parked, every one at its kerb, clear of every fight, fire, block and way out." % n_cars)
 
 
 # ------------------------------------------------------------------ bite
@@ -1444,6 +1469,9 @@ def build(P):
                                 folder="Night/%s" % d["stage"]["Name"])
         night_lights += n; night_smoke += v
     unreal.log("The night: %d lights, %d smoke volumes" % (night_lights, night_smoke))
+
+    # --- the parked cars, as the Unity tool built them (park_cars.py)
+    PARK.build_in_editor(P, spawn)
 
     if not ELL.save_current_level():
         unreal.log_error("Could not save %s" % path)

@@ -19,6 +19,18 @@
 > accurate as of that date. If this port is ever unfrozen, start by running
 > `Tools/harness/run.sh` and `node Tools/export/export.mjs --check`: the first
 > still passes, the second will tell you how far the data has drifted since.
+>
+> **One part is live: `Assets/CarTool` (2026-10-01).** The Unreal game's
+> parked street cars are built here, asked as "use unity for build cars
+> instead blender": `SAUD > Build Street Cars` reads
+> `../saud-fighter-ue5/Content/Models/Cars/cars.json` and writes each car's
+> FBX and paint into that project. It is an editor tool for the Unreal
+> game; the port around it stays frozen. `Editor/Core` is engine-free and
+> runs under Mono with its checks and sabotages (`Tools/cars/run.sh
+> [--bite]`); `Editor/CarToolMenu.cs` has never been compiled in Unity. It
+> needs the FBX Exporter package, added to `Packages/manifest.json`. The
+> story, the numbers and the rules are the Unreal build's:
+> `../saud-fighter-ue5/CLAUDE.md`, "The street cars, built in Unity".
 
 Guidance for anyone — person or assistant — working in this directory.
 

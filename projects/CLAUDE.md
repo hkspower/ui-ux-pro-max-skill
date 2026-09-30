@@ -71,6 +71,11 @@ on.** There is no second engine and no evaluation running between two.
   223 checks pass, and it holds a working open world -- but nothing new goes
   into it, it is not kept in step, and it is not a target any more. Read its
   own CLAUDE.md before touching it at all.
+  **One exception, asked 2026-10-01:** `ahmed-fighter-unity/Assets/CarTool`
+  is live -- the Unreal game's street cars are built there by a Unity editor
+  tool and exported into `saud-fighter-ue5/Content/Models/Cars/`. It is a
+  tool for the Unreal game, not a return to Unity as an engine; nothing else
+  in that tree moves.
 - `saud-fighter/` is **not an engine port** and is not affected. It is the
   browser game and the source of truth for every number in the project; the
   Unreal build is generated from it and would stop working without it.
