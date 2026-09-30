@@ -560,7 +560,7 @@ def run(man, labels, size, samples, anim):
     return pics, fails
 
 
-def sheet(pics, size, out, man):
+def sheet(pics, size, out, man, anim=None):
     from PIL import Image, ImageDraw, ImageFont
     C = colours()
     k = size[1] / 1200.0
@@ -577,9 +577,14 @@ def sheet(pics, size, out, man):
     except Exception:
         f1 = f2 = ImageFont.load_default()
     d.text((gap + int(12 * k), int(10 * k)), "%s  --  IK POSE SHEET" % man.upper(), font=f1, fill=C["bone"])
+    # the clips' folder as it was given (--anim), not Content's by name: a
+    # sheet of a scratch build said Content/Animation/Saud
+    where = os.path.relpath(anim, PROJECT) if anim else "Content/Animation/%s" % man
+    if where.startswith(".."):
+        where = anim
     d.text((gap + int(14 * k), int(64 * k)),
-           "posed through rigs/%s.blend's controls at frames of Content/Animation/%s.  red: lead (L)   "
-           "ember: rear (R)   bone: the body   dashed: a pole   rings: the FK spine, neck, head" % (man, man),
+           "posed through rigs/%s.blend's controls at frames of %s.  red: lead (L)   "
+           "ember: rear (R)   bone: the body   dashed: a pole   rings: the FK spine, neck, head" % (man, where),
            font=f2, fill=C["bone"])
     d.line([0, title - 2, Wd, title - 2], fill=C["red"], width=max(2, int(3 * k)))
     for i, p in enumerate(pics):
@@ -644,7 +649,7 @@ def main():
     out = os.path.abspath(arg("--out", os.path.join(PROJECT, "Docs", "renders", "%s-ik-sheet.png" % man.lower())))
     only = arg("--only", "")
     pics, fails = run(man, [s for s in only.split(",") if s] if only else None, size, samples, anim)
-    sheet(pics, size, out, man)
+    sheet(pics, size, out, man, anim)
     if fails:
         print("CHECKS FAIL\n  " + "\n  ".join(fails))
         sys.exit(1)

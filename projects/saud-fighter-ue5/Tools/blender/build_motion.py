@@ -168,6 +168,16 @@ SUPPORT_FOOT = (0.05, -0.55, -0.83)     # heel up, weight over the ball
 # leans from his own hunch. Aims a strike does not set are left alone.
 RELATIVE_TORSO = {"mma"}
 TORSO = ("spine_01", "spine_02", "spine_03", "neck_01", "head")
+# The stances whose walks and dashes are authored as a runner's (2026-09-30,
+# "improve steps"): the planted foot rolls onto its ball as it goes behind
+# the hip, the feet land under him, the hips sway over the support foot and
+# turn with the stride, the swing clears the runtime's plant band, the
+# sideways walk rises as the bound it is, and the dash leaves the floor --
+# and whose clips every new check in verify() is applied to. Saud alone:
+# every other set's walks are authored exactly as before and rebuild byte
+# for byte (the Street and boss walks lock their knees the same way; "every
+# other man keeps what he has").
+STEPS_SETS = {"mma"}
 
 
 def _strikes(base=None, stance=None):
@@ -177,6 +187,13 @@ def _strikes(base=None, stance=None):
         # --bite "upright": Saud stood on his stance as it was until
         # 2026-09-28, which the stance check has to tell from this one
         G = dict(L.MMA_GUARD_2026_09_26)
+    if "craned" in SABOTAGE and stance == "mma":
+        # --bite "craned": the stance as it was until 2026-09-30 -- the neck
+        # bent 26 degrees with the skull extended on it, the lead fist 5.8 cm
+        # under the chin, the rear wrist bent 16.5, the soles rolled -- which
+        # the stance check's keys of that day (chest_bend and the rest,
+        # build_saud.MMA_SPEC) have to tell from the solved one
+        G = dict(L.MMA_GUARD_2026_09_28)
     if "guard" in SABOTAGE:
         # the guard's arms as they were until 2026-09-24
         for s, x in (("l", 1.0), ("r", -1.0)):
@@ -807,6 +824,12 @@ CHIN_UNDER_HEAD = 0.10
 # a set with no pairs lands on its own. Captured once per build by
 # author_all (capture_chins); `CHIN_OF` is each set's own.
 VICTIM_CHIN, CHIN_OF = {}, {}
+# ...and, for a set whose guard stands on its sole corners rather than its
+# ball joints (Saud, 2026-09-30), the chin the ball grounding gave it: the
+# summary says how far the chin rose, because every set whose punches land
+# on it moved with it (verify's summary; 2.3 mm on Saud, 5 Street and 14
+# boss punch clips 2.2-2.4 mm off Content -- physically right, not hidden)
+CHIN_ON_BALL = {}
 MOTION_SETS = ("Saud", "Street", "Boss", "Saqr", "Zayos")
 CHIN_TOL = 0.015      # the fist's tip at contact, off the chin it is thrown at
 
@@ -819,11 +842,14 @@ def set_stance(key):
 def capture_chins(au, S):
     """Each set's own chin, from its guard grounded as its clips ground it,
     and the chin each set's punches land on."""
-    VICTIM_CHIN.clear(); CHIN_OF.clear()
+    VICTIM_CHIN.clear(); CHIN_OF.clear(); CHIN_ON_BALL.clear()
     for key in MOTION_SETS:
         guard, _ = S[GUARD_OF.get(key, "boxer")]["Guard"]
         g = au.capture_guard(aims_at(guard, guard, 0.0, set_stance(key)))
         CHIN_OF[key] = g["head"].z + g["dz"] - CHIN_UNDER_HEAD
+        if g.get("soles") == "level":
+            floor = au.pb["ball_l"].bone.head_local.z
+            CHIN_ON_BALL[key] = g["head"].z + (floor - min(g["fk"]["ball_l"].z, g["fk"]["ball_r"].z)) - CHIN_UNDER_HEAD
     for key in MOTION_SETS:
         them = [v for a, v in H.PAIRS if a == key]
         VICTIM_CHIN[key] = sum(CHIN_OF[v] for v in them) / len(them) if them else CHIN_OF[key]
@@ -912,19 +938,14 @@ def strike_frame(au, g, aims, lean, twist, planted, lift=(0.0, 0.0, 0.0), hand_a
     rolls = {}
     for s in SIDES:
         # A planted knee bends forward, the only way a knee bends -- its
-        # pole out in front, as build_saud's own planted stances put it.
-        # Read off the FK bend instead, the guard's rear knee was 11 cm
-        # BEHIND the line from hip to ankle: 29 degrees of a knee bent the
-        # wrong way, in every frame of every FK clip, and 9 more on the
-        # kick's support leg. A striking leg keeps its FK chamber.
-        if s in planted and "knee" not in SABOTAGE:
-            pole = (fk["hip_" + s] + fk["an_" + s]) * 0.5 + Vector((0.0, -0.6, 0.0))
-        elif s in planted:
-            # --bite "knee": the pole BEHIND the knee. It used to be the FK
-            # bend's own side, which exposed the old guard's backward rear
-            # knee; the stances are solved with forward knees now
-            # (2026-09-26) and that no longer broke anything.
-            pole = (fk["hip_" + s] + fk["an_" + s]) * 0.5 + Vector((0.0, 0.6, 0.0))
+        # pole out in front, as build_saud's own planted stances put it
+        # (planted_pole). Read off the FK bend instead, the guard's rear
+        # knee was 11 cm BEHIND the line from hip to ankle: 29 degrees of a
+        # knee bent the wrong way, in every frame of every FK clip, and 9
+        # more on the kick's support leg. A striking leg keeps its FK
+        # chamber.
+        if s in planted:
+            pole = planted_pole(s, fk, g)
         else:
             pole = M.pole_from(fk["hip_" + s], fk["kn_" + s], fk["an_" + s], Vector((0.0, -1.0, 0.0)))
         if s in planted and "plant" not in SABOTAGE:
@@ -1035,7 +1056,7 @@ def author_strike(au, c, S):
 # ----------------------------------------------------------- the states
 def body_frame(au, g, aims, feet, lean=0.0, hips=(0.0, 0.0, 0.0), tilt=0.0, side_tilt=0.0,
                post_aims=None, hands=None, hand_poles=None, settle=(), twist=None, head_turn=0.0,
-               turn=0.0):
+               turn=0.0, max_reach=None, ground_soles=()):
     """One frame of anything that is not a strike: the guard's body shape,
     the hips moved and tipped (tilt + is back, side_tilt + toward his
     left, turn + about the vertical toward his left), the feet put where
@@ -1043,10 +1064,18 @@ def body_frame(au, g, aims, feet, lean=0.0, hips=(0.0, 0.0, 0.0), tilt=0.0, side
     `hands` and `hand_poles` may be functions of the FK read, for anything
     that has to follow the moved body. `twist` turns the spine as a
     strike's does; `head_turn` then turns the head on the neck, + toward
-    his left (a blow turns the face; fk_body's twist keeps it forward)."""
+    his left (a blow turns the face; fk_body's twist keeps it forward).
+    `ground_soles` names sides whose foot, if it is rolled onto its ball,
+    is raised after the settle until the lowest corner of its sole model
+    (build_saud.sole_points) is on the floor: the rig rolls a foot about
+    the pivot under its ball and the model's toe corner, 2.1 cm ahead of
+    it, swings under the floor -- 4.0 mm at the walks' roll of 0.5 (Saud's
+    walks, 2026-09-30; the foot's yaw is the guard's every frame, so the
+    dip is the roll's alone). The lift is measured, not modelled: one
+    re-solve of that leg with the control that much higher."""
     import motion_ik as M
     import rig_full_ik as CR
-    from mathutils import Vector, Quaternion
+    from mathutils import Vector, Quaternion, Matrix
     au.begin()
     au.fk_body(aims, lean=lean, twist=twist)
     au.move_hips((hips[0], hips[1], hips[2] + g["dz"]))
@@ -1064,9 +1093,18 @@ def body_frame(au, g, aims, feet, lean=0.0, hips=(0.0, 0.0, 0.0), tilt=0.0, side
             pb.rotation_quaternion = pb.rotation_quaternion @ Quaternion((0, 1, 0), head_turn * share)
         M.upd()
     fk = au.read()
+    placed = {}
     for s, (m, pole, roll) in feet.items():
-        au.leg(s, m(fk) if callable(m) else m, pole(fk) if callable(pole) else pole, roll)
-    drop = au.settle(settle) if settle else 0.0
+        placed[s] = (m(fk) if callable(m) else m, pole(fk) if callable(pole) else pole, roll)
+        au.leg(s, *placed[s])
+    drop = au.settle(settle, max_reach=max_reach) if settle else 0.0
+    for s in ground_soles:
+        m, pole, roll = placed[s]
+        if roll > 1e-6:
+            import build_saud as L
+            low = min(p.z for _n, p in L.sole_points(au.rig, s))
+            if low < 0.0:
+                au.leg(s, Matrix.Translation((0.0, 0.0, -low)) @ m, pole, roll)
     fk = au.read()
     for s in SIDES:
         h = (hands or {}).get(s)
@@ -1080,18 +1118,92 @@ def body_frame(au, g, aims, feet, lean=0.0, hips=(0.0, 0.0, 0.0), tilt=0.0, side
     return loc, world, fk, drop
 
 
-def knee_forward(s, up=0.0):
-    """A planted knee's pole: out in front of the leg (the man faces -Y).
-    --bite "knee" puts it BEHIND, the way the guard, the walks and the
-    dashes -- which take their poles from here, not from author_strike --
-    would bend a knee backwards if nothing held them."""
+def planted_pole(s, fk, g, up=0.0, at=None):
+    """Where a planted knee's pole goes, from the frame's FK read `fk` --
+    or, given `at` = (ankle, ball), from where the foot is actually put
+    this frame (a walking foot is 34 cm from where the FK guard has it).
+
+    Straight out in front of the leg (the man faces -Y), as build_saud's
+    planted stances put it -- unless the guard `g` was captured from a
+    stance that asks for `"knee_pole": "foot"` (build_saud.MMA_GUARD, Saud
+    only, 2026-09-30): then build_saud.knee_pole puts it where the knee
+    tracks over the toes, allowing an adult's tibial torsion. Straight
+    forward whatever the foot's yaw, Saud's rear foot, turned out 35
+    degrees, had its knee 18.6 cm inside the vertical plane through the
+    foot's own axis in every clip that stood in his guard -- a 43 degree
+    twist between shin and foot, a tibia no man has. The FK knee of the
+    frame fixes the circle the knee moves on, so a walking hip 34 cm past
+    a planted foot is solved on that frame's own geometry.
+
+    --bite "knee" puts the pole BEHIND the leg (the same bend, mirrored
+    behind the hip-ankle line), the way the guard, the walks and the dashes
+    -- which take their poles from here, not from author_strike -- would
+    bend a knee backwards if nothing held them. --bite "knee_fwd_pole" is
+    the straight-forward pole on a stance that asked for the other."""
     from mathutils import Vector
+    if g and g.get("knee_pole") == "foot" and "knee_fwd_pole" not in SABOTAGE:
+        import build_saud as L
+        ankle, ball = at if at else (fk["an_" + s], fk["ball_" + s])
+        pole = L.knee_pole(fk["hip_" + s], fk["kn_" + s], ankle, ball, back=("knee" in SABOTAGE))
+        return pole + Vector((0.0, 0.0, up))
     y = 0.6 if "knee" in SABOTAGE else -0.6
-    return lambda fk, s=s: (fk["hip_" + s] + fk["an_" + s]) * 0.5 + Vector((0.0, y, up))
+    return (fk["hip_" + s] + fk["an_" + s]) * 0.5 + Vector((0.0, y, up))
+
+
+def knee_forward(s, up=0.0, g=None, at=None):
+    """A planted knee's pole as a function of the frame's FK read: see
+    planted_pole. Without a guard it is the straight-forward pole."""
+    return lambda fk, s=s: planted_pole(s, fk, g, up, at)
 
 
 def planted_feet(g):
-    return {s: (g["ctrl_foot_" + s], knee_forward(s), 0.0) for s in SIDES}
+    return {s: (g["ctrl_foot_" + s], knee_forward(s, g=g), 0.0) for s in SIDES}
+
+
+# A fall's knees leave the foot-tracking pole for the straight one over the
+# first 10 cm the hips drop (metres; the pelvis height keyed in down_keys /
+# getup_keys against the guard's own).
+FLOOR_POLE_FADE = 0.10
+
+
+def floor_pole(s, up, g, pz):
+    """A fall's planted knee pole (floor_frame: Down, GetUp, Death and the
+    other falls), as a function of the frame's FK read. Standing -- the
+    keyed pelvis height `pz` within FLOOR_POLE_FADE of the guard's -- it is
+    planted_pole's, the guard's own, so Down starts and GetUp ends in the
+    guard as they always did; as the hips go down it fades to the straight
+    pole, `mid(hip, ankle) + (0, -0.6, up)`, which every fall had until
+    2026-09-30. build_saud.knee_pole solves a knee on the FORWARD half of
+    its circle about the hip-ankle line, and on a man sitting on the floor
+    that line is horizontal and its forward half points at the floor:
+    measured with it left on through the falls, Down's knees ended 28.0 /
+    26.4 cm up instead of 40.3 / 36.6, Death's 22.7 / 24.3 instead of
+    31.2 / 29.4, and a knee jumped 8-12 cm between frames as the search
+    flipped (GetUp f4-5, Death f9-13). A stance with no "knee_pole" key
+    (every other man's) gets the straight pole either way, exactly as
+    before.
+
+    Not the straight pole throughout (asked by the second review, 2026-
+    09-30, and measured): with knee_forward(g=None) on every frame Down's
+    first frame and GetUp's last sit 13.7 cm from the guard at the rear
+    knee (the guard's own pole is the foot-tracking one) and "GetUp does
+    not end in the guard" fails; with this fade both are 0.61 cm from it,
+    Down's knees end 40.4 / 36.9 cm up against Content's 40.3 / 36.6 and
+    Death's 31.3 / 29.9 against 31.2 / 29.4 (the millimetres are the
+    re-solved guard's feet), and the biggest knee move a frame is the
+    keyed rear foot's slide, the same in Content (Down 11.6 / 11.1 cm,
+    GetUp 36.3 / 34.4)."""
+    if not (g and g.get("knee_pole") == "foot"):
+        return knee_forward(s, up=up, g=g)
+    gz = g["pelvis"].translation.z + g["dz"]
+    w = max(0.0, min(1.0, 1.0 - (gz - pz) / FLOOR_POLE_FADE))
+
+    def pole(fk, s=s, w=w):
+        straight = planted_pole(s, fk, None, up)
+        if w <= 0.0:
+            return straight
+        return straight.lerp(planted_pole(s, fk, g, up), w)
+    return pole
 
 
 def walk_offset(us, beta, amp):
@@ -1102,6 +1214,106 @@ def walk_offset(us, beta, amp):
         return amp * (0.5 - us / beta), 0.0, True
     w = (us - beta) / (1.0 - beta)
     return -amp * 0.5 + amp * ease(w), math.sin(math.pi * w), False
+
+
+# ---- Saud's steps (2026-09-30, "improve steps ... body"; STEPS_SETS).
+# Measured on the shipped Walk_Fwd/Back/Left/Right and Dash_* first: the lead
+# knee locked at 3-4 degrees (leg reach 0.9996) on frames 5-8 of Walk_Fwd and
+# 0-1 / 15-16 of Walk_Back, the rear on 14-15 / 8; the pelvis dropped 6.7 cm
+# in ONE frame (201 cm/s; 7.2 Back, 6.7 / 8.0 Left / Right); the swing ankle
+# rose 9.7-11.8 cm, inside the runtime's PLANTED band (SaudIK.h PlantHeight
+# 10 / PlantFade 28) for the whole swing; the pelvis stood 29 cm inside the
+# rear foot at its mid-stance; nothing above the pelvis moved; the sideways
+# bound dipped 11 cm at take-off and never rose over the guard; the dash
+# had both soles down 4 of 7 frames, reached 9.9 cm and leaned in 3 degrees.
+# Cause of the lock and the jolt, in one sentence: the ball runs +/- 34 cm
+# about the pelvis, so the ANKLE, 15.5 cm behind it, ran 52 cm behind the
+# hip at toe-off, out of a 0.882 m leg's reach, and Author.settle pulled the
+# hips down until it was in reach -- in one frame -- while a rigid foot
+# (pitch fixed on all 17 frames) gave no push-off to shorten the leg.
+WALK_CLEAR = 0.10          # every other set's swing lift: a foot that swings at 7 cm read as a shuffle
+STEPS_CLEAR = 0.30         # Saud: the swing ankle over PlantFade (28 cm read from SaudIK.h) -- the
+                           # sin(pi w) profile is sampled at w 0.45 / 0.55 (0.988), so 0.28 reads 27.7
+STEPS_LIFT_PEAK = 0.35     # where in the swing the foot is highest: at 0.35 the heel is recovering
+                           # behind the hip, where a runner's ankle is highest; peaked at mid-swing
+                           # (sin(pi w)) the sheet read as a high-knee march, the foot hanging 30 cm
+                           # up under a forward knee
+STEPS_CENTRE_FWD = 0.10    # the feet's swing centre 10 cm toward his front: the lead ankle at toe-off
+                           # 52 -> 42 cm behind its hip, the rear 43 -> 33 (touchdown 28 / 34 ahead)
+STEPS_ROLL_FROM = 0.25     # the planted foot rolls onto its ball once its ankle is this far behind
+STEPS_ROLL_OVER = 0.20     # the hip (sideways: this far from it, any way), fully over the next 20 cm --
+STEPS_ROLL = 0.5           # to half of rig_full_ik.TOE_ROLL (27.5 degrees; the ankle rises ~6 cm)
+STEPS_SOLE_PIVOT = 0.021   # m of sole ahead of the rig's toe pivot (MCH_toe, on the floor under the
+                           # ball joint; the sole model's front edge 2.3 cm past J toe): a foot rolled
+                           # onto its ball swings only that much of sole under the floor, by sin of
+                           # the roll's angle -- the sole_on_floor allowance, 0.021 sin(roll TOE_ROLL)
+                           # + 2 mm: 9.7 mm at the walks' STEPS_ROLL, 17.2 at a full roll. Measured on
+                           # the guard's feet (roll_dip): rear -1.4 / -4.0 / -7.9 / -12.6 mm at 0.25 /
+                           # 0.5 / 0.75 / 1.0, lead +2.2 / +0.2 / -3.0 / -7.3 -- and since 2026-09-30
+                           # (second review) a rolled PLANTED foot of the walks is raised by its own
+                           # dip (body_frame's ground_soles), so it reads 0.0 rather than -4.0
+STEPS_RAIL_PULL = 0.08     # Fwd/Back: the rear foot's rail 8 cm toward the pelvis (28.6 -> 20.6 across)
+STEPS_SWAY = 0.04          # Fwd/Back: the hips 4 cm toward the planted foot at its mid-stance
+STEPS_BOUND_RISE = 0.05    # Left/Right: the pelvis 5 cm up at mid-flight in place of the bob (the
+                           # check wants 4 over the standing height, the centimetre is the margin;
+                           # a 0.27 s flight is 8.7 ballistic)
+STEPS_HIP_TWIST = 0.05     # rad, +/- 2.9 degrees: the hips turn with the stride, the chest turns back
+STEPS_REACH_MARGIN = 0.010 # settle's cap sits this under MaxStretch; the check half as far under it
+STEPS_LATERAL_RAIL = 0.20  # Left/Right: a foot's rail no further than this from the pelvis along the
+                           # heading (the rear's was 28.6: at 43.5 cm of ground excursion it landed 60
+                           # cm from its hip, out of reach, and the body crouched 10 cm in one frame);
+                           # the rails stay 32 cm apart, over the shoulder-width 30
+STEPS_CROUCH_SLOPE = 0.025 # m per frame: whatever crouch a far foot still needs (settle's own drop
+                           # and its reach cap, measured on a first pass) is taken at no more than
+                           # this a frame, the rise's own slope included (the check is 3.0)
+DASH_ALONG = 0.10          # the hips 10 cm along the heading at the peak (was 5)
+DASH_RISE = 0.045          # ...and 4.5 cm up (a 0.167 s flight is 3.4 cm ballistic; the check wants 3)
+DASH_REACH = {"lead": 0.22, "trail": -0.04}   # the leading foot 22 cm past its spot at the peak (the
+                           # check wants 20; 25 needed an 0.89 m leg), the trailing one 4 back
+DASH_UP = 0.05             # both feet 5 cm up at the peak: 2.5 on the first and last airborne frames
+DASH_INTO = 0.175          # rad, 10 degrees of hip tilt into the heading (the check wants 8 of lean)
+ARM_CHAIN = ("clavicle_l", "upperarm_l", "lowerarm_l", "hand_l", "palm_l",
+             "clavicle_r", "upperarm_r", "lowerarm_r", "hand_r", "palm_r")
+
+IK_HEADER = os.path.join(SOURCE, "SaudIK.h")
+
+
+def ik_constants():
+    """The runtime's own numbers, read out of Combat/SaudIK.h the way
+    engine_timings reads the C++: PlantHeight and PlantFade (cm over the
+    clip's floor: planted under the first, swinging over the second) and
+    MaxStretch (the fraction of a leg's length TwoBone lets it reach)."""
+    import re
+    src = open(IK_HEADER, encoding="utf-8").read()
+    out = {}
+    for k in ("PlantHeight", "PlantFade", "MaxStretch"):
+        m = re.search(r"constexpr\s+float\s+%s\s*=\s*([0-9.]+)f" % k, src)
+        assert m, "SaudIK.h no longer says what %s is" % k
+        out[k] = float(m.group(1))
+    return out
+
+
+def lift_profile(w, peak=STEPS_LIFT_PEAK):
+    """A swing's lift, 0 at both ends and 1 at `peak` of the way through,
+    flat at the top on both sides (a quarter sine up, a quarter cosine
+    down)."""
+    if w <= 0.0 or w >= 1.0:
+        return 0.0
+    if w < peak:
+        return math.sin(0.5 * math.pi * w / peak)
+    return math.cos(0.5 * math.pi * (w - peak) / (1.0 - peak))
+
+
+def flight_window(beta, phase):
+    """Of a sideways walk's cycle, the stretch where neither foot is on the
+    ground, as (start, length) in cycle fractions -- or None."""
+    n = 1000
+    air = [not any(((i / float(n) + phase[s]) % 1.0) < beta for s in SIDES) for i in range(n)]
+    if not any(air) or all(air):
+        return None
+    start = next(i for i in range(n) if air[i] and not air[i - 1])
+    length = next(k for k in range(1, n + 1) if not air[(start + k) % n])
+    return start / float(n), length / float(n)
 
 
 def walk_gait(stride, w, lateral, heading):
@@ -1142,21 +1354,80 @@ def author_walk(au, c, S):
     w = abs(g["ball_l"].x - g["ball_r"].x)
     beta, phase = walk_gait(v * T, w, lateral, c["dir"])
     amp = v * T * beta
-    clear = 0.10        # a foot that swings at 7 cm read as a shuffle
+    # Saud's walks are a runner's (STEPS_SETS, the constants above); every
+    # other set's are authored exactly as before, on this same code, with
+    # every one of these switched off.
+    steps = c["guard"] in STEPS_SETS
+    stance_fixed = steps and "straight_stance" not in SABOTAGE
+    clear = STEPS_CLEAR if steps and "low_swing" not in SABOTAGE else WALK_CLEAR
     # each foot swings about a centre: under the hips along the heading (a
     # runner's foot lands under him, not where the bladed guard had it), and
     # where the guard has it across the heading
     centre = {s: ((g["pelvis"].translation - g["ball_" + s]).dot(d) if not lateral else 0.0) for s in SIDES}
-    frames, plant = [], {s: {} for s in SIDES}
-    for f in range(N):
+    pull = {s: Vector((0.0, 0.0, 0.0)) for s in SIDES}
+    max_reach = None
+    if stance_fixed:
+        # ...10 cm further toward his front, forward and back alike: with
+        # the ankle 15.5 cm behind the ball and the hip 3 ahead of the
+        # pelvis, the lead ankle at toe-off was 52 cm behind its hip, out of
+        # a 0.882 m leg's reach; and the hips capped under MaxStretch, so a
+        # foot that is still too far away brings the hips down instead of
+        # locking the knee. Sideways, the rear foot's rail (28.6 cm from
+        # the pelvis) is brought to STEPS_LATERAL_RAIL for the same reason.
+        if not lateral:
+            for s in SIDES:
+                centre[s] += STEPS_CENTRE_FWD * Vector((0.0, -1.0, 0.0)).dot(d)
+        else:
+            for s in SIDES:
+                away = (g["ball_" + s] - g["pelvis"].translation).dot(d)
+                if abs(away) > STEPS_LATERAL_RAIL:
+                    centre[s] -= (abs(away) - STEPS_LATERAL_RAIL) * (1.0 if away > 0 else -1.0)
+        max_reach = ik_constants()["MaxStretch"] - STEPS_REACH_MARGIN
+    if steps and not lateral and "flat_pelvis" not in SABOTAGE:
+        # the rear foot's rail toward the pelvis: at its mid-stance he stood
+        # with the hips 28.6 cm inside the support foot
+        across = g["pelvis"].translation - g["ball_r"]
+        across = across - d * across.dot(d)
+        across.z = 0.0
+        pull["r"] = across.normalized() * STEPS_RAIL_PULL
+    flight = flight_window(beta, phase) if steps and lateral else None
+    plant = {s: {} for s in SIDES}
+
+    def strike(f, crouch=0.0):
+        """One frame; `crouch` lowers the hips by that much before the
+        feet are placed (the second pass, below)."""
         u = f / float(N)
-        feet = {}
+        feet, grounded = {}, []
         for s in SIDES:
-            off, lift, down = walk_offset((u + phase[s]) % 1.0, beta, amp)
-            shift = d * (centre[s] + off) + Vector((0.0, 0.0, clear * lift))
-            feet[s] = (Matrix.Translation(shift) @ g["ctrl_foot_" + s], knee_forward(s), 0.0)
+            us = (u + phase[s]) % 1.0
+            off, lift, down = walk_offset(us, beta, amp)
+            if steps and not down:
+                lift = lift_profile((us - beta) / (1.0 - beta))
+            shift = d * (centre[s] + off) + pull[s] + Vector((0.0, 0.0, clear * lift))
+            roll = 0.0
+            if stance_fixed:
+                # The foot rolls onto its ball as it goes behind the hip --
+                # by where it is, not by its phase, so in Walk_Back the
+                # roll is on at touchdown (he runs backward onto the ball
+                # with the leg out behind him) and comes off as the foot
+                # passes under him; sideways, as it goes far from the hip
+                # either way (the trailing foot of the bound pushes off 54
+                # cm out). A swinging foot follows the same rule and is
+                # flat again by the time it is under him.
+                ankle = g["ctrl_foot_" + s].translation + shift
+                hip = g["hip_" + s]
+                far = math.hypot(ankle.x - hip.x, ankle.y - hip.y) if lateral else (ankle.y - hip.y)
+                roll = STEPS_ROLL * max(0.0, min(1.0, (far - STEPS_ROLL_FROM) / STEPS_ROLL_OVER))
+            # the knee's pole from where the foot IS this frame, not where
+            # the FK guard has it (solved on the guard's leg, the touchdown
+            # knee sat 18.5 cm outside the foot's line: the guard's foot is
+            # 20 cm behind the hip, the landing one 34 ahead)
+            here = (g["ctrl_foot_" + s].translation + shift, g["ball_" + s] + shift) if steps else None
+            feet[s] = (Matrix.Translation(shift) @ g["ctrl_foot_" + s], knee_forward(s, g=g, at=here), roll)
             if down:
-                plant[s][f] = (g["ball_" + s] + d * (centre[s] + off), 0.0)
+                plant[s][f] = (g["ball_" + s] + d * (centre[s] + off) + pull[s], roll)
+                if stance_fixed and roll > 0.0:
+                    grounded.append(s)
         # the browser's moving bob, 2.2 px, at its lowest under each foot's
         # mid-stance and highest in the air -- twice a cycle, as a running
         # body does -- and sinking from the stance, not rising over it, for
@@ -1165,10 +1436,63 @@ def author_walk(au, c, S):
         # two a cycle at its full height it ran him in a squat over knees
         # the guard already bends (judged on the contact sheet).
         bob = -WALK_BOB_PX * PX * 0.5 * (1.0 + math.cos(4.0 * math.pi * (u - beta / 2.0)))
-        loc, world, _fk, _d = body_frame(au, g, aims, feet, hips=(0.0, 0.0, bob), settle=SIDES)
-        frames.append((loc, world))
+        hips, twist = (0.0, 0.0, bob), None
+        if steps:
+            sway = 0.0
+            if not lateral and "flat_pelvis" not in SABOTAGE:
+                # the weight over the support foot: toward the lead (his
+                # left, +X) at its mid-stance, toward the rear at its own
+                sway = STEPS_SWAY * math.cos(2.0 * math.pi * (u - beta / 2.0))
+            if flight and "dip_bound" not in SABOTAGE:
+                # the sideways walk is a bound -- both feet off for 8 of 17
+                # frames -- and its body dipped through the flight instead
+                # of rising: the pelvis goes up over the standing height
+                # while both feet are off, on one sin^2 (gentle at the
+                # edges, where the crouch below is steepest; the bob is
+                # within a millimetre of 0 at both edges of the flight)
+                fp = (u - flight[0]) % 1.0
+                if fp < flight[1]:
+                    bob = STEPS_BOUND_RISE * math.sin(math.pi * fp / flight[1]) ** 2
+            hips = (sway, 0.0, bob - crouch)
+            if not lateral and "still_hips" not in SABOTAGE:
+                # the hips turn with the stride -- more blade as the left
+                # leg swings, less as the right does -- and spine_02 turns
+                # it back, so the shoulders and the face stay on the
+                # opponent (fk_body's head correction is on the sum, 0)
+                a = -STEPS_HIP_TWIST * math.cos(2.0 * math.pi * (u - (1.0 + beta) / 2.0))
+                twist = {"pelvis": a, "spine_02": -a}
+        loc, world, _fk, drop = body_frame(au, g, aims, feet, hips=hips, settle=SIDES, twist=twist, max_reach=max_reach,
+                                           ground_soles=grounded)
+        return loc, world, drop, au.reach_drop, hips[2]
+
+    out = [strike(f) for f in range(N)]
+    drops = [o[2] for o in out]
+    # the reach cap's count is the FIRST pass's: the second pass strikes
+    # every frame with the crouch already under it, so the cap has nothing
+    # left to do there and read "0 frames" by construction
+    capped = [o[3] for o in out]
+    c["reach_cap"] = (sum(1 for x in capped if x > 0.0005), max(capped) * 100.0)
+    if stance_fixed and max(drops) > 0.001:
+        # The crouch, spread: where a planted foot is out of the capped
+        # reach settle brought the hips down on that frame alone -- the
+        # sideways bound's far foot cost 5-10 cm in one frame. Each frame's
+        # ceiling is known now (the height it was struck at, less what
+        # settle took); the hips follow the highest curve under every
+        # ceiling that climbs or falls no faster than STEPS_CROUCH_SLOPE a
+        # frame, and every frame is struck again.
+        cap = [o[4] - o[2] for o in out]
+        z = [min(cap[k] + STEPS_CROUCH_SLOPE * min((f - k) % N, (k - f) % N) for k in range(N)) for f in range(N)]
+        # the crouch is the first pass's hips over the curve (on the second
+        # pass the hips ARE the curve, and it read 0.0 by construction)
+        c["crouch_cm"] = max(o[4] - zf for o, zf in zip(out, z)) * 100.0
+        out = [strike(f, out[f][4] - z[f]) for f in range(N)]
+        after = [o[3] for o in out]
+        c["reach_cap_after"] = (sum(1 for x in after if x > 0.0005), max(after) * 100.0)
+    frames = [(o[0], o[1]) for o in out]
     c["plant"] = plant
     c["gait"] = dict(duty=beta, lag=phase, stride_cm=amp * 100.0)
+    c["stand_z"] = g["pelvis"].translation.z + g["dz"]
+    c["settled_cm"] = max(o[2] for o in out) * 100.0
     return frames
 
 
@@ -1184,26 +1508,66 @@ def author_dash(au, c, S):
     d = Vector(DIRS[c["dir"]])
     lead = {"Fwd": "l", "Back": "r", "Left": "l", "Right": "r"}[c["dir"]]
     N = c["frames"]
-    frames, plant = [], {s: {} for s in SIDES}
+    # Saud's dash leaves the floor (STEPS_SETS, 2026-09-30): measured, all
+    # four had both soles down on frames 0-1 and 5-6 -- 4 of 7, 0.13 s --
+    # while the engine's LaunchCharacter moves the capsule; the lead foot
+    # reached 9.9 cm, the pelvis dipped and peaked 2.5 cm over the guard, and
+    # the lean into the heading arrived as 3 degrees (Back leaned LESS
+    # forward, never into its heading). Frame 0 is the guard (the load, both
+    # planted), frames 1-5 are in the air on one half sine, frame 6 is the
+    # catch, the guard again; the lean is the hips tilted into the heading,
+    # one to one, as the sideways lean always was. The Street set's dashes
+    # (the boxer's guard; no street man ever dashes) keep the old curve.
+    steps = c["guard"] in STEPS_SETS and "feet_down_dash" not in SABOTAGE
+    # SaudIK.h is read once a clip, not once a frame
+    max_reach = (ik_constants()["MaxStretch"] - STEPS_REACH_MARGIN) if steps else None
+    frames, plant, capped = [], {s: {} for s in SIDES}, []
     for f in range(N):
         u = f / float(N - 1)
-        load, air, land = bump(u, 0.0, 0.22, 0.45), bump(u, 0.22, 0.52, 0.82), bump(u, 0.70, 0.86, 1.0)
-        hips = d * (0.05 * air) + Vector((0.0, 0.0, -0.05 * load + 0.025 * air - 0.035 * land))
-        into = 0.14 * bump(u, 0.0, 0.40, 1.0)
-        lean = into * -d.y                 # forward (-Y) leans in, back leans away
-        side = into * d.x                  # toward his left leans left
+        if steps:
+            air = math.sin(math.pi * u)
+            hips = d * (DASH_ALONG * air) + Vector((0.0, 0.0, DASH_RISE * air))
+            into = DASH_INTO * air
+            lean, tilt = 0.0, -into * -d.y     # body_frame's tilt is + back: forward (-Y) tilts in, back tilts away
+            side = into * d.x                  # toward his left leans left
+        else:
+            load, air, land = bump(u, 0.0, 0.22, 0.45), bump(u, 0.22, 0.52, 0.82), bump(u, 0.70, 0.86, 1.0)
+            hips = d * (0.05 * air) + Vector((0.0, 0.0, -0.05 * load + 0.025 * air - 0.035 * land))
+            into = 0.14 * bump(u, 0.0, 0.40, 1.0)
+            lean, tilt = into * -d.y, 0.0      # forward (-Y) leans in, back leans away
+            side = into * d.x                  # toward his left leans left
         feet = {}
         for s in SIDES:
-            reach = 0.10 if s == lead else -0.07
-            up = 0.07 if s == lead else 0.05
+            if steps:
+                reach = DASH_REACH["lead" if s == lead else "trail"]
+                up = DASH_UP
+            else:
+                reach = 0.10 if s == lead else -0.07
+                up = 0.07 if s == lead else 0.05
             shift = d * (reach * air) + Vector((0.0, 0.0, up * air))
-            feet[s] = (Matrix.Translation(shift) @ g["ctrl_foot_" + s], knee_forward(s), 0.0)
+            here = (g["ctrl_foot_" + s].translation + shift, g["ball_" + s] + shift) if steps else None
+            feet[s] = (Matrix.Translation(shift) @ g["ctrl_foot_" + s], knee_forward(s, g=g, at=here), 0.0)
             if air < 1e-6:
                 plant[s][f] = (g["ball_" + s].copy(), 0.0)
-        loc, world, _fk, _d = body_frame(au, g, aims, feet, lean=lean, side_tilt=side,
-                                         hips=tuple(hips), settle=[s for s in SIDES if air < 1e-6])
+        # the arms ride the body's tilt (hands up, as in the guard, in the
+        # HEAD's frame, which is where hands_check reads them: held to their
+        # world aims through a 10 degree forward tilt, the lead fist of the
+        # 09-30 guard -- 3 cm over the eye line in the head frame -- read +9
+        # against the check's +5, on Dash_Fwd frame 4) -- and only the PALMS
+        # are held to their world aims through a forward or backward tilt:
+        # tilted with the body they turned 10 degrees away from him (0.67
+        # toward him against hands_check's 0.72). Through the side tilt
+        # everything rides the body, as it always did: re-aimed there, the
+        # left elbow read 1 cm outside its shoulder in the rolled head frame.
+        arms = {n: aims[n] for n in ("palm_l", "palm_r") if n in aims} if steps and abs(d.y) > 0.5 else None
+        loc, world, _fk, _d = body_frame(au, g, aims, feet, lean=lean, tilt=tilt, side_tilt=side,
+                                         hips=tuple(hips), settle=SIDES if steps else [s for s in SIDES if air < 1e-6],
+                                         post_aims=arms, max_reach=max_reach)
         frames.append((loc, world))
+        capped.append(au.reach_drop if steps else 0.0)
     c["plant"] = plant
+    c["lead"] = lead
+    c["reach_cap"] = (sum(1 for x in capped if x > 0.0005), max(capped) * 100.0)
     return frames
 
 
@@ -1421,9 +1785,9 @@ def floor_frame(au, g, aims, p, prev, extra=None):
     ahead = {"neck_01": (0.0, -0.45, 0.89), "head": (0.0, -0.35, 0.94)}
     moving_rear = abs(p["rear"] - prev["rear"]) > 1e-4
     rear_shift = beside * p["rear"] + Vector((0.0, 0.0, 0.025 if moving_rear else 0.0))
-    feet = {"l": (g["ctrl_foot_l"], knee_forward("l", up=0.5 * min(1.0, p["tilt"] + 0.2)), 0.0),
-            "r": (Matrix.Translation(rear_shift) @ g["ctrl_foot_r"],
-                  knee_forward("r", up=0.5 * min(1.0, p["tilt"] + 0.2)), 0.0)}
+    up = 0.5 * min(1.0, p["tilt"] + 0.2)
+    feet = {"l": (g["ctrl_foot_l"], floor_pole("l", up, g, p["pz"]), 0.0),
+            "r": (Matrix.Translation(rear_shift) @ g["ctrl_foot_r"], floor_pole("r", up, g, p["pz"]), 0.0)}
     # the head: its guard aim turned back with the torso, then brought
     # round toward looking forward by `look`
     turn = mathutils.Matrix.Rotation(-p["tilt"], 3, "X")
@@ -1481,6 +1845,14 @@ def author_all(clips):
     au = M.Author(rig)
     print("%6.1fs  rig: %d bones, control layer on" % (time.time() - t0, len(rig.data.bones)))
     import build_saud as L
+    if any(c["guard"] in STEPS_SETS for c in clips):
+        # Saud's steps stand on build_saud's alignment helpers (the POSTURE
+        # track's P-0a, 2026-09-30): the sole corners, the level sole and
+        # the knee-over-toes pole. Without them there is no honest way to
+        # ground or check his feet, so say so here rather than fail inside
+        # a check.
+        missing = [n for n in ("knee_pole", "sole_points", "roll_sole") if not hasattr(L, n)]
+        assert not missing, "build_saud has no %s yet (the POSTURE track's P-0a); Saud's steps cannot be authored or checked without them" % ", ".join(missing)
     S = {name: _strikes(g, name) for name, g in L.GUARDS.items()}
     capture_chins(au, S)
     print("%6.1fs  chins: %s; punches land on %s" % (time.time() - t0,
@@ -1547,11 +1919,33 @@ def build(clips, out_root, sheet=False):
                           "%s-motion.png" % ("boss" if folder == "Bosses" else folder.lower()))
     pairs = H.write_pairs(made, out_root)
     if pairs:
+        pairs_yaw_180(pairs)
         print("        %s: where each pair's victim stands" % os.path.relpath(pairs, PROJECT))
         if sheet:
             H.pair_sheet(rig, made, os.path.join(out_root, "pairs-motion.png"))
     readback(made, out_root)
     return made
+
+
+def pairs_yaw_180(path):
+    """DT_Pairs.csv's Yaw column with a facing straight back at the
+    attacker printed as 180.0, never -180.0: the solve's atan2 lands on
+    +pi or -pi by the sign of a rounding error, and the writer's wrap
+    (-180 <= yaw < 180) printed the same facing two ways -- the shipped
+    table has 180.0 on one row and -180.0 on the next."""
+    import csv
+    rows = list(csv.reader(open(path, encoding="utf-8", newline="")))
+    head, body = rows[0], rows[1:]
+    yaw = head.index("Yaw")
+    n = 0
+    for r in body:
+        if float(r[yaw]) == -180.0:
+            r[yaw] = "180.0"
+            n += 1
+    if n:
+        with open(path, "w", newline="", encoding="utf-8") as fh:
+            csv.writer(fh).writerows([head] + body)
+    return n
 
 
 def readback(made, out_root):
@@ -1672,6 +2066,226 @@ def hands_check(c, rig, fails):
             fails.append("%s: the hand not punching drops -- %s at contact" % (c["name"], why))
 
 
+def planted_runs(frames, N):
+    """The frames of `frames` (a set) as runs in cycle order, each a list
+    of consecutive frame numbers -- a run that wraps the loop's end is one
+    run, starting after the wrap."""
+    have = sorted(frames)
+    if not have:
+        return []
+    if len(have) == N:
+        return [have]
+    start = next(f for f in have if (f - 1) % N not in frames)
+    runs, run, f = [], [], start
+    for _ in range(N):
+        if f in frames:
+            run.append(f)
+        elif run:
+            runs.append(run); run = []
+        f = (f + 1) % N
+    if run:
+        runs.append(run)
+    return runs
+
+
+def steps_check(c, rig, fails, ik):
+    """The step checks (2026-09-30, "improve steps"), on Saud's guard,
+    walks, dashes and block (STEPS_SETS), read off the baked bones like the
+    rest of verify(). `ik` is SaudIK.h's own numbers (ik_constants). Each
+    is proved to fail by a --bite case named beside it."""
+    import bpy
+    import build_saud as L
+    import rig_full_ik as CR
+    from mathutils import Vector
+    pb, W, N = rig.pose.bones, rig.matrix_world, c["frames"]
+
+    def go(f):
+        bpy.context.scene.frame_set(f); bpy.context.view_layer.update()
+
+    def P(n):
+        return (W @ pb[n].matrix).translation.copy()
+
+    rest_foot = rig.data.bones["foot_l"].head_local.z
+    span = pb["thigh_l"].length + pb["calf_l"].length
+    plant = c.get("plant") or {}
+    # ---- sole_on_floor (--bite "ball_ground"): each planted foot's lowest
+    # sole corner on the floor, within 2 mm, on every planted frame. A foot
+    # rolled onto its ball pivots on the floor under the ball (MCH_toe), so
+    # only the STEPS_SOLE_PIVOT of sole ahead of the pivot can swing under
+    # the floor, by the sine of the roll's angle; that much and no more
+    # (the walks' rolled feet are raised onto the floor, and read 0).
+    for s, marks in plant.items():
+        for f, (_want, roll) in sorted(marks.items()):
+            go(f + 1)
+            low = min(p.z for _n, p in L.sole_points(rig, s))
+            allow = STEPS_SOLE_PIVOT * math.sin(roll * CR.TOE_ROLL) + 0.002
+            if low < -allow or (roll < 1e-6 and low > 0.002):
+                fails.append("%s: the %s sole is %.1f mm %s the floor on frame %d" % (
+                    c["name"], s, abs(low) * 1000.0, "through" if low < 0.0 else "over", f + 1))
+                break
+    if c["kind"] not in ("walk", "dash"):
+        return
+    # ---- leg_reach (--bite "straight_stance"): no leg the runtime would
+    # plant (its ankle under PlantFade) reaches past MaxStretch less 0.005
+    worst = (0.0, "", 0)
+    for f in range(1, N + 1):
+        go(f)
+        for s in SIDES:
+            hip, ank = P("thigh_" + s), P("foot_" + s)
+            if ank.z - rest_foot >= ik["PlantFade"] / 100.0:
+                continue
+            r = (hip - ank).length / span
+            if r > worst[0]:
+                worst = (r, s, f)
+    c["reach"] = worst[0]
+    if worst[0] > ik["MaxStretch"] - 0.005:
+        fails.append("%s: the %s leg reaches %.4f of its length on frame %d, a locked knee (the runtime holds %.3f)" % (
+            c["name"], worst[1], worst[0], worst[2], ik["MaxStretch"]))
+    d = Vector(DIRS[c["dir"]])
+    lateral = abs(d.x) > 0.5
+    if c["kind"] == "walk":
+        # ---- walk_knee (--bite "straight_stance"): a runner's knee is never
+        # straight -- 20-25 at contact, 35-45 mid-stance
+        kmin = (180.0, "", 0)
+        for f in range(1, N + 1):
+            go(f)
+            for s in SIDES:
+                k = math.degrees((P("calf_" + s) - P("thigh_" + s)).angle(P("foot_" + s) - P("calf_" + s)))
+                if k < kmin[0]:
+                    kmin = (k, s, f)
+        c["knee_min"] = kmin[0]
+        if kmin[0] < 15.0:
+            fails.append("%s: the %s knee locks at %.0f deg on frame %d" % (c["name"], kmin[1], kmin[0], kmin[2]))
+        # ---- walk_jolt (--bite "straight_stance"): the pelvis never drops
+        # or rises more than 3 cm in one frame, the wrap included
+        pz = []
+        for f in range(1, N + 1):
+            go(f); pz.append(P("pelvis").z)
+        jolt = max((abs(pz[(i + 1) % N] - pz[i]), i) for i in range(N))
+        c["jolt_cm"] = jolt[0] * 100.0
+        if jolt[0] > 0.030:
+            fails.append("%s: the pelvis jolts %.1f cm in one frame (%d -> %d)" % (
+                c["name"], jolt[0] * 100.0, jolt[1] + 1, (jolt[1] + 1) % N + 1))
+        # ---- walk_clear (--bite "low_swing"): each foot's swing peak clears
+        # the runtime's plant band, so a step or a slope never drags it
+        for s in SIDES:
+            high = -1.0
+            for f in range(1, N + 1):
+                go(f); high = max(high, P("foot_" + s).z)
+            high -= rest_foot
+            c["clear_%s_cm" % s] = high * 100.0
+            if high < ik["PlantFade"] / 100.0:
+                fails.append("%s: the %s foot's swing clears only %.1f cm; the runtime plants under %.0f" % (
+                    c["name"], s, high * 100.0, ik["PlantFade"]))
+        # ---- knee over the toes on the planted frames (--bite
+        # "knee_fwd_pole"), Fwd/Back: the planted knee's signed distance
+        # from the vertical plane through the ankle along the foot's own
+        # axis, + lateral (away from the other hip). The band is set from
+        # the measurement (2026-09-30): the lead knee at touchdown reads
+        # -9.8 (a foot 25 cm ahead, pointed 5 in, and a shin asked to head
+        # 15 inside it), the rest -8..+4.7; the straight-forward pole reads
+        # -12.6..-16.6 over the rear stance. Not sideways: a leg stretched
+        # 45 cm across has its shin across the foot, whatever the pole.
+        # The ceiling is +8, not the +5 the rear knee sat 0.3 cm under: a
+        # walking hip 34 cm past the foot swings the circle the knee is
+        # solved on, so a knee that is dead over the toes in the guard
+        # reads a few cm outside the line at toe-off; the floor stays -12,
+        # where the straight pole's -12.6 is what the case has to catch.
+        c["knee_off"] = {}
+        for s, marks in (plant.items() if not lateral else ()):
+            o = "r" if s == "l" else "l"
+            span_off = (0.0, 0.0)
+            for f in sorted(marks):
+                go(f + 1)
+                hip, kn, an, ball = P("thigh_" + s), P("calf_" + s), P("foot_" + s), P("ball_" + s)
+                a = Vector((ball.x - an.x, ball.y - an.y, 0.0)).normalized()
+                n = Vector((-a.y, a.x, 0.0))
+                if n.dot(P("thigh_" + o) - hip) > 0.0:
+                    n = -n
+                off = (kn - an).dot(n)
+                span_off = (min(span_off[0], off), max(span_off[1], off))
+                if not (-0.12 <= off <= 0.08):
+                    fails.append("%s: the %s knee is %.1f cm %s the foot's line on frame %d" % (
+                        c["name"], s, abs(off) * 100.0, "inside" if off < 0 else "outside", f + 1))
+                    break
+            c["knee_off"][s] = span_off
+        if not lateral:
+            # ---- walk_support (--bite "flat_pelvis"): the pelvis passes
+            # within 20 cm of the support foot's ball during its stance --
+            # at the nearest frame, since the sampled middle frame of a
+            # 6-frame stance sits 6 cm off the true mid-stance, and in
+            # Walk_Back that put the rear ball 16 cm ahead of the pelvis
+            for s, marks in plant.items():
+                for run in planted_runs(set(marks), N):
+                    near = None
+                    for f in run:
+                        go(f + 1)
+                        pel, ball = P("pelvis"), P("ball_" + s)
+                        far = math.hypot(pel.x - ball.x, pel.y - ball.y)
+                        if near is None or far < near[0]:
+                            near = (far, f)
+                    c["support_%s_cm" % s] = near[0] * 100.0
+                    if near[0] > 0.20:
+                        fails.append("%s: the pelvis is %.1f cm from the %s foot at its mid-stance (frame %d)" % (
+                            c["name"], near[0] * 100.0, s, near[1] + 1))
+            # ---- walk_hips (--bite "still_hips"): the hips turn 4-10
+            # degrees with the stride while the shoulders and the face
+            # hold within 3
+            rng = {k: [] for k in ("hips_blade", "shoulders_blade", "head_yaw")}
+            for f in range(1, N + 1):
+                go(f)
+                m = L.measure_stance(rig)
+                for k in rng:
+                    rng[k].append(m[k])
+            span_of = {k: max(v) - min(v) for k, v in rng.items()}
+            c["hips_turn"] = span_of
+            if not (4.0 <= span_of["hips_blade"] <= 10.0):
+                fails.append("%s: the hips turn only %.1f deg over the stride (want 4..10)" % (c["name"], span_of["hips_blade"]))
+            if span_of["shoulders_blade"] > 3.0 or span_of["head_yaw"] > 3.0:
+                fails.append("%s: the shoulders turn %.1f deg and the face %.1f with the stride (want under 3)" % (
+                    c["name"], span_of["shoulders_blade"], span_of["head_yaw"]))
+        else:
+            # ---- side_bound (--bite "dip_bound"): a bound rises -- the
+            # pelvis at mid-flight over the standing height by 4 cm (the
+            # rise is authored at 5: the centimetre is the margin). Not
+            # over its own take-off: settle's crouch at the far foot puts
+            # take-off 8-11 cm down, so a body that never rose would pass
+            # that (measured 2026-09-30 on the shipped clip, +3.9 over its
+            # take-off, -5.0 over standing).
+            flight = [f for f in range(N) if not any(f in marks for marks in plant.values())]
+            runs = planted_runs(set(flight), N)
+            if runs:
+                mid = runs[0][len(runs[0]) // 2]
+                go(mid + 1)
+                rise = P("pelvis").z - c["stand_z"]
+                c["bound_rise_cm"] = rise * 100.0
+                if rise < 0.04:
+                    fails.append("%s: the pelvis at mid-flight (frame %d) is %.1f cm %s the standing height; a bound rises" % (
+                        c["name"], mid + 1, abs(rise) * 100.0, "under" if rise < 0 else "over"))
+    elif c["kind"] == "dash":
+        # ---- dash_air (--bite "feet_down_dash"): in the air 5 of 7 frames
+        # (both soles over 1 cm), the leading foot 20 cm past its spot, the
+        # body 8 degrees further into the heading than the guard leans
+        air, reach, lean = 0, 0.0, []
+        lead = c["lead"]
+        go(1)
+        b0 = P("ball_" + lead)
+        for f in range(1, N + 1):
+            go(f)
+            low = min(min(p.z for _n, p in L.sole_points(rig, s)) for s in SIDES)
+            air += 1 if low > 0.01 else 0
+            reach = max(reach, (P("ball_" + lead) - b0).dot(d))
+            t = P("neck_01") - P("pelvis")
+            lean.append(math.degrees(math.atan2(t.dot(d), t.z)))
+        c["dash"] = dict(air=air, reach_cm=reach * 100.0, lean_deg=max(lean) - lean[0])
+        if air < 5:
+            fails.append("%s: in the air on only %d of %d frames (both soles over 1 cm)" % (c["name"], air, N))
+        if reach < 0.20:
+            fails.append("%s: the %s foot's reach along the heading is only %.1f cm" % (c["name"], lead, reach * 100.0))
+        if max(lean) - lean[0] < 8.0:
+            fails.append("%s: the lean added into the heading is only %.1f deg" % (c["name"], max(lean) - lean[0]))
+
+
 def verify(rig, made):
     """Does the motion do what it says, measured on what ships -- the baked
     62 bones, not the rig that posed them.
@@ -1731,6 +2345,7 @@ def verify(rig, made):
 
     import build_saud as L
     specs = {"mma": L.MMA_SPEC}
+    ik = ik_constants()
     by_name = {c["move"] + "@" + c["boss"]: (c, act) for c, act, _f in made}
     for c, act, frames in made:
         rig.animation_data.action = act
@@ -1828,6 +2443,10 @@ def verify(rig, made):
                 fails.append("%s: not the stance it is meant to be -- %s" % (c["name"], "; ".join(
                     "%s %.2f, want %s..%s" % (k, v, "" if lo is None else lo, "" if hi is None else hi)
                     for k, v, lo, hi in miss)))
+        # ---- the steps (2026-09-30): Saud's guard, walks, dashes and block
+        if c["guard"] in STEPS_SETS and c["kind"] in ("guard", "walk", "dash", "block"):
+            steps_check(c, rig, fails, ik)
+            rig.animation_data.action = act
         if c["kind"] == "strike":
             tip = TIP[c["limb"]]
             guard = at(1, tip)
@@ -1932,6 +2551,12 @@ def verify(rig, made):
             back = apart(pose_of(act, 1), pose_of(act, N))
             if back > 0.01:
                 fails.append("%s: ends %.1f cm from the guard it started in" % (c["name"], back * 100))
+            guard = by_name.get("Guard@" + c["boss"])
+            if guard and c["guard"] in STEPS_SETS:
+                # ...and started in it: the first frame is the guard's
+                start = apart(pose_of(guard[1], 1), pose_of(act, 1))
+                if start > 0.01:
+                    fails.append("%s: starts %.1f cm from the guard" % (c["name"], start * 100))
             rig.animation_data.action = act
         elif c["kind"] == "block":
             for f in range(1, N + 1, 6):
@@ -2007,6 +2632,42 @@ def verify(rig, made):
                   "weight %.2f on the lead; knees %.1f/%.1f; hips bladed %.1f; spine_02 %.3f m" % (
                       c["name"], m["head_z"], m["head_over_lead_ankle"], m["head_pitch"], m["sh_l_under_head"],
                       m["sh_r_under_head"], m["weight_lead"], m["knee_l"], m["knee_r"], m["hips_blade"], m["spine02_z"]))
+            # the alignment and posture keys (2026-09-30), whichever
+            # measure_stance has
+            more = [k for k in ("chest_bend", "skull_on_neck", "wrist_l", "wrist_r", "fist_l_over_chin", "fist_r_over_chin",
+                                "shoulders_level", "sole_roll_l", "sole_roll_r", "knee_off_foot_line_l",
+                                "knee_off_foot_line_r", "rear_heel") if k in m]
+            if more:
+                print("        %s: %s" % (c["name"], "; ".join("%s %.2f" % (k, m[k]) for k in more)))
+    for key, on_ball in sorted(CHIN_ON_BALL.items()):
+        landers = sorted({a for a, v in H.PAIRS if v == key and a != key})
+        print("        %s's chin %.4f m, %+.1f mm from the %.4f his ball joints grounded him at (his soles stand on the floor);"
+              " the %s punches land on it and moved with it" % (
+                  key, CHIN_OF[key], (CHIN_OF[key] - on_ball) * 1000.0, on_ball, ", ".join(landers) or "no other set's"))
+    steps = [c for c, _a, _f in made if c["guard"] in STEPS_SETS and c["kind"] in ("walk", "dash")]
+    for c in steps:
+        bits = ["leg reach %.4f" % c["reach"]]
+        if c["kind"] == "walk":
+            bits.append("knee %.0f deg at the least, pelvis step %.1f cm, swing %.1f/%.1f cm" % (
+                c["knee_min"], c["jolt_cm"], c["clear_l_cm"], c["clear_r_cm"]))
+            if "knee_off" in c:
+                bits.append("knee off the foot's line %s" % ", ".join(
+                    "%s %+.1f..%+.1f cm" % (s, v[0] * 100, v[1] * 100) for s, v in sorted(c["knee_off"].items())))
+            if "support_l_cm" in c:
+                bits.append("pelvis to the support foot %.1f/%.1f cm, hips turn %.1f deg (shoulders %.1f, face %.1f)" % (
+                    c["support_l_cm"], c["support_r_cm"], c["hips_turn"]["hips_blade"], c["hips_turn"]["shoulders_blade"],
+                    c["hips_turn"]["head_yaw"]))
+            if "bound_rise_cm" in c:
+                bits.append("mid-flight %+.1f cm over standing" % c["bound_rise_cm"])
+        else:
+            bits.append("in the air %d of %d, %s foot reaches %.1f cm, lean +%.1f deg" % (
+                c["dash"]["air"], c["frames"], c["lead"], c["dash"]["reach_cm"], c["dash"]["lean_deg"]))
+        if c.get("reach_cap"):
+            bits.append("reach cap fired on %d frames of the first pass (%.1f cm at most)" % c["reach_cap"])
+            if "reach_cap_after" in c:
+                bits.append("crouch spread to %.1f cm, the cap then fired on %d frames (%.1f cm)" % (
+                    (c["crouch_cm"],) + c["reach_cap_after"]))
+        print("        %s: %s" % (c["name"], "; ".join(bits)))
     H.report(made)
 
 
@@ -2146,6 +2807,7 @@ def bite():
         ("fall ends as Down", "fall_end", ["A_Saud_Down", "A_Saud_Down_Side"], "does not end where Down ends"),
         ("combo lands",    "combo_short", ["A_Saud_Jab", "A_Saud_Cross", "A_Saud_Combo_Jab_Cross"], "alone it reaches"),
         ("pair lands",     "pair_far",  ["A_Street_Jab", "A_Saud_Pair_Street_Jab"], "misses its mark"),
+        ("chests apart",   "pair_close", ["A_Street_Jab", "A_Saud_Pair_Street_Jab"], "the chests are"),
         # the end of a fight (motion_hits, 2026-09-28)
         ("death lies flat", "death_sit", ["A_Saud_Death"],             "does not lie dead"),
         ("victory raised", "victory_low", ["A_Street_Victory"],        "is not raised"),
@@ -2157,16 +2819,47 @@ def bite():
          "straightens out of the guard"),
         ("death relaxes",  "no_relax", ["A_Saud_Death"],                "does not lie dead"),
         ("victory chin",   "no_chin",  ["A_Saud_Victory"],              "the chin is not up"),
+        # Saud's steps (2026-09-30, "improve steps"): steps_check
+        ("sole on floor",  "ball_ground",     ["A_Saud_Guard"],         "sole is"),
+        ("knee over toes", "knee_fwd_pole",   ["A_Saud_Walk_Fwd"],      "the foot's line"),
+        ("walk knee",      "straight_stance", ["A_Saud_Walk_Fwd"],      "knee locks"),
+        ("walk jolt",      "straight_stance", ["A_Saud_Walk_Fwd"],      "pelvis jolts"),
+        ("walk reach",     "straight_stance", ["A_Saud_Walk_Fwd"],      "of its length"),
+        ("walk support",   "flat_pelvis",     ["A_Saud_Walk_Fwd"],      "at its mid-stance"),
+        ("side bound",     "dip_bound",       ["A_Saud_Walk_Left"],     "a bound rises"),
+        ("dash air",       "feet_down_dash",  ["A_Saud_Dash_Fwd"],      "in the air on only"),
+        ("dash reach",     "feet_down_dash",  ["A_Saud_Dash_Fwd"],      "reach along the heading"),
+        ("dash lean",      "feet_down_dash",  ["A_Saud_Dash_Fwd"],      "lean added"),
+        ("swing clears",   "low_swing",       ["A_Saud_Walk_Fwd"],      "clears only"),
+        ("hips turn",      "still_hips",      ["A_Saud_Walk_Fwd"],      "hips turn only"),
     ]
+    # The POSTURE track's keys, proved on the clip path (2026-09-30): each
+    # needs a name from build_saud that lands with that track (the stance
+    # of 2026-09-28 kept as a sabotage, the stance check's new keys), so
+    # each waits, and says so, until it is there.
+    import build_saud as L
+    pending = [
+        ("stance keys",    "craned",      ["A_Saud_Guard"], "chest_bend",
+         lambda: hasattr(L, "MMA_GUARD_2026_09_28") and "chest_bend" in L.MMA_SPEC),
+        ("soles level",    "rolled_sole", ["A_Saud_Guard"], "sole_roll_r",
+         lambda: hasattr(L, "roll_sole") and "sole_roll_r" in L.MMA_SPEC),
+    ]
+    waiting = [label for label, _s, _n, _e, ready in pending if not ready()]
+    cases += [(label, sab, names, expect) for label, sab, names, expect, ready in pending if ready()]
     results = []
     for label, sab, names, expect in cases:
         for broken in (False, True):
             import motion_ik as M
-            SABOTAGE.clear(); M.SABOTAGE_HANDS.clear()
+            import rig_full_ik as CR
+            SABOTAGE.clear(); M.SABOTAGE_HANDS.clear(); M.SABOTAGE_GROUND.clear(); CR.SABOTAGE.clear()
             if broken:
                 SABOTAGE.add(sab)
                 if sab == "fists":
                     M.SABOTAGE_HANDS.add("fists")
+                if sab == "ball_ground":
+                    M.SABOTAGE_GROUND.add("ball")
+                if sab == "rolled_sole":
+                    CR.SABOTAGE.add("rolled_sole")
             clips = [dict(every[n]) for n in names]
             rig, made = author_all(clips)
             try:
@@ -2175,18 +2868,26 @@ def bite():
             except AssertionError as e:
                 msg = str(e)
             if broken:
+                # the line the case matched (a sabotage may fail other
+                # checks first; the line shown is the one that was wanted)
+                lines = [ln.strip() for ln in (msg or "").split("\n")[1:]]
+                hit = next((ln for ln in lines if expect in ln), None)
                 results.append((label, msg is not None and expect in msg,
-                                (msg or "did not bite").split("\n")[1].strip() if msg and "\n" in msg else (msg or "did not bite")))
+                                hit if hit else (lines[0] if lines else (msg or "did not bite"))))
             else:
                 results.append((label + " (clean)", msg is None, msg.split("\n")[1].strip() if msg else "passes"))
     SABOTAGE.clear()
     import motion_ik as M
-    M.SABOTAGE_HANDS.clear()
+    import rig_full_ik as CR
+    M.SABOTAGE_HANDS.clear(); M.SABOTAGE_GROUND.clear(); CR.SABOTAGE.clear()
     print("\n%-26s %s" % ("check", "when its mechanism is broken -- and when it is not"))
     for label, ok, msg in results:
         print("  %-24s %s  %s" % (label, "OK     " if ok else "WRONG  ", msg[:96]))
     n = sum(1 for _, ok, _ in results if ok)
     print("  %d of %d as they should be" % (n, len(results)))
+    if waiting:
+        print("  %d case%s waiting on build_saud (the POSTURE track): %s" % (
+            len(waiting), "s" if len(waiting) > 1 else "", ", ".join(waiting)))
     return n == len(results)
 
 

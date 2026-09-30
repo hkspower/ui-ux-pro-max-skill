@@ -2864,6 +2864,166 @@ five, as before. **Seen, not touched (then done 2026-09-30, with the
 menu):** nothing in the C++ started a `Music_*` cue; the title plays
 `Music_Menu` and FIGHT starts `Music_Stage` now.
 
+## Saud aligned: posture, arms and steps -- 2026-09-28/30
+
+Asked as "make full suad aligment make body imrove steps and Posture body
+and arm", settled as Saud only, the Unreal build: the body's stack and
+symmetry, the MMA guard's posture (spine, chin, shoulders, elbows, wrists,
+fists), and the eight step clips. Every other man keeps what he has. Three
+scouts measured first (2026-09-28, their scripts and JSON under the job's
+scratch), the changes were specified against those numbers, built on two
+tracks, and the built result measured again with the same scripts.
+
+**What the guard was, measured on the rig and read back from
+A_Saud_Guard.fbx.** The chest bent 12 degrees at spine_03 with the skull
+11.9 degrees EXTENDED on a neck bent 26 -- a craned neck with the chin
+poked out, the eyes on the opponent only because the face pitched 14 down.
+The rear wrist bent 16.5. The lead fist sat 5.8 cm UNDER the chin (at the
+collar), the lead shoulder 1.3 cm under the rear. Both soles were rolled
+onto their outer edges (5.8 degrees the lead, 20.4 the rear): an aim
+swings a foot onto its direction by the shortest arc and nothing ever
+levelled a foot the way `roll_palm` levels a hand. The rear knee sat 18.7
+cm inside the vertical plane through its own foot -- a 43 degree twist
+between shin and foot, a tibia no man has -- because a planted knee's pole
+went straight forward whatever the foot's yaw. The rig's guard and the
+clip's guard disagreed by 25 mm at the rear knee (two solvers, two
+groundings). The walks stood on legs at 0.9996 of their length at every
+toe-off (a 3 degree knee: the ball runs +/- 34 cm about the pelvis, so the
+ankle ran 52 cm behind the hip, out of a 0.882 m leg's reach, and `settle`
+dropped the hips 6.7-8.0 cm in ONE frame to reach it); the swing ankle rose
+9.7-11.8 cm, inside the runtime's planted band (SaudIK.h PlantHeight 10,
+PlantFade 28) for the whole swing; the pelvis stood 29 cm inside the rear
+foot at its mid-stance; nothing above the pelvis moved; the sideways bound
+dipped 11 cm at take-off and never rose; the dash had both soles down 4 of
+7 frames, reached 9.9 cm and leaned in 3 degrees.
+
+**What changed (`build_saud.py`, `rig_full_ik.py`, `build_motion.py`,
+`motion_ik.py`, `motion_hits.py`, `ik_sheet.py`).**
+- **The stance re-solved** (`MMA_SOLVE` -> `MMA_GUARD`; the 09-28 table
+  kept verbatim as `MMA_GUARD_2026_09_28`, used by nothing but the bites):
+  spine 6/10/22 -> 8/12/18, neck 26 -> 15, head 14 -> 16, so the chest
+  bend is 6 (was 12) and the skull is nodded 1 degree on the neck (was
+  -11.9); the face 16 down; the head joint 1.577 -> 1.589 m, 3.2 cm behind
+  the lead ankle. Rear wrist 16.5 -> 10.3 (hand_tilt r 0.30 -> 0.18). Lead
+  fist -5.8 -> +1.5 cm over the chin, 41 cm out; rear +3.1, 18 out. The
+  shrug split 0.242/0.118 (total kept): lead shoulder 1.3 under -> 0.7
+  over the rear. The lead foot truly flat (pitch 16.33, the rest's own).
+  Pelvis 0.883 and spine_02 1.194 m -- the pair budgets held; weight 0.60,
+  hips bladed 20, knees 42.0 / 43.6 (rear was 47.5 on its rolled corner),
+  rear heel 3.35 cm over the lead (was 4.85 rig / 1.95 clip).
+- **Two switches in `MMA_GUARD` and no other dict**: `"soles": "level"`
+  (each PLANTED foot rolled about its length until the sole is level,
+  `roll_sole`; never in the aim, so a kicking foot keeps its shape) and
+  `"knee_pole": "foot"` (`knee_pole`: the knee on the forward half of its
+  circle about the hip-ankle line whose shin heads 15 degrees inside the
+  foot's heading -- an adult's tibial torsion, from memory). Sole roll
+  5.8/20.4 -> 0.0/0.0; the rear knee 18.7 -> 5.4 cm inside its foot's
+  line; shin twist 43 -> 15. `rig_full_ik.stance`, `limb_targets`,
+  `pose()`, `motion_ik.capture_guard` and `build_motion.planted_pole` read
+  the switches; every other man's feet and knees take the old expressions
+  and his clips rebuild within 0.1 mm (below).
+- **The clips ground the SOLE, not the ball** (`capture_guard`,
+  `sole_points`: a corner model calibrated to the shoe -- front edge 2.3
+  cm past J toe, heel contact 1.2 cm ahead of J heel, half-width 4.2 cm,
+  within 1 mm of the mesh at 10 degrees of pitch and 20 of roll). The rear
+  toe corner used to sit 2.0 cm through the floor in every clip that stood
+  in the guard. Saud's chin rises 1.4777 -> 1.4871 m with the head (the
+  sole grounding alone lowers it 2.2 mm).
+- **Saud's walks are a runner's** (`STEPS_SETS = {"mma"}`): the feet's
+  swing centre 10 cm toward his front, the hips capped under MaxStretch
+  (0.995, read from SaudIK.h) minus 0.010 so a far foot lowers the hips
+  instead of locking the knee, the crouch spread at 2.5 cm a frame, the
+  planted foot rolled onto its ball as it goes 25-45 cm behind the hip and
+  raised by its own 4 mm dip, the rear rail pulled 8 cm toward the pelvis
+  with 4 cm of sway over the support foot, the hips turning +/- 2.9
+  degrees with the stride (spine_02 turns it back), the swing peaked at
+  0.35 of its way and clearing 30 cm; the sideways walk rises 5 cm at
+  mid-flight instead of dipping. Measured: knee at the least 36/42
+  (Fwd), 38/43 (Back), 21/27 and 21/22 (Left/Right), was 3; worst pelvis
+  step a frame 1.9/1.9/2.5/1.5 cm, was 6.7-8.0; swing ankle 30.0-35.1 cm,
+  was 9.7-11.8; pelvis to the support foot 12.5/17.1 cm (Fwd), was 29 on
+  the rear; hips turn 5.7 degrees, shoulders 0.0, face 0.2; rails 32 cm
+  apart; leg reach 0.95-0.98, was 0.9996. The bob stays the browser's
+  2.2 px (5.2 cm measured Fwd/Back).
+- **The dash leaves the floor**: frame 0 and 6 the guard, 1-5 in the air
+  (soles 2.5-5.9 cm up), the lead foot 22 cm past its spot, the hips 10
+  cm along the heading and 4.5 up, the body tilted 10 degrees into the
+  heading (Back tilts INTO its heading now, -8.5 -> +1.6); the arms ride
+  the tilt with only the palms held to the opponent.
+- **The falls** keep the guard's foot-tracking pole only while the keyed
+  pelvis is within 10 cm of standing (`floor_pole`, fading to the straight
+  pole below): with the tracking pole left on, a man on the floor has that
+  circle's forward half pointing at the floor, and Down's knees ended 28
+  cm up instead of 40. Down ends 40.4/36.9 cm (Content 40.3/36.6), Death
+  31.3/29.8 (31.2/29.4), GetUp ends in the guard (0.61 cm).
+- **Rig and clip agree**: `rig_full_ik.py --stance rigs/Saud.blend --clip
+  <A_Saud_Guard.fbx>` holds the rig's guard within 5 mm of the clip's
+  first frame on every bone -- 4.1 mm at calf_r now (was 25; 141 with the
+  clip side stubbed), 110 with the forward pole. `ik_sheet.py` prints the
+  clips' folder it was given (`--anim`).
+- **A check floor moved**: `motion_hits.CHESTS` 0.35 -> 0.33 m.
+  A_Saud_Pair_Boss_Knee shipped with the chests exactly 35.0 cm apart; the
+  unhunched upper back brings Saud's chest 0.6 cm nearer the Boss's at the
+  blow (34.4) and the pair failed on the last decimal. 0.33 leaves it 1.4
+  cm (Street and Saqr knees 38.7 / 37.5). The author may prefer 0.35 and a
+  0.6 cm move of the Boss's knee instead -- not decided here.
+- `DT_Pairs.csv` prints a facing straight back as 180.0, never -180.0
+  (17 rows flipped, the same facing; nothing else in the table moves
+  except by the chin, below).
+
+**Checked.** `build_motion.py --check` 197 clips; `--bite` 74 of 74 (36
+sabotages, each also run unbroken: the 34 of 09-28 plus "chests apart",
+12 step cases -- sole on floor 9.0 mm through, knee over toes 12.8 cm
+inside, walk knee 3 deg, jolt 9.5 cm, reach 0.9996, support 28.8 cm, side
+bound -5.0 cm, dash air 3 of 7 / reach 9.9 / lean 3.0, swing 12.0 cm,
+hips 0.0 -- and the two POSTURE keys on the clip, "stance keys" (the 09-28
+table: chest_bend 12.01) and "soles level" (6.27 / -8.38 deg)).
+`rig_full_ik.py --bite rigs/Saud.blend --clip ...`: 17 of 17 mechanisms, 12
+of 12 stance cases (one bone group of the old table swapped in per key:
+chest 10.02, skull -0.99, wrist 21.6, lead fist -5.9, shoulder -1.10, soles
+6.1/-8.4, tiptoe 6.76 heel / 51.8 knee, knee in -16.4, sole model 20.7 mm,
+clip 110.5 mm). All 197 clips built into scratch with every motion check
+passing (bake 0.002 mm, read-back 0.01); the three scouts' scripts re-run
+on the built clips by the build stage and again by the review, the same
+numbers to the last digit. Other sets: 121 of 140 Street/boss clips
+within 0.1 mm of Content; the 19 over are every straight punch, hook and
+punch combo at 9.7-10.2 mm -- they land on Saud's chin and it rose 9.4 mm
+(physically right; freezing the chin they land on at 1.4777 is one line
+in `capture_chins`, the author's call). All 57 Saud clips differ from
+Content by 88-450 mm at their worst bone -- the re-solved guard's rear knee
+alone is 137 mm at calf_r on every first frame -- so Content-vs-build is no
+regression test for Saud any more; the falls' end poses are the shipped
+ones within 0.4 cm. Guard, kick and IK-sheet renders re-struck to scratch.
+
+**Held, not bitten**: a dash starts within 1 cm of the guard; the
+shoulders and face hold under 3 degrees while the hips turn; the walk
+knee's +8 cm ceiling; a rolled walk foot OVER the floor (the check's
+rolled-foot allowance, 11.7 mm at the walks' roll, is vestigial now that
+`ground_soles` puts the corner at 0.0); the dash's 4.5 cm rise (no check
+reads it; the comment on `DASH_RISE` says one does). **Thin margins**:
+the walk knee floor -12 against a clean -10.2 and a sabotage -12.8; the
+rig-vs-clip 4.1 of 5 mm.
+
+**Decided, 2026-09-30:** `CHESTS` stays at 0.33 (the pair is right and
+the old floor had no margin); the chin the other men's punches land on is
+Saud's real one (their 19 punch clips moved 9.7-10.2 mm with it), not the
+frozen 09-28 height. Shipped: all 197 clips built together (the pairs and
+`DT_Pairs.csv` are written only then); the 121 Street and boss clips
+within 0.1 mm of what they were are put back as they were, so only the
+57 Saud clips and those 19 change; `saud-motion.png`, the guard and kick
+renders and `Docs/renders/saud-ik-sheet.png` re-struck; the Street, boss
+and pairs contact sheets not redrawn.
+
+**Not verified.** No engine has imported a clip, the rig or the mesh, and
+nobody here can play one; SaudIK.h's PlantHeight/PlantFade/MaxStretch were
+read by regex, not run, and the dash's 276 cm of capsule travel is
+arithmetic on a movement mode nobody has run. The renders were read as
+images, not by a person. The coaching numbers (tibial torsion 15-20, a
+runner's knee 20-45, swing 25-30 cm, the rear heel 2-4 cm) are from
+memory; no source was reachable. Judged from the contact sheet, not a
+rule: at 341 cm/s the forward walk reads as a jog with a shin-high foot
+(the 30 cm swing is what the runtime's 28 cm planted band demands).
+
 ## The theme, mastered -- 2026-09-30
 
 Asked as "improve theme song quality and improve low and mid and high

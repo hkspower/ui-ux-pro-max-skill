@@ -620,6 +620,16 @@ def pose(arm_obj, directions, targets=None, poles=None, drop=0.0):
     for side in ("l", "r"):
         if "palm_" + side in directions:
             roll_palm(arm_obj, side, directions["palm_" + side])
+    # A stance that asks for level soles (MMA_GUARD's "soles": "level", Saud
+    # only, 2026-09-30) has both feet rolled level after the aim: an aim's
+    # shortest arc rolled his rear sole 20.4 degrees. Here rather than only
+    # in limb_targets, because the hero pipeline poses the man again with
+    # limb_targets' answer (pipeline.py: pose(rig, guard, targets, poles,
+    # drop)), which would re-aim the feet and lose the roll. Only a dict
+    # with the key sees it -- KICK and every other man's stance have none.
+    if directions.get("soles") == "level":
+        for side in ("l", "r"):
+            roll_sole(arm_obj, side)
 
     bpy.ops.object.mode_set(mode="OBJECT")
 
@@ -641,6 +651,57 @@ def _pole_from(a, b, c, fallback):
     if bend.length < 0.01:
         bend = fallback
     return b + bend.normalized() * 0.6
+
+
+def knee_pole(hip, knee, ankle, ball, twist_deg=15.0, back=False):
+    """The pole that puts a PLANTED knee over its toes (2026-09-30, "make
+    full suad aligment": Saud's rear foot turns out 35 degrees and the
+    straight-forward pole below left its knee 18.7 cm inside the vertical
+    plane through the foot's own axis -- a 43 degree twist between shin and
+    foot, a tibia no man has). Pure vector maths, no bpy; shared with
+    build_motion (planted_pole) so the rig and the clips solve one knee.
+
+    The knee moves on a circle about the hip-to-ankle line: centre M, the
+    FK `knee`'s foot on that line, radius its distance from it (a two-bone
+    leg's lengths fix the circle; the FK knee only reads it off). The point
+    K* on the FORWARD half of that circle (in front of the line along -Y,
+    the way he faces) whose shin, seen from above (ankle toward knee), heads
+    `twist_deg` INSIDE the foot's own heading (ankle toward ball, z dropped)
+    -- the knee over the toes allowing an adult's external tibial torsion of
+    15-20 degrees (an orthopaedic norm, from memory; measured on the rig at
+    the search's 1-degree step, the rear knee lands 5 cm inside the foot's
+    plane where the forward pole had it 18.7). Returned 0.6 m out along the
+    bend from M, the way _pole_from puts a pole. `back=True` is the sabotage
+    (build_motion --bite "knee"): the same bend mirrored behind the line."""
+    e = (ankle - hip).normalized()
+    M = hip + e * (knee - hip).dot(e)
+    r = (knee - M).length
+    fwd = Vector((0.0, -1.0, 0.0))
+    u = (fwd - e * e.dot(fwd)).normalized()
+    v = e.cross(u).normalized()
+    fh = Vector((ball.x - ankle.x, ball.y - ankle.y, 0.0)).normalized()
+    # "inside" is toward the other leg: +X for the right foot, -X for the left
+    medial = Vector((1.0, 0.0, 0.0)) if ankle.x < 0.0 else Vector((-1.0, 0.0, 0.0))
+    want = None
+    for sgn in (1.0, -1.0):
+        c = Matrix.Rotation(math.radians(sgn * twist_deg), 3, "Z") @ fh
+        if want is None or c.dot(medial) > want.dot(medial):
+            want = c
+    best = None
+    for i in range(360):
+        t = math.radians(i)
+        K = M + (u * math.cos(t) + v * math.sin(t)) * r
+        if (K - M).dot(fwd) <= 0.0:
+            continue
+        sh = Vector((K.x - ankle.x, K.y - ankle.y, 0.0))
+        if sh.length < 1e-6:
+            continue
+        score = sh.normalized().dot(want)
+        if best is None or score > best[0]:
+            best = (score, K)
+    K = best[1]
+    d = (K - M).normalized()
+    return K - d * 0.6 if back else K + d * 0.6
 
 
 def _foot_floor(mesh_obj, arm_obj, side):
@@ -670,6 +731,10 @@ def limb_targets(arm_obj, mesh_obj, fk, plant):
     """
     mute_ik(arm_obj, True)
     pose(arm_obj, fk)
+    # A stance that asks for level soles (MMA_GUARD's "soles": "level",
+    # Saud only, 2026-09-30) has its feet rolled level by pose() itself
+    # after every aim (see there: the pipeline poses again with this
+    # function's answer), so every pose below stands on level soles.
     pb = arm_obj.pose.bones
     world = arm_obj.matrix_world
     targets, poles = {}, {}
@@ -683,7 +748,14 @@ def limb_targets(arm_obj, mesh_obj, fk, plant):
             # line, which is a knee bent the wrong way, and a solver that
             # copied it would only be reproducing the mistake with more
             # precision.
-            poles["Pole_Knee_" + side] = knee + Vector((0, -0.6, 0))
+            if fk.get("knee_pole") == "foot":
+                # ...and over its toes (MMA_GUARD, Saud only, 2026-09-30):
+                # straight forward whatever the foot's yaw, Saud's rear foot,
+                # turned out 35 degrees, had its knee 18.7 cm inside the
+                # foot's own line -- knee_pole says the rest
+                poles["Pole_Knee_" + side] = knee_pole(hip, knee, ankle, world @ pb["ball_" + side].head)
+            else:
+                poles["Pole_Knee_" + side] = knee + Vector((0, -0.6, 0))
         else:
             poles["Pole_Knee_" + side] = _pole_from(hip, knee, ankle, Vector((0, -1, 0)))
         shoulder, elbow, wrist = (world @ pb["upperarm_" + side].head,
@@ -897,22 +969,22 @@ MMA_GUARD_2026_09_26.update(
 # pelvis no lower than 0.883, which is what caps the lead knee at 42; the
 # head dropped 2.1 cm, which the pairs allow only because punches now land
 # on the chin of the man they are thrown at (build_motion.VICTIM_CHIN).
-MMA_SOLVE = dict(
-    twist=-0.35,                    # the pelvis, radians (-0.35 is 20 degrees of blade)
-    feet_across=0.40, feet_stagger=0.42,          # ball to ball, metres
-    foot_yaw=(-5.0, -35.0),         # lead 5 degrees in, rear 35 out
-    foot_pitch=(15.7, 23.0),        # lead flat (the rest's pitch), rear heel up
-    lead_knee=42.0, weight_lead=0.60,
-    spine=(6.0, 10.0, 22.0),        # spine_01/02/03, degrees forward
-    neck=26.0, head=14.0,
-    clavicle_roll=0.15, clavicle_shrug=0.18,     # in the chest's own (bladed) frame
-    fists={"l": (0.100, -0.06, 0.42), "r": (-0.070, -0.02, 0.18)},  # head frame: across, up, forward (m)
-    elbow_poles={"l": (0.0, -0.1, -1.0), "r": (-0.2, 0.3, -1.0)},
-    hand_tilt={"l": 0.15, "r": 0.30},
-    palms=((-0.10, 1.0, 0.0), (0.45, 0.89, 0.0)),
-)
-MMA_GUARD = dict(GUARD)
-MMA_GUARD.update(
+# The stance as it stood 2026-09-28 to 2026-09-30, verbatim, kept the way
+# MMA_GUARD_2026_09_26 is kept -- used by nothing that builds. rig_full_ik.py
+# --bite's stance cases swap ONE bone group of it at a time into the stance
+# below, so each key of MMA_SPEC is proved to read its own bones; build_motion
+# --bite "craned" stands Saud on the whole of it. Measured on the rig
+# (measure_posture, 2026-09-28): the chest bent 12 degrees at spine_03 with
+# the skull 11.9 EXTENDED on a neck bent 26 -- a craned neck with the chin
+# poked out, not a tucked chin; the rear wrist bent 16.5; the lead fist 5.8
+# cm under the chin; the lead shoulder 1.3 cm under the rear; the soles
+# rolled 5.8 (lead) and 20.4 (rear) degrees about the foot's length; the
+# rear knee 18.7 cm inside the vertical plane through its foot's axis (a 43
+# degree twist between shin and foot). Its MMA_SOLVE: spine (6, 10, 22),
+# neck 26, head 14, foot_pitch (15.7, 23.0), clavicle_shrug 0.18 both sides,
+# fists l (0.100, -0.06, 0.42), hand_tilt r 0.30.
+MMA_GUARD_2026_09_28 = dict(GUARD)
+MMA_GUARD_2026_09_28.update(
     spine_01=(0.000, -0.104, 0.995),
     spine_02=(0.000, -0.174, 0.985),
     spine_03=(0.000, -0.375, 0.927),
@@ -936,6 +1008,101 @@ MMA_GUARD.update(
     palm_r=(0.450, 0.890, 0.000),
     **{"twist:pelvis": -0.350},   # the hips bladed 20 degrees
 )
+
+# Saud's stance since 2026-09-30 ("make full suad aligment make body imrove
+# steps and Posture body and arm"): the same aggressive MMA stance, aligned
+# and posed as the coaches say. Re-solved by the scratch solver
+# (saud_align/posture/solve_mma.py, the 09-28 method: the spine, neck and
+# head as forward angles; the clavicles in the bladed chest frame; the feet
+# from yaw and pitch; the legs by two-bone geometry from where the feet
+# stand, the knee over the toes; the arms as a two-bone solve per side for a
+# fist placed in the head's own frame; the palms rolled), every target
+# measured on the rig through rig_full_ik.stance_check. What moved, and why,
+# measured on the rig 09-28 -> 09-30:
+#   the chin: the chest bend at spine_03 12 -> 6 degrees (spine 6/10/22 ->
+#     8/12/18), the neck 26 -> 15, the head 14 -> 16: the skull on the neck
+#     -11.9 (extended: a craned neck, the chin poked out) -> +1.0 (nodded;
+#     rest is -9), the face pitched 14.1 -> 16.0 down, the head joint 1.577
+#     -> 1.590 m and 3.2 cm behind the lead ankle (was 1.1; the two extra
+#     degrees at spine_01/02 keep it forward: at 7/11 it was 4.1 behind).
+#     Neck 15, not 14, so the stance bite that puts the 09-28 head (14)
+#     under the new neck misses skull_on_neck by a degree, not by the 0.02
+#     the blade's counter-turn adds; head 16, not 17, keeps the lead fist
+#     41 cm out (at 17 it had to come in to 38.8 to stay at the chin)
+#   the rear wrist: hand_tilt r 0.30 -> 0.18, the bend 16.5 -> 10.3 degrees
+#   the lead fist: up -0.06 -> +0.03 in the head frame and forward 0.42 ->
+#     0.412 (solved to the WORLD chin, CHIN_UNDER_HEAD under the head joint):
+#     5.8 cm under the chin -> 1.5 over it, 41.2 cm out (the rear 3.2 over,
+#     18 out, unchanged)
+#   level shoulders: the shrug split 0.18/0.18 -> 0.242/0.118 (the total
+#     kept): a bladed chest pitched forward lowers the lead clavicle's root
+#     by sin(blade) x sin(pitch) x its half-spacing, 1.3 cm at 20 and 22
+#     degrees -- the lead shoulder joint 1.3 cm under the rear -> 0.7 over
+#   the lead foot flat: pitch 15.7 -> 16.33, the rest's own (0.6 degrees
+#     toe-up had its heel corner 2.7 mm under the shoe's lowest vertex)
+#   the soles level and the knees over the toes are the two switches below
+#     ("soles", "knee_pole"), not aims: the sole roll 5.8/20.4 -> 0/0
+#     degrees, the rear knee 18.7 cm inside its foot's line -> 5.4 (the shin
+#     15 degrees inside the foot's heading, an adult's tibial torsion); the
+#     thigh_r/calf_r aims are typed from that solve so the FK and the IK
+#     agree (the FK guard used to hover with its rear knee 13 cm further in)
+#   with the soles level the rear foot stands 1.5 cm lower than on its
+#     rolled corner: the rear knee 47.5 -> 43.6, the rear heel 4.85 -> 3.34
+#     cm over the lead (coaches 2-4); the pelvis 0.883, spine_02 1.194 --
+#     the pair budgets held; weight 0.60, hips 20, knees 42/43.6, feet 40/42
+MMA_SOLVE = dict(
+    twist=-0.35,                    # the pelvis, radians (-0.35 is 20 degrees of blade)
+    feet_across=0.40, feet_stagger=0.42,          # ball to ball, metres
+    foot_yaw=(-5.0, -35.0),         # lead 5 degrees in, rear 35 out
+    foot_pitch=(16.33, 23.0),       # lead flat (the rest's own pitch, J foot->ball), rear heel up
+    lead_knee=42.0, weight_lead=0.60,
+    knee_twist=15.0,                # the shin's heading inside the foot's, degrees (knee_pole; tibial torsion 15-20)
+    spine=(8.0, 12.0, 18.0),        # spine_01/02/03, degrees forward: the chest bend 6, no hunch
+    neck=15.0, head=16.0,           # the neck near the torso line, the skull nodded 1 on it (skull_on_neck; rest -9)
+    clavicle_roll=0.15, clavicle_shrug=(0.242, 0.118),    # in the chest's own (bladed) frame; the shrug per side (l, r), the joints level
+    fists={"l": (0.100, 0.03, 0.412), "r": (-0.070, -0.02, 0.18)},  # head frame: across, up, forward (m); the lead solved to +1.5 cm over the chin
+    elbow_poles={"l": (0.0, -0.1, -1.0), "r": (-0.2, 0.3, -1.0)},
+    hand_tilt={"l": 0.15, "r": 0.18},   # radians the hand tilts forward off the forearm (the wrist bend, under 15 degrees)
+    palms=((-0.10, 1.0, 0.0), (0.45, 0.89, 0.0)),
+)
+MMA_GUARD = dict(GUARD)
+MMA_GUARD.update(
+    spine_01=(0.000, -0.139, 0.990),
+    spine_02=(0.000, -0.208, 0.978),
+    spine_03=(0.000, -0.309, 0.951),
+    neck_01=(0.000, -0.259, 0.966),
+    head=(0.000, -0.276, 0.961),
+    thigh_l=(0.024, -0.495, -0.869),
+    calf_l=(0.077, 0.212, -0.974),
+    foot_l=(-0.084, -0.956, -0.281),
+    thigh_r=(-0.421, 0.001, -0.907),
+    calf_r=(0.168, 0.452, -0.876),
+    foot_r=(-0.528, -0.754, -0.391),
+    clavicle_l=(0.852, -0.465, 0.240),
+    clavicle_r=(-0.973, 0.197, 0.118),
+    upperarm_l=(-0.136, -0.762, -0.633),
+    lowerarm_l=(-0.078, -0.306, 0.949),
+    hand_l=(-0.073, -0.445, 0.893),
+    upperarm_r=(0.308, -0.722, -0.620),
+    lowerarm_r=(0.070, -0.027, 0.997),
+    hand_r=(0.068, -0.205, 0.976),
+    palm_l=(-0.100, 1.000, 0.000),
+    palm_r=(0.450, 0.890, 0.000),
+    **{"twist:pelvis": -0.350},   # the hips bladed 20 degrees
+)
+# The two switches that key every Saud-only mechanism in the shared pose
+# code (rig_full_ik.stance, limb_targets, build_motion.planted_pole,
+# motion_ik.capture_guard). Strings, so nothing sums or slerps them; absent
+# from every other stance dict, so every other man's feet and knees are
+# posed exactly as before (2026-09-30):
+#   "soles": "level"    -- each PLANTED foot is rolled about its own length
+#                          until its sole is level (roll_sole) wherever it is
+#                          planted, never in the aim; a kicking foot, a foot
+#                          in the air and every other man's feet never see it
+#   "knee_pole": "foot" -- a planted knee's pole is knee_pole()'s, over the
+#                          toes, not the straight-forward one
+MMA_GUARD["soles"] = "level"
+MMA_GUARD["knee_pole"] = "foot"
 # What the stance has to be, held by build_motion.verify on A_Saud_Guard's
 # first frame through measure_stance. Each is the INTENT of the stance or
 # one of the pair budgets above, as (low, high); None is open. Measured on
@@ -958,7 +1125,34 @@ MMA_SPEC = {
     "hips_blade": (17.0, 23.0),              # bladed more than 15, less than a boxer's 25
     "head_z": (1.56, None),                  # the pair budgets
     "spine02_z": (1.190, None),
+    # 2026-09-30, "make full suad aligment ... Posture body and arm" (the
+    # coaching cues: chin tucked, back straight, wrists straight, hands at
+    # chin height with the lead extended, level shoulders; alignment: the
+    # knees over the toes, the soles on the floor). Each measured on the rig
+    # first (measure_posture): the 09-28 stance misses every one of them.
+    "chest_bend": (None, 8.0),               # was 12: a hunch at the upper back
+    "skull_on_neck": (0.0, 15.0),            # was -11.9: the skull extended on a craned neck; 0 is 9 deg of nod from rest
+    "wrist_l": (None, 15.0),                 # was 8.4
+    "wrist_r": (None, 15.0),                 # was 16.5
+    "fist_l_over_chin": (-1.0, 4.0),         # was -5.8 cm: the lead hand at the collar
+    "fist_r_over_chin": (1.0, 6.0),          # was +3.5 (the cheek), kept
+    "shoulders_level": (-0.5, 2.0),          # was -1.3 cm: the lead shoulder dropped
+    "sole_roll_l": (-2.0, 2.0),              # was 5.8 deg: the aim's shortest arc rolled the sole
+    "sole_roll_r": (-2.0, 2.0),              # was 20.4
+    "knee_off_foot_line_l": (-8.0, 3.0),     # was -1.6 cm (the lead was fine)
+    "knee_off_foot_line_r": (-8.0, 3.0),     # was -18.7: the rear knee 18.7 cm inside its foot's line
+    "rear_heel": (2.0, 4.5),                 # was rig 4.85 / clip 1.95: a rolled sole grounded on its corner; coaches 2-4
 }
+MMA_SPEC["knee_r"] = (40.0, 46.0)            # was (40, None): rig 47.5 / clip 41.0, the same rolled sole; coaches 30-45
+# Keys of the same shape that the RIG-side stance check (rig_full_ik.
+# stance_check, --stance, --bite) applies with MMA_SPEC from day one, and
+# that build_motion.verify does not apply to the clip yet: each waits on a
+# mechanism of the clip side (the STEPS track's gates G1/G2, 2026-09-30) and
+# moves into MMA_SPEC when that mechanism is in. Empty when nothing waits:
+# both gates opened the day they were written (build_motion.planted_pole
+# calls knee_pole -- G1; motion_ik.capture_guard grounds the sole -- G2), so
+# knee_off_foot_line_*, rear_heel and knee_r's upper bound are in MMA_SPEC.
+MMA_SPEC_PENDING = {}
 
 
 # The bosses' own stances (2026-09-25, "posture and stance": how each man
@@ -1056,6 +1250,23 @@ def guard_for(name):
     return GUARDS[STANCE_OF.get(str(name).lower(), "boxer")]
 
 
+# The chin: this far under the head joint, which is at the eye line on this
+# skeleton. build_motion.CHIN_UNDER_HEAD is the same number (the punches'
+# landing height); measure_stance reads it here so the stance check and the
+# landings agree on where the chin is.
+CHIN_UNDER_HEAD = 0.10
+
+
+def foot_aim(yaw_deg, pitch_deg):
+    """A foot's aim from where it points: `yaw_deg` off straight ahead (-Y),
+    + toward his left (+X), and `pitch_deg` down from level. The rest foot
+    (J["foot"] to J["ball"]) is pitched 15.7 with the sole flat, so a flat
+    foot's aim is foot_aim(yaw, 15.7); MMA_SOLVE's foot_yaw / foot_pitch are
+    read through this."""
+    p, y = math.radians(pitch_deg), math.radians(yaw_deg)
+    return (math.sin(y) * math.cos(p), -math.cos(y) * math.cos(p), -math.sin(p))
+
+
 def measure_stance(arm_obj):
     """What a stance IS, read off the posed bones alone (no mesh), so the
     rig file posed through rig_full_ik.stance, the pipeline's limb_targets
@@ -1096,6 +1307,49 @@ def measure_stance(arm_obj):
     o["torso_fwd"] = math.degrees(math.atan2(-v.y, v.z))
     v = h - P("neck_01")
     o["neck_fwd"] = math.degrees(math.atan2(-v.y, v.z))
+    # The chin (2026-09-30): each bone's own forward pitch (its Y, in
+    # armature space), and the bends between them. The stance of 09-28 bent
+    # the chest 12 degrees at the spine_03 joint with the skull 11.9
+    # EXTENDED on a neck bent 26 -- a craned neck with the chin poked out,
+    # the eyes on the opponent only because the face pitched 14 down. A
+    # tucked chin is the other way about: the neck near the torso line and
+    # the skull nodded on it (skull_on_neck at rest is -9.0: the face looks
+    # 3.7 up; 0 here is 9 degrees of nod from rest).
+    def pitch(n):
+        d = P(n, tail=True) - P(n)
+        return math.degrees(math.atan2(-d.y, d.z))
+    o["chest_bend"] = pitch("spine_03") - pitch("spine_02")
+    o["skull_on_neck"] = pitch("head") - pitch("neck_01")
+    # level shoulders: the lead (left) shoulder joint's height over the rear's
+    o["shoulders_level"] = (P("upperarm_l").z - P("upperarm_r").z) * 100.0
+    for s in "lr":
+        H, K, A, B = P("thigh_" + s), P("calf_" + s), ank[s], ball[s]
+        # the knee against the vertical plane through the foot's own axis
+        # (ankle toward ball, seen from above): its signed distance, + away
+        # from the other foot; and the shin's heading against the foot's.
+        # An adult's tibia turns out 15-20 degrees, no more (knee_pole).
+        a = Vector((B.x - A.x, B.y - A.y, 0.0)).normalized()
+        n = Vector((-a.y, a.x, 0.0))
+        other = ank["r" if s == "l" else "l"]
+        if (other - A).dot(n) > 0.0:
+            n = -n
+        o["knee_off_foot_line_" + s] = (K - A).dot(n) * 100.0
+        sh = Vector((K.x - A.x, K.y - A.y, 0.0))
+        o["shin_twist_" + s] = math.degrees(sh.angle(a)) if sh.length > 1e-6 else 0.0
+        # the sole's roll about the foot's length: the foot's rest-up (the
+        # sole's normal at rest) as the posed bone carries it, against world
+        # up, both projected off the foot's axis (the alignment scout's
+        # decomposition); an aim's shortest arc left the rear sole 20.4
+        # degrees over (2026-09-28)
+        fb = pb["foot_" + s]
+        up = (W @ fb.matrix).to_3x3() @ (fb.bone.matrix_local.to_3x3().inverted() @ Vector((0.0, 0.0, 1.0)))
+        ax = (B - A).normalized()
+        nn = up - ax * up.dot(ax); v = Vector((0.0, 0.0, 1.0)) - ax * ax.z
+        roll = 0.0
+        if nn.length > 1e-9 and v.length > 1e-9:
+            nn.normalize(); v.normalize()
+            roll = math.degrees(math.atan2(ax.dot(v.cross(nn)), v.dot(nn)))
+        o["sole_roll_" + s] = roll
     hm = (W @ pb["head"].matrix).to_3x3()
     fwd = Vector((hm[0][2], hm[1][2], hm[2][2])).normalized()
     o["head_pitch"] = math.degrees(math.asin(max(-1.0, min(1.0, -fwd.z))))     # + looks down
@@ -1110,6 +1364,11 @@ def measure_stance(arm_obj):
         fist = P("hand_" + s, tail=True)
         loc = Hm @ fist
         o["fist_%s_fwd" % s], o["fist_%s_across" % s], o["fist_%s_up" % s] = loc.z * 100.0, abs(loc.x) * 100.0, loc.y * 100.0
+        # ...and in the WORLD, over the chin -- the chin build_motion lands
+        # punches on, CHIN_UNDER_HEAD under the head joint (the eye line).
+        # A head-frame height is not a chin height: the 09-28 lead fist at
+        # -6 "up" in a head pitched 14 down sat 5.8 cm under the chin.
+        o["fist_%s_over_chin" % s] = (fist.z - (h.z - CHIN_UNDER_HEAD)) * 100.0
         el, sh = P("lowerarm_" + s), P("upperarm_" + s)
         o["elbow_%s_margin" % s] = (abs((Hm @ sh).x) - abs((Hm @ el).x)) * 100.0
         fa = (P("lowerarm_" + s, True) - el).normalized()
@@ -1156,28 +1415,111 @@ def palm_local(arm_obj, side):
     return h.matrix_local.to_3x3().inverted() @ p
 
 
+def _roll_about(pbone, local_vec, want, target=None):
+    """Turn `pbone` (or `target`, a control that carries its frame) about
+    pbone's own length until `local_vec` -- a direction in pbone's REST
+    frame, carried by its current matrix -- faces `want` as nearly as that
+    length allows. Armature space, like every aim here. Returns the angle
+    turned (radians). The one roll every hand and foot here is levelled
+    with: roll_palm (the palm to the opponent, 2026-09-24) and roll_sole
+    (the sole to the floor, 2026-09-30) are two calls to it."""
+    m = pbone.matrix.to_3x3()
+    ax = Vector((m[0][1], m[1][1], m[2][1])).normalized()
+    cur = m @ Vector(local_vec)
+    w = Vector(want)
+    cur = cur - ax * cur.dot(ax)
+    w = w - ax * w.dot(ax)
+    if cur.length < 1e-6 or w.length < 1e-6:
+        return 0.0
+    cur.normalize(); w.normalize()
+    ang = cur.angle(w)
+    if ax.dot(cur.cross(w)) < 0.0:
+        ang = -ang
+    target = target or pbone
+    tm = target.matrix.copy(); at = tm.translation.copy()
+    target.matrix = Matrix.Translation(at) @ Matrix.Rotation(ang, 4, ax) @ Matrix.Translation(-at) @ tm
+    bpy.context.view_layer.update()
+    return ang
+
+
 def roll_palm(arm_obj, side, want, pbone=None):
     """Turn the hand (or `pbone`, a control that carries its frame) about
     the hand's own length until its palm faces `want` as nearly as that
     length allows. Armature space, like every aim here."""
     hb = arm_obj.pose.bones["hand_" + side]
-    target = pbone or hb
-    m = hb.matrix.to_3x3()
-    ax = Vector((m[0][1], m[1][1], m[2][1])).normalized()
-    cur = m @ palm_local(arm_obj, side)
-    w = Vector(want)
-    cur = (cur - ax * cur.dot(ax)).normalized()
-    w = w - ax * w.dot(ax)
-    if w.length < 1e-6:
+    return _roll_about(hb, palm_local(arm_obj, side), want, target=pbone)
+
+
+def roll_sole(arm_obj, side):
+    """Roll foot_<side> about its own length until the sole is level: the
+    foot's rest-up (world +Z in the rest, where the sole lies on z = 0),
+    carried by the posed bone, is turned back onto world +Z as far as the
+    foot's length allows; ball_<side> follows as its child, and the ankle
+    and ball joints lie on the axis and do not move. Returns the angle
+    (radians). An aim swings a foot onto its direction by the shortest arc
+    (pose / rig_full_ik._aim), which for Saud's rear foot -- 35 degrees of
+    yaw and 7 of pitch -- rolled the sole 20.4 degrees, the lead's 5.8, in
+    the guard and every clip that stands in it (2026-09-28); nothing
+    levelled a foot the way roll_palm levels a hand. Called by whoever
+    PLANTS a foot (rig_full_ik.stance, limb_targets, motion_ik.
+    capture_guard) when the stance asks for "soles": "level", never by
+    the aim itself, so a kicking foot keeps its shape. Does nothing when
+    "rolled_sole" is in rig_full_ik.SABOTAGE (the sole_roll bites)."""
+    import rig_full_ik as CR
+    if "rolled_sole" in CR.SABOTAGE:
         return 0.0
-    w.normalize()
-    ang = cur.angle(w)
-    if ax.dot(cur.cross(w)) < 0.0:
-        ang = -ang
-    tm = target.matrix.copy(); at = tm.translation.copy()
-    target.matrix = Matrix.Translation(at) @ Matrix.Rotation(ang, 4, ax) @ Matrix.Translation(-at) @ tm
-    bpy.context.view_layer.update()
-    return ang
+    fb = arm_obj.pose.bones["foot_" + side]
+    local_up = fb.bone.matrix_local.to_3x3().inverted() @ Vector((0.0, 0.0, 1.0))
+    return _roll_about(fb, local_up, Vector((0.0, 0.0, 1.0)))
+
+
+# The sole's corners, as the shoe has them, measured against the shoe's own
+# lowest vertex on Saud's rig with the rest foot pitched and rolled
+# (saud_align/posture/sole_probe.py, 2026-09-30): each corner is a joint
+# table point (toe_*, heel_*) moved this far FORWARD along the rest foot
+# (-Y) and dropped by its height over the floor at rest, where the sole lies
+# on z = 0 (the toe point is 2.1 cm up, the heel 3.8). The sole's front edge
+# is 2.3 cm past the toe point (its bevel; at J["toe"] itself the model sat
+# 3.8 mm high at 10 degrees toe-down, 7.9 at 20 -- 2.3 cm x sin), its heel is
+# rounded and meets the floor 1.2 cm ahead of J["heel"] when the heel drops
+# (at J["heel"] the model was 2.3 mm low at 10 degrees, 3.6 at 20), and its
+# half-width is 4.2 cm (4.5 was 0.6 mm low at 10 degrees of roll, 0.7 at
+# 20). With these the model is within 1 mm of the shoe at 10 degrees of
+# pitch either way and 20 of roll; rig_full_ik.stance_check holds it
+# within 3 on the guard (its "sole model" bite drops the toe's thickness).
+SOLE_MODEL = {"toe": (0.023, 0.021), "heel": (0.012, 0.038)}     # (forward, thickness), metres
+SOLE_THICK = {k: v[1] for k, v in SOLE_MODEL.items()}            # what the bite sabotages
+SOLE_HALF_WIDTH = 0.042
+
+
+def sole_points(arm_obj, side):
+    """The four corners of that foot's sole in world space, as the bones
+    carry them: J["toe_<side>"] on ball_<side> and J["heel_<side>"] on
+    foot_<side>, each as its offset from the bone's own joint grown with
+    the man (rig_full_ik._toe_and_heel's carry, scaled by the head joint's
+    height against Saud's), moved forward to the sole's own edge
+    (SOLE_MODEL), pushed +/- SOLE_HALF_WIDTH along the foot's carried
+    rest-across (X) and dropped by its rest height above the floor along
+    the carried rest-up (Z). At rest all four are at z = 0.000 +/- 0.001. Returns [(name, Vector)] with names toe_in, toe_out, heel_in,
+    heel_out ("in" toward the other foot). What the clips ground Saud's
+    feet on (motion_ik.capture_guard) and what build_motion's sole_on_floor
+    reads."""
+    pb = arm_obj.pose.bones
+    scale = pb["head"].bone.head_local.z / J["head"][0][2]
+    out = []
+    for bone, joint in (("ball_" + side, "toe_" + side), ("foot_" + side, "heel_" + side)):
+        b = pb[bone]
+        carry = arm_obj.matrix_world @ b.matrix @ b.bone.matrix_local.inverted()
+        nm = joint.split("_")[0]
+        forward, thick = SOLE_MODEL[nm][0] * scale, SOLE_THICK[nm] * scale
+        at = b.bone.head_local + (Vector(J[joint][0]) - Vector(J[bone][0]) + Vector((0.0, -forward, 0.0))) * scale
+        p = carry @ at
+        R = carry.to_3x3()
+        across = (R @ Vector((1.0, 0.0, 0.0))).normalized()
+        up = (R @ Vector((0.0, 0.0, 1.0))).normalized()
+        for tag, sgn in (("in", -1.0 if side == "l" else 1.0), ("out", 1.0 if side == "l" else -1.0)):
+            out.append((nm + "_" + tag, p + across * (SOLE_HALF_WIDTH * scale * sgn) - up * thick))
+    return out
 
 
 def closing_sign(arm_obj, side):

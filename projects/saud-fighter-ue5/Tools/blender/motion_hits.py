@@ -114,7 +114,13 @@ TIP = {"Jab": "hand_end_l", "Cross": "hand_end_r", "Hook": "hand_end_r", "Kick":
        "Knee": "calf_r", "Special": "ball_r"}
 MISS_MORE = 0.02        # a later blow of a combo may land this much wider:
                         # the man it lands on is already reeling
-CHESTS = 0.35           # two chests never closer than this
+CHESTS = 0.33           # two chests never closer than this (spine_03 to spine_03, across the floor).
+                        # Was 0.35, which A_Saud_Pair_Boss_Knee shipped at with 0.0 cm of
+                        # margin (35.0 measured on Content, 2026-09-30); Saud's re-solved
+                        # guard (the upper back unhunched, chest_bend 12 -> 6) puts his chest
+                        # 0.6 cm nearer the Boss's at the knee, 34.4, and the pair failed on
+                        # the last decimal. 0.33 leaves that pair 1.4 cm; the Street and Saqr
+                        # knees on him sit at 38.7 / 37.5. Bitten by --bite "chests apart".
 
 
 def FPS():
@@ -820,6 +826,10 @@ def verify(rig, made, fails):
             psi = math.atan2(-px, py)          # his -Y onto the line to the attacker
         if "pair_far" in B.SABOTAGE:
             px, py, psi = 0.0, -1.20, math.pi
+        if "pair_close" in B.SABOTAGE:
+            # --bite "chests apart": the victim placed 20 cm in front of the
+            # attacker, chest through chest -- the CHESTS floor must catch it
+            px, py, psi = 0.0, -0.20, math.pi
 
         def world(v):
             return Vector((px, py, 0.0)) + turn(v, psi)

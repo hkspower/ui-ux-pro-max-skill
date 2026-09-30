@@ -17,7 +17,13 @@
                                    read it back, measure the difference
     python3 rig_full_ik.py --bite hero/build/Thug.blend
                                    break each mechanism and prove its check
-                                   notices
+                                   notices; on Saud's rig also each key of
+                                   the stance check (stance_bite)
+    python3 rig_full_ik.py --stance rigs/Saud.blend [--clip <A_Saud_Guard.fbx>]
+                                   the stance check (stance_check): his guard
+                                   posed through the controls and measured
+                                   against build_saud.MMA_SPEC; with a clip,
+                                   the rig against the clip's first frame
 
 WHAT WAS THERE. build_saud.add_ik puts an IK constraint on each calf and
 each lowerarm (chain of two, target the mannequin's own ik_foot / ik_hand
@@ -567,7 +573,10 @@ def snap_ik_to_fk(rig, side, limb, keep_roll=False):
 # its FK controls, and the collarbones, which have no control of their own
 FK_BODY = ("spine_01", "spine_02", "spine_03", "neck_01", "head", "clavicle_l", "clavicle_r")
 # --bite only: "roll_dropped" has pose_from zero the roll, as snap_ik_to_fk
-# did before 2026-09-28
+# did before 2026-09-28; "rolled_sole" has build_saud.roll_sole do nothing
+# and "pole_fwd" puts a planted knee's pole straight forward whatever the
+# stance asked (stance), as everything did before 2026-09-30 -- both also
+# forwarded here by build_motion.bite for the clip-side cases
 SABOTAGE = set()
 
 
@@ -701,7 +710,20 @@ def stance(rig, fk, mesh=None, plant=("l", "r")):
     pb = rig.pose.bones
     for s in SIDES:
         set_prop(rig, "CTRL_hand_%s" % s, "fk", 1.0); set_prop(rig, "CTRL_foot_%s" % s, "fk", 1.0)
-    _aim(rig, fk)
+    # A stance that asks for level soles (build_saud.MMA_GUARD's "soles":
+    # "level" -- Saud only, 2026-09-30) has each PLANTED foot rolled level
+    # after the aim and before its matrix goes to the foot control: the aim
+    # swings a foot onto its direction by the shortest arc, which rolled
+    # Saud's rear sole 20.4 degrees (the lead's 5.8) in every stance and
+    # every clip that stood in it. Nothing else has the key, so every other
+    # man's feet are posed as before; a kicking foot is not planted.
+    level = fk.get("soles") == "level"
+    def aimed():
+        _aim(rig, fk)
+        if level:
+            for s in plant:
+                legacy.roll_sole(rig, s)
+    aimed()
     # Everything here is in the armature's own space: the man faces his
     # own -Y, the poles go out along his own bends, and PoseBone.matrix is
     # read and written in that space -- so the stance is his wherever and
@@ -714,7 +736,15 @@ def stance(rig, fk, mesh=None, plant=("l", "r")):
         shoulder, elbow, wrist = pb["upperarm_" + s].head.copy(), pb["lowerarm_" + s].head.copy(), pb["lowerarm_" + s].tail.copy()
         targets["CTRL_foot_" + s] = (ankle.copy(), pb["foot_" + s].matrix.copy())
         targets["CTRL_hand_" + s] = (wrist.copy(), pb["hand_" + s].matrix.copy())
-        poles["CTRL_knee_" + s] = knee + Vector((0, -0.6, 0)) if s in plant else legacy._pole_from(hip, knee, ankle, Vector((0, -1, 0)))
+        if s not in plant:
+            poles["CTRL_knee_" + s] = legacy._pole_from(hip, knee, ankle, Vector((0, -1, 0)))
+        elif fk.get("knee_pole") == "foot" and "pole_fwd" not in SABOTAGE:
+            # a planted knee over its toes (build_saud.knee_pole; MMA_GUARD,
+            # Saud only, 2026-09-30) -- straight forward whatever the foot's
+            # yaw, his rear knee sat 18.7 cm inside the foot's own line
+            poles["CTRL_knee_" + s] = legacy.knee_pole(hip, knee, ankle, pb["ball_" + s].head.copy())
+        else:
+            poles["CTRL_knee_" + s] = knee + Vector((0, -0.6, 0))
         poles["CTRL_elbow_" + s] = legacy._pole_from(shoulder, elbow, wrist, Vector((0, 1, 0)))
     for s in SIDES:
         set_prop(rig, "CTRL_hand_%s" % s, "fk", 0.0); set_prop(rig, "CTRL_foot_%s" % s, "fk", 0.0)
@@ -729,7 +759,7 @@ def stance(rig, fk, mesh=None, plant=("l", "r")):
         reset(rig); floor = {s: legacy._foot_floor(mesh, rig, s) for s in SIDES}
         for s in SIDES:
             set_prop(rig, "CTRL_hand_%s" % s, "fk", 1.0); set_prop(rig, "CTRL_foot_%s" % s, "fk", 1.0)
-        _aim(rig, fk)
+        aimed()
         for s in SIDES:
             set_prop(rig, "CTRL_hand_%s" % s, "fk", 0.0); set_prop(rig, "CTRL_foot_%s" % s, "fk", 0.0)
         for name, m in cur.items():
@@ -759,6 +789,100 @@ def stance(rig, fk, mesh=None, plant=("l", "r")):
     far = max((pb[n].matrix.translation.length, n) for n in list(targets) + list(poles))
     assert far[0] < 3.0, "stance: %s ended up %.1f m from the man -- a world position written in armature space" % (far[1], far[0])
     _object_mode(rig)
+
+
+# ============================================================ the stance
+SOLE_MODEL_MM = 3.0      # the sole-corner model against the shoe's lowest vertex
+CLIP_AGREE_MM = 5.0      # the rig's stance against the clip's first guard frame
+
+
+def stance_check(rig, mesh, guard, spec):
+    """The rig-side stance check (2026-09-30): pose `guard` through the
+    controls (stance), measure it the way build_motion measures the clip's
+    first guard frame (build_saud.measure_stance) and hold it to `spec`
+    (build_saud.stance_misses). Returns (measured, misses). With a mesh and
+    a stance that asks for level soles it also holds the sole-corner MODEL
+    (build_saud.sole_points, what the clips ground Saud's feet on) to the
+    shoe's own lowest vertex (build_saud._foot_floor) within SOLE_MODEL_MM
+    on each planted foot -- a corner model an inch off would ground the
+    clips an inch off and nothing else would say so; the miss is named
+    sole_model_<side>, in mm."""
+    import build_saud as legacy
+    stance(rig, guard, mesh)
+    m = legacy.measure_stance(rig)
+    misses = legacy.stance_misses(m, spec)
+    if mesh is not None and guard.get("soles") == "level":
+        for s in SIDES:
+            low = min(p.z for _n, p in legacy.sole_points(rig, s))
+            m["sole_model_" + s] = (low - legacy._foot_floor(mesh, rig, s)) * 1000.0
+            if abs(m["sole_model_" + s]) > SOLE_MODEL_MM:
+                misses.append(("sole_model_" + s, m["sole_model_" + s], -SOLE_MODEL_MM, SOLE_MODEL_MM))
+    return m, misses
+
+
+def clip_agreement(blend, fbx, guard):
+    """How far the rig's stance is from the clip's: `guard` posed through
+    the controls on the rig in `blend` (fists closed by the slider, as the
+    clips have them), then the FBX read back in an empty scene and its
+    first frames compared bone for bone (every deform bone's head, world
+    space; the importer keys one frame late and a guard loop's later
+    frames breathe, so the nearest of its first three is taken). Returns
+    (worst_m, bone, frame). Two solvers stand him -- rig_full_ik.stance
+    here and motion_ik.capture_guard in the clips -- and until 2026-09-30
+    they disagreed by 141 mm at the rear knee (the clip's knee over its
+    toes and its sole level, the rig's not). Leaves the scene on the clip."""
+    bpy.ops.wm.open_mainfile(filepath=blend)
+    rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+    mesh = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent == rig)
+    stance(rig, guard, mesh)
+    _pose_mode(rig)
+    for s in SIDES:
+        set_prop(rig, "CTRL_hand_" + s, "fist", 1.0)
+    _object_mode(rig)
+    want = {b.name: (rig.matrix_world @ b.matrix).translation.copy() for b in rig.pose.bones if b.bone.use_deform}
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.ops.import_scene.fbx(filepath=fbx)
+    clip = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+    f0 = int(clip.animation_data.action.frame_range[0])
+    best = None
+    for f in range(f0, f0 + 3):
+        bpy.context.scene.frame_set(f); bpy.context.view_layer.update()
+        worst = max((((clip.matrix_world @ clip.pose.bones[n].matrix).translation - p).length, n)
+                    for n, p in want.items() if n in clip.pose.bones)
+        if best is None or worst[0] < best[0]:
+            best = (worst[0], worst[1], f)
+    return best
+
+
+def stance_report(blend, clip=None):
+    """--stance <blend> [--clip <fbx>]: the stance check on a man's rig --
+    Saud's (the blend's basename) against build_saud.MMA_SPEC merged with
+    MMA_SPEC_PENDING, another man's numbers printed with no spec (the
+    bosses have none) -- and, with a clip, the rig against the clip's
+    first guard frame within CLIP_AGREE_MM. Prints every key; returns
+    True when nothing misses."""
+    import build_saud as legacy
+    man = os.path.splitext(os.path.basename(blend))[0]
+    guard = legacy.guard_for(man)
+    spec = dict(legacy.MMA_SPEC, **legacy.MMA_SPEC_PENDING) if man.lower() == "saud" else {}
+    bpy.ops.wm.open_mainfile(filepath=blend)
+    rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+    mesh = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent == rig)
+    m, misses = stance_check(rig, mesh, guard, spec)
+    print("stance      : %s on %s (%s)" % (man, os.path.basename(blend), "MMA_SPEC" if spec else "no spec"))
+    for k in sorted(m):
+        lo, hi = spec.get(k, (None, None))
+        print("  %-24s %9.3f   %s" % (k, m[k], "" if k not in spec else "want %s..%s" % ("" if lo is None else lo, "" if hi is None else hi)))
+    ok = not misses
+    for k, v, lo, hi in misses:
+        print("  MISS %-19s %9.3f   want %s..%s" % (k, v, "" if lo is None else lo, "" if hi is None else hi))
+    if clip:
+        worst, bone, f = clip_agreement(blend, clip, guard)
+        print("  rig vs clip %s: worst bone %s %.1f mm on frame %d (want under %.0f)" % (
+            os.path.basename(clip), bone, worst * 1000.0, f, CLIP_AGREE_MM))
+        ok = ok and worst * 1000.0 <= CLIP_AGREE_MM
+    print("  stance: %s" % ("OK" if ok else "MISSES"))
+    return ok
 
 
 # =================================================================== verify
@@ -1136,7 +1260,7 @@ def roundtrip(blend, out=None):
 
 
 # ===================================================================== bite
-def bite(blend):
+def bite(blend, clip=None):
     """Each verify() check, made to fail by breaking what it guards. A check
     that cannot fail is not a check.
 
@@ -1233,7 +1357,83 @@ def bite(blend):
         print("  %-20s %s  %s" % (label, ("OK    " if msg == "passes" else "BITES ") if ok else "SILENT", msg[:90]))
     n = sum(1 for _, ok, _ in cases if ok)
     print("  %d of %d bite" % (n, len(cases)))
-    return n == len(cases)
+    ok = n == len(cases)
+    if os.path.splitext(os.path.basename(blend))[0].lower() == "saud":
+        ok = stance_bite(blend, clip) and ok
+    return ok
+
+
+def stance_bite(blend, clip=None):
+    """The stance check's own suite, on Saud's rig (2026-09-30): each key of
+    build_saud.MMA_SPEC made to miss by ONE sabotage, and the clean stance
+    passing first. A sabotage is one bone group of the stance as it stood
+    until 2026-09-30 (MMA_GUARD_2026_09_28) swapped into the solved one, so
+    a case that bites proves its key reads those bones and no others; or
+    one of SABOTAGE's names; or a re-aimed foot; or the sole model with its
+    thickness dropped. With `clip` (--clip <fbx>, a Guard clip built by the
+    current build_motion), "pole_fwd" must also put the rig further than
+    CLIP_AGREE_MM from the clip. Counted on a line of its own; the
+    mechanism suite above stays as it was."""
+    import build_saud as legacy
+    G, OLD = legacy.MMA_GUARD, legacy.MMA_GUARD_2026_09_28
+    spec = dict(legacy.MMA_SPEC, **legacy.MMA_SPEC_PENDING)
+    def swap(*names):
+        return dict(G, **{k: OLD[k] for k in names})
+    def tiptoe():
+        # the rear foot 7 degrees steeper than the stance's, the same yaw
+        x, y, z = G["foot_r"]
+        yaw = math.degrees(math.atan2(x, -y))
+        pitch = math.degrees(math.asin(-z / math.sqrt(x * x + y * y + z * z)))
+        return dict(G, foot_r=legacy.foot_aim(yaw, pitch + 7.0))
+    def load():
+        bpy.ops.wm.open_mainfile(filepath=blend)
+        rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+        mesh = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent == rig)
+        return rig, mesh
+    results = []
+    def case(label, guard, expect, sabotage=None, not_expect=None):
+        SABOTAGE.clear()
+        thick = dict(legacy.SOLE_THICK)
+        if sabotage:
+            sabotage()
+        try:
+            rig, mesh = load()
+            _m, misses = stance_check(rig, mesh, guard, spec)
+        finally:
+            SABOTAGE.clear(); legacy.SOLE_THICK.update(thick)
+        names = [k for k, _v, _lo, _hi in misses]
+        text = "; ".join("%s %.2f (want %s..%s)" % (k, v, "" if lo is None else lo, "" if hi is None else hi) for k, v, lo, hi in misses)
+        if expect is None:
+            results.append((label, not misses, text or "passes"))
+        else:
+            ok = expect in names and (not_expect is None or not_expect not in names)
+            results.append((label, ok, text or "did not bite"))
+    case("clean (must pass)",       G, None)
+    case("chest bent",              swap("spine_03"), "chest_bend")
+    case("skull extended",          swap("head"), "skull_on_neck", not_expect="chest_bend")
+    case("rear wrist bent",         swap("hand_r", "palm_r"), "wrist_r")
+    case("lead fist low",           swap("upperarm_l", "lowerarm_l", "hand_l", "palm_l"), "fist_l_over_chin")
+    case("lead shoulder dropped",   swap("clavicle_l", "clavicle_r"), "shoulders_level")
+    case("soles rolled",            G, "sole_roll_r", sabotage=lambda: SABOTAGE.add("rolled_sole"))
+    case("tiptoe",                  tiptoe(), "rear_heel")
+    case("knee in",                 G, "knee_off_foot_line_r", sabotage=lambda: SABOTAGE.add("pole_fwd"))
+    case("sole model",              G, "sole_model_r", sabotage=lambda: legacy.SOLE_THICK.update(toe=0.0))
+    if clip:
+        SABOTAGE.clear()
+        clean = clip_agreement(blend, clip, G)
+        SABOTAGE.add("pole_fwd")
+        broken = clip_agreement(blend, clip, G)
+        SABOTAGE.clear()
+        results.append(("clip agrees (clean)", clean[0] * 1000.0 <= CLIP_AGREE_MM,
+                        "worst bone %s %.1f mm" % (clean[1], clean[0] * 1000.0)))
+        results.append(("clip agrees", broken[0] * 1000.0 > CLIP_AGREE_MM,
+                        "with the forward pole the worst bone is %s %.1f mm" % (broken[1], broken[0] * 1000.0)))
+    print("\n%-22s %s" % ("stance case", "when its mechanism is broken"))
+    for label, ok, msg in results:
+        print("  %-20s %s  %s" % (label, ("OK    " if msg.startswith(("passes", "worst")) else "BITES ") if ok else "SILENT", msg[:110]))
+    n = sum(1 for _, ok, _ in results if ok)
+    print("  %d of %d stance cases bite%s" % (n, len(results), "" if clip else "  (no --clip: the rig-vs-clip case not run)"))
+    return n == len(results)
 
 
 def refresh(blend, scale=None):
@@ -1264,15 +1464,23 @@ def refresh(blend, scale=None):
 
 
 if __name__ == "__main__":
+    # Run as a script this module is __main__, and build_saud's own
+    # `import rig_full_ik` (roll_sole reads SABOTAGE through it) would load a
+    # second copy with an empty SABOTAGE: the "soles rolled" stance case was
+    # silent that way (2026-09-30). One module, whichever name it is asked by.
+    sys.modules["rig_full_ik"] = sys.modules[__name__]
     a = sys.argv[1:]
     if "--refresh" in a:
         for path in a[a.index("--refresh") + 1:]:
             if not path.startswith("--"):
                 refresh(os.path.abspath(path))
         sys.exit(0)
+    clip = os.path.abspath(a[a.index("--clip") + 1]) if "--clip" in a else None
     if "--roundtrip" in a:
         print(roundtrip(os.path.abspath(a[a.index("--roundtrip") + 1])))
     elif "--bite" in a:
-        sys.exit(0 if bite(os.path.abspath(a[a.index("--bite") + 1])) else 1)
+        sys.exit(0 if bite(os.path.abspath(a[a.index("--bite") + 1]), clip) else 1)
+    elif "--stance" in a:
+        sys.exit(0 if stance_report(os.path.abspath(a[a.index("--stance") + 1]), clip) else 1)
     else:
         print(__doc__)

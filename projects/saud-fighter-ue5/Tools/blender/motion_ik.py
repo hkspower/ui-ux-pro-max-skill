@@ -48,6 +48,9 @@ SIDES = ("l", "r")
 # build_motion's --bite breaks the hands through this (it cannot reach the
 # rig's own state any other way): "fists" leaves them open
 SABOTAGE_HANDS = set()
+# ...and the feet: "ball" grounds a guard on its ball joints again (the way
+# every stance was grounded until 2026-09-30) instead of on its sole corners
+SABOTAGE_GROUND = set()
 LIMB_CHAIN = ["clavicle_l", "upperarm_l", "lowerarm_l", "hand_l",
               "clavicle_r", "upperarm_r", "lowerarm_r", "hand_r",
               "thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"]
@@ -109,6 +112,7 @@ class Author:
         self.pb = rig.pose.bones
         self.order = [n for n in L._hierarchy_order(rig) if n in MANNEQUIN]
         self.guard = None
+        self.reach_drop = 0.0       # what settle()'s reach cap lowered the hips, last call
 
     # ------------------------------------------------------------ switches
     def _fk(self, value, limbs=("hand", "foot")):
@@ -228,13 +232,21 @@ class Author:
         r = Matrix.Translation(b) @ Matrix.Rotation(yaw, 4, "Z") @ Matrix.Translation(-b)
         return r @ m
 
-    def settle(self, planted, limit=0.40):
+    def settle(self, planted, limit=0.40, max_reach=None):
         """Lower the hips until every planted leg reaches its foot. A leg is
         not longer than straight: an FK shape whose hips were high enough
         for a foot that has since stopped sliding has to come down to meet
         it. Measured, not solved: the gap between the ankle the solver
         reached and the one it was asked for is how far to drop. Returns the
-        total drop, which build_motion reports."""
+        total drop, which build_motion reports.
+
+        `max_reach` (2026-09-30, Saud's walks and dashes): a leg that
+        reaches its foot at more than this fraction of its length is a
+        locked knee -- the shipped walks stood on legs at 0.9996 of their
+        length (a 3 degree knee) at every toe-off, and the runtime's
+        TwoBone, held to MaxStretch 0.995 (SaudIK.h), would shorten them and
+        lift the planted foot 4 mm. The hips come down (never up) until
+        every planted leg is inside it; how much is kept in `reach_drop`."""
         drop = 0.0
         for _ in range(12):
             upd()
@@ -249,6 +261,24 @@ class Author:
             self.move_hips((0.0, 0.0, -step))
             drop += step
             assert drop < limit, "settle: the hips came down %.0f cm and a planted leg still cannot reach" % (drop * 100)
+        self.reach_drop = 0.0
+        if max_reach:
+            for _ in range(3):
+                upd()
+                need = 0.0
+                for s in planted:
+                    hip, ank = self.pb["thigh_" + s].head, self.pb["MCH_ankle_" + s].head
+                    span = (self.pb["thigh_" + s].length + self.pb["calf_" + s].length) * max_reach
+                    flat = math.hypot(hip.x - ank.x, hip.y - ank.y)
+                    if flat >= span or hip.z <= ank.z:
+                        continue        # no height would bring it in; not this rule's to fix
+                    need = max(need, (hip.z - ank.z) - math.sqrt(span * span - flat * flat))
+                if need < 0.0002:
+                    break
+                self.move_hips((0.0, 0.0, -need))
+                drop += need
+                self.reach_drop += need
+                assert drop < limit, "settle: the hips came down %.0f cm holding the legs under %.3f of their reach" % (drop * 100, max_reach)
         return drop
 
     def reach_gap(self, sides, which="leg"):
@@ -291,8 +321,24 @@ class Author:
         """The guard as the reference every clip of that stance plants on:
         the FK guard, its feet handed to IK where they stand, its hands
         where the FK put them. Returns the dict `planted()` reads."""
+        import build_saud as L
         self.begin()
         self.fk_body(aims, lean=lean)
+        # A stance that asks for level soles (build_saud.MMA_GUARD, "soles":
+        # "level" -- Saud only, 2026-09-30) has each planted foot rolled
+        # about its own length until the sole is level, here, where the
+        # feet are planted, and never in the aim: an aim swings a foot onto
+        # its direction by the shortest arc, which for 35 degrees of yaw and
+        # 7 of pitch rolled the rear sole 20.4 degrees and the lead's 5.8.
+        # The ankle and ball lie on the roll's axis; only the sole turns.
+        level = aims.get("soles") == "level"
+        if level:
+            for s in SIDES:
+                L.roll_sole(self.rig, s)
+        # --bite "ball" (build_motion, "ball_ground"): the soles level, the
+        # feet grounded on their ball joints as before -- the rear toe
+        # corner goes through the floor by the foot's pitch alone
+        level = level and "ball" not in SABOTAGE_GROUND
         fk = self.read()
         # The floor: where the ball joint sits when he stands at rest with
         # his soles on z = 0 -- 2.4 cm. The FK guard never stood on it: its
@@ -302,18 +348,39 @@ class Author:
         # with the lead foot another 1.2 above that. Both feet go on the
         # floor here.
         floor = self.pb["ball_l"].bone.head_local.z
-        # dz: how far the FK guard's body comes down to stand on that floor,
-        # the same grounding a strike frame gives it, so every clip's
-        # neutral pose is one pose
-        g = {"fk": fk, "ground": floor, "dz": floor - min(fk["ball_l"].z, fk["ball_r"].z)}
+        if level:
+            # ...the SOLE on the floor, not the ball joint (2026-09-30): a
+            # rear foot pitched 23 degrees heel-up with its ball at the rest
+            # height has its toe corner 2.0 cm through the floor (0.7 once
+            # the sole is level), and it was, in every clip that stood in
+            # Saud's guard. Each foot comes down until the lowest of its
+            # four sole corners (build_saud.sole_points) is at 0; the body
+            # comes down by the LARGER of the two gaps, the lead's, and the
+            # other foot is raised -- rig_full_ik.stance's rule, which bends
+            # that knee rather than straightening it. `ground` is then where
+            # the lower FK ball sits after the body's drop, so strike_frame's
+            # `dz = ground - min(ball z)` is this same drop.
+            gap = {s: min(p.z for _n, p in L.sole_points(self.rig, s)) for s in SIDES}
+            body = max(gap.values())
+            g = {"fk": fk, "ground": min(fk["ball_l"].z, fk["ball_r"].z) - body, "dz": -body}
+            down = {s: Matrix.Translation((0.0, 0.0, -gap[s])) for s in SIDES}
+        else:
+            # dz: how far the FK guard's body comes down to stand on that
+            # floor, the same grounding a strike frame gives it, so every
+            # clip's neutral pose is one pose
+            g = {"fk": fk, "ground": floor, "dz": floor - min(fk["ball_l"].z, fk["ball_r"].z)}
+            down = {s: Matrix.Translation((0.0, 0.0, floor - fk["ball_" + s].z)) for s in SIDES}
         for s in SIDES:
-            down = Matrix.Translation((0.0, 0.0, floor - fk["ball_" + s].z))
-            g["ctrl_foot_" + s] = down @ fk["foot_" + s]
-            g["ball_" + s] = down @ fk["ball_" + s]
+            g["ctrl_foot_" + s] = down[s] @ fk["foot_" + s]
+            g["ball_" + s] = down[s] @ fk["ball_" + s]
             g["hand_" + s] = fk["hand_" + s].copy()
             g["hip_" + s] = fk["hip_" + s].copy()
         g["pelvis"] = fk["pelvis"].copy()
         g["head"] = fk["head"].copy()
+        # the stance's own switches ride along, for the planted knees' poles
+        # (build_motion.planted_pole) and for the record
+        g["soles"] = aims.get("soles")
+        g["knee_pole"] = aims.get("knee_pole")
         self.guard = g
         return g
 
