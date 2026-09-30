@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
 #include "Combat/SaudAnime.h"
+#include "Combat/SaudMenu.h"
 #include "SaudHUD.generated.h"
 
 class AEnemyFighter;
@@ -33,6 +34,13 @@ class AEnemyFighter;
  * into one Canvas triangle item between texts, so the order is kept, and
  * each text stroked in ink. Canvas, not UMG: it needs no asset, so it works
  * the first time the project opens.
+ *
+ * Since 2026-09-30 the menus too: while USaudMenuSubsystem has one open,
+ * SaudMenu::Build's list (Combat/SaudMenu.h) is drawn the same way, over
+ * the fight HUD on a pause and instead of it under the title. The menu's
+ * strings live here (MenuString), as the HUD's do: a text item is a slot
+ * and a value, never a string. English only -- FCanvasTextItem does no
+ * Arabic shaping, so the browser's Arabic sub-lines are not drawn.
  */
 UCLASS()
 class SAUDFIGHTER_API ASaudHUD : public AHUD
@@ -63,6 +71,8 @@ private:
 
 	/** Build's output: about 80 KB, so a member, not on the stack. */
 	SaudHud::FDrawList List;
+	/** SaudMenu::Build's: larger still (the controls diagram). */
+	SaudMenu::FMenuList MenuList;
 
 	void GatherPlayer(SaudHud::FHudState& State, float Dt);
 	void GatherBoss(SaudHud::FHudState& State, float Dt);
@@ -72,4 +82,14 @@ private:
 	void Emit();
 	void Flush(int32 From, int32 To);
 	void Text(const SaudHud::FHudText& Item, const FString& S);
+
+	/** The menu's list, the same way. */
+	void EmitMenu();
+	void FlushMenu(int32 From, int32 To);
+	/** The eight-offset ink stroke and the fill, for either list's text. */
+	void DrawText(const SaudHud::FPoint& At, float Height, const SaudHud::FRgba& Colour, float Stroke, bool bCentre,
+	              const FString& S);
+	/** The string a menu text slot and value stand for (the table in
+	    Combat/SaudMenu.h); a ControlsText slot through SaudControls'. */
+	static FString MenuString(const SaudMenu::FMenuText& Item);
 };

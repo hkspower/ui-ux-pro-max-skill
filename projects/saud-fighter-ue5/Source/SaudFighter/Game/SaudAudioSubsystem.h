@@ -5,6 +5,7 @@
 #include "Engine/DataTable.h"
 #include "SaudAudioSubsystem.generated.h"
 
+class UAudioComponent;
 class USoundBase;
 
 /** Which slider a cue answers to. */
@@ -102,6 +103,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	void PlayUI(FName Cue);
 
+	/** The music: one Music_* row playing at a time, flat, kept as a
+	    component so it can be stopped. The cue is remembered as WANTED, so
+	    the profile's bMusic switch going on brings it back (RefreshMusic)
+	    and going off stops it. Playing the cue already playing does
+	    nothing; another one fades the old out over MusicFadeSeconds. It
+	    plays through a pause (a 2D sound is a UI sound). Nothing in the
+	    C++ started a Music_* cue until 2026-09-30: the title plays
+	    Music_Menu and a fight Music_Stage. */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void PlayMusic(FName Cue);
+
+	/** Fades the music out and forgets what was wanted. */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void StopMusic(float FadeSeconds = 0.5f);
+
+	/** The wanted music against the bMusic switch now: on -> playing, off
+	    -> stopped. The settings screen's MUSIC toggle. */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void RefreshMusic();
+
+	UFUNCTION(BlueprintPure, Category = "Audio")
+	FName GetWantedMusic() const { return WantedMusic; }
+
 	/** How far into a cue's clip its transient sits, in seconds. Zero for a
 	    cue with no row, so a missing sound never delays a swing. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
@@ -145,5 +169,16 @@ private:
 	/** Resolved assets, so a soft pointer is loaded once per cue, not per hit. */
 	UPROPERTY() TMap<FName, TObjectPtr<USoundBase>> Loaded;
 	TSet<FName> Missing;			// logged once each
-	TMap<FName, double> LastPlayed;	// cooldowns
+	/** Cooldowns, on FPlatformTime::Seconds -- real time, not the world's,
+	    which a pause holds still (see PlayResolved). */
+	TMap<FName, double> LastPlayed;
+
+	/** The music playing, its cue, and the cue wanted whether or not the
+	    bMusic switch lets it play. The component dies with its world (it
+	    does not persist across a level transition), so it is checked with
+	    IsValid before use. */
+	UPROPERTY() TObjectPtr<UAudioComponent> Music;
+	FName PlayingMusic;
+	FName WantedMusic;
+	static constexpr float MusicFadeSeconds = 0.5f;
 };

@@ -204,8 +204,17 @@ void USaudFeelSubsystem::RestoreCamera()
 
 void USaudFeelSubsystem::Buzz(const SaudFeel::FBlowFeel& F)
 {
-	const float Seconds = SaudFeel::PadBuzzSeconds(F.Buzz);
-	if (Seconds <= 0.f || F.BuzzStrength <= 0.f)
+	BuzzPad(F.BuzzStrength, SaudFeel::PadBuzzSeconds(F.Buzz));
+}
+
+void USaudFeelSubsystem::TestBuzz(float Seconds)
+{
+	BuzzPad(0.7f, Seconds);
+}
+
+void USaudFeelSubsystem::BuzzPad(float Strength, float Seconds)
+{
+	if (Seconds <= 0.f || Strength <= 0.f)
 	{
 		return;
 	}
@@ -221,7 +230,7 @@ void USaudFeelSubsystem::Buzz(const SaudFeel::FBlowFeel& F)
 	{
 		// All four motors: a blow is felt in both hands. The native overload,
 		// not the latent Blueprint one -- nothing waits on it.
-		PC->PlayDynamicForceFeedback(F.BuzzStrength, Seconds, true, true, true, true,
+		PC->PlayDynamicForceFeedback(Strength, Seconds, true, true, true, true,
 		                             EDynamicForceFeedbackAction::Start);
 	}
 }

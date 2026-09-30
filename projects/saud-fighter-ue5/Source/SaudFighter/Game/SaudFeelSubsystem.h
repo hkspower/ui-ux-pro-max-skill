@@ -36,6 +36,11 @@ public:
 	void OnBlow(const AFighterBase* Victim, const AFighterBase* Attacker,
 	            const FHitResultData& Hit, bool bHeavy);
 
+	/** The settings screen's VIBRATION going on: a short buzz in both
+	    hands so the switch is felt, not read. Same motors, same profile
+	    switch, as a blow's. */
+	void TestBuzz(float Seconds);
+
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	virtual void Tick(float DeltaTime) override;
@@ -73,5 +78,7 @@ private:
 	void ApplyCamera();
 	void RestoreCamera();
 	void Buzz(const SaudFeel::FBlowFeel& F);
+	/** The pad, through the profile's vibration switch. */
+	void BuzzPad(float Strength, float Seconds);
 	UCameraComponent* FindCamera() const;
 };

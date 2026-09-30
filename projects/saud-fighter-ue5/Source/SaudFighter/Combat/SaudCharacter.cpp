@@ -2,7 +2,9 @@
 #include "Combat/SaudArena.h"
 #include "Combat/SaudIK.h"
 #include "Game/SaudAudioSubsystem.h"
+#include "Game/SaudInputBindings.h"
 #include "Game/SaudLookSubsystem.h"
+#include "Game/SaudMenuSubsystem.h"
 
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -184,6 +186,22 @@ void ASaudCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+	// The actions made in C++ (Game/SaudInputBindings.h), for every pointer
+	// a Blueprint left null. The fight's context itself is the menu
+	// subsystem's to add, when a fight starts.
+	if (const USaudInputBindings* Bindings = USaudInputBindings::Get(this))
+	{
+		using SaudControls::EAction;
+		if (!MoveAction)  MoveAction  = Bindings->Action(EAction::Move);
+		if (!LookAction)  LookAction  = Bindings->Action(EAction::Look);
+		if (!PunchAction) PunchAction = Bindings->Action(EAction::Punch);
+		if (!KickAction)  KickAction  = Bindings->Action(EAction::Kick);
+		if (!BlockAction) BlockAction = Bindings->Action(EAction::Block);
+		if (!RageAction)  RageAction  = Bindings->Action(EAction::Rage);
+		if (!DashAction)  DashAction  = Bindings->Action(EAction::Dash);
+		if (!PauseAction) PauseAction = Bindings->Action(EAction::Pause);
+	}
+
 	if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		if (MoveAction)
@@ -204,6 +222,8 @@ void ASaudCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 			Input->BindAction(BlockAction, ETriggerEvent::Started,   this, &ASaudCharacter::Input_BlockStarted);
 			Input->BindAction(BlockAction, ETriggerEvent::Completed, this, &ASaudCharacter::Input_BlockReleased);
 		}
+		if (DashAction)  Input->BindAction(DashAction,  ETriggerEvent::Started, this, &ASaudCharacter::Input_Dash);
+		if (PauseAction) Input->BindAction(PauseAction, ETriggerEvent::Started, this, &ASaudCharacter::Input_Pause);
 	}
 }
 
@@ -427,29 +447,62 @@ void ASaudCharacter::Input_BlockStarted()
 
 	// Block while moving is a dodge dash; standing still it is a guard. The
 	// parry window opens on the press, never on the hold.
-	const bool bMoving = MoveInput.Size() > 0.35f;
-	if (bMoving && Stamina >= 14.f)
+	if (TryDash())
 	{
-		const USaudGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance<USaudGameInstance>() : nullptr;
-		const bool bLeap = GI && GI->HasAbility(EAbility::DashLeap);
-
-		Stamina -= 14.f;
-		State = EFighterState::Dash;
-		DashRemaining = bLeap ? 0.32f : 0.24f;
-		++MotionSerial;
-		InvulnerableRemaining = bLeap ? 0.34f : 0.26f;
-
-		const FVector Dir = FVector(MoveInput.X, MoveInput.Y, 0.f).GetSafeNormal();
-		LaunchCharacter(Dir * (bLeap ? 1500.f : 1150.f), true, false);
-		if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this))
-		{
-			Audio->Play(bLeap ? TEXT("Dash_Leap") : TEXT("Dash"), this);
-		}
 		return;
 	}
 
 	bBlocking = true;
 	ParryWindowRemaining = SaudGameplay::ParryWindow;
+}
+
+bool ASaudCharacter::TryDash()
+{
+	const bool bMoving = MoveInput.Size() > 0.35f;
+	if (!bMoving || Stamina < 14.f)
+	{
+		return false;
+	}
+	const USaudGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance<USaudGameInstance>() : nullptr;
+	const bool bLeap = GI && GI->HasAbility(EAbility::DashLeap);
+
+	Stamina -= 14.f;
+	State = EFighterState::Dash;
+	DashRemaining = bLeap ? 0.32f : 0.24f;
+	++MotionSerial;
+	InvulnerableRemaining = bLeap ? 0.34f : 0.26f;
+
+	const FVector Dir = FVector(MoveInput.X, MoveInput.Y, 0.f).GetSafeNormal();
+	LaunchCharacter(Dir * (bLeap ? 1500.f : 1150.f), true, false);
+	if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this))
+	{
+		Audio->Play(bLeap ? TEXT("Dash_Leap") : TEXT("Dash"), this);
+	}
+	return true;
+}
+
+void ASaudCharacter::Input_Dash()
+{
+	// The dash button: the same dash Block-while-moving takes, and standing
+	// still it is nothing at all (no guard, no sound), as the browser has it.
+	if (IsBusy())
+	{
+		return;
+	}
+	TryDash();
+}
+
+void ASaudCharacter::Input_Pause()
+{
+	// The fight's context goes while the menu is up, so a stick or a
+	// shoulder still held would never send its release: drop them here.
+	MoveInput = FVector2D::ZeroVector;
+	LookInput = FVector2D::ZeroVector;
+	bBlocking = false;
+	if (USaudMenuSubsystem* Menu = USaudMenuSubsystem::Get(this))
+	{
+		Menu->Open(SaudMenu::EScreen::Pause);
+	}
 }
 
 void ASaudCharacter::Input_BlockReleased()

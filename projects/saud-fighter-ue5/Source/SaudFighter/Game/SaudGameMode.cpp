@@ -4,6 +4,7 @@
 #include "Combat/SaudCharacter.h"
 #include "Game/SaudHUD.h"
 #include "Game/SaudGameInstance.h"
+#include "Game/SaudMenuSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "World/WaveDirector.h"
 #include "Engine/DataTable.h"
@@ -55,6 +56,22 @@ void ASaudGameMode::BeginPlay()
 	}
 
 	PlaceArrivingPlayer();
+
+	// The title, unless the level was opened by a step through a doorway
+	// (?ArriveAt): then the fight is already on, and only its input context
+	// and its music are wanted. Under the title the pawn has no fight input
+	// and the camera stays as it is; FIGHT / CONTINUE starts it.
+	if (USaudMenuSubsystem* Menu = USaudMenuSubsystem::Get(this))
+	{
+		if (UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt")).IsEmpty())
+		{
+			Menu->Open(SaudMenu::EScreen::Title);
+		}
+		else
+		{
+			Menu->BeginFight();
+		}
+	}
 }
 
 /**

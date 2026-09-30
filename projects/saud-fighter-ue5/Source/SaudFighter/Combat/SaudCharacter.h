@@ -94,6 +94,16 @@ public:
 	float Rage = 0.f;
 
 	// ----------------------------------------------------------------- input
+	/*
+	 * Since 2026-09-30 these are filled at SetupPlayerInputComponent from
+	 * USaudInputBindings (Game/SaudInputBindings.h: the actions built in
+	 * C++ from Combat/SaudControls.h's table) when a Blueprint has left
+	 * them null -- which every one of them was, so no input ever reached
+	 * the fight in C++ before that day. A Blueprint that sets them still
+	 * wins. DefaultMappingContext is NOT filled: the fight's context is
+	 * added by USaudMenuSubsystem when a fight starts (never under the
+	 * title) and removed while a menu is open.
+	 */
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> DefaultMappingContext = nullptr;
@@ -118,6 +128,15 @@ public:
 	    for the whole game. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> LookAction = nullptr;
+
+	/** The dash on its own button (east: B / Circle, Shift), beside the
+	    browser's Block-tapped-while-moving, which stays. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> DashAction = nullptr;
+
+	/** The pad's Menu / Options button, Esc, P: opens the pause. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> PauseAction = nullptr;
 
 	// ---------------------------------------------------------------- camera
 
@@ -170,6 +189,13 @@ protected:
 	void Input_BlockStarted();
 	void Input_BlockReleased();
 	void Input_Rage();
+	void Input_Dash();
+	void Input_Pause();
+
+	/** The dodge dash: the stick past 0.35 and 14 stamina, else nothing
+	    (false). Block tapped while moving and the Dash button both come
+	    here. */
+	bool TryDash();
 
 	/** Turns toward whichever enemy is nearest before committing to a strike. */
 	void FaceNearestEnemy();

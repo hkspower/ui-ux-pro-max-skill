@@ -4,6 +4,7 @@
 #include "Game/SaudHUD.h"
 #include "Combat/SaudTypes.h"
 #include "Game/SaudGameInstance.h"
+#include "Game/SaudMenuSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "World/WaveDirector.h"
 
@@ -27,6 +28,22 @@ void ASaudPrologueGameMode::BeginPlay()
 	{
 		UGameplayStatics::OpenLevel(this, SaudGameplay::WorldLevel);
 		return;
+	}
+
+	// The title first, read from the profile as it is on entry: a first
+	// run has no save, so it says FIGHT, and the duel starts on it. The
+	// pawn has no fight input until then. (A door step, ?ArriveAt, would
+	// skip it; nothing opens this level that way.)
+	if (USaudMenuSubsystem* Menu = USaudMenuSubsystem::Get(this))
+	{
+		if (UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt")).IsEmpty())
+		{
+			Menu->Open(SaudMenu::EScreen::Title);
+		}
+		else
+		{
+			Menu->BeginFight();
+		}
 	}
 
 	// Marked now, on entry, the same moment ASaudGameMode marks a real

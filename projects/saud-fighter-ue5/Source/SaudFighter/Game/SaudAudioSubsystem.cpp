@@ -1,8 +1,10 @@
 #include "Game/SaudAudioSubsystem.h"
 
+#include "Components/AudioComponent.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Game/SaudGameInstance.h"
+#include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
 
@@ -107,8 +109,12 @@ void USaudAudioSubsystem::PlayResolved(FName Cue, const FSoundCueDef& Row, USoun
 	}
 
 	// The cooldown is what keeps a five-hit combo from stacking five copies
-	// of one crack into a single distorted one.
-	const double Now = World->GetTimeSeconds();
+	// of one crack into a single distorted one. On the platform's clock, not
+	// the world's: a pause holds world time still, and a UI cue fired from
+	// the pause menu would then sit inside the cooldown of the tap that
+	// opened it for as long as the menu stayed up (this was
+	// World->GetTimeSeconds() until 2026-09-30).
+	const double Now = FPlatformTime::Seconds();
 	if (const double* Last = LastPlayed.Find(Cue))
 	{
 		if (Now - *Last < Row.Cooldown)
@@ -130,6 +136,78 @@ void USaudAudioSubsystem::PlayResolved(FName Cue, const FSoundCueDef& Row, USoun
 	{
 		UGameplayStatics::PlaySound2D(World, Sound, Volume, Pitch);
 	}
+}
+
+/* ---------------------------------------------------------------- music */
+
+void USaudAudioSubsystem::PlayMusic(FName Cue)
+{
+	WantedMusic = Cue;
+	if (Cue.IsNone() || !BusEnabled(ESoundBus::Music))
+	{
+		StopMusic(MusicFadeSeconds);
+		WantedMusic = Cue;		// still wanted: RefreshMusic brings it back
+		return;
+	}
+	if (Cue == PlayingMusic && IsValid(Music) && Music->IsPlaying())
+	{
+		return;
+	}
+	const FSoundCueDef* Row = Find(Cue);
+	USoundBase* Sound = Row ? Resolve(Cue, *Row) : nullptr;
+	UWorld* World = GetWorld();
+	if (!Sound || !World)
+	{
+		StopMusic(MusicFadeSeconds);
+		WantedMusic = Cue;
+		return;
+	}
+
+	// The old one out under the new one.
+	if (IsValid(Music))
+	{
+		Music->FadeOut(MusicFadeSeconds, 0.f);
+		Music = nullptr;
+	}
+	// bAutoDestroy false: the component is ours to stop. Not persisted across
+	// a level transition: a new world starts its own (BeginFight / the
+	// title). CreateSound2D under this marks it a UI sound, so it keeps
+	// playing while the game is paused.
+	Music = UGameplayStatics::SpawnSound2D(World, Sound, Row->Volume * GetBusVolume(ESoundBus::Music), 1.f, 0.f,
+	                                       nullptr, false, false);
+	PlayingMusic = IsValid(Music) ? Cue : NAME_None;
+	if (IsValid(Music))
+	{
+		Music->bIsUISound = true;
+	}
+}
+
+void USaudAudioSubsystem::StopMusic(float FadeSeconds)
+{
+	if (IsValid(Music))
+	{
+		if (FadeSeconds > 0.f)
+		{
+			Music->FadeOut(FadeSeconds, 0.f);
+		}
+		else
+		{
+			Music->Stop();
+		}
+	}
+	Music = nullptr;
+	PlayingMusic = NAME_None;
+	WantedMusic = NAME_None;
+}
+
+void USaudAudioSubsystem::RefreshMusic()
+{
+	const FName Wanted = WantedMusic;
+	if (Wanted.IsNone())
+	{
+		return;
+	}
+	PlayMusic(Wanted);
 }
 
 /* --------------------------------------------------------------- lookup */

@@ -1,6 +1,8 @@
 #include "Game/SaudHUD.h"
 #include "Combat/EnemyFighter.h"
 #include "Combat/SaudCharacter.h"
+#include "Combat/SaudControls.h"
+#include "Game/SaudMenuSubsystem.h"
 
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
@@ -37,8 +39,25 @@ void ASaudHUD::DrawHUD()
 	GatherPlayer(State, Dt);
 	GatherBoss(State, Dt);
 
-	Build(FPage::For(Canvas->ClipX, Canvas->ClipY), State, List);
-	Emit();
+	// A menu, if one is open: over the fight on a pause (and anything
+	// opened from it), instead of the fight under the title (and anything
+	// opened from that). ReturnTo is the screen a menu was opened from --
+	// the Title or the Pause itself when on one of those.
+	const USaudMenuSubsystem* Menu = USaudMenuSubsystem::Get(this);
+	const bool bMenu = Menu && Menu->IsOpen();
+	const bool bUnderTitle = bMenu && Menu->Model().ReturnTo == SaudMenu::EScreen::Title;
+
+	const FPage Page = FPage::For(Canvas->ClipX, Canvas->ClipY);
+	if (!bUnderTitle)
+	{
+		Build(Page, State, List);
+		Emit();
+	}
+	if (bMenu)
+	{
+		SaudMenu::Build(Page, Menu->Model(), MenuList);
+		EmitMenu();
+	}
 }
 
 /* ------------------------------------------------------ the game's state */
@@ -184,33 +203,50 @@ void ASaudHUD::Emit()
 	Flush(Done, List.NumTris);
 }
 
+namespace
+{
+	/** One triangle item for a run of either list's triangles (the HUD's
+	    FHudTri and the menu's FMenuTri both carry V[3] of a point and a
+	    colour), each vertex its own colour and alpha. */
+	template <typename TTri>
+	void DrawTris(UCanvas* Canvas, const TTri* Tris, int32 From, int32 To)
+	{
+		if (!Canvas || To <= From)
+		{
+			return;
+		}
+		TArray<FCanvasUVTri> Batch;
+		Batch.Reserve(To - From);
+		for (int32 i = From; i < To; ++i)
+		{
+			const TTri& T = Tris[i];
+			FCanvasUVTri U;
+			U.V0_Pos = FVector2D(T.V[0].P.X, T.V[0].P.Y);
+			U.V1_Pos = FVector2D(T.V[1].P.X, T.V[1].P.Y);
+			U.V2_Pos = FVector2D(T.V[2].P.X, T.V[2].P.Y);
+			U.V0_Color = FLinearColor(T.V[0].C.R, T.V[0].C.G, T.V[0].C.B, T.V[0].C.A);
+			U.V1_Color = FLinearColor(T.V[1].C.R, T.V[1].C.G, T.V[1].C.B, T.V[1].C.A);
+			U.V2_Color = FLinearColor(T.V[2].C.R, T.V[2].C.G, T.V[2].C.B, T.V[2].C.A);
+			Batch.Add(U);
+		}
+		FCanvasTriangleItem Item(Batch, GWhiteTexture);
+		Item.BlendMode = SE_BLEND_Translucent;
+		Canvas->DrawItem(Item);
+	}
+}
+
 void ASaudHUD::Flush(int32 From, int32 To)
 {
-	if (To <= From)
-	{
-		return;
-	}
-	// One triangle item for the run, each vertex its own colour and alpha.
-	TArray<FCanvasUVTri> Batch;
-	Batch.Reserve(To - From);
-	for (int32 i = From; i < To; ++i)
-	{
-		const FHudTri& T = List.Tris[i];
-		FCanvasUVTri U;
-		U.V0_Pos = FVector2D(T.V[0].P.X, T.V[0].P.Y);
-		U.V1_Pos = FVector2D(T.V[1].P.X, T.V[1].P.Y);
-		U.V2_Pos = FVector2D(T.V[2].P.X, T.V[2].P.Y);
-		U.V0_Color = FLinearColor(T.V[0].C.R, T.V[0].C.G, T.V[0].C.B, T.V[0].C.A);
-		U.V1_Color = FLinearColor(T.V[1].C.R, T.V[1].C.G, T.V[1].C.B, T.V[1].C.A);
-		U.V2_Color = FLinearColor(T.V[2].C.R, T.V[2].C.G, T.V[2].C.B, T.V[2].C.A);
-		Batch.Add(U);
-	}
-	FCanvasTriangleItem Item(Batch, GWhiteTexture);
-	Item.BlendMode = SE_BLEND_Translucent;
-	Canvas->DrawItem(Item);
+	DrawTris(Canvas, List.Tris, From, To);
 }
 
 void ASaudHUD::Text(const FHudText& T, const FString& S)
+{
+	DrawText(T.At, T.Height, T.Colour, T.Stroke, T.bCentre, S);
+}
+
+void ASaudHUD::DrawText(const FPoint& At, float Height, const FRgba& TextColour, float Stroke, bool bCentre,
+                        const FString& S)
 {
 	UFont* Font = GEngine ? GEngine->GetLargeFont() : nullptr;
 	if (!Font || S.IsEmpty())
@@ -218,15 +254,15 @@ void ASaudHUD::Text(const FHudText& T, const FString& S)
 		return;
 	}
 	const float Native = FMath::Max(1.f, static_cast<float>(Font->GetMaxCharHeight()));
-	const float Scale = T.Height / Native;
-	float X = T.At.X;
-	if (T.bCentre)
+	const float Scale = Height / Native;
+	float X = At.X;
+	if (bCentre)
 	{
 		float W = 0.f, H = 0.f;
 		Canvas->StrLen(Font, S, W, H);
 		X -= 0.5f * W * Scale;
 	}
-	// The ink stroke: the text eight times in ink, T.Stroke away round it,
+	// The ink stroke: the text eight times in ink, Stroke away round it,
 	// then the fill over them -- heavy lettering that reads over the world,
 	// a blood splat or an impact frame alike.
 	static const FVector2D Round[8] = {{1.f, 0.f}, {-1.f, 0.f}, {0.f, 1.f}, {0.f, -1.f},
@@ -236,12 +272,72 @@ void ASaudHUD::Text(const FHudText& T, const FString& S)
 	const FText Line = FText::FromString(S);
 	for (const FVector2D& D : Round)
 	{
-		FCanvasTextItem Stroke(FVector2D(X, T.At.Y) + D * T.Stroke, Line, Font, InkC);
-		Stroke.Scale = FVector2D(Scale, Scale);
-		Canvas->DrawItem(Stroke);
+		FCanvasTextItem StrokeItem(FVector2D(X, At.Y) + D * Stroke, Line, Font, InkC);
+		StrokeItem.Scale = FVector2D(Scale, Scale);
+		Canvas->DrawItem(StrokeItem);
 	}
-	FCanvasTextItem Fill(FVector2D(X, T.At.Y), Line, Font,
-	                     FLinearColor(T.Colour.R, T.Colour.G, T.Colour.B, T.Colour.A));
+	FCanvasTextItem Fill(FVector2D(X, At.Y), Line, Font,
+	                     FLinearColor(TextColour.R, TextColour.G, TextColour.B, TextColour.A));
 	Fill.Scale = FVector2D(Scale, Scale);
 	Canvas->DrawItem(Fill);
+}
+
+/* ------------------------------------------------------------- the menu */
+
+void ASaudHUD::EmitMenu()
+{
+	int32 Done = 0;
+	for (int32 i = 0; i < MenuList.NumTexts; ++i)
+	{
+		const SaudMenu::FMenuText& T = MenuList.Texts[i];
+		FlushMenu(Done, T.TrisBefore);
+		Done = T.TrisBefore;
+		DrawText(T.At, T.Height, T.Colour, T.Stroke, T.bCentre, MenuString(T));
+	}
+	FlushMenu(Done, MenuList.NumTris);
+}
+
+void ASaudHUD::FlushMenu(int32 From, int32 To)
+{
+	DrawTris(Canvas, MenuList.Tris, From, To);
+}
+
+FString ASaudHUD::MenuString(const SaudMenu::FMenuText& T)
+{
+	using SaudMenu::EMenuText;
+	const bool bOn = T.Value != 0;
+	switch (T.Slot)
+	{
+	case EMenuText::Saud: return TEXT("SAUD");
+	case EMenuText::Subtitle: return TEXT("KUWAIT FIGHTER");
+	case EMenuText::Paused: return TEXT("PAUSED");
+	case EMenuText::SettingsHead: return TEXT("SETTINGS");
+	case EMenuText::Continue: return TEXT("CONTINUE");
+	case EMenuText::Fight: return TEXT("FIGHT");
+	case EMenuText::Controls: return TEXT("CONTROLS");
+	case EMenuText::Settings: return TEXT("SETTINGS");
+	case EMenuText::Quit: return TEXT("QUIT");
+	case EMenuText::Resume: return TEXT("RESUME");
+	case EMenuText::QuitToTitle: return TEXT("QUIT TO TITLE");
+	case EMenuText::Difficulty:
+		return T.Value == 0 ? TEXT("DIFFICULTY  ROOKIE")
+		     : (T.Value == 1 ? TEXT("DIFFICULTY  PRO") : TEXT("DIFFICULTY  CHAMPION"));
+	case EMenuText::Sound: return bOn ? TEXT("SOUND  ON") : TEXT("SOUND  OFF");
+	case EMenuText::Music: return bOn ? TEXT("MUSIC  ON") : TEXT("MUSIC  OFF");
+	case EMenuText::Vibration: return bOn ? TEXT("VIBRATION  ON") : TEXT("VIBRATION  OFF");
+	case EMenuText::Back: return TEXT("BACK");
+	case EMenuText::PromptSelect: return TEXT("SELECT");
+	case EMenuText::PromptBack: return TEXT("BACK");
+	case EMenuText::PromptAdjust: return TEXT("ADJUST");
+	case EMenuText::PromptFlip: return bOn ? TEXT("SHOW PS5") : TEXT("SHOW XBOX");
+	case EMenuText::KeySelect: return TEXT("ENTER  SELECT");
+	case EMenuText::KeyBack: return TEXT("ESC  BACK");
+	case EMenuText::KeyAdjust: return TEXT("ARROWS  ADJUST");
+	case EMenuText::KeyFlip: return bOn ? TEXT("TAB  SHOW PS5") : TEXT("TAB  SHOW XBOX");
+	case EMenuText::ControlsText:
+		// SaudControls' own table: Value is its slot, Aux its value.
+		return FString(SaudControls::ControlsText(static_cast<SaudControls::EControlsText>(T.Value), T.Aux));
+	default:
+		return FString();
+	}
 }
