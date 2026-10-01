@@ -959,9 +959,11 @@ def physique_check():
         r = bites.clean("body " + kind, one)
         if r:
             g, ph = r
-            print("  %-8s clean   %s   waist %.3f chest %.3f hips %.3f v %.3f biceps %.3f | abs %.1f linea %.1f oblique %.1f serratus %.1f delt %+.1f tie %.1f mm  (%.0f s)" % (
+            print("  %-8s clean   %s   waist %.3f chest %.3f hips %.3f v %.3f biceps %.3f | abs %.1f linea %.1f oblique %.1f serratus %.1f delt %+.1f tie %.1f mm"
+                  " | arm sep %.1f round %.2f quad %.1f ab lines %.0f mm  (%.0f s)" % (
                 kind, P.PHYSIQUE.get(kind) or "canonical", g["waist"], g["chest"], g["hips"], g["v"], g["biceps"],
-                *(ph[k] * 1000 for k in ("abs", "linea", "oblique", "serratus", "delt", "tie")), time.time() - t))
+                *(ph[k] * 1000 for k in ("abs", "linea", "oblique", "serratus", "delt", "tie")),
+                ph["arm_sep"] * 1000, ph["arm_round"], ph["quad"] * 1000, ph["abs_groove"] * 1000, time.time() - t))
         _reset()
 
     lean = A.PHYSIQUES["lean"]
@@ -989,6 +991,16 @@ def physique_check():
             if o.name.split(".")[0] == "pec_tie": bpy.data.objects.remove(o, do_unlink=True)
             else: out.append(o)
         return out
+    # the limbs' bellies split by limb; the upper arm swollen in front --
+    # the canonical arm's depth and forward shift (0.065 deep, 14 mm
+    # forward at the biceps), the lean arm's width kept so the deltoid's
+    # cap, measured up and out, is not what breaks; the rows as they were
+    # before 2026-10-01 -- short, round, no strap
+    legs_only = [b for b in A.LIMB_BELLIES if b[1] in ("thigh", "shank")]
+    arms_only = [b for b in A.LIMB_BELLIES if b[1] in ("upper", "fore")]
+    canon_depth = {0.15: (0.058, 0.006), 0.40: (0.065, 0.014), 0.62: (0.058, 0.009)}
+    swollen = [(t, rx) + canon_depth.get(t, (ry, sf)) + (ss, w) for t, rx, ry, sf, ss, w in A.LEAN_UPPER]
+    pebbles = [(1.246, 0.027, 0.027, 0.0065), (1.178, 0.029, 0.028, 0.0070), (1.108, 0.030, 0.028, 0.0070)]
     def band(name):
         # check_proportions names every measure off its band after the colon
         return lambda e: "proportions" in e and name in [s.split()[0] for s in e.split(": ", 1)[1].split(", ")]
@@ -999,7 +1011,12 @@ def physique_check():
              ("no oblique", dict(A=dict(OBLIQUE=[])), "no oblique"),
              ("no serratus", dict(A=dict(SERRATUS=[])), "no serratus"),
              ("canonical deltoid", dict(masses=canon_delt), "no deltoid cap"),
-             ("no tie-in", dict(masses=no_tie), "apart")]
+             ("no tie-in", dict(masses=no_tie), "apart"),
+             # 2026-10-01 ("more fitted muscle"): the limbs and the abs
+             ("no arm bellies", dict(A=dict(LIMB_BELLIES=legs_only)), "no groove"),
+             ("the swollen arm", dict(A=dict(LEAN_UPPER=swollen)), "a sleeve"),
+             ("no leg bellies", dict(A=dict(LIMB_BELLIES=arms_only)), "no quadriceps"),
+             ("pebble abs", dict(A=dict(RECTUS=pebbles, RECTUS_EX=0.75, RECTUS_STRAP=None)), "pebbles")]
     for label, patch, word in cases:
         saved = {k: getattr(A, k) for k in patch.get("A", {})}
         lean0 = dict(lean)

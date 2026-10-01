@@ -51,6 +51,24 @@ def tube(name, a, b, profile, front=Vector((0, -1, 0)), segs=40):
         rings.append((c, s * rx, f * ry))
     return loft(name, rings, segs)
 
+def smooth_rows(profile, per=4):
+    """A limb profile resampled `per` rings to a span through a Catmull-Rom
+    curve (every column, t included): the loft bridges its rings with
+    straight lines, so a belly drawn with six rings had a kink at each
+    (2026-10-01, "more fitted muscle": 4.5 mm on Saud's shoulder, 2.7 on
+    his biceps' front). The given rings are kept exactly."""
+    rows = [tuple(r) for r in profile]
+    out = []
+    for i in range(len(rows) - 1):
+        p0 = rows[max(i - 1, 0)]; p1 = rows[i]; p2 = rows[i + 1]; p3 = rows[min(i + 2, len(rows) - 1)]
+        for k in range(per):
+            u = k / per
+            out.append(tuple(0.5 * ((2 * b) + (-a + c) * u + (2 * a - 5 * b + 4 * c - d) * u * u
+                                    + (-a + 3 * b - 3 * c + d) * u ** 3)
+                             for a, b, c, d in zip(p0, p1, p2, p3)))
+    out.append(rows[-1])
+    return out
+
 def ellipsoid(name, centre, axes, axis=(0, 0, 1), segs=32, rings=20):
     bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=segs, ring_count=rings, location=centre)
     o = bpy.context.object; o.name = name; o.scale = axes
@@ -243,15 +261,33 @@ def seated(name, ang, z, axes, along, sink):
 # The rectus: three rows of flat-topped bellies, (z centre, half-height,
 # half-width, how far proud of the loft's front), their centres RECTUS_X
 # off the midline -- a 12 mm linea alba between them.
-RECTUS = [(1.246, 0.027, 0.027, 0.0065), (1.178, 0.029, 0.028, 0.0070), (1.108, 0.030, 0.028, 0.0070)]
+# 2026-10-01 ("more fitted muscle"): the rows were six pebbles, 22 mm of
+# flat belly between them -- a lean fighter's rectus is a strap, its rows
+# parted by narrow tendinous lines. Taller rows now, the lines between
+# them narrow, a little less proud, flatter on top, over a strap
+# (RECTUS_STRAP) that carries the lower belly down toward the pubis.
+RECTUS = [(1.246, 0.0325, 0.028, 0.0066), (1.177, 0.0335, 0.029, 0.0070), (1.107, 0.0345, 0.029, 0.0070)]
 RECTUS_X = 0.034
-RECTUS_EX = 0.75
+RECTUS_EX = 0.62
+# the strap under the rows, (z top, z bottom, half-width, how proud): its
+# edge is the linea semilunaris, the line down the side of the abs
+RECTUS_STRAP = (1.275, 0.990, 0.027, 0.0022)
 # the external oblique, a band down and forward on the flank, (angle, z):
 # slanted, it reads as the oblique line; beads read as a column of bumps and
 # a vertical chain as a bar
 OBLIQUE = [(1.36, 1.225), (1.28, 1.170), (1.18, 1.115), (1.08, 1.070)]
-# the serratus, three slips on the ribs under the pec's edge, (angle, z)
-SERRATUS = [(0.94, 1.312), (1.00, 1.284), (1.06, 1.256)]
+# 2026-10-01: the chain's links, 10 mm apart and as long as they were
+# thick, read as a ribbed sausage on the flank. Now the band follows the
+# same line with links 3 mm apart, each seated on the loft at its own
+# height (the waist curves in at 1.14 and out again: one straight belly
+# stood proud only at the narrowest), (across, crown) along it.
+OBLIQUE_STEP = 0.003
+OBLIQUE_BAND = (0.034, 0.0065)
+OBLIQUE_SEAT = 0.012
+SERRATUS_PROUD = 0.0045
+# the serratus, four slips on the ribs under the pec's edge, (angle, z),
+# finger-like and interleaved with the oblique's top
+SERRATUS = [(0.92, 1.318), (0.97, 1.292), (1.02, 1.266), (1.07, 1.240)]
 
 def definition(physique=None):
     """The fine-pass parts of a physique, left side only (the caller
@@ -261,16 +297,23 @@ def definition(physique=None):
     assert physique == "lean", "no definition for the %r physique" % physique
     from .assembly import chain
     out = []
+    if RECTUS_STRAP and RECTUS:
+        z0, z1, hw, pr = RECTUS_STRAP
+        zc, hz = 0.5 * (z0 + z1), 0.5 * (z0 - z1)
+        y = trunk_surface(RECTUS_X, zc, back=False)[0].y
+        out.append(pillow("rectus_strap", (RECTUS_X, y + 0.008 - pr, zc), (hw, 0.008, hz), ex=0.55))
     for k, (zc, hz, hx, pr) in enumerate(RECTUS):
         y = trunk_surface(RECTUS_X, zc, back=False)[0].y
         out.append(pillow("rectus%d" % k, (RECTUS_X, y + 0.010 - pr, zc), (hx, 0.010, hz), ex=RECTUS_EX))
     if len(OBLIQUE) >= 2:
         pts, radii = [], []
         for ang, z in OBLIQUE:
-            p, n = trunk_at(ang, z); pts.append(p - n * 0.012); radii.append((0.032, 0.012 + 0.0050))
-        out.extend(chain("oblique", pts, radii, lambda c: trunk_at(math.atan2(c.x, -(c.y + 0.004)), c.z)[1]))
+            p, n = trunk_at(ang, z); pts.append(p - n * OBLIQUE_SEAT)
+            radii.append((OBLIQUE_BAND[0], OBLIQUE_SEAT + OBLIQUE_BAND[1]))
+        out.extend(chain("oblique", pts, radii, lambda c: trunk_at(math.atan2(c.x, -(c.y + 0.004)), c.z)[1],
+                         step=OBLIQUE_STEP))
     for k, (ang, z) in enumerate(SERRATUS):
-        out.append(seated("serratus%d" % k, ang, z, (0.011, 0.0065, 0.024), (0.0, -0.8, -0.6), 0.002))
+        out.append(seated("serratus%d" % k, ang, z, (0.014, 0.013, 0.030), (0.0, -0.8, -0.6), 0.013 - SERRATUS_PROUD))
     return out
 
 def trunk():
@@ -671,6 +714,124 @@ def head():
     return loft("head", [ring_z(z, 0, cy, rx, ry) for z, cy, rx, ry in rows], segs=48)
 
 # ------------------------------------------------------------------ limbs
+# The lean physique's limbs (2026-10-01, "improve body to be more fitted
+# muscle", Saud only: the lean MMA fighter the author chose, defined and
+# dry, no extra bulk). Measured on the body built before: his upper arm was
+# one tube 100 mm from its axis to the front of the biceps and 65 to the
+# back, round, so it read as a swollen sleeve; the deltoid three pads with a
+# 4.5 mm step down onto the arm; every ring of every limb a kink; the outer
+# thigh a straight taper, no quadriceps at all. Now a slimmer core, its
+# rings (t, rx, ry, shift front, shift side, belly weight -- arm()'s) on a
+# smooth curve, and the muscles laid on it as bellies (LIMB_BELLIES) that
+# meet in grooves: the biceps and the triceps' two heads apart on the
+# outside of the arm, the brachioradialis over the forearm's radial side,
+# the quadriceps' sweep and the teardrop over the knee, the calf's heads.
+LEAN_UPPER = [
+    (-0.05, 0.047, 0.049, 0.000, 0.0, 0.50),
+    (0.15, 0.050, 0.053, +0.003, 0.0, 0.80),
+    (0.40, 0.053, 0.057, +0.004, 0.0, 1.00),
+    (0.62, 0.049, 0.053, +0.003, 0.0, 0.80),
+    (0.84, 0.039, 0.042, +0.001, 0.0, 0.35),
+    (1.02, 0.043, 0.037, 0.000, 0.0, 0.05),
+]
+LEAN_FORE = [
+    (-0.02, 0.043, 0.037, 0.000, 0.0, 0.25),
+    (0.25, 0.043, 0.045, +0.002, -0.004, 1.00),
+    (0.55, 0.037, 0.038, +0.002, 0.002, 0.60),
+    (0.80, 0.031, 0.029, 0.000, 0.0, 0.25),
+    (1.00, 0.030, 0.023, 0.000, 0.0, 0.0),
+    (1.05, 0.029, 0.022, 0.000, 0.0, 0.0),
+]
+LEAN_THIGH = [
+    (-0.06, 0.082, 0.096, +0.004, -0.010),
+    (0.16, 0.082, 0.097, +0.007, -0.008),
+    (0.40, 0.077, 0.089, +0.011, -0.002),
+    (0.62, 0.069, 0.078, +0.009, 0.0),
+    (0.82, 0.060, 0.064, +0.004, 0.0),
+    (0.92, 0.061, 0.059, +0.002, +0.004),
+    (1.02, 0.063, 0.056, 0.000, 0.0),
+    (1.07, 0.057, 0.054, 0.000, 0.0),     # into the shank's top, no ring at the knee
+]
+LEAN_SHANK = [
+    (-0.07, 0.061, 0.056, 0.000, 0.0),    # up under the thigh's end
+    (-0.02, 0.058, 0.056, 0.000, 0.0),
+    (0.16, 0.056, 0.070, -0.012, 0.003),
+    (0.32, 0.053, 0.065, -0.009, -0.002),
+    (0.58, 0.044, 0.049, -0.004, 0.0),
+    (0.82, 0.035, 0.038, -0.001, 0.0),
+    (0.98, 0.032, 0.040, 0.000, 0.0),
+    (1.04, 0.031, 0.039, 0.000, 0.0),
+]
+# A belly: (name, segment, t along it, angle round it in degrees -- 0 the
+# front, +90 toward the body's midline, -90 away from it, 180 behind --
+# half-sizes (across, deep, long), how far its top stands off the core,
+# whether it grows with the arm). Each is a broad ellipsoid seated deep, so
+# only its crown shows and its edge meets the limb at a shallow angle: a
+# narrow flat-topped belly (the first try) stood on the limb as a strip.
+# On the arm and the leg alike +90 is s = d x f, toward the midline.
+LIMB_BELLIES = [
+    # the biceps: a long crown on the front, fullest past the middle
+    ("biceps", "upper", 0.54, 6.0, (0.036, 0.030, 0.100), 0.008, True),
+    # the brachialis, showing on the outside between biceps and triceps low down
+    ("brachialis", "upper", 0.72, -70.0, (0.022, 0.018, 0.050), 0.004, True),
+    # the triceps: the lateral head high on the outside-back, the long head
+    # behind and in; the groove between them and the biceps down the outside
+    ("tri_lat", "upper", 0.38, -135.0, (0.030, 0.026, 0.085), 0.007, True),
+    ("tri_long", "upper", 0.46, 168.0, (0.034, 0.028, 0.100), 0.006, True),
+    # the forearm: the brachioradialis over the radial side (away from the
+    # body, arm()'s own note), the flexors front-inside, the extensors behind
+    ("brachiorad", "fore", 0.20, -55.0, (0.028, 0.024, 0.090), 0.007, True),
+    ("flexors", "fore", 0.27, 50.0, (0.030, 0.024, 0.085), 0.005, True),
+    ("extensors", "fore", 0.30, -140.0, (0.026, 0.022, 0.085), 0.004, True),
+    # the thigh: the vastus lateralis' sweep on the outside, the rectus
+    # femoris down the front, the teardrop (vastus medialis) over the knee
+    # on the inside, the hamstrings behind
+    ("vastus_lat", "thigh", 0.45, -80.0, (0.050, 0.040, 0.170), 0.010, False),
+    ("rectus_fem", "thigh", 0.40, -5.0, (0.042, 0.034, 0.160), 0.006, False),
+    ("vmo", "thigh", 0.84, 60.0, (0.034, 0.028, 0.060), 0.008, False),
+    ("hamstring", "thigh", 0.46, 178.0, (0.048, 0.036, 0.150), 0.004, False),
+    # the calf's two heads, the inner higher and bigger; the shin's muscle
+    ("gastroc_in", "shank", 0.27, 145.0, (0.036, 0.030, 0.080), 0.008, False),
+    ("gastroc_out", "shank", 0.31, -145.0, (0.032, 0.026, 0.070), 0.006, False),
+    ("tibialis", "shank", 0.30, -25.0, (0.022, 0.018, 0.095), 0.003, False),
+]
+BELLY_EX = 1.0             # round: a crown, not a plateau
+
+def _core_radius(profile, t, ang):
+    """The core tube's radius at t in the direction `ang` (arm()'s frame):
+    its ellipse there, and the section's shift off the bone along it."""
+    rows = profile
+    for r0, r1 in zip(rows, rows[1:]):
+        if r0[0] <= t <= r1[0]: break
+    u = (t - r0[0]) / max(r1[0] - r0[0], 1e-9)
+    rx, ry, sf, ss = [a + (b - a) * u for a, b in zip(r0[1:5], r1[1:5])]
+    c, s_ = math.cos(ang), math.sin(ang)
+    return 1.0 / math.sqrt((c / ry) ** 2 + (s_ / rx) ** 2) + sf * c + ss * s_
+
+def limb_bellies(scale=1.0):
+    """The lean physique's limb muscles, left side (the caller mirrors
+    them): LIMB_BELLIES laid on the core of LEAN_UPPER / LEAN_FORE /
+    LEAN_THIGH / LEAN_SHANK, each seated so it stands its own distance off
+    that core; the arm's grown with `scale` as arm()'s bellies are."""
+    segs = {"upper": ("upperarm_l", "lowerarm_l", LEAN_UPPER), "fore": ("lowerarm_l", "hand_l", LEAN_FORE),
+            "thigh": ("thigh_l", "calf_l", LEAN_THIGH), "shank": ("calf_l", "foot_l", LEAN_SHANK)}
+    out = []
+    for name, seg, t, deg, axes, proud, grows in LIMB_BELLIES:
+        ja, jb, prof = segs[seg]
+        a, b = Jp(ja), Jp(jb)
+        d = (b - a).normalized(); front = Vector((0, -1, 0))
+        f = (front - d * front.dot(d)).normalized(); s_ = d.cross(f).normalized()
+        k = 1.0 + (scale - 1.0) if grows else 1.0
+        ang = math.radians(deg)
+        rows = [(r[0], r[1] * (k if grows else 1.0), r[2] * (k if grows else 1.0), r[3], r[4]) for r in prof]
+        R = _core_radius(rows, t, ang)
+        dirv = (f * math.cos(ang) + s_ * math.sin(ang)).normalized()
+        ax = tuple(v * k for v in axes)
+        c = a + (b - a) * t + dirv * (R + proud * k - ax[1])
+        across = d.cross(dirv).normalized()
+        out.append(pillow("belly_" + name, c, ax, (across, dirv, d), ex=BELLY_EX))
+    return out
+
 def arm(scale=1.0):
     """scale > 1 thickens the muscle bellies -- the biceps, the forearm's
     flexor mass -- and leaves the elbow and wrist close to their own width,
@@ -687,6 +848,15 @@ def arm(scale=1.0):
     # the view the game is played from, and the elbow was the narrowest point
     # of the whole limb. A joint is a local MAXIMUM across and a minimum in
     # depth -- that is what makes it read as bone under skin.
+    if PHYSIQUE == "lean":
+        # Saud's (2026-10-01, "more fitted muscle", a lean MMA fighter's):
+        # a slimmer core with the bellies laid on it as muscles
+        # (limb_bellies) rather than one round tube fattest at the biceps,
+        # and the rings through a smooth curve (smooth_rows) so the loft
+        # has no kink at each ring.
+        upper = tube("upperarm", ua, la, smooth_rows([(t,) + bulk(*r) for t, *r in LEAN_UPPER]), segs=48)
+        lower = tube("forearm", la, hd, smooth_rows([(t,) + bulk(*r) for t, *r in LEAN_FORE]), segs=48)
+        return [upper, lower]
     upper = tube("upperarm", ua, la, [
         (-0.05,) + bulk(0.048, 0.050, 0.000, 0.0, 0.50),  # tapers IN under the deltoid
         (0.18,) + bulk(0.052, 0.058, +0.006, 0.0, 0.85),
@@ -711,6 +881,12 @@ def arm(scale=1.0):
 
 def leg():
     th, cf, ft = Jp("thigh_l"), Jp("calf_l"), Jp("foot_l")
+    if PHYSIQUE == "lean":
+        # Saud's: the canonical rings through a smooth curve, a little
+        # leaner at the core; the quadriceps' sweep, the teardrop over the
+        # knee and the calf's two heads are limb_bellies'
+        return [tube("thigh", th, cf, smooth_rows(LEAN_THIGH), segs=48),
+                tube("shank", cf, ft, smooth_rows(LEAN_SHANK), segs=48)]
     # Measured 2026-09-25: the knee was 0.352 m round against a real 0.38-
     # 0.40, and the vastus medialis was shifted OUTWARD -- s = d x f is -X on
     # the left leg, toward the midline, so "inside" is +ss, not -ss. The
@@ -1149,6 +1325,113 @@ def physique_numbers(P):
     i0 = int(np.nanargmax(ys[:6])); i1 = len(xs) - 8 + int(np.nanargmax(ys[-8:]))
     chord = ys[i0] + (ys[i1] - ys[i0]) * (np.arange(len(xs)) - i0) / max(i1 - i0, 1)
     out["tie"] = float(np.nanmax((chord - ys)[i0:i1 + 1]))
+    out.update(limb_numbers(P))
+    return out
+
+
+def _seg(a, b):
+    a, b = np.array(Jp(a)), np.array(Jp(b))
+    d = b - a; L = np.linalg.norm(d); d = d / L
+    f = np.array([0.0, -1.0, 0.0]); f = f - d * (f @ d); f = f / np.linalg.norm(f)
+    return a, d, f, np.cross(d, f), L
+
+
+def _seg_radius(Q, seg, t0, dirv, band=0.012, cone=0.97, rmax=0.13):
+    """The farthest surface point of Q from a segment's axis at t0 (a share
+    of its length), within a narrow cone about the direction dirv."""
+    a, d, f, s_, L = seg
+    q = Q - a; t = q @ d / L; r = q - np.outer(q @ d, d); rad = np.linalg.norm(r, axis=1)
+    m = (np.abs(t - t0) < band) & (rad < rmax) & (rad > 1e-6)
+    if not m.any():
+        return float("nan")
+    k = (r[m] / rad[m][:, None]) @ dirv > cone
+    return float(rad[m][k].max()) if k.any() else float("nan")
+
+
+def _hull2(pts):
+    """The convex hull of 2D points, counter-clockwise (monotone chain)."""
+    p = sorted(set(map(tuple, np.round(pts, 6))))
+    if len(p) < 3:
+        return np.array(p)
+    def half(seq):
+        h = []
+        for q in seq:
+            while len(h) >= 2 and (h[-1][0] - h[-2][0]) * (q[1] - h[-2][1]) - (h[-1][1] - h[-2][1]) * (q[0] - h[-2][0]) <= 0:
+                h.pop()
+            h.append(q)
+        return h
+    lo, hi = half(p), half(p[::-1])
+    return np.array(lo[:-1] + hi[:-1])
+
+
+def limb_numbers(P):
+    """What makes the lean physique's limbs read as muscle, on the fine body
+    at canonical coordinates (2026-10-01, "more fitted muscle"). In mm:
+
+    arm_sep    the groove down the outside of the upper arm between the
+               biceps and the triceps: across t 0.45-0.60, the deepest the
+               section's outside lies inside its own convex hull (a round
+               tube, however thick: 0)
+    arm_round  the upper arm's front over its back at t 0.45, from the
+               bone's axis: a ratio, not mm (measured 1.55 on the body
+               before, the biceps a swelling 101 mm out in front and 65
+               behind -- a sleeve, not an arm)
+    quad       the vastus lateralis' sweep: the outer thigh's profile over
+               t 0.08-0.92 standing out of the straight line between its
+               ends
+    abs_groove the width of the tendinous lines between the rectus rows at
+               x 36 mm: where each lies deeper than half its own depth
+               under the line between the rows either side (pebbles parted
+               by flat belly: wide)
+    """
+    P = np.asarray(P)
+    out = {}
+    arm = P[P[:, 0] > 0.17]
+    up, fo = _seg("upperarm_l", "lowerarm_l"), _seg("lowerarm_l", "hand_l")
+    sep = 0.0
+    for t0 in np.arange(0.45, 0.601, 0.05):
+        a, d, f, s_, L = up
+        q = arm - a; t = q @ d / L; r = q - np.outer(q @ d, d)
+        m = (np.abs(t - t0) < 0.010) & (np.linalg.norm(r, axis=1) < 0.13)
+        if m.sum() < 12:
+            continue
+        uv = np.stack([r[m] @ f, r[m] @ s_], axis=1)        # (front, toward the body)
+        h = _hull2(uv)
+        e = np.roll(h, -1, axis=0) - h
+        nrm = np.stack([e[:, 1], -e[:, 0]], axis=1); nrm /= np.linalg.norm(nrm, axis=1)[:, None]
+        depth = np.min(np.einsum("ijk,jk->ij", h[None, :, :] - uv[:, None, :], nrm), axis=1)
+        # the outside of the arm, away from the body, between front and back
+        outer = uv[:, 1] < -0.64 * np.linalg.norm(uv, axis=1)
+        if outer.any():
+            sep = max(sep, float(depth[outer].max()))
+    out["arm_sep"] = sep
+    out["arm_round"] = _seg_radius(arm, up, 0.45, up[2]) / max(_seg_radius(arm, up, 0.45, -up[2]), 1e-6)
+    leg = P[P[:, 0] > 0.02]
+    th = _seg("thigh_l", "calf_l")
+    ts = np.arange(0.08, 0.921, 0.02)
+    r = np.array([_seg_radius(leg, th, t, -th[3]) for t in ts])
+    good = np.isfinite(r)
+    if good.sum() > 4:
+        line = np.interp(ts, [ts[good][0], ts[good][-1]], [r[good][0], r[good][-1]])
+        out["quad"] = float(np.nanmax(r - line))
+    else:
+        out["quad"] = float("nan")
+    def fy(z):
+        b = P[(np.abs(np.abs(P[:, 0]) - 0.036) < 0.003) & (np.abs(P[:, 2] - z) < 0.0015) & (P[:, 1] < 0)]
+        return -float(b[:, 1].min()) if len(b) else float("nan")
+    zs = np.arange(1.290, 1.060, -0.002)
+    col = np.array([fy(z) for z in zs])
+    widths = []
+    for (zr0, zg, zr1) in ((1.244, 1.210, 1.176), (1.176, 1.141, 1.106)):
+        i0 = int(np.nanargmax(np.where(np.abs(zs - zr0) < 0.012, col, np.nan)))
+        i1 = int(np.nanargmax(np.where(np.abs(zs - zr1) < 0.012, col, np.nan)))
+        seg_ = np.arange(i0, i1 + 1)
+        chord = col[i0] + (col[i1] - col[i0]) * (seg_ - i0) / max(i1 - i0, 1)
+        dep = chord - col[seg_]
+        if not np.isfinite(dep).any() or np.nanmax(dep) <= 0:
+            widths.append(float("nan")); continue
+        widths.append(float(np.sum(dep > 0.5 * np.nanmax(dep)) * 0.002))
+    out["abs_groove"] = max(widths)
     return out
 
 
@@ -1162,8 +1445,18 @@ PHYSIQUE_RULES = (("abs", ">=", 0.0035, "no abs: the rectus rows %.1f mm over th
                   ("linea", ">=", 0.0025, "no linea alba: the midline %.1f mm behind the bellies, want 2.5"),
                   ("oblique", ">=", 0.0030, "no oblique: the flank %.1f mm over the loft at its angle, want 3"),
                   ("serratus", ">=", 0.0030, "no serratus: the ribs' ripple %.1f mm, want 3"),
+                  # (before the deltoid's cap: an arm swollen in front also
+                  # sinks the cap's measure, and is named for what it is)
+                  ("arm_round", "<=", 1.25, "a sleeve, not an arm: the upper arm %.2f times as far out in front as behind, want 1.25 or less", 1.0),
                   ("delt", ">=", 0.0010, "no deltoid cap: the shoulder %.1f mm over the biceps' radius, want 1"),
-                  ("tie", "<=", 0.027, "the pec and the deltoid apart: a %.1f mm dip between them, want 27 or less"))
+                  ("tie", "<=", 0.027, "the pec and the deltoid apart: a %.1f mm dip between them, want 27 or less"),
+                  # 2026-10-01 ("more fitted muscle"), limb_numbers: each
+                  # floor between the body before (arm_sep 1.07, arm_round
+                  # 1.54, quad 4.4, abs_groove 26) and after (1.9, 1.10,
+                  # 13.6, 14), and each bitten by --physique-check
+                  ("arm_sep", ">=", 0.0015, "no groove down the outside of the arm: %.1f mm between biceps and triceps, want 1.5"),
+                  ("quad", ">=", 0.009, "no quadriceps sweep: the outer thigh %.1f mm out of its line, want 9"),
+                  ("abs_groove", "<=", 0.018, "pebbles, not a strap: the lines between the ab rows %.0f mm wide, want 18 or less"))
 
 def check_physique(P, assert_=True):
     """The lean physique's definition on the fine body (physique_numbers):
@@ -1172,9 +1465,9 @@ def check_physique(P, assert_=True):
     -5.2, tie 31.7 on the prototype). Returns the numbers."""
     out = physique_numbers(P)
     if assert_:
-        for k, op, lim, msg in PHYSIQUE_RULES:
+        for k, op, lim, msg, *unit in PHYSIQUE_RULES:
             ok = out[k] >= lim if op == ">=" else out[k] <= lim
-            assert ok, msg % (out[k] * 1000)
+            assert ok, msg % (out[k] * (unit[0] if unit else 1000))
     return out
 
 def build(stage_render=True):

@@ -44,21 +44,25 @@ def chain(name, pts, radii, out_dir, step=0.010):
 # canonical scale, before build_field takes him to his size, so every body
 # check still measures him. The names are the masses' own; a name masses()
 # does not build raises.
-DELT_OFF = 0.052        # the lean deltoid heads' centres off the arm's axis, at arm 1.30
+DELT_OFF = 0.040        # the lean deltoid heads' centres off the arm's axis, at arm 1.30
 
 def delt_heads(arm_scale=1.30):
     """The deltoid in three heads -- lateral, anterior, posterior -- as
-    pillows in the upper arm's own frame, grown with the arm (they are
-    sized for Saud's 1.30): a cap that stands over the biceps and ties
-    into the pec, where the one canonical ellipsoid sat inside the arm."""
+    ellipsoids in the upper arm's own frame, grown with the arm (they are
+    sized for an arm of 1.30): a cap that stands over the biceps and ties
+    into the pec, where the one canonical ellipsoid sat inside the arm.
+    2026-10-01 ("more fitted muscle"): seated deeper and broader, the three
+    overlapping into one cap that runs down into the arm to its insertion
+    -- they stood 15 mm proud as three separate pads with a 4.5 mm step
+    down onto the arm."""
     ua, la = Jp("upperarm_l"), Jp("lowerarm_l")
     d = (la - ua).normalized(); f = Vector((0, -1, 0)); f = (f - d * f.dot(d)).normalized(); s = d.cross(f)
     up = -s if (-s).z > 0 else s
     L = (la - ua).length; k = arm_scale / 1.30
     out = []
-    for name, dirv, along, ax in (("delt_lat", up, 0.10, (0.032, 0.030, 0.074)),
-                                  ("delt_ant", (f * 0.85 + up * 0.5).normalized(), 0.06, (0.026, 0.026, 0.066)),
-                                  ("delt_post", (-f * 0.8 + up * 0.6).normalized(), 0.08, (0.024, 0.020, 0.060))):
+    for name, dirv, along, ax in (("delt_lat", up, 0.13, (0.042, 0.036, 0.100)),
+                                  ("delt_ant", (f * 0.75 + up * 0.66).normalized(), 0.10, (0.034, 0.030, 0.085)),
+                                  ("delt_post", (-f * 0.70 + up * 0.71).normalized(), 0.11, (0.032, 0.026, 0.080))):
         c = ua + d * (along * L) + dirv * (DELT_OFF * k)
         zax = d; yax = dirv; xax = yax.cross(zax)
         out.append(A.pillow(name, c, tuple(a * k for a in ax), (xax, yax, zax), ex=1.0))
@@ -88,7 +92,7 @@ def masses(physique=None, mass=None, arm_scale=1.0):
                 bpy.data.objects.remove(o, do_unlink=True)
             else:
                 keep.append(o)
-        out = keep + delt_heads(arm_scale)
+        out = keep + delt_heads(arm_scale) + A.limb_bellies(arm_scale)
         out.append(ellipsoid("pec_tie", (0.140, -0.060, 1.402), (0.022, 0.028, 0.066), (0.92, 0.30, 0.12)))
     if mass:
         names = {o.name.split(".")[0] for o in out}

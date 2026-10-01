@@ -177,7 +177,9 @@ HOLDS = {
 
 # A man's trunk (anatomy.PHYSIQUES, set by anatomy.set_physique): Saud lean
 # -- a narrower waist, a stronger V, defined abs, obliques and serratus, a
-# deltoid cap grown with his arm and tied into the pec.
+# deltoid cap grown with his arm and tied into the pec; and since
+# 2026-10-01 his limbs (anatomy.LEAN_UPPER .. LEAN_SHANK, LIMB_BELLIES:
+# the arm's and the leg's muscles laid on a slimmer, smooth core).
 PHYSIQUE = {
     "saud": "lean",
 }
@@ -206,12 +208,17 @@ MASS = {
 # on 2026-09-24, asked as "make arm stronger" (biceps girth 0.442 -> 0.470
 # m, measured on the build): a heavyweight's arms, the register the anime
 # look's seinen fighters are drawn in, with the elbow and wrist still the
-# joint's own width (arm()'s ring weights). The others 2026-09-28: the
+# joint's own width (arm()'s ring weights). 1.30 -> 1.18 on 2026-10-01,
+# asked as "improve body to be more fitted muscle" and settled as a lean
+# MMA fighter, no extra bulk: his arm is the lean physique's now
+# (anatomy.LEAN_UPPER under anatomy.LIMB_BELLIES -- biceps, triceps,
+# brachioradialis as muscles on a slimmer core), 0.424 m round the biceps
+# where the swollen 1.30 tube was 0.470. The others 2026-09-28: the
 # thug's arms at his l 0.804 were twigs, and the brawler, the "heavy" man,
 # had Saud's frame with thinner arms. ZAYOS is unlisted: his build is
 # already 1.60.
 LIMBS = {
-    "saud":    1.30,
+    "saud":    1.18,
     "thug":    1.20,
     "brawler": 1.40,
     "saqr":    1.10,
