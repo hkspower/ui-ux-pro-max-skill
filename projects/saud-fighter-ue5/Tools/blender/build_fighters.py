@@ -582,7 +582,9 @@ def _checkpoint_bites(bites, D):
     shoe floor (at least SHOE_FLOOR shoe faces after it), the strip's hole
     rule on the body before the collapse, the tank's UVs (check_uv_flat)
     -- clean; then the tee's shares on a tank (the shoes collapse), for
-    Saud the body's share at 0.76 (53 shoe faces: the floor itself), the
+    Saud the body's share at 0.74 (167 shoe faces, under the floor: on
+    the lean limbs of 2026-10-01 the cliff moved -- 0.76, which left the
+    body before them 53, leaves this one 399 and bit nothing), the
     tee's arm strip left on under the tank, and the tank's chart started
     above its hem at 1.10. About a minute a run."""
     import io, contextlib, re
@@ -626,8 +628,8 @@ def _checkpoint_bites(bites, D):
                 kind, r["shoes"], P.SHOE_FLOOR, r["holes"][0], r["holes"][1], r["flat"][0], r["flat"][1]))
         bites.run("%s: the tee's shares" % kind, "shoe faces", lambda run=run: run(shares=P.SHARES["tee"]))
         if kind == "saud":
-            bites.run("saud: body share 0.76", "want %d" % P.SHOE_FLOOR,
-                      lambda run=run: run(shares=(0.76,) + tuple(P.SHARES["tank"][1:])))
+            bites.run("saud: body share 0.74", "want %d" % P.SHOE_FLOOR,
+                      lambda run=run: run(shares=(0.74,) + tuple(P.SHARES["tank"][1:])))
         real = G.stripped
         def arm_left(c, top="tee", no_tee=False, seen=True, real=real):
             if real(c, top, no_tee, seen):

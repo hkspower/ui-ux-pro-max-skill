@@ -3477,7 +3477,7 @@ title's). `Tools/harness/title_dump.cpp` + `Tools/blender/title_preview.py`
 render the souq from the shot in the anime look with the real Title drawn
 over it -- `Docs/renders/menu-title-3d.png` (16:9, the front of the sweep)
 and `menu-title-3d-4x3.png` (4:3, the sweep's end) -- and measure where he
-landed: at 16:9 his middle at 0.713 against the 0.724 the shot holds, his
+landed: at 16:9 his middle at 0.712 against the 0.724 the shot holds, his
 left at 0.655 against the wash's 0.498 (the shot aims through his middle;
 his guard stands a little to his left of it); at 4:3, 38 degrees round,
 his middle at 0.811 against 0.799, his left at 0.726 against the wash's
@@ -3490,6 +3490,89 @@ its anim instance, that `FApp::GetDeltaTime()` is the frame's real length
 under a pause, and that `SetViewTargetWithBlend` blends once the world is
 running again. In a tight alley the pulled-in eye trades the framing for a
 view of him rather than of a wall -- nothing checks the framing then.
+
+## Saud's body, more fitted muscle -- 2026-10-01
+
+Asked as "improve body to be more fited muscle", settled with the author
+as **Saud only** and **a lean MMA fighter**: defined and dry, clear abs,
+shoulders, arms and back, a narrow waist, no extra bulk. The other five
+men are untouched -- every change hangs off the lean physique, which only
+Saud is built with (`pipeline.PHYSIQUE`), and `--physique-check` measures
+the five exactly as before.
+
+**What was wrong**, measured on his bare pass-two body and seen as clay
+from four sides: the upper arm was one round tube 101 mm out in front of
+the bone and 65 behind -- a swollen sleeve, fattest at the biceps (the
+1.30 arm of 2026-09-24); the deltoid three pads with a 4.5 mm step down
+onto the arm; every ring of every limb a kink (the loft bridges rings
+with straight lines); the outer thigh a straight taper, no quadriceps;
+the abs six pebbles parted by 26 mm of flat belly; the oblique a ribbed
+sausage on the flank (a chain of links 10 mm apart).
+
+**What changed** (`hero/anatomy.py`, `hero/assembly.py`, `hero/pipeline.py`):
+- **The limbs** are a slimmer core (`LEAN_UPPER`, `LEAN_FORE`,
+  `LEAN_THIGH`, `LEAN_SHANK`) on a smooth curve through their rings
+  (`smooth_rows`, Catmull-Rom, four rings a span), with the muscles laid
+  on it (`LIMB_BELLIES`, built in the base pass by `limb_bellies`): the
+  biceps, the brachialis, the triceps' lateral and long heads, the
+  brachioradialis, the flexors and extensors; the vastus lateralis'
+  sweep, the rectus femoris, the teardrop over the knee, the hamstrings,
+  the calf's two heads, the tibialis. Each is a broad ellipsoid seated
+  deep so only its crown shows -- narrow flat-topped bellies (the first
+  try) stood on the limb as strips. `LIMBS` saud 1.30 -> 1.18: the biceps
+  0.470 -> 0.424 m round, the size now in the muscles' shape.
+- **The deltoid**'s three heads seated deeper and broader
+  (`assembly.delt_heads`, `DELT_OFF` 0.052 -> 0.040), overlapping into
+  one cap that runs down into the arm.
+- **The abs**: the rows taller (`RECTUS`), flatter on top (`RECTUS_EX`
+  0.62) over a strap (`RECTUS_STRAP`) down to the lower belly, so they
+  read as one six-pack parted by narrow lines.
+- **The oblique**: the same line on the flank, links 3 mm apart, each
+  seated on the loft at its own height (`OBLIQUE_STEP`, `OBLIQUE_BAND`,
+  `OBLIQUE_SEAT`) -- one straight belly stood proud only at the waist's
+  narrowest, since the waist curves in at 1.14 and out again.
+- **The serratus**: four slips, broader and seated deeper.
+
+**Held, and bitten.** `anatomy.limb_numbers`, run with the physique's
+own numbers in every build, and four new rules in `PHYSIQUE_RULES`, each
+floor between the body before and after: `arm_round` (the upper arm's
+front over its back at t 0.45: 1.54 before, 1.10 now, at most 1.25 --
+checked before the deltoid's cap, which an arm swollen in front also
+sinks), `arm_sep` (the groove down the outside between biceps and
+triceps, the section's depth inside its own convex hull: 1.1 -> 1.9 mm,
+at least 1.5), `quad` (the outer thigh out of its straight line: 4.4 ->
+13.6 mm, at least 9), `abs_groove` (the lines between the ab rows where
+they lie deeper than half their depth: 26 -> 14 mm, at most 18).
+`--physique-check` 14 of 14 (four new: no arm bellies, the arm swollen
+in front, no leg bellies, the old pebble rows), the neck suite 5 of 5
+and the back 4 of 4 on the lean base. A kink measure along the arm was
+tried and dropped: it read the new muscles' own curves as kinks.
+
+**Built, 2026-10-01 (Riyadh):** Saud whole in 38 min, 64,503 tris, 62
+bones, every in-build check passing (abs 4.1, linea 4.0, oblique 6.9,
+serratus 3.3, deltoid cap 1.3, tie 18.7 mm; arm round 1.10, groove 1.9,
+quad 13.6, ab lines 14 mm; waist 0.782, chest 1.062, V 1.50). The iron
+arm re-baked on his new arm, its check passing. `rig_full_ik.py --bite`
+17 of 17 and 10 of 10 stance cases. Every bone of the export identical
+to the last (largest difference 0), so `Content/Animation` stands. The
+vein suite passes on the new forearm (5 of 5); `--grim-check` 26 of 26;
+`--cloth-check` (103 min) dresses the new body clean -- the tank over
+none of the bare upper arm, no holes, 1,179 shoe faces left over the
+floor of 250 -- and caught 15 of its 16 tank-and-jogger sabotages: the
+16th, Saud's body share at 0.76, was tuned to leave the old body on the
+shoe floor (53 faces) and leaves the new one 399. The new body's cliff
+is lower, measured through the same `--resume` branch: 0.76 leaves 399,
+0.74 167 (caught, "want 250"), 0.72 none. The sabotage is 0.74 now; the
+whole suite was not run again. His a-pose, face, guard, kick and iron
+arm renders, the men's sheet, the souq fight scene and its previews
+(the scene rebuilt in a scratch folder, its souq textures byte-identical
+to the project's and its paths set back to them), Saud's IK sheet (its 9
+panels pass) and the title preview redrawn.
+
+**Not verified:** no engine has imported him. Seen, not touched: the
+jagged sliver at the compression top's armhole in the guard render is
+the one already recorded (the decimation slivers on the straps and
+armpits), in the same place before and after.
 
 ## Working rules
 
