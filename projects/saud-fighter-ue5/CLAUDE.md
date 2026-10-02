@@ -3669,7 +3669,10 @@ the wrap and on open), and on the drawn page at seven screen shapes: a
 hint under every column, the stage tag, the meters, the focus nudge, QUIT
 on the Title's strip; through the entrance: inside title-safe, the wipe
 grows, the plates move and arrive in order, and at 0.60 s the list equals
-the list at rest. 18 new sabotages in `bites.txt`, all caught.
+the list at rest, and at 0 s nothing of the prompt strip shows (a glyph's
+rim is a fixed colour inside `SaudControls::Glyph`, so the menu's sink
+fades it: the first render caught the rims standing solid mid-entrance).
+19 new sabotages in `bites.txt`, all caught (106 of 106 in all).
 `menu_dump.cpp` takes `screen=confirm ask=quit|new stage= sound= music=
 focusfrom= focust=`; `menu_preview.py` adds `menu-confirm-quit.png`,
 `menu-confirm-new.png` and `menu-title-enter.png` (0.24 s in), and the

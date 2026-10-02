@@ -126,3 +126,4 @@ menu|Source/SaudFighter/Combat/SaudMenu.h|s#I == EItem::Music);#I != EItem::Back
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#EMenuText::PromptQuit,#EMenuText::PromptBack,#|the Title's Back says QUIT
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#Out\[1\] = EItem::NewGame;#Out[1] = EItem::Controls;#|Title with a save: CONTINUE, NEW GAME, CONTROLS, SETTINGS, QUIT
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#Out\[0\] = EItem::ConfirmNo;#Out[0] = EItem::ConfirmYes;#|Confirm: NO first, and focused
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Sink(Out, EMenuPart::Glyph, -1, static_cast<int>(M.Pad), Alpha);#Sink(Out, EMenuPart::Glyph, -1, static_cast<int>(M.Pad));#|at 0 s the prompt strip is not drawn yet

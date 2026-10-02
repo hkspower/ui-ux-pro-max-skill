@@ -901,7 +901,7 @@ static void PageRules()
 	// inside title-safe the whole way, never sliding back, and settled (the
 	// very page drawn at rest) by EnterSeconds
 	{
-		bool Safe = true, InOrder = true, Wipes = true, Settles = true, Moves = true;
+		bool Safe = true, InOrder = true, Wipes = true, Settles = true, Moves = true, Unseen = true;
 		for (const auto& Sh : Shapes)
 		{
 			const FPage P = FPage::For(Sh[0], Sh[1]);
@@ -973,8 +973,15 @@ static void PageRules()
 				Build(P, M, List);
 				FRgba F0;
 				Settles = Settles && PlateFill(0, F0) && F0.A < 0.05f;
+				// nor the prompt strip: none of a glyph, rim included, shows
+				for (int t = 0; t < List.NumTris; ++t)
+					if (List.Tris[t].Part == EMenuPart::Glyph)
+						for (const FMenuVert& V : List.Tris[t].V) Unseen = Unseen && V.C.A < 0.01f;
+				for (int t = 0; t < List.NumTexts; ++t)
+					if (List.Texts[t].Part == EMenuPart::Glyph) Unseen = Unseen && List.Texts[t].Colour.A < 0.01f;
 			}
 		}
+		Check(Unseen, "at 0 s the prompt strip is not drawn yet -- glyph rims and all");
 		Check(Safe, "the entrance stays inside title-safe the whole way in");
 		Check(Wipes && Moves, "the wash wipes open and the plates slide in, never back");
 		Check(InOrder, "the plates arrive one after another, top first");

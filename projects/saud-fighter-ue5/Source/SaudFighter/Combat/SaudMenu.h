@@ -683,17 +683,24 @@ namespace SaudMenu
 		EMenuPart Part;
 		int Item;
 		int Tag;
-		FMenuSink(FMenuList& InOut, EMenuPart InPart, int InItem, int InTag)
-			: Out(InOut), Part(InPart), Item(InItem), Tag(InTag) {}
+		/** Every colour's alpha is scaled by this: a glyph's rim is a fixed
+		    palette colour inside SaudControls::Glyph, so the strip's fade-in
+		    has to reach it here (2026-10-02). */
+		float Alpha;
+		FMenuSink(FMenuList& InOut, EMenuPart InPart, int InItem, int InTag, float InAlpha = 1.f)
+			: Out(InOut), Part(InPart), Item(InItem), Tag(InTag), Alpha(InAlpha) {}
+		FRgba Faded(const FRgba& C) const { return {C.R, C.G, C.B, C.A * Alpha}; }
 		void Tri(const FPoint& A, const FRgba& CA, const FPoint& B, const FRgba& CB, const FPoint& C,
 		         const FRgba& CC, SaudControls::EControlsPart Pt) override
 		{
-			Out.Tri(A, CA, B, CB, C, CC, Part, Item, Part == EMenuPart::Diagram ? static_cast<int>(Pt) : Tag);
+			Out.Tri(A, Faded(CA), B, Faded(CB), C, Faded(CC), Part, Item,
+			        Part == EMenuPart::Diagram ? static_cast<int>(Pt) : Tag);
 		}
 		void Text(SaudControls::EControlsText Slot, int Value, const FPoint& At, float Height, const FRgba& C,
 		          float Stroke, bool bCentre) override
 		{
-			Out.Text(EMenuText::ControlsText, static_cast<int>(Slot), Value, At, Height, C, Stroke, bCentre, Item, Part);
+			Out.Text(EMenuText::ControlsText, static_cast<int>(Slot), Value, At, Height, Faded(C), Stroke, bCentre, Item,
+			         Part);
 		}
 	};
 
@@ -959,10 +966,11 @@ namespace SaudMenu
 			}
 			const float Size = P.Px(GlyphSize);
 			const float GW = Size * GlyphWide(Button);
-			FMenuSink Sink(Out, EMenuPart::Glyph, -1, static_cast<int>(M.Pad));
+			// the sink fades the whole glyph, its rim with it: the colours go in whole
+			FMenuSink Sink(Out, EMenuPart::Glyph, -1, static_cast<int>(M.Pad), Alpha);
 			// a tab's rim is grown round it, so a glyph stands its rim above the line
 			SaudControls::Glyph(Button, M.Pad, X + 0.5f * GW, Baseline - 0.5f * Size - SaudControls::GlyphRim * Size, Size,
-			                    SaudHud::WithAlpha(Colour::Ink, Alpha), Word, Sink);
+			                    Colour::Ink, Colour::Bone, Sink);
 			const float TX = X + GW + P.Px(GlyphGap);
 			Out.Text(PadSlot, Value, 0, {TX, Baseline - H}, H, Word, Stroke, false, -1, EMenuPart::Glyph);
 			return TX + TextWidth(PadSlot, Value, H) + P.Px(PromptGap);
