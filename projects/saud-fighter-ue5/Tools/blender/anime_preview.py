@@ -9,7 +9,7 @@ mirror of M_Anime_Post's and M_Anime_Frame's HLSL, over them.
 
     python3 Tools/blender/anime_preview.py scenes/SouqAlDawar_fight.blend \
         --out ../../Docs/renders/souq-fight-anime.png [--camera Cam_souq-fight]
-        [--height 1080] [--samples 48] [--blow X Y] [--fire] [--pair] [--street]
+        [--height 1080] [--samples 48] [--blow X Y] [--fire] [--pair] [--street] [--sky]
     python3 Tools/blender/anime_preview.py --men Saud Thug Brawler \
         --out ../../Docs/renders/anime-men.png
     python3 Tools/blender/anime_preview.py scenes/SouqAlDawar_fight.blend \
@@ -39,7 +39,11 @@ projected as the engine projects it (`-mark`), and Saud's own wound border
 --street (2026-09-28, the night) previews the place renders by camera
 name -- Cam_souq-street and Cam_souq-gate, the cameras build_souq.py
 leaves in the scene -- as `souq-street-anime.png` and `souq-gate-anime.png`
-beside --out. --night-check measures the night's LIGHT before the grade
+beside --out. --sky (2026-10-02, the painted sky) turns the fight camera to
+the moon and tips it up over the roofs: `souq-sky-anime.png` beside --out,
+the night the look paints (anime_look.sky_paint) from each pixel's view ray
+(view_of: the camera's own frame) and the scene's moon (moon_of: its sun's
+bearing at the look's MOON_ELEV_DEG). --night-check measures the night's LIGHT before the grade
 (the G-buffer's lit colour over its base colour: the materials drop out and
 what is left is the light's level and hue); --graded-check (MERGE,
 2026-09-28: men, world and look together) the graded picture at the
@@ -243,6 +247,7 @@ def render_scene(camera=None, height=1080, samples=48, fit=False, size=None, gro
         bpy.data.images.remove(img)
     exposure = 2.0 ** sc.view_settings.exposure
     shutil.rmtree(out_dir, ignore_errors=True)
+    got["View"] = view_of(got)          # this camera's, while it is the scene's
     return got, exposure
 
 
@@ -358,14 +363,52 @@ def key_of(got, exposure):
     return (float(np.percentile(T[body], KEY_PERCENTILE)) if body.any() else 1.0), "world p%d" % KEY_PERCENTILE
 
 
+def view_of(got, cam=None):
+    """The view ray of every pixel of a render (H,W,3, Blender's world, Z
+    up) -- the engine's CameraVector turned round, which the painted sky
+    is drawn from. Through the camera's own frame, so its sensor fit and
+    shift are the render's."""
+    from mathutils import Vector
+    sc = bpy.context.scene
+    cam = cam or sc.camera
+    H, W = got["Image"].shape[:2]
+    tr, br, bl, tl = [Vector(c) for c in cam.data.view_frame(scene=sc)]
+    u = (np.arange(W) + 0.5) / W
+    v = (np.arange(H) + 0.5) / H
+    top = np.array(tl)[None, :] + (np.array(tr) - np.array(tl))[None, :] * u[:, None]       # (W,3)
+    bot = np.array(bl)[None, :] + (np.array(br) - np.array(bl))[None, :] * u[:, None]
+    d = top[None, :, :] + (bot - top)[None, :, :] * v[:, None, None]                       # (H,W,3), row 0 the top
+    R = np.array(cam.matrix_world.to_3x3())
+    d = d @ R.T
+    return d / np.linalg.norm(d, axis=-1, keepdims=True)
+
+
+def moon_of():
+    """The moon the sky draws: on the bearing the scene's moon (its
+    strongest sun lamp that is not a fire) shines from, at the look's
+    MOON_ELEV_DEG -- the engine's MOON_DIR, from WORLD_RIG, the same way.
+    The look's own when the scene has no sun."""
+    suns = [o for o in bpy.data.objects if o.type == "LIGHT" and o.data.type == "SUN" and not o.get("night_fire")]
+    if not suns:
+        return AL.moon_dir()
+    sun = max(suns, key=lambda o: o.data.energy)
+    to = np.array(sun.matrix_world.to_3x3())[:, 2]           # a sun shines down its -Z: the moon is up its +Z
+    az, el = math.atan2(to[1], to[0]), math.radians(AL.LOOK["MOON_ELEV_DEG"])
+    return (math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el))
+
+
 def look_from(got, exposure, **kw):
     """Both anime materials over one render's passes; returns 8-bit display
     values and M_Anime_Post's masks. The engine's buffer is pre-exposed, so
     the lit colour goes in with the exposure already on it. The brush boils
-    at BOIL unless told otherwise."""
+    at BOIL unless told otherwise; the sky is painted from the scene
+    camera's rays and the scene's moon."""
     C, A, N, D, fighter = unpack(got, exposure)
     key, rule = key_of(got, exposure)
     kw.setdefault("boil", BOIL)
+    if "V" not in kw:
+        kw["V"] = got["View"] if "View" in got else view_of(got)
+    kw.setdefault("moon", moon_of())
     disp, m = AL.look(C, A, N, D, fighter, key=key, **kw)
     m["key"] = key
     m["key_rule"] = rule
@@ -428,6 +471,40 @@ def street(out_dir, height, samples):
                  np.percentile(Y[g], 95) / max(np.percentile(Y[g], 50), 1e-6), 100 * ((m["shadow"] > 0.5) & g).sum() / max(1, g.sum())))
         done.append(path)
     return done
+
+
+# ================================================================== --sky
+def sky_camera():
+    """Cam_souq-sky (2026-10-02): the fight camera turned to the moon's
+    bearing and tipped up until the moon stands in the upper part of the
+    frame over the roofs -- the painted sky the fight camera, looking
+    down the street, has behind it. Made in the open scene, never saved."""
+    from mathutils import Vector
+    fight = bpy.data.objects["Cam_souq-fight"]
+    mo = moon_of()
+    az = math.atan2(mo[1], mo[0])
+    el = math.radians(AL.LOOK["MOON_ELEV_DEG"] - 8.0)
+    d = Vector((math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el)))
+    cam = bpy.data.objects.get("Cam_souq-sky")
+    if cam is None:
+        cam = bpy.data.objects.new("Cam_souq-sky", fight.data.copy())
+        bpy.context.scene.collection.objects.link(cam)
+    cam.location = fight.location.copy()
+    cam.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
+    return cam
+
+
+def sky_preview(out_dir, height, samples):
+    """souq-sky-anime.png: the night over the souq toward the moon."""
+    from PIL import Image
+    cam = sky_camera()
+    got, e = render_scene(camera=cam, height=height, samples=samples)
+    pic, m = look_from(got, e)
+    path = os.path.join(out_dir, "souq-sky-anime.png")
+    Image.fromarray(pic).save(path)
+    D = unpack(got, e)[3]
+    print("  --sky: %s (the sky %.0f %% of the frame, key %.3f by %s)" % (
+        path, 100.0 * (D > AL.LOOK["SKY_DEPTH_CM"]).mean(), m["key"], m["key_rule"]))
 
 
 # =========================================================== --night-check
@@ -561,7 +638,8 @@ def graded_picture(got, exposure, over=None):
         A, C = np.where(w, A * 0.25, A), np.where(w, C * 0.25, C)
     key, rule = key_of(got, exposure)
     with _look_over(**(over or {})):
-        lin, m = AL.preview(C / key, A, N, D, fighter, key=1.0, boil=BOIL)
+        lin, m = AL.preview(C / key, A, N, D, fighter, key=1.0, boil=BOIL, V=got["View"] if "View" in got else view_of(got),
+                            moon=moon_of())
         disp = AL.frame(AL.to_display(lin), fighter, D=D, boil=BOIL)
     m["emit"] = AL._smooth(AL.LOOK["EMIT_FROM"], 2.0 * AL.LOOK["EMIT_FROM"], m["T"])
     m["fighter"], m["key"], m["key_rule"], m["A"], m["D"] = fighter, key, rule, A, D
@@ -870,6 +948,8 @@ def main():
                  "; the mark on %s's chin at %.2f %.2f, %.0f cm" % (others[0].name, mk["x"], mk["y"], mk["depth"]) if others else ""))
     if "--street" in sys.argv:
         street(os.path.dirname(out), height, samples)
+    if "--sky" in sys.argv:
+        sky_preview(os.path.dirname(out), height, samples)
 
 
 if __name__ == "__main__":

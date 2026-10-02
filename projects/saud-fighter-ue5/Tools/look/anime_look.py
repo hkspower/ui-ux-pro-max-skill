@@ -96,7 +96,8 @@ more of the picture falls into shadow and deep shadow); the split toning
 cold -- slate-blue shadows under an ashen, barely warm light; the WORLD
 held darker and greyer than the fighters (WORLD_LEVEL, WORLD_SATURATION)
 so a man stands out of the murk; the air a dark, cold fog that starts
-close (HAZE); the sky a dim overcast (SKY_LEVEL, SKY_TINT); a vignette
+close (HAZE); the sky a dim overcast (SKY_LEVEL, SKY_TINT -- painted since
+2026-10-02, below); a vignette
 (M_Anime_Frame); and warm light only from what burns -- a lamp, a lantern,
 HAWK FIST -- which keeps its colour (EMIT_FROM) while everything round it
 goes grey. The hit effects go with it: the impact frame is ink and EMBER,
@@ -123,6 +124,18 @@ paper (GRAIN, PAPER). The world's lighting rig is build_world.WORLD_RIG,
 the world's own; check() reads it (with ast, not importing) and holds its
 sun hard and its fill low.
 
+THE LEVELS AND THE SKY, 2026-10-02 ("improve brightness levels" -- the
+picture too dark -- "improve white levels", and "improve sky", settled as
+the sky itself). A levels step in M_Anime_Frame after the vignette (LV_*:
+the black point, the white point, a gamma that lifts the middle; not on an
+impact frame), the vignette lighter (0.45); and step 4's sky PAINTED from
+each pixel's view ray (-Parameters.CameraVector in the engine, view_rays()
+or the render's camera in the preview) instead of the engine's sky banded
+and dimmed: a cold night in flat steps, the moon -- on WORLD_RIG's bearing,
+at MOON_ELEV_DEG -- in an ink ring under a stepped halo, stars on a dome
+over the city, and clouds in two flat tones and a rim, lit toward the moon
+and drifting on View.GameTime. sky_paint() and levels() are the mirror.
+
 WHAT THE CHECKS PROVE. The boil of the brush, the grain and the splatter
 are hashes, frac(sin(x) * 43758.5453), with x up to about 3e4 radians; a
 GPU's fp32 sin does not reproduce numpy's float64 bit for bit. The checks
@@ -145,7 +158,11 @@ RUN
 UNVERIFIED. No engine has built or compiled either material. The Custom
 nodes' HLSL is written against UE 5.4's post-process conventions --
 SceneTextureLookup(), GetDefaultSceneTextureUV(), GetViewportUV(),
-View.BufferSizeAndInvSize -- read, not compiled. The scene colour at
+View.BufferSizeAndInvSize, and since 2026-10-02 Parameters.CameraVector
+(that it points from the pixel to the eye, world space, in a post-process
+material) and View.GameTime -- read, not compiled. The levels are applied
+after the engine's tonemapper, which the preview stands in for with a
+plain clip: the white point was set on the preview's display values. The scene colour at
 BL_SceneColorAfterDOF is pre-exposed, so nothing multiplies it by the eye
 adaptation again. The same steps in numpy have
 run on Blender's render passes of the real models; that is the whole proof
@@ -298,17 +315,74 @@ LOOK = {
     "HAZE_NEAR_CM": 400.0,
     "HAZE_FAR_CM": 7000.0,
     "HAZE_MAX": 0.70,
-    # the sky: a dim overcast, cold, still banded. 2026-09-28: dimmer and
-    # colder (x0.30, (0.86, 0.93, 1.00) before), so a man's lit side stands
-    # well over it (1.34x the sky before)
-    "SKY_LEVEL": 0.20,
-    "SKY_TINT": (0.78, 0.88, 1.00),
+    # the sky, PAINTED (2026-10-02, "improve sky": the sky itself). It was
+    # the engine's own sky banded and dimmed (SKY_LEVEL 0.20, SKY_TINT
+    # (0.78, 0.88, 1.00)): a grey overcast with nothing in it. Now nothing
+    # of the engine's sky is used; it is drawn from the view ray, as a
+    # night a seinen panel paints: a cold gradient in SKY_BANDS flat steps
+    # from the horizon up to SKY_ZENITH_DEG; the moon a flat bone disc in
+    # an ink ring, under a halo in MOON_HALO_BANDS steps; stars, one at
+    # most to a cell of a dome over the city; and clouds in two flat tones
+    # with a rim, the side toward the moon lit, drifting. Albedo-like,
+    # times Key, like the fog. The horizon is darker than the street the
+    # fight stands in, so the sky reads as night BEHIND the fight.
+    "SKY_HORIZON": (0.034, 0.040, 0.060),
+    "SKY_ZENITH": (0.006, 0.008, 0.018),
+    "SKY_ZENITH_DEG": 45.0,
+    # the moon is drawn on the world's moon (build_world.WORLD_RIG's yaw,
+    # the light's own bearing) but lower, at MOON_ELEV_DEG, where a boom
+    # tipped a little up can see it; the light still falls from its pitch
+    "MOON_COL": (2.2, 2.15, 1.95),
+    "MOON_R_DEG": 2.4,
+    "MOON_INK_DEG": 0.18,
+    "MOON_HALO": (0.16, 0.17, 0.22),
+    "MOON_HALO_DEG": 12.0,
+    "MOON_HALO_BANDS": 3.0,
+    "MOON_ELEV_DEG": 20.0,
+    # stars: a dome over the city (the view ray's x, y over its z +
+    # CLOUD_LIFT) cut into cells STAR_CELL_DEG across; STARS of the cells
+    # hold one, a dot STAR_R of a cell, none below STAR_FROM_DEG
+    "STARS": 0.012,
+    "STAR_COL": (0.55, 0.57, 0.65),
+    "STAR_CELL_DEG": 0.9,
+    "STAR_R": 0.10,
+    "STAR_FROM_DEG": 12.0,
+    # clouds: three octaves of value noise on the same dome, cloud where it
+    # passes CLOUD_COVER; CLOUD_DARK, and CLOUD_LIT within CLOUD_LIT_DEG of
+    # the moon in two steps; a rim of CLOUD_RIM toward the lit tone along
+    # the edge (CLOUD_EDGE of the noise); none under CLOUD_FROM_DEG; they
+    # drift CLOUD_DRIFT dome units a game second (still in a freeze)
+    "CLOUD_SCALE": 1.4,
+    "CLOUD_COVER": 0.56,
+    "CLOUD_LIFT": 0.18,
+    "CLOUD_DARK": (0.016, 0.018, 0.027),
+    "CLOUD_LIT": (0.20, 0.21, 0.24),
+    "CLOUD_LIT_DEG": 35.0,
+    "CLOUD_EDGE": 0.035,
+    "CLOUD_RIM": 0.45,
+    "CLOUD_FROM_DEG": 3.0,
+    "CLOUD_DRIFT": 0.004,
     # the vignette, in M_Anime_Frame on display values: the corners down
     # by VIGNETTE, from VIGNETTE_FROM of the way out (1 is a corner).
-    # 2026-09-28: deeper, from nearer the middle (0.50 from 0.45 before)
-    "VIGNETTE": 0.60,
+    # 2026-09-28: deeper, from nearer the middle (0.50 from 0.45 before).
+    # 2026-10-02, the levels: 0.60 -> 0.45, part of "the picture is too dark"
+    "VIGNETTE": 0.45,
     "VIGNETTE_FROM": 0.40,
     "VIGNETTE_TO": 1.05,
+    # the levels (2026-10-02, "improve brightness levels" -- the picture too
+    # dark -- and "improve white levels"), in M_Anime_Frame after the
+    # vignette, on display values: LV_BLACK to black, LV_WHITE to white, a
+    # gamma between that lifts the middle. Measured on the souq fight
+    # before it: the median 0.112 of the screen, the brightest half-percent
+    # 0.36 -- nothing in the picture came near white. After: the median
+    # 0.23, the brightest half-percent 0.59, the moon and bone at white. A
+    # white point at 0.52 put the median at 0.26 but blew a lit face to
+    # white (39 % of the check sphere's skin); at 0.68 lit skin stays a
+    # tone. Ink stays black; the impact frame is not levelled (its cut
+    # reads the picture as it was).
+    "LV_BLACK": 0.020,
+    "LV_WHITE": 0.68,
+    "LV_GAMMA": 1.25,
     # 6. speed lines. 2026-09-28, needles: a streak's angular share is
     # (SPEED_W0 + SPEED_W1 * its hash) * reach ** SPEED_TAPER -- a point at
     # the blow, full width at the edge -- where it was a fixed wedge faded
@@ -558,7 +632,18 @@ def _sub(code):
         "INK_D": _f3(display(L["INK"])), "EMBER_D": _f3(display(L["EMBER"])),
         "INK": _f3(L["INK"]), "EMBER": _f3(L["EMBER"]),
         "WORLD_SATURATION": _f(L["WORLD_SATURATION"]), "WORLD_LEVEL": _f(L["WORLD_LEVEL"]),
-        "SKY_LEVEL": _f(L["SKY_LEVEL"]), "SKY_TINT": _f3(L["SKY_TINT"]),
+        "SKY_HORIZON": _f3(L["SKY_HORIZON"]), "SKY_ZENITH": _f3(L["SKY_ZENITH"]),
+        "SKY_ZENITH_SIN": _f(math.sin(math.radians(L["SKY_ZENITH_DEG"]))),
+        "MOON_DIR": _f3(moon_dir()), "MOON_COL": _f3(L["MOON_COL"]), "MOON_R_DEG": _f(L["MOON_R_DEG"]),
+        "MOON_INK_DEG": _f(L["MOON_INK_DEG"]), "MOON_HALO_DEG": _f(L["MOON_HALO_DEG"]),
+        "MOON_HALO_BANDS": _f(L["MOON_HALO_BANDS"]), "MOON_HALO": _f3(L["MOON_HALO"]),
+        "STARS": _f(L["STARS"]), "STAR_COL": _f3(L["STAR_COL"]), "STAR_CELL": _f(math.radians(L["STAR_CELL_DEG"])),
+        "STAR_R": _f(L["STAR_R"]), "STAR_FROM_SIN": _f(math.sin(math.radians(L["STAR_FROM_DEG"]))),
+        "CLOUD_SCALE": _f(L["CLOUD_SCALE"]), "CLOUD_COVER": _f(L["CLOUD_COVER"]), "CLOUD_LIFT": _f(L["CLOUD_LIFT"]),
+        "CLOUD_DARK": _f3(L["CLOUD_DARK"]), "CLOUD_LIT_DEG": _f(L["CLOUD_LIT_DEG"]), "CLOUD_LIT": _f3(L["CLOUD_LIT"]),
+        "CLOUD_EDGE": _f(L["CLOUD_EDGE"]), "CLOUD_RIM": _f(L["CLOUD_RIM"]),
+        "CLOUD_FROM_SIN": _f(math.sin(math.radians(L["CLOUD_FROM_DEG"]))), "CLOUD_DRIFT": _f(L["CLOUD_DRIFT"]),
+        "LV_BLACK": _f(L["LV_BLACK"]), "LV_WHITE": _f(L["LV_WHITE"]), "LV_GAMMA": _f(L["LV_GAMMA"]),
         "VIGNETTE_FROM": _f(L["VIGNETTE_FROM"]), "VIGNETTE_TO": _f(L["VIGNETTE_TO"]), "VIGNETTE": _f(L["VIGNETTE"]),
         "LINE_FIGHTER": _f(L["LINE_FIGHTER_PX"]), "LINE_WORLD": _f(L["LINE_WORLD_PX"]),
         "DEPTH_EDGE": _f(L["DEPTH_EDGE"]), "NORMAL_EDGE": _f(L["NORMAL_EDGE"]),
@@ -766,12 +851,58 @@ float Fade = Fighter ? 1.0 : lerp(1.0, FADE_MIN, saturate((D - FADE_NEAR) / (FAD
 float Ink = max(max(Silh, Fold * INNER_A) * Fade, Outer) * (Sky && Outer <= 0.0 ? 0.0 : 1.0);
 Out = lerp(Out, INK, Ink);
 
-// 4. sky: banded, and a dim cold overcast
+// 4. sky, painted from the view ray (2026-10-02): nothing of the engine's
+// sky is used. A cold night in flat steps from the horizon up, a moon in
+// an ink ring under a stepped halo, stars on a dome over the city, and
+// clouds in two flat tones and a rim, lit toward the moon, drifting.
+// CameraVector points from the pixel to the eye; the ray is its negative.
 if (Sky)
 {
-    float Ls = dot(C, LUMA);
-    float Lb = (floor(Ls * SKY_BANDS) + 0.5) / SKY_BANDS;
-    Out = lerp(C * (Lb / max(Ls, 0.0001)) * SKY_LEVEL * SKY_TINT, INK, Outer);   // a fighter's line over the sky
+    float3 Vr = -Parameters.CameraVector;
+    float Up = saturate(Vr.z);
+    float Tb = min(floor(saturate(Up / SKY_ZENITH_SIN) * SKY_BANDS) / (SKY_BANDS - 1.0), 1.0);
+    float3 Sk = lerp(SKY_HORIZON, SKY_ZENITH, Tb);
+    float Ma = degrees(acos(clamp(dot(Vr, MOON_DIR), -1.0, 1.0)));
+    Sk += MOON_HALO * (floor((1.0 - saturate(Ma / MOON_HALO_DEG)) * MOON_HALO_BANDS) / MOON_HALO_BANDS);
+    float2 Dm = Vr.xy / (Up + CLOUD_LIFT);                       // the dome over the city
+    // the stars: one at most to a cell, a dot at a hashed place in it
+    float2 Gc = floor(Dm / STAR_CELL);
+    float2 Gf = Gc - 289.0 * floor(Gc / 289.0);
+    float Hs = frac(sin(Gf.x * 12.9898 + Gf.y * 78.233 + 3.0 * 4.1414) * 43758.5453);
+    float Hx = frac(sin(Gf.x * 12.9898 + Gf.y * 78.233 + 5.0 * 4.1414) * 43758.5453);
+    float Hy = frac(sin(Gf.x * 12.9898 + Gf.y * 78.233 + 7.0 * 4.1414) * 43758.5453);
+    bool Star = Hs < STARS && length(Dm / STAR_CELL - Gc - float2(Hx, Hy)) < STAR_R && Up > STAR_FROM_SIN;
+    Sk = Star ? STAR_COL : Sk;
+    // the moon: a flat disc in an ink ring
+    Sk = Ma < MOON_R_DEG ? MOON_COL : Sk;
+    bool MoonInk = Ma >= MOON_R_DEG && Ma < MOON_R_DEG + MOON_INK_DEG;
+    // the clouds: three octaves of value noise over the dome, drifting
+    float2 Cp = Dm * CLOUD_SCALE + float2(View.GameTime * CLOUD_DRIFT, 0.0);
+    const float3 Oct[3] = { float3(1.0, 0.0, 0.0), float3(2.03, 17.0, 0.0), float3(4.01, 0.0, 31.0) };
+    const float Ow[3] = { 0.5, 0.3, 0.2 };
+    float Nc = 0.0;
+    for (int o = 0; o < 3; o++)
+    {
+        float2 Qn = Cp * Oct[o].x + Oct[o].yz;
+        float2 Q0 = floor(Qn);
+        float2 Qf = Qn - Q0;
+        Qf = Qf * Qf * (3.0 - 2.0 * Qf);
+        float2 Q1 = Q0 + 1.0;
+        Q0 -= 289.0 * floor(Q0 / 289.0);
+        Q1 -= 289.0 * floor(Q1 / 289.0);
+        float Ca = frac(sin(Q0.x * 12.9898 + Q0.y * 78.233 + 11.0 * 4.1414) * 43758.5453);
+        float Cb = frac(sin(Q1.x * 12.9898 + Q0.y * 78.233 + 11.0 * 4.1414) * 43758.5453);
+        float Cc = frac(sin(Q0.x * 12.9898 + Q1.y * 78.233 + 11.0 * 4.1414) * 43758.5453);
+        float Cd = frac(sin(Q1.x * 12.9898 + Q1.y * 78.233 + 11.0 * 4.1414) * 43758.5453);
+        Nc += Ow[o] * lerp(lerp(Ca, Cb, Qf.x), lerp(Cc, Cd, Qf.x), Qf.y);
+    }
+    float CloudLit = floor((1.0 - saturate(Ma / CLOUD_LIT_DEG)) * 2.0) / 2.0;
+    float CloudRim = Nc < CLOUD_COVER + CLOUD_EDGE ? CLOUD_RIM : 0.0;
+    float3 Cl = lerp(CLOUD_DARK, CLOUD_LIT, max(CloudLit, CloudRim));
+    bool Cloud = Nc > CLOUD_COVER && Up > CLOUD_FROM_SIN;    // over the moon too
+    Sk = Cloud ? Cl : Sk;
+    Out = (MoonInk && !Cloud) ? INK : Sk * Key;
+    Out = lerp(Out, INK, Outer);                                 // a fighter's line over the sky
 }
 
 // 5. grade: the world held down under the men in it (not a lamp), the
@@ -845,6 +976,9 @@ float Vr = length((VUV - 0.5) * float2(Aspect, 1.0)) / (0.5 * sqrt(Aspect * Aspe
 // (not on an impact frame: cut after it, the dark corners became a hard
 // black iris round the panel; an impact frame is the whole screen)
 float3 Out = S * (1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr) * (1.0 - Imp));
+// the levels (2026-10-02): LV_BLACK to black, LV_WHITE to white, so the
+// picture's whites reach white; not on an impact frame, whose cut reads it
+Out = lerp(pow(saturate((Out - LV_BLACK) / (LV_WHITE - LV_BLACK)), 1.0 / LV_GAMMA), Out, Imp);
 """) + hlsl_fire() + _sub(r"""
 // 7d. the mark where a heavy blow landed, in units of its radius (MARK_PX
 // figure px, scaled to the man's distance): a bone needle star with an ink
@@ -1167,12 +1301,95 @@ def _vnoise(x, y, seed):
 _FLAGS = set()
 
 
-def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0):
+def moon_dir(rig=None):
+    """The moon the sky draws, as a unit view direction in the engine's
+    world (X forward, Y right, Z up): on the bearing build_world.WORLD_RIG's
+    moon light shines FROM (its yaw turned half round), at MOON_ELEV_DEG."""
+    rig = _world_rig() if rig is None else rig
+    az, el = math.radians(rig["yaw"] + 180.0), math.radians(LOOK["MOON_ELEV_DEG"])
+    return (math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el))
+
+
+def view_rays(H, W, hfov_deg=48.5, yaw_deg=0.0, pitch_deg=0.0):
+    """Unit view rays (H,W,3), Z up, of a pinhole camera at yaw/pitch with
+    a horizontal field of view -- the synthetic checks' camera, and the
+    engine's CameraVector turned round. Row 0 is the top."""
+    import numpy as np
+    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    half = math.tan(math.radians(hfov_deg) / 2.0)
+    x = ((xx + 0.5) / W * 2 - 1) * half                 # right
+    y = -((yy + 0.5) / H * 2 - 1) * half * H / W        # up
+    yw, pt = math.radians(yaw_deg), math.radians(pitch_deg)
+    f = np.array([math.cos(pt) * math.cos(yw), math.cos(pt) * math.sin(yw), math.sin(pt)])
+    r = np.array([-math.sin(yw), math.cos(yw), 0.0])
+    u = np.cross(r, f)
+    d = f[None, None, :] + x[..., None] * r[None, None, :] + y[..., None] * u[None, None, :]
+    return d / np.linalg.norm(d, axis=-1, keepdims=True)
+
+
+def _fbm(x, y):
+    """The clouds' noise: three octaves of _vnoise, the HLSL's loop."""
+    return (0.5 * _vnoise(x, y, 11.0) + 0.3 * _vnoise(x * 2.03 + 17.0, y * 2.03, 11.0)
+            + 0.2 * _vnoise(x * 4.01, y * 4.01 + 31.0, 11.0))
+
+
+def sky_paint(V, moon, key, time=0.0):
+    """Step 4's sky on view rays V (H,W,3, Z up), `moon` a unit direction,
+    at game time `time`: linear, times key (the moon's ink ring absolute).
+    Returns (H,W,3) for every pixel; the caller keeps the sky's."""
+    import numpy as np
+    L = LOOK
+    moon = np.asarray(moon, float)
+    up = np.clip(V[..., 2], 0.0, 1.0)
+    tb = np.minimum(np.floor(np.clip(up / math.sin(math.radians(L["SKY_ZENITH_DEG"])), 0, 1) * L["SKY_BANDS"])
+                    / (L["SKY_BANDS"] - 1.0), 1.0)
+    sk = np.array(L["SKY_HORIZON"]) + (np.array(L["SKY_ZENITH"]) - np.array(L["SKY_HORIZON"])) * tb[..., None]
+    ma = np.degrees(np.arccos(np.clip(V @ moon, -1.0, 1.0)))
+    hb = np.floor((1.0 - np.clip(ma / L["MOON_HALO_DEG"], 0, 1)) * L["MOON_HALO_BANDS"]) / L["MOON_HALO_BANDS"]
+    sk = sk + np.array(L["MOON_HALO"]) * hb[..., None]
+    # the dome over the city
+    cx, cy = V[..., 0] / (up + L["CLOUD_LIFT"]), V[..., 1] / (up + L["CLOUD_LIFT"])
+    # the stars: one at most to a cell, a dot at a hashed place in it
+    cell = math.radians(L["STAR_CELL_DEG"])
+    gx, gy = np.floor(cx / cell), np.floor(cy / cell)
+    hs, px, py = _hash2(gx, gy, 3.0), _hash2(gx, gy, 5.0), _hash2(gx, gy, 7.0)
+    star = ((hs < L["STARS"]) & (np.hypot(cx / cell - gx - px, cy / cell - gy - py) < L["STAR_R"])
+            & (up > math.sin(math.radians(L["STAR_FROM_DEG"]))))
+    sk = np.where(star[..., None], np.array(L["STAR_COL"]), sk)
+    # the moon: a flat disc in an ink ring
+    sk = np.where((ma < L["MOON_R_DEG"])[..., None], np.array(L["MOON_COL"]), sk)
+    moon_ink = (ma >= L["MOON_R_DEG"]) & (ma < L["MOON_R_DEG"] + L["MOON_INK_DEG"])
+    # the clouds: two flat tones and a rim, lit toward the moon, drifting
+    n = _fbm(cx * L["CLOUD_SCALE"] + time * L["CLOUD_DRIFT"], cy * L["CLOUD_SCALE"])
+    lit = np.floor((1.0 - np.clip(ma / L["CLOUD_LIT_DEG"], 0, 1)) * 2.0) / 2.0
+    rim = np.where(n < L["CLOUD_COVER"] + L["CLOUD_EDGE"], L["CLOUD_RIM"], 0.0)
+    cl = np.array(L["CLOUD_DARK"]) + (np.array(L["CLOUD_LIT"]) - np.array(L["CLOUD_DARK"])) * np.maximum(lit, rim)[..., None]
+    cloud = (n > L["CLOUD_COVER"]) & (up > math.sin(math.radians(L["CLOUD_FROM_DEG"])))
+    if "stars_in_clouds" in _FLAGS:
+        cloud = cloud & ~star
+    sk = np.where(cloud[..., None], cl, sk)
+    out = sk * key
+    return np.where((moon_ink & ~cloud)[..., None], np.array(L["INK"]), out)
+
+
+def levels(S):
+    """M_Anime_Frame's levels on display values: LV_BLACK to 0, LV_WHITE
+    to 1, LV_GAMMA between."""
+    import numpy as np
+    L = LOOK
+    x = np.clip((S - L["LV_BLACK"]) / (L["LV_WHITE"] - L["LV_BLACK"]), 0.0, 1.0)
+    return x ** (1.0 / L["LV_GAMMA"])
+
+
+def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0, V=None, moon=None, sky_time=0.0):
     """M_Anime_Post's steps on arrays: C the pre-exposed lit colour and A
     the base colour (H,W,3 linear), N world normals (H,W,3), D depth in cm
     (H,W), fighter a mask (H,W bool) of what writes custom depth, boil
-    MPC_Anime.Boil. Row 0 is the TOP of the picture, as a screen UV has
-    it. Returns linear RGB in the buffer's own units, and the masks."""
+    MPC_Anime.Boil. V the view rays (H,W,3, Z up; a level camera looking
+    along +X when None), moon the moon's direction in V's frame (moon_dir()
+    when None), sky_time the game's time for the clouds. Row 0 is the TOP
+    of the picture, as a screen UV has it. Returns linear RGB in the
+    buffer's own units, and the masks."""
     import numpy as np
     L = LOOK
     key = L["KEY"] if key is None else key
@@ -1297,10 +1514,11 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0):
     inkw = np.maximum(np.maximum(silh, fold * L["INNER_ALPHA"]) * fade, outer) * (~sky | (outer > 0))
     out = lerp(out, ink, inkw[..., None])
 
-    # 4. sky: banded, and a dim cold overcast
-    Ls = C @ luma
-    Lb = (np.floor(Ls * L["SKY_BANDS"]) + 0.5) / L["SKY_BANDS"]
-    skyc = C * (Lb / np.maximum(Ls, 1e-4))[..., None] * L["SKY_LEVEL"] * np.array(L["SKY_TINT"])
+    # 4. sky, painted from the view ray: the night, the moon, the stars,
+    # the clouds (sky_paint); a fighter's line over it
+    if V is None:
+        V = view_rays(H, W)
+    skyc = sky_paint(V, moon_dir() if moon is None else moon, key, sky_time)
     out = np.where(sky[..., None], lerp(skyc, ink, outer[..., None]), out)
 
     # 5. grade: the world held down (not a lamp), the air over it, then
@@ -1487,7 +1705,7 @@ def wound_step(out, wound):
 def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None, fist=None, burn=None,
           boil=0.0, tone=0.0, mark=None, wound=0.0):
     """M_Anime_Frame's steps on a display-valued picture S (H,W,3, 0..1),
-    in its order: the vignette, the fire (needs D, the depth), the mark
+    in its order: the vignette, the levels, the fire (needs D, the depth), the mark
     (needs D), the impact frame's cut and 7c, the speed lines, the wound,
     the grain and the paper. `tone` is MPC_Anime.ImpactTone -- 0 a blow's
     BLOOD, 1 a burning punch's EMBER, 2 a parry's BONE (None is 0); `mark`
@@ -1508,6 +1726,10 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
     # vignette, the dark corners became a hard black iris)
     vig = 0.0 if imp and "iris_impact" not in _FLAGS else L["VIGNETTE"]
     out = S * (1.0 - vig * _smooth(L["VIGNETTE_FROM"], L["VIGNETTE_TO"], vr))[..., None]
+    # the levels: the picture's whites to white; not on an impact frame,
+    # whose cut reads the picture as it was
+    if not imp or "levels_on_impact" in _FLAGS:
+        out = levels(out)
     if (fist is not None or burn is not None) and D is not None:
         out = fire(out, D, fist, burn)
     if mark is not None and D is not None:
@@ -1593,13 +1815,15 @@ def to_display(lin):
 
 
 def look(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, speed=0.0,
-         centre=(0.5, 0.5), seed=0.0, fist=None, burn=None, boil=0.0, tone=0.0, mark=None, wound=0.0):
+         centre=(0.5, 0.5), seed=0.0, fist=None, burn=None, boil=0.0, tone=0.0, mark=None, wound=0.0,
+         V=None, moon=None, sky_time=0.0):
     """Both materials, in the engine's order: M_Anime_Post, the
     tonemapper's stand-in, M_Anime_Frame. Returns display values (0..1)
     and M_Anime_Post's masks. `fist` and `burn` are HAWK FIST's (fire());
     `boil` is MPC_Anime.Boil; `tone`, `mark` and `wound` the hit effects
-    (frame())."""
-    out, m = preview(C, A, N, D, fighter, key=key, impact=impact, invert=invert, boil=boil)
+    (frame()); `V`, `moon` and `sky_time` the sky's (preview())."""
+    out, m = preview(C, A, N, D, fighter, key=key, impact=impact, invert=invert, boil=boil,
+                     V=V, moon=moon, sky_time=sky_time)
     return frame(to_display(out), fighter, impact=impact, speed=speed, centre=centre, seed=seed,
                  D=D, fist=fist, burn=burn, boil=boil, tone=tone, mark=mark, wound=wound), m
 
@@ -1755,7 +1979,11 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          "mark_through_men",
          "wound_centre", "soft_wound", "pale_wound", "straight_wound", "wound_on_impact", "round_sparks",
          "hud_blood_drift", "wound_timing", "burn_before_blow",
-         "soft_sun", "bright_fill")
+         "soft_sun", "bright_fill",
+         # 2026-10-02, the levels and the painted sky
+         "dim_levels", "blown_whites", "grey_blacks", "levels_on_impact",
+         "no_moon", "no_moon_ink", "soft_halo", "smooth_sky", "flat_sky",
+         "no_clouds", "overcast", "unlit_clouds", "still_clouds", "no_stars", "stars_in_clouds")
 
 
 def check(bite=None, rig=None):
@@ -1805,7 +2033,9 @@ def check(bite=None, rig=None):
         if bite == "world_as_fighter":
             LOOK["WORLD_LEVEL"] = 1.0; LOOK["WORLD_SATURATION"] = LOOK["SATURATION"]
         if bite == "bright_sky":
-            LOOK["SKY_LEVEL"] = 1.0
+            # the night as bright as the street it stands behind
+            for k, f in (("SKY_HORIZON", 5.0), ("SKY_ZENITH", 5.0), ("CLOUD_DARK", 5.0), ("CLOUD_LIT", 2.0)):
+                LOOK[k] = tuple(v * f for v in LOOK[k])
         if bite == "no_vignette":
             LOOK["VIGNETTE"] = 0.0
         if bite == "warm_fog":
@@ -1857,7 +2087,37 @@ def check(bite=None, rig=None):
         if bite == "old_fog":
             LOOK["HAZE"] = (0.13, 0.145, 0.15)
         if bite == "old_sky":
-            LOOK["SKY_LEVEL"] = 0.30; LOOK["SKY_TINT"] = (0.86, 0.93, 1.00)
+            # the overcast back: one flat cold grey, nothing in it
+            LOOK["SKY_HORIZON"] = LOOK["SKY_ZENITH"] = (0.075, 0.090, 0.12)
+            LOOK["MOON_R_DEG"] = 0.0; LOOK["MOON_INK_DEG"] = 0.0; LOOK["MOON_HALO_DEG"] = 1e-6
+            LOOK["STARS"] = 0.0; LOOK["CLOUD_COVER"] = 2.0
+        if bite == "dim_levels":
+            # the picture as it was: no levels, the old vignette
+            LOOK["LV_BLACK"], LOOK["LV_WHITE"], LOOK["LV_GAMMA"], LOOK["VIGNETTE"] = 0.0, 1.0, 1.0, 0.60
+        if bite == "blown_whites":
+            LOOK["LV_WHITE"] = 0.40
+        if bite == "grey_blacks":
+            LOOK["LV_BLACK"] = -0.10
+        if bite == "no_moon":
+            LOOK["MOON_R_DEG"] = 0.0
+        if bite == "no_moon_ink":
+            LOOK["MOON_INK_DEG"] = 0.0
+        if bite == "soft_halo":
+            LOOK["MOON_HALO_BANDS"] = 256.0
+        if bite == "smooth_sky":
+            LOOK["SKY_BANDS"] = 4096.0
+        if bite == "flat_sky":
+            LOOK["SKY_ZENITH"] = LOOK["SKY_HORIZON"]
+        if bite == "no_clouds":
+            LOOK["CLOUD_COVER"] = 2.0
+        if bite == "overcast":
+            LOOK["CLOUD_COVER"] = -1.0
+        if bite == "unlit_clouds":
+            LOOK["CLOUD_LIT"] = LOOK["CLOUD_DARK"]
+        if bite == "still_clouds":
+            LOOK["CLOUD_DRIFT"] = 0.0
+        if bite == "no_stars":
+            LOOK["STARS"] = 0.0
         if bite == "no_mark":
             LOOK["MARK_PX"] = 0.0
         if bite == "lingering_mark":
@@ -1884,7 +2144,8 @@ def check(bite=None, rig=None):
             LOOK["SPARK_STREAK_S"] = 0.0
         if bite == "hud_blood_drift":
             LOOK["BLOOD"] = (0.2705, 0.0070, 0.0144)      # #8E1420, the look's blood until 2026-09-28
-        if bite in ("blood_parry", "tone_in_post", "mark_through_men", "wound_on_impact", "soft_star"):
+        if bite in ("blood_parry", "tone_in_post", "mark_through_men", "wound_on_impact", "soft_star",
+                    "levels_on_impact", "stars_in_clouds"):
             _FLAGS.add(bite)
         if bite in ("iris_impact", "rim_all_round", "rim_on_world", "tone_on_lit", "tone_in_deep",
                     "static_brush", "grain_bias", "static_grain", "lines_through_cut", "ember_blows",
@@ -1940,11 +2201,16 @@ def check(bite=None, rig=None):
         #     colour, so it reads as a lamp, and a lamp keeps its colour --
         #     the first version of the accent lifted the whole sky to full
         #     saturation, loud orange over the souq
+        # (since 2026-10-02 the sky is painted, so it is held under against
+        # its own painted colour, not the engine's)
         skyp = D > LOOK["SKY_DEPTH_CM"]
-        assert np.median(sat(out[skyp])) <= np.median(sat(C[skyp])) + 1e-6, "the sky is not an accent"
-        # 4b. the sky is a dim overcast: well under half its own light
-        assert np.median(out[skyp] @ np.array(LUMA)) < 0.45 * np.median(C[skyp] @ np.array(LUMA)), \
-            "the sky is a dim overcast"
+        painted = sky_paint(view_rays(n, n), moon_dir(), LOOK["KEY"])
+        assert np.median(sat(out[skyp])) <= 0.6 * np.median(sat(painted[skyp])), "the sky is not an accent"
+        # 4b. the sky is painted, not the engine's: whatever the engine's
+        #     sky was, the same night
+        Cs = np.where(skyp[..., None], C * 3.0 + 0.2, C)
+        outs, _ms = preview(Cs, A, N, D, on)
+        assert np.abs(outs[skyp] - out[skyp]).max() < 1e-12, "the sky is the look's own, not the engine's"
         # ... and a man's lit side stands well over it, as the eye sees them
         #     (2026-09-28: 1.34x under the old sky)
         dsp = to_display(out)
@@ -1998,10 +2264,99 @@ def check(bite=None, rig=None):
         _o3, m3 = preview(C3, A3, N3, D3, on3)
         patch = on3 & (np.abs(u + 0.12) < 0.13) & (np.abs(v - 0.10) < 0.13)
         assert m3["ink"][patch].mean() < 0.02, "no ink specks from noisy normals"
-        # 4. the sky is banded, not shaded: few distinct levels
+        # 4. the sky is recognised; its night is checked on its own view below
         sky = D > LOOK["SKY_DEPTH_CM"]
         assert sky.sum() > 1000, "the sky is recognised"
-        assert len(np.unique(np.round(out[sky] @ luma, 5))) <= LOOK["SKY_BANDS"] + 1, "the sky is banded"
+        # ... and is night behind the street: darker on the screen than the
+        #     far wall standing in front of it (the old overcast was not)
+        gp = LOOK["GRAIN"], LOOK["PAPER"]
+        LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0
+        flat_v, _ = look(C, A, N, D, on)
+        LOOK["GRAIN"], LOOK["PAPER"] = gp
+        wall_v = ~on & ~sky & ~_shift(on, 8, 0, False) & ~_shift(on, -8, 0, False)
+        night = np.median(flat_v[sky & ~on] @ luma) / max(np.median(flat_v[wall_v] @ luma), 1e-6)
+        assert night < 0.8, "the night sky is darker than the street in front of it (%.2fx the wall)" % night
+        # ------------------------------------------------ 2026-10-02, the levels
+        # the picture's whites reach white -- the moon, bone -- and its
+        # brightest skin comes near; a lit face stays a tone, not white;
+        # ink stays black
+        body_v = on & (m["ink"] < 0.01)
+        top = np.percentile(flat_v[body_v] @ luma, 99.5)
+        assert top >= 0.80, "the picture's whites reach up: the sphere's brightest %.2f" % top
+        assert top < 0.97, "a lit face is a tone, not blown to white (%.2f)" % top
+        white = [float(levels(to_display(np.array(LOOK["MOON_COL"]))) @ luma),
+                 float(levels(np.array(display(LOOK["BONE"]))) @ luma)]
+        assert min(white) >= 0.98, "the moon and bone are white on the screen (%.2f, %.2f)" % tuple(white)
+        ink_v = (flat_v[m["ink"] > 0.99] @ luma).max()
+        assert ink_v <= 0.04, "ink stays black after the levels (%.3f)" % ink_v
+        # ... and the impact frame is not levelled: its cut reads the
+        #     picture as it was
+        keep_lv = LOOK["LV_BLACK"], LOOK["LV_WHITE"], LOOK["LV_GAMMA"]
+        imp_a, _ = look(C, A, N, D, on, impact=1.0)
+        LOOK["LV_BLACK"], LOOK["LV_WHITE"], LOOK["LV_GAMMA"] = 0.0, 1.0, 1.0
+        imp_b, _ = look(C, A, N, D, on, impact=1.0)
+        LOOK["LV_BLACK"], LOOK["LV_WHITE"], LOOK["LV_GAMMA"] = keep_lv
+        assert np.abs(imp_a - imp_b).max() < 1e-12, "the impact frame is not levelled"
+        # ------------------------------------------------ 2026-10-02, the painted sky
+        # a view of the sky alone, up toward the moon (60 degrees across,
+        # 0.05 a pixel: a star is a few pixels), at a time it is clear
+        mo = np.array(moon_dir())
+        az = math.degrees(math.atan2(mo[1], mo[0]))
+        Vs = view_rays(600, 1200, hfov_deg=60.0, yaw_deg=az, pitch_deg=15.0)
+        ma = np.degrees(np.arccos(np.clip(Vs @ mo, -1.0, 1.0)))
+        up = Vs[..., 2]
+        t_clear = 600.0
+        sk = sky_paint(Vs, mo, 1.0, t_clear)
+        lum_s = sk @ luma
+        same = lambda c: np.abs(sk - np.array(c)).max(axis=-1) < 1e-9
+        def clouds_of(V, t):
+            z = np.clip(V[..., 2], 0, 1) + LOOK["CLOUD_LIFT"]
+            return ((_fbm(V[..., 0] / z * LOOK["CLOUD_SCALE"] + t * LOOK["CLOUD_DRIFT"], V[..., 1] / z * LOOK["CLOUD_SCALE"])
+                     > LOOK["CLOUD_COVER"]) & (V[..., 2] > math.sin(math.radians(LOOK["CLOUD_FROM_DEG"]))))
+        cloud = clouds_of(Vs, t_clear)
+        # the moon: a flat bone disc, in an ink ring
+        disc = (ma < 2.4 - 0.2) & ~cloud
+        assert disc.sum() > 200 and same(LOOK["MOON_COL"])[disc].mean() > 0.99, "the moon is a flat disc"
+        ring = (ma > 2.4 + 0.03) & (ma < 2.4 + 0.15) & ~cloud
+        assert ring.sum() > 50 and same(LOOK["INK"])[ring].mean() > 0.9, "in an ink ring"
+        # the halo: brighter toward the moon, in steps
+        clear = ~cloud & ~same(LOOK["STAR_COL"]) & (ma > 3.0)
+        near_h = np.median(lum_s[clear & (ma < 5.0)])
+        far_h = np.median(lum_s[clear & (ma > 13.0) & (ma < 20.0) & (np.abs(up - math.sin(math.radians(20.0))) < 0.05)])
+        assert near_h > 1.5 * far_h, "a halo round the moon (%.3f against %.3f)" % (near_h, far_h)
+        halo_levels = len(np.unique(np.round(lum_s[clear & (ma < 12.0)], 6)))
+        assert halo_levels <= 30, "the halo is stepped, not a glow (%d levels)" % halo_levels
+        # the night: in flat steps, not shaded, darker going up
+        away = clear & (ma > 13.0)
+        dv = np.abs(np.diff(lum_s, axis=0)) > 1e-7
+        both = away[1:] & away[:-1]
+        steps = dv[both].mean()
+        assert steps < 0.10, "the night is in flat steps, not shaded (%.2f of rows change)" % steps
+        low = np.median(lum_s[away & (up < math.sin(math.radians(4.0)))])
+        high = np.median(lum_s[away & (up > math.sin(math.radians(26.0)))])
+        assert low > 1.5 * high, "the night darkens going up (%.4f at the horizon, %.4f high)" % (low, high)
+        # the clouds: some of the sky, not all, in a few flat tones, lit
+        # toward the moon, and they drift
+        above = up > math.sin(math.radians(LOOK["CLOUD_FROM_DEG"]))
+        cover = cloud[above].mean()
+        assert 0.10 < cover < 0.65, "clouds over some of the sky (%.2f of it)" % cover
+        assert len(np.unique(np.round(lum_s[cloud], 6))) <= 6, "the clouds are flat tones"
+        # (the moon's side within 17 degrees of it, the far side on a view
+        # turned 120 degrees away)
+        lit_c = np.mean(lum_s[cloud & (ma < 17.0)]) if (cloud & (ma < 17.0)).any() else 0.0
+        Vf = view_rays(300, 600, hfov_deg=60.0, yaw_deg=az + 120.0, pitch_deg=15.0)
+        far_cloud = clouds_of(Vf, t_clear)
+        dark_c = np.mean(sky_paint(Vf, mo, 1.0, t_clear)[far_cloud] @ luma) if far_cloud.any() else 1.0
+        assert lit_c > 2.0 * dark_c, "a cloud is lit on the moon's side (%.3f against %.3f)" % (lit_c, dark_c)
+        later = sky_paint(Vs, mo, 1.0, t_clear + 600.0)
+        moved = (np.abs(later - sk).max(axis=-1) > 1e-9)[above].mean()
+        assert moved > 0.02, "the clouds drift (%.3f of the sky changed in ten minutes)" % moved
+        # the stars: in the clear night above STAR_FROM_DEG, never in a
+        # cloud, never low
+        stars = same(LOOK["STAR_COL"])
+        assert stars.sum() >= 20, "there are stars (%d px)" % stars.sum()
+        assert not stars[up < math.sin(math.radians(LOOK["STAR_FROM_DEG"]))].any(), "no star near the horizon"
+        assert not (stars & cloud).any(), "no star in front of a cloud"
         # 7. the impact frame is exactly two colours after the cut, ink and
         #    its tone, far apart, and flips. A blow's tone is its blood since
         #    2026-09-28 (ember before, and the two told apart by luma, which
@@ -2070,7 +2425,7 @@ def check(bite=None, rig=None):
             assert contrast >= 0.20, "a line shows against its ground (%.2f over albedo %.2f)" % (contrast, albedo)
         # the vignette: the corners into the dark, the middle untouched
         # (measured without the grain and the paper, which touch every pixel)
-        plain = to_display(out)
+        plain = levels(to_display(out))       # (the levels after it, since 2026-10-02)
         c = 12
         gp = LOOK["GRAIN"], LOOK["PAPER"]
         LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0
