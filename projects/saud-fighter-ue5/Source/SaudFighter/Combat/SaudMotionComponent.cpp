@@ -64,8 +64,9 @@ void USaudMotionComponent::PlayPicked()
 		return;
 	}
 	USaudMotionAnimInstance* Inst = Driver();
-	// A new anim instance, or a new set of clips: everything is sent again.
-	if (Inst != ShownOn.Get() || Fighter->MotionSet != PlayingSet)
+	// A new anim instance, a new set of clips, or our instance left with
+	// nothing playing (re-initialised on a re-register): everything is sent again.
+	if (Inst != ShownOn.Get() || Fighter->MotionSet != PlayingSet || (Inst && !Inst->GetPlaying()))
 	{
 		ShownOn = Inst;
 		PlayingSet = Fighter->MotionSet;
@@ -104,6 +105,10 @@ void USaudMotionComponent::PlayPicked()
 	if (Key == PlayingName && !bSerialMoved)
 	{
 		return;
+	}
+	if (Inst && bShown && SaudFeel::KeepsClip(ShownClip, Clip, bSerialMoved))
+	{
+		return;     // one dash, one clip (SaudFeel::KeepsClip)
 	}
 
 	UAnimSequence* Seq = Find(Fighter->MotionSet, Name);

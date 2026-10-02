@@ -346,3 +346,28 @@ ik|Source/SaudFighter/Combat/SaudPlants.h|s#"ffbbbbbbbbbbbbff", "b..............
 ik|Source/SaudFighter/Combat/SaudPlants.h|s#{ "A_Saud_Jab", 0.260f, 8, 0.0f, { "ffffffff", "bbbbbbbb" } },#{ "A_Saud_Jab", 0.260f, 8, 0.0f, { "ffffffff", "........" } },#|every punch lands with both feet on the floor
 ik|Source/SaudFighter/Combat/SaudPlants.h|s#{ "A_Saud_Jab",#{ "A_Saud_Jxb",#|every clip in Content/Animation is measured
 ik|Source/SaudFighter/Combat/SaudPlants.h|s#if (Cmp < 0) Lo = Mid + 1; else Hi = Mid - 1;#if (Cmp > 0) Lo = Mid + 1; else Hi = Mid - 1;#|...and every one is found by its name
+
+# ---- the review's fixes (2026-10-02): every share eased both ways, every limit reached, the fixes held
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float FeetOnSeconds = 0.20f;#constexpr float FeetOnSeconds = 0.02f;#|the feet ease on and off, never in a frame
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float FeetOffSeconds = 0.12f;#constexpr float FeetOffSeconds = 0.01f;#|the feet ease on and off, never in a frame
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float LookOffSeconds = 0.06f;#constexpr float LookOffSeconds = 0.001f;#|knocked down, the look is not dropped in a frame
+ik|Source/SaudFighter/Combat/SaudIK.h|s#S.Pitch = Settle(S.Pitch, Pitch, HeadRate \* Q, Dt);#S.Pitch = Pitch;#|the face's pitch eases, never snaps
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float MaxStretch = 0.995f;#constexpr float MaxStretch = 0.97f;#|...and the limb stops at 99.5 %
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float MaxHeelRollDegrees = 30.f;#constexpr float MaxHeelRollDegrees = 60.f;#|a heel rolls no further than 30 degrees
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BallRestBand = 5.f;#constexpr float BallRestBand = 1000.f;#|a hop is not a stand
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float HoldDriftHard = 30.f;#constexpr float HoldDriftHard = 1e9f;#|a shove, not a shuffle
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float ToeDownDegrees = 10.f;#constexpr float ToeDownDegrees = 90.f;#|toes bend down no further than 10 degrees
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return FMath::Abs(Rise) > Run + StepAbsorbSlack;#return Rise > Run + StepAbsorbSlack;#|a kerb stepped down in a frame is a step
+ik|Source/SaudFighter/Combat/SaudIK.h|s#Z > St.FootZ\[S\] ? FootRiseRate : FootSettleRate, Dt);#Z > St.FootZ[S] ? FootRiseRate : 1000.f, Dt);#|a foot steps down off a kerb over frames
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bKnown \&\& In.bWanted) W.V#if (bKnown) W.V#|the hips carry no change of speed in the air
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StrideMeterRate = 8.f;#constexpr float StrideMeterRate = 1000.f;#|the stride meter follows its samples at 8 a clip second
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return Gap.Size() >= BlockFistGap \* Scale;#return Gap.Size() >= BlockFistGap + 0.f * Scale;#|a big man's covering glove keeps a big fist's width
+ik|Source/SaudFighter/Combat/SaudIK.h|s#P.Roll = Hold.Roll \* Plan.Share;#P.Roll = Hold.Roll;#|the heel's roll fades with the feet
+ik|Source/SaudFighter/Combat/SaudIK.h|s#O.Share = A;#O.Share = 1.f;#|the heel's roll fades with the feet
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float WorldSize = Size \* Mesh.Scale;#const float WorldSize = Size;#|a man drawn at twice the scale keeps his feet
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return K.Skin \* Scale;#return K.Skin;#|...grown with the man who throws it
+ik|Source/SaudFighter/Combat/SaudIK.h|s#ReachableMark(Hip, Thigh + Skin,#ReachableMark(Hip, Thigh,#|a knee lands its skin on the mark
+ik|Source/SaudFighter/Combat/SaudIK.h|s#V = V < 0.f ? Wanted : StepGate(V, Wanted, Dt);#V = StepGate(V < 0.f ? 1.f : V, Wanted, Dt);#|a swing's first frame takes the gate as it stands
+ik|Source/SaudFighter/Combat/SaudIK.h|s#F.Still >= SettleSeconds#F.Still >= 1e9f#|a man standing still steps a foot left off its spot back
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const bool bSteady = F.bHeld \&\& bSettle \&\&#const bool bSteady = F.bHeld \&\&#|...but not in a swing
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return !bSerialMoved \&\& KindOf(Shown) == EKind::Dash \&\& KindOf(Picked) == EKind::Dash;#return false;#|one dash keeps its clip

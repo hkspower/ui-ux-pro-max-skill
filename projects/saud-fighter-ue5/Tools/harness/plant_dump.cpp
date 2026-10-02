@@ -65,7 +65,9 @@ static bool ReadClip(const char* Path, std::string& Name, bool& bLoop, float& Se
             FVector* P[4] = { &S.Ankle[L], &S.Ball[L], &S.Hip[L], &S.Knee[L] };
             for (FVector* V : P)
             {
-                if (std::fscanf(F, "%f %f %f", &V->X, &V->Y, &V->Z) != 3) { std::fclose(F); return false; }
+                double X = 0.0, Y = 0.0, Z = 0.0;
+                if (std::fscanf(F, "%lf %lf %lf", &X, &Y, &Z) != 3) { std::fclose(F); return false; }
+                *V = FVector(X, Y, Z);
             }
         }
     }
@@ -177,6 +179,7 @@ int main(int argc, char** argv)
             In.Mesh = B;
             In.bWanted = true;
             In.bHold = Plants ? HoldsFeetMeasured(bAttack, bWarm || Speed < 40.f, Plants->Stride) : true;
+            In.bSettle = (bWarm || Speed < 40.f) && !bAttack;
             In.Velocity = Velocity;
             In.ClipSerial = 1;
             In.ClipTime = ClipTime;

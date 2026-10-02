@@ -51,6 +51,7 @@ struct FSaudIKFrame
 	bool bTeleported = false;                    // SaudIK::Teleported this frame
 	int32 StrikeLeg = -1;                        // the side an attack is thrown with, all attack long; -1 none
 	FVector Velocity = FVector::ZeroVector;      // the capsule's, world, flat
+	bool bSettleFeet = false;                    // standing, not striking (SaudIK::SettleDrift)
 	SaudIK::FGroundPoint Ground[2][2];           // [side][0 heel, 1 ball]: WORLD point and normal
 	float AnkleRest[2] = { 0.f, 0.f };          // foot_'s height in the reference pose
 	float BallRest[2] = { 0.f, 0.f };           // ball_'s
@@ -117,7 +118,7 @@ private:
 	FSaudFeetBack Back;
 	double LastClock = -1.0;
 	/** The strike's swing gate as drawn, moved at most its whole way in SaudIK::GateSeconds. */
-	float StrikeGate = 1.f;
+	SaudIK::FGate StrikeGate;
 
 	struct FLeg { FCompactPoseBoneIndex Root, Mid, End; FLeg() : Root(INDEX_NONE), Mid(INDEX_NONE), End(INDEX_NONE) {} };
 	struct FLegBones

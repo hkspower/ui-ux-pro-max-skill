@@ -450,6 +450,17 @@ namespace SaudFeel
 		return bSerialMoved && !Loops(C);
 	}
 
+	/** Whether the clip showing stays, though the pick has changed: one dash,
+	    one clip. The dash's way is picked against the body as drawn, which is
+	    still coming round when the dash starts; picked again each frame, the
+	    way would cross a quadrant mid-dash and a new dash clip would start
+	    over from its first frame. A new dash moves the serial and picks
+	    afresh; leaving the dash is another kind and plays. */
+	inline bool KeepsClip(EClip Shown, EClip Picked, bool bSerialMoved)
+	{
+		return !bSerialMoved && KindOf(Shown) == EKind::Dash && KindOf(Picked) == EKind::Dash;
+	}
+
 	/** Seconds the get-up runs: A_Saud_GetUp.fbx is 0.60 s, and so is the
 	    invulnerability AFighterBase gives on getting up. */
 	constexpr float GetUpSeconds = 0.60f;

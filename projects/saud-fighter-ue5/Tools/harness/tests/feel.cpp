@@ -452,6 +452,9 @@ static void Cuts()
         }
         Check(Rows >= 20 && Long == 0, "no cut takes more than a quarter of the clip it cuts into");
     }
+    Check(KeepsClip(EClip::DashLeft, EClip::DashFwd, false) && !KeepsClip(EClip::DashLeft, EClip::DashFwd, true)
+          && !KeepsClip(EClip::DashLeft, EClip::Guard, false) && !KeepsClip(EClip::WalkLeft, EClip::WalkFwd, false),
+          "one dash keeps its clip while the body comes round; a new dash, or leaving it, picks again");
     Check(Restarts(EClip::HitLight, true) && Restarts(EClip::Attack, true) && Restarts(EClip::DashFwd, true) && Restarts(EClip::Victory, true)
           && !Restarts(EClip::Attack, false) && !Restarts(EClip::Guard, true) && !Restarts(EClip::WalkFwd, true) && !Restarts(EClip::Block, true),
           "a second hit, jab, dash or win starts from its first frame; a loop never restarts");

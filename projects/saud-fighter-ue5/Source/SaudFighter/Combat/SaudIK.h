@@ -335,6 +335,12 @@ namespace SaudIK
 	/** Past this a foot steps even while the other is stepping or in the air:
 	    a shove, not a shuffle. */
 	constexpr float HoldDriftHard = 30.f;
+	/** A man standing still brings a held foot left more than this off the
+	    clip's spot back under it -- a step, the further foot first -- once
+	    its drift has held still for SettleSeconds: the drift a turn leaves
+	    under HoldDrift is not kept for as long as he stands. */
+	constexpr float SettleDrift = 3.f;
+	constexpr float SettleSeconds = 0.25f;
 	/** Past this the man jumped (a respawn, a travel), and the hold is dropped
 	    with no glide. */
 	constexpr float HoldTeleport = 100.f;
@@ -425,6 +431,8 @@ namespace SaudIK
 		float Progress = 1.f;          // 0..1 through a hand-back; 1 when none runs
 		float Seconds = ReleaseSeconds;
 		bool bStep = false;            // the hand-back is a step the clip does not take
+		float Still = 0.f;             // seconds its drift has held still, while he stands
+		float LastDrift = 0.f;
 		float Roll = 0.f;              // the heel's roll onto the ball, eased
 		FVector RollAxis = FVector(0.f, 1.f, 0.f);
 	};
@@ -470,9 +478,10 @@ namespace SaudIK
 	    clips' measured share of each foot down (MixDown), or -1 where they
 	    are not measured and the heights decide; bAllowed: the ground may
 	    have it (wanted, not the strike's); bHold: a hold can keep what this
-	    clip does (see HoldsFeet); Size: his leg over Saud's. */
+	    clip does (see HoldsFeet); bSettle: he stands, and a foot left off
+	    its spot may step back under the clip; Size: his leg over Saud's. */
 	inline void StepHolds(FFootHold (&H)[2], const FBasis& Mesh, const FVector (&Raw)[2], const float (&Lift)[2],
-	                      const float (&Measured)[2], const bool (&bAllowed)[2], bool bHold, float Size, float Dt)
+	                      const float (&Measured)[2], const bool (&bAllowed)[2], bool bHold, bool bSettle, float Size, float Dt)
 	{
 		for (int S = 0; S < 2; ++S)
 		{
@@ -484,6 +493,9 @@ namespace SaudIK
 			}
 		}
 		const float Floor = FMath::Min(Lift[0], Lift[1]);
+		// Size is the leg's in the mesh's units; the drift below is the
+		// world's, so a mesh drawn at a scale steps after that much more
+		const float WorldSize = Size * Mesh.Scale;
 		for (int S = 0; S < 2; ++S)
 		{
 			FFootHold& F = H[S];
@@ -499,7 +511,7 @@ namespace SaudIK
 			FVector D = F.Anchor - ToWorld(Mesh, Raw[S]);
 			D.Z = 0.f;
 			Drift[S] = D.Size();
-			if (Drift[S] > HoldTeleport * Size)
+			if (Drift[S] > HoldTeleport * WorldSize)
 			{
 				F.bHeld = false; F.Weight = 0.f; F.Progress = 1.f; F.bStep = false; F.Slip = FVector::ZeroVector; Drift[S] = 0.f;
 			}
@@ -518,8 +530,24 @@ namespace SaudIK
 			const FFootHold& O = H[1 - S];
 			if (!F.bHeld) continue;
 			const bool bOtherStands = O.bHeld;
-			const bool bMine = Drift[S] >= Drift[1 - S] || Drift[1 - S] <= HoldDrift * Size;
-			if (Drift[S] > HoldDriftHard * Size || (Drift[S] > HoldDrift * Size && bOtherStands && bMine)) LetGo(F, true, Mesh, Raw[S]);
+			const bool bMine = Drift[S] >= Drift[1 - S] || Drift[1 - S] <= HoldDrift * WorldSize;
+			if (Drift[S] > HoldDriftHard * WorldSize || (Drift[S] > HoldDrift * WorldSize && bOtherStands && bMine)) LetGo(F, true, Mesh, Raw[S]);
+		}
+		for (int S = 0; S < 2; ++S)
+		{
+			FFootHold& F = H[S];
+			const bool bSteady = F.bHeld && bSettle && FMath::Abs(Drift[S] - F.LastDrift) < 0.05f * WorldSize;
+			F.Still = bSteady ? F.Still + FMath::Max(0.f, Dt) : 0.f;
+			F.LastDrift = Drift[S];
+		}
+		{
+			const int Far = Drift[0] >= Drift[1] ? 0 : 1;
+			FFootHold& F = H[Far];
+			if (F.bHeld && H[1 - Far].bHeld && F.Still >= SettleSeconds && Drift[Far] > SettleDrift * WorldSize)
+			{
+				LetGo(F, true, Mesh, Raw[Far]);
+				F.Still = 0.f;
+			}
 		}
 		for (int S = 0; S < 2; ++S)
 		{
@@ -640,6 +668,7 @@ namespace SaudIK
 		FBasis Mesh;
 		bool bWanted = false;       // on the ground and standing
 		bool bHold = false;         // HoldsFeet
+		bool bSettle = false;       // standing, not striking: a foot left off its spot steps back
 		bool bTeleported = false;   // Teleported: nothing carries over but the feet's share
 		bool bBlending = false;     // a crossfade runs: the stride meter waits
 		FVector Velocity = FVector::ZeroVector;   // the capsule's, world, flat
@@ -670,6 +699,7 @@ namespace SaudIK
 		FVector Tilt = FVector::UpVector;       // the sole's normal
 		FVector Ground = FVector::UpVector;     // the ground's normal under the ball, for the toes
 		float ToeShare = 0.f;
+		float Share = 1.f;                      // the feet's share: the heel's roll is drawn by it
 	};
 
 	struct FFeetPlan
@@ -760,7 +790,7 @@ namespace SaudIK
 			Lift[S] = In.Foot[S].Ball.Z - In.Foot[S].BallRest;
 			bAllowed[S] = In.bWanted && !In.Foot[S].bStrike;
 		}
-		StepHolds(St.Hold, In.Mesh, Raw, Lift, In.Down, bAllowed, In.bHold, Size, Dt);
+		StepHolds(St.Hold, In.Mesh, Raw, Lift, In.Down, bAllowed, In.bHold, In.bSettle, Size, Dt);
 		if (!In.bBlending) MeasureStride(St.Stride, In.ClipSerial, In.ClipTime, Raw, Lift);
 		const bool bKnown = St.bKnown;
 
@@ -808,13 +838,14 @@ namespace SaudIK
 			O.Tilt = LimitedTilt(Tilt, A);
 			O.Ground = P.Ground;
 			O.ToeShare = A * GroundShare(Lift[S] - Floor);
+			O.Share = A;
 		}
 		St.PelvisZ = Settle(St.PelvisZ, FMath::Max(Drop, -MaxPelvisDrop), PelvisSettleRate, Dt);
 
 		// The hips carry the body's own changes of speed, on the ground.
 		const FVector Change = DirToMesh(In.Mesh, In.Velocity - St.LastVelocity) / Scale;
 		St.LastVelocity = In.Velocity;
-		const float Kick[2] = { Change.X, Change.Y };
+		const float Kick[2] = { static_cast<float>(Change.X), static_cast<float>(Change.Y) };
 		for (int K = 0; K < 2; ++K)
 		{
 			FEase& W = St.Weight[K];
@@ -890,7 +921,7 @@ namespace SaudIK
 		}
 		Hold.Roll = Settle(Hold.Roll, Need, Need > Hold.Roll ? FootRiseRate : FootSettleRate, Dt);
 		P.RollAxis = Hold.RollAxis;
-		P.Roll = Hold.Roll;
+		P.Roll = Hold.Roll * Plan.Share;           // drawn by the feet's share, so it fades with them
 		P.Ankle = Plan.Ball + RotateAbout(Back, P.RollAxis, P.Roll);
 		const FVector Toe = RotateAbout(TurnUpTo(P.Tilt, F.ToeDir), P.RollAxis, P.Roll);
 		const FVector Fwd = RotateAbout(TurnUpTo(P.Tilt, F.FootFwd), P.RollAxis, P.Roll);
@@ -951,6 +982,13 @@ namespace SaudIK
 		if (Is("Knee"))    return {ELimb::Leg, 'r', ETip::Knee, EMarkBone::Spine02, FVector(14.f, 0.f, 2.f), KneeSkin};
 		if (Is("Special")) return {ELimb::Leg, 'r', ETip::Ball, EMarkBone::Spine02, FVector(14.f, 0.f, 8.f), BallSkin};
 		return FStrike();
+	}
+
+	/** How far a blow's joint stops short of its mark, in the units it is
+	    measured in, for a man Scale times Saud's size there. */
+	inline float SkinOf(const FStrike& K, float Scale)
+	{
+		return K.Skin * Scale;
 	}
 
 	/** The limb alone, as the fire, the motion table and the feet want it. */
@@ -1078,6 +1116,21 @@ namespace SaudIK
 		return Shown + FMath::Clamp(Wanted - Shown, -Most, Most);
 	}
 
+	/** The gate as drawn, across a swing: it steps toward what the swing
+	    allows (StepGate), but a swing's first drawn frame starts at what is
+	    allowed, so a man the gate shuts out gets no flick toward him while
+	    the gate would have been stepping down from 1. */
+	struct FGate
+	{
+		float V = -1.f;     // < 0: no strike drawn last frame
+		float Step(float Wanted, float Dt)
+		{
+			V = V < 0.f ? Wanted : StepGate(V, Wanted, Dt);
+			return V;
+		}
+		void Reset() { V = -1.f; }
+	};
+
 	/** A strike's limb put on its target. The lower segment and the end are
 	    one piece from the middle joint to the tip -- a fist stays square on
 	    its forearm, a foot set on its shin -- so the two-bone solve runs to
@@ -1140,6 +1193,18 @@ namespace SaudIK
 		const FVector D = From - Mark;
 		const float L = D.Size();
 		return L < 1e-3f ? Mark : Mark + D * (FMath::Min(Out, L) / L);
+	}
+
+	/** Where a knee strike aims its joint: the mark -- slid down his front
+	    to where the kneecap's skin reaches, a thigh and a Skin from the hip
+	    -- brought Skin back toward the hip, so the joint stops Skin short
+	    and the skin lands on it. Past reach, the joint goes his way as far
+	    as the thigh does. */
+	inline FVector KneeAim(const FVector& Hip, const FVector& Knee, const FVector& Mark, const FVector& Low, float Skin)
+	{
+		const float Thigh = static_cast<float>(FVector::Dist(Hip, Knee));
+		const FVector M = ReachableMark(Hip, Thigh + Skin, Mark, Low, static_cast<float>(Knee.Z));
+		return MeetPoint(M, Hip, Skin);
 	}
 
 	/** The covering arm moved to a blow, Alpha of the way. A head blow

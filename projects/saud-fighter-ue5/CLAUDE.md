@@ -1318,6 +1318,9 @@ fail on a 0.07 hitstop and on swapped left/right before it was trusted.
 
 ## Full IK at runtime -- 2026-09-23
 
+**Rebuilt 2026-10-02** -- see "The in-game IK, improved, and the feet's
+plants measured". What follows is the first version, kept as the record.
+
 Asked as "make full IK", settled as runtime IK in Unreal, all three parts:
 feet on the ground, hands on contact, head look-at. The Blender rig
 (`rig_full_ik.py`) is untouched; every clip was posed on a flat floor
@@ -3684,6 +3687,117 @@ Settings and 21:9 Title shots now show levels and the stage tag.
 (9) is the model's own number, not read from the stage table, which does
 not mark the survival stage apart. QUIT TO TITLE on the Pause is not
 asked about (it loses only the fight in progress); that was left as it was.
+
+## The in-game IK, improved, and the feet's plants measured -- 2026-10-02
+
+Asked as "improve motion ik", settled as the in-game (runtime) IK in Unreal
+-- not the Blender clip-making rig -- and all four of: feet, hands and
+contact, body and look, smoothness; then "improve plants ik", settled as the
+feet's planting, with real plant data, a preview, and the numbers tuned to
+the clips. Four area designs, two adversarial critiques each and a merge
+wrote the plan; a five-way adversarial review of the result, each finding
+verified by a skeptic, found 18 defects, all fixed. The Blender clips are
+untouched. This replaces most of "Full IK at runtime -- 2026-09-23".
+
+**What was wrong before.** The feet and the look reset their share to zero
+every frame and then eased it, so the feet never came on past 26 % (look
+13 %); every clip change was a hard cut; a snapped facing turned the whole
+mesh in a frame; nothing held a planted foot, so feet skated under any
+speed but the clip's; the knee strike pulled the FOOT to the man; a punch
+put the wrist on his surface (the knuckles 9 cm inside him) at the clip's
+height, whoever he was (a jab at ZAYOS landed on his chest); a block did
+not move; only the neck and head turned.
+
+**Feet** (`SaudIK.h`). A planted ball is held at its spot in the world and
+steps after the man (a 0.14 s, 4 cm shuffle) when carried 12 cm off, grown
+with his size; one foot at a time unless shoved 30 cm. Heel and ball traces:
+a kerb edge stands the foot level on the higher, a ramp tilts it (to 30
+degrees), the face of a step gives its height, not its slope. The toes lie
+on the ground. A leg too short for a held foot rolls the heel onto the ball
+(to 30 degrees). The hips drop to the lower foot, carry the body's starts
+and stops (to 8 cm), and absorb a kerb the capsule steps up or down in a
+frame. A walk's clock runs at the man's pace (0.5-1.6 of its own). Standing
+still, a foot a turn has left more than 3 cm off its spot steps back under
+him after a quarter second. The strike's leg is never held.
+
+**The plants, measured** (`Tools/blender/measure_plants.py` ->
+`Source/SaudFighter/Combat/SaudPlants.h`, generated, never hand-edited;
+`--check` fails when a clip changes). All 197 clips, every frame of both
+ankles and balls against the man's own guard: per foot, down on the ball,
+flat, or in the air, and each walk's own stride. The IK takes which foot is
+down from the clips playing, by their crossfade weights (on at 0.6, off at
+0.4: it changes its mind once through a cut), and a walk's pace from its
+stride from its first frame; a clip not in the table keeps the old height
+rule. The strides agree with the men's move speeds (AL-SAQR 425-435 cm/s
+against 446, ZAYOS 247-253 against 259, AL-WAHSH 341-348 against 350) and
+every fighter's speed walks his clip inside the rate band. Tuned from it: a
+foot is handed back in 0.08 s (was 0.10), inside a third of the shortest
+real swing (0.27 s; the code had assumed 0.37). **Found and left, as the
+clips are not this job's:** every side walk hops -- both feet down together
+for frames 1-7, both in the air 9-16 -- in all five sets.
+
+**Shown** (`Tools/harness/plant_dump.cpp` runs `SaudIK.h`'s feet over the
+real sampled clips; `Tools/look/plant_preview.py` draws
+`Docs/renders/plants-ik.png`, before and after). How far a planted ball
+slides while its clip has it down: Saud's walk at its pace 31.1 -> 0.0
+cm/s; at the runner's 504 cm/s 192.5 -> 0.0; at 120 cm/s 200.4 -> 0.0;
+turning on the spot at 150 degrees a second 83.5 -> 0.0 with 7 steps of its
+own; ZAYOS curving 48.3 -> 0.0; the side walk 31.9 -> 0.0; the kick's
+standing foot 6.0 -> 0.0. A block pushed sideways still glides (200 cm/s):
+a block does not step.
+
+**Hands and contact.** Each blow's skin -- the knuckles (`hand_end_l/r`),
+the ball of the foot, the knee -- stops its skin's depth (2, 2.5, 5 cm, grown
+with the man) short of its mark on the VICTIM's own bones (motion_hits.py's
+TARGET: the chin, the left jaw, the ribs, the solar plexus), at his size;
+out of reach, the mark slides down his front to where it can be reached,
+else the clip's height. The knee strike swings the thigh so the kneecap
+lands; a punch or kick is solved to its tip. The pull eases in over 60 ms,
+lets go from the first active frame over 80 ms (a multi-hit holds), gated
+off a man more than 55 degrees off an arm's line or 90 off a leg's (never
+through the body), and starts each swing at what the gate allows. A man
+taken late is drawn to his own mark, never the last swing's. A block meets
+the incoming blow: high, the glove moves up to 15 cm onto its line, never
+onto the other glove; low, the elbow turns down onto it. The guard fist
+turns with the face.
+
+**Body and look.** A snapped facing turns the drawn body by the root and
+the hips come round after it (16/s, 18 degrees a frame at most), the chest
+faster, the face fastest; in a strike all three at once and three times as
+fast. The turn is shared down spine_01-03, the neck and the head, within
+what a trunk (35) and a neck (75) turn; the look holds one shoulder for a
+man straight behind. It looks at the man he is striking while the swing
+is live, then a man swinging at him, then the nearest in front, and does
+not flick between two. No eye bones exist: the face is aimed from the head
+joint, which is at the eye line.
+
+**Smoothness.** Every clip change is a crossfade timed by the cut (into a
+strike 0.05 s, a reel 0.03, a fall 0.06, a dash 0.04, a block 0.08, a rise
+0.10, a step 0.15, a settle 0.20), a walk into a walk keeping its stride;
+one dash keeps its clip while the drawn body comes round. Every share ramps
+on and off on a smooth step, never in a frame; the heel's roll fades with
+the feet; the freeze (world time 0) holds all of it. A gap of over half a
+second between evaluations (off screen) starts the feet afresh.
+
+**Outside the IK files, each to stop a pop.** `FighterBase`: the mesh
+poses after the fighter's own tick has turned him; `CanBeStruck()`;
+`Celebrate()` no longer restarts a swing already showing. `FightStyle
+Component` ticks before physics, so an enemy's `FaceTowards` lands before
+his body is posed (his AI input may come one frame sooner).
+`WaveDirector` spawns an enemy deferred, so his clip set is his on his
+first frame. `SaudMotionComponent` re-sends the clip when the instance is
+re-initialised with nothing playing.
+
+**Checked.** `Tools/harness/tests/ik.cpp` 269 checks (56 before), plus 9 in
+`feel.cpp`; the harness's `FVector` is double now, as UE5's is -- the float
+one had hidden a narrowing UE5 would not compile. Sabotages for every new
+rule in `bites.txt`. **Not verified:** nothing is compiled against UE 5.4;
+the APIs relied on (`GetProxyOnGameThread`, `BlendTwoPosesTogether` on
+`FAnimationPoseData`, `FCSPose`, `SpawnActorDeferred`, `TickAnimation` in
+BeginPlay) are read from the engine's headers, not built against them; the
+harness's scenes and the preview's are synthetic men on flat or made-up
+ground, the clips' feet real; every constant is judgement until it is
+played.
 
 ## Working rules
 

@@ -33,6 +33,11 @@ namespace
 	const FName HandBone[2]    = { FName(TEXT("hand_l")),     FName(TEXT("hand_r")) };
 	const FName HandEndBone[2] = { FName(TEXT("hand_end_l")), FName(TEXT("hand_end_r")) };
 
+	/** A gap longer than this between two evaluations is frames the proxy
+	    missed (a mesh not rendered for about a second stops refreshing its
+	    pose), not one slow frame: a hitch of a few tenths keeps the holds. */
+	constexpr double MissedSeconds = 0.5;
+
 	/** How far above and below the character's floor a foot is looked for. */
 	constexpr float TraceUp = 60.f;
 	constexpr float TraceDown = 70.f;
@@ -137,9 +142,14 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 	Raw.InitPose(Output.Pose);
 	FCSPose<FCompactPose> CS;    // what the solves write
 	CS.InitPose(Output.Pose);
-	// a second Evaluate in one frame steps nothing
-	const float Dt = LastClock < 0.0 ? 0.f : FMath::Clamp(static_cast<float>(Frame.Clock - LastClock), 0.f, 0.25f);
+	// a second Evaluate in one frame steps nothing; a gap of more than
+	// MissedSeconds is frames not evaluated (off screen: the pose is not
+	// refreshed while unrendered, though the update runs), and what the feet
+	// held from before it is stale -- they start afresh, as after a teleport
+	const double Gap = LastClock < 0.0 ? 0.0 : Frame.Clock - LastClock;
+	const float Dt = LastClock < 0.0 ? 0.f : FMath::Clamp(static_cast<float>(Gap), 0.f, 0.25f);
 	LastClock = Frame.Clock;
+	const bool bMissed = Gap > MissedSeconds;
 
 	// ---- the feet's plan, every frame, from the clips' own legs
 	SaudIK::FFeetIn In;
@@ -151,7 +161,8 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 	In.Mesh.Scale = static_cast<float>(C2W.GetScale3D().X);    // uniform
 	In.bWanted = Frame.bFeetWanted;
 	In.bHold = Frame.bHoldFeet;
-	In.bTeleported = Frame.bTeleported;
+	In.bSettle = Frame.bSettleFeet;
+	In.bTeleported = Frame.bTeleported || bMissed;
 	In.bBlending = N > 1;
 	In.Velocity = Frame.Velocity;
 	In.ClipSerial = Frame.ClipSerial;
@@ -300,10 +311,9 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 				FTransform T[4] = { CS.GetComponentSpaceTransform(Piece[0]), CS.GetComponentSpaceTransform(Piece[1]),
 				                    CS.GetComponentSpaceTransform(Piece[2]), CS.GetComponentSpaceTransform(Piece[3]) };
 				const FVector Hip = T[0].GetLocation(), Knee = T[1].GetLocation();
-				const FVector Mark = SaudIK::ReachableMark(Hip, static_cast<float>(FVector::Dist(Hip, Knee)), Frame.StrikeMark, Frame.StrikeLow, static_cast<float>(Knee.Z));
-				const FVector Aim = SaudIK::MeetPoint(Mark, Hip, Frame.StrikeSkin);
-				StrikeGate = SaudIK::StepGate(StrikeGate, SaudIK::SwingGate(Hip, Knee, Aim, false), Dt);
-				const FVector To = SaudIK::KneeSwing(Hip, Knee, Aim, Frame.StrikeAlpha * StrikeGate);
+				const FVector Aim = SaudIK::KneeAim(Hip, Knee, Frame.StrikeMark, Frame.StrikeLow, Frame.StrikeSkin);
+				const float Gate = StrikeGate.Step(SaudIK::SwingGate(Hip, Knee, Aim, false), Dt);
+				const FVector To = SaudIK::KneeSwing(Hip, Knee, Aim, Frame.StrikeAlpha * Gate);
 				const FQuat Q = FQuat::FindBetweenNormals((Knee - Hip).GetSafeNormal(), (To - Hip).GetSafeNormal());
 				for (int32 I = 0; I < 4; ++I)
 				{
@@ -326,15 +336,17 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 				const FVector Root = CS.GetComponentSpaceTransform(L.Root).GetLocation();
 				const FVector Mid = CS.GetComponentSpaceTransform(L.Mid).GetLocation();
 				const FTransform EndBefore = CS.GetComponentSpaceTransform(L.End);
-				// the tip from its LOCAL offset, never read in component space, so the
-				// knuckles follow the hand; the ball was set by the feet and is carried below
-				const FVector Tip = EndBefore.TransformPosition(CS.GetPose()[TipB].GetTranslation());
+				// the tip from its LOCAL offset off the end, taken from Output.Pose: the
+				// CS pose's own array holds a bone's component-space transform once it
+				// has been read or set, and the feet (3) have done both to the ball.
+				// The feet only turn the ball, so its offset from the foot is the clip's.
+				const FVector Tip = EndBefore.TransformPosition(Output.Pose[TipB].GetTranslation());
 				const FTransform TipBefore = bArm ? FTransform::Identity : CS.GetComponentSpaceTransform(TipB);
 				const float Reach = static_cast<float>(FVector::Dist(Root, Mid) + FVector::Dist(Mid, Tip)) * SaudIK::MaxStretch;
 				const FVector Mark = SaudIK::ReachableMark(Root, Reach, Frame.StrikeMark, Frame.StrikeLow, static_cast<float>(Tip.Z));
 				const FVector Aim = SaudIK::MeetPoint(Mark, Root, Frame.StrikeSkin);
-				StrikeGate = SaudIK::StepGate(StrikeGate, SaudIK::SwingGate(Root, Tip, Aim, bArm), Dt);
-				Place(CS, L, Tip, SaudIK::SolveStrike(Root, Mid, Tip, Aim, Frame.StrikeAlpha * StrikeGate), /*bEndRigid*/ true);
+				const float Gate = StrikeGate.Step(SaudIK::SwingGate(Root, Tip, Aim, bArm), Dt);
+				Place(CS, L, Tip, SaudIK::SolveStrike(Root, Mid, Tip, Aim, Frame.StrikeAlpha * Gate), /*bEndRigid*/ true);
 				if (!bArm)
 				{
 					// the ball the feet set rides the foot the strike moved
@@ -346,7 +358,7 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 	}
 	else
 	{
-		StrikeGate = 1.f;
+		StrikeGate.Reset();
 	}
 
 	// ---- 5. where the feet were drawn, for next frame's traces, after every
@@ -544,6 +556,7 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 
 	// With no fighter or mesh nothing is solved: the proxy eases the feet out.
 	Frame.bFeetWanted = false;
+	Frame.bSettleFeet = false;
 	Frame.bTeleported = false;
 	Frame.StrikeTip = SaudIK::ETip::None;
 	Frame.StrikeAlpha = 0.f;
@@ -563,7 +576,10 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 	Frame.ComponentToWorld = Mesh->GetComponentTransform();
 	Frame.Up = Frame.ComponentToWorld.InverseTransformVectorNoScale(FVector::UpVector).GetSafeNormal();
 	Frame.Pivot = Frame.ComponentToWorld.InverseTransformPosition(Fighter->GetActorLocation());
-	Frame.BodyScale = BodyScale;
+	// The proxy works in the mesh's own units: his size there is the
+	// reference head's ratio alone, the component's scale taken back out
+	// (BodyScale has it in, for the world's distances below).
+	Frame.BodyScale = BodyScale / FMath::Max(1e-4f, static_cast<float>(Mesh->GetComponentScale().Z));
 
 	// Put somewhere new -- a door, a respawn -- rather than walked there.
 	const bool bTeleported = bTurnKnown && SaudIK::Teleported(LastLocation, Fighter->GetActorLocation());
@@ -626,6 +642,7 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 	Frame.Velocity = FVector(Vel.X, Vel.Y, 0.f);
 	const bool bAttacking = St == EFighterState::Attack;
 	const bool bStanding = Frame.Velocity.Size() < SaudFeel::WalkThreshold;
+	Frame.bSettleFeet = bStanding && !bAttacking;
 	const SaudPlants::FClip* Newest = NewestPlants();
 	Frame.bHoldFeet = Newest ? SaudIK::HoldsFeetMeasured(bAttacking, bStanding, Newest->Stride)
 	                         : SaudIK::HoldsFeet(bAttacking, bStanding, Back.Stride, Fade.Serial);
@@ -686,6 +703,8 @@ void USaudMotionAnimInstance::UpdateStrike(AFighterBase* Fighter, float DeltaSec
 		Strike = Kind;
 		StrikeVictim.Reset();
 		StrikeGuarded = SaudIK::FRamp();
+		StrikeMarkC = FVector::ZeroVector;     // no swing inherits another's mark
+		StrikeLowC = FVector::ZeroVector;
 	}
 
 	// The man: found from the lead-in and kept for the swing. The sweep's own
@@ -739,13 +758,16 @@ void USaudMotionAnimInstance::UpdateStrike(AFighterBase* Fighter, float DeltaSec
 			}
 		}
 	}
+	const bool bWasHeld = StrikeTrack.bHeld;
 	StrikeTrack.Step(bLive, RowId, Elapsed, Attack ? Attack->Startup : 0.f, Attack ? Attack->Active : 0.f,
 	                 Attack && Attack->bMultiHit, Victim != nullptr, bLost, DeltaSeconds);
 
 	// The mark, read off the man until the blow lands or is taken away; then
 	// held where it was in this mesh's space, so the fist follows the lunge
 	// and not a man thrown clear.
-	if (StrikeTrack.FreshMark() && Victim && Victim->GetMesh() && Mesh)
+	// read while fresh, and on the frame a man is first taken however late:
+	// a man taken after the blow landed is drawn to his own mark, not the last one
+	if ((StrikeTrack.FreshMark() || (Victim && !bWasHeld)) && Victim && Victim->GetMesh() && Mesh)
 	{
 		const FVector Him = Victim->GetActorLocation(), Me = Fighter->GetActorLocation(), HisFacing = Victim->GetFacing();
 		USkeletalMeshComponent* Body = Victim->GetMesh();
@@ -768,7 +790,7 @@ void USaudMotionAnimInstance::UpdateStrike(AFighterBase* Fighter, float DeltaSec
 	Frame.StrikeSide = Strike.Side == 'r' ? 1 : 0;
 	Frame.StrikeMark = StrikeMarkC;
 	Frame.StrikeLow = StrikeLowC;
-	Frame.StrikeSkin = Strike.Skin * BodyScale;
+	Frame.StrikeSkin = SaudIK::SkinOf(Strike, Frame.BodyScale);   // mesh units, as the proxy's bones
 	Frame.StrikeAlpha = Alpha;
 }
 
@@ -874,7 +896,8 @@ void USaudMotionAnimInstance::UpdateTurn(AFighterBase* Fighter, bool bTeleported
 	// Who he looks at: the man his own strike is drawn to, then a man
 	// swinging at him, then the nearest in front; the man already looked at
 	// keeps the look until another is clearly better.
-	AFighterBase* Victim = StrikeTrack.bHeld ? StrikeVictim.Get() : nullptr;
+	// the strike's man only while the swing is live: after it he is one of the rest
+	AFighterBase* Victim = StrikeTrack.bHeld && StrikeTrack.Row >= 0 ? StrikeVictim.Get() : nullptr;
 	TArray<AFighterBase*> Opponents;
 	Fighter->GatherOpponents(Opponents);
 	TArray<SaudIK::FLookCandidate, TInlineAllocator<8>> Candidates;

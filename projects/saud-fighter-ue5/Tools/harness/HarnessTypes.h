@@ -13,30 +13,32 @@
 
 struct FVector
 {
-    float X = 0.f, Y = 0.f, Z = 0.f;
+    // double, as UE5's FVector is (UE::Math::TVector<double>): a float here hid
+    // a narrowing that only the engine's compile would have caught.
+    double X = 0.0, Y = 0.0, Z = 0.0;
     FVector() {}
-    FVector(float InX, float InY, float InZ) : X(InX), Y(InY), Z(InZ) {}
+    FVector(double InX, double InY, double InZ) : X(InX), Y(InY), Z(InZ) {}
     FVector operator+(const FVector& O) const { return FVector(X + O.X, Y + O.Y, Z + O.Z); }
     FVector operator-(const FVector& O) const { return FVector(X - O.X, Y - O.Y, Z - O.Z); }
-    FVector operator*(float S) const { return FVector(X * S, Y * S, Z * S); }
-    FVector operator/(float S) const { return FVector(X / S, Y / S, Z / S); }
+    FVector operator*(double S) const { return FVector(X * S, Y * S, Z * S); }
+    FVector operator/(double S) const { return FVector(X / S, Y / S, Z / S); }
     FVector operator-() const { return FVector(-X, -Y, -Z); }
     FVector& operator+=(const FVector& O) { X += O.X; Y += O.Y; Z += O.Z; return *this; }
-    float Size2D() const { return std::sqrt(X * X + Y * Y); }
-    float Size() const { return std::sqrt(X * X + Y * Y + Z * Z); }
-    float SizeSquared() const { return X * X + Y * Y + Z * Z; }
-    bool IsNearlyZero(float Tol = 1e-4f) const { return std::fabs(X) <= Tol && std::fabs(Y) <= Tol && std::fabs(Z) <= Tol; }
-    FVector GetSafeNormal(float Tol = 1e-8f) const
+    double Size2D() const { return std::sqrt(X * X + Y * Y); }
+    double Size() const { return std::sqrt(X * X + Y * Y + Z * Z); }
+    double SizeSquared() const { return X * X + Y * Y + Z * Z; }
+    bool IsNearlyZero(double Tol = 1e-4) const { return std::fabs(X) <= Tol && std::fabs(Y) <= Tol && std::fabs(Z) <= Tol; }
+    FVector GetSafeNormal(double Tol = 1e-8) const
     {
-        const float S = SizeSquared();
-        return S <= Tol ? FVector(0.f, 0.f, 0.f) : *this / std::sqrt(S);
+        const double S = SizeSquared();
+        return S <= Tol ? FVector(0.0, 0.0, 0.0) : *this / std::sqrt(S);
     }
-    static float DotProduct(const FVector& A, const FVector& B) { return A.X * B.X + A.Y * B.Y + A.Z * B.Z; }
+    static double DotProduct(const FVector& A, const FVector& B) { return A.X * B.X + A.Y * B.Y + A.Z * B.Z; }
     static FVector CrossProduct(const FVector& A, const FVector& B)
     {
         return FVector(A.Y * B.Z - A.Z * B.Y, A.Z * B.X - A.X * B.Z, A.X * B.Y - A.Y * B.X);
     }
-    static float Dist(const FVector& A, const FVector& B) { return (A - B).Size(); }
+    static double Dist(const FVector& A, const FVector& B) { return (A - B).Size(); }
     static FVector ZeroVector;
     static FVector UpVector;
 };

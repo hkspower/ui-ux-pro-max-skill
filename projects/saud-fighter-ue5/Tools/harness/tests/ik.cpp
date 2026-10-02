@@ -63,7 +63,7 @@ static void Solve()
     // Out of reach: full stretch along the line, never quite straight.
     R = TwoBone(Hip, Knee, Ankle, FVector(0.f, 0.f, -40.f), Pole);
     Check(!R.bReached, "a target past the limb is reported");
-    Check(Near(FVector::Dist(Hip, R.End), (A + B) * MaxStretch, 1e-2f), "...and the limb stops at 99.5 %");
+    Check(Near(FVector::Dist(Hip, R.End), (A + B) * 0.995f, 1e-2f), "...and the limb stops at 99.5 %");
     Check(Near(FVector::Dist(Hip, R.Mid), A) && Near(FVector::Dist(R.Mid, R.End), B), "...with its lengths");
     Check(R.Mid.X > 0.5f, "...and still bent toward the pole");
 
@@ -191,7 +191,9 @@ struct Man
         for (int S = 0; S < 2; ++S)
         {
             const FVector Hip = In.Foot[S].Hip + Plan.Pelvis;
-            Pose[S] = FinishFoot(St.Hold[S], Plan.Foot[S], In.Foot[S], Hip, Dt);
+            // as the proxy does: no leg pass at all while the feet are off
+            if (Plan.Alpha > 0.f) Pose[S] = FinishFoot(St.Hold[S], Plan.Foot[S], In.Foot[S], Hip, Dt);
+            else { Pose[S] = FFootPose(); Pose[S].Ankle = In.Foot[S].Ankle; }
             LastHeel[S] = ToWorld(In.Mesh, Pose[S].Ankle);
             LastBall[S] = ToWorld(In.Mesh, Plan.Foot[S].Ball);
         }
@@ -435,6 +437,70 @@ static void Held()
         FFootPose Handing;
         for (int K = 0; K < 30; ++K) Handing = FinishFoot(Back, P, F, Hip, 1.f / 60.f);
         Check(Handing.Roll * 180.f / Pi > 10.f, "a foot handed back keeps its heel up until it is the clip's");
+    }
+
+    // ---- a man standing still brings a foot left off its spot back under
+    // the clip, one foot at a time; in a swing nothing settles
+    {
+        auto Turned = [](bool bSettle, int& Both)
+        {
+            Man M; M.In.bSettle = bSettle; M.Run(0.5f);
+            const float R = 25.f * Pi / 180.f;                    // a 25 degree snap
+            M.In.Mesh.X = FVector(std::cos(R), std::sin(R), 0.f);
+            M.In.Mesh.Y = FVector(-std::sin(R), std::cos(R), 0.f);
+            Both = 0;
+            for (int K = 0; K < 90; ++K)
+            {
+                M.Step(1.f / 60.f);
+                const bool A = M.St.Hold[0].bStep && M.St.Hold[0].Progress < 1.f;
+                const bool B = M.St.Hold[1].bStep && M.St.Hold[1].Progress < 1.f;
+                Both += A && B;
+            }
+            float Worst = 0.f;
+            for (int S = 0; S < 2; ++S) Worst = std::fmax(Worst, Flat(M.BallW(S) - M.RawW(S)));
+            return Worst;
+        };
+        int BothSettle = 0, BothSwing = 0;
+        const float Settled = Turned(true, BothSettle), Kept = Turned(false, BothSwing);
+        std::printf("  a 25 degree snap, standing: a foot %.1f cm off its spot after 1.5 s settled, %.1f in a swing\n", Settled, Kept);
+        Check(Settled < 3.f && BothSettle == 0, "a man standing still steps a foot left off its spot back under him, one foot at a time");
+        Check(Kept > 5.f, "...but not in a swing: the strike keeps its feet where they are");
+    }
+
+    // ---- a mesh drawn at twice its size steps after twice the world's drift
+    {
+        Man M; M.In.Mesh.Scale = 2.f; M.Run(0.5f);
+        bool bStepped = false;
+        for (int K = 0; K < 9; ++K)
+        {
+            M.In.Mesh.Origin.X += 2.f;                     // 18 cm in all: 1.5 times Saud's 12, under twice it
+            M.Step(1.f / 60.f);
+            for (int S = 0; S < 2; ++S) bStepped = bStepped || !M.St.Hold[S].bHeld;
+        }
+        Check(!bStepped, "a man drawn at twice the scale keeps his feet through 18 cm of the world's drift");
+    }
+
+    // ---- the roll goes with the feet: none left when they switch off, none
+    // brought back when they come on (the proxy skips the leg pass at 0)
+    {
+        Man M; M.Run(0.5f);
+        for (int K = 0; K < 12; ++K) { M.In.Mesh.Origin.X += 8.f / 12.f; M.Step(1.f / 60.f); }   // slid 8 cm over his feet
+        float Rolled = 0.f;
+        for (int S = 0; S < 2; ++S) Rolled = std::fmax(Rolled, M.Pose[S].Roll);
+        M.In.bWanted = false;
+        float LastOn = 0.f;
+        for (int K = 0; K < 30; ++K)
+        {
+            M.Step(1.f / 60.f);
+            if (M.Plan.Alpha > 0.f) LastOn = std::fmax(M.Pose[0].Roll, M.Pose[1].Roll);
+        }
+        M.In.bWanted = true;
+        M.Step(1.f / 60.f);
+        const float FirstBack = std::fmax(M.Pose[0].Roll, M.Pose[1].Roll);
+        std::printf("  rolled %.1f degrees; drawn on the feet's last frame %.3f, on their first back %.3f\n",
+                    Rolled * 180.f / Pi, LastOn * 180.f / Pi, FirstBack * 180.f / Pi);
+        Check(Rolled * 180.f / Pi > 3.f && LastOn * 180.f / Pi < 0.25f && FirstBack * 180.f / Pi < 0.25f,
+              "the heel's roll fades with the feet: nothing left as they go, nothing brought back");
     }
 }
 
@@ -817,8 +883,16 @@ static void Contact()
           && Near(StrikeOf("Special").Skin, 2.5f) && Near(StrikeOf("Knee").Skin, 5.f),
           "a blow lands its skin on the mark: the joint stops 2 cm short for the knuckles, 2.5 the ball, 5 the knee");
     {
-        const FVector Chin(10.f, 0.f, 150.f), Root(95.f, 15.f, 145.f);
-        Check(Near(FVector::Dist(MeetPoint(Chin, Root, StrikeOf("Jab").Skin * 1.5f), Chin), 3.f, 1e-3f), "...grown with the man who throws it");
+        Check(Near(SkinOf(StrikeOf("Jab"), 1.5f), 3.f, 1e-4f) && Near(SkinOf(StrikeOf("Knee"), 1.48f), 7.4f, 1e-3f),
+              "...grown with the man who throws it");
+        // the knee: its joint stops its skin short of the mark where the
+        // line down his front comes within a thigh and a skin of the hip
+        const FVector Hip(0.f, 0.f, 95.f), Knee(20.f, 0.f, 56.f);          // a 43.8 cm thigh
+        const FVector Plexus(61.f, 0.f, 125.f), Belt(40.f, 0.f, 95.f);     // 68 cm off, the belt 40
+        const FVector K = KneeSwing(Hip, Knee, KneeAim(Hip, Knee, Plexus, Belt, 5.f), 1.f);
+        const FVector Landed = ReachableMark(Hip, (float)FVector::Dist(Hip, Knee) + 5.f, Plexus, Belt, (float)Knee.Z);
+        Check(Near((float)FVector::Dist(K, Landed), 5.f, 0.05f) && Near((float)FVector::Dist(K, Hip), (float)FVector::Dist(Knee, Hip), 1e-3f),
+              "a knee lands its skin on the mark: the joint 5 cm short of it, the thigh its own length");
     }
 
     // ---- the mark on the man. In Unreal (X forward, Z up) a man facing +X has his left at -Y.
@@ -875,6 +949,14 @@ static void Contact()
         const float One = G;
         for (int I = 0; I < 3; ++I) G = StepGate(G, 0.f, 1.f / 60.f);
         Check(One > 0.7f && G == 0.f, "the gate moves at most its whole way in 0.06 s");
+    {
+        FGate G;
+        const float First = G.Step(0.f, 1.f / 60.f);       // a man the gate shuts out, on the swing's first frame
+        const float Next = G.Step(1.f, 1.f / 60.f);        // then one it lets in
+        G.Reset();
+        Check(First == 0.f && Next > 0.f && Next < 0.5f && G.Step(0.4f, 1.f / 60.f) == 0.4f,
+              "a swing's first frame takes the gate as it stands: no flick toward a man it shuts out");
+    }
     }
 
     // ---- the strike's solve: a lead arm, the elbow under the line, the knuckles at shoulder height
@@ -1849,9 +1931,120 @@ static void Plants()
           "a walk holds its feet as the man moves; a block walked glides; a swing or a stand holds");
 }
 
+// ------------------------------------------------------------------- edges
+
+/** Every share eased both ways, not only fast enough; every limit reached. */
+static void Edges()
+{
+    std::printf("EDGES  (every share eased both ways; every limit reached)\n");
+    const float Dt = 1.f / 60.f;
+
+    // ---- on and off over frames, never in one
+    {
+        Man M; M.Step(Dt);
+        const float On1 = M.Plan.Alpha;
+        Man O; O.Run(0.5f); O.In.bWanted = false; O.Step(Dt);
+        Check(On1 > 0.f && On1 < 0.1f && O.Plan.Alpha > 0.9f, "the feet ease on and off, never in a frame");
+        FTurn D1 = Whole();
+        TurnStep(D1, 0.f, 0.f, 0.f, false, true, false, false, Dt);
+        Check(D1.Weight.Value() > 0.5f, "knocked down, the look is not dropped in a frame");
+        FTurn P = Whole();
+        TurnStep(P, 0.f, 0.f, 30.f, true, false, false, false, Dt);
+        Check(P.Pitch > 0.f && P.Pitch < 30.f * (1.f - std::exp(-30.f * Dt)) + 0.1f, "the face's pitch eases, never snaps");
+    }
+
+    // ---- the heel's roll stops at 30 degrees, however short the leg
+    {
+        FFootHold H; H.bHeld = true; H.Weight = 1.f;
+        FFootPlan P; P.Ball = FVector(-9.f, -15.f, 2.4f); P.Tilt = FVector::UpVector; P.ToeShare = 1.f;
+        FFootIn F; F.Ankle = FVector(-24.f, -14.f, 8.f); F.Ball = FVector(-9.f, -15.f, 2.4f); F.LegLength = 88.f;
+        const FVector Hip(30.f, -10.f, 92.f);   // past what any roll brings in reach
+        FFootPose R;
+        for (int K = 0; K < 60; ++K) R = FinishFoot(H, P, F, Hip, Dt);
+        Check(Near(R.Roll, 30.f * Pi / 180.f, 1e-3f), "a heel rolls no further than 30 degrees, however short the leg");
+    }
+
+    // ---- two balls up together are in the air, by the heights
+    {
+        FFootHold H[2]; FBasis B;
+        const FVector Raw[2] = { FVector(33.f, 15.f, 8.4f), FVector(-9.f, -15.f, 8.4f) };
+        const float Lift[2] = { 6.f, 6.f }, Meas[2] = { -1.f, -1.f };
+        const bool Al[2] = { true, true };
+        StepHolds(H, B, Raw, Lift, Meas, Al, true, false, 1.f, Dt);
+        Check(!H[0].bDown && !H[1].bDown, "both balls 6 cm up, level with each other, are in the air: a hop is not a stand");
+    }
+
+    // ---- a shove: a held foot far off steps though the other is in the air
+    {
+        FFootHold H[2]; FBasis B;
+        const FVector Raw[2] = { FVector(33.f, 15.f, 2.4f), FVector(-9.f, -15.f, 2.4f) };
+        const float Lift[2] = { 0.f, 0.f }, Meas[2] = { 1.f, 1.f };
+        const bool Al[2] = { true, true };
+        H[0].bHeld = true; H[0].bDown = true; H[0].Weight = 1.f; H[0].Anchor = ToWorld(B, Raw[0]);
+        H[1].bStep = true; H[1].Progress = 0.5f; H[1].Weight = 0.5f;          // stepping
+        B.Origin = FVector(31.f, 0.f, 0.f);                                   // 31 cm on
+        StepHolds(H, B, Raw, Lift, Meas, Al, true, false, 1.f, Dt);
+        Check(!H[0].bHeld && H[0].bStep, "a held foot 31 cm off steps though the other is in the air: a shove, not a shuffle");
+    }
+
+    // ---- toes bend down no further than 10 degrees
+    {
+        const float A = 30.f * Pi / 180.f;
+        const FVector T = ToeOnGround(FVector(1.f, 0.f, 0.f), FVector(1.f, 0.f, 0.f), FVector::UpVector,
+                                      FVector(std::sin(A), 0.f, std::cos(A)), 1.f);   // the ground falls away 30 under the toes
+        Check(Near(std::atan2((float)T.Z, (float)T.X) * 180.f / Pi, -10.f, 0.1f), "toes bend down no further than 10 degrees");
+    }
+
+    // ---- a kerb stepped down: a step, absorbed, and the foot comes down over frames
+    {
+        Check(SteppedCapsule(FVector(0.f, 0.f, -15.f)) && SteppedCapsule(FVector(0.f, 0.f, 15.f)) && !SteppedCapsule(FVector(20.f, 0.f, -15.f)),
+              "a kerb stepped down in a frame is a step, as one stepped up is; a ramp is not");
+        Man M; M.Height = [](float X, float) { return X > 25.f ? 0.f : 15.f; };   // standing on a kerb, his toes over its edge
+        M.In.Mesh.Origin.Z = 15.f; M.Run(1.f);
+        const float Before = (float)(M.In.Mesh.Origin.Z + M.Plan.Pelvis.Z);
+        M.Height = [](float X, float) { return X > 25.f ? 0.f : 0.f; };
+        M.In.Mesh.Origin.Z = 0.f; M.Step(Dt);                                    // the capsule drops 15 cm in one frame
+        const float After = (float)(M.In.Mesh.Origin.Z + M.Plan.Pelvis.Z);
+        Check(std::fabs(After - Before) < 15.f * 0.25f, "a kerb the capsule steps down in one frame does not drop the body that frame");
+    }
+    {
+        Man M; M.Height = [](float X, float) { return X > 25.f ? 15.f : 0.f; }; M.Run(1.f);
+        const float Z0 = M.St.FootZ[0];
+        M.Height = [](float, float) { return 0.f; };                             // the kerb under his lead foot is gone
+        M.Step(Dt);
+        const float Z1 = M.St.FootZ[0];
+        Check(Z0 > 10.f && (Z0 - Z1) / Z0 <= 1.f - std::exp(-18.f * Dt) + 0.01f, "a foot steps down off a kerb over frames, never in one");
+    }
+
+    // ---- the hips carry no change of speed with the feet off the ground
+    {
+        Man M; M.Run(0.5f); M.In.bWanted = false; M.Run(0.3f);
+        M.In.Velocity = FVector(300.f, 0.f, 0.f); M.Step(Dt);
+        Check(std::fabs(M.St.Weight[0].X) < 1e-6f && std::fabs(M.St.Weight[0].V) < 1e-6f, "the hips carry no change of speed in the air");
+    }
+
+    // ---- the stride meter follows its samples at its rate
+    {
+        FStrideMeter Mt; Mt.Clip = 1; Mt.Time = 0.f; Mt.Speed = 300.f; Mt.bValid = true;
+        Mt.Ball[0] = FVector(10.f, 0.f, 0.f); Mt.Ball[1] = FVector(-10.f, 0.f, 0.f); Mt.bDown[0] = true;
+        const FVector Ball[2] = { FVector(10.f + 400.f * Dt, 0.f, 0.f), FVector(-10.f, 0.f, 0.f) };
+        const float Lift[2] = { 0.f, 5.f };
+        MeasureStride(Mt, 1, Dt, Ball, Lift);
+        Check(Near(Mt.Speed, 300.f + 100.f * (1.f - std::exp(-8.f * Dt)), 0.05f), "the stride meter follows its samples at 8 a clip second");
+    }
+
+    // ---- a big man's covering glove keeps a big fist's width from the other
+    {
+        const FVector Sh(0.f, 20.f, 140.f), El(15.f, 25.f, 120.f), Ha(25.f, 10.f, 150.f), Other(25.f, -10.f, 150.f);
+        const FTwoBone To = Cover(Sh, El, Ha, FVector(30.f, -6.f, 150.f), true, 1.f, FVector::UpVector, Other, 2.f);
+        FVector Gap = To.End - Other; Gap.Z = 0.f;
+        Check((float)Gap.Size() >= 17.9f && (float)Gap.Size() < 18.6f, "a big man's covering glove keeps a big fist's width from the other");
+    }
+}
+
 int main()
 {
-    Solve(); Feet(); Held(); GroundTwo(); Stride(); Hands(); Contact(); Head(); Body(); Crossfade(); Plants();
+    Solve(); Feet(); Held(); GroundTwo(); Stride(); Hands(); Contact(); Head(); Body(); Crossfade(); Plants(); Edges();
     std::printf(Fails ? "\n%d FAILED\n" : "\nall IK checks passed\n", Fails);
     return Fails ? 1 : 0;
 }
