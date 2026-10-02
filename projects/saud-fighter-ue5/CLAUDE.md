@@ -2100,7 +2100,8 @@ numpy mirror):
   lamp is exempt and keeps its own light, as does Kuwait's red;
 - the air a dark cold fog (0.13, 0.145, 0.15) from 6 m to 90 m, up to
   0.62 -- it was a warm dusk from 15 m to 250 m, up to 0.35;
-- the sky a dim overcast, still banded (x0.30, a cold cast);
+- the sky a dim overcast, still banded (x0.30, a cold cast) -- painted since
+  2026-10-02 ("The picture's levels, and the sky painted");
 - a vignette in `M_Anime_Frame`, the corners down by half, before the fire
   (a flame is light) -- and not on an impact frame: the first preview cut
   the dark corners into a hard black iris round the panel, and an impact
@@ -3800,6 +3801,75 @@ BeginPlay) are read from the engine's headers, not built against them; the
 harness's scenes and the preview's are synthetic men on flat or made-up
 ground, the clips' feet real; every constant is judgement until it is
 played.
+
+## The picture's levels, and the sky painted -- 2026-10-02
+
+Asked as "improve brightness levels" (settled: the picture is too dark, the
+Unreal build, after the IK), "improve white levels", and "improve sky",
+settled as the sky itself: the moon, the clouds, the stars and how the sky
+reads behind the fight. All of it is in `Tools/look/anime_look.py` (LOOK,
+both materials' HLSL and the numpy mirror) and the preview.
+
+**What was wrong, measured** on the souq fight through the look: the
+median of the screen 0.112, the brightest half-percent 0.36 -- nothing in
+the picture came near white, and the darkest world tones were crushed into
+the ink. The sky was the engine's own, banded and dimmed to a flat grey
+overcast with nothing in it, as bright as the street (0.091 against the
+world's 0.116), and the vignette took 60 % off the corners.
+
+**The levels** (`LV_BLACK` 0.02, `LV_WHITE` 0.68, `LV_GAMMA` 1.25): a step in
+`M_Anime_Frame` after the vignette and before the fire, on display values
+-- the black point to black, the white point to white, a gamma that lifts
+the middle. Not on an impact frame (its cut reads the picture as it was).
+The vignette 0.60 -> 0.45. Measured after: the median 0.23, the brightest
+half-percent 0.59, the fighters 0.25 and the world 0.23 (from 0.13 and
+0.12); the moon and bone reach white; ink stays black (0.02). A white
+point at 0.52 was tried first: brighter (median 0.26), but it blew a lit
+face to white -- 39 % of the check sphere's skin -- so it is 0.68.
+
+**The sky, painted** (step 4 of `M_Anime_Post`): nothing of the engine's
+sky is used any more. From each pixel's view ray (`-Parameters.
+CameraVector`), times `Key` like the fog:
+- the night in `SKY_BANDS` flat steps from a cold horizon (0.034, 0.040,
+  0.060) up to 45 degrees, darker going up -- and darker than the street in
+  front of it, so the sky reads as night BEHIND the fight;
+- the moon a flat bone disc (2.4 degrees) in an ink ring, under a halo in
+  three steps, on the bearing `build_world.WORLD_RIG`'s moon light shines
+  from (`moon_dir()`: its yaw turned half round), drawn at 20 degrees up,
+  lower than the light's 38, where a boom tipped a little up can see it;
+- stars, one at most to a cell of a dome over the city, none below 12
+  degrees and none in front of a cloud;
+- clouds in two flat tones and a rim (three octaves of the look's value
+  noise over the same dome), lit on the moon's side within 35 degrees of
+  it, drifting on `View.GameTime` (so they stop in a freeze).
+The fight camera looks down the street with the moon behind it, so the
+fight shot shows the night and the clouds; `anime_preview.py --sky` turns
+the fight camera to the moon over the roofs: `Docs/renders/
+souq-sky-anime.png`. The preview paints from each render's own camera
+(`view_of`) and the scene's moon (`moon_of`: its sun's bearing).
+
+**Checked:** `anime_look.py`'s checks pass, with new ones -- the sky the
+look's own whatever the engine's was; night darker than the street before
+it; the moon a flat disc in an ink ring; the halo brighter toward the moon
+and stepped; the night in flat steps and darker going up; clouds over some
+of the sky, flat, lit on the moon's side, drifting; stars, never low,
+never in a cloud; the whites reaching white, a lit face a tone not white,
+ink black, and the impact frame not levelled. `--bite`: 92 of 92 caught (the 77 of before, 15 new: `dim_levels`, `blown_whites`, `grey_blacks`, `levels_on_impact`, `no_moon`, `no_moon_ink`, `soft_halo`, `smooth_sky`, `flat_sky`, `no_clouds`, `overcast`, `unlit_clouds`, `still_clouds`, `no_stars`, `stars_in_clouds`; 76 in one run, the 16 a 30-minute limit cut off in a second, every one caught).
+Two old sky sabotages were re-made for the painted sky (`bright_sky`: the
+night as bright as the street; `old_sky`: the flat overcast back), and
+the old "dim overcast" check (the sky under half the engine's light) is
+gone with the engine's sky. GRADED_RESULT
+
+**Re-rendered:** RENDERS_RESULT
+
+**Not verified:** no engine has built either material. From memory, not
+compiled: that `Parameters.CameraVector` in a post-process material's
+Custom node is the world-space direction from the pixel to the eye, and
+`View.GameTime`. The levels sit after the engine's tonemapper, which the
+preview stands in for with a plain clip, so the white point was set on the
+preview's display values and may want moving once the real tonemapper is
+seen. The moon drawn 18 degrees under the light it stands for is a
+choice, not an accident.
 
 ## Working rules
 
