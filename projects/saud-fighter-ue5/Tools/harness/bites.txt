@@ -152,7 +152,7 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#: Lift\[S\] - Floor <= (F.bDown ? BallUp
 ik|Source/SaudFighter/Combat/SaudIK.h|s#(F.bDown ? BallUpHeight : BallDownHeight)#(F.bDown ? BallDownHeight : BallDownHeight)#|a held ball 1.2 cm up stays held
 ik|Source/SaudFighter/Combat/SaudIK.h|s#(F.bDown ? BallUpHeight : BallDownHeight)#(F.bDown ? BallUpHeight : BallUpHeight)#|...and a free one 1.2 cm up is not taken
 ik|Source/SaudFighter/Combat/SaudIK.h|s#: Lift\[S\] - Floor <=#: Lift[S] - 0.f * Floor <=#|a clip retargeted 3 cm off a man's rest still plants his feet
-ik|Source/SaudFighter/Combat/SaudIK.h|s#if (Drift\[S\] > HoldTeleport \* Size)#if (Drift[S] > HoldTeleport * Size * 100.f)#|a jump of the man drops the hold at once, no glide
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (Drift\[S\] > HoldTeleport \* WorldSize)#if (Drift[S] > HoldTeleport * WorldSize * 100.f)#|a jump of the man drops the hold at once, no glide
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return Raw + H.Slip \* H.Weight;#FVector P = Raw + (ToMesh(Mesh, H.Anchor) - Raw) * H.Weight; P.Z = Raw.Z; return P;#|a foot let go never falls further behind the clip, however fast the man goes
 ik|Source/SaudFighter/Combat/SaudIK.h|s#bAllowed\[S\] = In.bWanted && #bAllowed[S] = true \&\& #|the feet let go when they are not wanted
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!bHold) continue;#if (bHold \&\& !bHold) continue;#|a block walked across the floor does not tap-dance
@@ -329,13 +329,13 @@ feel|Source/SaudFighter/Combat/SaudFeel.h|s#constexpr float CutStep = 0.15f;#con
 # ---- the clips' measured plants (2026-10-02, "improve plants ik"): SaudPlants.h and its use
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float MixDownOn = 0.6f;#constexpr float MixDownOn = 0.4f;#|half way through a crossfade a foot keeps what it was
 ik|Source/SaudFighter/Combat/SaudIK.h|s#F.bDown = Measured\[S\] >= 0.f#F.bDown = Measured[S] >= 99.f#|a ball the clip says is down stays held
-ik|Source/SaudFighter/Combat/SaudIK.h|s#F = bLoop ? F % C.Frames : (F < C.Frames ? F : C.Frames - 1);#F = (F < C.Frames ? F : C.Frames - 1);#|a loop's frames wrap round
+ik|Source/SaudFighter/Combat/SaudIK.h|s#F = bLoop ? F % C.Frames : (F < C.Frames ? F : C.Frames - 1);#F = (bLoop \&\& false) ? F % C.Frames : (F < C.Frames ? F : C.Frames - 1);#|a loop's frames wrap round
 ik|Source/SaudFighter/Combat/SaudIK.h|s#\* SaudPlants::Fps + 0.5f#* SaudPlants::Fps * 0.5f#|a clip's foot is down or up as its measured frame says
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Down\[S\] += L.Weight;#Down[S] += 1.f;#|a crossfade has each foot down by its clips' weights
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Out\[S\] = Known >= 0.5f ? Down\[S\] / Known : -1.f;#Out[S] = Known > 0.f ? Down[S] / Known : -1.f;#|...and the heights decide when most of it is not
-ik|Source/SaudFighter/Combat/SaudIK.h|s#GroundSpeed / (ClipStride \* Scale)#GroundSpeed / (ClipStride)#|...the stride grown with the man drawn twice the size
+ik|Source/SaudFighter/Combat/SaudIK.h|s#GroundSpeed / (ClipStride \* Scale)#GroundSpeed / (ClipStride + 0.f * Scale)#|...the stride grown with the man drawn twice the size
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (ClipStride < StrideMinSpeed) return 1.f;#if (ClipStride < 0.f) return 1.f;#|...and a clip that does not walk keeps its clock
-ik|Source/SaudFighter/Combat/SaudIK.h|s#return bAttacking || bStanding || ClipStride >= StrideMinSpeed;#return true;#|a block walked glides
+ik|Source/SaudFighter/Combat/SaudIK.h|s#ClipStride >= StrideMinSpeed;#ClipStride >= 0.f;#|a block walked glides
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float ReleaseSeconds = 0.08f;#constexpr float ReleaseSeconds = 0.10f;#|a foot is handed back inside the first third of the shortest walk swing
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StepSeconds = 0.14f;#constexpr float StepSeconds = 0.30f;#|a shuffle step is quicker than any walk's own swing
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StrideMinSpeed = 100.f;#constexpr float StrideMinSpeed = 300.f;#|every walk strides faster than StrideMinSpeed
@@ -365,9 +365,9 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#return Gap.Size() >= BlockFistGap \* Sca
 ik|Source/SaudFighter/Combat/SaudIK.h|s#P.Roll = Hold.Roll \* Plan.Share;#P.Roll = Hold.Roll;#|the heel's roll fades with the feet
 ik|Source/SaudFighter/Combat/SaudIK.h|s#O.Share = A;#O.Share = 1.f;#|the heel's roll fades with the feet
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float WorldSize = Size \* Mesh.Scale;#const float WorldSize = Size;#|a man drawn at twice the scale keeps his feet
-ik|Source/SaudFighter/Combat/SaudIK.h|s#return K.Skin \* Scale;#return K.Skin;#|...grown with the man who throws it
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return K.Skin \* Scale;#return K.Skin + 0.f * Scale;#|...grown with the man who throws it
 ik|Source/SaudFighter/Combat/SaudIK.h|s#ReachableMark(Hip, Thigh + Skin,#ReachableMark(Hip, Thigh,#|a knee lands its skin on the mark
 ik|Source/SaudFighter/Combat/SaudIK.h|s#V = V < 0.f ? Wanted : StepGate(V, Wanted, Dt);#V = StepGate(V < 0.f ? 1.f : V, Wanted, Dt);#|a swing's first frame takes the gate as it stands
 ik|Source/SaudFighter/Combat/SaudIK.h|s#F.Still >= SettleSeconds#F.Still >= 1e9f#|a man standing still steps a foot left off its spot back
-ik|Source/SaudFighter/Combat/SaudIK.h|s#const bool bSteady = F.bHeld \&\& bSettle \&\&#const bool bSteady = F.bHeld \&\&#|...but not in a swing
-feel|Source/SaudFighter/Combat/SaudFeel.h|s#return !bSerialMoved \&\& KindOf(Shown) == EKind::Dash \&\& KindOf(Picked) == EKind::Dash;#return false;#|one dash keeps its clip
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const bool bSteady = F.bHeld \&\& bSettle \&\&#const bool bSteady = F.bHeld \&\& (bSettle \&\& false ? false : true) \&\&#|...but not in a swing
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return !bSerialMoved \&\& KindOf(Shown) == EKind::Dash \&\& KindOf(Picked) == EKind::Dash;#return !bSerialMoved \&\& false \&\& KindOf(Shown) == KindOf(Picked);#|one dash keeps its clip

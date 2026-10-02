@@ -3790,8 +3790,10 @@ re-initialised with nothing playing.
 
 **Checked.** `Tools/harness/tests/ik.cpp` 269 checks (56 before), plus 9 in
 `feel.cpp`; the harness's `FVector` is double now, as UE5's is -- the float
-one had hidden a narrowing UE5 would not compile. Sabotages for every new
-rule in `bites.txt`. **Not verified:** nothing is compiled against UE 5.4;
+one had hidden a narrowing UE5 would not compile. A sabotage for every new
+rule in `bites.txt`: 332 in all (106 before), every one caught -- 325 in the
+full run, the last 7 rewritten (they had broken the build, not the rule)
+and run on their own. **Not verified:** nothing is compiled against UE 5.4;
 the APIs relied on (`GetProxyOnGameThread`, `BlendTwoPosesTogether` on
 `FAnimationPoseData`, `FCSPose`, `SpawnActorDeferred`, `TickAnimation` in
 BeginPlay) are read from the engine's headers, not built against them; the
