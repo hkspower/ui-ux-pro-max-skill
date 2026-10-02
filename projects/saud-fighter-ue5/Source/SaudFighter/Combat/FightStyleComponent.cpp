@@ -4,6 +4,7 @@
 
 #include "Combat/EnemyFighter.h"
 #include "Combat/FighterBase.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "World/WaveDirector.h"
@@ -12,6 +13,10 @@ UFightStyleComponent::UFightStyleComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickInterval = 0.f;
+	// Before the mesh poses: FaceTowards below must land before the body's
+	// lag is measured, and a component left in TG_DuringPhysics would drag
+	// the mesh it is a prerequisite of out of TG_PrePhysics.
+	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 }
 
 AFighterBase* UFightStyleComponent::GetFighter() const
@@ -28,6 +33,11 @@ void UFightStyleComponent::BeginPlay()
 	if (AFighterBase* Fighter = GetFighter())
 	{
 		Fighter->OnDamaged.AddDynamic(this, &UFightStyleComponent::HandleDamaged);
+		// the mesh poses after this has turned him (FaceTowards in TickComponent)
+		if (USkeletalMeshComponent* Body = Fighter->GetMesh())
+		{
+			Body->AddTickPrerequisiteComponent(this);
+		}
 	}
 	CircleDirection = FMath::RandBool() ? 1.f : -1.f;
 	// Stagger the first swing across a wave so five enemies do not all throw

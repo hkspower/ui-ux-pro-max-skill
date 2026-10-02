@@ -301,23 +301,24 @@ void AWaveDirector::SpawnFighter(FName Row, int32 Tier, int32 IndexInWave, int32
 	const FVector Spawn = ArenaCentre
 		+ FVector(FMath::Cos(Radians), FMath::Sin(Radians), 0.f) * SaudGameplay::SpawnRing;
 
-	FActorSpawnParameters Params;
-	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-	AEnemyFighter* Enemy = GetWorld()->SpawnActor<AEnemyFighter>(
-		PawnClass, FVector(Spawn.X, Spawn.Y, GetActorLocation().Z), FRotator::ZeroRotator, Params);
+	// Deferred, so his clips' set is his before BeginPlay poses him: the
+	// motion component plays his guard on his first frame.
+	const FTransform At(FRotator::ZeroRotator, FVector(Spawn.X, Spawn.Y, GetActorLocation().Z));
+	AEnemyFighter* Enemy = GetWorld()->SpawnActorDeferred<AEnemyFighter>(
+		PawnClass, At, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
 	if (!Enemy)
 	{
 		return;
 	}
-
-	const USaudGameInstance* GI = GetWorld()->GetGameInstance<USaudGameInstance>();
-	const FDifficultyDef Diff = GI ? GI->GetDifficulty() : FDifficultyDef();
-
 	Enemy->AttackTable = AttackTable;
 	// His clips are his row's: A_Boss_*, A_Saqr_*, A_Zayos_*, and Saud's
 	// for everything a row has none of.
 	Enemy->MotionSet = Row;
+	Enemy->FinishSpawning(At);
+
+	const USaudGameInstance* GI = GetWorld()->GetGameInstance<USaudGameInstance>();
+	const FDifficultyDef Diff = GI ? GI->GetDifficulty() : FDifficultyDef();
+
 	Enemy->ConfigureFromDefinition(*Def, Tier, Diff.EnemyHealth, Diff.EnemyDamage);
 	// The slot it holds in the crowd, so a wave spreads round him instead of
 	// piling onto one spot. The numbers used to be here, ad hoc.

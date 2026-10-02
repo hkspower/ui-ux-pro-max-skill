@@ -50,6 +50,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsAlive() const { return State != EFighterState::Dead; }
 
+	/** Whether a strike can land on him now: what ResolveAttackHits skips --
+	    dead, on the floor, or in the mercy after a parry or getting up. The
+	    runtime IK draws a blow only to a man the sweep could strike. */
+	bool CanBeStruck() const { return IsAlive() && State != EFighterState::Down && InvulnerableRemaining <= 0.f; }
+
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	float GetHealthFraction() const { return MaxHealth > 0.f ? Health / MaxHealth : 0.f; }
 

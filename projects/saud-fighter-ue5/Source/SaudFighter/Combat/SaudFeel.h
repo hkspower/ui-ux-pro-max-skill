@@ -375,6 +375,81 @@ namespace SaudFeel
 		return EClip::Guard;
 	}
 
+	// ----------------------------------------------------- how a clip gives way
+
+	/** What a clip is to the cut into or out of it. */
+	enum class EKind : unsigned char { Stand, Step, Dash, Guarded, Strike, Reel, Fall, Rise, Win };
+
+	inline EKind KindOf(EClip C)
+	{
+		switch (C)
+		{
+		case EClip::WalkFwd: case EClip::WalkBack: case EClip::WalkLeft: case EClip::WalkRight: return EKind::Step;
+		case EClip::DashFwd: case EClip::DashBack: case EClip::DashLeft: case EClip::DashRight: return EKind::Dash;
+		case EClip::Block:  return EKind::Guarded;
+		case EClip::Attack: return EKind::Strike;
+		case EClip::HitLight: case EClip::HitHeavy:
+		case EClip::HitHeadStraightLight: case EClip::HitHeadStraight: case EClip::HitHeadSide:
+		case EClip::HitBodyFront: case EClip::HitBodySide: return EKind::Reel;
+		case EClip::Down: case EClip::DownSide: case EClip::DownFold: case EClip::Death: return EKind::Fall;
+		case EClip::GetUp:   return EKind::Rise;
+		case EClip::Victory: return EKind::Win;
+		default:             return EKind::Stand;
+		}
+	}
+
+	/** A cut is a crossfade: the new clip's weight on a smooth step over
+	    Seconds, the old one still playing under it at its own time.
+	    bMatchPhase starts the new loop at the old one's share of its cycle. */
+	struct FCut
+	{
+		float Seconds = 0.f;
+		bool bMatchPhase = false;
+	};
+
+	constexpr float CutIntoStrike = 0.05f;   // whole before the Jab's first active frame (0.07 s): the blow lands as thrown
+	constexpr float CutIntoReel = 0.03f;     // under the reaction's own 40 ms rise: the jolt is the clip's, not the cut's
+	constexpr float CutIntoFall = 0.06f;     // the knockdown's freeze shows the blow; the fall follows it at once
+	constexpr float CutIntoDash = 0.04f;     // a sixth of the 0.24 s dash: the push-off is in it
+	constexpr float CutIntoBlock = 0.08f;    // the guard is up inside the first half of the 0.20 s parry window
+	constexpr float CutIntoRise = 0.10f;     // GetUp begins on Down's last frame; under a quarter of its 0.60 s
+	constexpr float CutStep = 0.15f;         // walk to walk: a quarter of the 0.57 s stride, in step
+	constexpr float CutSettle = 0.20f;       // anything unhurried: into the guard or a walk, the block lowered, the win
+
+	/** The cut from one clip to the next. What is coming decides: a blow,
+	    a reel, a fall, a dash, a block or a rise cut in short; anything
+	    else settles. A strike's clip ends exactly when its recovery does,
+	    so what follows it blends from its held last frame. */
+	inline FCut CutBetween(EClip From, EClip To, bool bRestart)
+	{
+		const EKind A = KindOf(From), B = KindOf(To);
+		FCut C;
+		switch (B)
+		{
+		case EKind::Strike: C.Seconds = CutIntoStrike; return C;
+		case EKind::Reel: C.Seconds = CutIntoReel; return C;
+		case EKind::Fall: C.Seconds = CutIntoFall; return C;
+		case EKind::Dash: C.Seconds = CutIntoDash; return C;
+		case EKind::Rise: C.Seconds = CutIntoRise; return C;
+		case EKind::Guarded: C.Seconds = CutIntoBlock; C.bMatchPhase = A == EKind::Stand && !bRestart; return C;
+		default: break;
+		}
+		C.Seconds = A == EKind::Step && B == EKind::Step ? CutStep : CutSettle;
+		C.bMatchPhase = !bRestart && ((A == EKind::Step && B == EKind::Step) || (A == EKind::Guarded && B == EKind::Stand));
+		return C;
+	}
+
+	/** A start the fighter's MotionSerial marks -- a second jab, a second
+	    hit, a second dash, the win again -- plays its clip from the first
+	    frame even when that clip is still fading out. A loop has no first
+	    frame to go back to: a walk is never restarted. The picked clip
+	    decides, not the asset: a Victory a set does not have falls back to
+	    the Guard asset and still plays it once, from its first frame. */
+	inline bool Restarts(EClip C, bool bSerialMoved)
+	{
+		return bSerialMoved && !Loops(C);
+	}
+
 	/** Seconds the get-up runs: A_Saud_GetUp.fbx is 0.60 s, and so is the
 	    invulnerability AFighterBase gives on getting up. */
 	constexpr float GetUpSeconds = 0.60f;

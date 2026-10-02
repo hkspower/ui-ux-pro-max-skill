@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <string>
+#include <vector>
 
 static int Fails = 0;
 static void Check(bool Ok, const char* What)
@@ -371,9 +372,94 @@ static void Clips()
     Check(Missing == 0, "every named clip exists in Content/Animation/Saud and Street");
 }
 
+// ------------------------------------------------------------ the cuts
+
+static const EClip EveryClip[] = { EClip::Guard, EClip::WalkFwd, EClip::WalkBack, EClip::WalkLeft, EClip::WalkRight,
+    EClip::DashFwd, EClip::DashBack, EClip::DashLeft, EClip::DashRight, EClip::Block, EClip::HitLight, EClip::HitHeavy,
+    EClip::Down, EClip::GetUp, EClip::Attack, EClip::HitHeadStraightLight, EClip::HitHeadStraight, EClip::HitHeadSide,
+    EClip::HitBodyFront, EClip::HitBodySide, EClip::DownSide, EClip::DownFold, EClip::Death, EClip::Victory };
+
+static std::vector<std::vector<std::string>> CsvRows(const char* Path)
+{
+    std::vector<std::vector<std::string>> Rows;
+    FILE* F = std::fopen(Path, "rb");
+    if (!F) return Rows;
+    char Line[512];
+    while (std::fgets(Line, sizeof Line, F))
+    {
+        std::vector<std::string> Col; std::string Cur;
+        for (const char* P = Line; *P; ++P) { if (*P == ',') { Col.push_back(Cur); Cur.clear(); } else if (*P != '\n' && *P != '\r') Cur += *P; }
+        Col.push_back(Cur); Rows.push_back(Col);
+    }
+    std::fclose(F);
+    return Rows;
+}
+
+static void Cuts()
+{
+    std::printf("CUTS  (how one clip gives way to the next)\n");
+    int Hard = 0, PhaseWrong = 0;
+    for (EClip A : EveryClip) for (EClip B : EveryClip) for (bool R : { false, true })
+    {
+        const FCut C = CutBetween(A, B, R);
+        if (C.Seconds < 1.f / 60.f) ++Hard;
+        const bool Walks = KindOf(A) == EKind::Step && KindOf(B) == EKind::Step;
+        const bool Breath = (A == EClip::Guard && B == EClip::Block) || (A == EClip::Block && B == EClip::Guard);
+        if (C.bMatchPhase && (R || !Loops(B) || !(Walks || Breath))) ++PhaseWrong;
+        if (!C.bMatchPhase && !R && (Walks || Breath)) ++PhaseWrong;
+    }
+    Check(Hard == 0, "no clip cuts to another in under one 60 Hz frame: every change is a crossfade");
+    Check(PhaseWrong == 0, "only walk to walk, and the guard to the block and back, keep the cycle; a one-shot and a restart start on their first frame");
+    {
+        int Rows = 0, Late = 0;
+        for (const auto& Col : CsvRows("Content/Data/DT_Attacks.csv"))
+        {
+            if (Col.size() < 4 || Col[0] == "Name") continue;
+            ++Rows;
+            const float Startup = static_cast<float>(std::atof(Col[3].c_str()));
+            for (EClip A : EveryClip) for (bool R : { false, true })
+                if (CutBetween(A, EClip::Attack, R).Seconds >= Startup) ++Late;
+        }
+        Check(Rows >= 6 && Late == 0, "every strike in DT_Attacks is whole before its first active frame, from any clip");
+    }
+    {
+        int Slow = 0;
+        for (EClip A : EveryClip) for (EClip B : EveryClip) for (bool R : { false, true })
+            if (KindOf(B) == EKind::Reel && CutBetween(A, B, R).Seconds >= 0.040f) ++Slow;
+        Check(Slow == 0, "a hit reaction cuts in faster than its 40 ms rise");
+    }
+    {
+        int Slow = 0;
+        for (EClip A : EveryClip) if (CutBetween(A, EClip::Block, false).Seconds > 0.10f) ++Slow;
+        Check(Slow == 0, "a block is up inside the first half of the 0.20 s parry window");
+        Check(CutBetween(EClip::WalkFwd, EClip::WalkLeft, false).Seconds <= 0.571f / 3.f, "walk to walk crossfades inside a third of its 0.571 s stride");
+    }
+    {
+        int Rows = 0, Long = 0;
+        for (const auto& Col : CsvRows("Content/Animation/Saud/DT_SaudMotion.csv"))
+        {
+            if (Col.size() < 11 || Col[0] == "Name" || Col[8] == "true") continue;
+            const std::string& N = Col[0];
+            if (N.find("_Pair_") != std::string::npos || N.find("_Combo_") != std::string::npos) continue;
+            const float Len = static_cast<float>(std::atof(Col[4].c_str()));
+            EClip To = EClip::Guard; bool Known = false;
+            if (!Col[2].empty()) { To = EClip::Attack; Known = true; }
+            else for (EClip C : EveryClip) if (ClipSuffix(C)[0] && N == std::string("A_Saud_") + ClipSuffix(C)) { To = C; Known = true; }
+            if (!Known) continue;
+            ++Rows;
+            for (EClip A : EveryClip) for (bool R : { false, true })
+                if (CutBetween(A, To, R).Seconds > 0.25f * Len) { ++Long; std::printf("  %s: %.2f s cut into %.2f s\n", N.c_str(), CutBetween(A, To, R).Seconds, Len); }
+        }
+        Check(Rows >= 20 && Long == 0, "no cut takes more than a quarter of the clip it cuts into");
+    }
+    Check(Restarts(EClip::HitLight, true) && Restarts(EClip::Attack, true) && Restarts(EClip::DashFwd, true) && Restarts(EClip::Victory, true)
+          && !Restarts(EClip::Attack, false) && !Restarts(EClip::Guard, true) && !Restarts(EClip::WalkFwd, true) && !Restarts(EClip::Block, true),
+          "a second hit, jab, dash or win starts from its first frame; a loop never restarts");
+}
+
 int main()
 {
-    Blows(); Pad(); State(); Camera(); Flash(); Clips();
+    Blows(); Pad(); State(); Camera(); Flash(); Clips(); Cuts();
     std::printf(Fails ? "\n%d FAILED\n" : "\nall feel checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

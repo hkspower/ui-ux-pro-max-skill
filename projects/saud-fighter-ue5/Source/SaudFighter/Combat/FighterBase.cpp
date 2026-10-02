@@ -51,6 +51,10 @@ void AFighterBase::BeginPlay()
 	if (USkeletalMeshComponent* Body = GetMesh())
 	{
 		Body->SetRenderCustomDepth(true);
+		// The mesh poses after this fighter's Tick has turned and moved him
+		// this frame (FaceTowards, ClampToCircle), so the body's lag and a held
+		// foot are measured against the transform the frame is drawn with.
+		Body->AddTickPrerequisiteActor(this);
 	}
 
 	if (AbilitySystem)
@@ -593,9 +597,14 @@ void AFighterBase::Celebrate()
 	{
 		return;
 	}
-	// set even mid-swing: the clip picker shows it once he stands free
+	// set even mid-swing: the clip picker shows it once he stands free. The
+	// serial moves only for a man standing free, to start a win already
+	// showing again; a swing, a reel or a dash in progress is not restarted.
 	VictoryRemaining = SaudFeel::VictorySeconds;
-	++MotionSerial;
+	if (!IsBusy() && State != EFighterState::Dash)
+	{
+		++MotionSerial;
+	}
 }
 
 void AFighterBase::OnDeath()

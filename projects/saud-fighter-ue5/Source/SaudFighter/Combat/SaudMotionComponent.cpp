@@ -28,6 +28,13 @@ void USaudMotionComponent::BeginPlay()
 	{
 		Mesh->SetAnimInstanceClass(USaudMotionAnimInstance::StaticClass());
 	}
+	// Posed once now, so his first drawn frame is his guard and not the bind
+	// pose: the update pulls PlayPicked.
+	if (Driver())
+	{
+		Mesh->TickAnimation(0.f, false);
+		Mesh->RefreshBoneTransforms();
+	}
 }
 
 USaudMotionAnimInstance* USaudMotionComponent::Driver() const
@@ -41,12 +48,29 @@ void USaudMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
                                          FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	// Our anim instance pulls the pick itself; a Blueprint's is handed it here.
+	if (!Driver())
+	{
+		PlayPicked();
+	}
+}
 
+void USaudMotionComponent::PlayPicked()
+{
 	AFighterBase* Fighter = Cast<AFighterBase>(GetOwner());
 	USkeletalMeshComponent* Mesh = Fighter ? Fighter->GetMesh() : nullptr;
 	if (!bDriveMesh || !Mesh || !Mesh->GetSkeletalMeshAsset())
 	{
 		return;
+	}
+	USaudMotionAnimInstance* Inst = Driver();
+	// A new anim instance, or a new set of clips: everything is sent again.
+	if (Inst != ShownOn.Get() || Fighter->MotionSet != PlayingSet)
+	{
+		ShownOn = Inst;
+		PlayingSet = Fighter->MotionSet;
+		PlayingName = NAME_None;
+		bShown = false;
 	}
 
 	SaudFeel::FMotionInput In;
@@ -60,7 +84,10 @@ void USaudMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	const FVector Vel = Fighter->GetVelocity();
 	const FVector Flat(Vel.X, Vel.Y, 0.f);
 	In.Speed = Flat.Size();
-	In.Facing = Fighter->GetFacing();
+	// The way the body is drawn facing, so a walk or a dash is picked against
+	// the body the player sees while it comes round after a snapped facing.
+	const FVector Shown = Inst ? Inst->GetShownFacing() : FVector::ZeroVector;
+	In.Facing = Shown.IsNearlyZero() ? Fighter->GetFacing() : Shown;
 	In.Heading = Flat.IsNearlyZero() ? In.Facing : Flat.GetSafeNormal();
 
 	const SaudFeel::EClip Clip = SaudFeel::Pick(In);
@@ -73,7 +100,8 @@ void USaudMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	}
 
 	const FName Key(*Name);
-	if (Key == PlayingName && Fighter->MotionSerial == PlayingSerial)
+	const bool bSerialMoved = Fighter->MotionSerial != PlayingSerial;
+	if (Key == PlayingName && !bSerialMoved)
 	{
 		return;
 	}
@@ -84,17 +112,23 @@ void USaudMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 		// a set built before the reactions by blow: the old hit, or Down
 		Seq = Find(Fighter->MotionSet, FString(ANSI_TO_TCHAR(SaudFeel::ClipSuffix(SaudFeel::Fallback(Clip)))));
 	}
-	const bool bRestart = Key == PlayingName;      // the same clip, a fresh serial
+	// a second jab, hit, dash or win from its first frame, even while the
+	// first still fades; a loop never restarts
+	const bool bRestart = SaudFeel::Restarts(Clip, bSerialMoved);
 	PlayingName = Key;
 	PlayingSerial = Fighter->MotionSerial;
 	if (!Seq)
 	{
 		return;
 	}
-	if (USaudMotionAnimInstance* Inst = Driver())
+	if (Inst)
 	{
-		// Ours: the clip, and the IK over it (SaudMotionAnimInstance).
-		Inst->Play(Seq, SaudFeel::Loops(Clip), bRestart);
+		// Ours: the clip over a crossfade, and the IK over it. The first clip
+		// a man shows comes in whole.
+		const SaudFeel::FCut Cut = bShown ? SaudFeel::CutBetween(ShownClip, Clip, bRestart) : SaudFeel::FCut();
+		Inst->Play(Seq, SaudFeel::Loops(Clip), bRestart, Cut.Seconds, Cut.bMatchPhase);
+		ShownClip = Clip;
+		bShown = true;
 	}
 	else
 	{

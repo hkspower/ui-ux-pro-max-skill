@@ -62,4 +62,5 @@ namespace FMath
     inline float Acos(float V) { return std::acos(V < -1.f ? -1.f : (V > 1.f ? 1.f : V)); }
     inline float Lerp(float A, float B, float T) { return A + (B - A) * T; }
     inline bool IsNearlyEqual(float A, float B, float Tol = 1e-4f) { return std::fabs(A - B) <= Tol; }
+    inline float Fmod(float A, float B) { return std::fmod(A, B); }
 }

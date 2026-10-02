@@ -38,7 +38,9 @@ class UAnimSequence;
  *
  * A clip is never forced on anything already playing it, except when the
  * fighter's MotionSerial moves -- a second jab, a second hit -- which starts
- * it again from its first frame.
+ * it again from its first frame. Since 2026-10-02 one clip gives way to the
+ * next on a crossfade (SaudFeel::CutBetween), and the anim instance pulls
+ * the pick at the top of its own update, so the clip is this frame's.
  */
 UCLASS(ClassGroup = (Saud), meta = (BlueprintSpawnableComponent))
 class SAUDFIGHTER_API USaudMotionComponent : public UActorComponent
@@ -56,6 +58,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Motion")
 	FName GetPlayingClip() const { return PlayingName; }
 
+	/** Hands the mesh the clip the fighter's state calls for. Pulled by
+	    USaudMotionAnimInstance at the top of each of its updates, so the clip
+	    is this frame's; ticked here only for a Blueprint's own Animation
+	    Blueprint. */
+	void PlayPicked();
+
 	/** Set false to leave the mesh to an Animation Blueprint instead. With
 	    it on, the mesh runs USaudMotionAnimInstance -- the clip plus the
 	    runtime IK -- unless a Blueprint gave it an Animation Blueprint of
@@ -72,6 +80,13 @@ private:
 
 	FName PlayingName = NAME_None;
 	uint32 PlayingSerial = 0;
+	/** The set the playing clip is from: AWaveDirector names a man's set
+	    after he is made, and a new set is sent again whole. */
+	FName PlayingSet = NAME_None;
+	/** The clip last handed to our anim instance, for the cut out of it. */
+	SaudFeel::EClip ShownClip = SaudFeel::EClip::Guard;
+	bool bShown = false;
+	TWeakObjectPtr<USaudMotionAnimInstance> ShownOn;
 
 	/** The mesh's anim instance when it is ours; null when a Blueprint's. */
 	USaudMotionAnimInstance* Driver() const;
