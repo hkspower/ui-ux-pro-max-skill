@@ -10,7 +10,8 @@
  * not at the reach the clip was posed to. So, over the played clips, four
  * things are solved each frame (USaudMotionAnimInstance applies them):
  *
- *   feet     each foot the clip has on the floor is held where it landed
+ *   feet     each foot the clip has on the floor -- by the clip's own
+ *            measured plants (SaudPlants.h) -- is held where it landed
  *            in the world, and steps after the man when he has moved 12 cm
  *            off it; it stands on the ground under its heel and its ball,
  *            rolls onto the ball when the leg is short, its toes on the
@@ -37,6 +38,7 @@
 	#include "CoreMinimal.h"
 #endif
 #include "SaudArena.h"
+#include "SaudPlants.h"
 
 namespace SaudIK
 {
@@ -341,8 +343,10 @@ namespace SaudIK
 	    drag the foot. */
 	constexpr float HoldReach = 0.985f;
 	/** Seconds to hand a foot back to the clip when the clip lifts it: inside
-	    the first third of the shortest swing (the walk's 0.37 s). */
-	constexpr float ReleaseSeconds = 0.10f;
+	    the first third of the shortest swing the clips have -- the side
+	    walks' 0.27 s, measured (SaudPlants.h); it was 0.10 s, against a
+	    0.37 s walk that was never measured. */
+	constexpr float ReleaseSeconds = 0.08f;
 	/** Seconds and height of a step the foot takes on its own: a shuffle, not
 	    a stride. */
 	constexpr float StepSeconds = 0.14f;
@@ -403,6 +407,13 @@ namespace SaudIK
 	    floor, not yet rising into its swing, whose first frames move slower. */
 	constexpr float StrideFloorHeight = 0.5f;
 
+	/** A foot is down when this share of the clips playing have it down by
+	    their measured plants (SaudPlants.h, see MixDown), and up again under
+	    MixDownOff: through a crossfade from a planted clip to a swinging one
+	    it changes its mind once. */
+	constexpr float MixDownOn = 0.6f;
+	constexpr float MixDownOff = 0.4f;
+
 	/** One foot's hold on the ground. */
 	struct FFootHold
 	{
@@ -455,11 +466,13 @@ namespace SaudIK
 	}
 
 	/** One frame of both feet's holds. Raw: where the clip has each ball,
-	    mesh space; Lift: its height over its rest height; bAllowed: the
-	    ground may have it (wanted, not the strike's); bHold: a hold can
-	    keep what this clip does (see HoldsFeet); Size: his leg over Saud's. */
+	    mesh space; Lift: its height over its rest height; Measured: the
+	    clips' measured share of each foot down (MixDown), or -1 where they
+	    are not measured and the heights decide; bAllowed: the ground may
+	    have it (wanted, not the strike's); bHold: a hold can keep what this
+	    clip does (see HoldsFeet); Size: his leg over Saud's. */
 	inline void StepHolds(FFootHold (&H)[2], const FBasis& Mesh, const FVector (&Raw)[2], const float (&Lift)[2],
-	                      const bool (&bAllowed)[2], bool bHold, float Size, float Dt)
+	                      const float (&Measured)[2], const bool (&bAllowed)[2], bool bHold, float Size, float Dt)
 	{
 		for (int S = 0; S < 2; ++S)
 		{
@@ -474,7 +487,9 @@ namespace SaudIK
 		for (int S = 0; S < 2; ++S)
 		{
 			FFootHold& F = H[S];
-			F.bDown = Lift[S] - Floor <= (F.bDown ? BallUpHeight : BallDownHeight) && Lift[S] <= BallRestBand;
+			F.bDown = Measured[S] >= 0.f
+				? Measured[S] >= (F.bDown ? MixDownOff : MixDownOn)
+				: Lift[S] - Floor <= (F.bDown ? BallUpHeight : BallDownHeight) && Lift[S] <= BallRestBand;
 		}
 		float Drift[2] = { 0.f, 0.f };
 		for (int S = 0; S < 2; ++S)
@@ -579,6 +594,22 @@ namespace SaudIK
 		return M.Clip == ClipSerial && M.bValid && M.Speed >= StrideMinSpeed;
 	}
 
+	/** StrideRate from a clip's measured stride (SaudPlants::FClip::Stride,
+	    cm per second of the clip): no meter to fill, so a walk is at the
+	    man's pace from its first frame. */
+	inline float StrideRateMeasured(float GroundSpeed, float ClipStride, float Scale)
+	{
+		if (ClipStride < StrideMinSpeed) return 1.f;
+		return FMath::Clamp(GroundSpeed / (ClipStride * Scale), StrideRateMin, StrideRateMax);
+	}
+
+	/** HoldsFeet from a clip's measured stride: a clip that walks holds its
+	    feet as the man moves; one that does not (the Block walked) glides. */
+	inline bool HoldsFeetMeasured(bool bAttacking, bool bStanding, float ClipStride)
+	{
+		return bAttacking || bStanding || ClipStride >= StrideMinSpeed;
+	}
+
 	/** One trace's answer, in the mesh's space. */
 	struct FGroundPoint
 	{
@@ -615,6 +646,7 @@ namespace SaudIK
 		FFootIn Foot[2];
 		int ClipSerial = 0;
 		float ClipTime = 0.f;
+		float Down[2] = { -1.f, -1.f };   // the clips' measured share of each foot down (MixDown); -1 unmeasured
 	};
 
 	struct FFeetState
@@ -728,7 +760,7 @@ namespace SaudIK
 			Lift[S] = In.Foot[S].Ball.Z - In.Foot[S].BallRest;
 			bAllowed[S] = In.bWanted && !In.Foot[S].bStrike;
 		}
-		StepHolds(St.Hold, In.Mesh, Raw, Lift, bAllowed, In.bHold, Size, Dt);
+		StepHolds(St.Hold, In.Mesh, Raw, Lift, In.Down, bAllowed, In.bHold, Size, Dt);
 		if (!In.bBlending) MeasureStride(St.Stride, In.ClipSerial, In.ClipTime, Raw, Lift);
 		const bool bKnown = St.bKnown;
 
@@ -1695,5 +1727,43 @@ namespace SaudIK
 	{
 		const float Sum = Under + Weight;
 		return Sum > 1e-6f ? Weight / Sum : 0.f;
+	}
+
+	// ---------------------------------------------------- the clips' plants
+
+	/** Whether a measured clip has a foot on the floor -- on its ball or
+	    flat -- at a time: the frame nearest the time (SaudPlants::Fps), a
+	    loop wrapping round, a one-shot holding its ends. Foot 0 left, 1 right. */
+	inline bool ClipFootDown(const SaudPlants::FClip& C, int Foot, float Time, bool bLoop)
+	{
+		if (C.Frames <= 0) return false;
+		int F = static_cast<int>(FMath::Max(0.f, Time) * SaudPlants::Fps + 0.5f);
+		F = bLoop ? F % C.Frames : (F < C.Frames ? F : C.Frames - 1);
+		return C.Foot[Foot][F] != '.';
+	}
+
+	/** How much of the mix has each foot down, by the measured plants of the
+	    clips in it and their weights. Plants: for each engine clip number,
+	    its measured plants or null. Where less than half the mix is
+	    measured, both are -1 and the heights decide (StepHolds). */
+	inline void MixDown(const FCrossfade& Mix, const SaudPlants::FClip* const* Plants, int NumPlants, float (&Out)[2])
+	{
+		float Known = 0.f;
+		float Down[2] = { 0.f, 0.f };
+		for (int I = 0; I < Mix.Num; ++I)
+		{
+			const FLayer& L = Mix.Layers[I];
+			const SaudPlants::FClip* P = L.Clip >= 0 && L.Clip < NumPlants ? Plants[L.Clip] : nullptr;
+			if (!P) continue;
+			Known += L.Weight;
+			for (int S = 0; S < 2; ++S)
+			{
+				if (ClipFootDown(*P, S, L.Time, L.bLoop)) Down[S] += L.Weight;
+			}
+		}
+		for (int S = 0; S < 2; ++S)
+		{
+			Out[S] = Known >= 0.5f ? Down[S] / Known : -1.f;
+		}
 	}
 }

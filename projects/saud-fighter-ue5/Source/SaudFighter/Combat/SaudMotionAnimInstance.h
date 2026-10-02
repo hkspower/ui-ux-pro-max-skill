@@ -34,6 +34,9 @@ struct FSaudIKFrame
 	int32 ClipSerial = 0;
 	float ClipTime = 0.f;
 	double Clock = 0.0;                          // the clips' clock: the world's seconds, real under the title
+	// Each foot's share down by the playing clips' measured plants
+	// (SaudIK::MixDown, SaudPlants.h); -1 where they are not measured.
+	float ClipDown[2] = { -1.f, -1.f };
 
 	// The mesh in the world, the world's up in its space, the capsule's axis,
 	// and his size against Saud's (SaudIK::BodyScale).
@@ -188,6 +191,13 @@ private:
 	    reads a collected clip. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UAnimSequence>> Clips;
+
+	/** Each of Clips' measured plants (SaudPlants::Find by its asset name),
+	    or null for a clip measure_plants.py has not measured. Static data. */
+	TArray<const SaudPlants::FClip*> ClipPlants;
+
+	/** The newest clip's measured plants, or null. */
+	const SaudPlants::FClip* NewestPlants() const;
 
 	SaudIK::FCrossfade Fade;
 	double Clock = 0.0;

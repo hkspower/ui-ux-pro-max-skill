@@ -156,6 +156,8 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 	In.Velocity = Frame.Velocity;
 	In.ClipSerial = Frame.ClipSerial;
 	In.ClipTime = Frame.ClipTime;
+	In.Down[0] = Frame.ClipDown[0];
+	In.Down[1] = Frame.ClipDown[1];
 	FLegBones Legs[2];
 	bool bLegs = true;
 	for (int32 S = 0; S < 2; ++S)
@@ -428,6 +430,7 @@ void USaudMotionAnimInstance::NativeInitializeAnimation()
 	Super::NativeInitializeAnimation();
 	Frame = FSaudIKFrame();
 	Clips.Reset();
+	ClipPlants.Reset();
 	Fade = SaudIK::FCrossfade();
 	Clock = 0.0;
 	bMeasured = false;
@@ -457,8 +460,15 @@ void USaudMotionAnimInstance::Play(UAnimSequence* Sequence, bool bLoop, bool bRe
 	if (Id == INDEX_NONE)
 	{
 		Id = Clips.Add(Sequence);
+		// its measured feet, by the asset's name (A_Saud_Walk_Fwd): the two arrays stay in step
+		ClipPlants.Add(SaudPlants::Find(TCHAR_TO_ANSI(*Sequence->GetName())));
 	}
 	Fade.Play(Id, Sequence->GetPlayLength(), bLoop, bRestart, CutSeconds, bMatchPhase);
+}
+
+const SaudPlants::FClip* USaudMotionAnimInstance::NewestPlants() const
+{
+	return Fade.Num > 0 && ClipPlants.IsValidIndex(Fade.Layers[0].Clip) ? ClipPlants[Fade.Layers[0].Clip] : nullptr;
 }
 
 UAnimSequence* USaudMotionAnimInstance::GetPlaying() const
@@ -496,13 +506,23 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 		Fighter->Motion->PlayPicked();
 	}
 
-	// A looping walk at the pace the man moves (SaudIK::StrideRate).
+	// A looping walk at the pace the man moves: by the clip's measured stride
+	// (SaudPlants) from its first frame, or else by what the proxy's stride
+	// meter has read of it (SaudIK::StrideRate).
 	float Rate = 1.f;
-	if (Fighter && Mesh && Fade.Num > 0 && Fade.Layers[0].bLoop && Back.Stride.Clip == Fade.Serial)
+	if (Fighter && Mesh && Fade.Num > 0 && Fade.Layers[0].bLoop)
 	{
 		const FVector V = Fighter->GetVelocity();
-		Rate = SaudIK::StrideRate(static_cast<float>(FVector(V.X, V.Y, 0.f).Size()), Back.Stride,
-		                          static_cast<float>(Mesh->GetComponentScale().X));
+		const float Ground = static_cast<float>(FVector(V.X, V.Y, 0.f).Size());
+		const float Scale = static_cast<float>(Mesh->GetComponentScale().X);
+		if (const SaudPlants::FClip* P = NewestPlants())
+		{
+			Rate = SaudIK::StrideRateMeasured(Ground, P->Stride, Scale);
+		}
+		else if (Back.Stride.Clip == Fade.Serial)
+		{
+			Rate = SaudIK::StrideRate(Ground, Back.Stride, Scale);
+		}
 	}
 	Fade.Advance(DeltaSeconds, Rate);
 	Clock += DeltaSeconds;
@@ -520,6 +540,7 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 	}
 	Frame.ClipSerial = Fade.Serial;
 	Frame.ClipTime = Fade.Num > 0 ? Fade.Layers[0].Time : 0.f;
+	SaudIK::MixDown(Fade, ClipPlants.GetData(), ClipPlants.Num(), Frame.ClipDown);
 
 	// With no fighter or mesh nothing is solved: the proxy eases the feet out.
 	Frame.bFeetWanted = false;
@@ -604,7 +625,10 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 	Frame.bTeleported = bTeleported;
 	Frame.Velocity = FVector(Vel.X, Vel.Y, 0.f);
 	const bool bAttacking = St == EFighterState::Attack;
-	Frame.bHoldFeet = SaudIK::HoldsFeet(bAttacking, Frame.Velocity.Size() < SaudFeel::WalkThreshold, Back.Stride, Fade.Serial);
+	const bool bStanding = Frame.Velocity.Size() < SaudFeel::WalkThreshold;
+	const SaudPlants::FClip* Newest = NewestPlants();
+	Frame.bHoldFeet = Newest ? SaudIK::HoldsFeetMeasured(bAttacking, bStanding, Newest->Stride)
+	                         : SaudIK::HoldsFeet(bAttacking, bStanding, Back.Stride, Fade.Serial);
 
 	// The leg an attack is thrown with is the strike's from its first frame: never held.
 	Frame.StrikeLeg = -1;

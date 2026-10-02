@@ -15,6 +15,7 @@
 #include "../../../Source/SaudFighter/Combat/SaudIK.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <cmath>
 #include <functional>
@@ -1606,9 +1607,251 @@ static void Crossfade()
     }
 }
 
+// ------------------------------------------------------------------ plants
+
+/** One CSV line into fields, quotes honoured (DT_Fighters' Moves column). */
+static std::vector<std::string> CsvFields(const std::string& Line)
+{
+    std::vector<std::string> Out(1);
+    bool bQuoted = false;
+    for (size_t I = 0; I < Line.size(); ++I)
+    {
+        const char C = Line[I];
+        if (C == '"') { if (bQuoted && I + 1 < Line.size() && Line[I + 1] == '"') { Out.back() += '"'; ++I; } else bQuoted = !bQuoted; }
+        else if (C == ',' && !bQuoted) Out.emplace_back();
+        else if (C != '\r' && C != '\n') Out.back() += C;
+    }
+    return Out;
+}
+
+/** A CSV as rows of name -> field. */
+static std::vector<std::map<std::string, std::string>> ReadCsv(const char* Path)
+{
+    std::vector<std::map<std::string, std::string>> Rows;
+    const std::string All = Slurp(Path);
+    std::vector<std::string> Head;
+    size_t At = 0;
+    while (At < All.size())
+    {
+        size_t End = All.find('\n', At);
+        if (End == std::string::npos) End = All.size();
+        const std::string Line = All.substr(At, End - At);
+        At = End + 1;
+        if (Line.empty() || Line == "\r") continue;
+        const std::vector<std::string> F = CsvFields(Line);
+        if (Head.empty()) { Head = F; continue; }
+        std::map<std::string, std::string> R;
+        for (size_t I = 0; I < Head.size() && I < F.size(); ++I) R[Head[I]] = F[I];
+        Rows.push_back(R);
+    }
+    return Rows;
+}
+
+/** How many runs of down (or of air) a foot's frames make, round the loop. */
+static int Runs(const char* Foot, int N, bool bDown)
+{
+    int R = 0;
+    for (int I = 0; I < N; ++I)
+    {
+        const bool Here = (Foot[I] != '.') == bDown, Before = (Foot[(I + N - 1) % N] != '.') == bDown;
+        if (Here && !Before) ++R;
+    }
+    return R;
+}
+
+/** The longest run of down (or of air) round the loop, in frames. */
+static int Longest(const char* Foot, int N, bool bDown)
+{
+    int Best = 0;
+    for (int I = 0; I < N; ++I)
+    {
+        int L = 0;
+        while (L < N && ((Foot[(I + L) % N] != '.') == bDown)) ++L;
+        Best = L > Best ? L : Best;
+    }
+    return Best;
+}
+
+/** The middle of the one run of down round the loop, as a share of it. */
+static float MiddleOfDown(const char* Foot, int N)
+{
+    int Start = -1;
+    for (int I = 0; I < N; ++I) if (Foot[I] != '.' && Foot[(I + N - 1) % N] == '.') { Start = I; break; }
+    if (Start < 0) return 0.f;
+    int L = 0;
+    while (L < N && Foot[(Start + L) % N] != '.') ++L;
+    return std::fmod((Start + 0.5f * (L - 1)) / N, 1.f);
+}
+
+static bool EndsWith(const std::string& S, const char* Tail)
+{
+    const size_t T = std::strlen(Tail);
+    return S.size() >= T && S.compare(S.size() - T, T, Tail) == 0;
+}
+
+static void Plants()
+{
+    std::printf("PLANTS  (every clip's feet on the floor, measured from the clips: SaudPlants.h)\n");
+
+    // ---- the table is every clip, frame for frame, and sorted for Find
+    const char* Manifests[] = { "Content/Animation/Saud/DT_SaudMotion.csv", "Content/Animation/Street/DT_StreetMotion.csv",
+                                "Content/Animation/Bosses/DT_BossMotion.csv" };
+    std::vector<std::map<std::string, std::string>> Clips;
+    for (const char* M : Manifests) { const auto R = ReadCsv(M); Clips.insert(Clips.end(), R.begin(), R.end()); }
+    int Missing = 0, WrongFrames = 0;
+    for (const auto& R : Clips)
+    {
+        const SaudPlants::FClip* P = SaudPlants::Find(R.at("Name").c_str());
+        if (!P) { ++Missing; std::printf("  %s: not measured\n", R.at("Name").c_str()); continue; }
+        const int N = std::atoi(R.at("Frames").c_str());
+        if (P->Frames != N || (int)std::strlen(P->Foot[0]) != N || (int)std::strlen(P->Foot[1]) != N) ++WrongFrames;
+    }
+    std::printf("  %d clips in the manifests, %d measured\n", (int)Clips.size(), SaudPlants::NumClips);
+    Check(Clips.size() == 197 && (int)Clips.size() == SaudPlants::NumClips && Missing == 0 && WrongFrames == 0,
+          "every clip in Content/Animation is measured, frame for frame");
+    bool bSorted = true;
+    for (int I = 1; I < SaudPlants::NumClips; ++I) bSorted = bSorted && std::strcmp(SaudPlants::Clips[I - 1].Name, SaudPlants::Clips[I].Name) < 0;
+    int Found = 0;
+    for (int I = 0; I < SaudPlants::NumClips; ++I) Found += SaudPlants::Find(SaudPlants::Clips[I].Name) == &SaudPlants::Clips[I];
+    Check(bSorted && Found == SaudPlants::NumClips && !SaudPlants::Find("A_Saud_Moonwalk"), "...and every one is found by its name");
+
+    // ---- what the measurements say, held to what the clips are
+    int Guards = 0, BadGuards = 0, Walks = 0, BadWalks = 0, Legs = 0, BadLegs = 0, Punches = 0, BadPunches = 0, SideWalks = 0;
+    float SideApart = 0.f;
+    float ShortestSwing = 1e9f, SlowestWalk = 1e9f, FastestStill = 0.f;
+    for (const auto& R : Clips)
+    {
+        const std::string& Name = R.at("Name");
+        const SaudPlants::FClip* P = SaudPlants::Find(Name.c_str());
+        if (!P) continue;
+        const int N = P->Frames;
+        const bool bLoop = R.at("bLoop") == "true";
+        if (EndsWith(Name, "_Guard") || EndsWith(Name, "_Block"))
+        {
+            ++Guards;
+            if (std::strchr(P->Foot[0], '.') || std::strchr(P->Foot[1], '.')) { ++BadGuards; std::printf("  %s: a foot leaves the floor\n", Name.c_str()); }
+        }
+        if (Name.find("_Walk_") != std::string::npos)
+        {
+            ++Walks;
+            const bool bOnce = Runs(P->Foot[0], N, true) == 1 && Runs(P->Foot[1], N, true) == 1;
+            const float Apart = std::fabs(MiddleOfDown(P->Foot[0], N) - MiddleOfDown(P->Foot[1], N));
+            const float Half = std::fmin(Apart, 1.f - Apart);
+            // the side walks hop: both feet down together, then up together
+            // (the clips' own gait, measured and left as it is -- CLAUDE.md)
+            const bool bSide = Name.find("_Walk_Left") != std::string::npos || Name.find("_Walk_Right") != std::string::npos;
+            if (bSide) { ++SideWalks; SideApart = std::fmax(SideApart, Half); }
+            else if (!bOnce || Half < 0.30f) { ++BadWalks; std::printf("  %s: the feet do not take turns (%.2f of a cycle apart)\n", Name.c_str(), Half); }
+            for (int S = 0; S < 2; ++S) ShortestSwing = std::fmin(ShortestSwing, Longest(P->Foot[S], N, false) / SaudPlants::Fps);
+            SlowestWalk = std::fmin(SlowestWalk, P->Stride);
+        }
+        else if (bLoop) FastestStill = std::fmax(FastestStill, P->Stride);
+        const std::string& Move = R.at("Attack");
+        const int Contact = std::atoi(R.at("ContactFrame").c_str());
+        if ((Move == "Kick" || Move == "Knee" || Move == "Special") && Contact >= 0 && Contact < N)
+        {
+            ++Legs;
+            if (P->Foot[1][Contact] != '.' || std::strchr(P->Foot[0], '.')) { ++BadLegs; std::printf("  %s: the strike's leg is not up at contact, or the other leaves the floor\n", Name.c_str()); }
+        }
+        if ((Move == "Jab" || Move == "Cross" || Move == "Hook") && Contact >= 0 && Contact < N)
+        {
+            ++Punches;
+            if (P->Foot[0][Contact] == '.' || P->Foot[1][Contact] == '.') { ++BadPunches; std::printf("  %s: a foot is off the floor as the punch lands\n", Name.c_str()); }
+        }
+    }
+    std::printf("  %d guards and blocks, %d walks, %d leg strikes, %d punches; shortest walk swing %.2f s, slowest walk %.0f cm/s\n",
+                Guards, Walks, Legs, Punches, ShortestSwing, SlowestWalk);
+    Check(Guards == 10 && BadGuards == 0, "every guard and block stands on both feet, every frame");
+    std::printf("  the %d side walks hop: their feet at most %.2f of a cycle apart (the clips' own gait)\n", SideWalks, SideApart);
+    Check(Walks == 20 && SideWalks == 10 && BadWalks == 0, "every walk forward and back puts each foot down once a cycle, the two in turn");
+    Check(Legs >= 12 && BadLegs == 0, "every kick and knee has its leg up as it lands, on the other foot");
+    Check(Punches >= 12 && BadPunches == 0, "every punch lands with both feet on the floor");
+
+    // ---- the numbers the hold runs on, against the measured clips
+    Check(ReleaseSeconds <= ShortestSwing / 3.f, "a foot is handed back inside the first third of the shortest walk swing");
+    Check(StepSeconds < ShortestSwing, "a shuffle step is quicker than any walk's own swing");
+    Check(FastestStill < StrideMinSpeed && StrideMinSpeed <= SlowestWalk, "every walk strides faster than StrideMinSpeed, and nothing else that loops does");
+    {
+        // each man's own move speed walks his clips inside the rate band:
+        // his own set if he has walks, else the street men's
+        int Men = 0, Outside = 0;
+        for (const auto& R : ReadCsv("Content/Data/DT_Fighters.csv"))
+        {
+            const std::string& Name = R.at("Name");
+            const SaudPlants::FClip* Own = SaudPlants::Find(("A_" + Name + "_Walk_Fwd").c_str());
+            const SaudPlants::FClip* W = Own ? Own : SaudPlants::Find("A_Street_Walk_Fwd");
+            if (!W) { ++Outside; continue; }
+            ++Men;
+            const float Speed = (float)std::atof(R.at("MoveSpeed").c_str());
+            const float Rate = Speed / W->Stride;
+            if (Rate < StrideRateMin || Rate > StrideRateMax) { ++Outside; std::printf("  %s: %.0f cm/s is %.2f of his walk\n", Name.c_str(), Speed, Rate); }
+        }
+        Check(Men == 12 && Outside == 0, "every fighter's move speed walks his own clip inside the rate band");
+    }
+
+    // ---- the frame for a time: a loop wraps, a one-shot holds its ends
+    const SaudPlants::FClip* Walk = SaudPlants::Find("A_Saud_Walk_Fwd");
+    const SaudPlants::FClip* Kick = SaudPlants::Find("A_Saud_Kick");
+    if (!Walk || !Kick) { Check(false, "A_Saud_Walk_Fwd and A_Saud_Kick are measured"); return; }
+    // the walk: left down 0-6, up 7-16; right up 0-8, down 9-14
+    Check(ClipFootDown(*Walk, 0, 0.f, true) && !ClipFootDown(*Walk, 0, 10.f / 30.f, true) && ClipFootDown(*Walk, 1, 11.f / 30.f, true),
+          "a clip's foot is down or up as its measured frame says");
+    Check(ClipFootDown(*Walk, 0, 17.f / 30.f, true) && ClipFootDown(*Walk, 0, (17.f + 3.f) / 30.f, true) && !ClipFootDown(*Walk, 0, (17.f + 10.f) / 30.f, true),
+          "a loop's frames wrap round");
+    Check(ClipFootDown(*Kick, 1, 99.f, false) && !ClipFootDown(*Kick, 1, 5.f / 30.f, false) && ClipFootDown(*Kick, 1, -1.f, false),
+          "a one-shot holds its first and last frames");
+
+    // ---- the mix: the playing clips' plants by their weights
+    {
+        const SaudPlants::FClip* Plants[3] = { Walk, SaudPlants::Find("A_Saud_Guard"), nullptr };   // clip 2 is not measured
+        FCrossfade X;
+        X.Num = 2;
+        X.Layers[0].Clip = 0; X.Layers[0].Time = 10.f / 30.f; X.Layers[0].bLoop = true; X.Layers[0].Weight = 0.7f;   // the walk: left up
+        X.Layers[1].Clip = 1; X.Layers[1].Time = 0.f; X.Layers[1].bLoop = true; X.Layers[1].Weight = 0.3f;           // the guard: both down
+        float D[2];
+        MixDown(X, Plants, 3, D);
+        Check(Near(D[0], 0.3f) && Near(D[1], 1.f), "a crossfade has each foot down by its clips' weights");
+        X.Layers[1].Clip = 2;                                     // an unmeasured clip under the walk
+        MixDown(X, Plants, 3, D);
+        Check(Near(D[0], 0.f) && Near(D[1], 1.f), "...the measured part of the mix decides when most of it is measured");
+        X.Layers[0].Weight = 0.3f; X.Layers[1].Weight = 0.7f;
+        MixDown(X, Plants, 3, D);
+        Check(D[0] == -1.f && D[1] == -1.f, "...and the heights decide when most of it is not");
+    }
+
+    // ---- the hold, from the measured plants rather than the heights
+    {
+        Man M;
+        M.In.Down[0] = M.In.Down[1] = 1.f;
+        M.Run(0.3f);
+        M.In.Foot[0].Ball.Z += 3.f;          // the clip has the ball 3 cm up -- but measured down (a slope, a retarget)
+        M.Run(0.1f);
+        Check(M.St.Hold[0].bHeld, "a ball the clip says is down stays held, though it sits 3 cm over the other");
+        M.In.Foot[0].Ball.Z -= 3.f;          // flat again -- but the clip has lifted it
+        M.In.Down[0] = 0.f;
+        M.Run(1.f / 60.f);
+        Check(!M.St.Hold[0].bHeld, "a ball the clip says is up is let go, though it still touches the floor");
+        M.In.Down[0] = 0.5f;                 // half a crossfade: stays up
+        M.Run(0.1f);
+        const bool bStaysUp = !M.St.Hold[0].bHeld;
+        M.In.Down[0] = 1.f; M.Run(0.1f);
+        M.In.Down[0] = 0.5f; M.Run(0.1f);    // half a crossfade the other way: stays down
+        Check(bStaysUp && M.St.Hold[0].bHeld, "half way through a crossfade a foot keeps what it was: it changes its mind once");
+    }
+
+    // ---- the walk's pace and whether it holds, from the measured stride
+    Check(Near(StrideRateMeasured(504.f, 336.4f, 1.f), 504.f / 336.4f, 1e-3f) && Near(StrideRateMeasured(336.4f, 336.4f, 1.f), 1.f, 1e-4f),
+          "a walk is played at the man's pace from its first frame, by its measured stride");
+    Check(Near(StrideRateMeasured(672.8f, 336.4f, 2.f), 1.f, 1e-4f), "...the stride grown with the man drawn twice the size");
+    Check(StrideRateMeasured(300.f, 0.f, 1.f) == 1.f, "...and a clip that does not walk keeps its clock");
+    Check(HoldsFeetMeasured(false, false, Walk->Stride) && !HoldsFeetMeasured(false, false, 0.f)
+          && HoldsFeetMeasured(true, false, 0.f) && HoldsFeetMeasured(false, true, 0.f),
+          "a walk holds its feet as the man moves; a block walked glides; a swing or a stand holds");
+}
+
 int main()
 {
-    Solve(); Feet(); Held(); GroundTwo(); Stride(); Hands(); Contact(); Head(); Body(); Crossfade();
+    Solve(); Feet(); Held(); GroundTwo(); Stride(); Hands(); Contact(); Head(); Body(); Crossfade(); Plants();
     std::printf(Fails ? "\n%d FAILED\n" : "\nall IK checks passed\n", Fails);
     return Fails ? 1 : 0;
 }
