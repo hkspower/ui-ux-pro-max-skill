@@ -13,9 +13,10 @@
    every screen and it means the same thing every time.
 
    WHAT IS NOT HERE, on purpose: painting. The nine stage backdrops and their
-   lighting rigs (THEME in index.html), the fighters' kits (saud.js,
-   enemies.js) and the weapon materials (weapons.js) are art belonging to one
-   subject, not a scheme shared across the game. A sky gradient is not a
+   lighting rigs (themes.js, since 2026-10-02; how each place is drawn stays
+   in index.html), the fighters' kits (saud.js, enemies.js) and the weapon
+   materials (weapons.js) are art belonging to one subject, not a scheme
+   shared across the game. A sky gradient is not a
    token, and pretending it is would put nine unrelated skies in one list.
 
    Loaded as a plain script before the game, so it works opened straight off

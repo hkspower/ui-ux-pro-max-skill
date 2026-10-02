@@ -54,7 +54,7 @@ const cm1 = px => +(px * PX_TO_CM).toFixed(1);
    code path. */
 function loadAssets(){
   const names = ['saud','enemies','hits','talents','upgrades','weapons',
-                 'levels','world','stages','colors'];
+                 'levels','world','stages','colors','themes'];
   const win = {};
   for(const n of names){
     const path = join(WEB, 'assets', `${n}.js`);
@@ -69,7 +69,8 @@ function loadAssets(){
     saud:win.ASSET_SAUD, enemies:win.ASSET_ENEMIES, hits:win.ASSET_HITS,
     talents:win.ASSET_TALENTS, upgrades:win.ASSET_UPGRADES,
     weapons:win.ASSET_WEAPONS, levels:win.ASSET_LEVELS,
-    world:win.ASSET_WORLD, stages:win.ASSET_STAGES, colors:win.ASSET_COLORS
+    world:win.ASSET_WORLD, stages:win.ASSET_STAGES, colors:win.ASSET_COLORS,
+    themes:win.ASSET_THEMES
   };
 }
 
@@ -192,17 +193,68 @@ function gates(A){
    is how a person reads a palette, and flat here because that is how a table
    is looked up -- "State_Health" is one row name, not a walk down two objects.
    Both spellings are carried: the hex a designer recognises, and the sRGB
-   components FLinearColor::FromSRGBColor wants, so the engine parses nothing. */
+   components FLinearColor::FromSRGBColor wants, so the engine parses nothing.
+
+   Since 2026-10-02 ("add full color at data game") the table is every colour
+   the browser build's data holds, not the scheme alone -- the scheme's rows
+   first, as they were, then:
+     Theme   each place's sky (Sky0 top .. Sky2 horizon), ground (Ground0 far,
+             Ground1 near), fog, the lighting rig's key, fill and rim lights,
+             its toe and shoulder, the grade's three stops' colours, and its
+             clouds where it has them (themes.js)
+     Kit     every fighter's skin, top, bottom and band, and his hair, beard
+             and cap where he has them -- Saud first, then the archetypes in
+             enemies.js' order (saud.js, enemies.js)
+     Weapon  each weapon's colour and its tip (weapons.js)
+   The numbers beside a colour -- a light's direction and power, where a grade
+   stop sits, the clouds' count and drift -- are not colours and are not here.
+   The drawing in index.html still paints with colours of its own (a
+   skyline, an arcade, the boats): that is the drawing, not the data. */
 function colours(A){
   const header = ['Name','Group','Key','Css','Hex','R','G','B','A'];
-  const rows = [];
+  const rows = [], seen = new Set();
+  const add = (path, value, where) => {
+    const c = parseColour(value);
+    if(!c) die(`${where} is not a colour: ${value}`);
+    const parts = path.map(pascal), name = parts.join('_');
+    if(seen.has(name)) die(`two colours named ${name}`);
+    seen.add(name);
+    rows.push([name, parts[0], parts.join('.'), value, c.hex, c.r, c.g, c.b, c.a]);
+  };
   for(const [group, entries] of Object.entries(A.colors)){
     for(const [name, value] of Object.entries(entries)){
-      const c = parseColour(value);
-      if(!c) die(`colors.js: ${group}.${name} is not a colour: ${value}`);
-      const G = pascal(group), N = pascal(name);
-      rows.push([`${G}_${N}`, G, `${G}.${N}`, value, c.hex, c.r, c.g, c.b, c.a]);
+      add([group, name], value, `colors.js: ${group}.${name}`);
     }
+  }
+  for(const [theme, t] of Object.entries(A.themes)){
+    const at = m => `themes.js: ${theme}.${m}`;
+    const T = (n, v, m) => add(['theme', theme, n], v, at(m));
+    if(!Array.isArray(t.sky) || t.sky.length !== 3) die(at('sky') + ' wants three stops');
+    if(!Array.isArray(t.ground) || t.ground.length !== 2) die(at('ground') + ' wants two stops');
+    t.sky.forEach((v, i) => T('sky' + i, v, `sky[${i}]`));
+    t.ground.forEach((v, i) => T('ground' + i, v, `ground[${i}]`));
+    T('fog', t.fog, 'fog');
+    const r = t.rig || die(at('rig') + ' is missing');
+    T('keyLight', r.key.col, 'rig.key.col');
+    T('fillLight', r.fill.col, 'rig.fill.col');
+    T('rimLight', r.rim.col, 'rig.rim.col');
+    T('toe', r.toe, 'rig.toe');
+    T('shoulder', r.shoulder, 'rig.shoulder');
+    r.grade.forEach(([, v], i) => T('grade' + i, v, `rig.grade[${i}]`));
+    if(t.clouds) T('clouds', t.clouds.col, 'clouds.col');
+  }
+  const kit = (who, f, file) => {
+    for(const [n, v] of Object.entries(f.col)) add(['kit', who, n], v, `${file}: ${who}.col.${n}`);
+    // the colours among the look's switches: hair, beard, cap
+    for(const [n, v] of Object.entries(f.look || {})){
+      if(typeof v === 'string' && parseColour(v)) add(['kit', who, n], v, `${file}: ${who}.look.${n}`);
+    }
+  };
+  kit('saud', A.saud, 'saud.js');
+  for(const [k, e] of Object.entries(A.enemies)) kit(k, e, 'enemies.js');
+  for(const [k, w] of Object.entries(A.weapons)){
+    add(['weapon', k, 'col'], w.col, `weapons.js: ${k}.col`);
+    add(['weapon', k, 'tip'], w.tip, `weapons.js: ${k}.tip`);
   }
   return csv(header, rows);
 }

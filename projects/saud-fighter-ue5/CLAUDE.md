@@ -3574,6 +3574,54 @@ jagged sliver at the compression top's armhole in the guard render is
 the one already recorded (the decimation slivers on the straps and
 armpits), in the same place before and after.
 
+## Every colour in the data -- 2026-10-02
+
+Asked as "add full color at data game", settled with the author as the
+Unreal build and every colour into the data. `Content/Data/DT_Colors.csv`
+held the browser's scheme alone -- 58 interface colours -- because
+`assets/colors.js` leaves out, on purpose, what belongs to one subject:
+each place's sky and lighting, the fighters' kits, the weapons. Those were
+already data for the kits (`saud.js`, `enemies.js`) and the weapons
+(`weapons.js`), but the export dropped them, and the places' were not data
+at all: they lived in `THEME` in the browser's `index.html` beside the code
+that draws each place.
+
+**The browser** (`saud-fighter/`): each place's sky, ground, fog, lighting
+rig and clouds moved, comments and all, into a new `assets/themes.js`;
+`index.html` loads it (and fails loudly without it, as for every asset),
+keeps how each place is drawn, and merges the two into the same objects --
+data first, then drawing, the members in the order the one literal had.
+`sw.js` caches the new file (v30 -> v31). Proved identical, not assumed:
+every theme's data, every drawing function's source and every member order
+read back equal from the game before and after, and the nine backdrops
+drawn at three camera positions each are the same to the pixel (27 frames,
+largest difference 0; the same harness run twice on the old game first, to
+show it is deterministic); the game boots without a page or console error
+at phone, tablet and desktop sizes.
+
+**The export** (`Tools/export/export.mjs`): `DT_Colors.csv` is every colour
+the browser's data holds now, 255 rows -- the scheme's 58 first, byte for
+byte as they were, then `Theme_<Place>_*` (130: Sky0-2 top to horizon,
+Ground0-1 far to near, Fog, KeyLight, FillLight, RimLight, Toe, Shoulder,
+Grade0-2, and Clouds where a place has them), `Kit_<Fighter>_*` (61: skin,
+top, bottom, band, and hair, beard, cap where he has them; Saud first, then
+the eleven archetypes) and `Weapon_<Weapon>_Col` / `_Tip` (6). Same
+columns as before: the CSS spelling, the hex, sRGB components, alpha. The
+numbers beside a colour (a light's direction and power, where a grade stop
+sits, the clouds' count and drift) are not colours and are not in it. A
+missing or malformed colour, a sky without three stops, two rows with one
+name: the export dies naming it. `--check` passes; `config.json` carries
+the table as before.
+
+**Not here:** the colours the drawing itself paints with in `index.html`
+-- a place's skyline, arcade, boats and signs, and the rest of the game's
+drawing: 172 hex and 239 rgba literals left across the file (248 hex
+before the move). That is the drawing, not the data, and was not moved. **Not verified:**
+nothing in the Unreal game reads `DT_Colors.csv` -- it has no row struct
+and no consumer, as it had none before; the HUD, the menu and the anime
+look keep their own colours in C++ and the Blender tools. The Unity port
+is frozen and its exporter does not read `themes.js`.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
