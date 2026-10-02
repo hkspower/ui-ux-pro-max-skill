@@ -38,9 +38,12 @@ void ASaudPrologueGameMode::BeginPlay()
 	// not here: a player who quits at that first title has not been through
 	// it. Once the fight is on, a player who quits partway has still been
 	// here; the prologue is not a gate anything is locked behind.
+	// ?Start (2026-10-02): a NEW GAME confirmed on the title is the player
+	// choosing to fight now, so the title is not shown again in between.
 	if (USaudMenuSubsystem* Menu = USaudMenuSubsystem::Get(this))
 	{
-		if (UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt")).IsEmpty())
+		if (UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt")).IsEmpty()
+		    && !UGameplayStatics::HasOption(OptionsString, TEXT("Start")))
 		{
 			Menu->Open(SaudMenu::EScreen::Title);
 		}

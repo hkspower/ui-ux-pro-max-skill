@@ -81,8 +81,11 @@ struct FSoundCueDef : public FTableRowBase
  * sound of the game can be recast without a line of C++ changing, and a cue
  * whose asset is not there yet logs once and stays silent instead of failing.
  *
- * Three buses (effects, interface, music) each carry a volume the settings
- * screen owns; the profile's bSound and bMusic switches gate them.
+ * Three buses (effects, interface, music) each carry a volume from config;
+ * the profile's bSound and bMusic switches gate them, and since 2026-10-02
+ * its SoundVolume and MusicVolume levels (the settings screen's meters,
+ * 0..10) scale them: effects and the interface by the sound level, the
+ * music by the music level.
  */
 UCLASS(Config = Game)
 class SAUDFIGHTER_API USaudAudioSubsystem : public UGameInstanceSubsystem
@@ -119,7 +122,8 @@ public:
 	void StopMusic(float FadeSeconds = 0.5f);
 
 	/** The wanted music against the bMusic switch now: on -> playing, off
-	    -> stopped. The settings screen's MUSIC toggle. */
+	    -> stopped; and the music playing set to the music level now. The
+	    settings screen's MUSIC level. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	void RefreshMusic();
 
@@ -162,6 +166,9 @@ private:
 	const FSoundCueDef* Find(FName Cue);
 	USoundBase* Resolve(FName Cue, const FSoundCueDef& Row);
 	bool BusEnabled(ESoundBus Bus) const;
+	/** The profile's level for a bus, 0..1: the music level for music, the
+	    sound level for effects and the interface. */
+	float ProfileLevel(ESoundBus Bus) const;
 	void PlayResolved(FName Cue, const FSoundCueDef& Row, USoundBase* Sound,
 		const FVector* Location);
 

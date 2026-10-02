@@ -38,6 +38,13 @@ struct FInputActionValue;
  * through it (bTriggerWhenPaused on the actions) and this ticks through it
  * too, on real time, as the HUD does.
  *
+ * Since 2026-10-02 ("improve main menu game ux ui"): a hint line under
+ * the column, the stage reached on CONTINUE, QUIT and a NEW GAME over a
+ * save asked first (SaudMenu's Confirm screen), SOUND and MUSIC as levels
+ * (saved as FSaudProgress' SoundVolume / MusicVolume and scaling the
+ * audio subsystem's buses), held left/right repeating on a level, and the
+ * menu's motion -- the entrance and the focus glide -- on SaudMenu::Step.
+ *
  * The title is live since 2026-10-01: behind the menu the world is
  * Saud himself, in his guard where the level put him, framed by an
  * ASaudTitleCamera (Combat/SaudTitle.h's shot) sweeping slowly in front
@@ -100,6 +107,10 @@ private:
 	void EndTitleShot(bool bBlend);
 	/** His mesh and his motion component through the pause, on real time. */
 	static void KeepPosing(AFighterBase* Him, bool bOn);
+
+	/** NEW GAME, confirmed: the progress reset (the settings kept), saved,
+	    and the prologue opened straight into its fight. */
+	void StartNewGame();
 
 	// the bound handlers
 	void OnConfirm();

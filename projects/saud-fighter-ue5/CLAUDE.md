@@ -3622,6 +3622,66 @@ and no consumer, as it had none before; the HUD, the menu and the anime
 look keep their own colours in C++ and the Blender tools. The Unity port
 is frozen and its exporter does not read `themes.js`.
 
+## The main menu, easier to use -- 2026-10-02
+
+Asked as "improve main menu game ux ur", settled with the author as the
+Unreal build and all four of: clearer guidance, safe choices, fuller
+settings, smoother motion. All of it is in `Combat/SaudMenu.h` (the model
+and the drawing, engine-free) with the engine side in `Game/`.
+
+**Clearer guidance.** A hint line under the column says what the focused
+item does ("PICK UP WHERE YOU LEFT OFF", "HOW HARD THE STREETS HIT BACK";
+`EHint`, strings in `HintString`). CONTINUE carries where the save has got
+to, "STAGE r/9", on its plate. The Title's prompt strip now shows Back as
+"QUIT" (it was Denied there, and the strip offered no way out).
+
+**Safe choices.** A Confirm screen (`EScreen::Confirm`, `EAsk`): QUIT, and
+Back on the Title, ask "QUIT?" -- NO, STAY / YES, QUIT. With a save the
+Title is CONTINUE, NEW GAME, CONTROLS, SETTINGS, QUIT (before, a player
+with a save had no way to start over); NEW GAME asks "NEW GAME?" -- NO,
+KEEP MY SAVE / YES, START OVER, with "YOUR SAVE IS REPLACED. THERE IS NO
+UNDO" under it. NO is focused first, Back is NO. Yes on NEW GAME
+(`USaudMenuSubsystem::StartNewGame`) resets the progress but keeps the
+settings, saves, and opens `L_Prologue` with `?Start`, which its game mode
+reads as "fight now" rather than open the Title again.
+
+**Fuller settings.** SOUND and MUSIC are levels 0..10 (`LevelMax`), not
+switches: left and right step them (stopping at the ends, Denied there),
+held left/right repeats on them only (`RepeatsSideways`), a ten-segment
+meter sits on the plate, the label reads "SOUND  7" or "SOUND  OFF". The
+save gains `SoundVolume` / `MusicVolume` (default 10, so an older save is
+full volume); `bSound` / `bMusic` stay, off at level 0. The audio scales
+every cue and the music by level / 10, and a step on MUSIC sets the
+playing music at once.
+
+**Smoother motion,** on real time through `SaudMenu::Step` (the pause
+holds world time): the focus glides between plates in 0.18 s (a
+crossfade and a 14 px nudge, not a free cursor, so at rest it is exactly
+the old drawing; it jumps across the wrap and on opening a screen); on
+opening, the wash wipes in over 0.35 s, the heading fades, and the plates
+slide in from the left one after another (0.08 s, then 0.05 s apart, 0.30
+s each) -- all settled by 0.60 s, inside title-safe the whole way.
+
+**Checked** (`Tools/harness/tests/menu.cpp`, all pass): the items with and
+without a save, the confirm flows, Back on the Title, the levels' clamp
+and the Confirm's wrap, the repeat rule, the glide (glides, jumps across
+the wrap and on open), and on the drawn page at seven screen shapes: a
+hint under every column, the stage tag, the meters, the focus nudge, QUIT
+on the Title's strip; through the entrance: inside title-safe, the wipe
+grows, the plates move and arrive in order, and at 0.60 s the list equals
+the list at rest. 18 new sabotages in `bites.txt`, all caught.
+`menu_dump.cpp` takes `screen=confirm ask=quit|new stage= sound= music=
+focusfrom= focust=`; `menu_preview.py` adds `menu-confirm-quit.png`,
+`menu-confirm-new.png` and `menu-title-enter.png` (0.24 s in), and the
+Settings and 21:9 Title shots now show levels and the stage tag.
+
+**Not verified:** none of it has been compiled or run in an engine.
+`UGameplayStatics::HasOption`, `UAudioComponent::SetVolumeMultiplier` and
+`UTF8_TO_TCHAR` are written from memory of the API. The campaign's length
+(9) is the model's own number, not read from the stage table, which does
+not mark the survival stage apart. QUIT TO TITLE on the Pause is not
+asked about (it loses only the fight in progress); that was left as it was.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

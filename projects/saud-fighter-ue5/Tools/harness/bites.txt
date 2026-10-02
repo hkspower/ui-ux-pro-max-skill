@@ -105,3 +105,24 @@ title|Source/SaudFighter/Combat/SaudTitle.h|s#VFovDeg)) \* Aspect;#VFovDeg)) * (
 title|Source/SaudFighter/Combat/SaudTitle.h|s#S.Forward = Turn(To, -Off).GetSafeNormal();#S.Forward = Turn(To, -0.f * Off).GetSafeNormal();#|his middle stands where the menu leaves room
 title|Source/SaudFighter/Combat/SaudTitle.h|s#T / PeriodS);#T / PeriodS * 1.013f);#|the sweep loops without a jump
 title|Source/SaudFighter/Combat/SaudTitle.h|s#S.Eye = Feet + Out \* Fr.Dist#S.Eye = Out * Fr.Dist#|the shot is his, wherever he stands and whichever way he faces
+
+# ---- the menu's UX (2026-10-02, "improve main menu game ux ui"): guidance,
+# safe choices, levels, motion -- each new rule broken once
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Out.Text(EMenuText::Hint, #if (M.Clock < 0.f) Out.Text(EMenuText::Hint, #|one hint line says what the focused item does
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (List\[i\] == EItem::Continue && M.StageReached > 0)#if (List[i] == EItem::Continue \&\& M.StageReached > 99)#|CONTINUE carries the stage the save has reached
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#const int Lit = ValueOf(M, List\[i\]);#const int Lit = ValueOf(M, List[i]) / 2;#|SOUND and MUSIC are ten-segment meters
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#constexpr float FocusNudge = 14.f;#constexpr float FocusNudge = 0.f;#|at rest the focused plate stands 14 page px out of the column
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#constexpr float FocusGlideSeconds = 0.18f;#constexpr float FocusGlideSeconds = 0.60f;#|the focus glides to the next item over 0.18 s
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Detail::MoveFocus(M, (M.Focus + N - 1) % N, M.Focus == 0);#Detail::MoveFocus(M, (M.Focus + N - 1) % N, false);#|...and jumps across the wrap and when a screen opens
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#PlateStagger = 0.05f#PlateStagger = 0.12f#|is settled -- the page at rest -- by 0.6 s
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Arrive(M, PlateDelay + PlateStagger \* static_cast<float>(i), PlateArrive)#Arrive(M, PlateDelay + PlateStagger * static_cast<float>(4 - i), PlateArrive)#|the plates arrive one after another, top first
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#constexpr float SlideIn = 32.f;#constexpr float SlideIn = 80.f;#|the entrance stays inside title-safe the whole way in
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#- P.Px(SlideIn) \* (1.f - In);#+ P.Px(SlideIn) * (1.f - In);#|the wash wipes open and the plates slide in, never back
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#OpenAsk(M, EAsk::Quit);              // asked first#return EMenuEffect::QuitGame;              // asked first#|QUIT asks first, on NO
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#OpenAsk(M, EAsk::NewGame);           // a save would be lost#return EMenuEffect::NewGame;           // a save would be lost#|NEW GAME asks first, on NO
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Detail::OpenAsk(M, EAsk::Quit);#return EMenuEffect::Denied;#|Back on the Title asks to quit, on NO
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (!bWrap) return false;#if (bWrap \&\& !bWrap) return false;#|...and stops at the top, denied
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#I == EItem::Music);#I != EItem::Back);#|the difficulty does not repeat sideways
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#EMenuText::PromptQuit,#EMenuText::PromptBack,#|the Title's Back says QUIT
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Out\[1\] = EItem::NewGame;#Out[1] = EItem::Controls;#|Title with a save: CONTINUE, NEW GAME, CONTROLS, SETTINGS, QUIT
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Out\[0\] = EItem::ConfirmNo;#Out[0] = EItem::ConfirmYes;#|Confirm: NO first, and focused

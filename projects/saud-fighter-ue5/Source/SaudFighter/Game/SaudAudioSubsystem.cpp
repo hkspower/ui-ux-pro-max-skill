@@ -1,4 +1,5 @@
 #include "Game/SaudAudioSubsystem.h"
+#include "Combat/SaudMenu.h"
 
 #include "Components/AudioComponent.h"
 #include "Engine/GameInstance.h"
@@ -124,7 +125,7 @@ void USaudAudioSubsystem::PlayResolved(FName Cue, const FSoundCueDef& Row, USoun
 	}
 	LastPlayed.Add(Cue, Now);
 
-	const float Volume = Row.Volume * GetBusVolume(Row.Bus);
+	const float Volume = Row.Volume * GetBusVolume(Row.Bus) * ProfileLevel(Row.Bus);
 	const float Pitch  = FMath::FRandRange(FMath::Min(Row.PitchMin, Row.PitchMax),
 		FMath::Max(Row.PitchMin, Row.PitchMax));
 
@@ -173,7 +174,8 @@ void USaudAudioSubsystem::PlayMusic(FName Cue)
 	// a level transition: a new world starts its own (BeginFight / the
 	// title). CreateSound2D under this marks it a UI sound, so it keeps
 	// playing while the game is paused.
-	Music = UGameplayStatics::SpawnSound2D(World, Sound, Row->Volume * GetBusVolume(ESoundBus::Music), 1.f, 0.f,
+	Music = UGameplayStatics::SpawnSound2D(World, Sound, Row->Volume * GetBusVolume(ESoundBus::Music)
+	                                       * ProfileLevel(ESoundBus::Music), 1.f, 0.f,
 	                                       nullptr, false, false);
 	PlayingMusic = IsValid(Music) ? Cue : NAME_None;
 	if (IsValid(Music))
@@ -208,6 +210,15 @@ void USaudAudioSubsystem::RefreshMusic()
 		return;
 	}
 	PlayMusic(Wanted);
+	// the cue already playing is left alone by PlayMusic: set it to the
+	// level now, so a step on the MUSIC meter is heard at once
+	if (IsValid(Music) && PlayingMusic == Wanted)
+	{
+		if (const FSoundCueDef* Row = Find(Wanted))
+		{
+			Music->SetVolumeMultiplier(Row->Volume * GetBusVolume(ESoundBus::Music) * ProfileLevel(ESoundBus::Music));
+		}
+	}
 }
 
 /* --------------------------------------------------------------- lookup */
@@ -274,7 +285,19 @@ bool USaudAudioSubsystem::BusEnabled(ESoundBus Bus) const
 		return true;
 	}
 	const FSaudProgress& P = GI->GetProgress();
-	return Bus == ESoundBus::Music ? P.bMusic : P.bSound;
+	return Bus == ESoundBus::Music ? (P.bMusic && P.MusicVolume > 0) : (P.bSound && P.SoundVolume > 0);
+}
+
+float USaudAudioSubsystem::ProfileLevel(ESoundBus Bus) const
+{
+	const USaudGameInstance* GI = Cast<USaudGameInstance>(GetGameInstance());
+	if (!GI)
+	{
+		return 1.f;
+	}
+	const FSaudProgress& P = GI->GetProgress();
+	const int32 Level = Bus == ESoundBus::Music ? P.MusicVolume : P.SoundVolume;
+	return FMath::Clamp(static_cast<float>(Level) / static_cast<float>(SaudMenu::LevelMax), 0.f, 1.f);
 }
 
 void USaudAudioSubsystem::SetBusVolume(ESoundBus Bus, float Volume)

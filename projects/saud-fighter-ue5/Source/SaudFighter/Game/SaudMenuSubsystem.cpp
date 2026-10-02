@@ -269,6 +269,38 @@ void USaudMenuSubsystem::KeepPosing(AFighterBase* Him, bool bOn)
 	}
 }
 
+/* -------------------------------------------------------- a new game */
+
+void USaudMenuSubsystem::StartNewGame()
+{
+	UWorld* World = GetWorld();
+	USaudGameInstance* GI = World ? World->GetGameInstance<USaudGameInstance>() : nullptr;
+	if (!GI)
+	{
+		return;
+	}
+	// The progress goes; the settings are the player's, not the save's,
+	// and stay.
+	const FSaudProgress Old = GI->GetProgress();
+	GI->ResetProgress();
+	FSaudProgress& P = GI->GetMutableProgress();
+	P.DifficultyIndex = Old.DifficultyIndex;
+	P.bSound = Old.bSound;
+	P.bMusic = Old.bMusic;
+	P.bVibration = Old.bVibration;
+	P.SoundVolume = Old.SoundVolume;
+	P.MusicVolume = Old.MusicVolume;
+	GI->SaveProgress();
+	// From the very start, the prologue, straight into its fight: ?Start
+	// tells its game mode to begin the fight rather than open the title.
+	if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this))
+	{
+		Audio->StopMusic(0.5f);
+	}
+	Close();
+	UGameplayStatics::OpenLevel(this, SaudGameplay::PrologueLevel, true, TEXT("Start"));
+}
+
 /* ------------------------------------------------------------ the tick */
 
 void USaudMenuSubsystem::Tick(float DeltaTime)
@@ -293,11 +325,11 @@ void USaudMenuSubsystem::Tick(float DeltaTime)
 			KeepPosing(Posing.Get(), true);
 		}
 	}
-	// DeltaTime is the world's, which a pause holds at zero. The pulse and
-	// the wipe run on the frame's real length, as the HUD's clock does.
+	// DeltaTime is the world's, which a pause holds at zero. The pulse, the
+	// wipe, the entrance and the focus glide run on the frame's real
+	// length, as the HUD's clock does (SaudMenu::Step).
 	const float Real = FMath::Clamp(static_cast<float>(FApp::GetDeltaTime()), 0.f, 0.1f);
-	Menu.Clock += Real;
-	Menu.Since += Real;
+	SaudMenu::Step(Menu, Real);
 
 	if (USaudInputBindings* Bindings = USaudInputBindings::Get(this))
 	{
@@ -307,8 +339,9 @@ void USaudMenuSubsystem::Tick(float DeltaTime)
 
 	// The held direction: once when it changes, and up / down again after
 	// NavRepeatFirst, then every NavRepeatNext, while it is held. Left and
-	// right do not repeat -- they toggle a setting, and a held toggle would
-	// flip it eight times a second.
+	// right repeat only on a level (SOUND, MUSIC: SaudMenu::RepeatsSideways)
+	// -- elsewhere they toggle a setting, and a held toggle would flip it
+	// eight times a second.
 	const EAction Direction = HeldDirection();
 	if (Direction != LastDirection)
 	{
@@ -319,7 +352,8 @@ void USaudMenuSubsystem::Tick(float DeltaTime)
 			Repeat = SaudControls::NavRepeatFirst;
 		}
 	}
-	else if (Direction == EAction::NavUp || Direction == EAction::NavDown)
+	else if (Direction == EAction::NavUp || Direction == EAction::NavDown
+	         || ((Direction == EAction::NavLeft || Direction == EAction::NavRight) && SaudMenu::RepeatsSideways(Menu)))
 	{
 		Repeat -= Real;
 		if (Repeat <= 0.f)
@@ -388,6 +422,13 @@ void USaudMenuSubsystem::Apply(EMenuEffect Effect)
 		BeginFight();
 		break;
 
+	case EMenuEffect::NewGame:
+		// Confirmed on the Confirm screen (SaudMenu): the save is replaced
+		// and the first fight starts, with no title in between.
+		Cue(TEXT("UI_Tap"));
+		StartNewGame();
+		break;
+
 	case EMenuEffect::Resume:
 		Close();
 		Cue(TEXT("UI_Back"));
@@ -411,16 +452,16 @@ void USaudMenuSubsystem::Apply(EMenuEffect Effect)
 		                               EQuitPreference::Quit, false);
 		break;
 
-	case EMenuEffect::ToggleSound:
+	case EMenuEffect::SetSound:
 		WriteSettings();
-		Cue(TEXT("UI_Tap"));		// audible only when it went on: the bus is gated
+		Cue(TEXT("UI_Tap"));		// at the new level, so the step is heard; silent at OFF
 		break;
 
-	case EMenuEffect::ToggleMusic:
+	case EMenuEffect::SetMusic:
 		WriteSettings();
 		if (Audio)
 		{
-			Audio->RefreshMusic();
+			Audio->RefreshMusic();	// starts, stops, or sets the playing music to the level
 		}
 		Cue(TEXT("UI_Tap"));
 		break;
@@ -469,13 +510,17 @@ void USaudMenuSubsystem::ReadSettings()
 	}
 	const FSaudProgress& P = GI->GetProgress();
 	Menu.DifficultyIndex = FMath::Clamp(P.DifficultyIndex, 0, 2);
-	Menu.bSound = P.bSound;
-	Menu.bMusic = P.bMusic;
+	Menu.SoundLevel = P.bSound ? FMath::Clamp(P.SoundVolume, 0, SaudMenu::LevelMax) : 0;
+	Menu.MusicLevel = P.bMusic ? FMath::Clamp(P.MusicVolume, 0, SaudMenu::LevelMax) : 0;
 	Menu.bVibration = P.bVibration;
 	// A save worth continuing: he has fallen (the prologue is marked on
 	// entry), or reached a second stage, or cleared one. A profile that has
 	// only changed a setting is not a game in progress.
 	Menu.bHasSave = P.bSeenPrologue || P.UnlockedStages > 1 || P.ClearedStages.Num() > 0;
+	// CONTINUE's tag: the furthest stage the save has opened, of the
+	// campaign's nine (the browser build's CAMPAIGN; the stage table does
+	// not mark the survival stage apart, so the count is the model's own)
+	Menu.StageReached = Menu.bHasSave ? FMath::Clamp(P.UnlockedStages, 1, Menu.StageCount) : 0;
 }
 
 void USaudMenuSubsystem::WriteSettings()
@@ -488,8 +533,10 @@ void USaudMenuSubsystem::WriteSettings()
 	}
 	FSaudProgress& P = GI->GetMutableProgress();
 	P.DifficultyIndex = FMath::Clamp(Menu.DifficultyIndex, 0, 2);
-	P.bSound = Menu.bSound;
-	P.bMusic = Menu.bMusic;
+	P.SoundVolume = FMath::Clamp(Menu.SoundLevel, 0, SaudMenu::LevelMax);
+	P.MusicVolume = FMath::Clamp(Menu.MusicLevel, 0, SaudMenu::LevelMax);
+	P.bSound = P.SoundVolume > 0;
+	P.bMusic = P.MusicVolume > 0;
 	P.bVibration = Menu.bVibration;
 	GI->SaveProgress();
 }

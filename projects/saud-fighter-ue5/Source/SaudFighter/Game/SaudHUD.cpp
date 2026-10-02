@@ -270,7 +270,11 @@ void ASaudHUD::DrawText(const FPoint& At, float Height, const FRgba& TextColour,
 	static const FVector2D Round[8] = {{1.f, 0.f}, {-1.f, 0.f}, {0.f, 1.f}, {0.f, -1.f},
 	                                   {0.7071f, 0.7071f}, {-0.7071f, 0.7071f}, {0.7071f, -0.7071f},
 	                                   {-0.7071f, -0.7071f}};
-	const FLinearColor InkC(Colour::Ink.R, Colour::Ink.G, Colour::Ink.B, 1.f);
+	// Full ink under any text at half its opacity or more -- every text at
+	// rest (the dim ones are 0.55); under a text fading in (the menu's
+	// entrance, SaudMenu, 2026-10-02) the ink fades with it from there, so
+	// no outline stands alone before its letters.
+	const FLinearColor InkC(Colour::Ink.R, Colour::Ink.G, Colour::Ink.B, FMath::Min(1.f, 2.f * TextColour.A));
 	const FText Line = FText::FromString(S);
 	for (const FVector2D& D : Round)
 	{
@@ -324,8 +328,9 @@ FString ASaudHUD::MenuString(const SaudMenu::FMenuText& T)
 	case EMenuText::Difficulty:
 		return T.Value == 0 ? TEXT("DIFFICULTY  ROOKIE")
 		     : (T.Value == 1 ? TEXT("DIFFICULTY  PRO") : TEXT("DIFFICULTY  CHAMPION"));
-	case EMenuText::Sound: return bOn ? TEXT("SOUND  ON") : TEXT("SOUND  OFF");
-	case EMenuText::Music: return bOn ? TEXT("MUSIC  ON") : TEXT("MUSIC  OFF");
+	// a level: OFF at 0, else its number (the meter beside it shows it too)
+	case EMenuText::Sound: return bOn ? FString::Printf(TEXT("SOUND  %d"), T.Value) : FString(TEXT("SOUND  OFF"));
+	case EMenuText::Music: return bOn ? FString::Printf(TEXT("MUSIC  %d"), T.Value) : FString(TEXT("MUSIC  OFF"));
 	case EMenuText::Vibration: return bOn ? TEXT("VIBRATION  ON") : TEXT("VIBRATION  OFF");
 	case EMenuText::Back: return TEXT("BACK");
 	case EMenuText::PromptSelect: return TEXT("SELECT");
@@ -336,6 +341,15 @@ FString ASaudHUD::MenuString(const SaudMenu::FMenuText& T)
 	case EMenuText::KeyBack: return TEXT("ESC  BACK");
 	case EMenuText::KeyAdjust: return TEXT("ARROWS  ADJUST");
 	case EMenuText::KeyFlip: return bOn ? TEXT("TAB  SHOW PS5") : TEXT("TAB  SHOW XBOX");
+	case EMenuText::NewGame: return TEXT("NEW GAME");
+	case EMenuText::AskHead: return bOn ? TEXT("NEW GAME?") : TEXT("QUIT?");
+	case EMenuText::ConfirmNo: return bOn ? TEXT("NO, KEEP MY SAVE") : TEXT("NO, STAY");
+	case EMenuText::ConfirmYes: return bOn ? TEXT("YES, START OVER") : TEXT("YES, QUIT");
+	case EMenuText::StageTag: return FString::Printf(TEXT("STAGE %d/%d"), T.Value, T.Aux);
+	case EMenuText::PromptQuit: return TEXT("QUIT");
+	case EMenuText::KeyQuit: return TEXT("ESC  QUIT");
+	case EMenuText::Hint:
+		return FString(UTF8_TO_TCHAR(SaudMenu::HintString(static_cast<SaudMenu::EHint>(T.Value))));
 	case EMenuText::ControlsText:
 		// SaudControls' own table: Value is its slot, Aux its value.
 		return FString(SaudControls::ControlsText(static_cast<SaudControls::EControlsText>(T.Value), T.Aux));

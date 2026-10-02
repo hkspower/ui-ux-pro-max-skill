@@ -520,6 +520,9 @@ namespace SaudGameplay
 	    buildable, for working on one district alone, but the game never
 	    opens them. */
 	constexpr const TCHAR* WorldLevel = TEXT("L_AlHalqa_World");
+	/** Where the game starts (DefaultEngine.ini's GameDefaultMap): a NEW
+	    GAME reopens it with ?Start, straight into its fight. */
+	constexpr const TCHAR* PrologueLevel = TEXT("L_Prologue");
 	/** Where in a district a player is put back when a save resumes there:
 	    the same offset from its director Tools/levels/build_world.py puts
 	    the souq's PlayerStart at (SPAWN_RADIUS), clear of every block. */

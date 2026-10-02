@@ -32,8 +32,10 @@ STAND-INS, not the engine's:
 RUN
   python3 Tools/look/menu_preview.py [--out DIR] [--bg PNG]
 writes menu-title.png, menu-pause.png, menu-settings.png,
-menu-controls-xbox.png, menu-controls-ps5.png (1920x1080) and
-menu-title-21x9.png (2560x1080) into DIR (default Docs/renders/).
+menu-controls-xbox.png, menu-controls-ps5.png (1920x1080),
+menu-title-21x9.png (2560x1080), and since 2026-10-02 menu-confirm-quit.png,
+menu-confirm-new.png and menu-title-enter.png (the Title 0.24 s into its
+entrance, mid-slide) into DIR (default Docs/renders/).
 """
 
 import json
@@ -99,13 +101,20 @@ SHOTS = (
     ("menu-pause.png", 1920, 1080,
      dict(screen="pause", pad="xbox", focus=0, save=1, clock=0.62, since=1.0)),
     ("menu-settings.png", 1920, 1080,
-     dict(screen="settings", pad="xbox", focus=1, save=0, clock=0.62, since=1.0)),
+     dict(screen="settings", pad="xbox", focus=1, save=0, clock=0.62, since=1.0, sound=7, music=4)),
     ("menu-controls-xbox.png", 1920, 1080,
      dict(screen="controls", pad="xbox", shown="xbox", focus=0, save=0, clock=0.62, since=1.0)),
     ("menu-controls-ps5.png", 1920, 1080,
      dict(screen="controls", pad="ps", shown="ps", focus=0, save=0, clock=0.62, since=1.0)),
     ("menu-title-21x9.png", 2560, 1080,
-     dict(screen="title", pad="ps", focus=0, save=1, clock=0.62, since=1.0)),
+     dict(screen="title", pad="ps", focus=0, save=1, clock=0.62, since=1.0, stage=4)),
+    # 2026-10-02: the two questions, and the Title part way into its entrance
+    ("menu-confirm-quit.png", 1920, 1080,
+     dict(screen="confirm", ask="quit", pad="xbox", focus=0, save=0, clock=0.62, since=1.0)),
+    ("menu-confirm-new.png", 1920, 1080,
+     dict(screen="confirm", ask="new", pad="keyboard", focus=0, save=1, clock=0.62, since=1.0)),
+    ("menu-title-enter.png", 1920, 1080,
+     dict(screen="title", pad="xbox", focus=0, save=1, clock=0.20, since=0.24, stage=4)),
 )
 
 

@@ -62,6 +62,12 @@ struct FSaudProgress
 	UPROPERTY(BlueprintReadWrite, Category = "Settings") bool bSound = true;
 	UPROPERTY(BlueprintReadWrite, Category = "Settings") bool bMusic = true;
 	UPROPERTY(BlueprintReadWrite, Category = "Settings") bool bVibration = true;
+	/** The sound and music LEVELS, 0..SaudMenu::LevelMax (2026-10-02: the
+	    settings were on/off only). bSound / bMusic stay the switch -- off at
+	    level 0 -- so a save from before, which has no level, reads as full
+	    volume, and anything that asks only "on?" still can. */
+	UPROPERTY(BlueprintReadWrite, Category = "Settings") int32 SoundVolume = 10;
+	UPROPERTY(BlueprintReadWrite, Category = "Settings") int32 MusicVolume = 10;
 
 	/** Whether L_Prologue -- Saud's life before he fell -- has already played.
 	    The one field on this struct that does NOT mirror the browser build's
