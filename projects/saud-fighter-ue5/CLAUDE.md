@@ -4827,6 +4827,36 @@ pairs contact sheets are redrawn.
 clip or built a style asset. The give's square root, the signature turns
 and the dials are judgements, not measurements of real fighters.
 
+## The music, on one target -- 2026-10-03
+
+Asked as "improve music quality" (2026-10-02, settled as: master the stage
+loop, the title theme again, every music file to one target, and new
+renders), with the bosses' "a new theme for each" from the same day.
+`Content/Audio/README.md` has the numbers; in short:
+
+- **No new music could be made.** All fourteen ElevenLabs renders (the four
+  loops again and a theme for AL-WAHSH, AL-SAQR and ZAYOS, two takes each)
+  failed on insufficient funds. Nothing was charged or retried; the nodes
+  wait on the flow with their prompts.
+- **Mastered:** `M_Stage.wav` and `M_Boss.wav`, by
+  `Tools/audio/master_music.py --loop-file` (new: the chain fitted to each
+  file's own curve, run over the loop tiled three times and cut back by its
+  own latency, so the seam holds). Against the target curve the stage loop
+  went 2.06 -> 0.59 dB RMS, the boss loop 1.17 -> 0.41.
+- **Left as they were:** `M_Under` and `M_Up` (refused by the tool: dark and
+  airy by design, and nothing in this build plays them), and the title
+  theme, whose fitted second pass measured worse than the shipped master
+  (1.29 against 0.98).
+- **The boss themes are wired.** `SaudFeel::BossTheme` names a theme per
+  boss row, `AWaveDirector` starts it with his wave (falling back to
+  `Music_Boss` while it has no row) and brings the stage loop back when
+  the wave is cleared. Until today nothing started `Music_Boss` at all.
+  `tests/feel.cpp` holds every boss to a theme of his own and a row only
+  with its file; three sabotages, each caught.
+
+**Not verified:** nobody has listened to anything here; what is better is
+what the curve and the rules measure. The C++ is not compiled.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

@@ -251,6 +251,21 @@ The target: a bass plateau +5..+8 dB from 50 to 125 Hz peaking at 63-80 Hz, mids
 
 `master_music.py` (2026-09-30) is that chain with every constant named, and it refuses the file unless sixteen rules hold: the level within 0.5 LU, true peak under -1 dBTP measured twice (ebur128 and its own 4x oversampling), no full-scale or flat-top runs, `loop_cut.check_whole`, the end ramps, every scored band inside tolerance, no band moved over 8 dB, pumping under 1.4x the source's and the gain swing against its own EQ stage under 3 dB in any second, pre-echo within 2 dB of the source's, mono-sum loss within 1 LU, the intro's quietest half second lifted under 6 dB, peak-to-loudness within 2 dB, the end silence intact. `--bite` breaks each on a mix the script makes itself and every check fails as it should (10 of 10). **Nobody has listened to the result**; what is better is what those numbers say. The MP3's 16 kHz cutoff cannot be undone and nothing above it is invented; the 6 kHz shelf lifts the MP3's own 4-16 kHz coding artefacts by the same 4-8 dB as the music, and no probe here can see that.
 
+**2026-10-03 (Riyadh): every loop on one target, and a theme for each boss -- half done.** Asked as "improve music quality", settled as all of: the stage loop mastered, the title theme again, every music file on one target, and new renders; with the bosses' "a new theme for each" (2026-10-02). Fourteen renders were started on the flow above (ElevenLabs Music v2.5, 90 s, instrumental, two takes each of the stage, cellar, rooftop and boss loops and of a theme for AL-WAHSH, AL-SAQR and ZAYOS) and **every one failed: the account had insufficient funds.** Nothing was charged and nothing was retried; the nodes are on the flow with their prompts, ready to run when there is credit.
+
+What could be done without new audio was. `master_music.py` gained three modes: `--fit` fits stage 1 to the file's own curve (a pre-gain to the target loudness, then a third-octave bell on every scored band up to 12.5 kHz more than 0.75 dB off the target, 0.8 of the deviation, three passes, each bell held to -8/+6 dB); `--loop BPM BARS` masters a raw render whole and then cuts it with `loop_cut.make`, for the renders to come; `--loop-file` masters a loop already cut: tiled three times, run through the chain, the middle copy kept and moved by the chain's own latency (measured, 237-388 samples) so the seam lands where it was, the limiter's ceiling at most 1 dB over the source's peak-to-loudness, and held to the seam, the level, the peaks and every rule but a whole piece's ends.
+
+| File | Before -> after (curve RMS against the target, dB) | Shipped |
+| --- | --- | --- |
+| `M_Stage.wav` | 2.06 -> 0.59; eight bands out -> none; slope -18.9 -> -16.6 dB/decade; PLR 11.7 -> 12.8; seam step 0.0021 against a mean step of 0.0109 | yes |
+| `M_Boss.wav` | 1.17 -> 0.41; -20 dB bandwidth 12.5 -> 16 kHz; PLR 11.5 -> 12.5 | yes |
+| `M_Under.wav`, `M_Up.wav` | refused by the tool (the fit fought the target: the cellar is dark and the roofs airy by design, and the target is the fight's) | no -- and nothing in the Unreal game plays them (the floors they were for are the frozen Unity port's) |
+| `M_Menu.wav` | the fitted pass measured 1.29 against the shipped master's 0.98, and its top end 12.5 kHz against 16 | no -- the 2026-09-30 master stays |
+
+The first `--loop-file` run on the stage loop failed its seam (0.0135 against 0.0109): the chain delays the audio, and the copy was cut a few hundred samples late. The latency compensation is what fixed it. `--bite` still catches 10 of 10.
+
+**The boss themes are wired, not heard.** `SaudFeel::BossTheme` names `Music_Wahsh`, `Music_Saqr` and `Music_Zayos`; `AWaveDirector::BeginWave` starts a boss's theme with his wave, or `Music_Boss` while his theme has no row in `DT_Sounds.csv`, and the stage loop comes back when the wave is cleared. Nothing started `Music_Boss` before. The three rows are added with their files, never before: a row with no file would stop the music at the boss.
+
 ## `Content/Audio/UI/`
 
 | File | Cue | What it is |
