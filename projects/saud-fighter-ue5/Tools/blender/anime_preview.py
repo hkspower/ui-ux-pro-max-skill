@@ -65,19 +65,24 @@ fighters, SaudAnime.h -- is here every mesh deformed by an armature
 (ObjectIndex 1; Saud's own mesh 2, so a check can find him); every *_Eye
 material on one of them carries EYE_INDEX in the Material Index pass.
 
-Exposure: the engine's is its eye adaptation, and MPC_Anime.Key is the dial
-that sets which light counts as "lit". Here there is no eye adaptation, so
-the key is taken from the picture. With fighters in the frame it is the
-55th percentile of the light they receive. Without them -- the street and
-gate previews of the night -- it is KEY_OVER_MOON times the median light
-of the MOON alone on the ground (the scene's lights are rendered in two
-light groups, moon and fire, when build_souq.py has marked its fires with
-night_fire = 1): the night is the shadow tone, what a fire lights is lit.
-Keyed on the world's own median instead (the rule before 2026-09-28),
-moonlit and fire-lit ground both landed on the lit tone and the pools
-vanished (graded p95/p50 1.4-1.6 in the world survey). Both are
-the preview standing in for an engine, and are said so rather than tuned
-to look right.
+Exposure: MPC_Anime.Key is the dial that sets which light counts as "lit",
+and the game's exposure puts it at 1. At night (the scene's lights rendered
+in two light groups, moon and fire, when build_souq.py has marked its fires
+with night_fire = 1) the key is the world's manual exposure, worked as the
+engine works it (build_world.exposure_bias): KEY_OVER_MOON times the moon
+on open ground, its strength times the sine of its height over pi
+(moon_open) -- one number for the scene, whoever is in the frame and
+wherever it looks: the night is the shadow tone, what a fire lights is lit.
+Without a moon (a studio rig, the prologue's day) the preview stands in for
+eye adaptation: the fighters' light at its 55th percentile, else the
+world's. Every preview is drawn at that key as the game draws it, the
+buffer over the key looked at with key 1 (look_from). Until 2026-10-04 the
+previews were drawn at the key's own level (0.8-1.7 EV under the game on
+the night scenes), a frame with fighters keyed on them, and a night frame
+on the moon's median over its own ground. Keyed on the world's own median
+instead (the rule before 2026-09-28), moonlit and fire-lit ground both
+landed on the lit tone and the pools vanished (graded p95/p50 1.4-1.6 in
+the world survey).
 """
 
 import math
@@ -93,12 +98,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "look"))
 import anime_look as AL  # noqa: E402
 
-# The preview's stand-in for eye adaptation: the light the fighters receive,
-# at this percentile, counts as "lit". Tuned by eye on the souq fight scene.
-KEY_PERCENTILE = 55
-# ... and without fighters, the night's: "lit" starts this far over the
-# moon's own light on the ground (the world spec, 2026-09-28)
+# The key -- the light that counts as "lit", MPC_Anime.Key's place in the
+# buffer. At night it is the world's exposure: "lit" starts this far over
+# the moon's own light on the ground (the world spec, 2026-09-28; the
+# engine's manual exposure puts it there since "The night's light",
+# 2026-10-03, whoever is in the frame).
 KEY_OVER_MOON = 2.0
+# ... and in a scene with no moon (a studio rig, the prologue's day) the
+# stand-in for eye adaptation: the light the fighters receive, at this
+# percentile, else the world's.
+KEY_PERCENTILE = 55
 # MPC_Anime.Boil as the game writes it every tick: a value, not zero, so
 # the brush's pressure and the grain are drawn as they are in the game
 BOIL = 3.0
@@ -127,7 +136,13 @@ GRADED = dict(contrast=1.5, shadow_over_ink=2.0, pools=2.0, fire_rb=1.4,
 SABOTAGE = set()
 NIGHT_BITES = {"no_fires": "pools", "warm_moon": "moon"}
 GRADED_BITES = {"flat_world": "contrast", "sooted_world": "shadow tone", "flat_pools": "pools",
-                "grey_fire": "fire", "chin_down": "eyes", "deep_eyes": "eyes"}
+                "grey_fire": "fire", "chin_down": "eyes", "deep_eyes": "eyes",
+                # 2026-10-04: the previews drawn at their stand-in key's level
+                # (0.8-1.7 EV under the game), and a night keyed on the men
+                "stand_in_level": "previews", "fighter_key": "night's key",
+                # ... and each frame keyed on the moon over its own ground: the
+                # gate on a low moon's glare, the sky shot on the roofs' shadow
+                "frame_key": "one exposure"}
 
 
 def _arg(name, default=None, n=1):
@@ -248,7 +263,28 @@ def render_scene(camera=None, height=1080, samples=48, fit=False, size=None, gro
     exposure = 2.0 ** sc.view_settings.exposure
     shutil.rmtree(out_dir, ignore_errors=True)
     got["View"] = view_of(got)          # this camera's, while it is the scene's
+    if groups:
+        got["MoonOpen"] = moon_open()   # the scene's, wherever this camera looks
     return got, exposure
+
+
+def moon_open():
+    """The moon on open ground as the engine's exposure counts it
+    (build_world.exposure_bias: its lux times the sine of its height over
+    the horizon, over pi; the light's colour and the sky not counted), in
+    the preview's units: every sun lamp of the moon's light group, its
+    strength times that sine over pi -- what a Cycles sun lights a flat
+    white diffuse ground to. One number for the scene, as the game's manual
+    exposure is one for the level. Open moonlit ground measures 0.9-1.0 of
+    it in the renders (the colour takes a third off, the sky, bounce and
+    gloss give most of it back)."""
+    from mathutils import Vector
+    e = 0.0
+    for o in bpy.data.objects:
+        if o.type == "LIGHT" and o.data.type == "SUN" and not o.get("night_fire") and not o.hide_render:
+            up = (o.matrix_world.to_quaternion() @ Vector((0.0, 0.0, 1.0))).z   # toward the light
+            e += o.data.energy * max(0.0, up) / math.pi
+    return e
 
 
 def render_passes(blend, camera=None, height=1080, samples=48, fit=False, groups=None):
@@ -376,18 +412,30 @@ def light_of(got, key="Image"):
 
 
 def key_of(got, exposure):
-    """MPC_Anime.Key's stand-in: the fighters' light at KEY_PERCENTILE, or
-    without fighters KEY_OVER_MOON x the moon's median on the ground.
-    Returns (key, the rule's name)."""
+    """Where MPC_Anime.Key stands in this render's buffer: at night (the
+    moon's light group present) KEY_OVER_MOON x the moon on open ground
+    (moon_open) -- the world's manual exposure, one number for the scene
+    whoever is in the frame and wherever it looks; else the fighters'
+    light at KEY_PERCENTILE; else the world's. Returns (key, the rule).
+    Until 2026-10-04 a frame with men keyed on them (an eye adaptation the
+    open world has not had since its exposure was fixed: on the souq fight
+    1.4x the world's), and a night frame on the moon's median over its own
+    ground: the souq's fight 0.31, its street 0.34, its gate 0.56 (the
+    flagstones catch a low moon's glare toward it) and its sky 0.05 (its
+    ground all in the roofs' shadow). Passes without MoonOpen (cached by
+    older code) still key on the median."""
     C, A, N, D, fighter = unpack(got, exposure)
     luma = np.array(AL.LUMA)
     T = (C @ luma) / np.maximum(A @ luma, 0.02)
-    if fighter.any():
-        return float(np.percentile(T[fighter], KEY_PERCENTILE)), "fighters p%d" % KEY_PERCENTILE
+    if "Combined_moon" in got and "MoonOpen" in got and got["MoonOpen"] > 0.0 \
+            and not SABOTAGE & {"fighter_key", "frame_key"}:
+        return KEY_OVER_MOON * float(got["MoonOpen"]) * exposure, "%.1fx the moon" % KEY_OVER_MOON
     ground = ground_of(got)
-    if "Combined_moon" in got and ground.any():
+    if "Combined_moon" in got and ground.any() and "fighter_key" not in SABOTAGE:
         Tm = (got["Combined_moon"][..., :3] * exposure @ luma) / np.maximum(A @ luma, 0.02)
         return KEY_OVER_MOON * float(np.median(Tm[ground])), "%.1fx the moon" % KEY_OVER_MOON
+    if fighter.any():
+        return float(np.percentile(T[fighter], KEY_PERCENTILE)), "fighters p%d" % KEY_PERCENTILE
     body = D < 1e8
     return (float(np.percentile(T[body], KEY_PERCENTILE)) if body.any() else 1.0), "world p%d" % KEY_PERCENTILE
 
@@ -427,18 +475,26 @@ def moon_of():
 
 
 def look_from(got, exposure, **kw):
-    """Both anime materials over one render's passes; returns 8-bit display
-    values and M_Anime_Post's masks. The engine's buffer is pre-exposed, so
-    the lit colour goes in with the exposure already on it. The brush boils
-    at BOIL unless told otherwise; the sky is painted from the scene
-    camera's rays and the scene's moon."""
+    """Both anime materials over one render's passes, AS THE GAME DRAWS
+    THEM: the buffer over its key (key_of), looked at with key 1.0 --
+    MPC_Anime.Key in the game, under the exposure that puts the key at 1
+    (graded_picture's level). Returns 8-bit display values and
+    M_Anime_Post's masks. Until 2026-10-04 the previews were drawn at the
+    key's own level (0.31-0.56 on the night scenes): every tone, the haze,
+    the floors and the sky scale with the key and the ink does not, so
+    every preview stood 0.8-1.7 EV under the game. The brush boils at BOIL
+    unless told otherwise; the sky is painted from the scene camera's rays
+    and the scene's moon."""
     C, A, N, D, fighter = unpack(got, exposure)
     key, rule = key_of(got, exposure)
     kw.setdefault("boil", BOIL)
     if "V" not in kw:
         kw["V"] = got["View"] if "View" in got else view_of(got)
     kw.setdefault("moon", moon_of())
-    disp, m = AL.look(C, A, N, D, fighter, key=key, **kw)
+    if "stand_in_level" in SABOTAGE:
+        disp, m = AL.look(C, A, N, D, fighter, key=key, **kw)
+    else:
+        disp, m = AL.look(C / key, A, N, D, fighter, key=1.0, **kw)
     m["key"] = key
     m["key_rule"] = rule
     m["fighter"] = fighter
@@ -653,13 +709,12 @@ def night_check(blend, height, samples, bite=False):
 
 # ========================================================== --graded-check
 def graded_picture(got, exposure, over=None):
-    """The graded picture AT THE ENGINE'S KEY: the buffer over the
-    preview's stand-in key, looked at with key 1.0 -- MPC_Anime.Key's value
-    in the game (never written). The previews keep the stand-in level; a
-    measure against an absolute (INK is 0.0022 whatever the light; the
-    display encoding bends a ratio by its level) has to be taken where
-    the engine draws. Returns linear out, the masks, the display picture
-    and the key."""
+    """The graded picture AT THE ENGINE'S KEY: the buffer over its key
+    (key_of), looked at with key 1.0 -- MPC_Anime.Key's value in the game
+    (never written). The previews are drawn the same way since
+    2026-10-04 (look_from); this one keeps the linear values and the masks
+    the graded rules read. Returns linear out, the masks, the display
+    picture and the key."""
     C, A, N, D, fighter = unpack(got, exposure)
     if "sooted_world" in SABOTAGE:
         # the world painted a quarter as dark, under the same light
@@ -693,6 +748,14 @@ def graded_fight(got, exposure, over=None):
     r["shadow_tone"] = float(np.percentile((lin @ luma)[fill], 5)) if fill.any() else 0.0
     r["fill_px"] = int(fill.sum())
     r["ink"] = float(np.dot(AL.LOOK["INK"], luma))
+    # the previews are this picture (2026-10-04): every preview tool draws
+    # through look_from, which must give the graded picture -- the engine's
+    # level -- to an 8-bit step; and at night the key is the moon's, the
+    # world's exposure, whoever is in the frame
+    with _look_over(**(over or {})):
+        pic, _m = look_from(got, exposure)
+    r["preview_gap"] = int(np.abs(pic.astype(int) - AL.to_8bit(disp).astype(int)).max())
+    r["key"], r["key_rule"], r["night"] = m["key"], m["key_rule"], "Combined_moon" in got
     return r, disp
 
 
@@ -744,6 +807,16 @@ def graded_eyes(got, exposure, over=None):
 def graded_misses(r):
     """What falls outside GRADED. Each line names its rule."""
     miss = []
+    if r.get("preview_gap", 0) > 1:
+        miss.append("the previews are not the game's picture: look_from stands %d 8-bit steps off the graded picture"
+                    % r["preview_gap"])
+    if r.get("night") and "moon" not in r.get("key_rule", "moon"):
+        miss.append("the night's key is not the world's exposure: keyed on %s, wanted %.1fx the moon"
+                    % (r["key_rule"], KEY_OVER_MOON))
+    keys = [r["key"]] + [p["key"] for p in r["places"].values()]
+    if r.get("night") and max(keys) > 1.01 * min(keys):
+        miss.append("one level, one exposure: the scene's cameras key %s, wanted one"
+                    % ", ".join("%.3f" % k for k in keys))
     if r["contrast"] < GRADED["contrast"]:
         miss.append("the men do not stand off the world: fighter/world contrast %.2f (display medians %.3f / %.3f), wanted %.1f"
                     % (r["contrast"], r["fighter_y"], r["world_y"], GRADED["contrast"]))

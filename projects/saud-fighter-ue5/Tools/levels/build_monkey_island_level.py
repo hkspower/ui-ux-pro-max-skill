@@ -29,7 +29,11 @@ THE PLAN, worked out here and checked here (no engine):
   ?ArriveAt=Resume, back to the stone island;
 - the foliage: palms along the beach, the jungle trees over the jungle
   floor, rocks on the rock, each on its own layer and none on the trail,
-  in a clearing, on the temple's plateau or by the pier.
+  in a clearing, on the temple's plateau or by the pier;
+- the night (2026-10-03): the world's moon, sky, fog and exposure, and
+  fire where it is dark -- the souq's braziers and pyres, by its numbers
+  and its rules, along the way from the pier to the temple (THE NIGHT,
+  below): 86 of them, checked by check_night().
 
     python3 build_monkey_island_level.py           plan, check, draw
     python3 build_monkey_island_level.py --bite    each rule broken once
@@ -39,7 +43,9 @@ UNVERIFIED -- the editor half has never run. Two parts are the least sure:
 the landscape's import from the heightmap (UE 5.4 exposes no stable Python
 call for it; build() tries LandscapeEditorSubsystem and, failing that,
 prints the exact settings for Landscape mode's Import) and the landscape
-material's layer-blend node properties. Both are as remembered.
+material's layer-blend node properties. Both are as remembered. The fires
+are spawned by build_souq.spawn_night, as the open world's are, and are as
+unverified as theirs.
 """
 
 import csv
@@ -54,6 +60,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.normpath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 import build_monkey_island as M                 # noqa: E402  (the ground's own constants and decoder)
+sys.path.insert(0, os.path.join(PROJECT, "Tools", "blender"))
+import build_souq as SOUQ                       # noqa: E402  (the night: NIGHT, its fires, its hash, its spawn)
 
 DATA = os.path.join(PROJECT, "Content", "Data")
 LAND = os.path.join(PROJECT, "Content", "Landscape", "MonkeyIsland")
@@ -81,6 +89,54 @@ FOLIAGE = dict(
 )
 KEEP_CLEAR = dict(site=M.SITE_R_M + 8.0, arena=M.ARENA_R_M + 12.0, pier=25.0)
 COUNTS = dict(Palm=(250, 4000), Tree=(1500, 12000), Rock=(100, 3000))
+
+# THE NIGHT (2026-10-03, Riyadh; asked as "scan for all very dark area then
+# fix them ... reduce over black areas", settled as more lights where it is
+# dark: the trail, the clearings and the temple). Until then the island had
+# no light but the moon and the sky, in the engine and in the preview, and
+# its views were the darkest in the game. It is lit now as the open world's
+# districts are, by build_souq's own night -- its two fires (NIGHT: a
+# brazier and a pyre, each its height, its pool, its intensity, its candela
+# against WORLD_RIG's moon, which is this island's moon too, its draw
+# distance, 1800 K, its shadow and its smoke), so a fire here stands to the
+# moon exactly as one in the world -- and by its rules for where fire
+# stands, along THE WAY a man walks: from the pier's foot across the beach
+# to the landing, then the trail to the temple.
+#   - the pier: a brazier at its foot, on the beach, and one at its head, on
+#     the deck past the way home -- the island's one way out marked, as the
+#     souq marks every one of its doors;
+#   - each clearing: a pyre either side of its fight exactly as the souq
+#     places a fight's pyres (build_souq.night() 1.): on the way at arc
+#     +-(SiteRadius + half + fight_clear_m) from the fight, walked out half
+#     a metre at a time until clear, the one before on one verge and the one
+#     after on the other;
+#   - the way between: a brazier every street_step_m +- step_jitter on a
+#     hashed verge, by the souq's own hash with this island's seed (the
+#     souq's stream is its stage index; the island is no stage). The souq
+#     jitters each about a fixed 30 m lattice, which lets two neighbours
+#     drift apart to 45 m; here the jitter is on the step from the light
+#     before, so no two lights on the way are ever further apart than
+#     street_step_m x (1 + step_jitter), 37.5 m. A spot that is not clear
+#     is tried on the other verge, then walked back toward the light before
+#     (never nearer it than min_gap_m), so a gap can only shorten;
+#   - the temple: a pyre either side of its gate, as the souq lights a way
+#     through a wall (night() 3.: the opening's half + its half + door_off_m
+#     out from the axis, door_in_m inside), and pyres round its court just
+#     off the paving -- the court is the 16 m the temple keeps clear
+#     (build_island_props) -- as many as light its fight at its middle as
+#     the souq lights every fight (its check 12: the fires out-light the
+#     moon there), the gate's two counted: five, where four leave it at
+#     0.92 of the moon.
+# "The verge" is the souq's off-street kerb on this trail's own bed: a fire
+# stands TRAIL_BED_M + its half + off_street_cm from the trail's middle,
+# just off what is walked, on the carved shoulder. Every fire stands on the
+# heightmap (the deck's one on the deck), no steeper under its foot than the
+# trail itself may climb (TRAIL_GRADE across its half), and clear of the
+# sea, the walkway, every fight, every plant's and rock's foot, the pier and
+# the boat; the temple's columns, walls and throne are held off by the
+# preview, against the temple's own mesh (build_map_scenes.check_island).
+FIRE_SEED = M.SEED                                       # the island's own stream for the souq's hash
+FIRE_ON_GROUND_M = SOUQ.STREET_Z_CM / 100.0              # a foot no further off its ground than the souq's flagstones stand off its sand
 
 
 def h01(*k):
@@ -126,6 +182,62 @@ def ue(x, y, z):
 def ue_yaw(bearing_deg):
     """A map bearing (from +x toward +y) as an Unreal yaw."""
     return -bearing_deg
+
+
+# ----------------------------------------------------------------- the night's helpers
+def foot_r(f, props):
+    """How far round its foot a plant or a rock is solid, metres, as
+    build_island_props builds it: a palm's swollen foot (palm(): r0 0.19 at
+    1 + 0.45), a jungle tree's buttress roots (tree(): (0.45 + 0.02 h) at
+    1 + 1.6), a boulder's jittered sphere (rock(): half its size at most
+    0.72 + 0.28 + 0.10) -- each at its row's scale."""
+    m = props["meshes"][f["mesh"]]
+    if f["kind"] == "Palm":
+        r = 0.19 * 1.45
+    elif f["kind"] == "Tree":
+        r = (0.45 + 0.02 * m["height"]) * 2.6
+    else:
+        r = m["size"] * 0.5 * 1.10
+    return r * f["scale"]
+
+
+def way_of(pier, trail):
+    """The way a man walks the island, (x, y) metres: from the pier's foot
+    across the beach to the landing, where the trail starts, then the trail
+    to the temple's middle."""
+    return [(pier["x"], pier["y"])] + [(float(x), float(y)) for x, y in trail]
+
+
+def way_near(W, s_, x, y):
+    """From (x, y) to the way (an (n, 2) array, s_ its arc): how far, and the
+    arc length of the nearest point on it, metres."""
+    a, ab = W[:-1], W[1:] - W[:-1]
+    l2 = np.maximum((ab ** 2).sum(1), 1e-12)
+    t = np.clip(((x - a[:, 0]) * ab[:, 0] + (y - a[:, 1]) * ab[:, 1]) / l2, 0.0, 1.0)
+    d = np.hypot(x - (a[:, 0] + ab[:, 0] * t), y - (a[:, 1] + ab[:, 1] * t))
+    k = int(np.argmin(d))
+    return float(d[k]), float(s_[k] + t[k] * math.sqrt(l2[k]))
+
+
+def misfit(h, x, y, z, r):
+    """The most the ground under a round foot of radius r stands off z, its
+    middle's height, metres: eight points round its rim."""
+    return max(abs(at(h, x + r * math.cos(k * math.pi / 4), y + r * math.sin(k * math.pi / 4)) - z) for k in range(8))
+
+
+def moons(fires, x, y):
+    """What the fires give the ground at (x, y) metres, in moons --
+    build_souq.ground_light, in its centimetres."""
+    return SOUQ.ground_light([dict(x=f["x"] * 100.0, y=f["y"] * 100.0, I=f["I"], h=f["h"]) for f in fires],
+                             x * 100.0, y * 100.0)
+
+
+def pier_frame(pr, x, y):
+    """(x, y) in the pier's own frame: metres along it from its foot, and
+    across it (positive on the boat's side)."""
+    ux, uy = pr["u"]
+    dx, dy = x - pr["x"], y - pr["y"]
+    return dx * ux + dy * uy, -dx * uy + dy * ux
 
 
 def read_tables():
@@ -229,7 +341,166 @@ def plan():
     P["h"], P["W"] = h, W
     P["tables"] = (fighters, stages, attacks)
     P["trail"] = trail
+    P["props"] = props
+    night(P)
     return P
+
+
+def night(P):
+    """The island's fires (see THE NIGHT, at the top): P["fires"], rows of
+    build_souq._fire in map metres -- x, y, z the foot, yaw its bearing --
+    each with where it stands ("pier", "way", "clearing", "gate", "court")
+    and what on ("ground", "deck"); and P["way"], P["way_s"]."""
+    N = SOUQ.NIGHT
+    h, gp, props = P["h"], P["ground"], P["props"]
+    T = props["temple"]
+    rig = SOUQ._world_rig()
+    margin = N["site_margin_cm"] / 100.0
+    pr = P["pier"]
+    ar = gp["arena"]
+    path = way_of(pr, P["trail"])
+    W = np.array(path)
+    s_ = SOUQ._arc(path)
+    P["way"], P["way_s"] = W, s_
+    half = {k: N[k]["half"] / 100.0 for k in SOUQ.FIRE_KINDS}
+    plants = np.array([(f["x"], f["y"], foot_r(f, props)) for f in P["foliage"]]).reshape(-1, 3)
+    sites = [(s["x"], s["y"]) for s in gp["sites"]]
+    fires = []
+
+    def kerb(s, side, hm):
+        return _verge(path, s_, s, side, hm)
+
+    def clear(x, y, hm):
+        """The souq's clear(), on this island: on land, the ground under its
+        foot no steeper than the trail, off the walkway, out of every fight
+        and off the temple's plateau, clear of every plant's and rock's foot
+        and of the pier, each by the souq's site margin."""
+        z = at(h, x, y)
+        if z <= M.LAND_MIN_M or misfit(h, x, y, z, hm) > M.TRAIL_GRADE * hm:
+            return False
+        if way_near(W, s_, x, y)[0] < M.TRAIL_BED_M + hm:
+            return False
+        if any(math.hypot(sx - x, sy - y) <= SITE_RADIUS_M + hm + margin for sx, sy in sites):
+            return False
+        if math.hypot(ar["x"] - x, ar["y"] - y) <= ar["r"] + hm + margin:
+            return False
+        if len(plants) and (np.hypot(plants[:, 0] - x, plants[:, 1] - y) - plants[:, 2] < hm + margin).any():
+            return False
+        along, across = pier_frame(pr, x, y)
+        return not (-hm - margin < along < pr["length"] + hm + margin and abs(across) < props["pier"]["width"] / 2 + hm + margin)
+
+    def fire(kind, x, y, z, yaw, **kw):
+        fires.append(SOUQ._fire(kind, x, y, z, yaw, rig, **kw))
+        return fires[-1]
+
+    # --- the pier: its foot on the verge where the way starts, on the side
+    #     away from the boat (walked inland until clear); its head on the deck
+    #     past the way home, as far out as the deck goes
+    bx, by = P["boat"]["x"], P["boat"]["y"]
+    _, _, tx, ty = SOUQ._at(path, s_, 0.0)
+    away = 1 if (-ty) * (bx - pr["x"]) + tx * (by - pr["y"]) < 0 else -1
+    s = 0.0
+    for _ in range(80):
+        x, y, yaw = kerb(s, away, half["brazier"])
+        if clear(x, y, half["brazier"]):
+            break
+        s += 0.5
+    fire("brazier", x, y, at(h, x, y), yaw, where="pier", on="ground", s=s, side=away)
+    ux, uy = pr["u"]
+    out = pr["length"] - half["brazier"] - margin
+    fire("brazier", pr["x"] + ux * out, pr["y"] + uy * out, pr["deck"], pr["bearing"], where="pier", on="deck")
+    # --- each clearing: a pyre either side of its fight, the souq's way
+    hp = half["pyre"]
+    for i, (sx, sy) in enumerate(sites):
+        if "no_clearing_pyres" in SABOTAGE and i == 2:
+            continue
+        i0 = int(np.argmin(np.hypot(W[:, 0] - sx, W[:, 1] - sy)))
+        for sign in (-1, 1):
+            ss = s_[i0] + sign * (SITE_RADIUS_M + hp + N["fight_clear_m"])
+            for _ in range(80):
+                x, y, yaw = kerb(ss, sign, hp)
+                if clear(x, y, hp):
+                    break
+                ss += sign * 0.5
+            else:
+                continue
+            if 0.0 < ss < s_[-1]:
+                fire("pyre", x, y, at(h, x, y), yaw, where="clearing", on="ground", s=ss, side=sign, site=i)
+    # --- the temple: a pyre either side of its gate, door_in_m inside it;
+    #     then its court's ring, as many as light its fight with the gate's two
+    tem = next(a for a in P["actors"] if a.get("mesh") == "SM_Island_Temple")
+    gb = math.radians(tem["gate_bearing"])
+    g, n_ = (math.cos(gb), math.sin(gb)), (-math.sin(gb), math.cos(gb))
+    r_in, off = T["gate_r"] - N["door_in_m"], T["gate_w"] / 2.0 + hp + N["door_off_m"]
+    for sg in (-1, 1):
+        if "no_gate_pyres" in SABOTAGE:
+            continue
+        x, y = ar["x"] + g[0] * r_in + n_[0] * off * sg, ar["y"] + g[1] * r_in + n_[1] * off * sg
+        fire("pyre", x, y, at(h, x, y), tem["gate_bearing"], where="gate", on="ground", side=sg)
+    gate = list(fires[-2:]) if "no_gate_pyres" not in SABOTAGE else []
+    n = next(n for n in range(1, 25) if moons(gate + _court_ring(P, n), ar["x"], ar["y"]) >= 1.0)
+    fires += _court_ring(P, n - (1 if "court_short" in SABOTAGE else 0))
+    P["court_n"] = n
+    # --- the way between: a brazier street_step_m (1 +- step_jitter) after
+    #     the light before, from the pier's foot to the temple's gate
+    s_gate = min(way_near(W, s_, f["x"], f["y"])[1] for f in gate) if gate else s_[-1]
+    anchors = sorted([fires[0]["s"]] + [f["s"] for f in fires if f["where"] == "clearing"] + [s_gate])
+    step, jit, gap = N["street_step_m"], N["step_jitter"], N["min_gap_m"]
+    hb = half["brazier"]
+    k = 0
+    for a, b in zip(anchors[:-1], anchors[1:]):
+        s = a
+        while b - s > step * (1.0 + jit):
+            seed = FIRE_SEED * 4051 + k * 29
+            j = (SOUQ.hash01(seed + 5) - 0.5) * 2.0 * jit
+            side = 1 if SOUQ.hash01(seed + 6) < 0.5 else -1
+            k += 1
+            want, got = min(s + step * (1.0 + j), b - gap), None
+            t = want
+            while t >= s + gap and got is None:
+                for sd in (side, -side):
+                    x, y, yaw = kerb(t, sd, hb)
+                    if clear(x, y, hb):
+                        got = (t, sd, x, y, yaw)
+                        break
+                t -= 0.5
+            if got is None:
+                s = want                    # nothing clear back to the light before: check() reports the gap
+                continue
+            t, sd, x, y, yaw = got
+            fire("brazier", x, y, at(h, x, y), yaw, where="way", on="ground", s=t, side=sd)
+            s = t
+    _night_sabotage(P, fires)
+    P["fires"] = fires
+
+
+def _night_sabotage(P, fires):
+    """--bite: each of the night's rules broken once, after the plan."""
+    way = [f for f in fires if f["where"] == "way"]
+    if "trail_gap" in SABOTAGE:
+        fires.remove(way[20])
+        fires.remove(way[21])
+    if "fire_in_sea" in SABOTAGE:
+        f = fires[0]
+        ux, uy = P["pier"]["u"]
+        f["x"], f["y"] = f["x"] + ux * 30.0, f["y"] + uy * 30.0
+        f["z"] = at(P["h"], f["x"], f["y"])
+    if "fire_floating" in SABOTAGE:
+        way[10]["z"] += 0.5
+    if "fire_in_walkway" in SABOTAGE:
+        f = way[12]
+        f["x"], f["y"] = SOUQ._at([tuple(p) for p in P["way"]], P["way_s"], f["s"])[:2]
+        f["z"] = at(P["h"], f["x"], f["y"])
+    if "fire_in_rock" in SABOTAGE:
+        rocks = [p for p in P["foliage"] if p["kind"] == "Rock"]
+        f = way[15]
+        r = min(rocks, key=lambda p: math.hypot(p["x"] - f["x"], p["y"] - f["y"]))
+        f["x"], f["y"] = r["x"], r["y"]
+        f["z"] = at(P["h"], f["x"], f["y"])
+    if "fire_spec_drift" in SABOTAGE:
+        way[5]["cd"] *= 1.5
+    if "pier_head_dark" in SABOTAGE:
+        fires.remove(next(f for f in fires if f["on"] == "deck"))
 
 
 # ======================================================================= check
@@ -339,12 +610,199 @@ def check(P):
         if not lo <= counts.get(k, 0) <= hi:
             miss.append("%d %ss, want %d-%d" % (counts.get(k, 0), k.lower(), lo, hi))
     P["counts"] = counts
+    return miss + check_night(P)
+
+
+def check_night(P):
+    """The night's rules (THE NIGHT, at the top), each held on the plan's
+    own rows: every fire NIGHT's own; on its ground, out of the sea, the
+    walkway, every fight and every plant's foot; the pier's two; each
+    clearing's pair at the souq's arc and its fight lit; no gap on the way
+    longer than street_step_m x (1 + step_jitter); the temple's gate pair
+    and its court, as many as light its fight and no more."""
+    miss = []
+    N = SOUQ.NIGHT
+    h, gp, props, fires = P["h"], P["ground"], P["props"], P["fires"]
+    T = props["temple"]
+    W, s_ = P["way"], P["way_s"]
+    path = [tuple(p) for p in W]
+    pr, ar = P["pier"], gp["arena"]
+    rig = SOUQ._world_rig()
+    mu, mb = SOUQ.moon_ue(rig), SOUQ.moon_blender()
+    plants = [(f, foot_r(f, props)) for f in P["foliage"]]
+    PL = np.array([(f["x"], f["y"], r) for f, r in plants]).reshape(-1, 3)
+    # every fire NIGHT's own: its kind's mesh, height, foot, intensity, pool,
+    # 1800 K, shadow and smoke, and its pool back from its UE candela and its
+    # Blender watts (the souq's check 17)
+    for f in fires:
+        if f["kind"] not in SOUQ.FIRE_KINDS:
+            miss.append("a fire of kind %s, not one of the night's %s" % (f["kind"], SOUQ.FIRE_KINDS))
+            continue
+        own = SOUQ._fire(f["kind"], 0.0, 0.0, 0.0, 0.0, rig)
+        for key in ("mesh", "h", "half", "I", "pool", "temp", "shadow", "smoke"):
+            same = abs(f[key] - own[key]) <= 1e-9 * max(1.0, abs(own[key])) if isinstance(own[key], float) else f[key] == own[key]
+            if not same:
+                miss.append("a %s's %s is %s, the night's is %s" % (f["kind"], key, f[key], own[key]))
+        want = N[f["kind"]].get("pool_m") or SOUQ.pool_of(SOUQ.intensity(f["kind"]), f["h"])
+        for what, I in (("UE candela", f["cd"] / mu), ("Blender watts", f["watts"] / (4.0 * math.pi * mb))):
+            got = SOUQ.pool_of(I, f["h"])
+            if abs(got / want - 1.0) > 0.01:
+                miss.append("a %s's %s make a %.1f m pool, not %.1f m" % (f["kind"], what, got, want))
+    # on what it stands on, out of the sea and the walkway, clear of every
+    # fight, plant, rock, the pier and the boat; the way's fires on its verge
+    ex = next(a for a in P["actors"] if a["kind"] == "Exit")
+    bt = P["boat"]
+    for f in fires:
+        hm = f["half"] / 100.0
+        what = "the %s %s" % (f["where"], f["kind"])
+        if f["on"] == "deck":
+            along, across = pier_frame(pr, f["x"], f["y"])
+            if abs(f["z"] - pr["deck"]) > FIRE_ON_GROUND_M or not hm <= along <= pr["length"] - hm \
+                    or abs(across) > props["pier"]["width"] / 2.0 - hm:
+                miss.append("%s is not on the pier's deck (%.1f m along, %.1f across, %.2f m up)" % (what, along, across, f["z"]))
+            if along < pier_frame(pr, ex["x"], ex["y"])[0] + hm:
+                miss.append("%s stands in the way home, not past it" % what)
+        else:
+            g = at(h, f["x"], f["y"])
+            if g <= M.LAND_MIN_M:
+                miss.append("%s stands in the sea (the ground %.1f m)" % (what, g))
+            if abs(f["z"] - g) > FIRE_ON_GROUND_M:
+                miss.append("%s stands %.0f cm off the ground" % (what, (f["z"] - g) * 100.0))
+            fit = misfit(h, f["x"], f["y"], g, hm)
+            if fit > M.TRAIL_GRADE * hm:
+                miss.append("%s stands on ground steeper than the trail: %.0f cm off it at its rim" % (what, fit * 100.0))
+            along, across = pier_frame(pr, f["x"], f["y"])
+            if -hm < along < pr["length"] + hm and abs(across) < props["pier"]["width"] / 2.0 + hm:
+                miss.append("%s stands on the pier" % what)
+            if math.hypot(f["x"] - ar["x"], f["y"] - ar["y"]) < T["clear_r"] + hm:
+                miss.append("%s stands on the temple's court, the %.0f m it keeps clear" % (what, T["clear_r"]))
+        d, _ = way_near(W, s_, f["x"], f["y"])
+        if f["on"] == "ground" and d < M.TRAIL_BED_M + hm:
+            miss.append("%s stands in the walkway, %.1f m off the trail's middle" % (what, d))
+        if f["where"] in ("pier", "way", "clearing") and f["on"] == "ground" and d > M.TRAIL_BED_M + M.TRAIL_SHOULDER_M:
+            miss.append("%s stands %.1f m off the way, past its verge" % (what, d))
+        into = (PL[:, 2] + hm) - np.hypot(PL[:, 0] - f["x"], PL[:, 1] - f["y"]) if len(PL) else np.zeros(0)
+        if len(into) and into.max() > 0.0:
+            k = int(np.argmax(into))
+            miss.append("%s stands in a %s (%s), %.1f m into its foot" % (what, plants[k][0]["kind"].lower(), plants[k][0]["mesh"],
+                                                                        into[k]))
+        for s in gp["sites"]:
+            if math.hypot(f["x"] - s["x"], f["y"] - s["y"]) <= SITE_RADIUS_M + hm:
+                miss.append("%s stands in a clearing's fight" % what)
+        bu, bv = bt["u"]
+        dx, dy = f["x"] - bt["x"], f["y"] - bt["y"]
+        if abs(dx * bu + dy * bv) < BOAT_LEN_M / 2.0 + hm and abs(-dx * bv + dy * bu) < BOAT_BEAM_M / 2.0 + hm:
+            miss.append("%s stands in the boat" % what)
+    # the pier's two: its foot on the beach, its head on the deck
+    foot = [f for f in fires if f["on"] == "ground" and f["kind"] == "brazier"
+            and math.hypot(f["x"] - pr["x"], f["y"] - pr["y"]) <= M.TRAIL_BED_M + M.TRAIL_SHOULDER_M]
+    head = [f for f in fires if f["on"] == "deck" and f["kind"] == "brazier"]
+    if len(foot) != 1 or len(head) != 1:
+        miss.append("the pier has %d brazier at its foot and %d at its head, want one each" % (len(foot), len(head)))
+    # each clearing: its pyre pair at the souq's arc, the one before on one
+    # verge and the one after on the other; its fight lit
+    hp = N["pyre"]["half"] / 100.0
+    for i, s in enumerate(gp["sites"]):
+        i0 = int(np.argmin(np.hypot(W[:, 0] - s["x"], W[:, 1] - s["y"])))
+        arc = SITE_RADIUS_M + hp + N["fight_clear_m"]
+        pair = {}
+        for f in fires:
+            if f["kind"] != "pyre" or "s" not in f or abs(f["s"] - s_[i0]) > arc + 80 * 0.5:
+                continue
+            sign = 1 if f["s"] > s_[i0] else -1
+            walked = (abs(f["s"] - s_[i0]) - arc) / 0.5
+            x, y, _ = _verge(path, s_, f["s"], sign, hp)
+            if walked < -1e-6 or abs(walked - round(walked)) > 1e-6 or f.get("side") != sign or \
+                    math.hypot(x - f["x"], y - f["y"]) > 0.01:
+                miss.append("clearing %d: a pyre %.2f m along the way from its fight, on verge %s -- not the souq's arc"
+                            % (i + 1, f["s"] - s_[i0], f.get("side")))
+            pair.setdefault(sign, []).append(f)
+        if sorted(pair) != [-1, 1] or any(len(v) != 1 for v in pair.values()):
+            miss.append("clearing %d has %s of its pyre pair, want one either side of its fight"
+                        % (i + 1, {k: len(v) for k, v in sorted(pair.items())} or "none"))
+        e = moons(fires, s["x"], s["y"])
+        if e < 1.0:
+            miss.append("clearing %d is fought by moonlight alone (%.2f of the moon)" % (i + 1, e))
+    # the way, from the pier's foot to the court: no gap longer than a step
+    # and its jitter, and none at all where the way runs
+    ax, ay = ar["x"], ar["y"]
+    s_court = next(s_[k] for k in range(len(W)) if math.hypot(W[k, 0] - ax, W[k, 1] - ay) <= T["court_r"])
+    on_way = sorted(sa for d, sa in (way_near(W, s_, f["x"], f["y"]) for f in fires if f["on"] == "ground")
+                    if d <= M.TRAIL_BED_M + M.TRAIL_SHOULDER_M and sa <= s_court)
+    most = N["street_step_m"] * (1.0 + N["step_jitter"])
+    stops = [0.0] + on_way + [s_court]
+    for a, b in zip(stops[:-1], stops[1:]):
+        if b - a > most + 1e-6:
+            miss.append("the way has a %.1f m gap between lights at %.0f m along it, want %.1f or less" % (b - a, a, most))
+    # the temple: a pyre either side of its gate, door_in_m inside it; its
+    # court's ring just off the paving, as many as light its fight with the
+    # gate's two and no more, none on the way in
+    gb = math.radians(next(a for a in P["actors"] if a.get("mesh") == "SM_Island_Temple")["gate_bearing"])
+    r_in, off = T["gate_r"] - N["door_in_m"], T["gate_w"] / 2.0 + hp + N["door_off_m"]
+    gate = [f for f in fires if f["kind"] == "pyre" and any(
+        math.hypot(f["x"] - (ax + math.cos(gb) * r_in - math.sin(gb) * off * sg),
+                   f["y"] - (ay + math.sin(gb) * r_in + math.cos(gb) * off * sg)) <= 0.01 for sg in (-1, 1))]
+    if len(gate) != 2:
+        miss.append("the temple's gate has %d of its two pyres" % len(gate))
+    rc = T["court_r"] + hp + N["site_margin_cm"] / 100.0
+    court = [f for f in fires if f["kind"] == "pyre" and abs(math.hypot(f["x"] - ax, f["y"] - ay) - rc) <= 0.01]
+    n = len(court)
+    for f in court:
+        a = (math.degrees(math.atan2(f["y"] - ay, f["x"] - ax) - gb)) % 360.0
+        k = a / (360.0 / max(n, 1)) - 0.5
+        if abs(k - round(k)) > 1e-3:
+            miss.append("a court pyre stands %.0f degrees round from the gate, not evenly round the court" % a)
+    e = moons(fires, ax, ay)
+    if e < 1.0:
+        miss.append("the temple is fought by moonlight alone (%.2f of the moon)" % e)
+    elif n and moons(gate + _court_ring(P, n - 1), ax, ay) >= 1.0:
+        miss.append("the temple's court has %d pyres where %d light its fight" % (n, n - 1))
     return miss
+
+
+def _verge(path, s_, s, side, hm):
+    """night()'s kerb, for check(): where a fire hm across stands at arc s
+    on one verge, and the way's bearing there."""
+    x, y, tx, ty = SOUQ._at(path, s_, s)
+    across = side * (M.TRAIL_BED_M + hm + SOUQ.NIGHT["off_street_cm"] / 100.0)
+    return x - ty * across, y + tx * across, math.degrees(math.atan2(ty, tx))
+
+
+def _court_ring(P, n):
+    """n pyres evenly round the temple's court, half a step off its gate."""
+    N, T, ar = SOUQ.NIGHT, P["props"]["temple"], P["ground"]["arena"]
+    gb = math.radians(next(a for a in P["actors"] if a.get("mesh") == "SM_Island_Temple")["gate_bearing"])
+    rc = T["court_r"] + N["pyre"]["half"] / 100.0 + N["site_margin_cm"] / 100.0
+    rig = SOUQ._world_rig()
+    out = []
+    for k in range(n):
+        a = gb + math.radians((k + 0.5) * 360.0 / n)
+        x, y = ar["x"] + math.cos(a) * rc, ar["y"] + math.sin(a) * rc
+        out.append(SOUQ._fire("pyre", x, y, at(P["h"], x, y), math.degrees(a), rig, where="court", on="ground"))
+    return out
+
+
+def describe_night(P):
+    """The night in a line: its fires by where they stand, and the way's gaps."""
+    F = P["fires"]
+    W, s_ = P["way"], P["way_s"]
+    on_way = sorted(way_near(W, s_, f["x"], f["y"])[1] for f in F if f["where"] in ("pier", "way", "clearing")
+                    and f["on"] == "ground")
+    gaps = np.diff(on_way)
+    n = {w: sum(1 for f in F if f["where"] == w) for w in ("pier", "way", "clearing", "gate", "court")}
+    return ("%d fires -- %d braziers at the pier, %d on the way, %d pyres at the clearings, %d at the temple's gate, %d round "
+            "its court; a light every %.1f-%.1f m (mean %.1f) along %.0f m of the way; each %.0f cd (brazier) / %.0f cd (pyre), "
+            "drawn to %.0f / %.0f m" % (
+                len(F), n["pier"], n["way"], n["clearing"], n["gate"], n["court"], gaps.min(), gaps.max(), gaps.mean(),
+                s_[-1], SOUQ.candela(SOUQ.intensity("brazier"), SOUQ._world_rig()),
+                SOUQ.candela(SOUQ.intensity("pyre"), SOUQ._world_rig()),
+                SOUQ.draw_distance_cm(SOUQ.NIGHT["brazier"]["pool_m"]) / 100.0,
+                SOUQ.draw_distance_cm(SOUQ.pool_of(SOUQ.intensity("pyre"), SOUQ.NIGHT["pyre"]["h"])) / 100.0))
 
 
 def draw(P, path=MAP):
     """The island map with the level on it: plants, directors, the pier,
-    the boat and the temple."""
+    the boat, the temple and the night's fires."""
     from PIL import Image, ImageDraw
     base = Image.open(os.path.join(PROJECT, "Docs", "monkey-island-map.png")).convert("RGB")
     D = base.size[0]
@@ -366,9 +824,14 @@ def draw(P, path=MAP):
             g.rectangle([x - 3, y - 3, x + 3, y + 3], fill=(255, 120, 255) if a["kind"] == "PlayerStart" else (255, 230, 80))
         elif a.get("mesh") == "SM_Island_Boat":
             g.ellipse([x - 5, y - 3, x + 5, y + 3], outline=(240, 220, 160), width=2)
+    for f in P["fires"]:
+        x, y = px(f["x"], f["y"])
+        r = 2 if f["kind"] == "brazier" else 3
+        g.ellipse([x - r, y - r, x + r, y + r], fill=(255, 140, 30))
     c = P["counts"]
-    g.text((12, 30), "L_MonkeyIsland: %d palms, %d jungle trees, %d rocks; white: the directors; yellow: the way home"
-           % (c.get("Palm", 0), c.get("Tree", 0), c.get("Rock", 0)), fill=(255, 255, 255))
+    g.text((12, 30), "L_MonkeyIsland: %d palms, %d jungle trees, %d rocks; white: the directors; yellow: the way home; "
+           "orange: the night's %d fires" % (c.get("Palm", 0), c.get("Tree", 0), c.get("Rock", 0), len(P["fires"])),
+           fill=(255, 255, 255))
     base.save(path)
     print("drew %s" % path)
 
@@ -426,9 +889,12 @@ def build(P):
         skel = mesh.get_editor_property("skeleton") if mesh else None
         import_tasks([os.path.join(ANIM, f) for f in sorted(os.listdir(ANIM)) if f.startswith("A_%s_" % c) and f.endswith(".fbx")],
                      "/Game/Animation/Island", anim=True, skeleton=skel)
-    sys.path.insert(0, os.path.join(PROJECT, "Tools", "look"))
-    import surfaces                                   # noqa: E402  (every texture set right, M_Surface on every slot)
-    surfaces.build()
+    # the night's two fire meshes, the souq's own (SM_Souq_Brazier, _Cresset),
+    # imported as the souq and the world import them: build_souq's import ends
+    # with Tools/look/surfaces.build() -- every texture set right and M_Surface
+    # on every slot under Content, this island's included -- so it is not run
+    # a second time here
+    fire_mesh = SOUQ.import_meshes(sorted({f["mesh"] for f in P["fires"]}))
 
     # the level
     les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
@@ -501,7 +967,18 @@ def build(P):
             act.set_editor_property("destination_level", unreal.Name(a["DestinationLevel"]))
             act.set_editor_property("destination_stage", unreal.Name(a["DestinationStage"]))
             act.set_editor_property("arrive_at", unreal.AreaSide.RESUME)
-    # the night: the world's moon, sky, fog and exposure (build_world's)
+    # the night: the world's moon, sky, fog and exposure (build_world's).
+    # Until 2026-10-03 this rig silently differed from the world's it was
+    # meant to be: the moon kept the engine's own source angle, the sky light
+    # never captured the sky it lit, and the fog took the engine's defaults
+    # for every number. Each is set now exactly as build_world.build() sets
+    # its own, from WORLD_RIG and AIR: the moon's 0.55-degree disc (hard
+    # shadows), a sky light that captures in real time, and the look's air --
+    # its density, colour, start and fall-off -- volumetric, with the thin low
+    # mist under it. One difference the island makes by being an island: the
+    # fog stands at sea level and thins with height (fog_falloff), so the
+    # hills and the temple's plateau, 60 m up, stand in less of it than the
+    # beach; the world is flat and has none of that.
     import build_world as BW                          # noqa: E402
     r = BW.WORLD_RIG
     moon = spawn(unreal.DirectionalLight, "Moon", (0.0, 0.0, 30000.0), folder="Lighting")
@@ -509,11 +986,31 @@ def build(P):
     lc = moon.get_component_by_class(unreal.DirectionalLightComponent)
     lc.set_intensity(r["lux"])
     lc.set_light_color(unreal.LinearColor(*r["sun"]))
+    lc.set_editor_property("light_source_angle", r["angle"])    # the moon's disc: hard shadows
     lc.set_editor_property("atmosphere_sun_light", True)
     sky = spawn(unreal.SkyLight, "SkyLight", (0.0, 0.0, 25000.0), folder="Lighting")
-    sky.get_component_by_class(unreal.SkyLightComponent).set_intensity(r["sky"])
+    slc = sky.get_component_by_class(unreal.SkyLightComponent)
+    slc.set_intensity(r["sky"])
+    slc.set_editor_property("real_time_capture", True)
     spawn(unreal.SkyAtmosphere, "Sky", (0.0, 0.0, 0.0), folder="Lighting")
-    spawn(unreal.ExponentialHeightFog, "Fog", (0.0, 0.0, 0.0), folder="Lighting")
+    fog = spawn(unreal.ExponentialHeightFog, "Fog", (0.0, 0.0, 0.0), folder="Lighting")
+    fc = fog.get_component_by_class(unreal.ExponentialHeightFogComponent)
+    fc.set_editor_property("fog_density", r["fogd"])
+    fc.set_editor_property("fog_inscattering_luminance", unreal.LinearColor(*r["fog"]))
+    fc.set_editor_property("start_distance", r["fog_start"])
+    fc.set_editor_property("fog_height_falloff", r["fog_falloff"])
+    air = BW.AIR
+    fc.set_editor_property("enable_volumetric_fog", air["volumetric"])
+    fc.set_editor_property("volumetric_fog_scattering_distribution", air["scattering"])
+    fc.set_editor_property("volumetric_fog_albedo", unreal.Color(r=air["albedo"][0], g=air["albedo"][1], b=air["albedo"][2], a=255))
+    fc.set_editor_property("volumetric_fog_extinction_scale", air["extinction"])
+    fc.set_editor_property("volumetric_fog_start_distance", air["start_cm"])
+    fc.set_editor_property("volumetric_fog_distance", air["view_m"] * 100.0)
+    mist = fc.get_editor_property("second_fog_data")
+    mist.set_editor_property("fog_density", air["mist"]["density"])
+    mist.set_editor_property("fog_height_falloff", air["mist"]["falloff"])
+    mist.set_editor_property("fog_height_offset", air["mist"]["offset"])
+    fc.set_editor_property("second_fog_data", mist)
     ppv = spawn(unreal.PostProcessVolume, "Exposure", (0.0, 0.0, 0.0), folder="Lighting")
     ppv.set_editor_property("unbound", True)
     s = ppv.get_editor_property("settings")
@@ -524,8 +1021,27 @@ def build(P):
     s.set_editor_property("override_auto_exposure_bias", True)
     s.set_editor_property("auto_exposure_bias", BW.exposure_bias())
     ppv.set_editor_property("settings", s)
+    # the night's fires, the rows check_night() proved: the souq's mesh at
+    # each fire's foot, static as the souq stands its own; then its light,
+    # its shadow tag and its smoke by build_souq.spawn_night -- the world's
+    # own call, so every one is Movable, drawn and faded by its pool
+    # (LIGHT_CULL) and tagged for the game's shadow budget exactly as the
+    # world's are. spawn_night places by spawn(cls, label, x, y, z,
+    # folder=...) in Unreal centimetres; this file's spawn takes the place
+    # as one tuple, so it goes through an adapter, and the rows go to
+    # Unreal's centimetres through ue() (the map's y turned over)
+    def spawn_at(cls, label, x, y, z, yaw=0.0, folder="Island"):
+        return spawn(cls, label, (x, y, z), yaw, folder)
+    for i, f in enumerate(P["fires"]):
+        act = spawn(unreal.StaticMeshActor, "%s_%02d" % (f["mesh"], i), ue(f["x"], f["y"], f["z"]), ue_yaw(f["yaw"]),
+                    folder="Island/Night")
+        act.get_component_by_class(unreal.StaticMeshComponent).set_static_mesh(fire_mesh[f["mesh"]])
+        act.set_mobility(unreal.ComponentMobility.STATIC)
+    rows = [dict(f, **dict(zip(("x", "y", "z"), ue(f["x"], f["y"], f["z"])))) for f in P["fires"]]
+    lights, smoke = SOUQ.spawn_night(spawn_at, rows, [], rig=r, folder="Island/Night")
     les.save_current_level()
-    unreal.log("Built %s: %d actors, %d plants" % (LEVEL, len(P["actors"]), len(P["foliage"])))
+    unreal.log("Built %s: %d actors, %d plants, %d night lights, %d smoke volumes"
+               % (LEVEL, len(P["actors"]), len(P["foliage"]), lights, smoke))
 
 
 def _landscape_material(unreal, MEL, AT, EAL):
@@ -573,12 +1089,29 @@ BITES = [
     ("the pier out to sea", "pier_inland", "not over water"),
     ("the boat afloat", "boat_aground", "aground"),
     ("no plant on the trail", "tree_on_trail", "on the trail"),
+    # the night
+    ("each clearing's pyre pair", "no_clearing_pyres", "clearing 3 has"),
+    ("no gap on the way", "trail_gap", "gap between lights"),
+    ("no fire in the sea", "fire_in_sea", "in the sea"),
+    ("every fire on its ground", "fire_floating", "off the ground"),
+    ("no fire in the walkway", "fire_in_walkway", "in the walkway"),
+    ("no fire in a rock", "fire_in_rock", "stands in a rock"),
+    ("every fire NIGHT's own", "fire_spec_drift", "UE candela make"),
+    ("the pier's two", "pier_head_dark", "the pier has"),
+    ("the temple's gate pair", "no_gate_pyres", "gate has 0"),
+    ("the temple's fight lit", "court_short", "temple is fought by moonlight"),
 ]
 
 
 def main():
     args = sys.argv[1:]
     if "--bite" in args:
+        SABOTAGE.clear()
+        clean = check(plan())
+        if clean:
+            print("the unbroken plan fails its own checks, so no sabotage can be counted:\n  " + "\n  ".join(clean))
+            sys.exit(1)
+        print("  %-30s passes" % "unbroken")
         caught = 0
         for what, sab, want in BITES:
             SABOTAGE.clear()
@@ -599,6 +1132,7 @@ def main():
     print("checks pass: the directors on their sites and rows, the data (fighters, moves, clips, pace, meshes, styles), "
           "the temple's gate, the pier, the boat afloat, the start and the way home, %d palms, %d trees, %d rocks off the "
           "trail and the fights" % (c.get("Palm", 0), c.get("Tree", 0), c.get("Rock", 0)))
+    print("  the night: %s" % describe_night(P))
     try:
         import unreal  # noqa: F401
         build(P)

@@ -32,6 +32,13 @@ measured previews are the game's picture. The stage levels and the
 prologue set a manual exposure bias too, but left the physical camera on:
 held here to have it off, or the bias is not the exposure.
 
+THE ISLAND (2026-10-03). L_MonkeyIsland had no light but the moon; it has
+the souq's fires now (build_monkey_island_level.py, THE NIGHT), and is held
+here to the same rules as the world: its fires spawned by spawn_night() (so
+every one is Movable, drawn by its pool and tagged), its exposure the
+world's, and at most DRAWN_CAP lights drawn around any spot on it -- its
+directors, its start, its way home and every fire.
+
 Read from the sources, not run: no engine has opened this project.
 """
 
@@ -54,6 +61,7 @@ FILES = dict(
     prologue="Tools/levels/build_prologue.py",
     preview="Tools/blender/anime_preview.py",
     engine="Config/DefaultEngine.ini",
+    island="Tools/levels/build_monkey_island_level.py",
 )
 # At most this many night lights drawn around any one spot (34 measured
 # with the cull, 92 before it)
@@ -79,6 +87,15 @@ def _world():
     finally:
         sys.argv = argv
     return W
+
+
+def _island():
+    """The island level's builder, loaded fresh (a sabotage may change it)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("build_monkey_island_level", os.path.join(ROOT, FILES["island"]))
+    I = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(I)
+    return I
 
 
 def _header(text):
@@ -115,14 +132,27 @@ def lights_of(W, cull=None):
     return out, spots + [(x, y) for x, y, _, _ in out]
 
 
-def measure(W, cull=None, loaded_m=None):
+def island_lights_of(I):
+    """The island's fires and spots, as lights_of() gives the world's: (x, y)
+    cm, pool m, shadowed; its directors, its start, its way home and every
+    fire. The plan is made once per loaded builder."""
+    if not hasattr(I, "_lit_plan"):
+        I._lit_plan = I.plan()
+    P = I._lit_plan
+    out = [(f["x"] * 100.0, f["y"] * 100.0, f["pool"], bool(f["shadow"])) for f in P["fires"]]
+    spots = [(a["x"] * 100.0, a["y"] * 100.0) for a in P["actors"] if a["kind"] in ("WaveDirector", "PlayerStart", "Exit")]
+    return out, spots + [(x, y) for x, y, _, _ in out]
+
+
+def measure(W, cull=None, loaded_m=None, I=None):
     """Around every spot: (most drawn, most of those shadowed). With
-    loaded_m, nothing culled: every light within that many metres."""
+    loaded_m, nothing culled: every light within that many metres. With I,
+    the island level's (its own map) instead of the world's."""
     S = W.SOUQ
     cull = cull or S.LIGHT_CULL
     far = (lambda pool: loaded_m * 100.0) if loaded_m else \
         (lambda pool: pool * 100.0 / math.tan(math.radians(cull["degrees"])))
-    lights, spots = lights_of(W)
+    lights, spots = lights_of(W) if I is None else island_lights_of(I)
     most = [0, 0]
     for x, y in spots:
         near = [l for l in lights if math.hypot(l[0] - x, l[1] - y) <= far(l[2])]
@@ -130,9 +160,10 @@ def measure(W, cull=None, loaded_m=None):
     return most, len(lights), sum(1 for l in lights if l[3]), len(spots)
 
 
-def check(T=None, W=None, cull=None):
+def check(T=None, W=None, cull=None, I=None):
     T = T or texts()
     W = W or _world()
+    I = I or _island()
     S = W.SOUQ
     cull = cull or S.LIGHT_CULL
     miss = []
@@ -156,6 +187,9 @@ def check(T=None, W=None, cull=None):
             miss.append("spawn_night() cuts a %s light off at its distance instead of fading it" % what)
     if not re.search(r'if f\["shadow"\]:\s*\n\s*a\.set_editor_property\("tags", \[unreal\.Name\(LIGHT_CULL\["tag"\]\)\]\)', fires):
         miss.append("spawn_night() does not tag a shadowed fire, so the game never limits its shadow")
+    # 2b. the island's fires spawned by spawn_night(), every one of its rows
+    if not re.search(r'SOUQ\.spawn_night\(spawn_at, rows,', _between(T["island"], "def build(P):", "\ndef ")):
+        miss.append("the island's build spawns its fires some other way than spawn_night(): not culled, not tagged")
     # 3. the world's exposure: the volume, and the rule
     vol = _between(T["world"], 'spawn(unreal.PostProcessVolume, "Exposure"', 'post.set_editor_property("settings", pp)')
     if not vol:
@@ -178,6 +212,17 @@ def check(T=None, W=None, cull=None):
         if abs(got / want - 1.0) > 0.01:
             miss.append("the moon on open ground lands at %.3f of Key, the preview's night at %.3f "
                         "(1 / KEY_OVER_MOON)" % (got / W.LOOK["KEY"], want / W.LOOK["KEY"]))
+    # 3b. the island's exposure: the world's volume and bias
+    vol = _between(T["island"], 'spawn(unreal.PostProcessVolume, "Exposure"', 'ppv.set_editor_property("settings", s)')
+    if not vol:
+        miss.append("the island spawns no exposure: the engine's default decides how bright its moon is")
+    else:
+        for want, why in (('"unbound", True', "it is not unbound"), ("AEM_MANUAL", "it is not manual"),
+                          (PHYSICAL_OVERRIDE, "it leaves the physical camera to the engine"),
+                          (PHYSICAL_OFF, "the physical camera is on, so the bias is not the exposure"),
+                          ('"auto_exposure_bias", BW.exposure_bias()', "its bias is not the world's exposure_bias()")):
+            if want not in vol:
+                miss.append("the island's exposure: %s" % why)
     # 4. the stage levels' and the prologue's manual exposure: the physical camera off
     for k in ("levels", "prologue"):
         part = _between(T[k], "AEM_MANUAL", "auto_exposure_bias")
@@ -190,27 +235,41 @@ def check(T=None, W=None, cull=None):
     (drawn, shadowed), _, _, _ = measure(W, cull)
     if drawn > DRAWN_CAP:
         miss.append("%d night lights drawn around one spot, more than %d" % (drawn, DRAWN_CAP))
+    (drawn, shadowed), _, _, _ = measure(W, cull, I=I)
+    if drawn > DRAWN_CAP:
+        miss.append("%d night lights drawn around one spot on the island, more than %d" % (drawn, DRAWN_CAP))
     return miss
 
 
 def _bites():
     def text(key, old, new, count=1):
-        def f(T, W, cull):
+        def f(T, W, cull, I):
             assert old in T[key], "sabotage did not apply: %s" % old
             T[key] = T[key].replace(old, new, count)
         return f
 
     def setw(name, value):
-        def f(T, W, cull):
+        def f(T, W, cull, I):
             setattr(W, name, value)
         return f
 
     def cull_to(k, v, header=None):
-        def f(T, W, cull):
+        def f(T, W, cull, I):
             cull[k] = v
             if header:
                 T["header"] = T["header"].replace(*header)
         return f
+
+    def island_crowded(T, W, cull, I):
+        """Four fires where the island's plan puts one (build_world's 31
+        sabotage, on the island)."""
+        plan = I.plan
+
+        def crowded():
+            P = plan()
+            P["fires"] = [dict(f) for f in P["fires"] for _ in range(4)]
+            return P
+        I.plan = crowded
 
     return {
         "header_drift": cull_to("degrees", 3.0),
@@ -230,13 +289,17 @@ def _bites():
         "prologue_physical": text("prologue", PHYSICAL_OFF, PHYSICAL_OFF.replace("False", "True")),
         "static_lighting": text("engine", "r.AllowStaticLighting=False", "r.AllowStaticLighting=True"),
         "cull_far": cull_to("degrees", 1.0, ("CullDegrees = 2.5f;", "CullDegrees = 1.0f;")),
+        "island_unlit": text("island", "SOUQ.spawn_night(spawn_at, rows,", "SOUQ.spawn_lights(spawn_at, rows,"),
+        "island_physical": text("island", PHYSICAL_OFF, PHYSICAL_OFF.replace("False", "True")),
+        "island_crowded": island_crowded,
     }
 
 
 def main():
     W = _world()
+    I = _island()
     if "--bite" in sys.argv:
-        clean = check(W=W)
+        clean = check(W=W, I=I)
         if clean:
             print("the unbroken sources fail their own rules, so no sabotage can be counted:")
             for m in clean:
@@ -245,19 +308,24 @@ def main():
         caught, bites = 0, _bites()
         for name, breaks in bites.items():
             T, W2, cull = texts(), _world(), None
+            I2 = _island() if name.startswith("island") else I
             cull = dict(W2.SOUQ.LIGHT_CULL)
-            breaks(T, W2, cull)
-            miss = check(T, W2, cull)
+            breaks(T, W2, cull, I2)
+            miss = check(T, W2, cull, I2)
             caught += bool(miss)
             print("  %-18s %s" % (name, ("caught: " + miss[0]) if miss else "NOT caught"))
         print("%d of %d sabotages caught" % (caught, len(bites)))
         sys.exit(0 if caught == len(bites) else 1)
-    miss = check(W=W)
+    miss = check(W=W, I=I)
     (drawn, shadowed), n, ns, spots = measure(W)
     (d0, s0), _, _, _ = measure(W, loaded_m=LOADED_M)
     print("the night: %d lights, %d of them shadowed fires; around the worst of %d spots" % (n, ns, spots))
     print("  drawn:    %d lights, %d shadowed (with no cull, all within %.0f m: %d, %d)"
           % (drawn, shadowed, LOADED_M, d0, s0))
+    (drawn, shadowed), n, ns, spots = measure(W, I=I)
+    (d0, s0), _, _, _ = measure(W, loaded_m=LOADED_M, I=I)
+    print("  the island: %d lights, %d shadowed; around the worst of its %d spots %d drawn, %d shadowed "
+          "(with no cull: %d, %d)" % (n, ns, spots, drawn, shadowed, d0, s0))
     print("  casting:  at most %d (SaudLight::ShadowBudget, the nearest)" % _header(texts()["header"])["budget"])
     print("  exposure: bias %+.2f EV, the moon on open ground at %.2f of Key" % (W.exposure_bias(), W.MOON_TONE))
     for m in miss:

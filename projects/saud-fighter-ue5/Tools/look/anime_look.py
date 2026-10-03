@@ -221,11 +221,21 @@ LOOK = {
     # his shadow side come up the whole way, his lit skin -- a tone near
     # the top already -- all but stays (flat, at 1.5, it blew the check
     # sphere's lit skin to white).
-    "T_POOL1": 1.0,
-    "T_POOL2": 1.8,
-    "POOL_DIM": 0.40,
-    "POOL_BRIGHT": 2.0,
-    "FIGHTER_LEVEL": 2.2,
+    # 2026-10-04 ("scan for all very dark areas then fix them"): re-set on
+    # the previews as the game draws them (anime_preview.look_from at the
+    # engine's key; until then every preview stood 0.8-1.7 EV under the
+    # game and these were tuned by eye on that darker picture). Under the
+    # world's own key the fight's ground is lit 1.0-1.4 by its pyres: the
+    # pool's body starts at 1.6 (1.0) so that ground is its rim and the men
+    # stand off it (contrast 1.65), the heart at the glare (1.85; at 2.2
+    # the highlight split the body in two), the rim 0.34 (0.40) and the
+    # heart 2.4 (2.0) for the gate's pools (2.43); the men's lift 1.8 (2.2:
+    # on the game's picture their black kit read mid-grey).
+    "T_POOL1": 1.6,
+    "T_POOL2": 1.85,
+    "POOL_DIM": 0.34,
+    "POOL_BRIGHT": 2.4,
+    "FIGHTER_LEVEL": 1.8,
     "FIGHTER_KNEE": 0.03,
     # ... and what a fire lights keeps the fire's colour: the world's
     # saturation rises to POOL_SAT over the pool's body and heart where the
@@ -262,10 +272,15 @@ LOOK = {
     # (it was 9.6, 14.7, 21.1); the knee 4 -> 6, so a grey's shadow still
     # moves under one step (0.1 L*; the raised floors under the old knee
     # moved it 1.6, over the ladder's own rule)
-    "BLACK_DEEP": 0.0072,
-    "BLACK_SHADOW": 0.0125,
-    "BLACK_LIT": 0.0190,
-    "BLACK_KNEE": 6.0,
+    # 2026-10-04 (no black holes): every floor up and the knee 10 -- deep
+    # over the L* 12 line where it stood under it (on the game's picture,
+    # at its levels): ink 1.9, deep 13.9, shadow 21.4, lit 28.6. A deep
+    # tone is where nothing lights a surface but the sky (a moon shadow
+    # beyond every fire), 1-6 % of a map view; at 9.6 it read black.
+    "BLACK_DEEP": 0.0105,
+    "BLACK_SHADOW": 0.0155,
+    "BLACK_LIT": 0.0220,
+    "BLACK_KNEE": 10.0,
     # 1b. the rim (2026-09-28): a hard cold edge of light on a man's shadow
     # side, RIM_PX (1080 lines) wide just inside his heaviest line. Its
     # colour is his own at RIM_Q plus a sheen that does not need albedo
@@ -371,9 +386,11 @@ LOOK = {
     # world's level 0.55 -> 0.75: the pool's dim rim (1d) takes the fight's
     # weakly firelit ground down a step, and this gives some of it back
     # (at 0.9 the gate's pools fell under 2: brighter, the film's curve
-    # draws its steps closer).
+    # draws its steps closer). 2026-10-04: back to 0.55 -- that was judged
+    # on previews drawn 0.8-1.7 EV under the game; on the game's picture
+    # 0.75 made the fight a dusk (its median L* 42).
     "SKY_SATURATION": 0.42,
-    "WORLD_LEVEL": 0.75,
+    "WORLD_LEVEL": 0.55,
     "ACCENT_FROM": 0.80,     # a red this pure -- (r - max(g, b)) / r -- starts to count
     "ACCENT_FULL": 0.92,     # ...and is all accent here: #c8102e is 0.95, a rust tee 0.74
     "ACCENT_SAT": 1.06,
@@ -402,8 +419,11 @@ LOOK = {
     # times Key, like the fog. The horizon is darker than the street the
     # fight stands in, so the sky reads as night BEHIND the fight.
     # 2026-10-03, the System: a navy night (0.034 0.040 0.060 / 0.006 0.008 0.018 before)
-    "SKY_HORIZON": (0.026, 0.036, 0.074),
-    "SKY_ZENITH": (0.004, 0.007, 0.022),
+    # 2026-10-04: x0.88 -- the world's level came down (0.75 -> 0.55, the
+    # previews drawn as the game draws them) and the sky stays darker than
+    # the street in front of it (0.82x the wall at the old sky, 0.76 now)
+    "SKY_HORIZON": (0.023, 0.032, 0.065),
+    "SKY_ZENITH": (0.0035, 0.006, 0.019),
     "SKY_ZENITH_DEG": 45.0,
     # the moon is drawn on the world's moon (build_world.WORLD_RIG's yaw,
     # the light's own bearing) but lower, at MOON_ELEV_DEG, where a boom
@@ -442,7 +462,10 @@ LOOK = {
     # by VIGNETTE, from VIGNETTE_FROM of the way out (1 is a corner).
     # 2026-09-28: deeper, from nearer the middle (0.50 from 0.45 before).
     # 2026-10-02, the levels: 0.60 -> 0.45, part of "the picture is too dark"
-    "VIGNETTE": 0.45,
+    # 2026-10-04: 0.45 -> 0.38, its corners the last near-black of the
+    # island's views (4-5 % of a frame); under 0.38 the men's contrast,
+    # read on the whole frame's world, fell under 1.5
+    "VIGNETTE": 0.38,
     "VIGNETTE_FROM": 0.40,
     "VIGNETTE_TO": 1.05,
     # the levels (2026-10-02, "improve brightness levels" -- the picture too
@@ -464,8 +487,12 @@ LOOK = {
     # half-percent 0.65; the moon and bone white, ink black, a lit face a
     # tone (the check sphere's top 0.93). The black point is 0: the film's
     # toe is the black.
+    # 2026-10-04: the white point 0.65 -> 0.77 on the game's picture (the
+    # previews' level fixed): a lit face read 0.91 at its 95th percentile,
+    # near white; 0.85 now. 0.77 is the highest that keeps bone white
+    # (0.98; 0.80 gave 0.96).
     "LV_BLACK": 0.0,
-    "LV_WHITE": 0.65,
+    "LV_WHITE": 0.77,
     "LV_GAMMA": 1.75,
     # 6. speed lines. 2026-09-28, needles: a streak's angular share is
     # (SPEED_W0 + SPEED_W1 * its hash) * reach ** SPEED_TAPER -- a point at
@@ -2991,8 +3018,9 @@ def check(bite=None, rig=None):
         # tone 6 over the ink, the shadow 3.5 over the deep, the lit side 4
         # over the shadow; the hatching in the deep and the dots in the
         # world's shadow drawn darker than the tone they lie on; the lift
-        # the shadows' navy; and a grey (0.3) and anything lit at the
-        # world's floor within one step of where it stood with no ladder
+        # the shadows' navy; and a grey (0.3) and anything in a pool's body
+        # at the world's floor within one step of where it stood with no
+        # ladder
         def bl_lstar(bl_dsp):
             bl_li = np.where(bl_dsp <= 0.04045, bl_dsp / 12.92, ((np.clip(bl_dsp, 0, 1) + 0.055) / 1.055) ** 2.4)
             bl_y = bl_li @ luma
@@ -3017,7 +3045,11 @@ def check(bite=None, rig=None):
                         float(np.median(bl_dm[bl_fill][:, 2] / np.maximum(bl_dm[bl_fill][:, 0], 1e-4))))
             for bl_man in (False, True):
                 bl_who = "a man" if bl_man else "the world"
-                for bl_alb, bl_t in ((0.3, 0.05), (0.3, 0.35), (0.3, 1.2), (0.06, 1.2)):
+                # (lit: in a pool's body, over T_POOL1 -- since 2026-10-04 the
+                # pool's dim rim of dark paint is the bottom the floor lifts:
+                # at 1.2, the rim now, a 0.06 wall went from L* 12 to 28)
+                bl_body = LOOK["T_POOL1"] + 0.2
+                for bl_alb, bl_t in ((0.3, 0.05), (0.3, 0.35), (0.3, bl_body), (0.06, bl_body)):
                     if bl_alb == 0.3 and bl_t == 0.05 and not bl_man:
                         continue            # the world's deep at 0.3 is on the floor: that is the ladder
                     bl_got, bl__x, bl__y = bl_wall(bl_alb, bl_t, bl_man)
@@ -3064,15 +3096,18 @@ def check(bite=None, rig=None):
                 cl_px = cl_dsp[cl_mid][cl_fill]
                 cl_sat = (cl_px.max(-1) - cl_px.min(-1)) / np.maximum(cl_px.max(-1), 1e-6)
                 return float(np.median(bl_lstar(cl_px))), float(np.median(cl_sat)), float(np.median(1.0 - cl_sat))
-            # 1. the pool's rim (T 0.8), body (T 1.3) and heart (T 2.4) on a
+            # 1. the pool's rim (half way from the terminator to T_POOL1),
+            #    body (between the steps) and heart (0.6 over T_POOL2) on a
             #    world surface (0.15), each a clear step over the last, each
             #    flat; a man under the same light is one tone
-            cl_rim, cl_body, cl_heart = (cl_wall(0.15, cl_t, False)[0] for cl_t in (0.8, 1.3, 2.4))
+            cl_t1, cl_t2 = LOOK["T_POOL1"], LOOK["T_POOL2"]
+            cl_tr, cl_tb, cl_th = 0.5 * (LOOK["T_SHADOW"] + cl_t1), 0.5 * (cl_t1 + cl_t2), cl_t2 + 0.6
+            cl_rim, cl_body, cl_heart = (cl_wall(0.15, cl_t, False)[0] for cl_t in (cl_tr, cl_tb, cl_th))
             assert cl_body >= cl_rim + 8.0 and cl_heart >= cl_body + 8.0, \
                 "a fire's pool is three steps of its light (L* rim %.1f, body %.1f, heart %.1f)" % (cl_rim, cl_body, cl_heart)
-            cl_a, cl_b = cl_wall(0.15, 1.1, False)[0], cl_wall(0.15, 1.6, False)[0]
+            cl_a, cl_b = cl_wall(0.15, cl_t1 + 0.1, False)[0], cl_wall(0.15, cl_t2 - 0.1, False)[0]
             assert abs(cl_a - cl_b) <= 1.0, "each step of the pool is flat (L* %.1f and %.1f)" % (cl_a, cl_b)
-            cl_a, cl_b = cl_wall(0.15, 0.8, True)[0], cl_wall(0.15, 1.3, True)[0]
+            cl_a, cl_b = cl_wall(0.15, cl_tr, True)[0], cl_wall(0.15, cl_tb, True)[0]
             assert abs(cl_a - cl_b) <= 1.0, "a man is not stepped by the pool (L* %.1f and %.1f)" % (cl_a, cl_b)
             # 2. a man's level: his black kit (0.03) lit 6 or more over where
             #    it was (in shadow it is on the ladder's floor); lit skin
@@ -3094,7 +3129,7 @@ def check(bite=None, rig=None):
                 assert all(b >= a - 0.1 for a, b in zip(cl_seq, cl_seq[1:])), \
                     "a man's level keeps his order (%s L* %s)" % (cl_tone, ", ".join("%.1f" % x for x in cl_seq))
             # 3. a fire's colour in its pool: under a fire's light the world's
-            #    lit ground keeps half again the colour the world's saturation
+            #    ground in its body keeps half again the colour the world's saturation
             #    alone gives; under the moon, none
             def cl_plain(cl_t, cl_hue):
                 cl_k = LOOK["POOL_SAT"]
@@ -3103,19 +3138,19 @@ def check(bite=None, rig=None):
                     return cl_wall(0.15, cl_t, False, cl_hue)[1]
                 finally:
                     LOOK["POOL_SAT"] = cl_k
-            cl_f, cl_f0 = cl_wall(0.15, 1.3, False, cl_fire)[1], cl_plain(1.3, cl_fire)
+            cl_f, cl_f0 = cl_wall(0.15, cl_tb, False, cl_fire)[1], cl_plain(cl_tb, cl_fire)
             assert cl_f >= 1.5 * cl_f0, "a fire's pool keeps the fire's colour (saturation %.2f, %.2f without)" % (cl_f, cl_f0)
-            cl_m, cl_m0 = cl_wall(0.15, 1.3, False, cl_moon)[1], cl_plain(1.3, cl_moon)
+            cl_m, cl_m0 = cl_wall(0.15, cl_tb, False, cl_moon)[1], cl_plain(cl_tb, cl_moon)
             assert abs(cl_m - cl_m0) <= 0.01, "the moon's light is not a fire's (saturation %.3f, %.3f)" % (cl_m, cl_m0)
             # ... and the pool's colour is not clipped: a pale ground (0.3)
             #     under that fire keeps its least channel, a twentieth of its
             #     most or more (POOL_GAMUT; unbounded, nothing)
-            cl_least = cl_wall(0.3, 1.3, False, cl_fire)[2]
+            cl_least = cl_wall(0.3, cl_tb, False, cl_fire)[2]
             assert cl_least >= 0.05, "a fire's pool is not clipped (its least channel %.3f of its most)" % cl_least
             # 4. a firelit man keeps his own colour: under the fire that gives
             #    the world's ground its colour, a grey on him a quarter as much
-            cl_man = cl_wall(0.3, 1.3, True, cl_fire)[1]
-            cl_wld = cl_wall(0.3, 1.3, False, cl_fire)[1]
+            cl_man = cl_wall(0.3, cl_tb, True, cl_fire)[1]
+            cl_wld = cl_wall(0.3, cl_tb, False, cl_fire)[1]
             assert cl_man <= 0.25 and cl_man <= 0.4 * cl_wld, \
                 "a firelit man keeps his own colour (saturation %.2f, the ground's %.2f)" % (cl_man, cl_wld)
         finally:

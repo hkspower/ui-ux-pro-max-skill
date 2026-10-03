@@ -879,6 +879,7 @@ def render(samples=32, height=720):
     import numpy as np
     from PIL import Image
     import anime_preview as AP
+    import build_map_scenes as MS
     from mathutils import Vector
     bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, "scenes", "City.blend"))
     C = plan()
@@ -915,23 +916,34 @@ def render(samples=32, height=720):
         cam.location = Vector((sx_, sy_, 0.0)) + to_mid * dist + side * dist * 0.45 + Vector((0, 0, 4.0))
         aim = Vector((sx_, sy_, 0.3 * sub["sz"] / 100.0))
         cam.rotation_euler = (aim - cam.location).to_track_quat("-Z", "Y").to_euler()
-        # the night: the district's own fires, as the world lights them
+        # the night, the world's own (build_map_scenes): WORLD_RIG's moon --
+        # its bearing, colour and disc -- the world preview's sky, and each of
+        # the district's fires sized against that moon on open ground (4 pi I
+        # E_moon, as the engine sizes its candela against the rig's lux) and
+        # ended where spawn_night ends it. Until 2026-10-04 the moon here
+        # stood 90 degrees off the rig's bearing, there was no sky, and the
+        # fires were the souq's, sized for its 24-degree render moon.
         for o in [o for o in bpy.data.objects if o.get("night_fire")]:
             bpy.data.objects.remove(o, do_unlink=True)
+        E_moon = MS.moon_ground(BW.WORLD_RIG)
+        fire_pools = MS.attenuation_pools()[0]
         for i, p in enumerate(q for q in C["P"]["scenery"] if q.get("fire") and q["district"] is not None
                               and C["P"]["districts"][q["district"]]["stage"]["Name"] == dname):
             f = p["fire"]
-            L = bpy.data.lights.new("Fire_%02d" % i, "POINT"); L.energy = f["watts"]; L.shadow_soft_size = 0.15
+            L = bpy.data.lights.new("Fire_%02d" % i, "POINT")
+            L.energy = 4.0 * math.pi * f["I"] * E_moon
+            L.shadow_soft_size = 0.15
             L.use_temperature = True; L.temperature = f["temp"]
+            MS._engine_falloff(L, f["pool"] * fire_pools)
             o = bpy.data.objects.new("Fire_%02d" % i, L)
             o.location = ((p["x"] - d["ox"]) / 100.0, (p["y"] - d["oy"]) / 100.0, f["z"] / 100.0 + f["h"])
             o["night_fire"] = 1; sc.collection.objects.link(o)
         cam.data.clip_end = E * 4
         sc.camera = cam
-        if "CityMoon" not in bpy.data.objects:
-            moon = bpy.data.objects.new("CityMoon", bpy.data.lights.new("CityMoon", "SUN")); sc.collection.objects.link(moon)
-            moon.data.energy = 1.2; moon.data.color = (0.58, 0.68, 0.95); moon.data.angle = math.radians(0.55)
-            moon.rotation_euler = (math.radians(52), 0, math.radians(-125))
+        for o in [o for o in bpy.data.objects if o.type == "LIGHT" and o.data.type == "SUN"]:
+            bpy.data.objects.remove(o, do_unlink=True)
+        MS._sun("CityMoon", MS.rig_travel(BW.WORLD_RIG), BW.WORLD_RIG["sun"], MS.MOON_ENERGY, BW.WORLD_RIG["angle"])
+        MS._sky(BS._lin(BS._hex(BS.MOON["sky"])), BS.MOON["sky_strength"])
         sc.render.resolution_x, sc.render.resolution_y = int(height * 16 / 9), height
         got, exposure = AP.render_scene(camera=cam, height=height, samples=samples)
         pic, m = AP.look_from(got, exposure)

@@ -4101,7 +4101,10 @@ False` -- nothing in this game is ever baked.
 puts the moon on open ground at `MOON_TONE` 0.5 of `MPC_Anime.Key`: the
 preview's own rule for the night (`anime_preview.KEY_OVER_MOON` 2), so the
 night is the shadow tone, what a fire lights is lit, and the measured
-previews (median 0.23 since the levels) are the game's picture.
+previews (median 0.23 since the levels) are the game's picture. (That
+last clause was wrong until 2026-10-04: the previews drew every tone at
+their own stand-in key, 0.8-1.7 EV under the game's picture -- see "The
+dark areas, and the previews as the game draws them".)
 `WORLD_RIG`'s `expo`, never read, is gone. The stage levels
 (`build_levels.py`) and the prologue set a manual exposure bias but left
 the physical camera to the engine; with it on (as remembered, the default)
@@ -5118,7 +5121,8 @@ step 5):
 
 **Measured, before -> after**, on the same renders (540 lines, 16 samples,
 the graded check's own) -- the rules at the engine's key, the L* and C* as
-the previews draw them (their stand-in exposure):
+the previews draw them (their stand-in exposure; re-tuned 2026-10-04 on
+the game's own picture, "The dark areas"):
 
 | | before | after |
 | --- | --- | --- |
