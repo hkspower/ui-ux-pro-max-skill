@@ -12,13 +12,14 @@
  * tests/menu.cpp checks what is DRAWN at seven screen shapes, and Tools/
  * look/menu_preview.py draws it without an engine.
  *
- * The look is the dark seinen's, with the HUD's palette only (Ink, Bone,
- * Blood, Ember, Trough, Ash, Gold): "SAUD" in Bone with a Blood slash under
- * it like the health bar, "KUWAIT FIGHTER" small and dim; the items as
- * leaning ink plates -- the focused one Blood with its label in Bone and a
- * Bone keyline, pulsing slowly toward Ember on the real-time clock; the
- * others Trough in a thin Ash keyline with a dim label; a torn ink wash
- * behind the column; the pause the same column over a Trough-black scrim.
+ * The look is the System's (2026-10-03; the dark seinen's ink and blood
+ * before), with the HUD's palette only: "SAUD" in Ice with the System's
+ * cyan bar under it, "KUWAIT FIGHTER" small and dim; the items as square
+ * plates -- the focused one the panel's navy lit toward the System's cyan,
+ * with its label in Ice and a cyan keyline, breathing slowly on the
+ * real-time clock; the others the panel's navy in a dim cyan keyline with
+ * a dim label; a navy window with a cyan line along its top behind the
+ * column; the pause the same column over a navy scrim.
  * The settings rows show their value ("DIFFICULTY  PRO", "SOUND  7"). The
  * controls screen is SaudControls::BuildControlsPage's diagram with a BACK
  * plate and the pad-flip prompt. A prompt strip sits along the bottom safe
@@ -31,11 +32,9 @@
  * wrong Arabic is worse than none. When the engine gets a shaping text
  * path, add a Sub slot per item here.
  *
- * "Ash text": the DESIGN asks for the dim labels in Ash and for every text
- * to stand 7:1 against its Ink stroke; Ash against Ink is 5.4:1. So the dim
- * text is Bone at DimAlpha, which composites over the plates to an ash
- * tone and keeps the 7:1 the harness holds (it also holds the alpha at or
- * over 0.5).
+ * The dim text is Ice at DimAlpha, which composites over the plates to a
+ * grey-blue and keeps the 7:1 against its Ink stroke the harness holds (it
+ * also holds the alpha at or over 0.5).
  *
  * The strings live in the engine (SaudHUD.cpp or the menu's own .cpp): a
  * text item here is a SLOT and a VALUE, and the engine maps them:
@@ -722,7 +721,7 @@ namespace SaudMenu
 	    the heading actually drawn: 170 px "SAUD", 120 px "PAUSED". */
 	constexpr float ItemsGap = 80.f;
 	constexpr float PlateW = 560.f, PlateH = 66.f, PlateGap = 16.f;
-	constexpr float PlateLean = 0.55f;           // as the bars
+	constexpr float PlateLean = 0.f;             // square, as the System's bars (0.55 for the dark seinen's)
 	constexpr float LabelText = 34.f;            // >= 1080 / 36
 	constexpr float LabelIn = 26.f;              // past the lean
 	constexpr float StripText = 32.f;            // the prompt strip
@@ -730,10 +729,17 @@ namespace SaudMenu
 	constexpr float GlyphGap = 12.f;             // glyph to its word
 	constexpr float PromptGap = 48.f;            // between prompts
 	constexpr float ScrimAlpha = 0.78f;
-	constexpr float PlateAlpha = 0.88f;
-	constexpr float DimAlpha = 0.55f;            // the dim (ash) text and keylines: Bone / Ash at this
+	constexpr float PlateAlpha = 0.96f;          // (0.88 until the System: its cyan keyline would show through)
+	constexpr float DimAlpha = 0.55f;            // the dim text and keylines: Ice / System at this
 	constexpr float PulseHz = 0.38f;             // the focus pulse: one breath in 2.6 s
-	constexpr float PulseToEmber = 0.15f;        // how far toward Ember at the top of it: it stays Blood (Ember is the HUD's "enraged")
+	/** The focused plate is the panel's navy taken FocusMix of the way to
+	    the System's cyan, and FocusPulse further at the top of its breath:
+	    a deep lit blue that stands 3:1 off the panel and carries ice
+	    lettering 3:1 at its brightest (2026-10-03, the System; it was blood
+	    breathing toward ember). */
+	constexpr float FocusMix = 0.30f;
+	constexpr float FocusPulse = 0.15f;
+	constexpr float SysLinePx = 2.f;             // the System's line along the top of the wash
 	// 2026-10-02
 	constexpr float HintText = 30.f;             // the hint line: 1080 / 36, the least the HUD allows
 	constexpr float HintGap = 26.f;              // under the last plate
@@ -811,22 +817,23 @@ namespace SaudMenu
 		return L;
 	}
 
-	/** The focused plate's fill on the real-time clock: Blood breathing a
-	    little toward Ember, slowly -- never so far it reads Ember, which is
-	    the HUD's "enraged". Never under Blood, so it is never nearer the
-	    Trough than the palette promises (3:1). */
+	/** The focused plate's fill on the real-time clock: the panel's navy
+	    lit toward the System's cyan, breathing a little further, slowly.
+	    Never under FocusMix, so it never comes nearer the panel than the
+	    3:1 the menu promises; never past FocusMix + FocusPulse, so its ice
+	    label keeps 3:1 on it. */
 	inline FRgba FocusFill(float Clock)
 	{
 		const float Pulse = 0.5f + 0.5f * FMath::Sin(Clock * 6.2831853f * PulseHz);
-		return SaudHud::LerpColour(Colour::Blood, Colour::Ember, PulseToEmber * Pulse);
+		return SaudHud::LerpColour(Colour::Panel, Colour::System, FocusMix + FocusPulse * Pulse);
 	}
 	inline FRgba UnfocusedFill()
 	{
-		return SaudHud::WithAlpha(Colour::Trough, PlateAlpha);
+		return SaudHud::WithAlpha(Colour::Panel, PlateAlpha);
 	}
 	inline FRgba DimText()
 	{
-		return SaudHud::WithAlpha(Colour::Bone, DimAlpha);
+		return SaudHud::WithAlpha(Colour::Ice, DimAlpha);
 	}
 
 	inline EMenuText SlotOf(EItem I)
@@ -908,41 +915,43 @@ namespace SaudMenu
 
 	namespace Detail
 	{
-		/** The HUD's TornStrip (SaudAnime.h) for the menu's list: an ink
-		    strip with both edges torn by up to TearPx every PitchPx (the
-		    same hash, so Tools/look draws it the same), full Alpha to
-		    FadeFrom of its width and fading to nothing (smoothstep) at its
-		    end. SaudHud's writes an FDrawList, so it is written again here
-		    rather than copied through one. */
-		inline void TornWash(FMenuList& Out, const FPage& P, const FRect& R, float Seed, float Alpha, float FadeFrom)
+		/** The System's window behind the column: a straight navy panel,
+		    full Alpha to FadeFrom of its width and fading to nothing
+		    (smoothstep) at its end, in strips every PitchPx so the fade is
+		    smooth, with the System's cyan line along its top fading with
+		    it. (It was the HUD's torn ink strip until 2026-10-03.) */
+		inline void SysWash(FMenuList& Out, const FPage& P, const FRect& R, float Alpha, float FadeFrom)
 		{
 			const int N = static_cast<int>(FMath::Max(2.f, SaudHud::FloorF(R.W / P.Px(SaudHud::PitchPx) + 0.5f))) + 1;
-			const float Tear = P.Px(SaudHud::TearPx);
-			FPoint PrevT, PrevB;
-			FRgba PrevC;
-			for (int i = 0; i < N; ++i)
+			const float Line = FMath::Max(1.f, P.Px(SysLinePx));
+			for (int Pass = 0; Pass < 2; ++Pass)
 			{
-				const float U = static_cast<float>(i) / static_cast<float>(N - 1);
-				const float X = R.X + R.W * U;
-				const float Yt = R.Y + Tear * SaudHud::HudHash(static_cast<float>(i), Seed);
-				const float Yb = R.Y + R.H - Tear * SaudHud::HudHash(static_cast<float>(i + 500), Seed);
-				const float K = U <= FadeFrom ? 0.f : FMath::Clamp((U - FadeFrom) / (1.f - FadeFrom), 0.f, 1.f);
-				const float A = Alpha * (1.f - K * K * (3.f - 2.f * K));
-				const FPoint Tp = {X, Yt}, Bt = {X, Yb};
-				const FRgba C = SaudHud::WithAlpha(Colour::Ink, A);
-				if (i > 0)
+				FPoint PrevT, PrevB;
+				FRgba PrevC;
+				for (int i = 0; i < N; ++i)
 				{
-					const FPoint Q[4] = {PrevT, Tp, Bt, PrevB};
-					const FRgba Cs[4] = {PrevC, C, C, PrevC};
-					Out.Quad(Q, Cs, EMenuPart::Wash, -1, 0);
+					const float U = static_cast<float>(i) / static_cast<float>(N - 1);
+					const float X = R.X + R.W * U;
+					const float K = U <= FadeFrom ? 0.f : FMath::Clamp((U - FadeFrom) / (1.f - FadeFrom), 0.f, 1.f);
+					const float A = 1.f - K * K * (3.f - 2.f * K);
+					const FPoint Tp = {X, R.Y}, Bt = {X, Pass == 0 ? R.Y + R.H : R.Y + Line};
+					const FRgba C = Pass == 0 ? SaudHud::WithAlpha(Colour::Panel, Alpha * A)
+					                          : SaudHud::WithAlpha(Colour::System, A);
+					if (i > 0)
+					{
+						const FPoint Q[4] = {PrevT, Tp, Bt, PrevB};
+						const FRgba Cs[4] = {PrevC, C, C, PrevC};
+						Out.Quad(Q, Cs, EMenuPart::Wash, -1, 0);
+					}
+					PrevT = Tp;
+					PrevB = Bt;
+					PrevC = C;
 				}
-				PrevT = Tp;
-				PrevB = Bt;
-				PrevC = C;
 			}
 		}
 
-		/** A leaning plate: its keyline grown by KeyPx, then its fill. */
+		/** A plate (square since the System): its keyline grown by KeyPx,
+		    then its fill. */
 		inline void Plate(FMenuList& Out, const FRect& R, const FRgba& Fill, const FRgba& Key, float KeyPx, int Item)
 		{
 			FPoint Q[4];
@@ -958,7 +967,7 @@ namespace SaudMenu
 		                    SaudControls::EButton Button, EMenuText PadSlot, EMenuText KeySlot, int Value, float Alpha = 1.f)
 		{
 			const float Stroke = P.Px(SaudHud::TextStroke);
-			const FRgba Word = SaudHud::WithAlpha(Colour::Bone, Alpha);
+			const FRgba Word = SaudHud::WithAlpha(Colour::Ice, Alpha);
 			if (M.Pad == SaudControls::EPad::Keyboard)
 			{
 				Out.Text(KeySlot, Value, 0, {X, Baseline - H}, H, Word, Stroke, false, -1, EMenuPart::Glyph);
@@ -970,7 +979,7 @@ namespace SaudMenu
 			FMenuSink Sink(Out, EMenuPart::Glyph, -1, static_cast<int>(M.Pad), Alpha);
 			// a tab's rim is grown round it, so a glyph stands its rim above the line
 			SaudControls::Glyph(Button, M.Pad, X + 0.5f * GW, Baseline - 0.5f * Size - SaudControls::GlyphRim * Size, Size,
-			                    Colour::Ink, Colour::Bone, Sink);
+			                    Colour::Ink, Colour::Ice, Sink);
 			const float TX = X + GW + P.Px(GlyphGap);
 			Out.Text(PadSlot, Value, 0, {TX, Baseline - H}, H, Word, Stroke, false, -1, EMenuPart::Glyph);
 			return TX + TextWidth(PadSlot, Value, H) + P.Px(PromptGap);
@@ -995,7 +1004,7 @@ namespace SaudMenu
 		if (bScrim)
 		{
 			const FPoint Q[4] = {{0.f, P.ScreenH}, {0.f, 0.f}, {P.ScreenW, 0.f}, {P.ScreenW, P.ScreenH}};
-			Out.Quad(Q, SaudHud::WithAlpha(Colour::Trough, ScrimAlpha), EMenuPart::Scrim, -1, 0);
+			Out.Quad(Q, SaudHud::WithAlpha(Colour::Panel, ScrimAlpha), EMenuPart::Scrim, -1, 0);
 		}
 
 		if (M.Screen == EScreen::Controls)
@@ -1005,15 +1014,15 @@ namespace SaudMenu
 		}
 		else
 		{
-			// the torn ink wash behind the column, wiping open from the left
-			// as the screen opens; the heading, the blood slash wiping open
-			// under it, and on the Title the sub-line (on a Confirm, what
-			// Yes does: the hint below)
+			// the System's window behind the column, wiping open from the
+			// left as the screen opens; the heading in ice, the System's
+			// cyan bar wiping open under it, and on the Title the sub-line
+			// (on a Confirm, what Yes does: the hint below)
 			FRect Wash = L.Wash;
 			Wash.W *= Arrive(M, 0.f, WashWipeSeconds);
 			if (Wash.W >= 2.f)
 			{
-				Detail::TornWash(Out, P, Wash, 5.f, WashAlpha, WashFadeFrom);
+				Detail::SysWash(Out, P, Wash, WashAlpha, WashFadeFrom);
 			}
 			const float HeadA = Arrive(M, 0.05f, 0.25f);
 			EMenuText Head = EMenuText::SettingsHead;
@@ -1021,31 +1030,31 @@ namespace SaudMenu
 			if (M.Screen == EScreen::Title) Head = EMenuText::Saud;
 			else if (M.Screen == EScreen::Pause) Head = EMenuText::Paused;
 			else if (M.Screen == EScreen::Confirm) { Head = EMenuText::AskHead; HeadV = M.Ask == EAsk::NewGame ? 1 : 0; }
-			Out.Text(Head, HeadV, 0, L.Heading, L.HeadingH, SaudHud::WithAlpha(Colour::Bone, HeadA), Stroke, false, -1,
+			Out.Text(Head, HeadV, 0, L.Heading, L.HeadingH, SaudHud::WithAlpha(Colour::Ice, HeadA), Stroke, false, -1,
 			         EMenuPart::Wash);
 			const float T = FMath::Clamp(M.Since / SlashRevealSeconds, 0.f, 1.f);
 			const float Open = 1.f - (1.f - T) * (1.f - T) * (1.f - T);
 			if (Open > 0.f)
 			{
 				FPoint Q[4];
-				SaudHud::LeanQuad(L.Slash, Open, SaudHud::SlashLean, Q);
-				Out.Quad(Q, SaudHud::WithAlpha(Colour::Blood, SaudHud::SlashAlpha), EMenuPart::Slash, -1, 0);
+				SaudHud::LeanQuad(L.Slash, Open, 0.f, Q);
+				Out.Quad(Q, SaudHud::WithAlpha(Colour::System, SaudHud::SlashAlpha), EMenuPart::Slash, -1, 0);
 			}
 			if (M.Screen == EScreen::Title)
 			{
-				Out.Text(EMenuText::Subtitle, 0, 0, L.Subtitle, P.Px(SubText), SaudHud::WithAlpha(Colour::Bone, DimAlpha * HeadA),
+				Out.Text(EMenuText::Subtitle, 0, 0, L.Subtitle, P.Px(SubText), SaudHud::WithAlpha(Colour::Ice, DimAlpha * HeadA),
 				         Stroke, false, -1, EMenuPart::Wash);
 			}
 		}
 
-		// the items: leaning plates, the focused one blood in a bone
-		// keyline with a bone label, the rest trough in a dim ash keyline
-		// with a dim label. The focus glides: while it moves two
+		// the items: square plates, the focused one a lit System blue in a
+		// cyan keyline with an ice label, the rest the panel's navy in a dim
+		// cyan keyline with a dim label. The focus glides: while it moves two
 		// neighbours share it, each lit and nudged out of the column by
 		// its share. Each plate slides in from the left as the screen
 		// opens, one after another.
 		const float H = P.Px(LabelText);
-		const FRgba DimKey = SaudHud::WithAlpha(Colour::Ash, DimAlpha);
+		const FRgba DimKey = SaudHud::WithAlpha(Colour::System, DimAlpha);
 		for (int i = 0; i < N; ++i)
 		{
 			const bool bColumn = M.Screen != EScreen::Controls;
@@ -1058,8 +1067,8 @@ namespace SaudMenu
 			}
 			const auto Fade = [In](FRgba C) { C.A *= In; return C; };
 			Detail::Plate(Out, R, Fade(SaudHud::LerpColour(UnfocusedFill(), FocusFill(M.Clock), W)),
-			              Fade(SaudHud::LerpColour(DimKey, Colour::Bone, W)), Key, i);
-			const FRgba Label = Fade(SaudHud::LerpColour(DimText(), Colour::Bone, W));
+			              Fade(SaudHud::LerpColour(DimKey, Colour::System, W)), Key, i);
+			const FRgba Label = Fade(SaudHud::LerpColour(DimText(), Colour::Ice, W));
 			const FPoint At = {R.X + R.H * PlateLean + P.Px(LabelIn), R.Y + 0.5f * (R.H - H)};
 			Out.Text(SlotOf(List[i]), ValueOf(M, List[i]), 0, At, H, Label, Stroke, false, i, EMenuPart::Plate);
 			// CONTINUE carries where the save has got to, right on its plate
@@ -1082,7 +1091,7 @@ namespace SaudMenu
 				{
 					FPoint Q[4];
 					SaudHud::LeanQuad({X0 + static_cast<float>(k) * (SW + Gap), Y0, SW, MH}, 1.f, PlateLean, Q);
-					const FRgba C = k < Lit ? Label : Fade(SaudHud::WithAlpha(Colour::Ash, DimAlpha * 0.6f));
+					const FRgba C = k < Lit ? Label : Fade(SaudHud::WithAlpha(Colour::System, DimAlpha * 0.6f));
 					Out.Quad(Q, C, EMenuPart::Meter, i, k < Lit ? 1 : 0);
 				}
 			}
@@ -1094,7 +1103,7 @@ namespace SaudMenu
 		{
 			const EHint Hn = HintOf(M, List[M.Focus < 0 ? 0 : (M.Focus >= N ? N - 1 : M.Focus)]);
 			const float A = Arrive(M, 0.25f, 0.25f);
-			Out.Text(EMenuText::Hint, static_cast<int>(Hn), 0, L.Hint, L.HintH, SaudHud::WithAlpha(Colour::Bone, DimAlpha * A),
+			Out.Text(EMenuText::Hint, static_cast<int>(Hn), 0, L.Hint, L.HintH, SaudHud::WithAlpha(Colour::Ice, DimAlpha * A),
 			         Stroke, false, -1, EMenuPart::Wash);
 		}
 

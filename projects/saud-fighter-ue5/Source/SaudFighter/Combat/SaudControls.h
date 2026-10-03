@@ -56,8 +56,9 @@
  * says what the table binds, and that no leader crosses a button or another
  * leader.
  *
- * Only the HUD's palette (SaudHud::Colour): Ink, Bone, Blood, Ember, Trough,
- * Ash, Gold. Header of free functions and plain structs, like SaudAnime.h,
+ * Only the HUD's palette (SaudHud::Colour), in the System's colours since
+ * 2026-10-03: the pad, its rims and the leaders in the System's cyan, the
+ * labels and the markings in Ice, the PlayStation circle's rim in Danger. Header of free functions and plain structs, like SaudAnime.h,
  * so Tools/harness builds it with g++ and checks it (tests/controls.cpp).
  */
 
@@ -618,7 +619,7 @@ namespace SaudControls
 	constexpr float DpadGlyphArm = 0.30f;    // a d-pad glyph's arms, from the centre...
 	constexpr float DpadGlyphHead = 0.19f;   // ...the lit arm's arrowhead, half its base...
 	constexpr float DpadTip = 0.43f;         // ...and its tip
-	constexpr float DpadDimAlpha = 0.45f;    // the three unlit arms: Ash at this
+	constexpr float DpadDimAlpha = 0.45f;    // the three unlit arms: the System's cyan at this
 	constexpr float LetterStroke = 0.10f;    // the ink round it (3 page px at Size 30)
 	constexpr float ShapeStroke = 0.11f;     // a PlayStation shape's line
 	constexpr float TabWide = 2.3f;          // a shoulder tab's width
@@ -633,8 +634,8 @@ namespace SaudControls
 	    marking: an Xbox face button is a disc with its letter, a PlayStation
 	    one a disc with its shape drawn as geometry (cross: two bars; circle:
 	    a ring; square and triangle: hollow), every shape in FillColour and
-	    the circle's rim in Blood -- the one PlayStation accent the palette
-	    has -- the rest in Ash. Shoulders and triggers are rounded tabs with
+	    the circle's rim in Danger -- the one PlayStation accent -- the rest in
+	    the System's cyan. Shoulders and triggers are rounded tabs with
 	    their name; Menu / Options a disc with three bars; View / Create a
 	    disc with two rectangles; a stick a ring with a dot; its click (L3 /
 	    R3) a disc with its name; a d-pad direction the cross in a disc with
@@ -664,7 +665,7 @@ namespace SaudControls
 		case EButton::FaceNorth:
 		{
 			const bool bPS = Family == EPad::PlayStation;
-			RimmedDisc(Out, C, 0.5f * S, RimPx, bPS && Button == EButton::FaceEast ? Blood : Ash, InkColour);
+			RimmedDisc(Out, C, 0.5f * S, RimPx, bPS && Button == EButton::FaceEast ? Danger : System, InkColour);
 			if (!bPS)
 			{
 				Letter(LetterH);
@@ -709,21 +710,21 @@ namespace SaudControls
 		}
 		case EButton::LB:
 		case EButton::RB:
-			RimmedBox(Out, C, TabWide * S, S, TabCorner * S, false, RimPx, Ash, InkColour, EControlsPart::Face);
+			RimmedBox(Out, C, TabWide * S, S, TabCorner * S, false, RimPx, System, InkColour, EControlsPart::Face);
 			Letter(0.7f * S);
 			break;
 		case EButton::LT:
 		case EButton::RT:
-			RimmedBox(Out, C, TriggerWide * S, S, TriggerCorner * S, false, RimPx, Ash, InkColour, EControlsPart::Face);
+			RimmedBox(Out, C, TriggerWide * S, S, TriggerCorner * S, false, RimPx, System, InkColour, EControlsPart::Face);
 			Letter(0.7f * S);
 			break;
 		case EButton::L3:
 		case EButton::R3:
-			RimmedDisc(Out, C, 0.5f * S, RimPx, Ash, InkColour);
+			RimmedDisc(Out, C, 0.5f * S, RimPx, System, InkColour);
 			Letter(LetterH);
 			break;
 		case EButton::Menu:
-			RimmedDisc(Out, C, 0.5f * S, RimPx, Ash, InkColour);
+			RimmedDisc(Out, C, 0.5f * S, RimPx, System, InkColour);
 			for (int i = -1; i <= 1; ++i)
 			{
 				Rect(Out, C.X - 0.25f * S, C.Y + 0.2f * S * static_cast<float>(i) - 0.045f * S, 0.5f * S, 0.09f * S,
@@ -731,7 +732,7 @@ namespace SaudControls
 			}
 			break;
 		case EButton::View:
-			RimmedDisc(Out, C, 0.5f * S, RimPx, Ash, InkColour);
+			RimmedDisc(Out, C, 0.5f * S, RimPx, System, InkColour);
 			Rect(Out, C.X - 0.22f * S, C.Y - 0.22f * S, 0.30f * S, 0.26f * S, FillColour, EControlsPart::Label);
 			Rect(Out, C.X - 0.11f * S, C.Y - 0.07f * S, 0.36f * S, 0.32f * S, InkColour, EControlsPart::Label);
 			Rect(Out, C.X - 0.08f * S, C.Y - 0.04f * S, 0.30f * S, 0.26f * S, FillColour, EControlsPart::Label);
@@ -741,8 +742,8 @@ namespace SaudControls
 		case EButton::DpadLeft:
 		case EButton::DpadRight:
 		{
-			RimmedDisc(Out, C, 0.5f * S, RimPx, Ash, InkColour);
-			const FRgba Dim = SaudHud::WithAlpha(Ash, DpadDimAlpha);
+			RimmedDisc(Out, C, 0.5f * S, RimPx, System, InkColour);
+			const FRgba Dim = SaudHud::WithAlpha(System, DpadDimAlpha);
 			const float Half = DpadGlyphArm * S, Hw = 0.10f * S;
 			DpadCross(Out, C, Half, Hw,
 			          Button == EButton::DpadUp ? FillColour : Dim, Button == EButton::DpadDown ? FillColour : Dim,
@@ -774,7 +775,7 @@ namespace SaudControls
 	constexpr float BodyW = 400.f, BodyH = 200.f, BodyCorner = 30.f;
 	constexpr float GripX = 108.f, GripY = 105.f, GripA = 58.f, GripB = 108.f, GripTilt = 18.f;   // degrees
 	constexpr float PadRim = 3.f;
-	constexpr float BodyAlpha = 0.40f;       // the body's Ash wash over the dark
+	constexpr float BodyAlpha = 0.16f;       // the body's System wash over the dark (0.40 of Ash before the System)
 	/** The two pads differ on the left: a DualSense has its d-pad at the
 	    left middle and both sticks low; an Xbox pad has its left stick
 	    there and a smaller d-pad under it. The right stick is low on both. */
@@ -1008,17 +1009,17 @@ namespace SaudControls
 		const FControlsLayout L = LayControls(P, Family);
 		const FPoint C = L.PadCentre;
 		const float Rim = FMath::Max(1.f, P.Px(PadRim));
-		const FRgba Body = SaudHud::WithAlpha(Ash, BodyAlpha);
+		const FRgba Body = SaudHud::WithAlpha(System, BodyAlpha);
 
-		// the pad: two grips, the body over them, the d-pad cross (ink in an ash rim)
+		// the pad: two grips, the body over them, the d-pad cross (ink in a cyan rim)
 		const float Tilt = FMath::DegreesToRadians(GripTilt);
 		const float BodyBottom = C.Y + P.Px(0.5f * BodyH);
-		RimmedEllipse(Out, {C.X - P.Px(GripX), C.Y + P.Px(GripY)}, P.Px(GripA), P.Px(GripB), Tilt, BodyBottom, Rim, Ash,
+		RimmedEllipse(Out, {C.X - P.Px(GripX), C.Y + P.Px(GripY)}, P.Px(GripA), P.Px(GripB), Tilt, BodyBottom, Rim, System,
 		              Body, EControlsPart::Body);
-		RimmedEllipse(Out, {C.X + P.Px(GripX), C.Y + P.Px(GripY)}, P.Px(GripA), P.Px(GripB), -Tilt, BodyBottom, Rim, Ash,
+		RimmedEllipse(Out, {C.X + P.Px(GripX), C.Y + P.Px(GripY)}, P.Px(GripA), P.Px(GripB), -Tilt, BodyBottom, Rim, System,
 		              Body, EControlsPart::Body);
-		RimmedBox(Out, C, P.Px(BodyW), P.Px(BodyH), P.Px(BodyCorner), true, Rim, Ash, Body, EControlsPart::Body);
-		DpadCross(Out, L.DpadCentre, L.DpadHalf + Rim, L.DpadArm + Rim, Ash, Ash, Ash, Ash, EControlsPart::Rim);
+		RimmedBox(Out, C, P.Px(BodyW), P.Px(BodyH), P.Px(BodyCorner), true, Rim, System, Body, EControlsPart::Body);
+		DpadCross(Out, L.DpadCentre, L.DpadHalf + Rim, L.DpadArm + Rim, System, System, System, System, EControlsPart::Rim);
 		DpadCross(Out, L.DpadCentre, L.DpadHalf, L.DpadArm, Ink, Ink, Ink, Ink, EControlsPart::Body);
 
 		// the leaders, under the glyphs so each leaves a button's edge
@@ -1027,7 +1028,7 @@ namespace SaudControls
 			const FSlot& S = L.Slot[b];
 			if (S.bLabel)
 			{
-				Line(Out, S.LeadFrom, S.LeadTo, FMath::Max(1.f, P.Px(LeaderPx)), Ash, EControlsPart::Line);
+				Line(Out, S.LeadFrom, S.LeadTo, FMath::Max(1.f, P.Px(LeaderPx)), System, EControlsPart::Line);
 			}
 		}
 		// the buttons
@@ -1036,7 +1037,7 @@ namespace SaudControls
 			const FSlot& S = L.Slot[b];
 			if (S.Size > 0.f)
 			{
-				Glyph(static_cast<EButton>(b), Family, S.Centre.X, S.Centre.Y, S.Size, Ink, Bone, Out);
+				Glyph(static_cast<EButton>(b), Family, S.Centre.X, S.Centre.Y, S.Size, Ink, Ice, Out);
 			}
 		}
 		// the labels
@@ -1045,16 +1046,16 @@ namespace SaudControls
 			const FSlot& S = L.Slot[b];
 			if (S.bLabel)
 			{
-				Out.Text(S.LabelSlot, S.LabelValue, S.LabelAt, L.LabelH, Bone, L.Stroke, S.bLabelCentre);
+				Out.Text(S.LabelSlot, S.LabelValue, S.LabelAt, L.LabelH, Ice, L.Stroke, S.bLabelCentre);
 			}
 		}
-		Out.Text(EControlsText::PadName, static_cast<int>(Family), L.CaptionAt, L.LabelH, Bone, L.Stroke, true);
+		Out.Text(EControlsText::PadName, static_cast<int>(Family), L.CaptionAt, L.LabelH, Ice, L.Stroke, true);
 
 		// the keyboard: the same actions, their keys
 		for (int a = 0; a < NumFightActions; ++a)
 		{
-			Out.Text(EControlsText::ActionName, a, L.ListName[a], L.LabelH, Bone, L.Stroke, false);
-			Out.Text(EControlsText::KeyName, a, L.ListKey[a], L.LabelH, Bone, L.Stroke, false);
+			Out.Text(EControlsText::ActionName, a, L.ListName[a], L.LabelH, Ice, L.Stroke, false);
+			Out.Text(EControlsText::KeyName, a, L.ListKey[a], L.LabelH, Ice, L.Stroke, false);
 		}
 	}
 }

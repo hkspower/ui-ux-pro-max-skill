@@ -4370,6 +4370,47 @@ caught. The harness passes whole; `anime_look.py`'s checks pass.
 are the draw list rasterised by `hud_preview.py`. The menus still wear the
 dark seinen's ink and blood until the next part.
 
+## The System's menus -- 2026-10-03
+
+The second part of "#94" (the Solo Leveling style): the title, the pause,
+the settings, the confirm and the controls page in the System's colours.
+The layout, the model, the motion and every rule of "The main menu, easier
+to use" are unchanged; what is drawn is restyled.
+
+- **The window behind the column** (`SaudMenu::Detail::SysWash`): a straight
+  navy panel (`Colour::Panel`) fading out to the right as before, with the
+  System's cyan line along its top fading with it. It was the torn ink wash.
+- **The heading** in Ice with the System's cyan bar under it (it was Bone
+  over a Blood slash), square, wiping open over 0.40 s as before; the
+  sub-line and the hint dim Ice.
+- **The plates**, square (`PlateLean` 0): the rest the panel's navy (now
+  0.96 opaque, so the cyan keyline under it does not tint it teal) in a
+  dim cyan keyline with a dim label; the focused one the navy lit 30 % of
+  the way to the System's cyan, breathing to 45 % (`FocusMix`,
+  `FocusPulse`; it was Blood breathing toward Ember), in a cyan keyline
+  with an Ice label. The meters' lit segments are the label's colour, the
+  unlit dim cyan. The scrim is navy.
+- **The controls page** (`SaudControls.h`): the pad's body a faint cyan
+  wash (`BodyAlpha` 0.16, it was 0.40 of Ash), its rims, the d-pad's rim
+  and every leader in the System's cyan, the labels and the glyphs'
+  markings in Ice, the PlayStation circle's rim in Danger (it was Blood).
+  The prompt strip's words are Ice.
+
+**Checked:** `tests/menu.cpp` and `tests/controls.cpp` pass, rewritten for
+the System where they named a colour: the palette now admits the System's
+five and the focus's line from the panel to the cyan; the focused plate
+3:1 on the panel through its whole breath (3.62 at its dimmest) with its
+Ice label 3:1 on it (3.44 at its brightest), Ice 18.4:1 on the ink stroke;
+the breath held to 30-45 % of the way to the cyan; the heading Ice, the bar
+cyan; the PlayStation circle Danger, every other rim cyan. Six new
+sabotages for the System (the bar back to blood, the focus too dim, the
+breath too wide, the plates trough, the labels bone, a colour off the
+palette) and three controls sabotages re-pointed at the new colours: the
+menu and controls suites 58 of 58 caught. `menu_preview.py` re-renders
+`Docs/renders/menu-*.png`; `title_preview.py` the two 3D titles.
+
+**Not verified:** no engine has drawn any of it.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

@@ -89,7 +89,8 @@ static bool IsPalette(const FRgba& C)
 {
     using namespace SaudHud::Colour;
     if (SameRgb(C, Ink) || SameRgb(C, Bone) || SameRgb(C, Blood) || SameRgb(C, Ember) || SameRgb(C, Trough)
-        || SameRgb(C, Ash) || SameRgb(C, Gold)) return true;
+        || SameRgb(C, Ash) || SameRgb(C, Gold) || SameRgb(C, System) || SameRgb(C, Panel) || SameRgb(C, Shadow)
+        || SameRgb(C, Danger) || SameRgb(C, Ice)) return true;
     const float T = (C.R - Ink.R) / (Bone.R - Ink.R);
     return T >= -1e-4f && T <= 1.f + 1e-4f && std::fabs(C.G - (Ink.G + (Bone.G - Ink.G) * T)) < 1e-3f
            && std::fabs(C.B - (Ink.B + (Bone.B - Ink.B) * T)) < 1e-3f;
@@ -358,7 +359,7 @@ static void Glyphs()
         {
             const EButton B = static_cast<EButton>(b);
             List.Reset();
-            Glyph(B, Pad, C.X, C.Y, Size, SaudHud::Colour::Ink, SaudHud::Colour::Bone, List);
+            Glyph(B, Pad, C.X, C.Y, Size, SaudHud::Colour::Ink, SaudHud::Colour::Ice, List);
             if (List.NumTris < 6) Shaped = false;
             if (List.NumTris > MaxTris) MaxTris = List.NumTris;
             for (int t = 0; t < List.NumTris; ++t)
@@ -418,7 +419,7 @@ static void Glyphs()
     bool Mitred = true;
     {
         List.Reset();
-        Glyph(EButton::FaceNorth, EPad::PlayStation, C.X, C.Y, Size, SaudHud::Colour::Ink, SaudHud::Colour::Bone, List);
+        Glyph(EButton::FaceNorth, EPad::PlayStation, C.X, C.Y, Size, SaudHud::Colour::Ink, SaudHud::Colour::Ice, List);
         float Far = 0.f;
         for (int t = 0; t < List.NumTris; ++t)
         {
@@ -444,12 +445,12 @@ static void Glyphs()
         const float Dx = B == EButton::DpadLeft ? -1.f : (B == EButton::DpadRight ? 1.f : 0.f);
         const float Dy = B == EButton::DpadUp ? -1.f : (B == EButton::DpadDown ? 1.f : 0.f);
         List.Reset();
-        Glyph(B, EPad::Xbox, C.X, C.Y, Size, SaudHud::Colour::Ink, SaudHud::Colour::Bone, List);
+        Glyph(B, EPad::Xbox, C.X, C.Y, Size, SaudHud::Colour::Ink, SaudHud::Colour::Ice, List);
         float Lit = 0.f, Unlit = 0.f;
         for (int t = 0; t < List.NumTris; ++t)
         {
             if (List.Tris[t].Part != EControlsPart::Label) continue;
-            const bool bFill = SameRgb(List.Tris[t].C[0], SaudHud::Colour::Bone);
+            const bool bFill = SameRgb(List.Tris[t].C[0], SaudHud::Colour::Ice);
             for (int v = 0; v < 3; ++v)
             {
                 const float Rx = List.Tris[t].P[v].X - C.X, Ry = List.Tris[t].P[v].Y - C.Y;
@@ -459,11 +460,11 @@ static void Glyphs()
                 Unlit = std::fmax(Unlit, std::fmax(Other, -Along));
                 if (bFill && Along < -0.11f * Size) Arrowed = false;   // the fill only on the lit side
             }
-            if (!bFill && !SameRgb(List.Tris[t].C[0], SaudHud::Colour::Ash)) Arrowed = false;
+            if (!bFill && !SameRgb(List.Tris[t].C[0], SaudHud::Colour::System)) Arrowed = false;
         }
         if (Lit < 0.40f * Size || Unlit > 0.34f * Size) Arrowed = false;
     }
-    Check(Arrowed, "a d-pad glyph's lit arm reaches out with an arrowhead, in the fill; the other three are short and ash");
+    Check(Arrowed, "a d-pad glyph's lit arm reaches out with an arrowhead, in the fill; the other three are short and dim cyan");
 
     // at the prompt strip's size, 48 page px, every glyph's word is 30 px or
     // over: 1/36 of the screen, the floor every word the player reads keeps
@@ -472,7 +473,7 @@ static void Glyphs()
         for (int b = 0; b < NumButtons; ++b)
         {
             List.Reset();
-            Glyph(static_cast<EButton>(b), static_cast<EPad>(p), C.X, C.Y, 48.f, SaudHud::Colour::Ink, SaudHud::Colour::Bone, List);
+            Glyph(static_cast<EButton>(b), static_cast<EPad>(p), C.X, C.Y, 48.f, SaudHud::Colour::Ink, SaudHud::Colour::Ice, List);
             for (int t = 0; t < List.NumTexts; ++t) if (List.Texts[t].Height < 30.f - 0.01f) StripLegible = false;
         }
     Check(StripLegible, "at the prompt strip's Size 48 every glyph word is 30 px, 1/36 of the screen");
@@ -484,8 +485,8 @@ static void Glyphs()
     Check(Palette, "a glyph is drawn in the HUD's palette");
     Check(SameAsXbox, "a keyboard draws the Xbox glyph");
 
-    // the PlayStation circle's rim is the one accent, in Blood; every other
-    // disc's rim is Ash
+    // the PlayStation circle's rim is the one accent, in Danger; every other
+    // disc's rim is the System's cyan
     bool Accent = true;
     for (int b = 0; b < NumButtons; ++b)
     {
@@ -494,14 +495,14 @@ static void Glyphs()
         for (int p = 0; p < 2; ++p)
         {
             List.Reset();
-            Glyph(B, static_cast<EPad>(p), C.X, C.Y, Size, SaudHud::Colour::Ink, SaudHud::Colour::Bone, List);
+            Glyph(B, static_cast<EPad>(p), C.X, C.Y, Size, SaudHud::Colour::Ink, SaudHud::Colour::Ice, List);
             const bool WantBlood = p == 1 && B == EButton::FaceEast;
             for (int t = 0; t < List.NumTris; ++t)
                 if (List.Tris[t].Part == EControlsPart::Rim
-                    && !SameRgb(List.Tris[t].C[0], WantBlood ? SaudHud::Colour::Blood : SaudHud::Colour::Ash)) Accent = false;
+                    && !SameRgb(List.Tris[t].C[0], WantBlood ? SaudHud::Colour::Danger : SaudHud::Colour::System)) Accent = false;
         }
     }
-    Check(Accent, "the PlayStation circle's rim is Blood, the one accent; every other rim is Ash");
+    Check(Accent, "the PlayStation circle's rim is Danger, the one accent; every other rim is the System's cyan");
 }
 
 // ------------------------------------------------------------ PAGE

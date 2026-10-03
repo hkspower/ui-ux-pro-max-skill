@@ -189,11 +189,12 @@ static bool IsPalette(const FRgba& C)
 {
 	using namespace SaudHud::Colour;
 	if (SameRgb(C, Ink) || SameRgb(C, Bone) || SameRgb(C, Blood) || SameRgb(C, Ember) || SameRgb(C, Trough)
-	    || SameRgb(C, Ash) || SameRgb(C, Gold)) return true;
-	// or on the focus pulse's line from Blood to Ember
-	const float T = (C.R - Blood.R) / (Ember.R - Blood.R);
-	return T >= -1e-4f && T <= 1.f + 1e-4f && Near(C.G, Blood.G + (Ember.G - Blood.G) * T, 1e-3f)
-	       && Near(C.B, Blood.B + (Ember.B - Blood.B) * T, 1e-3f);
+	    || SameRgb(C, Ash) || SameRgb(C, Gold) || SameRgb(C, System) || SameRgb(C, Panel) || SameRgb(C, Shadow)
+	    || SameRgb(C, Danger) || SameRgb(C, Ice)) return true;
+	// or on the focus's line from the panel to the System's cyan
+	const float T = (C.G - Panel.G) / (System.G - Panel.G);
+	return T >= -1e-4f && T <= 1.f + 1e-4f && Near(C.R, Panel.R + (System.R - Panel.R) * T, 1e-3f)
+	       && Near(C.B, Panel.B + (System.B - Panel.B) * T, 1e-3f);
 }
 static bool Mine(EMenuPart Pt)
 {
@@ -593,8 +594,8 @@ static void PageRules()
 							const bool bStands = Contrast(Fill, UnfocusedFill()) >= 3.f;
 							if (bStands) ++Focused;
 							if (bStands != (i == Focus)) OneFocus = false;
-							if (i == Focus) FocusReads = FocusReads && bStands && SameRgb(X->Colour, SaudHud::Colour::Bone);
-							else FocusReads = FocusReads && SameRgb(Fill, SaudHud::Colour::Trough);
+							if (i == Focus) FocusReads = FocusReads && bStands && SameRgb(X->Colour, SaudHud::Colour::Ice);
+							else FocusReads = FocusReads && SameRgb(Fill, SaudHud::Colour::Panel);
 						}
 						OneFocus = OneFocus && Focused == 1;
 						// the settings rows read the model
@@ -800,14 +801,14 @@ static void PageRules()
 							                              : C.Screen == EScreen::Confirm ? EMenuText::AskHead : EMenuText::SettingsHead);
 							Heading = Heading && (C.Screen != EScreen::Confirm || (H && H->Value == (C.Ask == EAsk::NewGame ? 1 : 0)));
 							const FBox S = PartBox(EMenuPart::Slash);
-							Heading = Heading && H && SameRgb(H->Colour, SaudHud::Colour::Bone) && S.Any
+							Heading = Heading && H && SameRgb(H->Colour, SaudHud::Colour::Ice) && S.Any
 							          && S.Y0 >= H->At.Y + H->Height - 0.5f && S.X0 >= H->At.X - 0.5f;
 							for (int t = 0; t < List.NumTris; ++t)
 								if (List.Tris[t].Part == EMenuPart::Slash)
-									Heading = Heading && SameRgb(List.Tris[t].V[0].C, SaudHud::Colour::Blood);
+									Heading = Heading && SameRgb(List.Tris[t].V[0].C, SaudHud::Colour::System);
 							const FMenuText* Sub = FindText(EMenuText::Subtitle);
 							Heading = Heading && (Sub != nullptr) == (C.Screen == EScreen::Title)
-							          && (!Sub || (Sub->At.Y >= S.Y1 - 0.5f && SameRgb(Sub->Colour, SaudHud::Colour::Bone)));
+							          && (!Sub || (Sub->At.Y >= S.Y1 - 0.5f && SameRgb(Sub->Colour, SaudHud::Colour::Ice)));
 							// and the wash is behind the heading: drawn first (after the scrim, when there is one)
 							Heading = Heading && List.Tris[CountPart(EMenuPart::Scrim)].Part == EMenuPart::Wash;
 							// the first plate the same distance under the slash on every screen
@@ -848,11 +849,11 @@ static void PageRules()
 	Check(Stroked, "every text has an ink stroke of 2 screen px at 720 lines, 7:1 against its fill");
 	Check(Bright, "no text is dimmed under half");
 	Check(Wound, "no triangle is inverted or degenerate");
-	Check(Palette, "the HUD's palette only (and the focus pulse between blood and ember)");
+	Check(Palette, "the HUD's palette only (and the focus between the panel and the System's cyan)");
 	Check(Apart, "no item plate overlaps another");
 	Check(Labelled, "every item's label sits on its own plate");
 	Check(OneFocus, "exactly one focused item");
-	Check(FocusReads, "the focused plate is 3:1 against the unfocused fill, its label bone; the rest trough");
+	Check(FocusReads, "the focused plate is 3:1 against the unfocused fill, its label ice; the rest the panel's navy");
 	Check(Pulses, "the focus pulses on the real-time clock, slowly");
 	Check(ValuesRead, "the settings rows read the model");
 	Check(Continue, "a Title with no save has no CONTINUE, with one no FIGHT");
@@ -860,7 +861,7 @@ static void PageRules()
 	Check(StripPad, "the prompt strip shows the pad in use's glyphs, or the keyboard's words; the flip names the other pad, the Title's Back says QUIT");
 	Check(StripApart, "nothing in the prompt strip touches");
 	Check(ScrimWhole, "the pause (and what it opens, and the diagram) stands over a scrim covering the screen; the title has none");
-	Check(Heading, "the heading in bone over the wash, the blood slash under it, the sub-line under that");
+	Check(Heading, "the heading in ice over the wash, the System's bar under it, the sub-line under that");
 	Check(OffDiagram, "on the controls page the BACK plate and the strip stay off SaudControls' diagram");
 	Check(BigGlyphs, "the prompt strip's glyphs are couch-sized: 48 page px");
 	Check(StripWords, "the prompt strip's words are 32 page px or more");
@@ -893,7 +894,7 @@ static void PageRules()
 		const FBox F = PartBox(EMenuPart::Slash);
 		const float W2 = F.Any ? F.X1 - F.X0 : 0.f;
 		std::printf("  the slash at 0, 0.15 and 0.4 s: %.0f, %.0f, %.0f px\n", W0, W1, W2);
-		Check(W0 < 1.f && W1 > 0.3f * W2 && W1 < 0.95f * W2 && Near(W2, P.Px(SlashW), 0.5f), "the blood slash wipes open over 0.4 s");
+		Check(W0 < 1.f && W1 > 0.3f * W2 && W1 < 0.95f * W2 && Near(W2, P.Px(SlashW), 0.5f), "the System's bar wipes open over 0.4 s");
 	}
 
 	// the entrance: as a screen opens the wash wipes open, the plates slide
@@ -990,23 +991,25 @@ static void PageRules()
 
 	// the contrasts the look promises, from the numbers
 	{
-		const float CFocus = Contrast(SaudHud::Colour::Blood, SaudHud::Colour::Trough);
-		const float CLabel = Contrast(SaudHud::Colour::Bone, SaudHud::Colour::Blood);
-		const float CBone = Contrast(SaudHud::Colour::Bone, SaudHud::Colour::Ink);
-		float Lowest = 1e9f;
-		for (int k = 0; k < 100; ++k) Lowest = std::fmin(Lowest, Contrast(FocusFill(0.05f * static_cast<float>(k)), SaudHud::Colour::Trough));
-		std::printf("  contrast: focused plate %.2f (lowest through the pulse %.2f), its label %.2f on it, bone %.2f on ink\n",
-		            CFocus, Lowest, CLabel, CBone);
-		Check(Lowest >= 3.f && CLabel >= 3.f && CBone >= 7.f, "the focus stands 3:1 through its whole pulse");
-		// ...and never reads Ember: at most 15 % of the way toward it
-		float Furthest = 0.f;
+		using namespace SaudHud::Colour;
+		float Lowest = 1e9f, LabelLowest = 1e9f, Nearest = 1e9f, Furthest = 0.f;
 		for (int k = 0; k < 200; ++k)
 		{
 			const FRgba F = FocusFill(0.0137f * static_cast<float>(k));
-			Furthest = std::fmax(Furthest, (F.R - SaudHud::Colour::Blood.R) / (SaudHud::Colour::Ember.R - SaudHud::Colour::Blood.R));
+			Lowest = std::fmin(Lowest, Contrast(F, Panel));
+			LabelLowest = std::fmin(LabelLowest, Contrast(Ice, F));
+			const float T = (F.G - Panel.G) / (System.G - Panel.G);
+			Nearest = std::fmin(Nearest, T);
+			Furthest = std::fmax(Furthest, T);
 		}
-		std::printf("  the pulse goes at most %.0f %% of the way to ember\n", 100.f * Furthest);
-		Check(Furthest <= 0.15f + 1e-3f && Furthest > 0.05f, "the focus pulse stays blood: at most 15 % toward ember");
+		const float CIce = Contrast(Ice, Ink);
+		std::printf("  contrast: focused plate at least %.2f on the panel, its ice label at least %.2f on it, ice %.2f on ink\n",
+		            Lowest, LabelLowest, CIce);
+		Check(Lowest >= 3.f && LabelLowest >= 3.f && CIce >= 7.f, "the focus stands 3:1 through its whole pulse, and its label on it");
+		// ...a lit blue, not the System's cyan itself: 30-45 % of the way there
+		std::printf("  the pulse goes %.0f-%.0f %% of the way from the panel to the System's cyan\n", 100.f * Nearest, 100.f * Furthest);
+		Check(Nearest >= 0.30f - 1e-3f && Furthest <= 0.45f + 1e-3f && Furthest - Nearest > 0.05f,
+		      "the focus breathes 30-45 % of the way from the panel to the System's cyan");
 	}
 }
 
