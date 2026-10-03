@@ -8,7 +8,8 @@ island; in the game's look (the night, the dark anime, the System's style).
 
     python3 Tools/blender/build_map_scenes.py                    build the three scenes, check them, render every view
     python3 Tools/blender/build_map_scenes.py --build world      build one scene (world | prologue | island) and check it
-    python3 Tools/blender/build_map_scenes.py --render [scene]   render the saved scenes' views (all, or one scene's)
+    python3 Tools/blender/build_map_scenes.py --render [scene]   render the saved scenes' views (all, or one scene's;
+                                                                 --view A,B for only those)
     python3 Tools/blender/build_map_scenes.py --check            the saved scenes against their plans, no render
     python3 Tools/blender/build_map_scenes.py --bite             each check broken once
 
@@ -499,6 +500,33 @@ def _fit(eye_dir, target, points, lens, margin=0.06, elev=None):
     return tuple(t + back * hi)
 
 
+def _fit_centred(eye_dir, target, points, lens, margin=0.04):
+    """As _fit, and then the frame centred on what it holds by the lens's
+    shift (the camera keeps its direction): a view looking down on a ring
+    sees its near side large and its far side small, so a frame aimed at
+    the ring's middle leaves sky above it. Returns (eye, shift_x, shift_y),
+    Blender's shift in frame widths."""
+    from mathutils import Vector
+    t = Vector(target)
+    back = Vector(eye_dir).normalized()
+    rot = (-back).to_track_quat("-Z", "Y").to_matrix()
+    inv = rot.transposed()
+    th = math.atan(18.0 / lens)
+    tv = math.atan(math.tan(th) * SIZE[1] / SIZE[0])
+    dist = (Vector(_fit(eye_dir, target, points, lens, margin)) - t).length
+    sx = sy = 0.0
+    for _ in range(8):
+        eye = t + back * dist
+        q = [inv @ (Vector(p) - eye) for p in points]
+        u = [v.x / -v.z / math.tan(th) for v in q]          # -1..1 across the frame's width
+        w = [v.y / -v.z / math.tan(tv) for v in q]          # -1..1 up its height
+        cu, cw = 0.5 * (min(u) + max(u)), 0.5 * (min(w) + max(w))
+        half = max((max(u) - min(u)) * 0.5, (max(w) - min(w)) * 0.5)
+        sx, sy = cu * 0.5, cw * 0.5 * SIZE[1] / SIZE[0]
+        dist *= half / (1.0 - 2.0 * margin)
+    return tuple(t + back * dist), sx, sy
+
+
 def _dir(az_deg, elev_deg):
     a, e = math.radians(az_deg), math.radians(elev_deg)
     return (math.cos(e) * math.cos(a), math.cos(e) * math.sin(a), math.sin(e))
@@ -753,8 +781,9 @@ def world_cameras(BW, P):
     for d in P["districts"].values():
         R = _reach_cm(BW, d) / 100
         pts += _ring(d["ox"] / 100, d["oy"] / 100, R, 0.0, 12.0)
-    eye = _fit(_dir(100.0, 36.0), (0, 0, 0), pts, lens)
-    _camera("Cam_World", eye, (0, 0, 0), lens, "World", coll=cams)
+    eye, sx, sy = _fit_centred(_dir(100.0, 36.0), (0, 0, 0), pts, lens)
+    cam = _camera("Cam_World", eye, (0, 0, 0), lens, "World", coll=cams)
+    cam.data.shift_x, cam.data.shift_y = sx, sy
     for d in P["districts"].values():
         R = _reach_cm(BW, d) / 100
         x, y = d["ox"] / 100, d["oy"] / 100
@@ -1471,13 +1500,15 @@ def _lit(scene, cam):
     return any(o.type == "LIGHT" and o.get("night_fire") and (v == "World" or o.get("district") == v) for o in bpy.data.objects)
 
 
-def render(scenes=("world", "prologue", "island"), size=SIZE, samples=SAMPLES):
+def render(scenes=("world", "prologue", "island"), size=SIZE, samples=SAMPLES, only=None):
     from PIL import Image
     os.makedirs(RENDERS, exist_ok=True)
     miss, made = [], []
     for s in scenes:
         _open(s)
         for cam in views(s):
+            if only and cam["view"] not in only:
+                continue
             t0 = time.time()
             pic, m, got, exposure = render_view(cam, size, samples, groups=s != "prologue")
             out = os.path.join(RENDERS, "map-%s-anime.png" % cam["view"])
@@ -1616,7 +1647,8 @@ def main():
     if "--render" in a:
         i = a.index("--render")
         which = tuple(x for x in a[i + 1:i + 2] if not x.startswith("--")) or ("world", "prologue", "island")
-        miss, made = render(which)
+        only = a[a.index("--view") + 1].split(",") if "--view" in a else None
+        miss, made = render(which, only=only)
         for m in miss:
             print("  MISS " + m)
         sys.exit(1 if miss else 0)
