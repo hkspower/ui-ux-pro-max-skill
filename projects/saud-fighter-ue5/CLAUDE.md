@@ -4939,6 +4939,122 @@ there), so the boat stands over it. Found on the way, not touched:
 and every normal map the Blender tools bake is OpenGL (green up) where Unreal
 reads DirectX -- the island's are written DirectX.
 
+## The maps in 3D -- 2026-10-03
+
+Asked as "make 3d view scene for all maps", settled with the author as:
+Blender scenes you can open and orbit, and rendered views of them; every
+playable map -- the open world whole and each of its nine districts, the
+prologue's gym and the monkey island; in the game's look (the night, the
+dark anime, the System's style). `Tools/blender/build_map_scenes.py` is new.
+
+**The scenes** (`Tools/blender/scenes/`), each the level its own builder
+makes, placed from that builder's own plan -- nothing here decides where
+anything stands, and nothing stands in a scene that the level does not put
+there:
+
+- `World.blend` (3.5 MB) -- `L_AlHalqa_World` from `build_world.plan()`: the
+  nine districts and the roads, every primitive in its theme's colour (the
+  editor's `MI_World_<Theme>_<role>`; a fire post capped in embers as the
+  editor caps it); the souq's own meshes on its 715 rows; the city's 56
+  sector meshes at their districts' middles, the 861 plots' cubes under
+  them left out as the editor hides them; the stone island's ground,
+  rocks, ruins and jetties, its 94 animals part by part (1,102 parts) and
+  the boom at its jetty; the night -- 220 lights, every fire and lit
+  lantern where `spawn_night` puts it -- under `WORLD_RIG`'s moon. The
+  world street's slot carries no maps in its FBX; it takes the flagstone
+  set from disk, as the editor's `surfaces.py` gives it.
+- `Prologue.blend` -- `L_Prologue` from `build_prologue.plan()`: the floor,
+  the cage's seven posts, the two stands, its own sun.
+- `MonkeyIsland.blend` (2 MB) -- `L_MonkeyIsland` from
+  `build_monkey_island_level.plan()`: the landscape made by Geometry Nodes
+  at load from the 16-bit heightmap, a vertex every 2 m (4,068,289), so the
+  file stays small; painted by the five 4K layers through the weightmaps
+  (the editor's `M_MonkeyIsland_Ground`, a tile every 4 m, the DirectX
+  normals turned over for Blender); the sea plane; the temple, the pier,
+  the boat; the 9,156 plants, instanced by Geometry Nodes from their rows.
+
+Each keeps its views as cameras (`Cam_<view>`); the textures are linked by
+relative path, not packed.
+
+**The views** (`Docs/renders/map-<view>-anime.png`, all fifteen on
+`maps-3d.png`, in the order a player meets them): the gym from over the
+near stand's corner; the ring whole; each district from over its outside
+edge looking in across it; the island whole, from over the sea off its
+west-north-west; its landing from off the pier's end; its third clearing
+from the trail coming up to it; its temple from the gate. Each is rendered
+by `anime_preview.render_scene` and drawn through both anime materials.
+
+**The choices, each only here:**
+- **A map view's air.** The look's air and its line fade are lengths for
+  the game's camera, about 12 m from what it frames; drawn as they are from
+  a camera hundreds of metres up, everything is fog and every line faded.
+  A view k times as far draws its air, its line fade and the moon's ground
+  k times as deep.
+- **A fire against the world's moon.** A fire's power is 4 pi I times the
+  moon's light on the ground, as the engine sizes its candela against
+  `WORLD_RIG`'s lux, so a fire stands to the moon as in the game (the
+  souq's own scene sizes its fires against its 24-degree render moon;
+  `WORLD_RIG`'s is 38 up).
+- **A light ends where the engine ends it.** `spawn_night` gives a fire an
+  attenuation radius of three pools and a lantern three of its own, and
+  the engine windows the inverse-square falloff to nothing there; Cycles'
+  point light never ends, and on the first renders the tails of a
+  district's fires, summed, lifted the ground between the pools past the
+  lit tone. Each light carries the engine's window,
+  saturate(1 - (d/R)^4)^2 on its Ray Length (measured against the formula
+  on a plane), R read from `spawn_night`'s own source.
+- **No two overlapping tops on one plane.** The plan lays a street in boxes
+  each half a street's width longer than its step (`build_world.paving`),
+  so every box overlaps the next on one plane, and a road's ground overlaps
+  the discs it joins. An engine's depth test hides that; Cycles' shadow
+  rays caught every overlap and the look cut them into a dark ladder down
+  every street. A paving piece is lifted a millimetre a level -- the least
+  level no overlapping piece has -- and a road's ground goes 5 mm down.
+  Render-only.
+- **The exposure** is the world's (lit from twice the moon on open ground,
+  `MOON_TONE`), on the island too; the prologue, lit by its own day sun,
+  keeps the preview's stand-in.
+
+What the night looks like from above, read on the renders: the moonlit
+ground is the shadow tone and the fires' pools are lit, so a district is
+its streets' chain of firelit pools on a dark ground; the island whole is
+its jungle's deep tone with the moon on its bare ground and coast -- of
+eleven framings tried, the one from the west-north-west reads most. The
+close island views read best.
+
+**Checked** (`--check` on the saved scenes, and after every build; each
+check broken once by `--bite`, 13 of 13 caught): every piece the plan places is in
+its scene, district by district -- the primitives, the souq's rows, the
+city's sectors, the animals and their parts, the boat, the ember beds,
+every fire and lantern light with the engine's end; each district's pieces
+lie round its middle inside its reach; no two overlapping tops share a
+plane; the prologue's ten where the plan puts them; the island's props,
+every plant instance by instance (mesh and place), its ground equal to the
+heightmap at every vertex, its sea; every camera's target inside the
+middle 80 % of its frame and the first thing along the line to it near it.
+And the rendered views: at least 30 % of the frame world, its middle grey
+0.06-0.75, ink on at least 0.3 % of it, and a view of a lit district with
+a pool where a fire out-lights the moon. Every view passes them.
+
+**Seen, not touched** (where the levels and these scenes part): the stone
+island's last beach step tops out at its plateau's own height (both 0 cm,
+`build_island.terrain`), so in the engine the stone and the beach would
+z-fight over the whole plateau -- here the step is drawn 5 mm under; the
+island level's sea is an engine plane with no material of its own, and the
+world's animals are engine shapes with none either -- the engine would draw
+both in its default material; here the sea is the world's water colour and
+the animals their species' colours through the world's weathering. The
+prologue's posts are drawn upright where its `Rotator(0, yaw, 0)` would
+stand them on their sides ("Known, not fixed"), and its cubes one plain
+grey for the engine's default material. The stone island in the world has
+no water surface (its shallows are its seabed, painted as water). The
+parked cars are not here: the Unity tool has never run, so there is no
+mesh to place.
+
+**Not verified:** no engine has built any of the three levels; these are
+Blender's pictures of their plans through the look's numpy mirror, with the
+preview's stand-in exposure.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

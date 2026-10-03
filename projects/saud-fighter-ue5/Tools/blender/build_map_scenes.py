@@ -58,10 +58,18 @@ THE NIGHT'S LIGHT. A fire's power is 4 pi I times the moon's own light on
 the ground (build_souq's NIGHT: I is its pool's intensity), the way the
 engine sizes a fire's candela against WORLD_RIG's lux -- so a fire stands to
 the moon here as it does in the game. (The souq's own scene sizes its fires
-against its 24-degree render moon; WORLD_RIG's is 38 degrees up.) The
-preview's exposure is the world's: lit starts at twice the moon on open
-ground (anime_preview KEY_OVER_MOON, build_world MOON_TONE), on the island
-too, which has no fire.
+against its 24-degree render moon; WORLD_RIG's is 38 degrees up.) And each
+light ends where the engine ends it: spawn_night's attenuation radius,
+three pools out, with the engine's window on the falloff (_engine_falloff);
+Cycles' own point light never ends. The preview's exposure is the world's:
+lit starts at twice the moon on open ground (anime_preview KEY_OVER_MOON,
+build_world MOON_TONE), on the island too, which has no fire.
+
+ONE PLANE, ONE TOP. The plan lays its streets in boxes that overlap the
+next on one plane; an engine's depth test hides that, Cycles' shadow rays
+do not, and the look cut every overlap into a dark ladder. A paving piece
+is lifted a millimetre a level, the least no overlapping piece has
+(paving_levels, _unshare): render-only.
 
 THE AIR, AND HOW FAR AWAY. The look's air and its line fade are lengths for
 the game's camera, which stands FIGHT_VIEW_M from what it frames: drawn as
@@ -75,10 +83,12 @@ here; the game's air is the look's.
 CHECKED (--check, on the saved scenes; --bite breaks each once):
   - every piece the plan places is in its scene: per district, the
     primitives, the souq's rows, the city's sectors; the animals and their
-    parts; the boat; every fire and lantern light; the prologue's ten;
-    the island's three props and every plant (instance by instance, mesh
-    and place), its ground equal to the heightmap at every vertex, the sea;
-  - each district's pieces lie round its middle, inside its reach;
+    parts; the boat; every fire and lantern light, each ending where the
+    engine ends it; the prologue's ten; the island's three props and every
+    plant (instance by instance, mesh and place), its ground equal to the
+    heightmap at every vertex, the sea;
+  - each district's pieces lie round its middle, inside its reach, and no
+    two overlapping tops share a plane;
   - every camera has its target inside the middle 80 % of its frame, and
     the first thing it sees along that line is near the target, not
     something in front of it;
@@ -93,7 +103,10 @@ part: the island level's sea is an engine plane with no material of its own
 and the open world's animals are engine shapes with none either (the engine
 would draw both in its default material; here the sea is the world's water
 colour and the animals their species colour through the world's weathering);
-the prologue's posts are drawn upright, where its Rotator(0, yaw, 0) would
+the stone island's last beach step tops out at its plateau's own height,
+so the engine would z-fight the two over the whole plateau (here the step
+is drawn 5 mm under); the prologue's posts are drawn upright, where its
+Rotator(0, yaw, 0) would
 stand them on their sides (CLAUDE.md, "Known, not fixed"), and its cubes in
 a plain grey for the engine's default material; the stone island in the
 world has no water surface (its shallows are its seabed, painted as water);
