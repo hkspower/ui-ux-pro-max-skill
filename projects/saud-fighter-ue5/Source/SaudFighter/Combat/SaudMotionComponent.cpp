@@ -1,9 +1,12 @@
 #include "Combat/SaudMotionComponent.h"
 #include "Combat/FighterBase.h"
 #include "Combat/SaudMotionAnimInstance.h"
+#include "Combat/EnemyFighter.h"
 
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
 
 USaudMotionComponent::USaudMotionComponent()
 {
@@ -90,6 +93,12 @@ void USaudMotionComponent::PlayPicked()
 	const FVector Shown = Inst ? Inst->GetShownFacing() : FVector::ZeroVector;
 	In.Facing = Shown.IsNearlyZero() ? Fighter->GetFacing() : Shown;
 	In.Heading = Flat.IsNearlyZero() ? In.Facing : Flat.GetSafeNormal();
+	// Saud alone walks and runs as a man does (SaudFeel::PickGait); with a
+	// living man within FreeBeyondCm he is on his guard. Saud's own set only:
+	// nobody else has the gaits.
+	const bool bSaudSet = Fighter->MotionSet.IsNone() || Fighter->MotionSet == FName(TEXT("Saud"));
+	In.bFree = bSaudSet && Fighter->IsPlayerControlled() && !EnemyNear(Fighter, SaudFeel::FreeBeyondCm);
+	In.Current = bShown ? ShownClip : SaudFeel::EClip::Guard;
 
 	const SaudFeel::EClip Clip = SaudFeel::Pick(In);
 	const FString Name = Clip == SaudFeel::EClip::Attack
@@ -141,6 +150,24 @@ void USaudMotionComponent::PlayPicked()
 		// playback takes it over for this clip, without the IK.
 		Mesh->PlayAnimation(Seq, SaudFeel::Loops(Clip));
 	}
+}
+
+bool USaudMotionComponent::EnemyNear(const AFighterBase* Fighter, float Within)
+{
+	const UWorld* World = Fighter ? Fighter->GetWorld() : nullptr;
+	if (!World)
+	{
+		return false;
+	}
+	const FVector At = Fighter->GetActorLocation();
+	for (TActorIterator<AEnemyFighter> It(World); It; ++It)
+	{
+		if (It->IsAlive() && FVector::Dist2D(It->GetActorLocation(), At) <= Within)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 UAnimSequence* USaudMotionComponent::Find(FName MotionSet, const FString& Clip)

@@ -9,6 +9,8 @@
  */
 #include "../HarnessTypes.h"
 #include "../../../Source/SaudFighter/Combat/SaudFeel.h"
+#include "../../../Source/SaudFighter/Combat/SaudIK.h"
+#include "../../../Source/SaudFighter/Combat/SaudPlants.h"
 
 #include <cstdio>
 #include <cstring>
@@ -460,9 +462,112 @@ static void Cuts()
           "a second hit, jab, dash or win starts from its first frame; a loop never restarts");
 }
 
+// ------------------------------------------- Saud's free walk and run
+
+static EClip GaitAt(float Speed, EClip Current, bool bFree = true)
+{
+    FMotionInput In;
+    In.State = SWalk;
+    In.Speed = Speed;
+    In.bFree = bFree;
+    In.Current = Current;
+    return Pick(In);
+}
+
+static void FreeGaits()
+{
+    std::printf("GAITS  (Saud's walk and run, picked by speed when no man is near)\n");
+    // the speeds are the clips' own, as the motion capture measured them
+    const auto Rows = CsvRows("Content/Animation/Saud/DT_SaudMocap.csv");
+    int Matched = 0;
+    for (int I = 0; I < NumGaits; ++I)
+    {
+        const std::string Name = std::string("A_Saud_") + ClipSuffix(Gaits[I].Clip);
+        for (const auto& R : Rows)
+            if (R.size() > 5 && R[0] == Name && std::fabs(std::atof(R[5].c_str()) - Gaits[I].SpeedCm) < 0.5f) ++Matched;
+        const std::string P = "Content/Animation/Saud/" + Name + ".fbx";
+        FILE* F = std::fopen(P.c_str(), "rb");
+        Check(F != nullptr, ("the gait's clip is on disk: " + P).c_str());
+        if (F) std::fclose(F);
+    }
+    Check(Matched == NumGaits, "every gait's speed is its clip's own (DT_SaudMocap.csv)");
+    bool Rising = true;
+    for (int I = 1; I < NumGaits; ++I) Rising = Rising && Gaits[I].SpeedCm > Gaits[I - 1].SpeedCm;
+    Check(Rising, "the gaits rise in speed: slow walk, walk, brisk walk, jog, run");
+
+    // picked by speed, nearest by ratio
+    Check(GaitAt(60.f, EClip::Guard) == EClip::GaitWalkSlow, "a stroll is the slow walk");
+    Check(GaitAt(150.f, EClip::Guard) == EClip::GaitWalk, "1.5 m/s is the walk");
+    Check(GaitAt(200.f, EClip::Guard) == EClip::GaitWalkBrisk, "2 m/s is the brisk walk");
+    Check(GaitAt(270.f, EClip::Guard) == EClip::GaitJog, "2.7 m/s is the jog");
+    Check(GaitAt(341.f, EClip::Guard) == EClip::GaitRun, "his full speed (341 cm/s, Player.json) is the run");
+    Check(GaitAt(30.f, EClip::Guard) == EClip::Guard, "under WalkThreshold he stands");
+
+    // held across a line, not flickering
+    const float Line = std::sqrt(Gaits[2].SpeedCm * Gaits[3].SpeedCm);
+    Check(GaitAt(Line * 1.04f, EClip::GaitWalkBrisk) == EClip::GaitWalkBrisk, "a brisk walk is held a little past the line to the jog");
+    Check(GaitAt(Line * 1.04f, EClip::Guard) == EClip::GaitJog, "...where coming fresh, it is the jog");
+    Check(GaitAt(Line * 1.12f, EClip::GaitWalkBrisk) == EClip::GaitJog, "...and well past it, the jog");
+    int Flips = 0;
+    EClip Cur = EClip::GaitWalkBrisk;
+    for (int I = 0; I < 200; ++I)
+    {
+        const EClip N = GaitAt(Line * (1.f + 0.03f * std::sin(I * 0.7f)), Cur);
+        Flips += N != Cur;
+        Cur = N;
+    }
+    Check(Flips <= 1, "a stick held at a line does not flicker between two gaits");
+
+    // only when free, and never over what a fight asks
+    Check(GaitAt(341.f, EClip::Guard, false) == EClip::WalkFwd, "with a man near, he steps on his guard");
+    {
+        FMotionInput In; In.State = SBlock; In.Speed = 300.f; In.bFree = true;
+        Check(Pick(In) == EClip::Block, "free or not, a block is a block");
+        In.State = SAttack;
+        Check(Pick(In) == EClip::Attack, "...and a strike a strike");
+    }
+
+    // they loop, step into each other on the phase, and stand in for the
+    // guard's step forward when they are not imported
+    bool Loop = true, Step = true;
+    for (int I = 0; I < NumGaits; ++I)
+    {
+        Loop = Loop && Loops(Gaits[I].Clip);
+        Step = Step && KindOf(Gaits[I].Clip) == EKind::Step && Fallback(Gaits[I].Clip) == EClip::WalkFwd;
+    }
+    Check(Loop && Step, "every gait loops, is a step, and falls back to the guard's step forward");
+    const FCut C = CutBetween(EClip::GaitWalk, EClip::GaitRun, false);
+    Check(C.bMatchPhase, "a walk into a run keeps the phase: foot on foot");
+
+    // every speed from the slow walk's own to his fastest (five Vitality
+    // levels faster) plays its gait inside the stride's rate band, by the
+    // stride the runtime measured
+    const float Top = 341.f + 5.f * 22.f;
+    float Worst = 1.f, Lowest = 9.f;
+    for (float V = Gaits[0].SpeedCm; V <= Top; V += 5.f)
+    {
+        const EClip G = GaitAt(V, EClip::Guard);
+        const SaudPlants::FClip* P = SaudPlants::Find((std::string("A_Saud_") + ClipSuffix(G)).c_str());
+        if (!P) { Worst = 99.f; break; }
+        const float Rate = V / P->Stride;
+        if (Rate > Worst) Worst = Rate;
+        if (Rate < Lowest) Lowest = Rate;
+    }
+    std::printf("  from %.0f to %.0f cm/s the gaits play at %.2f to %.2f of their own pace\n", Gaits[0].SpeedCm, Top, Lowest, Worst);
+    Check(Lowest >= SaudIK::StrideRateMin && Worst <= SaudIK::StrideRateMax,
+          "from the slow walk to his fastest, every gait plays inside the stride's rate band");
+    bool Held = true;
+    for (int I = 0; I < NumGaits; ++I)
+    {
+        const SaudPlants::FClip* P = SaudPlants::Find((std::string("A_Saud_") + ClipSuffix(Gaits[I].Clip)).c_str());
+        Held = Held && P && SaudIK::HoldsFeetMeasured(false, false, P->Stride);
+    }
+    Check(Held, "every gait's measured stride is a walk's: the runtime holds its feet and sets its pace");
+}
+
 int main()
 {
-    Blows(); Pad(); State(); Camera(); Flash(); Clips(); Cuts();
+    Blows(); Pad(); State(); Camera(); Flash(); Clips(); Cuts(); FreeGaits();
     std::printf(Fails ? "\n%d FAILED\n" : "\nall feel checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

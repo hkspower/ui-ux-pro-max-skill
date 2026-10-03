@@ -401,8 +401,10 @@ namespace SaudIK
 	constexpr float WeightRate = 14.f;
 	constexpr float WeightMaxCm = 8.f;
 	/** A looping clip whose planted ball travels slower than this (cm per
-	    second of the clip) is standing, not walking, and keeps its clock. */
-	constexpr float StrideMinSpeed = 100.f;
+	    second of the clip) is standing, not walking, and keeps its clock.
+	    (100 until 2026-10-03: Saud's slow walk, from motion capture, strides
+	    100.2, and sat on the line; nothing that stands strides near 80.) */
+	constexpr float StrideMinSpeed = 80.f;
 	/** The walk's clock runs between half and 1.6 times its own: outside
 	    that a jog reads as a march or a sprint, and the hold takes the rest. */
 	constexpr float StrideRateMin = 0.5f;

@@ -1780,16 +1780,21 @@ static void Plants()
                                 "Content/Animation/Bosses/DT_BossMotion.csv" };
     std::vector<std::map<std::string, std::string>> Clips;
     for (const char* M : Manifests) { const auto R = ReadCsv(M); Clips.insert(Clips.end(), R.begin(), R.end()); }
+    // ...and Saud's motion capture (its own manifest, fewer columns; since
+    // 2026-10-03, his walk and run picked by speed), measured the same way
+    const auto Mocap = ReadCsv("Content/Animation/Saud/DT_SaudMocap.csv");
     int Missing = 0, WrongFrames = 0;
-    for (const auto& R : Clips)
+    std::vector<std::map<std::string, std::string>> All = Clips;
+    All.insert(All.end(), Mocap.begin(), Mocap.end());
+    for (const auto& R : All)
     {
         const SaudPlants::FClip* P = SaudPlants::Find(R.at("Name").c_str());
         if (!P) { ++Missing; std::printf("  %s: not measured\n", R.at("Name").c_str()); continue; }
         const int N = std::atoi(R.at("Frames").c_str());
         if (P->Frames != N || (int)std::strlen(P->Foot[0]) != N || (int)std::strlen(P->Foot[1]) != N) ++WrongFrames;
     }
-    std::printf("  %d clips in the manifests, %d measured\n", (int)Clips.size(), SaudPlants::NumClips);
-    Check(Clips.size() == 197 && (int)Clips.size() == SaudPlants::NumClips && Missing == 0 && WrongFrames == 0,
+    std::printf("  %d clips in the manifests, %d of them motion capture, %d measured\n", (int)All.size(), (int)Mocap.size(), SaudPlants::NumClips);
+    Check(Clips.size() == 197 && Mocap.size() == 5 && (int)All.size() == SaudPlants::NumClips && Missing == 0 && WrongFrames == 0,
           "every clip in Content/Animation is measured, frame for frame");
     bool bSorted = true;
     for (int I = 1; I < SaudPlants::NumClips; ++I) bSorted = bSorted && std::strcmp(SaudPlants::Clips[I - 1].Name, SaudPlants::Clips[I].Name) < 0;

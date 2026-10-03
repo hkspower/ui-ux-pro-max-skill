@@ -56,7 +56,11 @@ import os, sys, math, csv, json, time, hashlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.abspath(os.path.join(HERE, "..", ".."))
 SRC_DIR = os.path.join(HERE, "mocap", "cmu")
-OUT_DIR = os.path.join(PROJECT, "Content", "Animation", "Mocap")
+# Beside Saud's own clips (since 2026-10-03, "do #92": the walk and the run
+# picked by speed), where the game looks for every clip of his
+# (USaudMotionComponent::Find: /Game/Animation/Saud/A_Saud_<Clip>) and
+# where measure_plants.py measures them
+OUT_DIR = os.path.join(PROJECT, "Content", "Animation", "Saud")
 SOURCE_URL = "https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/master/data/{subject:03d}/{take}.bvh"
 CREDIT = ("CMU Graphics Lab Motion Capture Database, mocap.cs.cmu.edu (funded by NSF EIA-0196217); "
           "BVH by B. Hahne")
@@ -797,6 +801,26 @@ def verify(clip, recs, speed, r, targets, body):
     return fails, dict(skate=worst_skate, floor=low, seam=seam)
 
 
+def strike_check(clip, r, n, k0):
+    """The loop, turned to start at k0, starts as the left foot strikes."""
+    on = on_flags(r, "l", n)
+    on = on[k0:] + on[:k0]
+    if not (on[0] and not on[-1]):
+        return ["%s: the loop does not start as the left foot strikes" % clip["name"]]
+    return []
+
+
+def left_strike(r, n):
+    """The frame the left foot comes down: the first of its contact, or 0."""
+    on = on_flags(r, "l", n)
+    if "phase" in SABOTAGE:
+        return 0
+    for k in range(n):
+        if on[k] and not on[k - 1]:
+            return k
+    return 0
+
+
 def on_flags(r, sd, n):
     """Frame by frame (at FPS), whether the capture has that foot down."""
     s, L, d = r["start"], r["length"], r["down"][sd]
@@ -819,6 +843,11 @@ def build(out_dir=OUT_DIR, sheet=False):
         fails += f
         c = dict(name="A_Saud_Mocap_" + clip["name"], frames=len(recs), seconds=len(recs) / FPS,
                  limb=None, contact=-1, display="CMU %s %s, %.2f m/s" % (clip["take"], clip["what"], speed))
+        # every loop starts as the left foot strikes, so a walk crossfaded
+        # into a run (SaudFeel::CutBetween matches the phase) lands foot on foot
+        k0 = left_strike(r, len(recs))
+        fails += strike_check(clip, r, len(recs), k0)
+        recs = recs[k0:] + recs[:k0]
         authored.append((c, [(lo, w) for lo, w, _s in recs]))
         rows.append((clip, r, c, speed, m, drop))
         print("%6.1fs  %-10s %3d frames, %.2f m/s, skate %.1f mm, floor %+.1f mm, seam %.0f mm, hips settled %.1f cm"
@@ -869,6 +898,7 @@ BITES = [
     ("no floor", "floor", "Walk", "over the floor"),
     ("arms mirrored", "mirror", "Walk", "points"),
     ("no crossfade", "seam", "Run", "hitches"),
+    ("off the strike", "phase", "Walk", "left foot strikes"),
 ]
 
 
@@ -883,7 +913,7 @@ def bite():
     def run(clip):
         r = summary(clip, leg)
         recs, speed, frames, targets, drop, body = build_clip(au, clip, r)
-        return verify(clip, recs, speed, r, targets, body)[0]
+        return verify(clip, recs, speed, r, targets, body)[0] + strike_check(clip, r, len(recs), left_strike(r, len(recs)))
     clean = [f for c in CLIPS for f in run(c)]
     if clean:
         print("the unbroken clips fail, so no sabotage can be counted: %s" % clean[0])

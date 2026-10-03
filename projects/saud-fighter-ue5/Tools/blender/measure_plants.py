@@ -73,10 +73,14 @@ def manifests():
     rows = []
     for folder in FOLDERS:
         path = os.path.join(ANIM, folder, "DT_%sMotion.csv" % ("Boss" if folder == "Bosses" else folder))
-        with open(path, newline="", encoding="utf-8") as fh:
-            for r in csv.DictReader(fh):
-                r["folder"] = folder
-                rows.append(r)
+        # and Saud's motion capture (Tools/blender/mocap.py, its own manifest
+        # beside his, since 2026-10-03: his walk and run picked by speed)
+        extra = [os.path.join(ANIM, folder, "DT_SaudMocap.csv")] if folder == "Saud" else []
+        for p in [path] + [e for e in extra if os.path.exists(e)]:
+            with open(p, newline="", encoding="utf-8") as fh:
+                for r in csv.DictReader(fh):
+                    r["folder"] = folder
+                    rows.append(r)
     return rows
 
 

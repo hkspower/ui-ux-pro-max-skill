@@ -201,7 +201,7 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#if (Dt <= 0.f) return;#if (Dt <= 0.f) Dt
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float V = D.Size() / Dt;#const float V = D.Size() * 60.f + 0.f * Dt;#|the stride meter reads the clip's own 341 cm/s whatever rate it plays at
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return FMath::Clamp(GroundSpeed / Clip, StrideRateMin, StrideRateMax);#return 1.f + 0.f * GroundSpeed * Clip;#|a walk is played at the speed the man moves
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StrideRateMax = 1.6f;#constexpr float StrideRateMax = 2.f;#|...within half and 1.6 times its own
-ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StrideMinSpeed = 100.f;#constexpr float StrideMinSpeed = 0.f;#|a guard keeps its clock
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StrideMinSpeed = 80.f;#constexpr float StrideMinSpeed = 0.f;#|a guard keeps its clock
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Clip = M.Speed \* Scale;#const float Clip = M.Speed + 0.f * Scale;#|a man drawn twice the size walks his own clip at twice the speed
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!In.bBlending) MeasureStride#if (true) MeasureStride#|the stride meter waits out a crossfade
 
@@ -394,3 +394,12 @@ camera|Source/SaudFighter/Combat/SaudCamera.h|s#if (Orbit == EOrbit::Finisher \&
 camera|Source/SaudFighter/Combat/SaudCamera.h|s#if (WallArm > HardFree) WallArm = HardFree;#if (WallArm > HardFree + 1e9f) WallArm = HardFree;#|never longer than the wall
 camera|Source/SaudFighter/Combat/SaudCamera.h|s#float Target = SoftFree - SoftMarginCm;#float Target = SoftFree;#|comes in before the wall
 camera|Source/SaudFighter/Combat/SaudCamera.h|s#if (Step > WallOutMaxCmPerSec \* Dt) Step = WallOutMaxCmPerSec \* Dt;##|eases back out
+
+# 2026-10-03, Saud's free walk and run picked by speed (SaudFeel.h)
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#constexpr float GaitHysteresis = 0.08f;#constexpr float GaitHysteresis = 0.f;#|does not flicker between two gaits
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (In.bFree) return PickGait(In.Speed, In.Current);#(void)In.Current;#|a stroll is the slow walk
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (In.bFree) return PickGait#if (true) return PickGait#|with a man near, he steps on his guard
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#{EClip::GaitJog, 279.9f}#{EClip::GaitJog, 300.f}#|speed is its clip's own
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#case EClip::GaitJog: case EClip::GaitRun: return EKind::Step;#case EClip::GaitJog: case EClip::GaitRun: return EKind::Stand;#|keeps the phase
+feel|Source/SaudFighter/Combat/SaudFeel.h|s# IsGait(C);# false;#|every gait loops
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#case EClip::GaitJog: case EClip::GaitRun: return EClip::WalkFwd;#case EClip::GaitJog: case EClip::GaitRun: return C;#|falls back to the guard's step forward

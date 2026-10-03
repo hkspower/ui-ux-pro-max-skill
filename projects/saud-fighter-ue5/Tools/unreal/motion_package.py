@@ -4,13 +4,14 @@ skeleton, and Epic's Game Animation Sample retargeted onto him.
 
 Asked 2026-10-03 (Riyadh) as "use unreal engine motions package install
 here", settled as both: free motion capture retargeted here (Tools/blender/
-mocap.py -- Content/Animation/Mocap, five clips, built and checked), and
+mocap.py -- Content/Animation/Saud/A_Saud_Mocap_*, five clips, built and checked), and
 editor scripts for Epic's Game Animation Sample. This is the editor half.
 
 Run inside the Unreal editor (Output Log, Python):
 
     py "Tools/unreal/motion_package.py" --mocap
-        the five mocap clips -> /Game/Animation/Mocap, on Saud's skeleton
+        the five mocap clips -> /Game/Animation/Saud, on Saud's skeleton,
+        beside his other clips (where the game looks for them)
     py "Tools/unreal/motion_package.py" --gasp [--source /Game/...] [--only Walk,Run]
         the Game Animation Sample's clips -> /Game/Animation/GASP, retargeted
 
@@ -51,14 +52,14 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
-MOCAP_DIR = os.path.join(ROOT, "Content", "Animation", "Mocap")
+MOCAP_DIR = os.path.join(ROOT, "Content", "Animation", "Saud")
 MOCAP_CSV = os.path.join(MOCAP_DIR, "DT_SaudMocap.csv")
 
 # Where things go, and where Saud is (Content/Models/Saud.fbx imported to
 # /Game/Models names its skeleton Saud_Skeleton)
 SAUD_MESH = "/Game/Models/Saud"
 SAUD_SKELETON = "/Game/Models/Saud_Skeleton"
-MOCAP_DEST = "/Game/Animation/Mocap"
+MOCAP_DEST = "/Game/Animation/Saud"
 GASP_DEST = "/Game/Animation/GASP"
 GASP_SOURCE = "/Game/Characters/UEFN_Mannequin"
 PREFIX = "A_Saud_GASP_"
@@ -130,7 +131,7 @@ def _ue():
 
 
 def import_mocap():
-    """Content/Animation/Mocap/*.fbx -> MOCAP_DEST, animation only, onto
+    """Content/Animation/Saud/A_Saud_Mocap_*.fbx -> MOCAP_DEST, animation only, onto
     Saud's skeleton, at the frame rate the clips were baked at."""
     unreal = _ue()
     EAL = unreal.EditorAssetLibrary

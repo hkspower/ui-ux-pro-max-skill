@@ -24,7 +24,7 @@ namespace SaudPlants
 	};
 
 	constexpr float Fps = 30.f;
-	constexpr int NumClips = 197;
+	constexpr int NumClips = 202;
 
 	/** By name, sorted, so a lookup can halve. */
 	inline constexpr FClip Clips[NumClips] = {
@@ -123,6 +123,11 @@ namespace SaudPlants
 		{ "A_Saud_Jab", 0.260f, 8, 0.0f, { "ffffffff", "bbbbbbbb" } },
 		{ "A_Saud_Kick", 0.530f, 16, 0.0f, { "ffbbbbbbbbbbbbff", "b..............b" } },
 		{ "A_Saud_Knee", 0.470f, 14, 0.0f, { "fbbbbbbbbbbbbf", "b............." } },
+		{ "A_Saud_Mocap_Jog", 0.767f, 23, 279.9f, { "..bb...................", ".............bbb......." } },
+		{ "A_Saud_Mocap_Run", 0.767f, 23, 311.6f, { ".bbbb..................", "......................." } },
+		{ "A_Saud_Mocap_Walk", 1.100f, 33, 141.6f, { ".........ffffffbb................", "...................fffbbbffbbbb.." } },
+		{ "A_Saud_Mocap_Walk_Brisk", 1.000f, 30, 174.4f, { "........fffbb.................", "....................ffffb....." } },
+		{ "A_Saud_Mocap_Walk_Slow", 1.433f, 43, 100.2f, { "...fffffffffffffffffbb.....................", ".......................fffffffffffffffbb..." } },
 		{ "A_Saud_Pair_Boss_Combo_Jab_Cross_Hook", 0.900f, 27, 0.0f, { "fffffffffffffffffffffffffff", "bbbbbbbbbbbbbbbbbbbbbbbbbbb" } },
 		{ "A_Saud_Pair_Boss_Cross", 0.433f, 13, 0.0f, { "fffffffffffff", "bbbbbbbbbbbbb" } },
 		{ "A_Saud_Pair_Boss_Hook", 0.467f, 14, 0.0f, { "ffffffffffffff", "bbbbbbbbbbbbbb" } },

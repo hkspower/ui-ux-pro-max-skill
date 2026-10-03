@@ -4155,7 +4155,8 @@ sole corner under the floor elsewhere is cleared by pitching the foot about
 its ankle, so the leg stays the actor's (lifted whole instead, his toe-off
 bent the knee 22 degrees off the actor's). Baked to the 62 bones, 30 fps.
 
-**What it made:** `Content/Animation/Mocap/`, `A_Saud_Mocap_Walk_Slow`
+**What it made:** `Content/Animation/Saud/` (in `Mocap/` until the walk
+and run below moved them beside his other clips), `A_Saud_Mocap_Walk_Slow`
 (1.00 m/s), `_Walk` (1.49), `_Walk_Brisk` (1.76), `_Jog` (2.80), `_Run`
 (3.20), looping, with `DT_SaudMocap.csv` (seconds, frames, speed in cm/s,
 take, source) and `saud-mocap.png`, the skeleton contact sheet.
@@ -4172,7 +4173,7 @@ close, a changed source file). `--check` needs no Blender.
 
 **The Game Animation Sample** (`Tools/unreal/motion_package.py`, in the
 editor). `--mocap` imports the five clips onto Saud's skeleton in
-`/Game/Animation/Mocap`. `--gasp`, after the sample's UEFN mannequin folder
+`/Game/Animation/Saud`. `--gasp`, after the sample's UEFN mannequin folder
 is migrated in by hand (it needs an Epic account): makes `IK_Saud` (the
 editor's own mannequin template, or the 19 chains in the file, on his
 bones, which are the mannequin's), finds the sample's IK Rig, makes
@@ -4253,6 +4254,60 @@ reads through the anime look's ink. Masked materials cost a little on every
 world surface. Movement still follows the camera's yaw, so in a fight
 "forward" is toward the men; that is the intent, and only play will say
 whether the swing ever fights the stick.
+
+## Saud walks and runs, picked by speed -- 2026-10-03
+
+Asked as "improve walk and run for suad", settled as a real walk and a run,
+picked by speed, through the IK rig; built on the motion package above. Until
+now he had one way to move: his guard's four fighting steps (`Walk_Fwd` and
+the rest, 0.57 s, a stride of 336 cm/s), crossing a district or a street in
+the same shuffle as a fight.
+
+**When.** Saud with no living man within 12 m (`SaudFeel::FreeBeyondCm`,
+inside the camera's 15 m fight framing, so the guard is up before men are
+close) walks and runs as a man does; nearer, he steps on his guard exactly
+as before. His own set, and the player's man, only: the street men and the
+bosses are always fighting and keep their steps, and the title's Saud stands.
+A block, a strike, a dash, a reel and the rest win over either, as they did.
+
+**Which.** `SaudFeel::PickGait`: the five gaits by their own speeds -- slow
+walk 1.00 m/s, walk 1.49, brisk walk 1.76, jog 2.80, run 3.20 -- the nearest
+by ratio (the line between two is their geometric mean), the one showing kept
+until the speed is 8 % past its line, so a stick held on a line does not
+flicker. His full speed (3.41 m/s) is the run; a light push, a walk. The
+runtime already plays a walk at his ground speed over its own measured stride
+(`SaudIK::StrideRateMeasured`): from the slow walk's 1.00 m/s to his fastest
+upgraded 4.51, every gait plays at 0.80 to 1.45 of its own pace, inside the
+0.5-1.6 band. A gait not imported falls back to his guard's step forward.
+
+**Foot on foot.** Every mocap loop now starts as the left foot strikes
+(`mocap.py`, checked, a sabotage for it), so one gait crossfading into the
+next keeps the phase (`CutBetween` matches it between steps) and a walk
+speeding into a run lands foot on foot.
+
+**Where.** The five clips moved from `Content/Animation/Mocap/` to
+`Content/Animation/Saud/` (with `DT_SaudMocap.csv` and the sheet), where the
+game looks for his clips (`/Game/Animation/Saud/A_Saud_Mocap_*`, and
+`motion_package.py --mocap` imports them there) and where
+`measure_plants.py` now measures them: `SaudPlants.h` has 202 clips. The
+walking threshold `SaudIK::StrideMinSpeed` came down 100 -> 80 cm/s: the
+slow walk strides 100.2 and sat on the line; nothing that stands strides near.
+
+**Checked:** the harness passes whole. `tests/feel.cpp` -- the gaits' speeds
+are their clips' own, they rise, each clip is on disk; 60/150/200/270/341
+cm/s pick slow walk/walk/brisk/jog/run; held a little past a line, not well
+past; no flicker at a line; with a man near he steps on his guard; a block
+and a strike still win; every gait loops, is a step and falls back; a walk
+into a run keeps the phase; every speed to his fastest inside the rate band;
+every gait's stride is a walk's -- and its seven sabotages caught.
+`tests/ik.cpp` counts the five measured. `mocap.py --bite` 7 of 7.
+
+**Not verified:** nothing compiled or played. The run's right foot is never
+seen down by `measure_plants.py` (its forefoot strike leaves the ball 1.5 cm
+over the guard's floor for one frame, under its two-frame debounce), so the
+runtime holds the run's left foot and not its right; the run's own clip has
+its right foot on the floor. Whether 12 m is the right distance to drop the
+guard, only play will say.
 
 ## Working rules
 

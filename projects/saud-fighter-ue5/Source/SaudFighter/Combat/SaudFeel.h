@@ -41,6 +41,8 @@
 	#include "CoreMinimal.h"
 #endif
 
+#include <cmath>
+
 namespace SaudFeel
 {
 	// ------------------------------------------------ the browser's numbers
@@ -214,7 +216,9 @@ namespace SaudFeel
 		HitHeadStraightLight, HitHeadStraight, HitHeadSide, HitBodyFront, HitBodySide,
 		DownSide, DownFold,
 		// the end of a fight (2026-09-28)
-		Death, Victory
+		Death, Victory,
+		// Saud's free walk and run (2026-10-03): motion capture, picked by speed
+		GaitWalkSlow, GaitWalk, GaitWalkBrisk, GaitJog, GaitRun
 	};
 
 	/** The clip's name in Content/Animation: A_<Set>_<this>. Attack is the
@@ -246,14 +250,26 @@ namespace SaudFeel
 		case EClip::DownFold:             return "Down_Fold";
 		case EClip::Death:                return "Death";
 		case EClip::Victory:              return "Victory";
+		case EClip::GaitWalkSlow:         return "Mocap_Walk_Slow";
+		case EClip::GaitWalk:             return "Mocap_Walk";
+		case EClip::GaitWalkBrisk:        return "Mocap_Walk_Brisk";
+		case EClip::GaitJog:              return "Mocap_Jog";
+		case EClip::GaitRun:              return "Mocap_Run";
 		default:               return "";
 		}
+	}
+
+	inline bool IsGait(EClip C)
+	{
+		return C == EClip::GaitWalkSlow || C == EClip::GaitWalk || C == EClip::GaitWalkBrisk
+			|| C == EClip::GaitJog || C == EClip::GaitRun;
 	}
 
 	inline bool Loops(EClip C)
 	{
 		return C == EClip::Guard || C == EClip::Block
-			|| C == EClip::WalkFwd || C == EClip::WalkBack || C == EClip::WalkLeft || C == EClip::WalkRight;
+			|| C == EClip::WalkFwd || C == EClip::WalkBack || C == EClip::WalkLeft || C == EClip::WalkRight
+			|| IsGait(C);
 	}
 
 	/** The clip that stands in for one a motion set does not have: a
@@ -272,6 +288,9 @@ namespace SaudFeel
 		case EClip::DownFold:
 		case EClip::Death:                return EClip::Down;
 		case EClip::Victory:              return EClip::Guard;
+		// motion capture not imported yet: the guard's own step forward
+		case EClip::GaitWalkSlow: case EClip::GaitWalk: case EClip::GaitWalkBrisk:
+		case EClip::GaitJog: case EClip::GaitRun: return EClip::WalkFwd;
 		default:                          return C;
 		}
 	}
@@ -325,7 +344,57 @@ namespace SaudFeel
 		float Speed = 0.f;             // cm/s on the ground
 		FVector Facing = FVector(1.f, 0.f, 0.f);
 		FVector Heading = FVector(1.f, 0.f, 0.f);
+		/** Saud with no one to fight (no living man within FreeBeyondCm):
+		    he walks and runs as a man does, not on his guard. */
+		bool bFree = false;
+		/** The clip showing, so a gait is held through a small change of
+		    speed (GaitHysteresis). */
+		EClip Current = EClip::Guard;
 	};
+
+	// ------------------------------------------- Saud's free walk and run
+	// Asked as "improve walk and run for saud", settled 2026-10-01 as a real
+	// walk and a run, picked by speed; built 2026-10-03 from the motion
+	// capture (Tools/blender/mocap.py, Content/Animation/Saud/
+	// DT_SaudMocap.csv, which tests/feel.cpp holds these speeds to). Each
+	// loop starts as the left foot strikes, so one gait crossfades into the
+	// next foot on foot (CutBetween matches the phase between steps), and
+	// the runtime plays each at his ground speed over its own stride
+	// (SaudIK::StrideRateMeasured).
+	struct FGait { EClip Clip; float SpeedCm; };
+	constexpr int NumGaits = 5;
+	constexpr FGait Gaits[NumGaits] = {
+		{EClip::GaitWalkSlow, 100.3f}, {EClip::GaitWalk, 148.5f}, {EClip::GaitWalkBrisk, 176.0f},
+		{EClip::GaitJog, 279.9f}, {EClip::GaitRun, 320.0f},
+	};
+	/** No living man nearer than this, and Saud walks free; nearer, he is on
+	    his guard and steps as a fighter (the camera frames a fight at 15 m:
+	    this is inside it, so the guard is up before the men are close). */
+	constexpr float FreeBeyondCm = 1200.f;
+	/** A gait is kept while the speed is within this share past the line to
+	    its neighbour, so a stick held near a line does not flicker between them. */
+	constexpr float GaitHysteresis = 0.08f;
+
+	/** The gait for a speed: the one whose own speed is nearest by ratio (the
+	    line between two is their geometric mean), the current one kept
+	    while within GaitHysteresis of its band. */
+	inline EClip PickGait(float Speed, EClip Current)
+	{
+		auto Line = [](int I) { return std::sqrt(Gaits[I].SpeedCm * Gaits[I + 1].SpeedCm); };
+		for (int I = 0; I < NumGaits; ++I)
+		{
+			if (Gaits[I].Clip != Current) continue;
+			const float Lo = I == 0 ? 0.f : Line(I - 1) * (1.f - GaitHysteresis);
+			const float Hi = I == NumGaits - 1 ? 1e9f : Line(I) * (1.f + GaitHysteresis);
+			if (Speed >= Lo && Speed <= Hi) return Current;
+		}
+		int Pick = NumGaits - 1;
+		for (int I = 0; I < NumGaits - 1; ++I)
+		{
+			if (Speed < Line(I)) { Pick = I; break; }
+		}
+		return Gaits[Pick].Clip;
+	}
 
 	/** EFighterState's order, mirrored: Idle, Walk, Attack, Hit, Block, Dash,
 	    Down, Dead. The harness checks the numbers against this list. */
@@ -369,6 +438,9 @@ namespace SaudFeel
 		if (In.bBlocking || In.State == SBlock) return EClip::Block;
 		if (In.Speed >= WalkThreshold)
 		{
+			// free: a man walking, at his pace, the way he faces (he turns to
+			// where he goes: ASaudCharacter faces his heading)
+			if (In.bFree) return PickGait(In.Speed, In.Current);
 			const int Q = Quadrant(In.Facing, In.Heading);
 			return Q == 0 ? EClip::WalkFwd : Q == 1 ? EClip::WalkBack : Q == 2 ? EClip::WalkLeft : EClip::WalkRight;
 		}
@@ -385,6 +457,8 @@ namespace SaudFeel
 		switch (C)
 		{
 		case EClip::WalkFwd: case EClip::WalkBack: case EClip::WalkLeft: case EClip::WalkRight: return EKind::Step;
+		case EClip::GaitWalkSlow: case EClip::GaitWalk: case EClip::GaitWalkBrisk:
+		case EClip::GaitJog: case EClip::GaitRun: return EKind::Step;
 		case EClip::DashFwd: case EClip::DashBack: case EClip::DashLeft: case EClip::DashRight: return EKind::Dash;
 		case EClip::Block:  return EKind::Guarded;
 		case EClip::Attack: return EKind::Strike;

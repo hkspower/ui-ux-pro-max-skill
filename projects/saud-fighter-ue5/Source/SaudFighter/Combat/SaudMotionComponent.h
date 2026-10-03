@@ -92,5 +92,7 @@ private:
 	USaudMotionAnimInstance* Driver() const;
 
 	UAnimSequence* Find(FName MotionSet, const FString& Clip);
+	/** A living enemy within Within of the fighter, on the ground. */
+	static bool EnemyNear(const AFighterBase* Fighter, float Within);
 	UAnimSequence* LoadOnce(const FString& Path);
 };
