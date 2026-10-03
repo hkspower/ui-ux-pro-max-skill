@@ -231,10 +231,14 @@ namespace SaudIK
 	constexpr float PelvisSettleRate = 12.f;
 
 	/** How much of the ground a foot at this height above the clip's floor
-	    takes: 1 planted, 0 swinging. */
-	inline float PlantAlpha(float FootHeightAboveFloor)
+	    takes: 1 planted, 0 swinging. Size: his leg over Saud's -- the bands
+	    are Saud's centimetres, and a man half again his size lifts his feet
+	    half again as high in the same clip (2026-10-03, the bosses: ZAYOS's
+	    planted band was Saud's 10 cm on a leg 1.48 times as long). */
+	inline float PlantAlpha(float FootHeightAboveFloor, float Size = 1.f)
 	{
-		return 1.f - FMath::Clamp((FootHeightAboveFloor - PlantHeight) / (PlantFade - PlantHeight), 0.f, 1.f);
+		const float K = FMath::Max(Size, 0.1f);
+		return 1.f - FMath::Clamp((FootHeightAboveFloor - PlantHeight * K) / ((PlantFade - PlantHeight) * K), 0.f, 1.f);
 	}
 
 	// ------------------------------------------------- feet, held in place
@@ -317,10 +321,12 @@ namespace SaudIK
 	    ground under it, in the hips, or in its toes. */
 	constexpr float SwingHeight = 6.f;
 
-	/** How much of the ground a ball this far over the lower one takes. */
-	inline float GroundShare(float Lift)
+	/** How much of the ground a ball this far over the lower one takes; the
+	    bands grown with the man (Size, his leg over Saud's). */
+	inline float GroundShare(float Lift, float Size = 1.f)
 	{
-		return 1.f - FMath::Clamp((Lift - BallUpHeight) / (SwingHeight - BallUpHeight), 0.f, 1.f);
+		const float K = FMath::Max(Size, 0.1f);
+		return 1.f - FMath::Clamp((Lift - BallUpHeight * K) / ((SwingHeight - BallUpHeight) * K), 0.f, 1.f);
 	}
 
 	/** Saud's leg, hip to ankle (build_motion's 0.882 m): the distances a
@@ -503,7 +509,7 @@ namespace SaudIK
 			FFootHold& F = H[S];
 			F.bDown = Measured[S] >= 0.f
 				? Measured[S] >= (F.bDown ? MixDownOff : MixDownOn)
-				: Lift[S] - Floor <= (F.bDown ? BallUpHeight : BallDownHeight) && Lift[S] <= BallRestBand;
+				: Lift[S] - Floor <= (F.bDown ? BallUpHeight : BallDownHeight) * Size && Lift[S] <= BallRestBand * Size;
 		}
 		float Drift[2] = { 0.f, 0.f };
 		for (int S = 0; S < 2; ++S)
@@ -645,10 +651,12 @@ namespace SaudIK
 	    feet as the man moves; one that does not (the Block walked) glides --
 	    unless it is a guard edging along slowly enough to shuffle. */
 	inline bool HoldsFeetMeasured(bool bAttacking, bool bStanding, float ClipStride, bool bBlocking = false,
-	                              float GroundSpeed = 0.f)
+	                              float GroundSpeed = 0.f, float Size = 1.f)
 	{
+		// (Size: his size against Saud's, the world's: a bigger man's guard
+		// pace is a longer shuffle, 2026-10-03)
 		return bAttacking || bStanding || ClipStride >= StrideMinSpeed
-		    || (bBlocking && GroundSpeed <= BlockShuffleMax);
+		    || (bBlocking && GroundSpeed <= BlockShuffleMax * FMath::Max(Size, 0.1f));
 	}
 
 	/** One trace's answer, in the mesh's space. */
@@ -734,11 +742,11 @@ namespace SaudIK
 
 	/** The ground under one foot. Lift: its ball over the lower ball. bEdge
 	    is the foot's own, kept frame to frame. */
-	inline FFootPlace PlaceFoot(const FFootIn& F, bool bWanted, float Lift, bool& bEdge)
+	inline FFootPlace PlaceFoot(const FFootIn& F, bool bWanted, float Lift, bool& bEdge, float Size = 1.f)
 	{
 		FFootPlace P;
 		if (!bWanted) { bEdge = false; return P; }
-		const float Share = PlantAlpha(F.Ankle.Z - F.AnkleRest) * GroundShare(Lift);
+		const float Share = PlantAlpha(F.Ankle.Z - F.AnkleRest, Size) * GroundShare(Lift, Size);
 		const FGroundPoint& H = F.HeelGround;
 		const FGroundPoint& B = F.BallGround;
 		const float HNZ = H.Normal.Z, BNZ = B.Normal.Z;
@@ -831,7 +839,7 @@ namespace SaudIK
 			const FVector Shown = DrawnBall(St.Hold[S], In.Mesh, F.Ball);
 			const FVector Offset(Shown.X - F.Ball.X, Shown.Y - F.Ball.Y, 0.f);
 
-			const FFootPlace P = PlaceFoot(F, In.bWanted, Lift[S] - Floor, St.bEdge[S]);
+			const FFootPlace P = PlaceFoot(F, In.bWanted, Lift[S] - Floor, St.bEdge[S], Size);
 			// eased in the world, so a man turned on the spot does not turn his soles
 			St.Tilt[S] = SettleNormal(St.Tilt[S], DirToWorld(In.Mesh, P.Tilt), FootSettleRate, Dt);
 			const FVector Tilt = DirToMesh(In.Mesh, St.Tilt[S]).GetSafeNormal();
@@ -850,10 +858,10 @@ namespace SaudIK
 			O.Ball = F.Ball + Offset * A + FVector::UpVector * (A * (St.FootZ[S] + StepHeight(St.Hold[S], Size)));
 			O.Tilt = LimitedTilt(Tilt, A);
 			O.Ground = P.Ground;
-			O.ToeShare = A * GroundShare(Lift[S] - Floor);
+			O.ToeShare = A * GroundShare(Lift[S] - Floor, Size);
 			O.Share = A;
 		}
-		St.PelvisZ = Settle(St.PelvisZ, FMath::Max(Drop, -MaxPelvisDrop), PelvisSettleRate, Dt);
+		St.PelvisZ = Settle(St.PelvisZ, FMath::Max(Drop, -MaxPelvisDrop * Size), PelvisSettleRate, Dt);
 
 		// The hips carry the body's own changes of speed, on the ground.
 		const FVector Change = DirToMesh(In.Mesh, In.Velocity - St.LastVelocity) / Scale;
@@ -864,7 +872,8 @@ namespace SaudIK
 			FEase& W = St.Weight[K];
 			if (bKnown && In.bWanted) W.V -= Kick[K] * WeightKick;
 			W.To(0.f, WeightRate, Dt);
-			if (FMath::Abs(W.X) > WeightMaxCm) { W.X = W.X > 0.f ? WeightMaxCm : -WeightMaxCm; W.V = 0.f; }
+			const float WMax = WeightMaxCm * Size;
+			if (FMath::Abs(W.X) > WMax) { W.X = W.X > 0.f ? WMax : -WMax; W.V = 0.f; }
 		}
 		Out.Pelvis = FVector(St.Weight[0].X, St.Weight[1].X, St.PelvisZ) * A;
 		return Out;

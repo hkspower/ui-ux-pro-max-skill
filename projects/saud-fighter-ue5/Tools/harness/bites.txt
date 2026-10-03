@@ -424,3 +424,9 @@ feel|Source/SaudFighter/Combat/SaudFeel.h|s#case EClip::GaitJog: case EClip::Gai
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockShuffleMax = 60.f;#constexpr float BlockShuffleMax = 0.f;#|a block edged along at a guard's pace holds its feet
 ik|Source/SaudFighter/Combat/SaudIK.h|s#(bBlocking \&\& GroundSpeed <= BlockShuffleMax)#(bBlocking \&\& GroundSpeed <= 1e9f)#|pushed faster it glides
 ik|Source/SaudFighter/Combat/SaudPlants.h|s#\("A_Saud_Mocap_Jog".*", "\)[^"]*\(" } },\)#\1.......................\2#|every motion-capture gait puts each foot down in its loop
+ik|Source/SaudFighter/Combat/SaudIK.h|s#(FootHeightAboveFloor - PlantHeight \* K)#(FootHeightAboveFloor - PlantHeight)#|his foot is planted under his own 14.8 cm
+ik|Source/SaudFighter/Combat/SaudIK.h|s#(Lift - BallUpHeight \* K)#(Lift - BallUpHeight)#|his ball's share of the ground fades over his own heights
+ik|Source/SaudFighter/Combat/SaudIK.h|s#(F.bDown ? BallUpHeight : BallDownHeight) \* Size#(F.bDown ? BallUpHeight : BallDownHeight)#|his ball 2 cm up in his own clip is still down
+ik|Source/SaudFighter/Combat/SaudIK.h|s#BlockShuffleMax \* FMath::Max(Size, 0.1f)#BlockShuffleMax * FMath::Min(Size, 1.0f)#|his guard shuffles at his own pace
+ik|Source/SaudFighter/Combat/SaudIK.h|s#-MaxPelvisDrop \* Size#-MaxPelvisDrop#|his hips reach his own drop
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float WMax = WeightMaxCm \* Size;#const float WMax = WeightMaxCm;#|his hips carry a start as far as his own size

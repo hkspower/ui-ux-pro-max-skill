@@ -2089,9 +2089,55 @@ static void Edges()
     }
 }
 
+// ---- a man of another size (2026-10-03, the bosses: ZAYOS is 1.48 times
+// Saud): the bands that were Saud's centimetres grow with his leg
+static void Grow(Man& M, float K)
+{
+    for (int S = 0; S < 2; ++S)
+    {
+        FFootIn& F = M.In.Foot[S];
+        F.Hip = F.Hip * K; F.Ankle = F.Ankle * K; F.Ball = F.Ball * K;
+        F.AnkleRest *= K; F.BallRest *= K; F.LegLength *= K;
+    }
+}
+
+static void BigMan()
+{
+    std::printf("SIZE  (the bands grow with the man: ZAYOS at 1.48)\n");
+    auto Settled = [](Man& M) { M.Run(1.5f); };
+    const float K = 1.48f;
+    Check(PlantAlpha(PlantHeight * K, K) == 1.f && PlantAlpha(PlantHeight * K, 1.f) < 1.f
+          && PlantAlpha(PlantFade * K, K) == 0.f && Near(PlantAlpha((PlantHeight + PlantFade) * 0.5f * K, K), 0.5f),
+          "his foot is planted under his own 14.8 cm, not Saud's 10, and swings over his 41.4");
+    Check(GroundShare(BallUpHeight * K, K) == 1.f && GroundShare(BallUpHeight * K, 1.f) < 1.f && GroundShare(SwingHeight * K, K) == 0.f,
+          "his ball's share of the ground fades over his own heights");
+    Check(HoldsFeetMeasured(false, false, 0.f, true, 80.f, K) && !HoldsFeetMeasured(false, false, 0.f, true, 80.f, 1.f)
+          && !HoldsFeetMeasured(false, false, 0.f, true, 95.f, K),
+          "his guard shuffles at his own pace: 80 cm/s held for him, glided for Saud, 95 glided for both");
+    {
+        Man D; Grow(D, K); D.Height = [](float, float) { return -90.f; }; Settled(D);
+        Man S; S.Height = [](float, float) { return -90.f; }; Settled(S);
+        Check(D.Plan.Pelvis.Z >= -MaxPelvisDrop * K - 0.05f && D.Plan.Pelvis.Z < -MaxPelvisDrop - 1.f && S.Plan.Pelvis.Z >= -MaxPelvisDrop - 0.05f,
+              "his hips reach his own drop (59 cm), no further; Saud's stop at 40");
+    }
+    {
+        Man B; Grow(B, K); B.Run(0.5f);
+        float Most = 0.f;
+        for (int I = 0; I < 30; ++I) { B.In.Velocity = FVector(-2000.f, 0.f, 0.f); B.Step(1.f / 60.f); Most = std::fmax(Most, std::fabs(B.Plan.Pelvis.X)); }
+        Check(Most > WeightMaxCm + 0.5f && Most <= WeightMaxCm * K + 0.05f, "his hips carry a start as far as his own size, no further");
+    }
+    {
+        // his walk: a foot lifted 2 cm by HIS clip is down (Saud's band reads it as lifting)
+        Man W; Grow(W, K); W.Run(0.5f);
+        W.In.Foot[0].Ball.Z = W.In.Foot[0].BallRest + 2.0f; W.In.Down[0] = -1.f; W.In.Down[1] = -1.f;
+        W.Run(0.3f);
+        Check(W.St.Hold[0].bDown, "his ball 2 cm up in his own clip is still down (under his 2.2 cm band; over Saud's 1.5)");
+    }
+}
+
 int main()
 {
-    Solve(); Feet(); Held(); GroundTwo(); Stride(); Hands(); Contact(); Head(); Body(); Crossfade(); Plants(); Edges();
+    Solve(); Feet(); Held(); GroundTwo(); Stride(); Hands(); Contact(); Head(); Body(); Crossfade(); Plants(); Edges(); BigMan();
     std::printf(Fails ? "\n%d FAILED\n" : "\nall IK checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

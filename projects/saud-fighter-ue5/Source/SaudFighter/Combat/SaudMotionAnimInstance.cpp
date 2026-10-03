@@ -526,7 +526,10 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 	{
 		const FVector V = Fighter->GetVelocity();
 		const float Ground = static_cast<float>(FVector(V.X, V.Y, 0.f).Size());
-		const float Scale = static_cast<float>(Mesh->GetComponentScale().X);
+		// his world stride: the clip's (measured at Saud's size) on his own
+		// legs and the mesh's scale -- BodyScale, not the mesh's scale alone
+		// (a boss half again Saud's size walked his clip half again too fast)
+		const float Scale = FMath::Max(0.1f, BodyScale);
 		if (const SaudPlants::FClip* P = NewestPlants())
 		{
 			Rate = SaudIK::StrideRateMeasured(Ground, P->Stride, Scale);
@@ -645,7 +648,7 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 	Frame.bSettleFeet = bStanding && !bAttacking;
 	const SaudPlants::FClip* Newest = NewestPlants();
 	Frame.bHoldFeet = Newest ? SaudIK::HoldsFeetMeasured(bAttacking, bStanding, Newest->Stride,
-	                                                     St == EFighterState::Block, Frame.Velocity.Size())
+	                                                     St == EFighterState::Block, Frame.Velocity.Size(), BodyScale)
 	                         : SaudIK::HoldsFeet(bAttacking, bStanding, Back.Stride, Fade.Serial);
 
 	// The leg an attack is thrown with is the strike's from its first frame: never held.
