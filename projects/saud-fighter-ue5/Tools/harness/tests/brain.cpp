@@ -13,6 +13,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cctype>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -410,10 +411,80 @@ static void Tokens()
     Check(!MayAttack(1.f, true, 1, 1, 2), "a second from behind is not");
 }
 
+
+// --------------------------------------------------------------- phase two
+
+/** The browser's isBoss line, read rather than copied: which kinds it
+    enrages, as their rows' names (kind 'boss' is row Boss). */
+static std::vector<std::string> BrowserPhaseTwo()
+{
+    std::vector<std::string> Rows;
+    FILE* F = std::fopen("../saud-fighter/index.html", "rb");
+    Check(F != nullptr, "the browser's index.html found");
+    if (!F) return Rows;
+    char Line[4096];
+    while (std::fgets(Line, sizeof Line, F))
+    {
+        const char* At = std::strstr(Line, "var isBoss");
+        if (!At) continue;
+        for (const char* P = At; (P = std::strstr(P, "e.kind === '")); )
+        {
+            P += std::strlen("e.kind === '");
+            std::string K;
+            while (*P && *P != '\'') K += *P++;
+            if (!K.empty()) K[0] = (char)std::toupper((unsigned char)K[0]);
+            Rows.push_back(K);
+        }
+        break;
+    }
+    std::fclose(F);
+    return Rows;
+}
+
+static void PhaseTwo()
+{
+    std::printf("PHASE TWO\n");
+    const std::vector<std::string> Browser = BrowserPhaseTwo();
+    Check(!Browser.empty(), "the browser's isBoss line is there");
+    auto InBrowser = [&](const std::string& R) { for (const auto& B : Browser) if (B == R) return true; return false; };
+    // Every boss row in DT_Fighters: phase two exactly where the browser has it.
+    FILE* F = std::fopen("Content/Data/DT_Fighters.csv", "rb");
+    Check(F != nullptr, "DT_Fighters.csv found");
+    int Bosses = 0;
+    if (F)
+    {
+        char Line[1024];
+        if (!std::fgets(Line, sizeof Line, F)) Line[0] = 0;
+        while (std::fgets(Line, sizeof Line, F))
+        {
+            std::vector<std::string> C; std::string Cur; bool Q = false;
+            for (const char* P = Line; *P && *P != '\n' && *P != '\r'; ++P)
+            {
+                if (*P == '"') Q = !Q;
+                else if (*P == ',' && !Q) { C.push_back(Cur); Cur.clear(); }
+                else Cur += *P;
+            }
+            C.push_back(Cur);
+            if (C.size() < 11) continue;
+            const bool bBoss = C[10] == "true";
+            const bool Want = bBoss && InBrowser(C[0]);
+            if (bBoss) ++Bosses;
+            const std::string Msg = C[0] + (Want ? " has a phase two, as in the browser" : " has no phase two, as in the browser");
+            Check(HasPhaseTwo(C[0].c_str()) == Want || !bBoss, Msg.c_str());
+        }
+        std::fclose(F);
+    }
+    Check(Bosses == 3, "three boss rows");
+    Check(HasPhaseTwo("Boss") && HasPhaseTwo("Saqr") && !HasPhaseTwo("Zayos"),
+          "AL-WAHSH and AL-SAQR enrage at half health; ZAYOS does not");
+    Check(!HasPhaseTwo(nullptr) && !HasPhaseTwo("") && !HasPhaseTwo("Bos") && !HasPhaseTwo("Bosses"),
+          "a name is matched whole");
+}
+
 int main()
 {
     LoadAttacks();
-    States(); Phases(); Reaction(); Defence(); Punish(); Other(); Roles(); Lines(); Tokens();
+    States(); Phases(); Reaction(); Defence(); Punish(); Other(); Roles(); Lines(); Tokens(); PhaseTwo();
     std::printf(Fails ? "\n%d FAILED\n" : "\nall brain checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

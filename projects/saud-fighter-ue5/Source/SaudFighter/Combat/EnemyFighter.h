@@ -38,6 +38,11 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Fighter")
 	FText DisplayName;
 
+	/** His row turns into a phase two at half health
+	    (SaudBrain::HasPhaseTwo, the browser's rule). */
+	UPROPERTY(BlueprintReadOnly, Category = "Fighter")
+	bool bHasPhaseTwo = false;
+
 	/** Set to true once a boss drops below half health. */
 	UPROPERTY(BlueprintReadOnly, Category = "Fighter")
 	bool bEnraged = false;

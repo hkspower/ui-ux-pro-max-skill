@@ -430,3 +430,8 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#(F.bDown ? BallUpHeight : BallDownHeight
 ik|Source/SaudFighter/Combat/SaudIK.h|s#BlockShuffleMax \* FMath::Max(Size, 0.1f)#BlockShuffleMax * FMath::Min(Size, 1.0f)#|his guard shuffles at his own pace
 ik|Source/SaudFighter/Combat/SaudIK.h|s#-MaxPelvisDrop \* Size#-MaxPelvisDrop#|his hips reach his own drop
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float WMax = WeightMaxCm \* Size;#const float WMax = WeightMaxCm;#|his hips carry a start as far as his own size
+
+# Phase two (2026-10-03): only the bosses the browser enrages.
+brain|Source/SaudFighter/Combat/SaudBrain.h|s#Is("Saqr");#Is("Saqr") or Is("Zayos");#|Zayos has no phase two, as in the browser
+brain|Source/SaudFighter/Combat/SaudBrain.h|s#Is("Saqr");#false;#|Saqr has a phase two, as in the browser
+brain|Source/SaudFighter/Combat/SaudBrain.h|s#return \*A == 0 \&\& \*N == 0; };#return *N == 0; };#|a name is matched whole

@@ -413,4 +413,17 @@ namespace SaudBrain
 		if (bBehind && BehindHolders >= 1) return false;
 		return true;
 	}
+
+	// ------------------------------------------------------------ phase two
+
+	/** Whether a boss row turns into its phase two at half health. The
+	    browser's rule (index.html, `var isBoss = (e.kind === 'boss' ||
+	    e.kind === 'saqr')`): AL-WAHSH and AL-SAQR do, ZAYOS does not. The
+	    harness reads that line and holds this to it. */
+	inline bool HasPhaseTwo(const char* Row)
+	{
+		if (!Row) return false;
+		auto Is = [Row](const char* N) { const char* A = Row; while (*A && *N && *A == *N) { ++A; ++N; } return *A == 0 && *N == 0; };
+		return Is("Boss") || Is("Saqr");
+	}
 }

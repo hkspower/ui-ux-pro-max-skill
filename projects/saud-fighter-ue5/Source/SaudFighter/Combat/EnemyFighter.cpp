@@ -1,5 +1,6 @@
 #include "Combat/EnemyFighter.h"
 #include "Combat/SaudArena.h"
+#include "Combat/SaudBrain.h"
 #include "Game/SaudAudioSubsystem.h"
 
 #include "Combat/SaudCharacter.h"
@@ -34,6 +35,8 @@ void AEnemyFighter::ConfigureFromDefinition(const FFighterDef& Def, int32 Tier,
 	GuardChance      = Def.GuardChance;
 	bHitAndRun       = Def.bHitAndRun;
 	bIsBoss          = Def.bIsBoss;
+	// MotionSet is his row (AWaveDirector sets it before this).
+	bHasPhaseTwo     = Def.bIsBoss && SaudBrain::HasPhaseTwo(TCHAR_TO_ANSI(*MotionSet.ToString()));
 	DisplayName      = Def.DisplayName;
 	bResistsKnockdown = Def.bIsBoss;
 	ExperienceValue  = Def.ExperienceValue;
@@ -85,7 +88,7 @@ void AEnemyFighter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (bIsBoss && !bEnraged && Health <= MaxHealth * 0.5f && IsAlive())
+	if (bHasPhaseTwo && !bEnraged && Health <= MaxHealth * 0.5f && IsAlive())
 	{
 		EnterPhaseTwo();
 	}
