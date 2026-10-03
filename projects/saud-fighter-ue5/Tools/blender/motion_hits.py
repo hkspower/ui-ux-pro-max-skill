@@ -73,6 +73,14 @@ PEAK = {"Head_Straight_Light": ("Head_Straight", 0.6, False), "Head_Straight": (
         "Head_Side": ("Head_Side", 1.0, True), "Body_Front": ("Body_Front", 1.0, True),
         "Body_Side": ("Body_Side", 1.0, True)}
 RISE, HOLD = 0.04, 0.06
+# How far a blow moves a man goes down as he gets heavier (2026-10-03):
+# the browser's `sc` x `look.build` is his bulk, and a reaction's
+# displacement (the lean, the hips, the head) scales by the square root of
+# Saud's bulk over his. Saud and the street men are 1, as they were; AL-SAQR
+# 0.96, AL-WAHSH 0.83, ZAYOS 0.69. The covering arms (belly, ribs) are a
+# man's own and keep their full reach.
+GIVE_KEYS = ("lean", "hx", "hy", "hz", "side", "twist", "pitch", "roll", "head_turn", "throw")
+GIVE_TOL = 0.12         # a set's head travel over Saud's, within this of its give
 # the browser's thrown arms (build_motion.HIT_AIMS), arms only
 THROWN = ("upperarm_l", "lowerarm_l", "hand_l", "upperarm_r", "lowerarm_r", "hand_r")
 
@@ -262,8 +270,22 @@ def react_len(blow, eng):
     return int(round((eng["hit_heavy"] if PEAK[blow][2] else eng["hit_light"]) * FPS()))
 
 
-def weights(blows, t, eng):
-    """Every reaction under way at t, summed: [(frame, blow)] -> params."""
+def give(key):
+    """How much of a reaction's displacement a man of this set takes: 1 for
+    Saud and the street men, less for a heavier boss (see GIVE_KEYS)."""
+    return 1.0 if "no_give" in B.SABOTAGE else bulk_give(key)
+
+
+def bulk_give(key):
+    if key not in B.BOSSES:
+        return 1.0
+    me, him = B.saud_character(), B.character(B.BOSSES[key]["kind"])
+    return ((me["sc"] * me["build"]) / (him["sc"] * him["build"])) ** 0.5
+
+
+def weights(blows, t, eng, g=1.0):
+    """Every reaction under way at t, summed: [(frame, blow)] -> params;
+    g is the man's give."""
     P = {k: 0.0 for k in KEYS}
     for f, blow in blows:
         shape, peak, _h = PEAK[blow]
@@ -272,7 +294,7 @@ def weights(blows, t, eng):
         if w <= 0.0:
             continue
         for k, v in REACT[shape].items():
-            P[k] += v * w
+            P[k] += v * w * (g if k in GIVE_KEYS else 1.0)
     return P
 
 
@@ -490,7 +512,7 @@ def author_react(au, c, S):
     eng = B.engine_timings()
     frames, plant = [], {s: {} for s in B.SIDES}
     for f in range(c["frames"]):
-        P = weights([(0, c["blow"])], f / float(FPS()), eng)
+        P = weights([(0, c["blow"])], f / float(FPS()), eng, give(c["boss"]))
         frames.append(stand_frame(au, g, aims, P))
         for s in B.SIDES:
             plant[s][f] = (g["ball_" + s].copy(), 0.0)
@@ -525,7 +547,7 @@ def author_pair(au, c, S):
     keys = FALL_KEYS[knock[1]](g) if knock else None
     frames, plant = [], {s: {} for s in B.SIDES}
     for f in range(c["frames"]):
-        P = weights(blows, f / float(FPS()), eng)
+        P = weights(blows, f / float(FPS()), eng, give(c["boss"]))
         if knock and f >= knock[0]:
             u = min(1.0, (f - knock[0]) / float(fall_n - 1))
             (loc, world, moving), p = _fall_at(au, g, aims, keys, u, 1.0 / (fall_n - 1), react_extra(aims, P))
@@ -722,7 +744,7 @@ def verify(rig, made, fails):
             dp = pk["pelvis"] - p0["pelvis"]
             shape = PEAK[c["blow"]][0]
             c["react"] = dict(back=dh.y * 100, left=dh.x * 100, down=-dh.z * 100,
-                              curl=rel.x * 100, hips_x=dp.x * 100)
+                              curl=rel.x * 100, hips_x=dp.x * 100, travel=dh.length * 100)
             why = None
             if shape == "Head_Straight" and dh.y < 0.05:
                 why = "the head goes back %.1f cm, want 5" % (dh.y * 100)
@@ -858,6 +880,23 @@ def verify(rig, made, fails):
         heavy = next((c for c in reacts if c["boss"] == key and c["blow"] == "Head_Straight"), None)
         if light and heavy and light["react"]["back"] >= heavy["react"]["back"]:
             fails.append("%s: a light straight sends the head back as far as a heavy one" % key)
+
+
+def give_check(made, fails):
+    """A heavier man is moved less by the same blow: each boss's head travel
+    at a reaction's peak, over Saud's in the same reaction, is his give
+    within GIVE_TOL. Run after verify(), on what it measured."""
+    by = {(c["boss"], c["move"]): c for c, _a, _f in made if c.get("react")}
+    for (key, move), c in sorted(by.items()):
+        saud = by.get(("Saud", move))
+        if key not in B.BOSSES or not saud or saud["react"]["travel"] < 1.0:
+            continue
+        ratio = c["react"]["travel"] / saud["react"]["travel"]
+        want = bulk_give(key)
+        c["give"] = (ratio, want)
+        if abs(ratio - want) > GIVE_TOL:
+            fails.append("%s: moved %.2f of what the same blow moves Saud, want %.2f for his weight" % (
+                c["name"], ratio, want))
 
 
 def report(made):

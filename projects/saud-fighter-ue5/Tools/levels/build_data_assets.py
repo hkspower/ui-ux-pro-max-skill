@@ -173,6 +173,28 @@ STRIKE_BANDS = {
 }
 
 
+# Each boss's own way of fighting, on top of what his row derives (Unreal
+# only, 2026-10-03, asked as "improve all bosses' fight style"). The rows
+# leave the three alike where it shows most -- all three walk in and stand
+# (RangeDiscipline 0.15: the health floor) -- and each stands his own way in
+# his clips (build_saud.GUARDS), so his style says the same:
+#   AL-WAHSH, the peek-a-boo: walks the player down behind the high guard,
+#     circling less, and answers back from it -- the counter-puncher.
+#   AL-SAQR, the kickboxer: holds the kicking range he stands at and
+#     circles out on light feet.
+#   ZAYOS, square and slow: swings into a guard rather than going round it,
+#     answers back, and barely circles.
+# Each value stays inside the range its dial's own derivation keeps to
+# (DIAL_RANGE); plan_styles() refuses anything else.
+BOSS_DIALS = {
+    "Boss":  dict(CounterChance=0.45, PunishChance=0.80, CircleTendency=0.40),
+    "Saqr":  dict(RangeDiscipline=0.80, CounterChance=0.15),
+    "Zayos": dict(GuardRespect=0.35, CounterChance=0.40, CircleTendency=0.10),
+}
+DIAL_RANGE = dict(CounterChance=(0.05, 0.55), PunishChance=(0.3, 0.8), CircleTendency=(0.05, 0.8),
+                  RangeDiscipline=(0.15, 0.9), GuardRespect=(0.3, 0.85), SlipShare=(0.0, 0.6))
+
+
 def plan_styles():
     """One style per enemy archetype, derived from its own row.
 
@@ -270,6 +292,22 @@ def plan_styles():
             Notes="Generated from DT_Fighters row '%s'. Edit the browser "
                   "project, re-export, re-run." % name,
         ))
+        own = BOSS_DIALS.get(name, {})
+        if own and not boss:
+            raise SystemExit("BOSS_DIALS names '%s', which is not a boss row" % name)
+        for dial, v in own.items():
+            if dial not in DIAL_RANGE or dial not in out[-1]:
+                raise SystemExit("BOSS_DIALS: '%s' is not a dial this sets" % dial)
+            lo, hi = DIAL_RANGE[dial]
+            if not lo <= v <= hi:
+                raise SystemExit("BOSS_DIALS: %s's %s %.2f is outside %.2f-%.2f" % (name, dial, v, lo, hi))
+            out[-1][dial] = v
+        if own:
+            out[-1]["Notes"] += " His own dials (BOSS_DIALS): %s." % ", ".join(
+                "%s %.2f" % kv for kv in sorted(own.items()))
+    missing = set(BOSS_DIALS) - {st["asset"][len("DA_Style_"):] for st in out}
+    if missing:
+        raise SystemExit("BOSS_DIALS names rows DT_Fighters does not have: %s" % sorted(missing))
     return out
 
 

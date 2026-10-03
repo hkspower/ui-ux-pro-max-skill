@@ -2660,6 +2660,7 @@ def verify(rig, made):
                 fails.append("GetUp does not end in the guard: %.1f cm from it" % (gap * 100))
     rig.animation_data.action = None
     H.verify(rig, made, fails)
+    H.give_check(made, fails)
     assert not fails, "the motion does not move:\n  " + "\n  ".join(fails)
     strikes = [c for c, _a, _f in made if c["kind"] == "strike"]
     if strikes:
@@ -2843,7 +2844,7 @@ def bite():
     # Two cases break on the boxer's guard: Saud's MMA stance is solved with
     # its knees forward and its lead palm squared, so on it those two
     # mechanisms can fail without showing -- the boxer's cannot.
-    every = {c["name"]: c for c in plan(("saud", "street"))}
+    every = {c["name"]: c for c in plan(("saud", "street", "bosses"))}
     cases = [
         ("planted feet",   "plant",  ["A_Saud_Cross", "A_Saud_Kick"],  "slides"),
         ("knees forward",  "knee",   ["A_Street_Guard"],                 "behind the line"),
@@ -2886,6 +2887,8 @@ def bite():
         ("dash lean",      "feet_down_dash",  ["A_Saud_Dash_Fwd"],      "lean added"),
         ("swing clears",   "low_swing",       ["A_Saud_Walk_Fwd"],      "clears only"),
         ("hips turn",      "still_hips",      ["A_Saud_Walk_Fwd"],      "hips turn only"),
+        # the bosses (2026-10-03): a heavier man is moved less by a blow
+        ("heavy men give", "no_give", ["A_Saud_Hit_Head_Straight", "A_Zayos_Hit_Head_Straight"], "for his weight"),
     ]
     # The POSTURE track's keys, proved on the clip path (2026-09-30): each
     # needs a name from build_saud that lands with that track (the stance
@@ -2900,6 +2903,8 @@ def bite():
     ]
     waiting = [label for label, _s, _n, _e, ready in pending if not ready()]
     cases += [(label, sab, names, expect) for label, sab, names, expect, ready in pending if ready()]
+    if os.environ.get("BITE_ONLY"):
+        cases = [cs for cs in cases if os.environ["BITE_ONLY"] in cs[0]]
     results = []
     for label, sab, names, expect in cases:
         for broken in (False, True):
