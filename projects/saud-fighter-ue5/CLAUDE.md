@@ -4463,7 +4463,7 @@ moving with time; larger at the finisher; hidden by a man in front; his
 eyes ice, flaring out sideways, hidden by a hand, dark without the aura;
 a heavy blow's frame the System's cyan, the mark ice and cyan, a share of
 the speed lines cyan; the stencil the aura reads is the one Saud writes and
-the project renders it. The look's new sabotages (15, plus the five it touched) are still running; their count is recorded when they end. `anime_preview.py --rage` renders
+the project renders it. The look's 15 new sabotages and the five it touched: 20 of 20 caught (`round_eyes` slipped through the first run -- two round eyes 5 px apart measured as a flare -- and the check now takes their spacing off). `anime_preview.py --rage` renders
 the souq fight with Saud's aura at full rage and through the finisher
 (`Docs/renders/souq-fight-anime-rage.png`, `-finisher.png`), his outline
 from the render's object index; the blow's frames are re-rendered in the

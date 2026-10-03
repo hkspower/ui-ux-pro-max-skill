@@ -2461,7 +2461,9 @@ def _power_checks(Cw, Aw, Nw, Dw, onw, nh, is_c):
         j, i = int(ey * nh), int(ex * nh)
         assert is_c(e1[j:j + 1, i:i + 1], ice).all(), "his eyes glow ice"
     lit = is_c(e1, ice) & (np.abs(uy + 52.0) < 6.0)
-    wide, tall = np.ptp(ux[lit]), np.ptp(uy[lit])
+    # (the two eyes' own spacing taken off: two round dots 5 px apart are
+    # not a flare)
+    wide, tall = np.ptp(ux[lit]) - abs(eyes[1][0] - eyes[0][0]) / fp, np.ptp(uy[lit])
     assert wide > 4.0 * tall, "and flare out sideways, not round (%.1f px across, %.1f tall)" % (wide, tall)
     De = Dw.copy()
     hand = (np.abs(ux + 2.5) < 4.0) & (np.abs(uy + 52.0) < 4.0)
