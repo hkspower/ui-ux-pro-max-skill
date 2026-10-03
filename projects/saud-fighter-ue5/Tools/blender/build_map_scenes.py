@@ -487,6 +487,52 @@ def _group_of(p, P):
     return "Roads"
 
 
+def paving_levels(P, covered, BW):
+    """A level (1, 2, ...) for every paving piece the scene draws: the least
+    that no paving piece overlapping it already has, so no two overlapping
+    tops share a plane. Overlap is judged by each piece's round reach (half
+    its diagonal), which errs toward more levels, never fewer."""
+    cell = 2000.0
+    grid, out = {}, {}
+    for i, p in enumerate(P["scenery"]):
+        if p.get("mesh") or i in covered or BW.ROLE_OF_KIND.get(p["kind"]) != "paving":
+            continue
+        r = 0.5 * math.hypot(p["sx"], p["sy"])
+        cx, cy = int(math.floor(p["x"] / cell)), int(math.floor(p["y"] / cell))
+        taken = {lv for gx in (cx - 1, cx, cx + 1) for gy in (cy - 1, cy, cy + 1)
+                 for x, y, rr, lv in grid.get((gx, gy), ()) if math.hypot(p["x"] - x, p["y"] - y) < r + rr}
+        lv = next(k for k in range(1, 1000) if k not in taken)
+        out[i] = lv
+        grid.setdefault((cx, cy), []).append((p["x"], p["y"], r, lv))
+    return out
+
+
+def _unshare(i, p, role, levels):
+    """Centimetres to lift a piece by so that no two overlapping tops share
+    a plane. The plan lays a street in boxes each half a street's width
+    longer than its step, so every box overlaps the next on the same plane
+    (build_world.paving), a spur overlaps its street and a road the spur at
+    its door, and a road's ground overlaps the district discs it joins; an
+    engine's depth test hides that, but a ray tracer's shadow rays catch
+    each overlap, and the look cut them into a dark ladder down every
+    street (the first renders, 2026-10-03). A paving piece goes up a
+    millimetre a level (paving_levels), a road's ground 5 mm down:
+    render-only, under a pixel at any distance a view stands. And the stone
+    island's last beach step tops out at the plateau's own height (both at
+    0 cm, build_island.terrain), so in the engine the stone and the beach
+    would z-fight over the whole plateau; here the step goes 5 mm under and
+    the stone, which is what is fought on, is drawn."""
+    if "shared_planes" in SABOTAGE:
+        return 0.0
+    if role == "paving":
+        return 0.1 * levels[i]
+    if role == "ground" and p.get("road"):
+        return -0.5
+    if p["kind"] == "beach" and abs(p["z"] + p["sz"] * 0.5 - _bw().ISL.SHORE_Z) < 0.01:
+        return -0.5
+    return 0.0
+
+
 def world_plan():
     BW = _bw()
     stages, world = BW.load()
@@ -513,11 +559,13 @@ def build_world(out=None):
     ember = _flat("M_World_Ember", e["base"], 0.6, emission=e["emission"], strength=e["strength"])
     prims = _coll("Primitives")
     groups = {}
+    levels = paving_levels(P, covered, BW)
     for i, p in enumerate(P["scenery"]):
         if p.get("mesh") or i in covered:
             continue
-        groups.setdefault(_group_of(p, P), []).append(p)
-    for g, pieces in sorted(groups.items()):
+        groups.setdefault(_group_of(p, P), []).append((i, p))
+    for g, rows in sorted(groups.items()):
+        pieces = [p for _, p in rows]
         keys = sorted({(BW.theme_of(p, P), BW.ROLE_OF_KIND[p["kind"]]) for p in pieces}, key=str)
         slot = {k: i for i, k in enumerate(keys)}
         used = [mats[k] for k in keys]
@@ -525,10 +573,10 @@ def build_world(out=None):
             slot["ember"] = len(used); used.append(ember)
         bm = bmesh.new()
         embers = 0
-        for p in pieces:
+        for i, p in rows:
             k = (BW.theme_of(p, P), BW.ROLE_OF_KIND[p["kind"]])
-            _shape(bm, p["shape"], (p["x"] / 100, p["y"] / 100, p["z"] / 100), (p["sx"] / 100, p["sy"] / 100, p["sz"] / 100),
-                   p.get("yaw", 0.0), slot[k])
+            _shape(bm, p["shape"], (p["x"] / 100, p["y"] / 100, (p["z"] + _unshare(i, p, k[1], levels)) / 100),
+                   (p["sx"] / 100, p["sy"] / 100, p["sz"] / 100), p.get("yaw", 0.0), slot[k])
             if p.get("fire"):
                 # the editor's ember bed on the post's cap
                 _shape(bm, "disc", (p["x"] / 100, p["y"] / 100, (p["z"] + p["sz"] * 0.5 + 1.0) / 100),
@@ -1049,6 +1097,57 @@ def _bbox_xy(o):
     return min(p.x for p in pts), min(p.y for p in pts), max(p.x for p in pts), max(p.y for p in pts)
 
 
+def _apart(a, b, tol=0.001):
+    """Two convex polygons (lists of (x, y)) apart in plan, by more than
+    tol metres along some edge's normal of either (separating axes)."""
+    for poly in (a, b):
+        n = len(poly)
+        for k in range(n):
+            (x0, y0), (x1, y1) = poly[k], poly[(k + 1) % n]
+            nx, ny = y0 - y1, x1 - x0
+            ln = math.hypot(nx, ny)
+            if ln < 1e-9:
+                continue
+            nx, ny = nx / ln, ny / ln
+            pa = [x * nx + y * ny for x, y in a]
+            pb = [x * nx + y * ny for x, y in b]
+            if min(pa) > max(pb) - tol or min(pb) > max(pa) - tol:
+                return True
+    return False
+
+
+def shared_planes(objs):
+    """Pairs of upward faces, in the scene's primitives, that overlap in
+    plan on one plane: what a ray tracer's shadow rays catch (_unshare)."""
+    import bpy
+    pairs = 0
+    tops = {}
+    for o in objs:
+        me = o.data
+        M = o.matrix_world
+        for f in me.polygons:
+            if f.normal.z < 0.999:
+                continue
+            vs = [M @ me.vertices[v].co for v in f.vertices]
+            z = round(sum(v.z for v in vs) / len(vs), 4)
+            poly = [(v.x, v.y) for v in vs]
+            box = (min(x for x, _ in poly), min(y for _, y in poly), max(x for x, _ in poly), max(y for _, y in poly))
+            tops.setdefault(z, []).append((box, poly))
+    for z, faces in tops.items():
+        faces.sort(key=lambda t: t[0][0])
+        for a in range(len(faces)):
+            ba, pa = faces[a]
+            for b in range(a + 1, len(faces)):
+                bb, pb = faces[b]
+                if bb[0] >= ba[2] - 0.001:
+                    break
+                if bb[1] >= ba[3] - 0.001 or ba[1] >= bb[3] - 0.001:
+                    continue
+                if not _apart(pa, pb):
+                    pairs += 1
+    return pairs
+
+
 def check_world(miss=None):
     import bpy
     miss = [] if miss is None else miss
@@ -1118,6 +1217,10 @@ def check_world(miss=None):
             miss.append("%s: its pieces do not lie round its middle" % name)
         if max(abs(x0 - ox), abs(x1 - ox), abs(y0 - oy), abs(y1 - oy)) > R + (BW.BOAT["jetty_out"] / 100 + 10 if "island" in d else 0):
             miss.append("%s: its pieces reach past its reach (%.0f m)" % (name, R))
+    # no two overlapping tops on one plane (_unshare)
+    n = shared_planes([o for o in objs if "pieces" in o])
+    if n:
+        miss.append("the primitives: %d pairs of overlapping tops share a plane" % n)
     # the moon
     if not any(o.type == "LIGHT" and o.data.type == "SUN" for o in objs):
         miss.append("the world has no moon")
@@ -1404,6 +1507,7 @@ def bite():
     case("the animals gone", "world", no_animals, "animals")
     case("a cage post moved", "prologue", post_moved, "not where the plan puts it")
     case("a prop moved", "island", prop_moved, "not where the plan puts it")
+    case("the streets' tops on one plane", "world", None, "share a plane", rebuild="shared_planes")
     case("the ground's height read wrong", "island", None, "not its heightmap", rebuild="height_scale")
     case("plants lost", "island", None, "plants", rebuild="lost_plants")
     # the rendered view's own rule: a lit district's pools, its fires out
