@@ -3858,9 +3858,28 @@ ink black, and the impact frame not levelled. `--bite`: 92 of 92 caught (the 77 
 Two old sky sabotages were re-made for the painted sky (`bright_sky`: the
 night as bright as the street; `old_sky`: the flat overcast back), and
 the old "dim overcast" check (the sky under half the engine's light) is
-gone with the engine's sky. GRADED_RESULT
+gone with the engine's sky. `--graded-check` (at the engine's key) still fails the three rules
+"The dark adult anime, redesigned" left open, and the levels moved two
+of them further: fighter/world contrast 1.16 -> 1.07 against 1.5 (the
+gamma lifts the world's middle more than the men's), the gate's pools
+1.37 -> 1.24 against 2.0, the gate's fire hue 1.14 -> 1.12 against 1.4; the
+street passes all three (pools 2.50, fire 1.55). Still open, a look
+decision; the colour-accuracy work queued next (the engine's own
+tonemapper in the preview) will move these numbers again. The committed
+fight scene carries no `Cam_souq-street` / `Cam_souq-gate` (they were in
+the scratch scenes the earlier checks ran on), so `--street` skips and
+`--graded-check` stops on it; both were run with the two cameras added
+to the open scene from `build_souq`'s own camera table (the fight
+camera matched it to 0.0000 m), not saved.
 
-**Re-rendered:** RENDERS_RESULT
+**Re-rendered:** `souq-fight-anime.png` and its fire, impact, flipped,
+parry, burning, speedlines, mark and wound frames (`--blow 0.5 0.36
+--fire`), `souq-street-anime.png`, `souq-gate-anime.png`, the new
+`souq-sky-anime.png`; `hud-{1080,21x9,4x3,lowhealth}.png` and
+`menu-*.png` (drawn over the new fight frame); `menu-title-3d*.png`
+(his middle at 0.712 / 0.811 against the shot's 0.724 / 0.799, as
+before); `saud-ik-sheet.png` (its 9 panels' checks pass);
+`anime-men.png`.
 
 **Not verified:** no engine has built either material. From memory, not
 compiled: that `Parameters.CameraVector` in a post-process material's
