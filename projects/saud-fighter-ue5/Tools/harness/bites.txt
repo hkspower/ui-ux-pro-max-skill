@@ -374,3 +374,11 @@ feel|Source/SaudFighter/Combat/SaudFeel.h|s#return !bSerialMoved \&\& KindOf(Sho
 # 2026-10-03, the colours from the data: the HUD draws the live palette
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#inline const FRgba\& Blood = LivePalette().Blood;#inline const FRgba\& Blood = Defaults::Blood;#|a blood set in the live palette is the blood the HUD draws
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#{"Gold", \&FPalette::Gold},##|every palette colour has a slot by its data name
+
+# 2026-10-03, the night's lights (SaudLight.h): drawn by their pool, shadowed by the nearest
+light|Source/SaudFighter/Combat/SaudLight.h|s#ShadowBudget = 8;#ShadowBudget = 80;#|eight shadowed fires cast at once
+light|Source/SaudFighter/Combat/SaudLight.h|s#if (!(DistCm\[I\] <= Reach))#if (!(DistCm[I] <= Reach * 1000.f))#|nothing beyond the reach casts
+light|Source/SaudFighter/Combat/SaudLight.h|s#const float Score = Was\[I\] ? DistCm\[I\] / KeepFactor : DistCm\[I\];#const float Score = DistCm[I];#|keeps its shadow against a rival a little nearer
+light|Source/SaudFighter/Combat/SaudLight.h|s#KeepFactor = 1.15f;#KeepFactor = 1.0f;#|no fire's shadow flickers
+light|Source/SaudFighter/Combat/SaudLight.h|s#CullDegrees = 2.5f;#CullDegrees = 1.0f;#|a brazier's light is drawn out to 103 m
+light|Source/SaudFighter/Combat/SaudLight.h|s#return DrawDistanceCm(PoolCm) \* FadeShare;#return DrawDistanceCm(PoolCm);#|fades over the last quarter

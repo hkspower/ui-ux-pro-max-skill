@@ -4047,6 +4047,72 @@ draws its defaults. Nothing in the game reads a browser colour from
 `DT_Colors` yet -- the Unreal HUD and look keep their own palette by
 design -- so `FindColor` on a browser row has no caller today.
 
+## The night's light: cheaper, and as bright as the previews -- 2026-10-03
+
+Asked as "make light and brightness optimization", settled as the Unreal
+build and both: faster lighting and better brightness. Before, measured on
+the open world's plan: 220 night lights, 181 of them shadowed fires (each
+also a smoke volume), every one drawn as long as its district was streamed
+in -- around one spot up to 92 lights and 57 shadowed point lights at once
+(38 on average), taking World Partition's default 256 m loading range. And
+the open world, the only map the game plays on, had no exposure at all.
+
+**Drawn by their pool** (`Source/SaudFighter/Combat/SaudLight.h`,
+engine-free; `build_souq.LIGHT_CULL` its copy). A light is drawn while its
+pool -- the ground it out-lights the moon on -- is at least 2.5 degrees
+across from the eye, and fades over the last quarter of that:
+`spawn_night()` sets every light's `MaxDrawDistance` and
+`MaxDistanceFadeRange`. A brazier is drawn to 103 m, a pyre to 206 m, a
+lantern to 46 m. Around the worst spot (of 238: every fight, gate, start
+and fire): 34 lights, 27 of them shadowed fires.
+
+**Shadowed by the nearest.** Of the fires spawned shadowed (now tagged
+`SaudShadow`), only the 8 nearest the camera cast at once, none beyond
+40 m: a new `USaudLightSubsystem` makes the choice every quarter second
+(`SaudLight::PickShadows`), and a fire that casts keeps its shadow until a
+rival is 15 % nearer, so walking past a row of fires does not flicker them.
+Every night light is Movable now (it was the engine's Stationary by
+default: no shadow switching, and a fifth overlapping stationary light
+loses its shadow), and `DefaultEngine.ini` has `r.AllowStaticLighting=
+False` -- nothing in this game is ever baked.
+
+**The exposure.** `build_world.py` spawns an unbound manual exposure
+(`Exposure`, physical camera off) whose bias, `exposure_bias()` = +0.61 EV,
+puts the moon on open ground at `MOON_TONE` 0.5 of `MPC_Anime.Key`: the
+preview's own rule for the night (`anime_preview.KEY_OVER_MOON` 2), so the
+night is the shadow tone, what a fire lights is lit, and the measured
+previews (median 0.23 since the levels) are the game's picture.
+`WORLD_RIG`'s `expo`, never read, is gone. The stage levels
+(`build_levels.py`) and the prologue set a manual exposure bias but left
+the physical camera to the engine; with it on (as remembered, the default)
+ISO 100, 1/60 s and f/4 make EV100 about 10 and a stage lit by 1-12 lux
+black. Both now turn it off.
+
+**Checked:** the harness passes with a new test, `tests/light.cpp` (the
+draw distances, the nearest eight, nothing past the reach, keeping against
+a rival a little nearer, and forty fires walked past with the camera
+swaying: at most 8 cast, no shadow switched more than twice) and its six
+sabotages caught. `python3 Tools/look/lighting.py` holds the header to the
+builder's copy, every light spawn_night() makes (Movable, drawn, fading,
+the shadowed tagged), the world's exposure volume and its bias against
+`KEY_OVER_MOON` within 1 %, the stage levels' and the prologue's physical
+camera, the engine's static lighting, and at most 40 lights drawn around
+any spot; `--bite` 15 of 15. `build_world.py`'s, `build_souq.py
+--check`'s, `build_levels.py`'s and `build_prologue.py`'s own checks pass.
+
+**Not verified:** no engine has run any of it. From memory, not seen in an
+editor: UE's manual exposure at EV100 0 scales luminance by 2^bias / 1.2
+(Epic's docs could not be reached from here) -- **the first thing to check
+in the editor**: a white card on open ground in moonlight should read half
+of `Key` in the scene colour; if not, change `exposure_bias()`'s 1.2 and
+nothing else. Also as remembered: the Python names
+`max_distance_fade_range` and
+`auto_exposure_apply_physical_camera_exposure`, `SetCastShadows` on a
+Movable light at runtime, and World Partition's 256 m default. The 2.5
+degrees, the 8 and the 40 m are choices, not measured costs: the frame
+time has never been read. The smoke volumes (`LocalFogVolume`, one per
+fire) have no draw distance and are not culled.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

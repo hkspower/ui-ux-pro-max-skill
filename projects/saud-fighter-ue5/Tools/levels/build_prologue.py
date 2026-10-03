@@ -272,6 +272,10 @@ def build(actors):
             s.set_editor_property("bloom_intensity", 0.45)
             s.set_editor_property("override_auto_exposure_method", True)
             s.set_editor_property("auto_exposure_method", unreal.AutoExposureMethod.AEM_MANUAL)
+            # the bias is the exposure, not a physical camera's (2026-10-03;
+            # build_levels.py says why)
+            s.set_editor_property("override_auto_exposure_apply_physical_camera_exposure", True)
+            s.set_editor_property("auto_exposure_apply_physical_camera_exposure", False)
             s.set_editor_property("override_auto_exposure_bias", True)
             s.set_editor_property("auto_exposure_bias", (p["exposure"] - 1.0) * 2.0)
             s.set_editor_property("override_motion_blur_amount", True)

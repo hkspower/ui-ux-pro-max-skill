@@ -150,7 +150,30 @@ if _LOOK_DIR not in sys.path:
 from anime_look import LOOK   # noqa: E402  (plain Python at import)
 WORLD_RIG = dict(pitch=-38, yaw=-125, sun=(0.58, 0.68, 0.95), lux=2.0, angle=0.55,
                  sky=0.30, fog=LOOK["HAZE"], fogd=0.050, fog_start=LOOK["HAZE_NEAR_CM"],
-                 fog_falloff=0.5, expo=1.02)
+                 fog_falloff=0.5)
+# The world's exposure (2026-10-03, "light and brightness optimization").
+# The world had none: no post-process volume of its own, so its brightness
+# was whatever the engine's default exposure made of a 2 lux moon, and
+# nothing tied it to MPC_Anime.Key, the dial the look cuts light into tones
+# by. (WORLD_RIG's expo, 1.02, was never read.) Now a fixed exposure that
+# puts the moon on open ground at MOON_TONE of Key -- the preview's own rule
+# for the night (anime_preview.py KEY_OVER_MOON: "lit" starts at twice the
+# moon), so the night is the shadow tone, what a fire lights is lit, and the
+# measured previews are the game's picture. Tools/look/lighting.py holds
+# MOON_TONE to KEY_OVER_MOON and the volume build() spawns to exposure_bias().
+MOON_TONE = 0.5
+
+
+def exposure_bias(rig=None):
+    """The world's manual exposure, as the post-process exposure bias (EV)
+    with the physical camera off. Moonlit open ground receives lux*sin(pitch)
+    and a white surface there is that over pi in luminance; UE's manual
+    exposure at EV100 0 scales luminance by 2^bias / 1.2 (from memory, not
+    from a run engine: the 1.2 is the 78/(100 x 0.65) of EV100's maximum
+    luminance). Solved for MOON_TONE x Key."""
+    r = WORLD_RIG if rig is None else rig
+    ground = r["lux"] * math.sin(math.radians(-r["pitch"]))
+    return math.log2(1.2 * MOON_TONE * LOOK["KEY"] * math.pi / ground)
 # The air a fire lights (Unreal-only): the height fog volumetric, so every
 # fire's light scatters into a halo, and a thin low mist under it. The mist
 # numbers are the first thing to tune by eye in the editor.
@@ -1441,6 +1464,19 @@ def build(P):
     sl.set_intensity(r["sky"])
     sl.set_editor_property("real_time_capture", True)
     spawn(unreal.SkyAtmosphere, "Sky", 0, 0, 0, folder="Lighting")
+    # the exposure: fixed, the moon at MOON_TONE of Key (exposure_bias); the
+    # look's own volume (USaudLookSubsystem, priority 10) sets no exposure,
+    # so this one's holds under it
+    post = spawn(unreal.PostProcessVolume, "Exposure", 0, 0, 0, folder="Lighting")
+    post.set_editor_property("unbound", True)
+    pp = post.get_editor_property("settings")
+    pp.set_editor_property("override_auto_exposure_method", True)
+    pp.set_editor_property("auto_exposure_method", unreal.AutoExposureMethod.AEM_MANUAL)
+    pp.set_editor_property("override_auto_exposure_apply_physical_camera_exposure", True)
+    pp.set_editor_property("auto_exposure_apply_physical_camera_exposure", False)
+    pp.set_editor_property("override_auto_exposure_bias", True)
+    pp.set_editor_property("auto_exposure_bias", exposure_bias())
+    post.set_editor_property("settings", pp)
     fog = spawn(unreal.ExponentialHeightFog, "Fog", 0, 0, 0, folder="Lighting")
     fc = fog.get_component_by_class(unreal.ExponentialHeightFogComponent)
     fc.set_editor_property("fog_density", r["fogd"])

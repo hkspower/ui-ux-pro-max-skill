@@ -307,6 +307,18 @@ NIGHT = dict(
     temp_k=1800.0, lantern_hex=BROWSER_ART["lantern"], smoke=dict(r_m=0.6, h_m=4.0, extinction=0.5),
     budget=dict(shadowed=32, lights=96, smoke=32), lit_share=(0.20, 0.50), dark_run_m=40.0)
 FIRE_KINDS = ("brazier", "pyre")
+# What the night's lights cost (2026-10-03, "light and brightness
+# optimization"; Source/SaudFighter/Combat/SaudLight.h, held to it by
+# Tools/look/lighting.py): every light is drawn while its pool is at least
+# `degrees` across from the eye and fades over the last `fade` of that; a
+# fire spawned shadowed carries `tag`, and the game lets only the nearest
+# few of those cast (USaudLightSubsystem).
+LIGHT_CULL = dict(degrees=2.5, fade=0.25, tag="SaudShadow")
+
+
+def draw_distance_cm(pool_m):
+    """How far a light whose pool is pool_m in radius is drawn, cm."""
+    return pool_m * 100.0 / math.tan(math.radians(LIGHT_CULL["degrees"]))
 # the render moon: the souq sun's direction, colder, harder, a little dimmer
 MOON = dict(energy=1.2, colour=(0.60, 0.70, 0.96), angle=0.55, sky="#3a4656", sky_strength=0.25)
 # kerb dressing at the browser's own density per metre of street (one prop
@@ -2806,7 +2818,10 @@ def spawn_night(spawn, fires, lanterns, ox=0.0, oy=0.0, rig=None, folder="Night"
     attenuation three pools out, shadowed, lighting the fog; a
     LocalFogVolume (UE 5.3+) column of smoke over it; an unshadowed
     SpotLight per lit lantern out of its arch, in the browser's lantern
-    colour. `spawn` is the caller's (it names its Rotator arguments).
+    colour. Every light Movable (nothing here is ever baked, and the game
+    switches the fires' shadows: USaudLightSubsystem), drawn only as far as
+    LIGHT_CULL says; a shadowed fire tagged LIGHT_CULL["tag"]. `spawn` is
+    the caller's (it names its Rotator arguments).
     Returns (lights, smoke volumes). Read-reviewed, not run: no engine has
     opened this project, and the property names are UE 5.4's as documented."""
     import unreal  # noqa: E402  (only importable inside the editor)
@@ -2819,7 +2834,13 @@ def spawn_night(spawn, fires, lanterns, ox=0.0, oy=0.0, rig=None, folder="Night"
         c.set_intensity(f["cd"])
         c.set_editor_property("use_temperature", True); c.set_editor_property("temperature", f["temp"])
         c.set_attenuation_radius(f["pool"] * 3.0 * 100.0)
+        c.set_mobility(unreal.ComponentMobility.MOVABLE)
+        far = draw_distance_cm(f["pool"])
+        c.set_editor_property("max_draw_distance", far)
+        c.set_editor_property("max_distance_fade_range", far * LIGHT_CULL["fade"])
         c.set_cast_shadows(bool(f["shadow"]))
+        if f["shadow"]:
+            a.set_editor_property("tags", [unreal.Name(LIGHT_CULL["tag"])])
         c.set_editor_property("volumetric_scattering_intensity", 3.0)
         c.set_editor_property("source_radius", 15.0)
         lights += 1
@@ -2843,6 +2864,10 @@ def spawn_night(spawn, fires, lanterns, ox=0.0, oy=0.0, rig=None, folder="Night"
         c.set_light_color(unreal.LinearColor(col[0], col[1], col[2], 1.0))
         c.set_inner_cone_angle(30.0); c.set_outer_cone_angle(l["cone"])
         c.set_attenuation_radius(NIGHT["lantern"]["pool_m"] * 3.0 * 100.0)
+        c.set_mobility(unreal.ComponentMobility.MOVABLE)
+        far = draw_distance_cm(NIGHT["lantern"]["pool_m"])
+        c.set_editor_property("max_draw_distance", far)
+        c.set_editor_property("max_distance_fade_range", far * LIGHT_CULL["fade"])
         c.set_cast_shadows(False)
         lights += 1
     return lights, volumes

@@ -402,6 +402,12 @@ def build(levels):
                 s.set_editor_property("bloom_intensity", 0.45)
                 s.set_editor_property("override_auto_exposure_method", True)
                 s.set_editor_property("auto_exposure_method", unreal.AutoExposureMethod.AEM_MANUAL)
+                # the bias is the exposure: with the physical camera on (the
+                # engine's default for Manual as remembered, not seen in a run
+                # editor) its ISO 100, 1/60 s, f/4 would be EV100 ~10 and a
+                # stage lit at 1-12 lux black (2026-10-03)
+                s.set_editor_property("override_auto_exposure_apply_physical_camera_exposure", True)
+                s.set_editor_property("auto_exposure_apply_physical_camera_exposure", False)
                 s.set_editor_property("override_auto_exposure_bias", True)
                 s.set_editor_property("auto_exposure_bias", (p["exposure"] - 1.0) * 2.0)
                 s.set_editor_property("override_motion_blur_amount", True)
