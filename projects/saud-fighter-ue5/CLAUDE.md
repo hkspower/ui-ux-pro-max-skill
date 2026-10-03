@@ -4507,7 +4507,7 @@ grade, in `Tools/look/anime_look.py`'s table only.
   1.7x held), and a steadier brush (`BRUSH_VAR` 0.14) left the line not
   breathing along its length (0.00 px). Both kept as they were.
 
-**Checked:** every `anime_look.py` check passes. RENDERS_LINE
+**Checked:** every `anime_look.py` check passes. The previews were re-struck with it, and again the same day with "The black ladder" below, which is what they show now; the sabotages ran once, over both (see there).
 
 **Not verified:** no engine has built the materials; the previews are the
 numpy mirror through the film curve, as before.
@@ -4539,6 +4539,55 @@ shuffle (held at a guard's pace, gliding when pushed, nothing else held) and
 "every motion-capture gait puts each foot down in its loop"; three new
 sabotages, 3 of 3 caught. **Not verified:** nothing compiled or played; 60
 cm/s is a judgement.
+
+## The black ladder -- 2026-10-03
+
+Asked as "improve black levels separation", settled with the author as the
+game picture (the Unreal look) and keeping it dark: only the bottom of the
+range opens up. In `Tools/look/anime_look.py` (LOOK, `M_Anime_Post`'s HLSL
+and the numpy mirror, step 1c).
+
+**What was wrong, measured** on the souq fight at the engine's key, through
+the film curve and the levels, in CIE L* (0 black, 100 white): the ink 2;
+the near world's shadow 7, five steps over the ink, so a line, a hatch or a
+screentone dot in it all but vanished; and the world's deep tone and a
+black tee's deep side BELOW the ink -- 0.0009 and 0.0014 linear against the
+ink's 0.0022 -- so the hatching and the outline sank into them.
+
+**Now black is the ink's alone.** Every surface tone has a floor, in
+luminance times the key, set where the screen shows it (the world's is
+divided by `WORLD_LEVEL`, which holds it down afterwards): the deep tone
+`BLACK_DEEP` (L* 9), the shadow `BLACK_SHADOW` (L* 14) and the lit side
+`BLACK_LIT` (L* 20), so even a black surface keeps its terminator. The lift
+is in the shadows' own navy (`SHADOW_TINT`), and soft -- a 4-norm with the
+tone (`BLACK_KNEE`) -- so a tone over its floor barely moves and dark detail
+keeps its order. The lines, the hatching and the dots are drawn after it,
+in ink, so they stay black on the lift. Measured on the souq fight after:
+the ink 2.0; the near world's shadow 15 (its darkest tenth 9.4, from 3.8);
+a man's darkest deep 8.6 (from 1.8) and darkest shadow 14.5 (from 8.3); the
+lit world 42.9 and the screen's median 38.5, unchanged; nothing in the sky
+moved. On flat test surfaces near black: ink 2.0, deep 9.3, the hatching in
+it 4.1, shadow 14.2, its dots 4.0, lit 20.4; a grey (0.3) within 0.7 of
+where it stood.
+
+**Checked:** `anime_look.py`'s checks pass, with a new one on flat walls
+and flat men near black and at the world's albedo floor -- the deep tone 6
+over the ink, the shadow 3.5 over the deep and the lit side 4 over the
+shadow, the hatching and the world's dots drawn darker than the tone under
+them, the lift navy, and a grey and anything lit within one step of where
+it stood with no ladder -- and six sabotages, each caught by its own rule:
+`crushed_blacks` (no floors), `unlevelled_floor` (the world's floor not
+divided by its level), `grey_floor` (a grey lift), `lifted_mids` (floors
+high enough to move the middle), `ink_lifted` (the floor laid over the
+lines too: caught by "ink stays black after the levels"), `no_lit_floor`
+(a black surface's terminator gone). SABOTAGES_LINE RENDERS_LINE
+
+**Not verified:** no engine has built the material; the previews are the
+numpy mirror through the film curve. The floors are set at the engine's key
+(`MPC_Anime.Key` 1 under the world's exposure, "The night's light"); if the
+exposure lands elsewhere in the editor they move with it, as every tone
+does. `pow` of a tone near zero in a Custom node is as remembered to be
+safe (the tone is clamped at 0 first).
 
 ## The city districts, as real 3D -- 2026-10-03
 

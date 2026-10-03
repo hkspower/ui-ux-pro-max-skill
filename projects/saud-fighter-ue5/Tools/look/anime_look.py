@@ -207,6 +207,25 @@ LOOK = {
     "Q_SHADOW_WORLD": 0.12,
     "Q_DEEP_WORLD": 0.016,
     "Q_HIGHLIGHT": 1.10,
+    # 1c. the black ladder (2026-10-03, "improve black levels separation"):
+    # black is the ink's alone. Measured on the souq fight through the
+    # engine's film curve and the levels, in CIE L*: the ink 2, the near
+    # world's shadow 7 (five steps over the ink: a line or a hatch in it
+    # all but vanished), and the world's deep tone and a black tee's deep
+    # side UNDER the ink (0.0009 and 0.0014 linear against its 0.0022) --
+    # the hatching and the outline sank into them. Now every surface tone
+    # has a floor, in luminance times the key, as the screen finally shows
+    # it (the world's divided by WORLD_LEVEL, which holds it down after):
+    # the deep tone L* 9, the shadow L* 14 and the lit side L* 20, so even
+    # a black surface keeps its terminator. The lift is the shadows' own
+    # navy (SHADOW_TINT) and
+    # soft (a 4-norm with the tone, BLACK_KNEE), so a tone over its floor
+    # barely moves and dark detail keeps its order. The ink, the hatching
+    # and the dots are drawn after it, so they stay black on the lift.
+    "BLACK_DEEP": 0.0072,
+    "BLACK_SHADOW": 0.0101,
+    "BLACK_LIT": 0.0140,
+    "BLACK_KNEE": 4.0,
     # 1b. the rim (2026-09-28): a hard cold edge of light on a man's shadow
     # side, RIM_PX (1080 lines) wide just inside his heaviest line. Its
     # colour is his own at RIM_Q plus a sheen that does not need albedo
@@ -705,6 +724,7 @@ def _sub(code):
         "SOFT": _f(L["SOFT"]), "SMOOTH_PX": _f(L["SMOOTH_PX"]), "Q_LIT": _f(L["Q_LIT"]), "Q_HIGH": _f(L["Q_HIGHLIGHT"]),
         "Q_SHADOW": _f(L["Q_SHADOW"]), "Q_DEEP": _f(L["Q_DEEP"]),
         "Q_SHADOW_WORLD": _f(L["Q_SHADOW_WORLD"]), "Q_DEEP_WORLD": _f(L["Q_DEEP_WORLD"]),
+        "BLACK_DEEP": _f(L["BLACK_DEEP"]), "BLACK_SHADOW": _f(L["BLACK_SHADOW"]), "BLACK_LIT": _f(L["BLACK_LIT"]), "BLACK_KNEE": _f(L["BLACK_KNEE"]),
         "RIM_PX": _f(L["RIM_PX"]), "RIM_Q": _f(L["RIM_Q"]), "RIM_SPEC": _f(L["RIM_SPEC"]),
         "RIM_TINT": _f3(L["RIM_TINT"]),
         "TONE_PX": _f(L["TONE_PX"]), "TONE_R": _f(L["TONE_R_PX"]), "TONE_AA": _f(L["TONE_AA_PX"]),
@@ -859,6 +879,18 @@ float3 Out = A * (Q * Key) * Hue;
 Out *= lerp(LIT_TINT, SHADOW_TINT, Shad);
 float Emit = smoothstep(EMIT_FROM, 2.0 * EMIT_FROM, T);
 Out = lerp(Out, C, Emit);
+
+// 1c. the black ladder: black is the ink's alone. Every surface tone keeps
+// a floor -- the deep tone's lower than the shadow's -- lifted in the
+// shadows' navy; the world's is divided by the level the grade holds it to
+// (step 5), so the screen shows it where it is set. Soft (a 4-norm), so a
+// tone over its floor barely moves. The lines, the hatching and the dots
+// are drawn after, in ink, under it.
+float Lvl = Fighter ? 1.0 : WORLD_LEVEL;
+float Floor = lerp(lerp(BLACK_LIT, BLACK_SHADOW, Shad), BLACK_DEEP, Deep) * Key / Lvl;
+float Yo = max(dot(Out, LUMA), 0.0);
+Out += (pow(pow(Yo, BLACK_KNEE) + pow(Floor, BLACK_KNEE), 1.0 / BLACK_KNEE) - Yo)
+       * SHADOW_TINT / dot(SHADOW_TINT, LUMA);
 
 // 1b. the rim: a hard cold edge of light on a man's shadow side, in a band
 // just inside his heaviest line -- where he ends (his custom depth says
@@ -1626,6 +1658,21 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0, V=N
     emit = _smooth(L["EMIT_FROM"], 2.0 * L["EMIT_FROM"], T)
     out = lerp(out, C, emit[..., None])
 
+    # 1c. the black ladder: every surface tone keeps a floor, in the
+    # shadows' navy, the world's divided by the level step 5 holds it to
+    # (unlevelled_floor: not divided); the ink drawn after stays under it
+    def ladder(o):
+        lvl = np.where(fighter, 1.0, 1.0 if "unlevelled_floor" in _FLAGS else L["WORLD_LEVEL"])
+        flo = lerp(lerp(L["BLACK_LIT"], L["BLACK_SHADOW"], shad), L["BLACK_DEEP"], deep) * key / lvl
+        y = np.maximum(o @ luma, 0.0)
+        k = L["BLACK_KNEE"]
+        lift = (y ** k + flo ** k) ** (1.0 / k) - y
+        navy = np.array(L["SHADOW_TINT"]) / (np.array(L["SHADOW_TINT"]) @ luma)
+        if "grey_floor" in _FLAGS:
+            navy = np.ones(3)
+        return o + lift[..., None] * navy
+    out = ladder(out)
+
     # 1b. the rim: a hard cold edge on a man's shadow side, just inside his
     # heaviest line (a lookup off the frame reads nothing: D 0, a fighter)
     Rr = (L["LINE_FIGHTER_PX"] * (1.0 - L["OUTER_SHARE"]) * L["INK_SHADOW"] * (1.0 + L["BRUSH_VAR"])
@@ -1701,6 +1748,8 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0, V=N
                     np.clip((D - L["FADE_NEAR_CM"]) / (L["FADE_FAR_CM"] - L["FADE_NEAR_CM"]), 0, 1)))
     inkw = np.maximum(np.maximum(silh, fold * L["INNER_ALPHA"]) * fade, outer) * (~sky | (outer > 0))
     out = lerp(out, ink, inkw[..., None])
+    if "ink_lifted" in _FLAGS:
+        out = ladder(out)       # the floor laid over the lines as well
 
     # 4. sky, painted from the view ray: the night, the moon, the stars,
     # the clouds (sky_paint); a fighter's line over it
@@ -2384,7 +2433,9 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          # 2026-10-03, the System: its hits, Saud's aura and eyes
          "blood_blows", "blood_mark", "no_aura", "aura_on_saud", "soft_aura", "still_aura", "sunk_aura",
          "wide_aura", "no_core", "aura_through_men", "round_eyes", "eyes_through_hands",
-         "no_stencil", "stencil_off", "aura_not_written")
+         "no_stencil", "stencil_off", "aura_not_written",
+         # 2026-10-03, the black ladder
+         "crushed_blacks", "unlevelled_floor", "grey_floor", "lifted_mids", "ink_lifted", "no_lit_floor")
 
 
 def power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c):
@@ -2625,6 +2676,14 @@ def check(bite=None, rig=None):
             LOOK["CLOUD_DRIFT"] = 0.0
         if bite == "no_stars":
             LOOK["STARS"] = 0.0
+        if bite == "crushed_blacks":
+            LOOK["BLACK_DEEP"] = LOOK["BLACK_SHADOW"] = LOOK["BLACK_LIT"] = 0.0
+        if bite == "lifted_mids":
+            LOOK["BLACK_DEEP"], LOOK["BLACK_SHADOW"], LOOK["BLACK_LIT"] = 0.018, 0.026, 0.036
+        if bite == "no_lit_floor":
+            LOOK["BLACK_LIT"] = LOOK["BLACK_SHADOW"]
+        if bite in ("unlevelled_floor", "grey_floor", "ink_lifted"):
+            _FLAGS.add(bite)
         if bite == "clip_preview":
             FILM["tone_curve"] = 0.0        # the preview's old stand-in: no film curve
         if bite == "engine_vignette":
@@ -2820,6 +2879,65 @@ def check(bite=None, rig=None):
         imp_b, _ = look(C, A, N, D, on, impact=1.0)
         LOOK["LV_BLACK"], LOOK["LV_WHITE"], LOOK["LV_GAMMA"] = keep_lv
         assert np.abs(imp_a - imp_b).max() < 1e-12, "the impact frame is not levelled"
+        # ------------------------------------------------ 2026-10-03, the black ladder
+        # black is the ink's alone. On flat walls and flat men, near black
+        # (0.004: soot, a black tee) and at the world's albedo floor (0.06),
+        # in CIE L* on the screen (the film curve, the levels; grain and
+        # paper off; the middle of each, clear of the vignette): the deep
+        # tone 6 over the ink, the shadow 3.5 over the deep, the lit side 4
+        # over the shadow; the hatching in the deep and the dots in the
+        # world's shadow drawn darker than the tone they lie on; the lift
+        # the shadows' navy; and a grey (0.3) and anything lit at the
+        # world's floor within one step of where it stood with no ladder
+        def bl_lstar(bl_dsp):
+            bl_li = np.where(bl_dsp <= 0.04045, bl_dsp / 12.92, ((np.clip(bl_dsp, 0, 1) + 0.055) / 1.055) ** 2.4)
+            bl_y = bl_li @ luma
+            return np.where(bl_y > 216 / 24389, 116 * np.cbrt(bl_y) - 16, bl_y * 24389 / 27)
+        bl_gp = LOOK["GRAIN"], LOOK["PAPER"]
+        LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0
+        try:
+            bl_nl, bl_mid = 96, (slice(24, 72), slice(24, 72))
+            bl_ink_l = float(bl_lstar(levels(to_display(np.array(LOOK["INK"])))))
+            def bl_wall(bl_alb, bl_t, bl_man, bl_floors=True):
+                bl_keep = LOOK["BLACK_DEEP"], LOOK["BLACK_SHADOW"], LOOK["BLACK_LIT"]
+                if not bl_floors:
+                    LOOK["BLACK_DEEP"] = LOOK["BLACK_SHADOW"] = LOOK["BLACK_LIT"] = 0.0
+                try:
+                    bl_dsp, bl_mw = look(*_flat(bl_nl, bl_alb, lit=bl_t, depth=600.0, fighter=bl_man))
+                finally:
+                    LOOK["BLACK_DEEP"], LOOK["BLACK_SHADOW"], LOOK["BLACK_LIT"] = bl_keep
+                bl_lm, bl_dm = bl_lstar(bl_dsp)[bl_mid], bl_dsp[bl_mid]
+                bl_fill = (bl_mw["hatch"][bl_mid] < 0.02) & (bl_mw["screentone"][bl_mid] < 0.02) & (bl_mw["ink"][bl_mid] < 0.02)
+                bl_mark = (bl_mw["hatch"][bl_mid] > 0.5) | (bl_mw["screentone"][bl_mid] > 0.5)
+                return (float(np.median(bl_lm[bl_fill])), float(np.median(bl_lm[bl_mark])) if bl_mark.any() else None,
+                        float(np.median(bl_dm[bl_fill][:, 2] / np.maximum(bl_dm[bl_fill][:, 0], 1e-4))))
+            for bl_man in (False, True):
+                bl_who = "a man" if bl_man else "the world"
+                for bl_alb, bl_t in ((0.3, 0.05), (0.3, 0.35), (0.3, 1.2), (0.06, 1.2)):
+                    if bl_alb == 0.3 and bl_t == 0.05 and not bl_man:
+                        continue            # the world's deep at 0.3 is on the floor: that is the ladder
+                    bl_got, bl__x, bl__y = bl_wall(bl_alb, bl_t, bl_man)
+                    bl_was, bl__x, bl__y = bl_wall(bl_alb, bl_t, bl_man, bl_floors=False)
+                    assert abs(bl_got - bl_was) <= 1.0, \
+                        "the black ladder moves only the bottom: %s at albedo %.2f, light %.2f, L* %.1f where it was %.1f" % (bl_who, bl_alb, bl_t, bl_got, bl_was)
+                for bl_alb in (0.004, 0.06):
+                    bl_dp, bl_hatch_l, bl_dp_br = bl_wall(bl_alb, 0.05, bl_man)
+                    bl_sh, bl_dots_l, bl_sh_br = bl_wall(bl_alb, 0.35, bl_man)
+                    assert bl_dp >= bl_ink_l + 6.0, \
+                        "the black ladder: %s's deep tone (albedo %.3f) stands over the ink (L* %.1f against %.1f)" % (bl_who, bl_alb, bl_dp, bl_ink_l)
+                    if bl_alb < 0.01:
+                        bl_lt, bl__x, bl__y = bl_wall(bl_alb, 1.2, bl_man)
+                        assert bl_sh >= bl_dp + 3.5 and bl_lt >= bl_sh + 4.0, \
+                            "the black ladder: %s's near-black keeps its steps (deep %.1f, shadow %.1f, lit %.1f)" % (bl_who, bl_dp, bl_sh, bl_lt)
+                        assert min(bl_dp_br, bl_sh_br) >= 1.15, \
+                            "the black ladder: %s's lift is the shadows' navy (blue/red %.2f, %.2f)" % (bl_who, bl_dp_br, bl_sh_br)
+                    assert bl_hatch_l is not None and bl_hatch_l <= bl_dp - 3.0, \
+                        "the black ladder: the hatching reads on %s's deep tone (L* %s on %.1f)" % (bl_who, bl_hatch_l, bl_dp)
+                    if not bl_man:
+                        assert bl_dots_l is not None and bl_dots_l <= bl_sh - 6.0, \
+                            "the black ladder: the dots read on the world's shadow (L* %s on %.1f)" % (bl_dots_l, bl_sh)
+        finally:
+            LOOK["GRAIN"], LOOK["PAPER"] = bl_gp
         # ------------------------------------------------ 2026-10-02, the painted sky
         # a view of the sky alone, up toward the moon (60 degrees across,
         # 0.05 a pixel: a star is a few pixels), at a time it is clear
