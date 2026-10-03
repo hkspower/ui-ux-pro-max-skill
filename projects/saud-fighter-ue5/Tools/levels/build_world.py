@@ -1273,6 +1273,13 @@ def _world_materials(P):
         MEL.connect_material_property(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
         MEL.connect_material_property(glow, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
         MEL.recompile_material(ember)
+    # the camera's fade (Tools/look/camera_fade.py): a wall between the
+    # camera and Saud dithers away, new materials or old
+    import camera_fade
+    if camera_fade.add_fade(prim):
+        MEL.recompile_material(prim); EAL.save_loaded_asset(prim)
+    if camera_fade.add_fade(ember):
+        MEL.recompile_material(ember); EAL.save_loaded_asset(ember)
     mis = {}
     for (theme, role), (colour, rough) in sorted(materials_of(P).items(), key=str):
         mi, _new = asset("MI_World_%s_%s" % (theme, role), unreal.MaterialInstanceConstant,

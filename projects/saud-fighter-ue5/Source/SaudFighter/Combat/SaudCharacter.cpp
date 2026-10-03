@@ -13,6 +13,9 @@
 #include "EnhancedInputSubsystems.h"
 #include "EngineUtils.h"
 #include "Game/SaudGameInstance.h"
+#include "Components/PrimitiveComponent.h"
+#include "Engine/World.h"
+#include "Misc/App.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "World/AbilityGate.h"
@@ -21,24 +24,22 @@ ASaudCharacter::ASaudCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	// Side-on camera looking down +Y, pulled back far enough to read the depth
-	// of the playfield. Lag keeps it from snapping during dashes.
+	// The boom is a mount only. Where it points, how long it is, what it
+	// looks at and how it meets a wall are SaudCamera.h's, set every frame
+	// by UpdateCamera (2026-10-03, "make it 3d dynamic view"); its own
+	// collision snapped the camera in and out, and its own lag would ease
+	// what is already eased.
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 640.f;
-	CameraBoom->SocketOffset = FVector(0.f, 0.f, 90.f);
-	CameraBoom->SetRelativeRotation(FRotator(-18.f, 0.f, 0.f));
-	// Swept now. On the strip the camera was outside the level looking in and
-	// nothing could get between it and Saud; in a district full of buildings
-	// a boom that ignores them spends half of a fight inside a wall.
-	CameraBoom->bDoCollisionTest = true;
-	CameraBoom->ProbeSize = 16.f;
+	CameraBoom->TargetArmLength = SaudCamera::IdleArmCm;
+	CameraBoom->TargetOffset = FVector(0.f, 0.f, SaudCamera::SocketUpCm);
+	CameraBoom->SetRelativeRotation(FRotator(SaudCamera::PitchDeg, 0.f, 0.f));
+	CameraBoom->bDoCollisionTest = false;
 	CameraBoom->bUsePawnControlRotation = false;
 	CameraBoom->bInheritPitch = false;
 	CameraBoom->bInheritYaw = false;
 	CameraBoom->bInheritRoll = false;
-	CameraBoom->bEnableCameraLag = true;
-	CameraBoom->CameraLagSpeed = 12.f;
+	CameraBoom->bEnableCameraLag = false;
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
@@ -265,18 +266,9 @@ void ASaudCharacter::Tick(float DeltaSeconds)
 		}
 	}
 
-	// The boom is the player's. It is swung and pitched before movement is
-	// read, because movement is measured against where it ends up.
-	if (!LookInput.IsNearlyZero())
-	{
-		CameraYaw += LookInput.X * CameraTurnRate * DeltaSeconds;
-		CameraPitch = FMath::Clamp(CameraPitch - LookInput.Y * CameraPitchRate * DeltaSeconds,
-		                           CameraMinPitch, CameraMaxPitch);
-	}
-	if (CameraBoom)
-	{
-		CameraBoom->SetWorldRotation(FRotator(CameraPitch, CameraYaw, 0.f));
-	}
+	// The camera: framed, moving with him, the stick's to turn. Before
+	// movement is read, because movement is measured against where it ends up.
+	UpdateCamera();
 
 	// Movement is only accepted from a neutral state — commitment is the point.
 	if (!IsBusy() && State != EFighterState::Dash)
@@ -307,6 +299,154 @@ void ASaudCharacter::Tick(float DeltaSeconds)
 
 	// Keep Saud inside the place he is fighting in.
 	SetActorLocation(SaudArena::ClampToCircle(GetActorLocation(), ArenaCentre, ArenaRadius));
+}
+
+void ASaudCharacter::UpdateCamera()
+{
+	if (!CameraBoom)
+	{
+		return;
+	}
+	// Real seconds: a blow's freeze stops the world, not the camera's easing.
+	const float Dt = static_cast<float>(FApp::GetDeltaTime());
+	TArray<AFighterBase*> Targets;
+	GatherTargets(Targets);
+	TArray<FVector> Opponents;
+	for (const AFighterBase* T : Targets)
+	{
+		Opponents.Add(T->GetActorLocation());
+	}
+	if (!bCameraStarted)
+	{
+		bCameraStarted = true;
+		Cam.View.Yaw = CameraYaw;
+		Cam.View.Pitch = CameraPitch;
+	}
+	SaudCamera::FInputs In;
+	In.Dt = Dt;
+	In.Saud = GetActorLocation();
+	In.Velocity = GetVelocity();
+	In.LookX = LookInput.X;
+	In.LookY = LookInput.Y;
+	In.Opponents = Opponents.GetData();
+	In.NumOpponents = Opponents.Num();
+	const SaudCamera::FView V = Cam.Tick(In);
+	CameraYaw = V.Yaw;
+	CameraPitch = V.Pitch;
+
+	// The walls: probe SoftMarginCm past where the camera would be, from what
+	// it looks at, so it comes in before one touches it. The fighters are
+	// not walls.
+	const FRotator Rot(V.Pitch, V.Yaw, V.Roll);
+	const FVector Back = -FRotator(V.Pitch, V.Yaw, 0.f).Vector();
+	float SoftFree = V.Arm + SaudCamera::SoftMarginCm;
+	float HardFree = 1.0e9f;
+	if (UWorld* World = GetWorld())
+	{
+		FCollisionQueryParams Q(SCENE_QUERY_STAT(SaudCamera), false, this);
+		for (AFighterBase* T : Targets)
+		{
+			Q.AddIgnoredActor(T);
+		}
+		FHitResult Hit;
+		if (World->SweepSingleByChannel(Hit, V.Focus, V.Focus + Back * SoftFree, FQuat::Identity, ECC_Camera,
+		                                FCollisionShape::MakeSphere(SaudCamera::ProbeCm), Q))
+		{
+			SoftFree = Hit.Distance;
+			HardFree = Hit.Distance;
+		}
+	}
+	const float Arm = Cam.WallStep(V.Arm, SoftFree, HardFree, Dt);
+
+	CameraBoom->TargetOffset = V.Focus - GetActorLocation();
+	CameraBoom->TargetArmLength = Arm;
+	CameraBoom->SetWorldRotation(Rot);
+	UpdateCameraFades(V.Focus + Back * Arm, Dt);
+}
+
+void ASaudCharacter::UpdateCameraFades(const FVector& Eye, float Dt)
+{
+	// Whatever stands between the camera and him -- every static or moving
+	// surface on the line, not only the first -- fades to a dither through
+	// custom primitive data slot SaudCamera::FadeDataIndex, which the
+	// world's materials read (Tools/look/camera_fade.py).
+	TSet<UPrimitiveComponent*> Between;
+	if (UWorld* World = GetWorld())
+	{
+		TArray<FHitResult> Hits;
+		FCollisionObjectQueryParams Objects;
+		Objects.AddObjectTypesToQuery(ECC_WorldStatic);
+		Objects.AddObjectTypesToQuery(ECC_WorldDynamic);
+		FCollisionQueryParams Q(SCENE_QUERY_STAT(SaudCameraFade), false, this);
+		World->SweepMultiByObjectType(Hits, Eye, GetActorLocation() + FVector(0.f, 0.f, 40.f), FQuat::Identity,
+		                              Objects, FCollisionShape::MakeSphere(SaudCamera::FadeProbeCm), Q);
+		for (const FHitResult& H : Hits)
+		{
+			UPrimitiveComponent* C = H.GetComponent();
+			if (C && !Cast<APawn>(C->GetOwner()))
+			{
+				Between.Add(C);
+			}
+		}
+	}
+	for (UPrimitiveComponent* C : Between)
+	{
+		CameraFades.FindOrAdd(C);
+	}
+	for (auto It = CameraFades.CreateIterator(); It; ++It)
+	{
+		UPrimitiveComponent* C = It.Key().Get();
+		if (!C)
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+		const bool bBetween = Between.Contains(C);
+		const float F = SaudCamera::FadeStep(It.Value(), bBetween, Dt);
+		if (F != It.Value() || bBetween)
+		{
+			C->SetCustomPrimitiveDataFloat(SaudCamera::FadeDataIndex, F);
+		}
+		It.Value() = F;
+		if (F <= 0.f && !bBetween)
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
+void ASaudCharacter::OnCameraBlow(const AFighterBase* Victim, const AFighterBase* Attacker,
+                                  const FHitResultData& Hit, bool bHeavy)
+{
+	if (Hit.bParried || (bHeavy && !Hit.bBlocked))
+	{
+		// tip away from where the blow landed, as the camera sees it
+		const FVector Right = FRotator(0.f, CameraYaw, 0.f).RotateVector(FVector(0.f, 1.f, 0.f));
+		const float Side = FVector::DotProduct(Hit.ImpactPoint - GetActorLocation(), Right) >= 0.f ? -1.f : 1.f;
+		Cam.Kick(Hit.bParried ? 0.8f : 1.f, Side);
+	}
+	// a man knocked out by Saud: the swing round him, when it ends the fight
+	// or the man is a boss (every street man's fall would be too many)
+	// (a killing blow leaves him Down, not yet Dead, when it is reported:
+	// his health is what says the fight is over for him)
+	if (Attacker == this && Victim && Victim->GetHealth() <= 0.f)
+	{
+		const AEnemyFighter* Enemy = Cast<AEnemyFighter>(Victim);
+		bool bOthersNear = false;
+		TArray<AFighterBase*> Targets;
+		GatherTargets(Targets);
+		for (const AFighterBase* T : Targets)
+		{
+			if (T != Victim && FVector::Dist2D(T->GetActorLocation(), GetActorLocation()) <= SaudCamera::EngageCm)
+			{
+				bOthersNear = true;
+			}
+		}
+		if ((Enemy && Enemy->bIsBoss) || !bOthersNear)
+		{
+			Cam.StartOrbit(SaudCamera::EOrbit::Knockout);
+		}
+	}
 }
 
 void ASaudCharacter::SetArenaCircle(const FVector& InCentre, float InRadius)
@@ -524,6 +664,7 @@ void ASaudCharacter::Input_Rage()
 		InvulnerableRemaining = 0.55f;
 		if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this)) { Audio->Play(TEXT("Rage"), this); }
 		OnRageChanged.Broadcast(GetRageFraction());
+		Cam.StartOrbit(SaudCamera::EOrbit::Finisher);
 		BP_OnRageReleased();
 	}
 }

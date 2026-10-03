@@ -3,9 +3,11 @@
 #include "CoreMinimal.h"
 #include "Combat/FighterBase.h"
 #include "Combat/SaudFire.h"
+#include "Combat/SaudCamera.h"
 #include "SaudCharacter.generated.h"
 
 class UCameraComponent;
+class UPrimitiveComponent;
 class USpringArmComponent;
 class UInputAction;
 class UInputMappingContext;
@@ -146,22 +148,16 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera = nullptr;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera")
-	float CameraTurnRate = 150.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera")
-	float CameraPitchRate = 90.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera")
-	float CameraMinPitch = -55.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera")
-	float CameraMaxPitch = 8.f;
-
 	/** Which way the boom is looking. Movement is measured against this, so
 	    pushing the stick away from the player means away on screen. */
 	UFUNCTION(BlueprintPure, Category = "Camera")
 	float GetCameraYaw() const { return CameraYaw; }
+
+	/** A blow Saud is in, from USaudFeelSubsystem::OnBlow: a heavy one or a
+	    parry tips the camera, a knockout that ends the fight (or a boss's)
+	    swings it round him. The stick's turn rates and limits, which were
+	    properties here, are SaudCamera.h's now (the same numbers). */
+	void OnCameraBlow(const AFighterBase* Victim, const AFighterBase* Attacker, const FHitResultData& Hit, bool bHeavy);
 
 	/**
 	 * Where this fighter may stand: a circle, since 2026-09-16.
@@ -229,6 +225,16 @@ private:
 
 	float CameraYaw = 0.f;
 	float CameraPitch = -18.f;
+
+	/** The dynamic camera (Combat/SaudCamera.h): its state, and every
+	    surface it has faded between itself and Saud, with how far. */
+	SaudCamera::FState Cam;
+	bool bCameraStarted = false;
+	TMap<TWeakObjectPtr<UPrimitiveComponent>, float> CameraFades;
+
+	/** Each frame, after movement: the view, the walls, the boom, the fades. */
+	void UpdateCamera();
+	void UpdateCameraFades(const FVector& Eye, float Dt);
 
 	float BaseWalkSpeed = 520.f;
 

@@ -283,6 +283,12 @@ def build():
         MEL.connect_material_property(glow, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
         MEL.recompile_material(surface)
         EAL.save_loaded_asset(surface)
+    # the camera's fade (Tools/look/camera_fade.py), on a new M_Surface or one
+    # built before it existed
+    import camera_fade
+    if camera_fade.add_fade(surface):
+        MEL.recompile_material(surface)
+        EAL.save_loaded_asset(surface)
 
     # 3. an instance per surface set
     mis = {}

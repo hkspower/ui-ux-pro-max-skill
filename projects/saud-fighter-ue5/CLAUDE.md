@@ -4183,6 +4183,69 @@ imported armature, whose bone axes Blender's importer sets differently,
 and is not a fault in the clips (the read-back and the skeleton sheet
 agree with the rig).
 
+## Saud's camera, dynamic -- 2026-10-03
+
+Asked as "improve view saud main camera, make it 3d dynamic view", settled
+as the Unreal build and all four: frame the fight, move with him, hits and
+finishers, smarter walls. It was a fixed 6.4 m boom at -18 degrees that
+only the right stick turned, with the spring arm's own collision (which
+snapped the camera in and out) and lag. The maths is
+`Source/SaudFighter/Combat/SaudCamera.h`, engine-free; `ASaudCharacter::
+UpdateCamera` drives the boom from it every frame on real seconds (a blow's
+freeze stops the world, not the camera), and the boom is now a mount only.
+
+- **The fight.** With a man within 15 m the camera looks across the line
+  from Saud to them (weighted toward the nearest), 32 degrees off it behind
+  his shoulder, at a point 40 % of the way to them, pitch -15, and pulls
+  back (5.2 to 11.5 m) until Saud and every man near him are inside 80 % of
+  the picture's half-width. It keeps its side unless the other is 25
+  degrees nearer: a man circling him once, or feinting 40 degrees ten
+  times, changes it at most once.
+- **Moving with him.** Alone, a running Saud has it swing in behind where he
+  is going at up to 110 degrees a second (in 0.8 s from side-on at a run),
+  look 0.3 s ahead of him (at most 1.4 m), and stand at 7.4 m against 5.6
+  stopped. Standing still, it stays where it was.
+- **The stick** still turns it at the old rates and limits, and holds the
+  framing off for 2 s after the last turn.
+- **Blows.** A heavy clean blow or a parry Saud is in tips the picture up to
+  3.5 degrees away from where it landed and pushes in 10 %, springing back
+  in about half a second (`USaudFeelSubsystem::OnBlow` hands it to
+  `OnCameraBlow`; its own shake and push-in are unchanged). The rage
+  finisher swings the camera 70 degrees round him and in to 72 % over
+  1.4 s; a knockout that ends the fight, or a boss's, 45 degrees and 80 %
+  over 1 s. A knockout never cuts a finisher short.
+- **Walls.** The game sweeps a 24 cm sphere from the look point 1.2 m past
+  where the camera would stand; the boom comes in before a wall touches it
+  (a wall closing in kept 1.1 m clear), eases back out no faster than 3 m/s,
+  and is never longer than the wall allows. Every static or moving surface
+  between the camera and Saud fades to an 85 % dither within 0.15 s, through
+  custom primitive data slot 0, which `M_Surface` and the open world's
+  `M_World_Prim` / `M_World_Ember` now read (`Tools/look/camera_fade.py`,
+  added to both builders, to new materials and existing ones; the materials
+  become Masked).
+
+`Docs/renders/camera-paths.png` draws the test's scenes from above: the
+run, one man, three men, a man circling, a man feinting, the finisher.
+
+**Checked:** `tests/camera.cpp` -- behind a runner in 0.78 s with the boom at
+7.4 m and the look 1.02 m ahead, back in when he stops; one man 32 degrees
+off the line with both men 9 degrees off-axis; three men all inside (40
+degrees, boom 9.3 m); no side flips; the stick's turn and the wait; the
+blow's tip (2.3 degrees peak at 60 fps) and push (45 cm) springing back; the
+finisher's 70-degree swing and hand-back; the walls; a frozen tick moves
+nothing -- and its ten sabotages caught. `camera_fade.py`: 4 of 4. The
+harness passes whole.
+
+**Not verified:** nothing compiled or run in an engine. As remembered, not
+seen: `SweepMultiByObjectType` returning every surface on the line,
+`SetCustomPrimitiveDataFloat` on the world's static meshes, a
+ScalarParameter's `use_custom_primitive_data` / `primitive_data_index` and
+DitherTemporalAA's "Alpha Threshold" in Python, and how a dithered wall
+reads through the anime look's ink. Masked materials cost a little on every
+world surface. Movement still follows the camera's yaw, so in a fight
+"forward" is toward the men; that is the intent, and only play will say
+whether the swing ever fights the stick.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

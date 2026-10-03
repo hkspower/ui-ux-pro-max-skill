@@ -1,5 +1,6 @@
 #include "Game/SaudFeelSubsystem.h"
 #include "Combat/FighterBase.h"
+#include "Combat/SaudCharacter.h"
 #include "Game/SaudGameInstance.h"
 #include "Game/SaudLookSubsystem.h"
 
@@ -65,10 +66,17 @@ void USaudFeelSubsystem::OnBlow(const AFighterBase* Victim, const AFighterBase* 
 		HoldTime();
 	}
 
-	// Only a blow the player is in reaches his hands.
+	// Only a blow the player is in reaches his hands -- and his camera
+	// (Combat/SaudCamera.h: a heavy blow or a parry tips it, a knockout
+	// swings it round him).
 	if (bVictimIsPlayer || bAttackerIsPlayer)
 	{
 		Buzz(F);
+		const AFighterBase* Player = bVictimIsPlayer ? Victim : Attacker;
+		if (ASaudCharacter* Saud = Cast<ASaudCharacter>(const_cast<AFighterBase*>(Player)))
+		{
+			Saud->OnCameraBlow(Victim, Attacker, Hit, bHeavy);
+		}
 	}
 
 	// And the picture's half of it: the impact frame and the speed lines.

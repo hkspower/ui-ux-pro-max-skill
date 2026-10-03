@@ -382,3 +382,15 @@ light|Source/SaudFighter/Combat/SaudLight.h|s#const float Score = Was\[I\] ? Dis
 light|Source/SaudFighter/Combat/SaudLight.h|s#KeepFactor = 1.15f;#KeepFactor = 1.0f;#|no fire's shadow flickers
 light|Source/SaudFighter/Combat/SaudLight.h|s#CullDegrees = 2.5f;#CullDegrees = 1.0f;#|a brazier's light is drawn out to 103 m
 light|Source/SaudFighter/Combat/SaudLight.h|s#return DrawDistanceCm(PoolCm) \* FadeShare;#return DrawDistanceCm(PoolCm);#|fades over the last quarter
+
+# 2026-10-03, Saud's dynamic camera (SaudCamera.h)
+camera|Source/SaudFighter/Combat/SaudCamera.h|s#WantYaw = View.Yaw + (std::fabs(Gap) <= Step ? Gap : (Gap > 0.f ? Step : -Step));#WantYaw = View.Yaw + 0.f * Gap * Step;#|comes round behind him
+camera|Source/SaudFighter/Combat/SaudCamera.h|s#const FVector Ahead = In.Velocity \* LookAheadSeconds;#const FVector Ahead = In.Velocity * 0.0;#|it looks ahead of him
+camera|Source/SaudFighter/Combat/SaudCamera.h|s#WantArm = Need > FightArmMaxCm ? FightArmMaxCm : Need;#WantArm = FightArmMinCm;#|all of them and Saud in the picture
+camera|Source/SaudFighter/Combat/SaudCamera.h|s#+ SideSwitchDeg <#+ 0.f <#g|does not flip sides
+camera|Source/SaudFighter/Combat/SaudCamera.h|s#const bool bAuto = ManualLeft <= 0.f \&\& !bTurning;#const bool bAuto = !bTurning;#|the framing waits
+camera|Source/SaudFighter/Combat/SaudCamera.h|s#Push = KickPush \* KickStrength \* Env;#Push = 0.f;#|pushes the camera in
+camera|Source/SaudFighter/Combat/SaudCamera.h|s#if (Orbit == EOrbit::Finisher \&\& Kind == EOrbit::Knockout \&\& OrbitAge < FinisherOrbit.Seconds) return;##|does not cut the finisher
+camera|Source/SaudFighter/Combat/SaudCamera.h|s#if (WallArm > HardFree) WallArm = HardFree;#if (WallArm > HardFree + 1e9f) WallArm = HardFree;#|never longer than the wall
+camera|Source/SaudFighter/Combat/SaudCamera.h|s#float Target = SoftFree - SoftMarginCm;#float Target = SoftFree;#|comes in before the wall
+camera|Source/SaudFighter/Combat/SaudCamera.h|s#if (Step > WallOutMaxCmPerSec \* Dt) Step = WallOutMaxCmPerSec \* Dt;##|eases back out
