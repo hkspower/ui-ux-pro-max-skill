@@ -4113,6 +4113,76 @@ degrees, the 8 and the 40 m are choices, not measured costs: the frame
 time has never been read. The smoke volumes (`LocalFogVolume`, one per
 fire) have no draw distance and are not culled.
 
+## The motion package: real motion capture on Saud -- 2026-10-03
+
+Asked as "use unreal engine motions package install here", settled as both:
+free motion capture retargeted here, and editor scripts for Epic's Game
+Animation Sample. The Unreal build only; the browser draws its own fighters.
+
+**The capture.** The CMU Graphics Lab Motion Capture Database
+(mocap.cs.cmu.edu) in Bruce Hahne's 2010 BVH conversion: "free for use in
+research and commercial projects worldwide", no further restriction. CMU
+asks for this line, kept here and in every row of the manifest: *The data
+used in this project was obtained from mocap.cs.cmu.edu. The database was
+created with funding from NSF EIA-0196217.* Five takes, committed under
+`Tools/blender/mocap/cmu/` with the conversion's own READMEFIRST.txt, each
+pinned by SHA-256 so the build never needs the network and a changed file
+is refused: 07_04 slow walk, 07_01 walk, 08_01 walk (brisk), 02_03 run/jog,
+35_18 run/jog. The run was 09_01 first: too short a take to hold a cycle
+that closes, so it hitched 4 cm at the loop; 35_18 closes, and at Saud's
+size runs at 3.20 m/s against his BaseMoveSpeed's 3.41.
+
+**The retarget** (`Tools/blender/mocap.py`, through `motion_ik`'s control
+rig, like every clip): each of Saud's bones takes the turn its joint made
+from the T-pose, after a fixed turn laying his rest bone along the
+T-pose's; the hips' path is scaled by his leg over the actor's. The cycle
+is the stretch whose end is most like its start in pose and in motion
+(every joint's velocity counted, or the run's loop hitched), crossfaded
+over its last 30 % into the frames that led into its first, and taken in
+place (the travel kept as the clip's speed). Legs in IK: where the actor's
+foot is down (low and still, measured on the capture), its ball is held on
+one point of the floor carried back at the clip's speed, eased in and out
+over three frames; on the flat of a stance the foot is set on the floor; a
+sole corner under the floor elsewhere is cleared by pitching the foot about
+its ankle, so the leg stays the actor's (lifted whole instead, his toe-off
+bent the knee 22 degrees off the actor's). Baked to the 62 bones, 30 fps.
+
+**What it made:** `Content/Animation/Mocap/`, `A_Saud_Mocap_Walk_Slow`
+(1.00 m/s), `_Walk` (1.49), `_Walk_Brisk` (1.76), `_Jog` (2.80), `_Run`
+(3.20), looping, with `DT_SaudMocap.csv` (seconds, frames, speed in cm/s,
+take, source) and `saud-mocap.png`, the skeleton contact sheet.
+
+**Checked**, every clip: a held foot skates 0.0 mm on the flat of its
+stance (at most 5), no sole through the floor and no planted sole over it
+(at most 3 mm), the loop's seam no worse than the cycle's own swing
+(0-3 mm over, at most 5), the clip's speed the capture's (within 2 %),
+every arm and leg segment along the actor's (arms within 3 degrees, legs
+15, plus what the crossfade blends), the bake within 0.5 mm of the rig, and
+every FBX read back within 0.02 mm. `--bite`: 6 of 6 (no hold, no floor,
+the arms read off the wrong side, no crossfade, a cycle that does not
+close, a changed source file). `--check` needs no Blender.
+
+**The Game Animation Sample** (`Tools/unreal/motion_package.py`, in the
+editor). `--mocap` imports the five clips onto Saud's skeleton in
+`/Game/Animation/Mocap`. `--gasp`, after the sample's UEFN mannequin folder
+is migrated in by hand (it needs an Epic account): makes `IK_Saud` (the
+editor's own mannequin template, or the 19 chains in the file, on his
+bones, which are the mannequin's), finds the sample's IK Rig, makes
+`RTG_GASP_to_Saud` with the chains mapped by name, and batch-retargets the
+sample's locomotion onto him as `A_Saud_GASP_*` in `/Game/Animation/GASP`.
+`--check` and `--bite` (2 of 2) run outside the editor on its tables.
+
+**Not verified:** the editor script has never run, and the sample is not
+here: the IKRigController, IKRetargeterController and
+IKRetargetBatchOperation calls, the FBX import options and the sample's
+folder are UE 5.4's as remembered. The mocap clips are proved in Blender
+only (the checks, the read-back, the sheet); nothing plays them yet -- the
+walk and run picked by speed is the next job (#92). A mesh preview made
+for this showed the arms wrong; it bound Saud.fbx's mesh to the clip's own
+imported armature, whose bone axes Blender's importer sets differently,
+and is not a fault in the clips (the read-back and the skeleton sheet
+agree with the rig).
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

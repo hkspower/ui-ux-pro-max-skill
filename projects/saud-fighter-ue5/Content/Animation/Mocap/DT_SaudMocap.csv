@@ -1,0 +1,6 @@
+Name,File,Seconds,Frames,bLoop,SpeedCmS,Take,What,Source
+A_Saud_Mocap_Walk_Slow,A_Saud_Mocap_Walk_Slow.fbx,1.433,43,true,100.3,07_04,slow walk,"CMU Graphics Lab Motion Capture Database, mocap.cs.cmu.edu (funded by NSF EIA-0196217); BVH by B. Hahne"
+A_Saud_Mocap_Walk,A_Saud_Mocap_Walk.fbx,1.100,33,true,148.5,07_01,walk,"CMU Graphics Lab Motion Capture Database, mocap.cs.cmu.edu (funded by NSF EIA-0196217); BVH by B. Hahne"
+A_Saud_Mocap_Walk_Brisk,A_Saud_Mocap_Walk_Brisk.fbx,1.000,30,true,176.0,08_01,walk,"CMU Graphics Lab Motion Capture Database, mocap.cs.cmu.edu (funded by NSF EIA-0196217); BVH by B. Hahne"
+A_Saud_Mocap_Jog,A_Saud_Mocap_Jog.fbx,0.767,23,true,279.9,02_03,run/jog,"CMU Graphics Lab Motion Capture Database, mocap.cs.cmu.edu (funded by NSF EIA-0196217); BVH by B. Hahne"
+A_Saud_Mocap_Run,A_Saud_Mocap_Run.fbx,0.767,23,true,320.0,35_18,run/jog,"CMU Graphics Lab Motion Capture Database, mocap.cs.cmu.edu (funded by NSF EIA-0196217); BVH by B. Hahne"
