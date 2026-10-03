@@ -542,4 +542,27 @@ namespace SaudFeel
 	/** Seconds the win is held: A_<Set>_Victory is 2.0 s (motion_hits.
 	    VICTORY_SECONDS), and the harness holds the clip to this. */
 	constexpr float VictorySeconds = 2.0f;
+
+	// ------------------------------------------------------------ the music
+
+	/** A boss's own fight theme, by his DT_Fighters row (2026-10-03, asked
+	    as "every boss his own ... music fight"): AL-WAHSH's, AL-SAQR's and
+	    ZAYOS's. Any other row has none (nullptr) and a boss wave plays
+	    BossMusic. A wave's music starts when it begins and the stage loop
+	    comes back when it is cleared (AWaveDirector). The harness holds
+	    every boss row in DT_Fighters to a row of DT_Sounds.csv and a file
+	    on disk. */
+	inline const char* BossTheme(const char* Row)
+	{
+		if (!Row) return nullptr;
+		auto Is = [Row](const char* N) { const char* A = Row; while (*A && *N && *A == *N) { ++A; ++N; } return *A == 0 && *N == 0; };
+		if (Is("Boss"))  return "Music_Wahsh";
+		if (Is("Saqr"))  return "Music_Saqr";
+		if (Is("Zayos")) return "Music_Zayos";
+		return nullptr;
+	}
+	/** A boss with no theme of his own, and the loop a cleared boss wave
+	    hands back to. */
+	constexpr const char* BossMusic = "Music_Boss";
+	constexpr const char* StageMusic = "Music_Stage";
 }

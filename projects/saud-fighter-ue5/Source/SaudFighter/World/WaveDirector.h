@@ -146,6 +146,9 @@ private:
 	int32 SurvivalWave = 1;
 	bool bArenaLocked = false;
 	bool bFinished = false;
+	/** The wave fighting now is a boss's, playing his theme: the stage loop
+	    comes back when it is cleared. */
+	bool bBossMusic = false;
 
 	/** Where the wave woke. A locked fight is a circle around it. */
 	FVector ArenaCentre = FVector::ZeroVector;

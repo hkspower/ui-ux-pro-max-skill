@@ -5,6 +5,7 @@
 #include "Combat/SaudCharacter.h"
 #include "Combat/EnemyFighter.h"
 #include "Combat/SaudBrain.h"
+#include "Combat/SaudFeel.h"
 #include "Engine/DataTable.h"
 #include "EngineUtils.h"
 #include "Game/SaudGameInstance.h"
@@ -184,7 +185,15 @@ void AWaveDirector::Tick(float DeltaSeconds)
 	{
 		bArenaLocked = false;
 		AttackTokenHolders.Reset();
-		if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Wave_Clear")); }
+		if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this))
+		{
+			Audio->PlayUI(TEXT("Wave_Clear"));
+			if (bBossMusic)
+			{
+				Audio->PlayMusic(SaudFeel::StageMusic);
+			}
+		}
+		bBossMusic = false;
 		OnWaveCleared.Broadcast(WaveIndex);
 		++WaveIndex;
 
@@ -241,7 +250,25 @@ void AWaveDirector::BeginWave(const FWaveDef& Wave)
 		SpawnFighter(Wave.Fighters[i], Tier, i, Wave.Fighters.Num());
 	}
 
-	if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this)) { Audio->PlayUI(TEXT("Wave_Start")); }
+	if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this))
+	{
+		Audio->PlayUI(TEXT("Wave_Start"));
+		// A boss's wave is fought to his own theme (SaudFeel::BossTheme).
+		for (const FName& Row : Wave.Fighters)
+		{
+			const FFighterDef* Def = FighterTable
+				? FighterTable->FindRow<FFighterDef>(Row, TEXT("AWaveDirector::BeginWave"), false) : nullptr;
+			if (!Def || !Def->bIsBoss)
+			{
+				continue;
+			}
+			const char* Theme = SaudFeel::BossTheme(TCHAR_TO_ANSI(*Row.ToString()));
+			const FName Cue = (Theme && Audio->HasCue(FName(Theme))) ? FName(Theme) : FName(SaudFeel::BossMusic);
+			Audio->PlayMusic(Cue);
+			bBossMusic = true;
+			break;
+		}
+	}
 	OnWaveStarted.Broadcast(WaveIndex);
 }
 

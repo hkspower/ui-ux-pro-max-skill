@@ -435,3 +435,8 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#const float WMax = WeightMaxCm \* Size;#
 brain|Source/SaudFighter/Combat/SaudBrain.h|s#Is("Saqr");#Is("Saqr") or Is("Zayos");#|Zayos has no phase two, as in the browser
 brain|Source/SaudFighter/Combat/SaudBrain.h|s#Is("Saqr");#false;#|Saqr has a phase two, as in the browser
 brain|Source/SaudFighter/Combat/SaudBrain.h|s#return \*A == 0 \&\& \*N == 0; };#return *N == 0; };#|a name is matched whole
+
+# Boss themes (2026-10-03): each boss his own, and only bosses.
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return "Music_Zayos";#return "Music_Wahsh";#|theme is his alone
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (Is("Saqr"))  return "Music_Saqr";##|Saqr fights to a theme of his own
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (Is("Boss"))  return "Music_Wahsh";#if (Is("Boss") or Is("Thug")) return "Music_Wahsh";#|is no boss and has no boss theme

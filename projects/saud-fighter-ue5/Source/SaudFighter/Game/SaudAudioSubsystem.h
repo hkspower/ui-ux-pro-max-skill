@@ -130,6 +130,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Audio")
 	FName GetWantedMusic() const { return WantedMusic; }
 
+	/** Whether the cue has a row in DT_Sounds: a boss theme with none falls
+	    back to Music_Boss rather than stopping the music. */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	bool HasCue(FName Cue) { return Find(Cue) != nullptr; }
+
 	/** How far into a cue's clip its transient sits, in seconds. Zero for a
 	    cue with no row, so a missing sound never delays a swing. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")

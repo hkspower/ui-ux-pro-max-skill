@@ -18,6 +18,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <map>
 
 static int Fails = 0;
 static void Check(bool Ok, const char* What)
@@ -565,9 +566,87 @@ static void FreeGaits()
     Check(Held, "every gait's measured stride is a walk's: the runtime holds its feet and sets its pace");
 }
 
+
+// ------------------------------------------------------------------ music
+
+/** DT_Sounds.csv: cue -> the asset path's file under Content/. */
+static std::map<std::string, std::string> SoundFiles()
+{
+    std::map<std::string, std::string> Out;
+    FILE* F = std::fopen("Content/Data/DT_Sounds.csv", "rb");
+    if (!F) return Out;
+    char Line[1024];
+    while (std::fgets(Line, sizeof Line, F))
+    {
+        std::string L(Line);
+        const size_t A = L.find(','), B = L.find(',', A + 1);
+        if (A == std::string::npos || B == std::string::npos) continue;
+        std::string Path = L.substr(A + 1, B - A - 1);            // /Game/Audio/Music/M_X.M_X
+        const size_t Dot = Path.rfind('.');
+        if (Path.rfind("/Game/", 0) != 0 || Dot == std::string::npos) continue;
+        Out[L.substr(0, A)] = "Content/" + Path.substr(6, Dot - 6) + ".wav";
+    }
+    std::fclose(F);
+    return Out;
+}
+
+static void BossThemes()
+{
+    std::printf("BOSS MUSIC\n");
+    const auto Files = SoundFiles();
+    Check(!Files.empty(), "DT_Sounds.csv read");
+    auto OnDisk = [](const std::string& P) { FILE* F = std::fopen(P.c_str(), "rb"); if (F) std::fclose(F); return F != nullptr; };
+    for (const char* Cue : { SaudFeel::BossMusic, SaudFeel::StageMusic })
+    {
+        const auto It = Files.find(Cue);
+        Check(It != Files.end() && OnDisk(It->second), (std::string(Cue) + " has a row and a file").c_str());
+    }
+    FILE* F = std::fopen("Content/Data/DT_Fighters.csv", "rb");
+    Check(F != nullptr, "DT_Fighters.csv found");
+    int Bosses = 0;
+    std::vector<std::string> Themes;
+    if (F)
+    {
+        char Line[1024];
+        if (!std::fgets(Line, sizeof Line, F)) Line[0] = 0;
+        while (std::fgets(Line, sizeof Line, F))
+        {
+            std::vector<std::string> C; std::string Cur; bool Q = false;
+            for (const char* P = Line; *P && *P != '\n' && *P != '\r'; ++P)
+            {
+                if (*P == '"') Q = !Q;
+                else if (*P == ',' && !Q) { C.push_back(Cur); Cur.clear(); }
+                else Cur += *P;
+            }
+            C.push_back(Cur);
+            if (C.size() < 11) continue;
+            const char* Theme = SaudFeel::BossTheme(C[0].c_str());
+            if (C[10] != "true")
+            {
+                Check(Theme == nullptr, (C[0] + " is no boss and has no boss theme").c_str());
+                continue;
+            }
+            ++Bosses;
+            Check(Theme != nullptr, (C[0] + " fights to a theme of his own").c_str());
+            if (!Theme) continue;
+            // A theme's row is added with its file: a row with no file would
+            // stop the music at the boss (PlayMusic finds no sound), where no
+            // row falls back to Music_Boss (AWaveDirector::BeginWave).
+            const auto It = Files.find(Theme);
+            Check(It == Files.end() || OnDisk(It->second), (std::string(Theme) + " has a row only with its file on disk").c_str());
+            for (const auto& T : Themes) Check(T != Theme, (C[0] + "'s theme is his alone").c_str());
+            Themes.push_back(Theme);
+        }
+        std::fclose(F);
+    }
+    Check(Bosses == 3, "three boss rows");
+    Check(!SaudFeel::BossTheme(nullptr) && !SaudFeel::BossTheme("Bos") && !SaudFeel::BossTheme("Bosses"),
+          "a row is matched whole");
+}
+
 int main()
 {
-    Blows(); Pad(); State(); Camera(); Flash(); Clips(); Cuts(); FreeGaits();
+    Blows(); Pad(); State(); Camera(); Flash(); Clips(); Cuts(); FreeGaits(); BossThemes();
     std::printf(Fails ? "\n%d FAILED\n" : "\nall feel checks passed\n", Fails);
     return Fails ? 1 : 0;
 }
