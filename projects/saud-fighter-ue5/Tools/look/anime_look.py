@@ -214,14 +214,17 @@ LOOK = {
     "RIM_PX": 3.0,
     "RIM_Q": 0.90,
     "RIM_SPEC": 0.06,
-    "RIM_TINT": (0.70, 0.88, 1.18),
+    # 2026-10-03, the System: the System's cyan, a manhwa's back-light
+    # (0.70, 0.88, 1.18, a cold white, before)
+    "RIM_TINT": (0.48, 0.92, 1.32),
     # Split toning: shadows lean to a cool slate, the lit side to dust-warm,
     # so light and shade differ in hue as well as value -- the depth a
     # painted cel has. Until 2026-09-25 one warm tint lay over everything
     # and the shadows' faint cool was cancelled by it.
     # 2026-09-26, the dark: colder -- slate-blue shadows, an ashen light
     # that is barely warm; the warmth is left to what burns
-    "SHADOW_TINT": (0.78, 0.88, 1.04),
+    # 2026-10-03, the System: the shadows navy (slate, 0.78 0.88 1.04, before)
+    "SHADOW_TINT": (0.70, 0.84, 1.14),
     "LIT_TINT": (1.02, 1.00, 0.94),
     "TINT_KEEP": 0.6,       # how much of the light's hue the tone keeps
     "EMIT_FROM": 5.0,       # light this many times the key is a lamp, not a surface
@@ -311,7 +314,7 @@ LOOK = {
     # (0.13, 0.145, 0.15) from 6 m to 90 m up to 0.62 before; luma 0.142 ->
     # 0.054, blue over red 1.15 -> 1.67. The world's height fog is this
     # colour from this distance (build_world.WORLD_RIG takes both from here).
-    "HAZE": (0.045, 0.055, 0.075),
+    "HAZE": (0.036, 0.050, 0.088),     # 2026-10-03, the System: navy (0.045 0.055 0.075 before)
     "HAZE_NEAR_CM": 400.0,
     "HAZE_FAR_CM": 7000.0,
     "HAZE_MAX": 0.70,
@@ -326,8 +329,9 @@ LOOK = {
     # with a rim, the side toward the moon lit, drifting. Albedo-like,
     # times Key, like the fog. The horizon is darker than the street the
     # fight stands in, so the sky reads as night BEHIND the fight.
-    "SKY_HORIZON": (0.034, 0.040, 0.060),
-    "SKY_ZENITH": (0.006, 0.008, 0.018),
+    # 2026-10-03, the System: a navy night (0.034 0.040 0.060 / 0.006 0.008 0.018 before)
+    "SKY_HORIZON": (0.026, 0.036, 0.074),
+    "SKY_ZENITH": (0.004, 0.007, 0.022),
     "SKY_ZENITH_DEG": 45.0,
     # the moon is drawn on the world's moon (build_world.WORLD_RIG's yaw,
     # the light's own bearing) but lower, at MOON_ELEV_DEG, where a boom
@@ -553,8 +557,10 @@ LOOK = {
     # on twos), up to +-GRAIN in the mid-tones and none at black or white,
     # and a still value noise PAPER_PX across darkening by up to PAPER (the
     # page's tooth). 0.06 / 0.05 read as TV static in the prototype.
-    "GRAIN": 0.03,
-    "PAPER": 0.025,
+    # 2026-10-03, the System: a clean digital page, less grain and tooth
+    # (0.03 / 0.025 before)
+    "GRAIN": 0.02,
+    "PAPER": 0.012,
     "PAPER_PX": 4.0,
     # 9. the wound (2026-09-28): when the PLAYER is hit heavy or knocked
     # down, a flat blood border round the frame -- flat tones, not a
