@@ -74,6 +74,9 @@ ROLES = {
     "Mask": dict(srgb=False, compression="TC_MASKS", sampler="SAMPLERTYPE_MASKS", param=None, data=True),
 }
 LAYERS = {"Saud_IronArm"}            # a layer over a surface, not a surface
+# the monkey island's ground (Tools/levels/island_surfaces.py): landscape
+# layers, sampled by the island's landscape material, on no mesh's slot
+GROUND_PREFIX = "IslandGround_"
 NAME = re.compile(r"^T_(?P<set>[A-Za-z0-9]+_[A-Za-z0-9]+)_(?P<role>[A-Za-z]+)\.png$")
 # the Blender input each role's map was linked to, read back from an FBX
 LINKED = {"BaseColor": "Base Color", "Roughness": "Roughness", "Normal": "Normal"}
@@ -182,7 +185,7 @@ def _fbx_misses(sets):
                 if not ok:
                     miss.append("%s: %s's %s map is linked to %s" % (os.path.basename(f), s, role, got))
     for s in sets:
-        if s not in LAYERS and s not in seen:
+        if s not in LAYERS and s not in seen and not s.startswith(GROUND_PREFIX):
             miss.append("set %s is on disk and in no FBX's slots" % s)
     return miss
 
