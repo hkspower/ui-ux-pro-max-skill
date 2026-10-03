@@ -159,15 +159,15 @@ AIR = dict(volumetric=True, scattering=0.6, albedo=(140, 148, 158), extinction=1
 
 # ------------------------------------------------------- the ground's colour
 # THE BROWSER'S per-theme ground pair, [the way through, the ground], copied
-# with its line and held to it by check() 27: index.html THEME.<theme>.ground
-# at :2172 souq, :2239 gym, :2302 towers, :2375 failaka, :2455 desert,
-# :2533 fishmarket, :2626 marina, :2698 highway, :2772 arena.
+# and held to it by check() 27: assets/themes.js THEMES.<theme>.ground since
+# 2026-10-02 (index.html THEME.<theme>.ground before), read from the export
+# of it, Content/Data/DT_Colors.csv's Theme_<Place>_Ground0 / 1.
 THEME_GROUND = {
     "Souq": ("#a5713f", "#7c5230"), "Gym": ("#4a3b2c", "#332a20"), "Towers": ("#2a3552", "#1a2136"),
     "Failaka": ("#c3a173", "#8e7350"), "Desert": ("#c2a274", "#8b7047"), "Fishmarket": ("#9aa6a4", "#6e7877"),
     "Marina": ("#3b3350", "#241f33"), "Highway": ("#4a4a52", "#2c2c33"), "Arena": ("#5b4a63", "#38293f"),
 }
-BROWSER_INDEX = os.path.abspath(os.path.join(PROJECT, "..", "saud-fighter", "index.html"))
+COLORS_CSV = os.path.join(PROJECT, "Content", "Data", "DT_Colors.csv")
 # What each primitive is painted as (Unreal-only): its role, and each role's
 # colour from its theme's pair through the souq's one weathering
 # (build_souq._worn: the same soot band, the same ink floor) -- the way
@@ -766,15 +766,18 @@ def materials_of(P):
 
 
 def _browser_grounds():
-    """index.html's THEME.<theme>.ground, parsed (check 27)."""
-    import re
-    src = open(BROWSER_INDEX, encoding="utf-8").read()
+    """The browser's ground pair per place, read from the exported data
+    (check 27): Content/Data/DT_Colors.csv's Theme_<Place>_Ground0 / 1,
+    which `Tools/export/export.mjs` writes from assets/themes.js. It read
+    index.html's THEME.<theme>.ground until 2026-10-03; the places' colours
+    left index.html for themes.js on 2026-10-02 and this crashed on it."""
+    import csv
+    rows = {r["Name"]: r["Hex"].lower() for r in csv.DictReader(open(COLORS_CSV, encoding="utf-8"))}
     got = {}
     for theme in THEME_GROUND:
-        m = re.search(r"\n\s*%s:\s*\{" % theme.lower(), src)
-        assert m, "index.html has no THEME.%s" % theme.lower()
-        g = re.compile(r"ground:\s*\[\s*'(#[0-9a-fA-F]{6})'\s*,\s*'(#[0-9a-fA-F]{6})'\s*\]").search(src, m.end())
-        got[theme] = (g.group(1).lower(), g.group(2).lower())
+        pair = tuple(rows.get("Theme_%s_Ground%d" % (theme, i)) for i in (0, 1))
+        assert all(pair), "DT_Colors.csv has no Theme_%s_Ground0/1" % theme
+        got[theme] = pair
     return got
 
 
@@ -913,7 +916,7 @@ def check(P):
     # 27. THEME_GROUND is the browser's
     for theme, pair in _browser_grounds().items():
         assert tuple(h.lower() for h in THEME_GROUND[theme]) == pair, \
-            "THEME_GROUND %s is %s, not the browser's %s (index.html THEME.%s.ground)" % (theme, THEME_GROUND[theme], pair, theme.lower())
+            "THEME_GROUND %s is %s, not the browser's %s (DT_Colors.csv Theme_%s_Ground0/1)" % (theme, THEME_GROUND[theme], pair, theme)
     # 32. the fog is the look's air; the moon cold and hard. WORLD_RIG takes
     # its fog from LOOK["HAZE"] and its start from LOOK["HAZE_NEAR_CM"] by
     # construction, so what this guards is the day someone types a colour or

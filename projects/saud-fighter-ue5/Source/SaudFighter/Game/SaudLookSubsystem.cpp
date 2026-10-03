@@ -69,6 +69,22 @@ void USaudLookSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		Volume->BlendWeight = 1.f;
 		Volume->Settings.AddBlendable(Post, 1.f);
 		Volume->Settings.AddBlendable(Frame, 1.f);
+
+		// The engine's own post-process, pinned to what the preview models
+		// (SaudAnime::Film; anime_look.py's FILM and tonemap()).
+		FPostProcessSettings& S = Volume->Settings;
+		S.bOverride_FilmSlope = true;         S.FilmSlope = SaudAnime::Film::Slope;
+		S.bOverride_FilmToe = true;           S.FilmToe = SaudAnime::Film::Toe;
+		S.bOverride_FilmShoulder = true;      S.FilmShoulder = SaudAnime::Film::Shoulder;
+		S.bOverride_FilmBlackClip = true;     S.FilmBlackClip = SaudAnime::Film::BlackClip;
+		S.bOverride_FilmWhiteClip = true;     S.FilmWhiteClip = SaudAnime::Film::WhiteClip;
+		S.bOverride_BlueCorrection = true;    S.BlueCorrection = SaudAnime::Film::BlueCorrection;
+		S.bOverride_ExpandGamut = true;       S.ExpandGamut = SaudAnime::Film::ExpandGamut;
+		S.bOverride_ToneCurveAmount = true;   S.ToneCurveAmount = SaudAnime::Film::ToneCurveAmount;
+		S.bOverride_VignetteIntensity = true; S.VignetteIntensity = SaudAnime::Film::Vignette;
+		S.bOverride_BloomIntensity = true;    S.BloomIntensity = SaudAnime::Film::Bloom;
+		S.bOverride_FilmGrainIntensity = true; S.FilmGrainIntensity = SaudAnime::Film::Grain;
+		S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = SaudAnime::Film::Fringe;
 	}
 }
 

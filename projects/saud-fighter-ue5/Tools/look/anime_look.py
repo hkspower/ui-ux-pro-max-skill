@@ -380,9 +380,17 @@ LOOK = {
     # white (39 % of the check sphere's skin); at 0.68 lit skin stays a
     # tone. Ink stays black; the impact frame is not levelled (its cut
     # reads the picture as it was).
-    "LV_BLACK": 0.020,
+    # 2026-10-03, re-set through the engine's real film curve (to_display(),
+    # "improve colors accuracy"): the toe the clip preview never had took
+    # the median back down to 0.087 at (0.02, 0.68, 1.25) -- the game would
+    # have stayed dark. At (0.0, 0.68, 1.75) the median is 0.228 again, the
+    # fighters 0.224, the world 0.236, the sky 0.204, the brightest
+    # half-percent 0.65; the moon and bone white, ink black, a lit face a
+    # tone (the check sphere's top 0.93). The black point is 0: the film's
+    # toe is the black.
+    "LV_BLACK": 0.0,
     "LV_WHITE": 0.68,
-    "LV_GAMMA": 1.25,
+    "LV_GAMMA": 1.75,
     # 6. speed lines. 2026-09-28, needles: a streak's angular share is
     # (SPEED_W0 + SPEED_W1 * its hash) * reach ** SPEED_TAPER -- a point at
     # the blow, full width at the edge -- where it was a fixed wedge faded
@@ -679,9 +687,11 @@ def _sub(code):
 
 
 def display(c):
-    """A linear colour as the tonemapped, display-encoded value the second
-    material works in (sRGB encoding; the tonemapper's curve is the
-    engine's and is not modelled)."""
+    """A colour M_Anime_Frame DRAWS (the cut's ink and tone, the speed
+    lines, the mark, the wound) in the display values it works in: the
+    sRGB encoding of its linear value, and nothing else -- it is drawn
+    after the tonemapper, so the film curve never touches it (to_display()
+    is what M_Anime_Post's output becomes)."""
     return tuple(12.92 * v if v <= 0.0031308 else 1.055 * v ** (1 / 2.4) - 0.055 for v in c)
 
 
@@ -975,10 +985,12 @@ float2 Pg = VUV * View.ViewSizeAndInvSize.xy / Lines;     // 1080-line pixels: t
 float Vr = length((VUV - 0.5) * float2(Aspect, 1.0)) / (0.5 * sqrt(Aspect * Aspect + 1.0));
 // (not on an impact frame: cut after it, the dark corners became a hard
 // black iris round the panel; an impact frame is the whole screen)
-float3 Out = S * (1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr) * (1.0 - Imp));
 // the levels (2026-10-02): LV_BLACK to black, LV_WHITE to white, so the
-// picture's whites reach white; not on an impact frame, whose cut reads it
-Out = lerp(pow(saturate((Out - LV_BLACK) / (LV_WHITE - LV_BLACK)), 1.0 / LV_GAMMA), Out, Imp);
+// picture's whites reach white; not on an impact frame, whose cut reads it.
+// Before the vignette (2026-10-03): after it, the gamma lifted the dark
+// corners back up and the vignette all but went.
+float3 Out = lerp(pow(saturate((S - LV_BLACK) / (LV_WHITE - LV_BLACK)), 1.0 / LV_GAMMA), S, Imp);
+Out *= 1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr) * (1.0 - Imp);
 """) + hlsl_fire() + _sub(r"""
 // 7d. the mark where a heavy blow landed, in units of its radius (MARK_PX
 // figure px, scaled to the man's distance): a bone needle star with an ink
@@ -1705,7 +1717,7 @@ def wound_step(out, wound):
 def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None, fist=None, burn=None,
           boil=0.0, tone=0.0, mark=None, wound=0.0):
     """M_Anime_Frame's steps on a display-valued picture S (H,W,3, 0..1),
-    in its order: the vignette, the levels, the fire (needs D, the depth), the mark
+    in its order: the levels, the vignette, the fire (needs D, the depth), the mark
     (needs D), the impact frame's cut and 7c, the speed lines, the wound,
     the grain and the paper. `tone` is MPC_Anime.ImpactTone -- 0 a blow's
     BLOOD, 1 a burning punch's EMBER, 2 a parry's BONE (None is 0); `mark`
@@ -1725,11 +1737,16 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
     # (not on an impact frame, which is the whole screen: cut after the
     # vignette, the dark corners became a hard black iris)
     vig = 0.0 if imp and "iris_impact" not in _FLAGS else L["VIGNETTE"]
-    out = S * (1.0 - vig * _smooth(L["VIGNETTE_FROM"], L["VIGNETTE_TO"], vr))[..., None]
     # the levels: the picture's whites to white; not on an impact frame,
-    # whose cut reads the picture as it was
-    if not imp or "levels_on_impact" in _FLAGS:
-        out = levels(out)
+    # whose cut reads the picture as it was. Before the vignette (since
+    # 2026-10-03), so the gamma does not lift the corners back up.
+    shade = (1.0 - vig * _smooth(L["VIGNETTE_FROM"], L["VIGNETTE_TO"], vr))[..., None]
+    lv = not imp or "levels_on_impact" in _FLAGS
+    if "vignette_before_levels" in _FLAGS:
+        out = S * shade
+        out = levels(out) if lv else out
+    else:
+        out = (levels(S) if lv else S) * shade
     if (fist is not None or burn is not None) and D is not None:
         out = fire(out, D, fist, burn)
     if mark is not None and D is not None:
@@ -1805,13 +1822,144 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
     return out
 
 
-def to_display(lin):
-    """Linear to display values with a plain clip -- the preview's
-    stand-in for the engine's tonemapper. The look's tones are flat by
-    construction, so there is little highlight roll-off to lose."""
+# ------------------------------------------- the engine's display transform
+# 2026-10-03 ("improve colors accuracy": the previews = the game). Until
+# then to_display() was a plain clip and an sRGB encode, a stand-in for the
+# tonemapper. UE 5's default is its filmic curve (ACES-derived, in
+# PostProcessCombineLUTs / TonemapCommon), and it is far from a clip where
+# this game lives: it maps 0.18 to 0.18 but crushes the toe -- a 0.01 world
+# shadow shows at 0.021 on the screen, not 0.10 -- and rolls 1.0 off to 0.72.
+# Every preview before this was several times too light in the dark. This
+# is that transform at the engine's defaults, which the look's volume pins
+# (USaudLookSubsystem, FILM below; _check_names holds the two together).
+# The colour spaces are derived from their primaries and white points here,
+# not copied; the three tables that are the engine's own (BLUE, BLUE_INV,
+# WIDE_2_XYZ) are checked against what they must be -- the blue correction's
+# rows keep white and the two are inverses, the wide gamut's white is D65.
+FILM = dict(
+    slope=0.88, toe=0.55, shoulder=0.26, black_clip=0.0, white_clip=0.04,   # FPostProcessSettings::Film*
+    blue_correction=0.6, expand_gamut=1.0, tone_curve=1.0,
+    # what the look's volume turns off, because the look draws its own
+    # (the vignette in M_Anime_Frame) or draws none (bloom, grain, fringe):
+    # left on, each lands on the picture before M_Anime_Frame sees it and
+    # none of them is in this preview
+    vignette=0.0, bloom=0.0, grain=0.0, fringe=0.0,
+)
+_BLUE = ((0.9404372683, -0.0183068787, 0.0778696104), (0.0083786969, 0.8286599939, 0.1629613092),
+         (0.0005471261, -0.0008833746, 1.0003362486))
+_BLUE_INV = ((1.06318, 0.0233956, -0.0865726), (-0.0106337, 1.20632, -0.19569),
+             (-0.000590887, 0.00105248, 0.999538))
+_WIDE_2_XYZ = ((0.5441691, 0.2395926, 0.1666943), (0.2394656, 0.7021530, 0.0583814),
+               (-0.0023439, 0.0361834, 1.0552183))
+_MATS = {}
+
+
+def film_mats():
+    """The colour-space matrices the filmic curve works in (cached)."""
+    if _MATS:
+        return _MATS
     import numpy as np
-    c = np.clip(lin, 0.0, 1.0)
+    xyz = lambda x, y: np.array([x / y, 1.0, (1 - x - y) / y])
+
+    def rgb2xyz(prim, white):
+        P = np.stack([xyz(*q) for q in prim], axis=1)
+        return P * np.linalg.solve(P, xyz(*white))
+    d65, d60 = (0.3127, 0.3290), (0.32168, 0.33767)
+    brad = np.array([[0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296]])
+
+    def cat(a, b):
+        return np.linalg.inv(brad) @ np.diag((brad @ xyz(*b)) / (brad @ xyz(*a))) @ brad
+    srgb = rgb2xyz(((0.64, 0.33), (0.30, 0.60), (0.15, 0.06)), d65)
+    ap0 = rgb2xyz(((0.7347, 0.2653), (0.0, 1.0), (0.0001, -0.0770)), d60)
+    ap1 = rgb2xyz(((0.713, 0.293), (0.165, 0.830), (0.128, 0.044)), d60)
+    M = dict(SRGB_2_AP1=np.linalg.inv(ap1) @ cat(d65, d60) @ srgb,
+             AP1_2_SRGB=np.linalg.inv(srgb) @ cat(d60, d65) @ ap1,
+             AP1_2_AP0=np.linalg.inv(ap0) @ ap1, AP1_Y=ap1[1], D65_2_D60=cat(d65, d60), D65=xyz(*d65))
+    M["AP0_2_AP1"] = np.linalg.inv(M["AP1_2_AP0"])
+    M["BLUE_AP1"] = M["AP0_2_AP1"] @ np.array(_BLUE) @ M["AP1_2_AP0"]
+    M["BLUE_INV_AP1"] = M["AP0_2_AP1"] @ np.array(_BLUE_INV) @ M["AP1_2_AP0"]
+    M["EXPAND"] = (np.linalg.inv(ap1) @ np.array(_WIDE_2_XYZ)) @ M["AP1_2_SRGB"]
+    _MATS.update(M)
+    return _MATS
+
+
+def _film_tone(ap1, F):
+    """UE's FilmToneMap on AP1 values: the ACES RRT's glow and red modifier,
+    the 0.96 pre-desaturation, the toe / straight / shoulder curve in log10
+    matched so 0.18 stays 0.18, the 0.93 post-desaturation."""
+    import numpy as np
+    M = film_mats()
+    ap0 = ap1 @ M["AP1_2_AP0"].T
+    mi, ma = ap0.min(-1), ap0.max(-1)
+    sat = (np.maximum(ma, 1e-4) - np.maximum(mi, 1e-4)) / np.maximum(ma, 1e-2)
+    r, g, b = ap0[..., 0], ap0[..., 1], ap0[..., 2]
+    yc = (b + g + r + 1.75 * np.sqrt(np.maximum(b * (b - g) + g * (g - r) + r * (r - b), 0.0))) / 3.0
+    x = (sat - 0.4) / 0.2
+    t = np.maximum(1 - np.abs(x / 2), 0)
+    gain = 0.05 * (1 + np.sign(x) * (1 - t * t)) / 2
+    glow = np.where(yc <= 0.08 * 2.0 / 3.0, gain,
+                    np.where(yc >= 0.16, 0.0, gain * (0.08 / np.maximum(yc, 1e-10) - 0.5)))
+    ap0 = ap0 * (1 + glow)[..., None]
+    r, g, b = ap0[..., 0], ap0[..., 1], ap0[..., 2]
+    hue = np.degrees(np.arctan2(math.sqrt(3) * (g - b), 2 * r - g - b))
+    hue = np.where((r == g) & (g == b), 0.0, np.where(hue < 0, hue + 360, hue))
+    hue = np.where(hue > 180, hue - 360, hue)
+    u = np.clip(1 - np.abs(2 * hue / 135.0), 0, 1)
+    ap0 = np.concatenate([(r + (u * u * (3 - 2 * u)) ** 2 * sat * (0.03 - r) * (1 - 0.82))[..., None],
+                          ap0[..., 1:]], axis=-1)
+    w = np.maximum(ap0 @ M["AP0_2_AP1"].T, 0.0)
+    Y = lambda c: (c @ M["AP1_Y"])[..., None]
+    w = Y(w) + (w - Y(w)) * 0.96
+    ts, ss = 1 + F["black_clip"] - F["toe"], 1 + F["white_clip"] - F["shoulder"]
+    if F["toe"] > 0.8:
+        tm = (1 - F["toe"] - 0.18) / F["slope"] + math.log10(0.18)
+    else:
+        bt = (0.18 + F["black_clip"]) / ts - 1
+        tm = math.log10(0.18) - 0.5 * math.log((1 + bt) / (1 - bt)) * (ts / F["slope"])
+    sm = F["shoulder"] / F["slope"] - ((1 - F["toe"]) / F["slope"] - tm)
+    lc = np.log10(np.maximum(w, 1e-10))
+    straight = F["slope"] * (lc + (1 - F["toe"]) / F["slope"] - tm)
+    toe = np.where(lc < tm, -F["black_clip"] + (2 * ts) / (1 + np.exp((-2 * F["slope"] / ts) * (lc - tm))), straight)
+    sho = np.where(lc > sm, (1 + F["white_clip"]) - (2 * ss) / (1 + np.exp((2 * F["slope"] / ss) * (lc - sm))), straight)
+    k = np.clip((lc - tm) / (sm - tm), 0, 1)
+    k = 1 - k if sm < tm else k
+    k = (3 - 2 * k) * k * k
+    tone = toe + (sho - toe) * k
+    return np.maximum(Y(tone) + (tone - Y(tone)) * 0.93, 0.0)
+
+
+def tonemap(lin, F=None):
+    """Scene-linear sRGB in, display-linear sRGB out: UE 5's
+    PostProcessCombineLUTs at its default grade (white balance and colour
+    correction identity) -- the wide-gamut expansion of bright saturated
+    colour, the blue correction, the film curve, the blue correction taken
+    back out, clipped to sRGB."""
+    import numpy as np
+    F = FILM if F is None else F
+    M = film_mats()
+    c = np.asarray(lin, float) @ M["SRGB_2_AP1"].T
+    L = c @ M["AP1_Y"]
+    cd = (((c / np.maximum(L, 1e-10)[..., None]) - 1) ** 2).sum(-1)
+    amt = (1 - 2.0 ** (-4 * cd)) * (1 - 2.0 ** (-4 * F["expand_gamut"] * L * L))
+    c = c + (c @ M["EXPAND"].T - c) * amt[..., None]
+    c = c + (c @ M["BLUE_AP1"].T - c) * F["blue_correction"]
+    c = c + (_film_tone(c, F) - c) * F["tone_curve"]
+    c = c + (c @ M["BLUE_INV_AP1"].T - c) * F["blue_correction"]
+    return np.maximum(c @ M["AP1_2_SRGB"].T, 0.0)
+
+
+def encode(c):
+    """sRGB's own encoding of display-linear values (the output device's)."""
+    import numpy as np
+    c = np.clip(c, 0.0, 1.0)
     return np.where(c <= 0.0031308, 12.92 * c, 1.055 * np.power(c, 1 / 2.4) - 0.055)
+
+
+def to_display(lin):
+    """M_Anime_Post's linear output as the engine shows it, the values
+    M_Anime_Frame works in: through the filmic curve (tonemap()) and the
+    sRGB encoding. Was a plain clip until 2026-10-03."""
+    return encode(tonemap(lin))
 
 
 def look(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, speed=0.0,
@@ -1983,7 +2131,9 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          # 2026-10-02, the levels and the painted sky
          "dim_levels", "blown_whites", "grey_blacks", "levels_on_impact",
          "no_moon", "no_moon_ink", "soft_halo", "smooth_sky", "flat_sky",
-         "no_clouds", "overcast", "unlit_clouds", "still_clouds", "no_stars", "stars_in_clouds")
+         "no_clouds", "overcast", "unlit_clouds", "still_clouds", "no_stars", "stars_in_clouds",
+         # 2026-10-03, the colours as the engine shows them
+         "clip_preview", "engine_vignette", "vignette_before_levels")
 
 
 def check(bite=None, rig=None):
@@ -1994,6 +2144,7 @@ def check(bite=None, rig=None):
     global LOOK, FIRE
     saved = dict(LOOK)
     saved_fire = dict(FIRE)
+    saved_film = dict(FILM)
     lerp = lambda a, b, t: a + (b - a) * t
     rig = None if rig is None else dict(rig)
     assert bite is None or bite in BITES, "no such sabotage: %s" % bite
@@ -2118,6 +2269,10 @@ def check(bite=None, rig=None):
             LOOK["CLOUD_DRIFT"] = 0.0
         if bite == "no_stars":
             LOOK["STARS"] = 0.0
+        if bite == "clip_preview":
+            FILM["tone_curve"] = 0.0        # the preview's old stand-in: no film curve
+        if bite == "engine_vignette":
+            FILM["vignette"] = 0.4          # UE 5's own default, left on under the look's
         if bite == "no_mark":
             LOOK["MARK_PX"] = 0.0
         if bite == "lingering_mark":
@@ -2145,7 +2300,7 @@ def check(bite=None, rig=None):
         if bite == "hud_blood_drift":
             LOOK["BLOOD"] = (0.2705, 0.0070, 0.0144)      # #8E1420, the look's blood until 2026-09-28
         if bite in ("blood_parry", "tone_in_post", "mark_through_men", "wound_on_impact", "soft_star",
-                    "levels_on_impact", "stars_in_clouds"):
+                    "levels_on_impact", "stars_in_clouds", "vignette_before_levels"):
             _FLAGS.add(bite)
         if bite in ("iris_impact", "rim_all_round", "rim_on_world", "tone_on_lit", "tone_in_deep",
                     "static_brush", "grain_bias", "static_grain", "lines_through_cut", "ember_blows",
@@ -2276,6 +2431,14 @@ def check(bite=None, rig=None):
         wall_v = ~on & ~sky & ~_shift(on, 8, 0, False) & ~_shift(on, -8, 0, False)
         night = np.median(flat_v[sky & ~on] @ luma) / max(np.median(flat_v[wall_v] @ luma), 1e-6)
         assert night < 0.8, "the night sky is darker than the street in front of it (%.2fx the wall)" % night
+        # ------------------------------------------------ 2026-10-03, as the engine shows it
+        # the preview is the engine's film curve, not a clip: its toe takes a
+        # 0.01 shadow to about 0.02 on the screen (a clip shows 0.10), and it
+        # rolls 1.0 off under white
+        toe_v = float(to_display(np.array([0.01, 0.01, 0.01]))[0])
+        top_v = float(to_display(np.array([1.0, 1.0, 1.0]))[0])
+        assert toe_v < 0.05 and top_v < 0.95, \
+            "the preview is the engine's film curve (0.01 -> %.3f, 1.0 -> %.3f on the screen)" % (toe_v, top_v)
         # ------------------------------------------------ 2026-10-02, the levels
         # the picture's whites reach white -- the moon, bone -- and its
         # brightest skin comes near; a lit face stays a tone, not white;
@@ -2716,6 +2879,7 @@ def check(bite=None, rig=None):
     finally:
         LOOK.clear(); LOOK.update(saved)
         FIRE.clear(); FIRE.update(saved_fire)
+        FILM.clear(); FILM.update(saved_film)
         _FLAGS.clear()
     return True
 
@@ -2788,6 +2952,34 @@ def _check_names(bite=None):
                               r"|\b(?:SOFT|INK|EMBER|VIGNETTE|HAZE|BLOOD|BONE|GRAIN|PAPER)\b", code))
         assert not left, "placeholders left in %s: %s" % (path, sorted(left))
         assert "EyeAdaptationLookup" not in code, "the buffer is pre-exposed; do not expose it twice"
+    # the engine's post-process the look's volume pins is what tonemap()
+    # models (2026-10-03): SaudAnime::Film against FILM
+    film = h[h.index("namespace Film"):]
+    film = film[:film.index("}")]
+    for var, key in (("Slope", "slope"), ("Toe", "toe"), ("Shoulder", "shoulder"), ("BlackClip", "black_clip"),
+                     ("WhiteClip", "white_clip"), ("BlueCorrection", "blue_correction"),
+                     ("ExpandGamut", "expand_gamut"), ("ToneCurveAmount", "tone_curve"), ("Vignette", "vignette"),
+                     ("Bloom", "bloom"), ("Grain", "grain"), ("Fringe", "fringe")):
+        m = re.search(r"constexpr float %s = ([0-9.]+)f;" % var, film)
+        assert m, "SaudAnime.h's SaudAnime::Film has no %s" % var
+        assert abs(float(m.group(1)) - FILM[key]) < 1e-6, (
+            "SaudAnime::Film::%s is %s, the preview's FILM %s is %s" % (var, m.group(1), key, FILM[key]))
+        sub = open(os.path.join(ROOT, "Source", "SaudFighter", "Game", "SaudLookSubsystem.cpp")).read()
+        assert "SaudAnime::Film::%s;" % var in sub, "USaudLookSubsystem does not pin Film::%s" % var
+    # ... and the curve's own tables are what they must be: the derived
+    # white-point change is the engine's (UE's D65_2_D60_CAT), the blue
+    # correction keeps white and its two tables are inverses, the wide
+    # gamut's white is D65
+    import numpy as np
+    M = film_mats()
+    ue_cat = np.array([[1.01303, 0.00610531, -0.014971], [0.00769823, 0.998165, -0.00503203],
+                       [-0.00284131, 0.00468516, 0.924507]])
+    assert np.abs(M["D65_2_D60"] - ue_cat).max() < 1e-4, "the derived D65 -> D60 is not the engine's"
+    assert np.abs(np.array(_BLUE).sum(1) - 1).max() < 1e-4, "the blue correction moves white"
+    assert np.abs(np.array(_BLUE_INV) @ np.array(_BLUE) - np.eye(3)).max() < 1e-4, "the blue tables are not inverses"
+    assert np.abs(np.array(_WIDE_2_XYZ).sum(1) - M["D65"]).max() < 1e-4, "the wide gamut's white is not D65"
+    g = tonemap(np.array([0.18, 0.18, 0.18]))
+    assert np.abs(g - 0.18).max() < 0.005, "the film curve keeps 0.18 at 0.18 (%s)" % g
     # the HUD is drawn in the look's own ink, bone, blood and ember:
     # SaudHud::Colour in SaudAnime.h (since 2026-09-28; SaudHUD.cpp's InkC
     # and BoneC before, which no longer exist)

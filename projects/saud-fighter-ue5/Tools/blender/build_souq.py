@@ -2787,6 +2787,12 @@ def import_meshes(names):
         ui.import_as_skeletal = False; ui.mesh_type_to_import = unreal.FBXImportType.FBXIT_STATIC_MESH
         t.options = ui; tasks.append(t)
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
+    # every texture set as its data was written and every slot on its
+    # M_Surface instance: the FBX importer's own materials read data maps
+    # as sRGB colour (Tools/look/surfaces.py, 2026-10-03)
+    sys.path.insert(0, LOOK_DIR)
+    import surfaces  # noqa: E402
+    surfaces.build()
     return {name: unreal.load_asset("%s/%s" % (MESH_DIR, name)) for name in names}
 
 

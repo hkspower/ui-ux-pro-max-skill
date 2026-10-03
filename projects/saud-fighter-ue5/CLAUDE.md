@@ -3890,6 +3890,104 @@ preview's display values and may want moving once the real tonemapper is
 seen. The moon drawn 18 degrees under the light it stands for is a
 choice, not an accident.
 
+## The colours, as the game will show them -- 2026-10-03
+
+Asked as "improve colors accuracy", settled as the Unreal build and all
+four of: the previews equal to the game, the textures imported right, the
+data colours matching, and the men's skin and kit true.
+
+**The previews were lighter than the game would be.** `anime_look.
+to_display()` -- which every preview, check and render goes through -- was a
+plain clip and an sRGB encoding, a stand-in for the engine's tonemapper. UE
+5's default is its filmic curve (ACES-derived, `PostProcessCombineLUTs`),
+and in the dark where this game lives it is nothing like a clip: it keeps
+0.18 at 0.18 but crushes the toe -- a 0.01 world shadow shows at 0.021 on the
+screen, not 0.10 -- and rolls 1.0 off to 0.72. Measured on the souq fight:
+the levels set the day before for a median of 0.23 gave 0.087 through the
+real curve, and with no levels it was 0.051, not the 0.112 the old preview
+read. The picture the author asked to brighten would have stayed dark.
+
+**Now** (`anime_look.py`): `tonemap()` is that curve at the engine's
+defaults (`FILM`: slope 0.88, toe 0.55, shoulder 0.26, black clip 0, white
+clip 0.04, blue correction 0.6, gamut expansion 1.0), with the ACES glow
+and red modifier, the 0.96 / 0.93 desaturations and the blue correction
+out and back; its colour spaces are derived from their primaries and white
+points, and the three tables that are the engine's own are checked against
+what they must be (the derived D65-to-D60 is UE's to 0.000005; the blue
+correction keeps white and its two tables are inverses; the wide gamut's
+white is D65). The look's volume pins all of it (`SaudAnime::Film`,
+`USaudLookSubsystem`), so a level or a project setting cannot make the game
+differ from the preview, and turns off the engine's own vignette (0.4 by
+default, under the look's), bloom (on by default, with no threshold), grain
+and colour fringe -- each would land on the picture before `M_Anime_Frame`
+and none is in the preview. **The levels were re-set through the real
+curve**: (0.02, 0.68, 1.25) -> (0.0, 0.68, 1.75) -- the median back to
+0.228, the fighters 0.224, the world 0.236, the sky 0.204, the moon and bone
+white, ink black, a lit face a tone -- and moved BEFORE the vignette (after
+it, the gamma lifted the corners back to 72 % and the vignette all but
+went). `display()` is still a plain encoding: it is for the colours
+`M_Anime_Frame` itself draws, after the tonemapper.
+
+**The textures** (`Tools/look/surfaces.py`, new). Blender writes colour
+maps in sRGB and every other map as data; Unreal imports a PNG as sRGB
+colour unless told otherwise, and nothing told it: the 51 roughness maps
+would have read through the sRGB curve (a stored 0.5 as 0.21, every surface
+far shinier than painted), the metallic and the mask likewise, and the
+materials were left to the FBX importer, which samples what it recognises
+its own way. Now one table (`ROLES`) sets each kind of map's sRGB,
+compression and sampler; in the editor `surfaces.py` imports every PNG
+under `Content/Textures` itself, sets it, builds `M_Surface` (a colour, a
+normal and a linear roughness sampler, a metallic, an emissive) and an
+instance per texture set, and puts each on every mesh slot that names its
+set (a man's `<Man>_<Part>`, the souq's `M_Souq_<Part>`). The souq's iron,
+ember and lantern glass take their metal and light from `build_souq.py`'s
+own tables. `build_souq.import_meshes` runs it after its import; after
+importing the men, run `py Tools/look/surfaces.py` in the editor once.
+Checked: 51 sets, 149 files -- every file has a role, a normal map is one, a
+data map is grey, every surface has its colour and roughness, every data
+role imports linear and every sampler agrees with its texture, and read
+back through Blender's FBX importer every slot of the six men and the souq
+is a set on disk with its maps linked where their names say; 7 of 7
+sabotages caught.
+
+**The data colours** (`Tools/look/data_colours.py`, new): every colour the
+Unreal tools copy from the browser -- the twelve fighters' skin, kit, hair,
+beard and cap (`hero/roster.py`), the nine places' ground
+(`build_world.THEME_GROUND`) and the souq's (`build_souq.BROWSER_ART`) --
+against `DT_Colors.csv`, the browser's export: 81 copies, every one the
+data's; 4 of 4 sabotages caught. What was broken: `build_world.py` could
+not run at all. Its check 27 parsed the ground pairs out of `index.html`,
+which lost them to `assets/themes.js` on 2026-10-02 ("Every colour in the
+data"); it reads `DT_Colors.csv` now, and its 19 sabotages still bite.
+
+**The men's skin and kit** (`data_colours.py --baked`): every man's baked
+colour maps against the colours they were meant to bake to
+(`finish.palette_for`), in CIELAB. Skin 0.8-1.4 (a shade darker: the
+mottle, flush and stubble painted in), tops and trousers 0.2-0.7, shoes
+1.3, ZAYOS's gloves 0.1 -- nothing over the 2.3 an eye can just tell apart,
+so nothing was re-baked; hair, on the darkest quarter of its texels (most
+of a cut's map is its faded sides, painted as skin through stubble, and
+AL-SAQR's crest is one strip), 0.0-2.6 against 3.0. 28 maps; the sabotage
+is caught.
+
+**Checked:** `anime_look.py`'s checks pass, with new ones (the preview is
+the film curve; the engine settings pinned are the preview's; the curve's
+tables) and `--bite` BITES_RESULT; the harness passes. RENDERS_RESULT
+
+**Not verified:** no engine has run any of it. The film curve is
+reproduced from memory of the engine's shader and checked only against
+itself and the white points -- not against a frame UE drew; the LUT the
+engine bakes it into (32 cubed, log-spaced) is not modelled, nor the
+tonemapper's sharpen, nor local exposure. `bOverride_ToneCurveAmount`,
+`BlueCorrection`, `ExpandGamut`, the asset paths and property names in
+`surfaces.build()` (srgb, compression_settings, sampler_type, the
+MaterialEditingLibrary calls, a SkeletalMesh's `materials`,
+`/Engine/EngineMaterials/FlatNormal`) are UE 5.4's as remembered. The
+emissive strengths carried over from Blender's are its units, not the
+engine's. Seen, not touched: the body materials still have no `HitFlash`
+or `IronArmLevel` parameter and the skin no subsurface profile (each
+already "not built" above); `M_Surface` is where they would go.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

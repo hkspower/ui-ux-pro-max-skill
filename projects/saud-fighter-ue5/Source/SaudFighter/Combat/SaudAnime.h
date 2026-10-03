@@ -55,6 +55,30 @@ namespace SaudAnime
 	    (so after TSR and bloom, which would soften a one-frame cut). */
 	constexpr const SaudChar* FrameMaterialPath = SAUD_TEXT("/Game/Materials/Anime/M_Anime_Frame.M_Anime_Frame");
 
+	/** What the look's volume pins in the engine's own post-process
+	    (2026-10-03, "improve colors accuracy"): the film curve at UE 5's
+	    defaults, set rather than inherited so a level's volume or a project
+	    setting cannot make the game differ from the preview, which models
+	    exactly this curve (anime_look.FILM, checked against these); and the
+	    engine's vignette, bloom, grain and colour fringe off -- the look
+	    draws its own vignette in M_Anime_Frame and none of the others, and
+	    each would land on the picture before that material sees it. */
+	namespace Film
+	{
+		constexpr float Slope = 0.88f;
+		constexpr float Toe = 0.55f;
+		constexpr float Shoulder = 0.26f;
+		constexpr float BlackClip = 0.0f;
+		constexpr float WhiteClip = 0.04f;
+		constexpr float BlueCorrection = 0.6f;
+		constexpr float ExpandGamut = 1.0f;
+		constexpr float ToneCurveAmount = 1.0f;
+		constexpr float Vignette = 0.0f;
+		constexpr float Bloom = 0.0f;
+		constexpr float Grain = 0.0f;
+		constexpr float Fringe = 0.0f;
+	}
+
 	namespace Param
 	{
 		constexpr const SaudChar* Impact = SAUD_TEXT("Impact");
