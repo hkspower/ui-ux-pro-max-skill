@@ -53,6 +53,16 @@ dark", below. "Grounded, muted colour" above now means that: Kuwait's
 palette weathered to soot and stone, with Kuwait's red and a lamp's
 flame the colours left standing.
 
+**Since 2026-10-03 it wears the System's style** ("make all game same solo
+leveling all design", settled as its style and none of its names,
+characters or logos): the HUD and the menus are a game's own system's
+windows -- navy panels, glowing cyan edges, ice lettering, crimson for
+danger, violet for Saud's power -- heavy blows flash cyan, Saud's full rage
+burns as a violet aura with glowing eyes, and the night is navy with a cyan
+rim on the fighters. The ink, the flat tones and the dark stay. See "The
+System's HUD", "The System's menus", "Saud's power-up, and the System's
+hits" and "The System's night".
+
 **What to avoid:** chibi or super-deformed proportions, oversized eyes, moe
 softness, pastel palettes, bouncy squash-and-stretch, anything that reads
 as a mobile gacha art style -- and, the other way, going back to plain PBR
@@ -4478,6 +4488,31 @@ which is the known bug -- there is no Rage row, so the finisher never
 starts ("Known, not fixed"); until that is fixed only the full-rage aura
 burns. The eyes follow his facing, not his head's turn (the runtime IK turns
 the head up to 70 degrees off it).
+
+## The System's night -- 2026-10-03
+
+The fourth and last part of "#94" (the Solo Leveling style): the look's
+grade, in `Tools/look/anime_look.py`'s table only.
+
+- **Navy shadows**: `SHADOW_TINT` (0.78, 0.88, 1.04) -> (0.70, 0.84, 1.14),
+  slate to navy.
+- **A cyan rim**: the hard edge of light on a man's shadow side
+  (`RIM_TINT`) the System's cyan, (0.48, 0.92, 1.32), where it was a cold
+  white (0.70, 0.88, 1.18): a manhwa's back-light.
+- **A navy night**: the fog (`HAZE`) (0.036, 0.050, 0.088) and the painted
+  sky (`SKY_HORIZON` 0.026 0.036 0.074, `SKY_ZENITH` 0.004 0.007 0.022),
+  bluer and a shade darker.
+- **A cleaner page**: grain 0.03 -> 0.02 and the paper's tooth 0.025 ->
+  0.012. Two other changes were tried and taken back because the look's
+  own rules refused them: a lighter shadow line (`INK_SHADOW` 1.40) made
+  the line no longer heavier where the light leaves (1.69x against the
+  1.7x held), and a steadier brush (`BRUSH_VAR` 0.14) left the line not
+  breathing along its length (0.00 px). Both kept as they were.
+
+**Checked:** every `anime_look.py` check passes. RENDERS_LINE
+
+**Not verified:** no engine has built the materials; the previews are the
+numpy mirror through the film curve, as before.
 
 ## Working rules
 

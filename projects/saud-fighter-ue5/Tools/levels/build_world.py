@@ -1292,6 +1292,27 @@ def _world_materials(P):
     return mis, ember
 
 
+def import_city(names):
+    """Inside the editor: the city's sector meshes (Tools/blender/build_city.py)
+    into /Game/Models/City, and their surfaces set as surfaces.py sets every
+    other one. Read-reviewed, not run."""
+    import unreal  # noqa: E402
+    models = os.path.join(PROJECT, "Content", "Models", "City")
+    tasks = []
+    for name in names:
+        t = unreal.AssetImportTask()
+        t.filename = os.path.join(models, name + ".fbx"); t.destination_path = "/Game/Models/City"
+        t.automated = True; t.save = True; t.replace_existing = True
+        ui = unreal.FbxImportUI(); ui.import_mesh = True; ui.import_materials = True; ui.import_textures = True
+        ui.import_as_skeletal = False; ui.mesh_type_to_import = unreal.FBXImportType.FBXIT_STATIC_MESH
+        t.options = ui; tasks.append(t)
+    unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
+    sys.path.insert(0, _LOOK_DIR)
+    import surfaces  # noqa: E402
+    surfaces.build()
+    return {name: unreal.load_asset("/Game/Models/City/%s" % name) for name in names}
+
+
 def build(P):
     import unreal  # noqa: E402  (only importable inside the editor)
 
@@ -1349,6 +1370,24 @@ def build(P):
     if souq_names:
         mesh.update(SOUQ.import_meshes(souq_names))
 
+    # --- the seven city districts as real 3D (2026-10-03,
+    #     Tools/blender/build_city.py): a district's buildings are its
+    #     sector meshes, placed at its middle; the plots' cubes stay where
+    #     they were as invisible collision, so the game collides with
+    #     exactly what it did and the meshes collide with nothing
+    city_json = os.path.join(PROJECT, "Content", "Models", "City", "City_placement.json")
+    city = json.load(open(city_json)) if os.path.exists(city_json) else None
+    covered = {c["row"] for c in city["plots"]} if city else set()
+    if city:
+        mesh.update(import_city(sorted(city["sectors"])))
+        for name, sec in sorted(city["sectors"].items()):
+            d = city["districts"][sec["district"]]
+            a = spawn(unreal.StaticMeshActor, name, d["x"], d["y"], GROUND_Z, 0.0, folder="City/%s" % sec["district"])
+            c = a.get_component_by_class(unreal.StaticMeshComponent)
+            c.set_static_mesh(mesh[name])
+            a.set_mobility(unreal.ComponentMobility.STATIC)
+            c.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
+
     # --- the place
     for i, p in enumerate(P["scenery"]):
         if p.get("mesh"):
@@ -1373,8 +1412,13 @@ def build(P):
         mi = mis.get((theme_of(p, P), ROLE_OF_KIND.get(p["kind"])))
         if p.get("fire"):
             folder = "Night"
-        piece("%s_%d" % (p["kind"], i), p["shape"], p["x"], p["y"], p["z"],
-              p["sx"], p["sy"], p["sz"], p.get("yaw", 0.0), p["solid"], folder, mi)
+        a = piece("%s_%d" % (p["kind"], i), p["shape"], p["x"], p["y"], p["z"],
+                  p["sx"], p["sy"], p["sz"], p.get("yaw", 0.0), p["solid"], folder, mi)
+        if i in covered:
+            # a city plot: its building is the sector mesh; the cube is its collision
+            a.set_actor_hidden_in_game(True)
+            a.get_component_by_class(unreal.StaticMeshComponent).set_visibility(False)
+            a.set_folder_path("%s/City/Collision" % FOLDER)
         if p.get("fire"):
             # the fire's top: an ember bed on the post's cap
             piece("%s_%d_embers" % (p["kind"], i), "disc", p["x"], p["y"], p["z"] + p["sz"] * 0.5 + 1.0,

@@ -104,6 +104,13 @@ def constants():
         "Souq_Iron": dict(metallic=B.ROUGH["metallic"], emissive=(0.0, 0.0, 0.0)),
         "Souq_Ember": dict(metallic=0.0, emissive=tuple(c * B.EMBER["strength"] for c in B.EMBER["emission"])),
         "Souq_Glass": dict(metallic=0.0, emissive=tuple(c * 3.0 for c in lantern)),
+        # the city's (Tools/blender/build_city.py, 2026-10-03): its metal,
+        # its glass, its lit windows and its floodlights
+        "City_Steel": dict(metallic=B.ROUGH["metallic"], emissive=(0.0, 0.0, 0.0)),
+        "City_Corrugated": dict(metallic=B.ROUGH["metallic"], emissive=(0.0, 0.0, 0.0)),
+        "City_Glass": dict(metallic=0.3, emissive=(0.0, 0.0, 0.0)),
+        "City_Lit": dict(metallic=0.0, emissive=tuple(c * 4.0 for c in B._lin(B._hex("#ffcf8a"))[:3])),
+        "City_Lamp": dict(metallic=0.0, emissive=tuple(c * 12.0 for c in B._lin(B._hex("#fff2d6"))[:3])),
     }
 
 
@@ -144,7 +151,8 @@ def _fbx_misses(sets):
     except ImportError:
         return None
     miss = []
-    files = sorted(glob.glob(os.path.join(MODELS, "*.fbx"))) + sorted(glob.glob(os.path.join(MODELS, "Souq", "*.fbx")))
+    files = (sorted(glob.glob(os.path.join(MODELS, "*.fbx"))) + sorted(glob.glob(os.path.join(MODELS, "Souq", "*.fbx")))
+             + sorted(glob.glob(os.path.join(MODELS, "City", "*.fbx"))))
     seen = set()
     for f in files:
         bpy.ops.wm.read_factory_settings(use_empty=True)
