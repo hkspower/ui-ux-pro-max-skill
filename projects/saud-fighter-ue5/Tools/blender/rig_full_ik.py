@@ -743,6 +743,9 @@ def stance(rig, fk, mesh=None, plant=("l", "r")):
             # Saud only, 2026-09-30) -- straight forward whatever the foot's
             # yaw, his rear knee sat 18.7 cm inside the foot's own line
             poles["CTRL_knee_" + s] = legacy.knee_pole(hip, knee, ankle, pb["ball_" + s].head.copy())
+        elif fk.get("knee_pole") == "track" and "pole_fwd" not in SABOTAGE:
+            # the bosses' stances (2026-10-03): the bend along the foot
+            poles["CTRL_knee_" + s] = legacy.knee_track_pole(hip, knee, ankle, pb["ball_" + s].head.copy())
         else:
             poles["CTRL_knee_" + s] = knee + Vector((0, -0.6, 0))
         poles["CTRL_elbow_" + s] = legacy._pole_from(shoulder, elbow, wrist, Vector((0, 1, 0)))

@@ -178,6 +178,32 @@ TORSO = ("spine_01", "spine_02", "spine_03", "neck_01", "head")
 # for byte (the Street and boss walks lock their knees the same way; "every
 # other man keeps what he has").
 STEPS_SETS = {"mma"}
+# The stances whose stepping knees go over to knee_track_pole and whose
+# planted knees are held over their toes (knee_toe_check): Saud's, and the
+# three bosses' (2026-10-03). Their walks are otherwise authored as before.
+KNEE_TRACK_SETS = STEPS_SETS | {"kickboxer", "peekaboo", "heavy"}
+
+
+# Each boss's own strike (2026-10-03, "improve all bosses' fight style"):
+# one move of his own move list, thrown the way his stance throws it -- more
+# body in it, through the torso's aims and turn only, so the striking limb's
+# path, its timing and where it lands are the move's as before.
+#   AL-WAHSH (peekaboo), the hook: rolled under from the crouch, the chest
+#     down and round further.
+#   AL-SAQR (kickboxer), the round kick: the hip turned right over.
+#   ZAYOS (heavy), the cross: the whole shoulder driven through it.
+# stance -> (move, torso aims, twist, (what, at least)); signature_check
+# holds the turn at contact against the guard, degrees: the chest's (the
+# line across the clavicles) or the hips' (across the thighs). Measured
+# 2026-10-03: AL-WAHSH's hook chest 85 plain -> 94, ZAYOS's cross 66 -> 80,
+# AL-SAQR's kick hips 18 -> 29; each "at least" is half way.
+SIGNATURE = {
+    "peekaboo":  ("Hook", dict(spine_02=(0.08, -0.28, 0.96), spine_03=(0.16, -0.32, 0.93)),
+                  {"pelvis": 0.38, "spine_01": 0.34, "spine_02": 0.40, "spine_03": 0.46}, ("chest", 90.0)),
+    "kickboxer": ("Kick", {}, {"pelvis": 0.48, "spine_01": 0.34, "spine_02": 0.26}, ("hips", 23.0)),
+    "heavy":     ("Cross", dict(spine_03=(0.0, -0.30, 0.95)),
+                  {"pelvis": 0.32, "spine_01": 0.26, "spine_02": 0.32, "spine_03": 0.36}, ("chest", 73.0)),
+}
 
 
 def _strikes(base=None, stance=None):
@@ -292,6 +318,12 @@ def _strikes(base=None, stance=None):
         lowerarm_r=(-0.24, -0.40, 0.88),
         spine_02=(0.16, -0.16, 0.97), spine_03=(0.10, -0.10, 0.99),
     ), {"pelvis": 0.20})
+
+    # ---- each boss's signature (SIGNATURE): his own strike, with more body
+    if stance in SIGNATURE and "no_signature" not in SABOTAGE:
+        mv, aims, twist, _held = SIGNATURE[stance]
+        shape, tw = S[mv]
+        S[mv] = (dict(shape, **aims), dict(tw, **twist))
 
     # ---- and the one that is not a strike: what he does between them
     S["Guard"] = (dict(G), {})
@@ -1141,10 +1173,13 @@ def planted_pole(s, fk, g, up=0.0, at=None, track=0.0):
     bend a knee backwards if nothing held them. --bite "knee_fwd_pole" is
     the straight-forward pole on a stance that asked for the other."""
     from mathutils import Vector
-    if g and g.get("knee_pole") == "foot" and "knee_fwd_pole" not in SABOTAGE:
+    if g and g.get("knee_pole") in ("foot", "track") and "knee_fwd_pole" not in SABOTAGE:
         import build_saud as L
         ankle, ball = at if at else (fk["an_" + s], fk["ball_" + s])
-        pole = L.knee_pole(fk["hip_" + s], fk["kn_" + s], ankle, ball, back=("knee" in SABOTAGE))
+        # "track" (the bosses' stances, 2026-10-03): knee_track_pole's knee,
+        # standing and stepping alike
+        solve = L.knee_pole if g["knee_pole"] == "foot" else L.knee_track_pole
+        pole = solve(fk["hip_" + s], fk["kn_" + s], ankle, ball, back=("knee" in SABOTAGE))
         # a stepping foot (`track`, 0..1: how far it has left its guard
         # spot) hands its knee to knee_track_pole, the knee over its toes
         # however the leg leans (2026-10-03); the guard's own knee is kept
@@ -1216,7 +1251,7 @@ def floor_pole(s, up, g, pz):
     re-solved guard's feet), and the biggest knee move a frame is the
     keyed rear foot's slide, the same in Content (Down 11.6 / 11.1 cm,
     GetUp 36.3 / 34.4)."""
-    if not (g and g.get("knee_pole") == "foot"):
+    if not (g and g.get("knee_pole") in ("foot", "track")):
         return knee_forward(s, up=up, g=g)
     gz = g["pelvis"].translation.z + g["dz"]
     w = max(0.0, min(1.0, 1.0 - (gz - pz) / FLOOR_POLE_FADE))
@@ -1447,7 +1482,7 @@ def author_walk(au, c, S):
             # 20 cm behind the hip, the landing one 34 ahead)
             here = (g["ctrl_foot_" + s].translation + shift, g["ball_" + s] + shift) if steps else None
             feet[s] = (Matrix.Translation(shift) @ g["ctrl_foot_" + s],
-                       knee_forward(s, g=g, at=here, track=track_of(shift) if steps else 0.0), roll)
+                       knee_forward(s, g=g, at=here, track=track_of(shift) if c["guard"] in KNEE_TRACK_SETS else 0.0), roll)
             if down:
                 plant[s][f] = (g["ball_" + s] + d * (centre[s] + off) + pull[s], roll)
                 if stance_fixed and roll > 0.0:
@@ -1571,7 +1606,7 @@ def author_dash(au, c, S):
             shift = d * (reach * air) + Vector((0.0, 0.0, up * air))
             here = (g["ctrl_foot_" + s].translation + shift, g["ball_" + s] + shift) if steps else None
             feet[s] = (Matrix.Translation(shift) @ g["ctrl_foot_" + s],
-                       knee_forward(s, g=g, at=here, track=track_of(shift) if steps else 0.0), 0.0)
+                       knee_forward(s, g=g, at=here, track=track_of(shift) if c["guard"] in KNEE_TRACK_SETS else 0.0), 0.0)
             if air < 1e-6:
                 plant[s][f] = (g["ball_" + s].copy(), 0.0)
         # the arms ride the body's tilt (hands up, as in the guard, in the
@@ -2113,6 +2148,71 @@ def planted_runs(frames, N):
     return runs
 
 
+def knee_toe_check(c, rig, fails):
+    """The knee over its toes on every planted frame (KNEE_TRACK_SETS),
+    read off the baked bones; run by steps_check for Saud and by verify()
+    for the bosses' guards, walks and blocks."""
+    import bpy
+    from mathutils import Vector
+    pb, W = rig.pose.bones, rig.matrix_world
+    plant = c.get("plant") or {}
+
+    def go(f):
+        bpy.context.scene.frame_set(f); bpy.context.view_layer.update()
+
+    def P(n):
+        return (W @ pb[n].matrix).translation.copy()
+
+    # ---- the knee over its toes on every planted frame, sideways too
+    # (--bite "knee_screw", 2026-10-03): the angle the knee's bend
+    # makes with the foot's heading about the hip-to-ankle line, + when
+    # the knee is inside the toes. The cm band above leaves sideways
+    # out; this does not, and it caught the side step's planted knee
+    # swinging 70 degrees outside to 73 inside over one stance.
+    c["knee_toe"] = {}
+    for s, marks in plant.items():
+        o = "r" if s == "l" else "l"
+        lo, hi = 0.0, 0.0
+        for f in sorted(marks):
+            go(f + 1)
+            hip, kn, an, ball = P("thigh_" + s), P("calf_" + s), P("foot_" + s), P("ball_" + s)
+            if math.degrees((kn - hip).angle(an - kn)) < 10.0:
+                continue
+            e = (an - hip).normalized()
+            perp = lambda v: v - e * v.dot(e)
+            kd, fd = perp(kn - hip), perp(Vector((ball.x - an.x, ball.y - an.y, 0.0)))
+            if kd.length < 1e-6 or fd.length < 1e-6:
+                continue
+            kd.normalize(); fd.normalize()
+            ang = math.degrees(fd.angle(kd)) * (1.0 if perp(P("thigh_" + o) - hip).dot(kd - fd) > 0.0 else -1.0)
+            lo, hi = min(lo, ang), max(hi, ang)
+        c["knee_toe"][s] = (lo, hi)
+        if hi > KNEE_STEP_IN or -lo > KNEE_STEP_OUT:
+            fails.append("%s: the planted %s knee turns %.0f degrees %s its toes (at most %.0f)" % (
+                c["name"], s, hi if hi > KNEE_STEP_IN else -lo, "inside" if hi > KNEE_STEP_IN else "outside",
+                KNEE_STEP_IN if hi > KNEE_STEP_IN else KNEE_STEP_OUT))
+
+
+def signature_check(c, rig, fails):
+    """A boss's own strike (SIGNATURE) turns the chest or the hips at
+    contact at least as far as it says, against the guard's first frame.
+    --bite "no_signature" throws the plain move."""
+    import bpy
+    pb, W = rig.pose.bones, rig.matrix_world
+    what, least = SIGNATURE[c["guard"]][3]
+    l, r = ("clavicle_l", "clavicle_r") if what == "chest" else ("thigh_l", "thigh_r")
+
+    def yaw(f):
+        bpy.context.scene.frame_set(f); bpy.context.view_layer.update()
+        d = (W @ pb[r].head) - (W @ pb[l].head)
+        return math.degrees(math.atan2(d.y, d.x))
+    turn = (yaw(c["contact"] + 1) - yaw(1) + 180.0) % 360.0 - 180.0
+    c["signature"] = (what, turn)
+    if turn < least:
+        fails.append("%s: his own strike turns the %s %.0f degrees at contact, want %.0f" % (
+            c["name"], what, turn, least))
+
+
 def steps_check(c, rig, fails, ik):
     """The step checks (2026-09-30, "improve steps"), on Saud's guard,
     walks, dashes and block (STEPS_SETS), read off the baked bones like the
@@ -2234,34 +2334,7 @@ def steps_check(c, rig, fails, ik):
                         c["name"], s, abs(off) * 100.0, "inside" if off < 0 else "outside", f + 1))
                     break
             c["knee_off"][s] = span_off
-        # ---- the knee over its toes on every planted frame, sideways too
-        # (--bite "knee_screw", 2026-10-03): the angle the knee's bend
-        # makes with the foot's heading about the hip-to-ankle line, + when
-        # the knee is inside the toes. The cm band above leaves sideways
-        # out; this does not, and it caught the side step's planted knee
-        # swinging 70 degrees outside to 73 inside over one stance.
-        c["knee_toe"] = {}
-        for s, marks in plant.items():
-            o = "r" if s == "l" else "l"
-            lo, hi = 0.0, 0.0
-            for f in sorted(marks):
-                go(f + 1)
-                hip, kn, an, ball = P("thigh_" + s), P("calf_" + s), P("foot_" + s), P("ball_" + s)
-                if math.degrees((kn - hip).angle(an - kn)) < 10.0:
-                    continue
-                e = (an - hip).normalized()
-                perp = lambda v: v - e * v.dot(e)
-                kd, fd = perp(kn - hip), perp(Vector((ball.x - an.x, ball.y - an.y, 0.0)))
-                if kd.length < 1e-6 or fd.length < 1e-6:
-                    continue
-                kd.normalize(); fd.normalize()
-                ang = math.degrees(fd.angle(kd)) * (1.0 if perp(P("thigh_" + o) - hip).dot(kd - fd) > 0.0 else -1.0)
-                lo, hi = min(lo, ang), max(hi, ang)
-            c["knee_toe"][s] = (lo, hi)
-            if hi > KNEE_STEP_IN or -lo > KNEE_STEP_OUT:
-                fails.append("%s: the planted %s knee turns %.0f degrees %s its toes (at most %.0f)" % (
-                    c["name"], s, hi if hi > KNEE_STEP_IN else -lo, "inside" if hi > KNEE_STEP_IN else "outside",
-                    KNEE_STEP_IN if hi > KNEE_STEP_IN else KNEE_STEP_OUT))
+        knee_toe_check(c, rig, fails)
         if not lateral:
             # ---- walk_support (--bite "flat_pelvis"): the pelvis passes
             # within 20 cm of the support foot's ball during its stance --
@@ -2499,6 +2572,10 @@ def verify(rig, made):
         # ---- the steps (2026-09-30): Saud's guard, walks, dashes and block
         if c["guard"] in STEPS_SETS and c["kind"] in ("guard", "walk", "dash", "block"):
             steps_check(c, rig, fails, ik)
+        elif c["guard"] in KNEE_TRACK_SETS and c["kind"] in ("guard", "walk", "dash", "block"):
+            knee_toe_check(c, rig, fails)
+        if c["kind"] == "strike" and c["guard"] in SIGNATURE and SIGNATURE[c["guard"]][0] == c["move"]:
+            signature_check(c, rig, fails)
             rig.animation_data.action = act
         if c["kind"] == "strike":
             tip = TIP[c["limb"]]
@@ -2888,6 +2965,8 @@ def bite():
         ("swing clears",   "low_swing",       ["A_Saud_Walk_Fwd"],      "clears only"),
         ("hips turn",      "still_hips",      ["A_Saud_Walk_Fwd"],      "hips turn only"),
         # the bosses (2026-10-03): a heavier man is moved less by a blow
+        ("boss knees",     "knee_fwd_pole", ["A_Boss_Guard", "A_Zayos_Walk_Fwd", "A_Saqr_Walk_Left"], "its toes"),
+        ("boss signature", "no_signature", ["A_Boss_Hook", "A_Saqr_Kick", "A_Zayos_Cross"], "his own strike"),
         ("heavy men give", "no_give", ["A_Saud_Hit_Head_Straight", "A_Zayos_Hit_Head_Straight"], "for his weight"),
     ]
     # The POSTURE track's keys, proved on the clip path (2026-09-30): each

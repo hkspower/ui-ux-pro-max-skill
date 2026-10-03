@@ -785,6 +785,9 @@ def limb_targets(arm_obj, mesh_obj, fk, plant):
                 # turned out 35 degrees, had its knee 18.7 cm inside the
                 # foot's own line -- knee_pole says the rest
                 poles["Pole_Knee_" + side] = knee_pole(hip, knee, ankle, world @ pb["ball_" + side].head)
+            elif fk.get("knee_pole") == "track":
+                # the bosses' stances (2026-10-03): the bend along the foot
+                poles["Pole_Knee_" + side] = knee_track_pole(hip, knee, ankle, world @ pb["ball_" + side].head)
             else:
                 poles["Pole_Knee_" + side] = knee + Vector((0, -0.6, 0))
         else:
@@ -1271,6 +1274,16 @@ HEAVY_GUARD = _stance(
     hand_r=(0.124, -0.474, 0.872),
     **{"twist:pelvis": -0.200},
 )
+# The bosses' planted knees over their toes too (2026-10-03, "improve all
+# bosses' fight style ik"): straight forward, the turned-out rear foot of
+# each boss stance had its knee 31 degrees inside its toes in the guard and
+# up to 42 in a step. "track" is knee_track_pole's knee, the bend along the
+# foot's own heading across the hip-to-ankle line: knee_pole's (Saud's
+# "foot") reads the shin from above, and on ZAYOS's wide stance, whose legs
+# slant out, that put the rear knee 49 degrees OUTSIDE its toes. Their
+# soles are left as they were.
+for _g in (KICKBOXER_GUARD, PEEKABOO_GUARD, HEAVY_GUARD):
+    _g["knee_pole"] = "track"
 GUARDS = {"boxer": GUARD, "mma": MMA_GUARD, "kickboxer": KICKBOXER_GUARD,
           "peekaboo": PEEKABOO_GUARD, "heavy": HEAVY_GUARD}
 STANCE_OF = {"saud": "mma", "saqr": "kickboxer", "boss": "peekaboo", "zayos": "heavy"}
