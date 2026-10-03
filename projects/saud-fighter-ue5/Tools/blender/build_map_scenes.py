@@ -394,6 +394,45 @@ def moon_ground(rig):
     return MOON_ENERGY * math.sin(math.radians(-rig["pitch"]))
 
 
+def attenuation_pools():
+    """How far out spawn_night ends each light, in its own pools -- the
+    fire's and the lantern's -- read from its source, so the scene's window
+    follows the editor's numbers and cannot drift from them."""
+    import inspect
+    import re
+    src = inspect.getsource(_bw().SOUQ.spawn_night)
+    fire = re.search(r'set_attenuation_radius\(f\["pool"\] \* ([\d.]+) \* 100\.0\)', src)
+    lan = re.search(r'set_attenuation_radius\(NIGHT\["lantern"\]\["pool_m"\] \* ([\d.]+) \* 100\.0\)', src)
+    assert fire and lan, "spawn_night no longer says how far its lights reach"
+    return float(fire.group(1)), float(lan.group(1))
+
+
+def _engine_falloff(L, reach_m):
+    """The engine's window on a light's inverse-square falloff over its
+    attenuation radius: saturate(1 - (d / R)^4)^2, d the distance from the
+    light (a light shader's Ray Length; measured against the formula on a
+    plane, 2026-10-03). Cycles' own point light never ends, and summed over
+    a district's fires those tails lifted the ground between the pools past
+    the lit tone, where the game's lights, ended at three pools
+    (spawn_night), would leave it the night's."""
+    L["attenuation_m"] = reach_m
+    if "no_window" in SABOTAGE:
+        return
+    L.use_nodes = True
+    nt = L.node_tree
+    em = nt.nodes["Emission"]
+    lp = nt.nodes.new("ShaderNodeLightPath")
+    d = nt.nodes.new("ShaderNodeMath"); d.operation = "DIVIDE"; d.inputs[1].default_value = reach_m
+    p4 = nt.nodes.new("ShaderNodeMath"); p4.operation = "POWER"; p4.inputs[1].default_value = 4.0
+    om = nt.nodes.new("ShaderNodeMath"); om.operation = "SUBTRACT"; om.inputs[0].default_value = 1.0; om.use_clamp = True
+    sq = nt.nodes.new("ShaderNodeMath"); sq.operation = "POWER"; sq.inputs[1].default_value = 2.0
+    nt.links.new(lp.outputs["Ray Length"], d.inputs[0])
+    nt.links.new(d.outputs[0], p4.inputs[0])
+    nt.links.new(p4.outputs[0], om.inputs[1])
+    nt.links.new(om.outputs[0], sq.inputs[0])
+    nt.links.new(sq.outputs[0], em.inputs["Strength"])
+
+
 def _camera(name, eye, target, lens, view, air_m=None, coll=None):
     import bpy
     from mathutils import Vector
@@ -644,6 +683,7 @@ def build_world(out=None):
     # --- the night: every fire and lit lantern where spawn_night puts it
     night = _coll("Night")
     E_moon = moon_ground(rig)
+    fire_pools, lantern_pools = attenuation_pools()
     lan = SOUQ._lin(SOUQ._hex(SOUQ.NIGHT["lantern_hex"]))[:3]
     for d in P["districts"].values():
         Q = d.get("night") or (SOUQ.night_of(d["souq"]) if "souq" in d else None)
@@ -656,6 +696,7 @@ def build_world(out=None):
             L.shadow_soft_size = 0.15
             L.use_temperature = True
             L.temperature = f["temp"]
+            _engine_falloff(L, f["pool"] * fire_pools)
             o = bpy.data.objects.new(L.name, L)
             o.location = ((d["ox"] + f["x"]) / 100, (d["oy"] + f["y"]) / 100, f["z"] / 100 + f["h"])
             o["night_fire"] = 1; o["district"] = name; o["kind"] = f["kind"]
@@ -665,6 +706,7 @@ def build_world(out=None):
             L.energy = 4.0 * math.pi * l["I"] * E_moon
             L.color = lan
             L.spot_size = math.radians(2.0 * l["cone"]); L.spot_blend = 0.4; L.shadow_soft_size = 0.05
+            _engine_falloff(L, SOUQ.NIGHT["lantern"]["pool_m"] * lantern_pools)
             o = bpy.data.objects.new(L.name, L)
             o.location = ((d["ox"] + l["x"]) / 100, (d["oy"] + l["y"]) / 100, l["z"] / 100)
             ya, pa = math.radians(l["yaw"]), math.radians(l["pitch"])
@@ -1151,6 +1193,7 @@ def shared_planes(objs):
 def check_world(miss=None):
     import bpy
     miss = [] if miss is None else miss
+    bpy.context.view_layer.update()        # every object's matrix as it stands now, not as last evaluated
     BW, P, city, covered = world_plan()
     objs = list(bpy.data.objects)
     # the primitives, district by district
@@ -1202,6 +1245,20 @@ def check_world(miss=None):
         lit = sum(1 for o in objs if o.type == "LIGHT" and o.get("night_fire") and o.get("district") == d["stage"]["Name"])
         if lit != n:
             miss.append("%s: %d night lights in the scene, the plan has %d" % (d["stage"]["Name"], lit, n))
+    # every night light ends where spawn_night ends it, with the engine's window
+    fire_pools, lantern_pools = attenuation_pools()
+    reach = {}
+    for d in P["districts"].values():
+        Q = d.get("night") or (BW.SOUQ.night_of(d["souq"]) if "souq" in d else None)
+        for i, f in enumerate([] if Q is None else Q["fires"] + Q["door_fires"]):
+            reach["Fire_%s_%02d" % (d["stage"]["Name"], i)] = f["pool"] * fire_pools
+        for i, l in enumerate([] if Q is None else Q["lanterns"]):
+            reach["Lantern_%s_%02d" % (d["stage"]["Name"], i)] = BW.SOUQ.NIGHT["lantern"]["pool_m"] * lantern_pools
+    wrong = [o.name for o in objs if o.type == "LIGHT" and o.get("night_fire") and
+             (abs(o.data.get("attenuation_m", -1.0) - reach.get(o.name, -2.0)) > 1e-6 or o.data.node_tree is None or
+              not any(n.type == "LIGHT_PATH" and n.outputs["Ray Length"].links for n in o.data.node_tree.nodes))]
+    if wrong:
+        miss.append("the night: %d lights without the engine's end (%s ...)" % (len(wrong), wrong[0]))
     # every district's pieces round its middle, inside its reach
     for d in P["districts"].values():
         name = d["stage"]["Name"]
@@ -1231,6 +1288,7 @@ def check_prologue(miss=None):
     import bpy
     import build_prologue as BP
     miss = [] if miss is None else miss
+    bpy.context.view_layer.update()        # every object's matrix as it stands now, not as last evaluated
     acts = [a for a in BP.plan() if a["kind"] in ("Floor", "Wall")]
     objs = {o.name: o for o in bpy.data.objects if "actor" in o}
     if sorted(objs) != sorted(a["name"] for a in acts):
@@ -1251,6 +1309,7 @@ def check_island(miss=None):
     import bpy
     import numpy as np
     miss = [] if miss is None else miss
+    bpy.context.view_layer.update()        # every object's matrix as it stands now, not as last evaluated
     BML, P = island_plan()
     dg = bpy.context.evaluated_depsgraph_get()
     land = bpy.data.objects.get("Landscape")
@@ -1508,6 +1567,7 @@ def bite():
     case("a cage post moved", "prologue", post_moved, "not where the plan puts it")
     case("a prop moved", "island", prop_moved, "not where the plan puts it")
     case("the streets' tops on one plane", "world", None, "share a plane", rebuild="shared_planes")
+    case("the fires never end", "world", None, "engine's end", rebuild="no_window")
     case("the ground's height read wrong", "island", None, "not its heightmap", rebuild="height_scale")
     case("plants lost", "island", None, "plants", rebuild="lost_plants")
     # the rendered view's own rule: a lit district's pools, its fires out
