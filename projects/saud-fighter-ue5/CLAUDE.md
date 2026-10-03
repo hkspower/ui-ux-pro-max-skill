@@ -4982,7 +4982,12 @@ near stand's corner; the ring whole; each district from over its outside
 edge looking in across it; the island whole, from over the sea off its
 west-north-west; its landing from off the pier's end; its third clearing
 from the trail coming up to it; its temple from the gate. Each is rendered
-by `anime_preview.render_scene` and drawn through both anime materials.
+by `anime_preview.render_scene` (1600 x 900, 32 samples: about a minute a
+district, a minute and a half an island view) and drawn through both anime
+materials. The ring's view keeps its direction and centres its frame on the
+ring by the lens's shift: seen from above, a ring's near side is large and
+its far side small, and aimed at its middle the frame left a quarter of
+sky. `--render <scene> --view A,B` draws only those.
 
 **The choices, each only here:**
 - **A map view's air.** The look's air and its line fade are lengths for
@@ -5034,7 +5039,8 @@ heightmap at every vertex, its sea; every camera's target inside the
 middle 80 % of its frame and the first thing along the line to it near it.
 And the rendered views: at least 30 % of the frame world, its middle grey
 0.06-0.75, ink on at least 0.3 % of it, and a view of a lit district with
-a pool where a fire out-lights the moon. Every view passes them.
+a pool where a fire out-lights the moon. Every view passes them (the ring
+missed the 30 % of world at 19 % until it was centred).
 
 **Seen, not touched** (where the levels and these scenes part): the stone
 island's last beach step tops out at its plateau's own height (both 0 cm,
