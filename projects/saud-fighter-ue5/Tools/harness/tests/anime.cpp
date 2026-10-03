@@ -283,13 +283,13 @@ static int CountPart(EHudPart Pt)
     for (int t = 0; t < List.NumTris; ++t) N += List.Tris[t].Part == Pt;
     return N;
 }
-static const FHudText* FindText(EHudText Slot)
+static const FHudText* FindText(EHudText Slot, EHudGroup G = EHudGroup::Street, bool AnyGroup = true)
 {
     for (int t = 0; t < List.NumTexts; ++t)
-        if (List.Texts[t].Slot == Slot) return &List.Texts[t];
+        if (List.Texts[t].Slot == Slot && (AnyGroup || List.Texts[t].Group == G)) return &List.Texts[t];
     return nullptr;
 }
-/** The worst case the HUD can be in: everything up, low health (drips),
+/** The worst case the HUD can be in: everything up, low health (danger),
     full rage pulsing, a long count at its punch, an enraged boss. */
 static FHudState Worst(int Combo = 99, float Clock = 0.f)
 {
@@ -306,8 +306,7 @@ static FHudState Worst(int Combo = 99, float Clock = 0.f)
     everything it draws. */
 static bool Backing(EHudPart Pt)
 {
-    return Pt == EHudPart::Wash || Pt == EHudPart::Band || Pt == EHudPart::Rim || Pt == EHudPart::Splat
-        || Pt == EHudPart::Core || Pt == EHudPart::Slash;
+    return Pt == EHudPart::Panel || Pt == EHudPart::Head || Pt == EHudPart::Glow;
 }
 static void Coverage(const FPage& P, int Step, float& OutBacking, float& OutAll)
 {
@@ -339,29 +338,16 @@ static void Coverage(const FPage& P, int Step, float& OutBacking, float& OutAll)
     OutBacking = static_cast<float>(SumB / N);
     OutAll = static_cast<float>(SumA / N);
 }
-static float SegDist(const FPoint& P, const FPoint& A, const FPoint& B)
+static bool SameRgbLoose(const FRgba& A, const FRgba& B)
 {
-    const float Dx = B.X - A.X, Dy = B.Y - A.Y;
-    const float L2 = Dx * Dx + Dy * Dy;
-    const float T = L2 > 0.f ? std::fmax(0.f, std::fmin(1.f, ((P.X - A.X) * Dx + (P.Y - A.Y) * Dy) / L2)) : 0.f;
-    const float X = A.X + T * Dx - P.X, Y = A.Y + T * Dy - P.Y;
-    return std::sqrt(X * X + Y * Y);
-}
-static bool InRing(const FPoint& P, const FPoint* R, int N)
-{
-    bool In = false;
-    for (int i = 0, j = N - 1; i < N; j = i++)
-        if ((R[i].Y > P.Y) != (R[j].Y > P.Y)
-            && P.X < (R[j].X - R[i].X) * (P.Y - R[i].Y) / (R[j].Y - R[i].Y) + R[i].X)
-            In = !In;
-    return In;
+    return std::fabs(A.R - B.R) < 1e-4f && std::fabs(A.G - B.G) < 1e-4f && std::fabs(A.B - B.B) < 1e-4f;
 }
 
 static void Hud()
 {
     std::printf("HUD  (what Build draws)\n");
     bool AllIn = true, TextIn = true, Apart = true, Clear = true, Legible = true, Stroked = true, Wound = true;
-    bool Rimmed = true, NoNaN = true;
+    bool Edged = true, NoNaN = true;
     int Worst99 = 0;
     for (const auto& Sh : Shapes)
     {
@@ -392,8 +378,10 @@ static void Hud()
                 const FBox B = GroupBox(X.Group);
                 TextIn = TextIn && X.At.X >= B.X0 && X.At.X <= B.X1 && X.At.Y >= B.Y0 && X.At.Y + X.Height <= B.Y1 + 0.5f;
                 Legible = Legible && X.Height >= MinTextShare * P.ScreenH - 0.01f;
+                // every letter stroked in ink; a heading (cyan, or danger's
+                // crimson) at least 4.5:1 against it, the rest 7:1
                 Stroked = Stroked && X.Stroke >= 2.f * P.ScreenH / 720.f - 0.01f
-                                  && Contrast(X.Colour, Colour::Ink) >= 7.f;
+                                  && Contrast(X.Colour, Colour::Ink) >= (X.Slot == EHudText::Title ? 4.5f : 7.f);
             }
             // the three groups apart, and nothing in the fight (the middle
             // 40 % across, 60 % down)
@@ -417,30 +405,32 @@ static void Hud()
         Build(P, Rest, List);
         for (int t = 0; t < List.NumTexts; ++t) Legible = Legible && List.Texts[t].Height >= MinTextShare * P.ScreenH - 0.01f;
 
-        Build(P, Worst(99, 0.5f), List);
-        // the splat's ink rim: every point of the blood (and of each drop)
-        // inside its rim and at least 2 screen px from the rim's edge at 720
-        // lines, so the splat reads over a blood impact frame
-        for (int t = 0; t < List.NumTris;)
+        // every window: a solid edge at least 2 screen px at 720 lines, and
+        // a glow fading out from it to nothing
+        for (EHudGroup G : {EHudGroup::Player, EHudGroup::Combo, EHudGroup::Boss})
         {
-            if (List.Tris[t].Part != EHudPart::Rim) { ++t; continue; }
-            int R0 = t;
-            while (t < List.NumTris && List.Tris[t].Part == EHudPart::Rim) ++t;
-            const int S0 = t;
-            while (t < List.NumTris && List.Tris[t].Part == EHudPart::Splat) ++t;
-            const int N = S0 - R0;
-            if (t - S0 != N || N > 64) { Rimmed = false; continue; }
-            FPoint RimRing[64];
-            for (int i = 0; i < N; ++i) RimRing[i] = List.Tris[R0 + i].V[1].P;
-            for (int i = 0; i < N; ++i)
+            int Edges = 0, Glows = 0;
+            bool Fades = true;
+            for (int t = 0; t < List.NumTris; ++t)
             {
-                const FPoint& V = List.Tris[S0 + i].V[1].P;
-                float D = 1e9f;
-                for (int j = 0; j < N; ++j) D = std::fmin(D, SegDist(V, RimRing[j], RimRing[(j + 1) % N]));
-                Rimmed = Rimmed && InRing(V, RimRing, N) && D >= 2.f * P.ScreenH / 720.f - 0.01f;
+                const FHudTri& T = List.Tris[t];
+                if (T.Group != G) continue;
+                if (T.Part == EHudPart::Edge)
+                {
+                    ++Edges;
+                    for (const FHudVert& V : T.V) Edged = Edged && V.C.A >= 0.999f;
+                }
+                if (T.Part == EHudPart::Glow)
+                {
+                    ++Glows;
+                    float Lo = 1.f, Hi = 0.f;
+                    for (const FHudVert& V : T.V) { Lo = std::fmin(Lo, V.C.A); Hi = std::fmax(Hi, V.C.A); }
+                    Fades = Fades && Lo <= 1e-4f && Hi > 0.05f;
+                }
             }
+            Edged = Edged && Edges >= 12 && Glows >= 12 && Fades;
         }
-        if (CountPart(EHudPart::Rim) == 0) Rimmed = false;
+        Edged = Edged && EdgePx * P.ScreenH / PageH >= 1.33f * P.ScreenH / 1080.f - 0.01f;
     }
     Check(NoNaN, "the HUD's shapes are numbers");
     Check(AllIn, "every vertex the HUD draws is inside the title-safe area, at every screen shape");
@@ -450,7 +440,18 @@ static void Hud()
     Check(Legible, "no text the player reads is under 1/36 of the screen");
     Check(Stroked, "every text has an ink stroke of 2 screen px at 720 lines, 7:1 against its fill");
     Check(Wound, "no triangle is inverted or degenerate");
-    Check(Rimmed, "the combo's blood has an ink rim of 2 screen px round it");
+    Check(Edged, "every window has a solid edge and a glow fading out from it to nothing");
+
+    // the ice corner marks: two at each window's uncut corners, standing
+    // outside its panel
+    {
+        const FPage P = FPage::For(1920, 1080);
+        Build(P, Worst(99, 0.5f), List);
+        const FBox Br = PartBox(EHudPart::Bracket), Pn = PartBox(EHudPart::Panel);
+        Check(CountPart(EHudPart::Bracket) == 3 * 8 && Br.Any && Pn.Any
+              && Br.X0 < Pn.X0 && Br.X1 > Pn.X1 && Br.Y0 < Pn.Y0 && Br.Y1 > Pn.Y1,
+              "every window carries its corner marks, outside its panel");
+    }
 
     // how much of the screen it takes: the washes, the band and the splat,
     // alpha-weighted, at most 10.5 % of a 1080p screen (the dark fantasy's
@@ -467,13 +468,12 @@ static void Hud()
 
     // every bar reads against its trough (WCAG 2.1 1.4.11, 3:1), and the
     // trail against the blood it drains to
-    const float CBlood = Contrast(Colour::Blood, Colour::Trough), CAsh = Contrast(Colour::Ash, Colour::Trough);
-    const float CGold = Contrast(Colour::Gold, Colour::Trough), CEmber = Contrast(Colour::Ember, Colour::Trough);
-    const float CTrail = Contrast(Colour::Bone, Colour::Blood);
-    std::printf("  contrast: blood %.2f, ash %.2f, gold %.2f, ember %.2f against the trough; the trail %.2f\n",
-                CBlood, CAsh, CGold, CEmber, CTrail);
-    Check(CBlood >= 3.f && CAsh >= 3.f && CGold >= 3.f && CEmber >= 3.f && CTrail >= 3.f,
-          "every bar is 3:1 against its trough, and the trail against the blood");
+    const float CHealth = Contrast(Colour::Danger, Colour::Trough), CStam = Contrast(Colour::System, Colour::Trough);
+    const float CRage = Contrast(Colour::Shadow, Colour::Trough), CTrail = Contrast(Colour::Ice, Colour::Danger);
+    std::printf("  contrast: health %.2f, stamina %.2f, rage %.2f against the trough; the trail %.2f against the health\n",
+                CHealth, CStam, CRage, CTrail);
+    Check(CHealth >= 3.f && CStam >= 3.f && CRage >= 3.f && CTrail >= 3.f,
+          "every bar is 3:1 against its trough, and the trail against the health");
 
     // capacity: the worst case, twelve street bars on top, fits with room
     {
@@ -487,31 +487,41 @@ static void Hud()
         Check(!List.bOverflow && List.NumTris * 4 <= MaxTris * 3, "the worst case fits the draw list with room to spare");
     }
 
-    // drips: only at 30 % health or under, under the fill, never lower
-    // than 26 page px under the bar, and inside the wash
+    // danger: at 30 % health or under the player's window is edged in
+    // danger's crimson, and pulses; above, in the System's cyan
     {
         const FPage P = FPage::For(1920, 1080);
-        const FLayout L = Lay(P);
-        bool Only = true, Under = true, Some = false;
-        for (int k = 0; k < 56; ++k)
+        auto EdgeOf = [](EHudGroup G, FRgba& Out) {
+            for (int t = 0; t < List.NumTris; ++t)
+                if (List.Tris[t].Group == G && List.Tris[t].Part == EHudPart::Edge) { Out = List.Tris[t].V[0].C; return true; }
+            return false;
+        };
+        auto GlowOf = [](EHudGroup G) {
+            float A = 0.f;
+            for (int t = 0; t < List.NumTris; ++t)
+                if (List.Tris[t].Group == G && List.Tris[t].Part == EHudPart::Glow)
+                    for (const FHudVert& V : List.Tris[t].V) A = std::fmax(A, V.C.A);
+            return A;
+        };
+        bool Calm = true, Warns = true, Pulses = false;
+        float Lo = 1e9f, Hi = 0.f;
+        for (int k = 0; k < 40; ++k)
         {
-            FHudState S = Worst(99, 0.025f * static_cast<float>(k));
+            FHudState S = Worst(0, 0.05f * static_cast<float>(k));
+            S.bBoss = false;
+            FRgba E;
             S.Health = 0.31f;
             Build(P, S, List);
-            Only = Only && CountPart(EHudPart::Drip) == 0;
+            Calm = Calm && EdgeOf(EHudGroup::Player, E) && SameRgbLoose(E, Colour::System);
             S.Health = 0.30f;
             Build(P, S, List);
-            Some = Some || CountPart(EHudPart::Drip) > 0;
-            const float S0 = L.Health.H * Lean, End = L.Health.X + (L.Health.W - S0) * S.Health;
-            const FBox D = PartBox(EHudPart::Drip);
-            if (D.Any)
-                Under = Under && D.X0 >= L.Health.X - 0.01f && D.X1 <= End + 0.01f
-                              && D.Y0 >= L.Health.Y + L.Health.H - 0.01f
-                              && D.Y1 <= L.Health.Y + L.Health.H + P.Px(26.f) + 0.01f
-                              && D.Y1 <= L.Wash.Y + L.Wash.H - P.Px(TearPx) + 0.01f;
+            Warns = Warns && EdgeOf(EHudGroup::Player, E) && SameRgbLoose(E, Colour::Danger);
+            const float G = GlowOf(EHudGroup::Player);
+            Lo = std::fmin(Lo, G); Hi = std::fmax(Hi, G);
         }
-        Check(Only && Some, "blood drips from the health bar only at 30 % or under");
-        Check(Under, "and hangs under the fill, inside the wash");
+        Pulses = Hi - Lo > 0.1f;
+        Check(Calm && Warns, "at 30 % health or under the player's window is edged in danger; above, in the System's cyan");
+        Check(Pulses, "...and its glow pulses");
     }
 
     // the boss's banner: it wipes open over 0.40 s and never closes, his
@@ -528,20 +538,24 @@ static void Hud()
             FHudState S = Worst(0, 0.f);
             S.BossSince = Tb;
             Build(P, S, List);
-            const FBox B = PartBox(EHudPart::Band);
-            const float Wd = B.Any ? B.X1 - L.Banner.X : 0.f;
+            FBox B;
+            for (int t = 0; t < List.NumTris; ++t)
+                if (List.Tris[t].Group == EHudGroup::Boss && List.Tris[t].Part == EHudPart::Panel)
+                    for (const FHudVert& V : List.Tris[t].V) Add(B, V.P);
+            const float Wd = B.Any ? B.X1 - L.Boss.X : 0.f;
             Grows = Grows && Wd >= Was - 1e-3f;
             Was = Wd;
             if (k == 10) At10 = Wd;
             if (k == 40) At40 = Wd;
-            const bool bShown = FindText(EHudText::BossName) && CountPart(EHudPart::Slash) > 0;
-            const bool bHidden = !FindText(EHudText::BossName) && CountPart(EHudPart::Slash) == 0;
+            const FHudText* Heading = FindText(EHudText::Title, EHudGroup::Boss, false);
+            const bool bShown = FindText(EHudText::BossName) && Heading;
+            const bool bHidden = !FindText(EHudText::BossName) && !Heading;
             // (0.20 s written here, not read from the header)
             Cut = Cut && (Tb < 0.20f - 1e-4f ? bHidden : (Tb > 0.20f + 1e-4f ? bShown : true));
             // the fill ends where his health does, or where the band has
             // opened to, whichever is first
-            const float S0 = L.BossBar.H * Lean, End = L.BossBar.X + S0 + (L.BossBar.W - S0) * S.BossHealth;
-            const float Want = std::fmin(End, L.Banner.X + Wd);
+            const float S0 = 0.f, End = L.BossBar.X + L.BossBar.W * S.BossHealth;
+            const float Want = std::fmin(End, L.Boss.X + Wd - P.Px(PadPx));
             float Drawn = -1.f;
             for (int t = 0; t < List.NumTris; ++t)
                 if (List.Tris[t].Group == EHudGroup::Boss && List.Tris[t].Part == EHudPart::Fill)
@@ -549,18 +563,17 @@ static void Hud()
             if (Drawn >= 0.f) Honest = Honest && std::fabs(Drawn - Want) <= 0.5f;
             else Honest = Honest && Want <= L.BossBar.X + S0 + 1.5f;
         }
-        Check(Grows && At10 < 0.9f * L.Banner.W && At40 >= L.Banner.W - 0.5f,
-              "the boss's banner wipes open over 0.40 s and never closes");
-        Check(Cut, "his name and the slash cut in at 0.20 s");
-        Check(Honest, "the boss's bar is clipped as the band opens, never squeezed");
+        Check(Grows && At10 < 0.9f * L.Boss.W && At40 >= L.Boss.W - 0.5f,
+              "the boss's WARNING window wipes open over 0.40 s and never closes");
+        Check(Cut, "his name and its heading cut in at 0.20 s");
+        Check(Honest, "the boss's bar is clipped as the window opens, never squeezed");
     }
 
-    // A bar's quad: full width at 1, a line at 0, leaning right like a slash.
+    // A bar's quad: full width at 1, a line at 0, square like the System's.
     FPoint Q[4];
     const FRect R = {100, 50, 400, 40};
     BarQuad(R, 1.f, Q);
-    Check(Near(Q[2].X, R.X + R.W) && Near(Q[1].X - Q[0].X, R.H * Lean), "a full bar reaches its end, at its lean");
-    Check(Lean >= 0.3f, "the bars lean like a slash, not a box");
+    Check(Near(Q[2].X, R.X + R.W) && Near(Q[1].X, Q[0].X), "a full bar reaches its end, square");
     BarQuad(R, 0.f, Q);
     Check(Near(Q[3].X, Q[0].X) && Near(Q[2].X, Q[1].X), "an empty bar is a line");
     BarQuad(R, 7.f, Q);
@@ -598,25 +611,26 @@ static void Hud()
     }
     Check(Sums && InOrder, "the rage blocks are the rage, filled left to right");
 
-    // The splat: every tip stands out past every valley, and it turns 7
-    // degrees with every hit.
-    const FPoint C = {0, 0};
-    bool Tips = true;
-    for (int Count : {2, 7, 23, 99})
+    // The COMBO window: only from two hits, and the count between its
+    // heading and HITS, at its punch too
     {
-        float MinTip = 1e9f, MaxValley = 0.f;
-        for (int i = 0; i < 2 * SplatTips; ++i)
+        const FPage P = FPage::For(1920, 1080);
+        const FLayout L = Lay(P);
+        FHudState S = Worst(1, 0.f);
+        Build(P, S, List);
+        bool Only = GroupBox(EHudGroup::Combo).Any == false;
+        bool Between = true;
+        for (float Since : {0.f, 0.05f, 1.f})
         {
-            const FPoint Pt = SplatPoint(C, 100.f, Count, i);
-            const float Rr = std::sqrt(Pt.X * Pt.X + Pt.Y * Pt.Y);
-            if (i % 2) MaxValley = std::fmax(MaxValley, Rr); else MinTip = std::fmin(MinTip, Rr);
+            S = Worst(99, 0.f);
+            S.SinceCombo = Since;
+            Build(P, S, List);
+            const FHudText* N = FindText(EHudText::Count);
+            const FHudText* H = FindText(EHudText::Hits);
+            Between = Between && N && H && N->At.Y >= L.Combo.Y + P.Px(HeadH) - 0.5f && N->At.Y + N->Height <= H->At.Y + 0.5f;
         }
-        Tips = Tips && MinTip > MaxValley + 5.f;
+        Check(Only && Between, "the COMBO window shows from two hits, its count between its heading and HITS");
     }
-    Check(Tips, "the combo's splat: its tips stand out past its valleys");
-    const FPoint A3 = SplatPoint(C, 100, 3, 0), A4 = SplatPoint(C, 100, 4, 0);
-    const float Turned = FMath::RadiansToDegrees(std::atan2(A4.Y, A4.X) - std::atan2(A3.Y, A3.X));
-    Check(Near(Turned, 7.f, 0.01f), "and turns as the count rises");
     Check(Near(ComboPunch(0.f), 1.35f) && ComboPunch(1.f) < 1.001f, "the count punches and settles");
 }
 
@@ -633,27 +647,27 @@ static void Palette()
 {
     static FDrawList L;
     const FPage P = FPage::For(1920, 1080);
-    const char* Names[] = {"Ink", "Bone", "Blood", "Ember", "Trough", "Ash", "Gold"};
+    const char* Names[] = {"Ink", "Bone", "Blood", "Ember", "Trough", "Ash", "Gold", "System", "Panel", "Shadow", "Danger", "Ice"};
     bool bSlots = true;
     for (const char* N : Names) bSlots = bSlots && PaletteSlot(N) != nullptr;
     Check(bSlots && PaletteSlot("Pink") == nullptr, "every palette colour has a slot by its data name, and nothing else does");
     Check(SameRgb(LivePalette().Blood, Defaults::Blood) && SameRgb(Colour::Bone, Defaults::Bone),
           "the palette starts as the defaults");
-    const FRgba Saved = *PaletteSlot("Blood");
+    const FRgba Saved = *PaletteSlot("Danger");
     const FRgba Green{0.0f, 0.4f, 0.1f, 1.f};
-    *PaletteSlot("Blood") = Green;
+    *PaletteSlot("Danger") = Green;
     Build(P, Worst(99, 0.5f), L);
     bool bGreen = false, bOld = false;
     for (int t = 0; t < L.NumTris; ++t)
         for (const FHudVert& V : L.Tris[t].V)
         {
             bGreen = bGreen || SameRgb(V.C, Green);
-            bOld = bOld || SameRgb(V.C, Defaults::Blood);
+            bOld = bOld || SameRgb(V.C, Defaults::Danger);
         }
-    *PaletteSlot("Blood") = Saved;
-    Check(bGreen && !bOld, "a blood set in the live palette is the blood the HUD draws");
-    Check(SameRgb(Colour::Blood, Defaults::Blood), "and the palette put back is the default again");
-    std::printf("  the live palette: 7 slots; a blood set through it drawn\n");
+    *PaletteSlot("Danger") = Saved;
+    Check(bGreen && !bOld, "a danger set in the live palette is the danger the HUD draws");
+    Check(SameRgb(Colour::Danger, Defaults::Danger), "and the palette put back is the default again");
+    std::printf("  the live palette: 12 slots; a danger set through it drawn\n");
 }
 
 int main()

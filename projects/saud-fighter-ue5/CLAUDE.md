@@ -4309,6 +4309,67 @@ runtime holds the run's left foot and not its right; the run's own clip has
 its right foot on the floor. Whether 12 m is the right distance to drop the
 guard, only play will say.
 
+## The System's HUD -- 2026-10-03
+
+Asked as "#94 do" (the Solo Leveling style, the Unreal build), settled as
+its style and none of its names, characters or logos, in four parts: the
+HUD (this), the menus, Saud's power-up and the hits, and the look. This is
+the first. The browser build is untouched.
+
+**What it looks like.** Every part of the HUD is a window, the way a game's
+own system would talk to the man playing it: a deep navy panel cut at its
+top-left and bottom-right corners, a solid glowing edge with a glow fading
+out from it to nothing, a heading strip tinted the edge's colour with a
+hairline under it, and ice corner marks outside the two uncut corners.
+STATUS (top left): his name in ice, five violet rage cells that pulse
+toward ice when full, a cyan stamina bar and a crimson health bar with an
+ice trail where it was. COMBO (right): shown from two hits, the count in
+ice between its heading and HITS, punching as before. WARNING (bottom
+centre): a boss, edged in crimson, wiping open over 0.40 s, his name and
+the heading cutting in at 0.20 s, the bar clipped by the window as it
+opens. A street man's bar is crimson in a thin cyan frame. At 30 % health
+or under, the STATUS window is edged in crimson and its glow pulses
+(1.6 Hz); an enraged boss's glow pulses too. The bars are square now (Lean
+0). Gone: the ink-wash sweep, the leaning slashes, the blood splat and the
+drips ("The dark adult anime, redesigned").
+
+**The palette.** Five colours added to the look's table (`anime_look.py`,
+LOOK): `HUD_SYSTEM` cyan #46C8FF, `HUD_PANEL` navy #0A1226, `HUD_SHADOW`
+violet #8A4DFF, `HUD_DANGER` crimson #FF3355, `HUD_ICE` #EAF6FF. They go
+through the same path as the other seven: `anime_look.py --colors` writes
+them into `Content/Data/DT_LookColors.csv` (12 rows now, generated), the
+game copies them into `SaudHud::LivePalette()` (System, Panel, Shadow,
+Danger, Ice), and `SaudHud::Defaults` is held to LOOK by the look's check.
+
+**The layout** (`SaudHud::Lay`, page px at 1080 lines). Each window stands
+`WindowInset` (its edge plus its glow, 12) in from the safe lines, so its
+glow and corner marks end on them: the first layout hung the windows on
+the safe lines and every glow and corner mark stood past them, which the
+harness caught at all seven screen shapes. STATUS is 620 x 134 -- its top
+plus inset plus glow ends at 0.2 of the height, where the fight box begins
+(it was 168 tall and reached into the fight on every screen). His name is
+38 page px (46 before; 30 is the couch floor). The heading's text (STATUS,
+COMBO, WARNING) is a new text slot, `EHudText::Title`, drawn by
+`SaudHUD.cpp`.
+
+**Checked:** `tests/anime.cpp`'s HUD tests rewritten for the windows, as
+strict as before: every vertex in title-safe and nothing in the fight at
+seven shapes and every count 2-99; every text in title-safe on its own
+window and over 1/36 of the height; every text stroked, the headings 4.5:1
+against the ink and the rest 7:1; every window a solid edge and a glow
+fading to nothing; the corner marks outside the panels; every bar 3:1
+against its trough (health 5.22, stamina 9.77, rage 4.08, the trail 3.27
+against the health); the backing 10.3 % of a 1080p screen (at most 10.5);
+the danger edge and its pulse; the boss's window, cut-in and honest bar;
+the COMBO window only from two hits with its count between heading and
+HITS. `bites.txt`'s HUD sabotages rewritten: 48 of 48 of the anime test's
+caught. The harness passes whole; `anime_look.py`'s checks pass.
+`hud_preview.py` re-renders `Docs/renders/hud-{1080,21x9,4x3,lowhealth}.png`.
+
+**Not verified:** no engine has compiled the HUD or drawn it; the previews
+are the draw list rasterised by `hud_preview.py`. The menus still wear the
+dark seinen's ink and blood until the next part.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

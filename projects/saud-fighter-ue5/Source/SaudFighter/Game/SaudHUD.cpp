@@ -200,6 +200,11 @@ void ASaudHUD::Emit()
 				Text(T, B->DisplayName.ToString().ToUpper());
 			}
 			break;
+		case EHudText::Title:
+			// a System window's heading (SaudHud::ETitle)
+			Text(T, T.Value == static_cast<int>(SaudHud::ETitle::Status) ? TEXT("STATUS")
+			      : T.Value == static_cast<int>(SaudHud::ETitle::Combo) ? TEXT("COMBO") : TEXT("WARNING"));
+			break;
 		}
 	}
 	Flush(Done, List.NumTris);

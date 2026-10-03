@@ -439,6 +439,17 @@ LOOK = {
     "HUD_TROUGH": (0.006, 0.006, 0.008),
     "HUD_ASH": (0.2541, 0.2270, 0.1714),
     "HUD_GOLD": (0.3515, 0.1441, 0.0160),
+    # the System's (2026-10-03, "make all game same solo leveling all
+    # design": its style, none of its names): the windows' glowing edge and
+    # their headings (cyan #46C8FF), the panels (deep navy #0A1226), Saud's
+    # power and his rage (violet #8A4DFF), danger -- low health, a boss's
+    # warning, his health bar (crimson #FF3355), and the System's lettering
+    # (ice #EAF6FF). Linear, like the rest.
+    "HUD_SYSTEM": (0.0619, 0.5776, 1.0),
+    "HUD_PANEL": (0.0030, 0.0060, 0.0194),
+    "HUD_SHADOW": (0.2542, 0.0742, 1.0),
+    "HUD_DANGER": (1.0, 0.0331, 0.0908),
+    "HUD_ICE": (0.8228, 0.9216, 1.0),
     "IMPACT_CUT": 0.45,       # display luminance above which the cut frame is its tone
     # 7c. on an impact frame with the blow on screen, the cut is flipped
     # (tone for ink, ink for tone) along FOCUS lines -- FOCUS_COUNT cells
@@ -604,7 +615,9 @@ MPC_VECTORS = (("InkColour", "INK"), ("BoneColour", "BONE"), ("BloodColour", "BL
 # the palette the game reads from Content/Data/DT_LookColors.csv: its data
 # name and LOOK's key, in SaudHud::FPalette's order
 PALETTE = (("Ink", "INK"), ("Bone", "BONE"), ("Blood", "BLOOD"), ("Ember", "EMBER"),
-           ("Trough", "HUD_TROUGH"), ("Ash", "HUD_ASH"), ("Gold", "HUD_GOLD"))
+           ("Trough", "HUD_TROUGH"), ("Ash", "HUD_ASH"), ("Gold", "HUD_GOLD"),
+           ("System", "HUD_SYSTEM"), ("Panel", "HUD_PANEL"), ("Shadow", "HUD_SHADOW"),
+           ("Danger", "HUD_DANGER"), ("Ice", "HUD_ICE"))
 LOOK_COLORS_CSV = os.path.join(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")),
                                "Content", "Data", "DT_LookColors.csv")
 FIRE_PARAMS = ("FireHeat", "FireX", "FireY", "FireDirX", "FireDirY", "FireDepth", "FireScale", "FireTime",

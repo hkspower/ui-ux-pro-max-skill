@@ -30,31 +30,32 @@ anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float WoundHold = Frame;
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float WoundSeconds = 0.30f;#constexpr float WoundSeconds = 0.60f;#|the wound is held one frame, then falls straight to nothing at 0.30 s
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#if (L.WoundAmp > 0.f && L.WoundAmp >= WoundValue())#if (L.WoundAmp >= 0.f)#|a lighter blow never cuts a running wound short
 
-# ---- the HUD, as Build draws it
+# ---- the HUD, as Build draws it (the System's windows since 2026-10-03)
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#ComboFromRight = 172.f#ComboFromRight = 120.f#|every vertex the HUD draws is inside the title-safe area
-# the bug the old rect check missed: a keyline drawn outside its bar, on the safe line
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Health = {X + P.Px(26.f)#L.Health = {X#|every vertex the HUD draws is inside the title-safe area
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Name = {X + P.Px(26.f), Y + P.Px(10.f)};#L.Name = {X + P.Px(26.f), Y + P.Px(150.f)};#|every text is inside title-safe, on its own backing
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#WashW = 700.f#WashW = 1100.f#|the player's corner, the combo and the boss's banner never overlap
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#BannerH = 104.f#BannerH = 400.f#|nothing is drawn in the fight
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#WashAlpha = 0.86f#WashAlpha = 1.0f#;s#WashFadeFrom = 0.50f#WashFadeFrom = 1.0f#|the HUD's backing takes at most 10.5 % of the screen
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#HitsText = 34.f#HitsText = 24.f#|no text the player reads is under 1/36 of the screen
+# the bug the first System layout had: windows hung on the safe lines, their glow and corner marks past them
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float WindowInset = EdgePx + GlowPx;#constexpr float WindowInset = 0.f;#|every vertex the HUD draws is inside the title-safe area
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Name = {X + Pad, Y + Head + P.Px(6.f)};#L.Name = {X + Pad, Y + P.Px(400.f)};#|every text is inside title-safe, on its own backing
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#ComboDown = 300.f#ComboDown = 800.f#|the player's corner, the combo and the boss's banner never overlap
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#PlayerH = 134.f#PlayerH = 200.f#|nothing is drawn in the fight
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float PanelAlpha = 0.78f;#constexpr float PanelAlpha = 1.0f;#|the HUD's backing takes at most 10.5 % of the screen
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#HitsText = 32.f#HitsText = 24.f#|no text the player reads is under 1/36 of the screen
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#TextStroke = 3.f#TextStroke = 1.f#|every text has an ink stroke of 2 screen px at 720 lines
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#Blood{0.5271f, 0.0103f, 0.0137f, 1.f}#Blood{0.3325f, 0.0080f, 0.0080f, 1.f}#|every bar is 3:1 against its trough
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#TearPx = 7.f#TearPx = 160.f#|no triangle is inverted or degenerate
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float SplatRim = 1.f;#constexpr float SplatRim = 0.f;#|the combo's blood has an ink rim of 2 screen px
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Danger{1.0f, 0.0331f, 0.0908f, 1.f}#Danger{0.06f, 0.004f, 0.008f, 1.f}#|every bar is 3:1 against its trough
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float GlowPx = 10.f;#constexpr float GlowPx = -10.f;#|no triangle is inverted or degenerate
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#WithAlpha(Edge, 0.f), G, EHudPart::Glow#WithAlpha(Edge, 0.3f), G, EHudPart::Glow#|every window has a solid edge and a glow fading out from it to nothing
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Out.Quad(BL2, Ice, G, EHudPart::Bracket);#Out.Quad(BL2, Ice, G, EHudPart::Keyline);#|every window carries its corner marks, outside its panel
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr int MaxTris = 1024;#constexpr int MaxTris = 256;#|the worst case fits the draw list with room to spare
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#DripBelow = 0.30f#DripBelow = 1.0f#|blood drips from the health bar only at 30 % or under
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#R.X + Us\[k\] \* W, R.X + Half, R.X + W - Half#R.X + Us[k] * R.W, R.X + Half, R.X + R.W - Half#|and hangs under the fill, inside the wash
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#BannerRevealSeconds = 0.40f#BannerRevealSeconds = 0.f#|the boss's banner wipes open over 0.40 s
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#BannerCutInSeconds = 0.20f#BannerCutInSeconds = 0.f#|his name and the slash cut in at 0.20 s
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#const float F = FMath::Clamp(Fill, 0.f, 1.f) \* Span;#const float F = FMath::Clamp(Fill, 0.f, 1.f);#|the boss's bar is clipped as the band opens, never squeezed
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float Lean = 0.55f;#constexpr float Lean = 0.f;#|the bars lean like a slash, not a box
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#const bool bDanger = S.Health <= DangerBelow;#const bool bDanger = S.Health <= 1.f;#|at 30 % health or under the player's window is edged in danger
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#0.55f + 0.45f \* Pulse(S.Clock, DangerPulseHz) : 1.f;#1.f : 1.f;#|...and its glow pulses
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#BannerRevealSeconds = 0.40f#BannerRevealSeconds = 0.f#|the boss's WARNING window wipes open over 0.40 s
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#BannerCutInSeconds = 0.20f#BannerCutInSeconds = 0.f#|his name and its heading cut in at 0.20 s
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#const float F = FMath::Clamp(Fill, 0.f, 1.f) \* Span;#const float F = FMath::Clamp(Fill, 0.f, 1.f);#|the boss's bar is clipped as the window opens, never squeezed
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float Lean = 0.f;#constexpr float Lean = 0.55f;#|a full bar reaches its end, square
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#static constexpr float HoldSeconds = 0.45f;#static constexpr float HoldSeconds = 0.f;#|the ghost stays where the bar was
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#DrainPerSecond = 0.65f;#DrainPerSecond = 0.f;#|then drains down to it and never under
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#\* RageBlocks - static_cast<float>(Index)#* 4.f - static_cast<float>(Index)#|the rage blocks are the rage
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#: Radius \* (0.62f + 0.08f \* J)#: Radius * (0.84f + 0.16f * J)#|its tips stand out past its valleys
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#FMath::DegreesToRadians(7.f \* static_cast<float>(Count))#FMath::DegreesToRadians(0.f)#|and turns as the count rises
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#if (S.Combo >= 2)#if (S.Combo >= 1)#|the COMBO window shows from two hits
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#{L.Count.X, Mid - 0.5f \* H}#{L.Count.X, Mid - 2.f * H}#|its count between its heading and HITS
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#return 1.f + 0.35f \* FMath::Exp#return 1.f + 0.f * FMath::Exp#|the count punches and settles
 
 # ---- the controls (2026-09-30): the table, the words, the keys, the glyphs
@@ -372,7 +373,7 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#F.Still >= SettleSeconds#F.Still >= 1e9f
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const bool bSteady = F.bHeld \&\& bSettle \&\&#const bool bSteady = F.bHeld \&\& (bSettle \&\& false ? false : true) \&\&#|...but not in a swing
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#return !bSerialMoved \&\& KindOf(Shown) == EKind::Dash \&\& KindOf(Picked) == EKind::Dash;#return !bSerialMoved \&\& false \&\& KindOf(Shown) == KindOf(Picked);#|one dash keeps its clip
 # 2026-10-03, the colours from the data: the HUD draws the live palette
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#inline const FRgba\& Blood = LivePalette().Blood;#inline const FRgba\& Blood = Defaults::Blood;#|a blood set in the live palette is the blood the HUD draws
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#inline const FRgba\& Danger = LivePalette().Danger;#inline const FRgba\& Danger = Defaults::Danger;#|a danger set in the live palette is the danger the HUD draws
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#{"Gold", \&FPalette::Gold},##|every palette colour has a slot by its data name
 
 # 2026-10-03, the night's lights (SaudLight.h): drawn by their pool, shadowed by the nearest

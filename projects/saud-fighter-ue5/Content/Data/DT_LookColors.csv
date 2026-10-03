@@ -6,3 +6,8 @@ Look_Ember,Look,Look.Ember,#df763a,#df763a,0.87561,0.46136,0.22658,1
 Look_Trough,Look,Look.Trough,#121216,#121216,0.07016,0.07016,0.08610,1
 Look_Ash,Look,Look.Ash,#8a8373,#8a8373,0.54113,0.51376,0.45093,1
 Look_Gold,Look,Look.Gold,#a06a22,#a06a22,0.62742,0.41565,0.13335,1
+Look_System,Look,Look.System,#46c8ff,#46c8ff,0.27597,0.78433,1.00000,1
+Look_Panel,Look,Look.Panel,#0a1226,#0a1226,0.03876,0.07016,0.14910,1
+Look_Shadow,Look,Look.Shadow,#8a4dff,#8a4dff,0.54122,0.30193,1.00000,1
+Look_Danger,Look,Look.Danger,#ff3355,#ff3355,1.00000,0.19998,0.33326,1
+Look_Ice,Look,Look.Ice,#eaf6ff,#eaf6ff,0.91765,0.96471,1.00000,1

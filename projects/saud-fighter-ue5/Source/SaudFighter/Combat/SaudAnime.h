@@ -382,13 +382,16 @@ namespace SaudHud
 	constexpr float PageH = 1080.f;
 	constexpr float Safe = 0.05f;               // title-safe margin, each side
 	constexpr float Ink = 3.f;                  // a bar's ink keyline, page px (2 until 2026-09-28, 5 until 2026-09-26)
-	constexpr float Lean = 0.55f;               // bars lean this share of their height (flat 2026-09-26 to -28; 0.45 before)
+	/** Bars lean this share of their height: 0, square, since the System
+	    (2026-10-03; 0.55 for the dark seinen's slashes, 0.45 before). */
+	constexpr float Lean = 0.f;
 	constexpr float TextStroke = 3.f;           // the ink round every letter, page px: 2 screen px at 720 lines
 
-	constexpr float NameText = 46.f;            // page pixels, cap height class (36 until 2026-09-28)
-	constexpr float ComboText = 112.f;          // (104)
-	constexpr float BossNameText = 56.f;        // (40)
-	constexpr float HitsText = 34.f;            // "HITS" (NameText * 0.9 before)
+	constexpr float NameText = 38.f;            // page pixels, cap height class (36 until 2026-09-28, 46 until the System)
+	constexpr float ComboText = 96.f;           // (112 in the splat, 104 before)
+	constexpr float BossNameText = 52.f;        // (56, 40)
+	constexpr float HitsText = 32.f;            // "HITS"
+	constexpr float TitleText = 30.f;           // a window's heading: STATUS, COMBO, WARNING
 	/** Nothing the player must read is smaller than this share of the
 	    screen's height: about 30 px at 1080, legible at three metres. */
 	constexpr float MinTextShare = 1.f / 36.f;
@@ -425,13 +428,21 @@ namespace SaudHud
 		constexpr FRgba Ember{0.74f, 0.18f, 0.042f, 1.f};
 		constexpr FRgba Trough{0.006f, 0.006f, 0.008f, 1.f};
 		constexpr FRgba Ash{0.2541f, 0.2270f, 0.1714f, 1.f};     // #8A8374, stamina (moss #4A6E33 was 2.93:1)
-		constexpr FRgba Gold{0.3515f, 0.1441f, 0.0160f, 1.f};    // #A06A22, rage
+		constexpr FRgba Gold{0.3515f, 0.1441f, 0.0160f, 1.f};    // #A06A22, rage until the System
+		// the System (2026-10-03, its style, none of its names): see Build
+		constexpr FRgba System{0.0619f, 0.5776f, 1.0f, 1.f};     // #46C8FF, the windows' edge and headings
+		constexpr FRgba Panel{0.0030f, 0.0060f, 0.0194f, 1.f};   // #0A1226, the windows
+		constexpr FRgba Shadow{0.2542f, 0.0742f, 1.0f, 1.f};     // #8A4DFF, his rage, his power
+		constexpr FRgba Danger{1.0f, 0.0331f, 0.0908f, 1.f};     // #FF3355, health, low health, a boss
+		constexpr FRgba Ice{0.8228f, 0.9216f, 1.0f, 1.f};        // #EAF6FF, the System's lettering
 	}
 
 	struct FPalette
 	{
 		FRgba Ink = Defaults::Ink, Bone = Defaults::Bone, Blood = Defaults::Blood, Ember = Defaults::Ember;
 		FRgba Trough = Defaults::Trough, Ash = Defaults::Ash, Gold = Defaults::Gold;
+		FRgba System = Defaults::System, Panel = Defaults::Panel, Shadow = Defaults::Shadow;
+		FRgba Danger = Defaults::Danger, Ice = Defaults::Ice;
 	};
 
 	/** The one palette everything draws with. */
@@ -449,6 +460,8 @@ namespace SaudHud
 		static const FSlot Slots[] = {
 			{"Ink", &FPalette::Ink}, {"Bone", &FPalette::Bone}, {"Blood", &FPalette::Blood}, {"Ember", &FPalette::Ember},
 			{"Trough", &FPalette::Trough}, {"Ash", &FPalette::Ash}, {"Gold", &FPalette::Gold},
+			{"System", &FPalette::System}, {"Panel", &FPalette::Panel}, {"Shadow", &FPalette::Shadow},
+			{"Danger", &FPalette::Danger}, {"Ice", &FPalette::Ice},
 		};
 		for (const FSlot& S : Slots)
 		{
@@ -476,6 +489,11 @@ namespace SaudHud
 		inline const FRgba& Trough = LivePalette().Trough;
 		inline const FRgba& Ash = LivePalette().Ash;
 		inline const FRgba& Gold = LivePalette().Gold;
+		inline const FRgba& System = LivePalette().System;
+		inline const FRgba& Panel = LivePalette().Panel;
+		inline const FRgba& Shadow = LivePalette().Shadow;
+		inline const FRgba& Danger = LivePalette().Danger;
+		inline const FRgba& Ice = LivePalette().Ice;
 	}
 
 	/** The page laid onto a screen: scale by height, centred across. */
@@ -502,41 +520,56 @@ namespace SaudHud
 	};
 
 	// ------------------------------------------------------------ the layout
-	// Page px, from the safe corner they hang off.
-	constexpr float WashW = 700.f, WashH = 156.f;       // Saud's ink-wash sweep
-	constexpr float WashAlpha = 0.86f;
-	constexpr float WashFadeFrom = 0.50f;               // fades to nothing over the rest of its width
-	constexpr float TearPx = 7.f;                       // a torn edge bites this deep...
-	constexpr float PitchPx = 14.f;                     // ...every this far along
-	constexpr float ComboRadius = 124.f;                // (118 until 2026-09-28)
-	constexpr float ComboFromRight = 172.f;             // the splat's centre, in from the right safe line
+	// The System (2026-10-03, "make all game same solo leveling all
+	// design", settled as its style and none of its names): every part of
+	// the HUD is a window -- a deep navy panel cut at two corners, a
+	// glowing cyan edge, a heading strip -- the way a game's own system
+	// would talk to the man playing it. Page px, from the safe corner they
+	// hang off.
+	constexpr float PanelAlpha = 0.78f;
+	constexpr float CutPx = 16.f;                       // the panel's two cut corners
+	constexpr float EdgePx = 2.f;                       // its glowing edge
+	constexpr float GlowPx = 10.f;                      // ...and the glow fading out from it
+	constexpr float GlowAlpha = 0.45f;
+	constexpr float HeadH = 40.f;                       // the heading strip
+	constexpr float HeadAlpha = 0.18f;                  // its tint of the edge's colour
+	constexpr float BracketPx = 26.f, BracketW = 3.f;   // the corner marks outside the uncut corners
+	constexpr float PadPx = 22.f;
+	constexpr float PlayerW = 620.f, PlayerH = 134.f;   // STATUS: his name, rage, stamina, health
+	/** Every window stands this far in from the safe lines, so its glow and
+	    corner marks end on them, not past them. */
+	constexpr float WindowInset = EdgePx + GlowPx;
+	constexpr float ComboW = 280.f, ComboH = 206.f;     // COMBO: the count
+	constexpr float ComboFromRight = 172.f;             // the window's centre, in from the right safe line
 	constexpr float ComboDown = 300.f;                  // ...and down from the top one
-	constexpr float BannerW = 1120.f, BannerH = 104.f;  // the boss's title panel, bottom on the safe line
-	constexpr float BannerAlpha = 0.85f;
-	constexpr float BannerRevealSeconds = 0.40f;        // the band wipes open when he is first seen...
-	constexpr float BannerCutInSeconds = 0.20f;         // ...and his name and the slash cut in here
+	constexpr float BossW = 1080.f, BossH = 112.f;      // WARNING: a boss, bottom on the safe line
+	constexpr float BannerRevealSeconds = 0.40f;        // the window wipes open when he is first seen...
+	constexpr float BannerCutInSeconds = 0.20f;         // ...and his name and its heading cut in here
+	constexpr float EnemyBarW = 124.f, EnemyBarH = 10.f;   // over a street man
+	constexpr float EnemyInk = 1.5f;                    // its frame, page px
+	/** At or under this share of health the player's window is edged in
+	    danger and pulses (the blood drips until the System). */
+	constexpr float DangerBelow = 0.30f;
+	constexpr float DangerPulseHz = 1.6f;
+	/** The full rage pulses its cells this fast, toward ice. */
+	constexpr float RagePulseHz = 1.4f;
+	// shared with the menus (Combat/SaudMenu.h) until they take the System too
+	constexpr float TearPx = 7.f;
+	constexpr float PitchPx = 14.f;
 	constexpr float SlashLean = 1.0f;
 	constexpr float SlashAlpha = 0.92f;
-	constexpr float EnemyBarW = 124.f, EnemyBarH = 10.f;   // over a street man (110 x 7 before)
-	constexpr float EnemyInk = 1.5f;                    // its keyline, page px
-	/** At or under this share of health, blood drips hang under the bar. */
-	constexpr float DripBelow = 0.30f;
-	constexpr float DripMaxPx = 26.f;                   // how far a drip hangs, page px
-	constexpr float DripWidthPx = 5.f;
-	constexpr float DripCycleSeconds = 1.4f;            // grows over 80 % of it, then drops off
 
 	struct FLayout
 	{
-		FRect Wash;
-		FPoint Name;
+		FRect Player;
+		FPoint PlayerTitle, Name;
 		FRect Rage[RageBlocks];
 		FRect Stamina;
 		FRect Health;
-		FPoint Combo;
-		float ComboR = 0.f;
-		FRect Banner;
-		FRect Slash;
-		FPoint BossName;
+		FRect Combo;
+		FPoint ComboTitle, Count;
+		FRect Boss;
+		FPoint BossTitle, BossName;
 		FRect BossBar;
 		float EnemyBarW = 0.f, EnemyBarH = 0.f;
 	};
@@ -544,29 +577,32 @@ namespace SaudHud
 	inline FLayout Lay(const FPage& P)
 	{
 		FLayout L;
-		const float X = P.Left(), Y = P.Top();
-		L.Wash = {X, Y, P.Px(WashW), P.Px(WashH)};
-		L.Name = {X + P.Px(26.f), Y + P.Px(10.f)};
+		const float X = P.Left() + P.Px(WindowInset), Y = P.Top() + P.Px(WindowInset);
+		const float Pad = P.Px(PadPx), Head = P.Px(HeadH);
+		L.Player = {X, Y, P.Px(PlayerW), P.Px(PlayerH)};
+		L.PlayerTitle = {X + Pad, Y + 0.5f * (Head - P.Px(TitleText))};
+		L.Name = {X + Pad, Y + Head + P.Px(6.f)};
 		for (int i = 0; i < RageBlocks; ++i)
 		{
-			L.Rage[i] = {X + P.Px(232.f + 36.f * static_cast<float>(i)), Y + P.Px(24.f), P.Px(28.f), P.Px(20.f)};
+			L.Rage[i] = {X + P.Px(300.f + 58.f * static_cast<float>(i)), Y + Head + P.Px(18.f), P.Px(48.f), P.Px(16.f)};
 		}
-		L.Stamina = {X + P.Px(26.f), Y + P.Px(72.f), P.Px(440.f), P.Px(12.f)};
-		L.Health = {X + P.Px(26.f), Y + P.Px(94.f), P.Px(620.f), P.Px(28.f)};
-		L.ComboR = P.Px(ComboRadius);
-		L.Combo = {P.Right() - P.Px(ComboFromRight), Y + P.Px(ComboDown)};
-		const float BW = P.Px(BannerW), BH = P.Px(BannerH);
-		L.Banner = {0.5f * P.ScreenW - 0.5f * BW, P.Bottom() - BH, BW, BH};
-		L.Slash = {L.Banner.X + P.Px(22.f), L.Banner.Y + P.Px(8.f), P.Px(500.f), P.Px(50.f)};
-		L.BossName = {L.Banner.X + P.Px(46.f), L.Banner.Y + P.Px(4.f)};
-		L.BossBar = {L.Banner.X + P.Px(40.f), L.Banner.Y + P.Px(68.f), BW - P.Px(80.f), P.Px(22.f)};
+		L.Stamina = {X + Pad, Y + P.Px(88.f), P.Px(420.f), P.Px(10.f)};
+		L.Health = {X + Pad, Y + P.Px(102.f), P.Px(PlayerW) - 2.f * Pad, P.Px(22.f)};
+		const float CW = P.Px(ComboW), CH = P.Px(ComboH);
+		const float CX = P.Right() - P.Px(ComboFromRight), CY = Y + P.Px(ComboDown);
+		L.Combo = {CX - 0.5f * CW, CY - 0.5f * CH, CW, CH};
+		L.ComboTitle = {CX, L.Combo.Y + 0.5f * (Head - P.Px(TitleText))};
+		L.Count = {CX, L.Combo.Y + Head + 0.5f * (CH - Head - P.Px(HitsText) - P.Px(10.f))};
+		const float BW = P.Px(BossW), BH = P.Px(BossH);
+		L.Boss = {0.5f * P.ScreenW - 0.5f * BW, P.Bottom() - P.Px(WindowInset) - BH, BW, BH};
+		L.BossTitle = {L.Boss.X + Pad, L.Boss.Y + 0.5f * (Head - P.Px(TitleText))};
+		L.BossName = {L.Boss.X + Pad, L.Boss.Y + Head + 0.5f * (BH - Head - P.Px(BossNameText))};
+		L.BossBar = {L.Boss.X + P.Px(360.f), L.Boss.Y + Head + 0.5f * (BH - Head - P.Px(22.f)), BW - P.Px(360.f) - Pad, P.Px(22.f)};
 		L.EnemyBarW = P.Px(EnemyBarW);
 		L.EnemyBarH = P.Px(EnemyBarH);
 		return L;
 	}
 
-	/** A slanted quad's four corners, clockwise from the bottom left,
-	    leaning right by LeanShare of its height; Fill of the way along. */
 	inline void LeanQuad(const FRect& R, float Fill, float LeanShare, FPoint Out[4])
 	{
 		const float F = FMath::Clamp(Fill, 0.f, 1.f);
@@ -652,44 +688,23 @@ namespace SaudHud
 		return S - FloorF(S);
 	}
 
-	// ------------------------------------------------------------ the splat
-	/** The combo's blood splat: 2 * SplatTips points alternating tips (0.84
-	    to 1.00 of its radius) and valleys (0.62 to 0.70), jittered by the
-	    count and turned 7 degrees per hit, so a rising count visibly moves.
-	    (A sixteen-point seal from 2026-09-26, a twelve-point starburst
-	    before.) */
-	constexpr int SplatTips = 22;
-	constexpr float SplatCore = 0.58f;                  // the ink disc under the count, share of R
-	constexpr float SplatCoreAlpha = 0.94f;
-	constexpr int SplatDrops = 5;
-	/** The ink rim round the splat and its drops, in units of Ink: 3 page
-	    px, 2 screen px at 720 lines, so the blood reads on a blood impact
-	    frame (the HUD is not cut by it). */
-	constexpr float SplatRim = 1.f;
-
-	inline FPoint SplatPoint(const FPoint& Centre, float Radius, int Count, int i)
-	{
-		const float Turn = FMath::DegreesToRadians(7.f * static_cast<float>(Count));
-		const float A = Turn + static_cast<float>(i) * 3.14159265f / static_cast<float>(SplatTips);
-		const float J = HudHash(static_cast<float>(i + 3 * Count), 4.f);
-		const float R = (i % 2 == 0) ? Radius * (0.84f + 0.16f * J) : Radius * (0.62f + 0.08f * J);
-		return {Centre.X + R * FMath::Cos(A), Centre.Y + R * FMath::Sin(A)};
-	}
-
 	// ----------------------------------------------------------- the list
 	enum class EHudGroup : unsigned char { Player, Combo, Boss, Street };
 	/** What a triangle is part of: the harness finds each rule's shapes by
 	    it (the backing for coverage, the rim, the drips, the fill). */
 	enum class EHudPart : unsigned char
 	{
-		Wash, Band, Keyline, Trough, Trail, Fill, Drip, Rim, Splat, Core, Slash
+		Panel, Glow, Edge, Head, Bracket, Keyline, Trough, Trail, Fill
 	};
 	/** Which string a text item is: SaudHUD.cpp has the strings (the name,
-	    the count, "HITS", the boss's DisplayName); none is invented here. */
-	enum class EHudText : unsigned char { Name, Count, Hits, BossName };
+	    the count, "HITS", the boss's DisplayName, a window's heading by
+	    ETitle); none is invented here. */
+	enum class EHudText : unsigned char { Name, Count, Hits, BossName, Title };
+	/** A window's heading, by Value of an EHudText::Title. */
+	enum class ETitle : unsigned char { Status, Combo, Warning };
 
 	struct FHudVert { FPoint P; FRgba C; };
-	struct FHudTri { FHudVert V[3]; EHudGroup Group = EHudGroup::Player; EHudPart Part = EHudPart::Wash; };
+	struct FHudTri { FHudVert V[3]; EHudGroup Group = EHudGroup::Player; EHudPart Part = EHudPart::Panel; };
 	struct FHudText
 	{
 		EHudText Slot = EHudText::Name;
@@ -704,7 +719,7 @@ namespace SaudHud
 	};
 
 	constexpr int MaxTris = 1024;
-	constexpr int MaxTexts = 8;
+	constexpr int MaxTexts = 10;
 	constexpr int MaxStreetBars = 12;
 
 	/** Fixed capacity, no allocation. A shape that does not fit is dropped
@@ -807,139 +822,6 @@ namespace SaudHud
 		return {R.X - B, R.Y - B, R.W + 2.f * B, R.H + 2.f * B};
 	}
 
-	/** An ink strip with torn edges: columns every PitchPx, each edge bitten
-	    inward only by up to TearPx (the speed lines' hash), full AlphaFrom
-	    of its alpha to FadeFrom of its width and then fading to nothing
-	    (smoothstep) at its end. ClipW, when under R.W, cuts it off there:
-	    a band wiping open keeps its tears where they are. */
-	inline void TornStrip(FDrawList& Out, const FPage& P, const FRect& R, float Seed, float Alpha, float FadeFrom,
-	                      bool bTornBottom, float ClipW, EHudGroup G, EHudPart Pt)
-	{
-		const int N = static_cast<int>(FMath::Max(2.f, FloorF(R.W / P.Px(PitchPx) + 0.5f))) + 1;
-		const float Tear = P.Px(TearPx);
-		const float Stop = R.X + FMath::Clamp(ClipW, 0.f, R.W);
-		FPoint PrevT, PrevB;
-		FRgba PrevC;
-		for (int i = 0; i < N; ++i)
-		{
-			const float U = static_cast<float>(i) / static_cast<float>(N - 1);
-			float X = R.X + R.W * U;
-			float Yt = R.Y + Tear * HudHash(static_cast<float>(i), Seed);
-			float Yb = R.Y + R.H - (bTornBottom ? Tear * HudHash(static_cast<float>(i + 500), Seed) : 0.f);
-			const float K = U <= FadeFrom ? 0.f : FMath::Clamp((U - FadeFrom) / (1.f - FadeFrom), 0.f, 1.f);
-			float A = Alpha * (1.f - K * K * (3.f - 2.f * K));
-			bool bLast = false;
-			if (i > 0 && X > Stop)
-			{
-				// the column that straddles the clip: cut it there
-				const float T = (Stop - PrevT.X) / FMath::Max(X - PrevT.X, 1e-6f);
-				Yt = FMath::Lerp(PrevT.Y, Yt, T);
-				Yb = FMath::Lerp(PrevB.Y, Yb, T);
-				A = FMath::Lerp(PrevC.A, A, T);
-				X = Stop;
-				bLast = true;
-			}
-			const FPoint Tp = {X, Yt}, Bt = {X, Yb};
-			const FRgba C = WithAlpha(Colour::Ink, A);
-			if (i > 0 && X - PrevT.X > 0.25f)
-			{
-				const FPoint Q[4] = {PrevT, Tp, Bt, PrevB};
-				const FRgba Cs[4] = {PrevC, C, C, PrevC};
-				Out.Quad(Q, Cs, G, Pt);
-			}
-			PrevT = Tp;
-			PrevB = Bt;
-			PrevC = C;
-			if (bLast)
-			{
-				break;
-			}
-		}
-	}
-
-	/** A leaning bar: an ink keyline grown by KeyPx round it, the trough,
-	    the bone trail where the bar was (Ghost), then the fill. ClipW, when
-	    under R.W, cuts the whole bar off there -- clipped, never squeezed,
-	    so it never shows more health than there is. */
-	inline void SlashBar(FDrawList& Out, const FRect& R, float Fill, float Ghost, const FRgba& C, float KeyPx,
-	                     float ClipW, EHudGroup G)
-	{
-		const float S = R.H * Lean;
-		const float W = FMath::Min(R.W, ClipW);
-		if (W <= S + 1.f)
-		{
-			return;
-		}
-		// a share of the visible bar that ends where the true one would
-		const float Span = (R.W - S) / (W - S);
-		const FRect V = {R.X, R.Y, W, R.H};
-		FPoint Q[4];
-		LeanQuad(Grow(V, KeyPx), 1.f, Lean, Q);
-		Out.Quad(Q, Colour::Ink, G, EHudPart::Keyline);
-		BarQuad(V, 1.f, Q);
-		Out.Quad(Q, Colour::Trough, G, EHudPart::Trough);
-		const float F = FMath::Clamp(Fill, 0.f, 1.f) * Span;
-		const float Gh = FMath::Clamp(Ghost, 0.f, 1.f) * Span;
-		const float MinShare = 0.5f / FMath::Max(W - S, 1.f);   // under half a pixel is not drawn
-		if (Gh > F + MinShare)
-		{
-			BarQuad(V, Gh, Q);
-			Out.Quad(Q, WithAlpha(Colour::Bone, 0.9f), G, EHudPart::Trail);
-		}
-		if (F > MinShare)
-		{
-			BarQuad(V, F, Q);
-			Out.Quad(Q, C, G, EHudPart::Fill);
-		}
-	}
-
-	/** Blood hanging under a bar at or under DripBelow: three drips under
-	    the filled part, at 22, 58 and 86 % of it, each growing to DripMaxPx
-	    over 80 % of its own DripCycleSeconds and then dropping off (its top
-	    falls to its tip). Never lower than DripMaxPx under the bar. */
-	inline void Drips(FDrawList& Out, const FPage& P, const FRect& R, float Fill, float Clock, EHudGroup G)
-	{
-		if (Fill > DripBelow || Fill <= 0.f)
-		{
-			return;
-		}
-		const float W = (R.W - R.H * Lean) * FMath::Clamp(Fill, 0.f, 1.f);   // the fill's bottom edge
-		const float Half = 0.5f * P.Px(DripWidthPx);
-		if (W < 2.f * Half + 1.f)
-		{
-			return;
-		}
-		const float Us[3] = {0.22f, 0.58f, 0.86f};
-		const float Base = R.Y + R.H, Longest = P.Px(DripMaxPx);
-		for (int k = 0; k < 3; ++k)
-		{
-			const float X = FMath::Clamp(R.X + Us[k] * W, R.X + Half, R.X + W - Half);
-			const float Ph0 = Clock / DripCycleSeconds + HudHash(static_cast<float>(k), 9.f);
-			const float Ph = Ph0 - FloorF(Ph0);
-			const float Tip = Base + (Ph < 0.8f ? Longest * Ph / 0.8f : Longest);
-			const float Top = Ph < 0.8f ? Base : Base + Longest * (Ph - 0.8f) / 0.2f;
-			if (Tip - Top < 2.f * Half)
-			{
-				continue;
-			}
-			// a stem and a round end: the stem to one half-width above the
-			// tip, and a half disc under it
-			const float Neck = Tip - Half;
-			const FPoint Q[4] = {{X - Half, Top}, {X + Half, Top}, {X + Half, Neck}, {X - Half, Neck}};
-			Out.Quad(Q, Colour::Blood, G, EHudPart::Drip);
-			FPoint Arc[8];
-			for (int j = 0; j < 7; ++j)
-			{
-				const float A = 3.14159265f * static_cast<float>(j) / 6.f;
-				Arc[j] = {X + Half * FMath::Cos(A), Neck + Half * FMath::Sin(A)};
-			}
-			for (int j = 0; j < 6; ++j)
-			{
-				Out.Tri({X, Neck}, Colour::Blood, Arc[j], Colour::Blood, Arc[j + 1], Colour::Blood, G, EHudPart::Drip);
-			}
-		}
-	}
-
 	/** A polygon grown outward by D along its corners' bisectors (a mitred
 	    offset; the mitre held to five times D, where the splat's sharpest
 	    tip needs 4.5), for a ring given in screen winding order round a
@@ -966,54 +848,124 @@ namespace SaudHud
 		}
 	}
 
-	/** The combo: an ink rim, the blood splat, its drops (each ink-rimmed),
-	    and an ink disc for the count to sit on. */
-	inline void Splat(FDrawList& Out, const FPage& P, const FPoint& Centre, float R, int Count, EHudGroup G)
+	/** A window's outline: the rectangle with its top-left and bottom-right
+	    corners cut by Cut, six points turning clockwise on the screen. Clip,
+	    when under R.W, is where a window wiping open has got to. */
+	inline int WindowRing(const FRect& R, float Cut, FPoint Out[6])
 	{
-		constexpr int N = 2 * SplatTips;
-		FPoint Ring[N], Rim[N];
+		const float C = FMath::Min(Cut, 0.5f * FMath::Min(R.W, R.H));
+		Out[0] = {R.X + C, R.Y};
+		Out[1] = {R.X + R.W, R.Y};
+		Out[2] = {R.X + R.W, R.Y + R.H - C};
+		Out[3] = {R.X + R.W - C, R.Y + R.H};
+		Out[4] = {R.X, R.Y + R.H};
+		Out[5] = {R.X, R.Y + C};
+		return 6;
+	}
+
+	/** The band between two rings of N points (Outer round Inner), each
+	    side its own colour: an edge, or a glow fading out. */
+	inline void Band(FDrawList& Out, const FPoint* Inner, const FPoint* Outer, int N, const FRgba& In, const FRgba& Ou,
+	                 EHudGroup G, EHudPart Pt)
+	{
 		for (int i = 0; i < N; ++i)
 		{
-			Ring[i] = SplatPoint(Centre, R, Count, i);
+			const int j = (i + 1) % N;
+			const FPoint Q[4] = {Outer[i], Outer[j], Inner[j], Inner[i]};
+			const FRgba C[4] = {Ou, Ou, In, In};
+			Out.Quad(Q, C, G, Pt);
 		}
-		const float RimPx = P.Px(Ink * SplatRim);
-		GrowRing(Ring, N, RimPx, Rim);
-		Out.Fan(Centre, Rim, N, Colour::Ink, G, EHudPart::Rim);
-		Out.Fan(Centre, Ring, N, Colour::Blood, G, EHudPart::Splat);
-		const float Turn = FMath::DegreesToRadians(7.f * static_cast<float>(Count));
-		for (int k = 0; k < SplatDrops; ++k)
+	}
+
+	/** A System window: the glow fading out from its edge, the navy panel,
+	    the heading strip tinted the edge's colour, the edge, and the two
+	    corner marks outside its uncut corners. Edge is the System's cyan, or
+	    danger. Glow scales the glow (a pulse). */
+	inline void Window(FDrawList& Out, const FPage& P, const FRect& R, const FRgba& Edge, float Glow, EHudGroup G)
+	{
+		if (R.W <= 2.f * P.Px(CutPx) + 2.f || R.H <= P.Px(HeadH) + 2.f)
 		{
-			const float A = Turn + 6.2831853f * HudHash(static_cast<float>(k + 40), 4.f);
-			const float D = R * (1.08f + 0.12f * HudHash(static_cast<float>(k + 50), 4.f));
-			const float Rd = R * (0.04f + 0.03f * HudHash(static_cast<float>(k + 60), 4.f));
-			const FPoint At = {Centre.X + D * FMath::Cos(A), Centre.Y + D * FMath::Sin(A)};
-			FPoint Drop[12], DropRim[12];
-			for (int j = 0; j < 12; ++j)
-			{
-				const float B = 6.2831853f * static_cast<float>(j) / 12.f;
-				Drop[j] = {At.X + Rd * FMath::Cos(B), At.Y + Rd * FMath::Sin(B)};
-			}
-			GrowRing(Drop, 12, RimPx, DropRim);
-			Out.Fan(At, DropRim, 12, Colour::Ink, G, EHudPart::Rim);
-			Out.Fan(At, Drop, 12, Colour::Blood, G, EHudPart::Splat);
+			return;
 		}
-		FPoint Core[24];
-		for (int j = 0; j < 24; ++j)
+		FPoint Ring[6], EdgeOut[6], GlowOut[6];
+		WindowRing(R, P.Px(CutPx), Ring);
+		const float E = FMath::Max(1.f, P.Px(EdgePx));
+		GrowRing(Ring, 6, E, EdgeOut);
+		GrowRing(Ring, 6, E + P.Px(GlowPx), GlowOut);
+		Band(Out, EdgeOut, GlowOut, 6, WithAlpha(Edge, GlowAlpha * Glow), WithAlpha(Edge, 0.f), G, EHudPart::Glow);
+		const FPoint Centre = {R.X + 0.5f * R.W, R.Y + 0.5f * R.H};
+		Out.Fan(Centre, Ring, 6, WithAlpha(Colour::Panel, PanelAlpha), G, EHudPart::Panel);
+		// the heading: the strip, and a hairline under it
+		const float Head = P.Px(HeadH), C = FMath::Min(P.Px(CutPx), Head);
+		const FPoint Strip[5] = {{R.X + C, R.Y}, {R.X + R.W, R.Y}, {R.X + R.W, R.Y + Head}, {R.X, R.Y + Head}, {R.X, R.Y + C}};
+		Out.Fan({R.X + 0.5f * R.W, R.Y + 0.5f * Head}, Strip, 5, WithAlpha(Edge, HeadAlpha), G, EHudPart::Head);
+		const float Line = FMath::Max(1.f, P.Px(1.5f));
+		const FPoint L[4] = {{R.X, R.Y + Head}, {R.X + R.W, R.Y + Head}, {R.X + R.W, R.Y + Head + Line}, {R.X, R.Y + Head + Line}};
+		Out.Quad(L, WithAlpha(Edge, 0.7f), G, EHudPart::Head);
+		Band(Out, Ring, EdgeOut, 6, Edge, Edge, G, EHudPart::Edge);
+		// the corner marks: an L outside the top-right and bottom-left corners
+		const float B = P.Px(BracketPx), W = FMath::Max(1.f, P.Px(BracketW)), O = E + P.Px(3.f);
+		const FRgba Ice = WithAlpha(Colour::Ice, 0.9f);
+		const float Rx = R.X + R.W + O, Ty = R.Y - O, Lx = R.X - O, By = R.Y + R.H + O;
+		const FPoint TR1[4] = {{Rx - B, Ty - W}, {Rx + W, Ty - W}, {Rx + W, Ty}, {Rx - B, Ty}};
+		const FPoint TR2[4] = {{Rx, Ty}, {Rx + W, Ty}, {Rx + W, Ty + B}, {Rx, Ty + B}};
+		const FPoint BL1[4] = {{Lx - W, By}, {Lx + B, By}, {Lx + B, By + W}, {Lx - W, By + W}};
+		const FPoint BL2[4] = {{Lx - W, By - B}, {Lx, By - B}, {Lx, By}, {Lx - W, By}};
+		Out.Quad(TR1, Ice, G, EHudPart::Bracket);
+		Out.Quad(TR2, Ice, G, EHudPart::Bracket);
+		Out.Quad(BL1, Ice, G, EHudPart::Bracket);
+		Out.Quad(BL2, Ice, G, EHudPart::Bracket);
+	}
+
+	/** A System bar: an edge-coloured frame KeyPx round it, the dark
+	    trough, the ice trail where the bar was (Ghost), then the fill.
+	    ClipW, when under R.W, cuts the whole bar off there -- clipped,
+	    never squeezed, so it never shows more health than there is. */
+	inline void SysBar(FDrawList& Out, const FRect& R, float Fill, float Ghost, const FRgba& C, const FRgba& Frame,
+	                   float KeyPx, float ClipW, EHudGroup G)
+	{
+		const float W = FMath::Min(R.W, ClipW);
+		if (W <= 1.f)
 		{
-			const float B = 6.2831853f * static_cast<float>(j) / 24.f;
-			Core[j] = {Centre.X + SplatCore * R * FMath::Cos(B), Centre.Y + SplatCore * R * FMath::Sin(B)};
+			return;
 		}
-		Out.Fan(Centre, Core, 24, WithAlpha(Colour::Ink, SplatCoreAlpha), G, EHudPart::Core);
+		const float Span = R.W / W;
+		const FRect V = {R.X, R.Y, W, R.H};
+		FPoint Q[4];
+		LeanQuad(Grow(V, KeyPx), 1.f, 0.f, Q);
+		Out.Quad(Q, Frame, G, EHudPart::Keyline);
+		BarQuad(V, 1.f, Q);
+		Out.Quad(Q, Colour::Trough, G, EHudPart::Trough);
+		const float F = FMath::Clamp(Fill, 0.f, 1.f) * Span;
+		const float Gh = FMath::Clamp(Ghost, 0.f, 1.f) * Span;
+		const float MinShare = 0.5f / FMath::Max(W, 1.f);   // under half a pixel is not drawn
+		if (Gh > F + MinShare)
+		{
+			BarQuad(V, FMath::Min(Gh, 1.f), Q);
+			Out.Quad(Q, WithAlpha(Colour::Ice, 0.9f), G, EHudPart::Trail);
+		}
+		if (F > MinShare)
+		{
+			BarQuad(V, FMath::Min(F, 1.f), Q);
+			Out.Quad(Q, C, G, EHudPart::Fill);
+		}
+	}
+
+	/** How bright a pulse is at Clock, 0..1, at Hz. */
+	inline float Pulse(float Clock, float Hz)
+	{
+		return 0.5f + 0.5f * FMath::Sin(Clock * Hz * 6.2831853f);
 	}
 
 	/** The whole HUD for one frame: street bars under everything, then
-	    Saud's corner, the combo, the boss's banner. Pure: the same state and
-	    page give the same list. */
+	    Saud's STATUS window, the COMBO window, a boss's WARNING. Pure: the
+	    same state and page give the same list. */
 	inline void Build(const FPage& P, const FHudState& S, FDrawList& Out)
 	{
 		Out.Reset();
 		const FLayout L = Lay(P);
-		const float Key = FMath::Max(1.f, P.Px(Ink));
+		const float Key = FMath::Max(1.f, P.Px(EdgePx) * 0.75f);
+		const float Stroke = P.Px(TextStroke);
 
 		// Over a street man's head, for a while after he is hit.
 		const int NumStreet = S.NumStreet < MaxStreetBars ? S.NumStreet : MaxStreetBars;
@@ -1021,56 +973,63 @@ namespace SaudHud
 		{
 			const FStreetBar& B = S.Street[i];
 			const FRect R = {B.X - 0.5f * L.EnemyBarW, B.Y, L.EnemyBarW, L.EnemyBarH};
-			SlashBar(Out, R, B.Fill, B.Ghost, Colour::Blood, FMath::Max(1.f, P.Px(EnemyInk)), R.W, EHudGroup::Street);
+			SysBar(Out, R, B.Fill, B.Ghost, Colour::Danger, WithAlpha(Colour::System, 0.9f),
+			       FMath::Max(1.f, P.Px(EnemyInk)), R.W, EHudGroup::Street);
 		}
 
 		if (S.bPlayer)
 		{
 			const EHudGroup G = EHudGroup::Player;
-			TornStrip(Out, P, L.Wash, 1.f, WashAlpha, WashFadeFrom, true, L.Wash.W, G, EHudPart::Wash);
-			Out.Text(EHudText::Name, 0, L.Name, P.Px(NameText), Colour::Bone, P.Px(TextStroke), false, G);
-			// rage: five leaning cuts, gold, glowing toward ember and pulsing
-			// once all five are full -- the finisher is ready
-			const float Pulse = S.bRageReady ? 0.5f + 0.5f * FMath::Sin(S.Clock * 9.f) : 0.f;
-			const FRgba RageC = S.bRageReady ? LerpColour(Colour::Gold, Colour::Ember, 0.4f + 0.6f * Pulse) : Colour::Gold;
+			// at DangerBelow or under, the window is edged in danger and pulses
+			const bool bDanger = S.Health <= DangerBelow;
+			const float Glow = bDanger ? 0.55f + 0.45f * Pulse(S.Clock, DangerPulseHz) : 1.f;
+			const FRgba Edge = bDanger ? Colour::Danger : Colour::System;
+			Window(Out, P, L.Player, Edge, Glow, G);
+			Out.Text(EHudText::Title, static_cast<int>(ETitle::Status), L.PlayerTitle, P.Px(TitleText), Edge, Stroke, false, G);
+			Out.Text(EHudText::Name, 0, L.Name, P.Px(NameText), Colour::Ice, Stroke, false, G);
+			// rage: five cells of his power, violet; full, they pulse toward ice
+			const float RP = S.bRageReady ? Pulse(S.Clock, RagePulseHz) : 0.f;
+			const FRgba RageC = S.bRageReady ? LerpColour(Colour::Shadow, Colour::Ice, 0.35f * RP) : Colour::Shadow;
 			for (int i = 0; i < RageBlocks; ++i)
 			{
-				SlashBar(Out, L.Rage[i], RageBlock(S.Rage, i), 0.f, RageC, Key, L.Rage[i].W, G);
+				SysBar(Out, L.Rage[i], RageBlock(S.Rage, i), 0.f, RageC, WithAlpha(Colour::Shadow, 0.9f), Key, L.Rage[i].W, G);
 			}
-			SlashBar(Out, L.Stamina, S.Stamina, 0.f, Colour::Ash, Key, L.Stamina.W, G);
-			SlashBar(Out, L.Health, S.Health, S.Ghost, Colour::Blood, Key, L.Health.W, G);
-			Drips(Out, P, L.Health, S.Health, S.Clock, G);
+			SysBar(Out, L.Stamina, S.Stamina, 0.f, Colour::System, WithAlpha(Colour::System, 0.6f), Key, L.Stamina.W, G);
+			SysBar(Out, L.Health, S.Health, S.Ghost, Colour::Danger, WithAlpha(Edge, 0.9f), Key, L.Health.W, G);
 		}
 
 		if (S.Combo >= 2)
 		{
 			const EHudGroup G = EHudGroup::Combo;
 			const float Punch = ComboPunch(S.SinceCombo);
-			const float R = L.ComboR * (0.85f + 0.15f * Punch);
-			Splat(Out, P, L.Combo, R, S.Combo, G);
+			Window(Out, P, L.Combo, Colour::System, 0.8f + 0.2f * Punch, G);
+			Out.Text(EHudText::Title, static_cast<int>(ETitle::Combo), L.ComboTitle, P.Px(TitleText), Colour::System, Stroke, true, G);
+			// the count centred between the heading and HITS, growing about
+			// its middle as it punches
 			const float H = P.Px(ComboText) * 0.8f * Punch;
-			Out.Text(EHudText::Count, S.Combo, {L.Combo.X, L.Combo.Y - 0.62f * H}, H, Colour::Bone, P.Px(TextStroke), true, G);
-			Out.Text(EHudText::Hits, 0, {L.Combo.X, L.Combo.Y + 0.42f * H}, P.Px(HitsText), Colour::Bone,
-			         P.Px(TextStroke), true, G);
+			const float HitsY = L.Combo.Y + L.Combo.H - P.Px(HitsText) - P.Px(12.f);
+			const float Mid = 0.5f * (L.Combo.Y + P.Px(HeadH) + HitsY);
+			Out.Text(EHudText::Count, S.Combo, {L.Count.X, Mid - 0.5f * H}, H, Colour::Ice, Stroke, true, G);
+			Out.Text(EHudText::Hits, 0, {L.Count.X, HitsY}, P.Px(HitsText), Colour::System, Stroke, true, G);
 		}
 
 		if (S.bBoss)
 		{
 			const EHudGroup G = EHudGroup::Boss;
-			// the band wipes open (ease-out cubic) when he is first seen
+			// the window wipes open (ease-out cubic) when he is first seen
 			const float T = FMath::Clamp(S.BossSince / BannerRevealSeconds, 0.f, 1.f);
 			const float Open = 1.f - (1.f - T) * (1.f - T) * (1.f - T);
-			const float Shown = L.Banner.W * Open;
-			TornStrip(Out, P, L.Banner, 2.f, BannerAlpha, 0.92f, false, Shown, G, EHudPart::Band);
+			const float Shown = L.Boss.W * Open;
+			const float Glow = S.bBossEnraged ? 0.55f + 0.45f * Pulse(S.Clock, DangerPulseHz) : 1.f;
+			Window(Out, P, {L.Boss.X, L.Boss.Y, Shown, L.Boss.H}, Colour::Danger, Glow, G);
 			if (S.BossSince >= BannerCutInSeconds)
 			{
-				FPoint Q[4];
-				LeanQuad(L.Slash, 1.f, SlashLean, Q);
-				Out.Quad(Q, WithAlpha(S.bBossEnraged ? Colour::Ember : Colour::Blood, SlashAlpha), G, EHudPart::Slash);
-				Out.Text(EHudText::BossName, 0, L.BossName, P.Px(BossNameText), Colour::Bone, P.Px(TextStroke), false, G);
+				Out.Text(EHudText::Title, static_cast<int>(ETitle::Warning), L.BossTitle, P.Px(TitleText), Colour::Danger, Stroke, false, G);
+				Out.Text(EHudText::BossName, 0, L.BossName, P.Px(BossNameText), Colour::Ice, Stroke, false, G);
 			}
-			SlashBar(Out, L.BossBar, S.BossHealth, S.BossGhost, Colour::Blood, Key,
-			         Shown - (L.BossBar.X - L.Banner.X), G);
+			SysBar(Out, L.BossBar, S.BossHealth, S.BossGhost, Colour::Danger, WithAlpha(Colour::Danger, 0.9f), Key,
+			       Shown - (L.BossBar.X - L.Boss.X) - P.Px(PadPx), G);
 		}
 	}
+
 }

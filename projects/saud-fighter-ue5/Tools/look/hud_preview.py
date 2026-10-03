@@ -39,7 +39,9 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-SLOTS = {0: "name", 1: "count", 2: "hits", 3: "boss"}
+SLOTS = {0: "name", 1: "count", 2: "hits", 3: "boss", 4: "title"}
+# a window's heading by its value (SaudHud::ETitle), as SaudHUD.cpp words it
+TITLES = {0: "STATUS", 1: "COMBO", 2: "WARNING"}
 
 
 def s2l(c):
@@ -158,7 +160,7 @@ def draw(exe, bg, w, h, state, out):
             r.tri(t)
         done = item["after"]
         slot = SLOTS[item["slot"]]
-        r.text(str(item["value"]) if slot == "count" else names[slot], item)
+        r.text(str(item["value"]) if slot == "count" else TITLES[item["value"]] if slot == "title" else names[slot], item)
     for t in d["tris"][done:]:
         r.tri(t)
     r.image().save(out)
