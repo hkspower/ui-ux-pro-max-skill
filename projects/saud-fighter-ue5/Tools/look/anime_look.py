@@ -207,6 +207,40 @@ LOOK = {
     "Q_SHADOW_WORLD": 0.12,
     "Q_DEEP_WORLD": 0.016,
     "Q_HIGHLIGHT": 1.10,
+    # 1d. the firelight ladder and the men's level (2026-10-03, "improve
+    # color levels at game"). Every lit surface of the world took one flat
+    # tone, so a fire's pool had no heart: lit or not, the gate's ground
+    # p95/p50 1.25 where a pool reads at 2. The world's lit tone is now three
+    # flat steps of the light it receives -- the pool's rim (T under
+    # T_POOL1) at POOL_DIM of Q_LIT, its body at Q_LIT, its heart (over
+    # T_POOL2) at POOL_BRIGHT -- concentric bands, as a seinen background
+    # paints a lamp's pool. A fighter is lifted toward FIGHTER_LEVEL, the
+    # world's WORLD_LEVEL turned round: in the fight a lit man stood level
+    # with the firelit ground (display Y 0.41 against 0.39). The lift is
+    # under a knee at FIGHTER_KNEE of the key (step 1d): his black kit and
+    # his shadow side come up the whole way, his lit skin -- a tone near
+    # the top already -- all but stays (flat, at 1.5, it blew the check
+    # sphere's lit skin to white).
+    "T_POOL1": 1.0,
+    "T_POOL2": 1.8,
+    "POOL_DIM": 0.40,
+    "POOL_BRIGHT": 2.0,
+    "FIGHTER_LEVEL": 2.2,
+    "FIGHTER_KNEE": 0.03,
+    # ... and what a fire lights keeps the fire's colour: the world's
+    # saturation rises to POOL_SAT over the pool's body and heart where the
+    # light is a fire's -- its red over its blue from POOL_WARM[0] to
+    # POOL_WARM[1] -- the exception the art direction makes for a lamp
+    # ("warm light only from what burns"). At 0.42 the gate's firelit
+    # ground read grey, R/B 1.12 on the screen. Under a neutral or a
+    # moon's light the world stays greyer than a man (check 5c). Over 1 it
+    # is pushed no further than takes the least channel POOL_GAMUT of the
+    # way to nothing: the gate's pale heart (fire and moon together) takes
+    # the fire's colour, and the street's pool, orange already, is not
+    # clipped (unbounded, its blue went to nothing: R/B 248 on the screen).
+    "POOL_SAT": 1.6,
+    "POOL_WARM": (1.05, 1.4),
+    "POOL_GAMUT": 0.3,
     # 1c. the black ladder (2026-10-03, "improve black levels separation"):
     # black is the ink's alone. Measured on the souq fight through the
     # engine's film curve and the levels, in CIE L*: the ink 2, the near
@@ -219,13 +253,19 @@ LOOK = {
     # the deep tone L* 9, the shadow L* 14 and the lit side L* 20, so even
     # a black surface keeps its terminator. The lift is the shadows' own
     # navy (SHADOW_TINT) and
-    # soft (a 4-norm with the tone, BLACK_KNEE), so a tone over its floor
+    # soft (a p-norm with the tone, BLACK_KNEE), so a tone over its floor
     # barely moves and dark detail keeps its order. The ink, the hatching
     # and the dots are drawn after it, so they stay black on the lift.
+    # 2026-10-03 ("improve color levels at game"): the steps evened out and
+    # opened -- the shadow floor 0.0101 -> 0.0125 and the lit 0.0140 ->
+    # 0.0190, so near black reads ink 2, deep 9.6, shadow 18.7, lit 27.8
+    # (it was 9.6, 14.7, 21.1); the knee 4 -> 6, so a grey's shadow still
+    # moves under one step (0.1 L*; the raised floors under the old knee
+    # moved it 1.6, over the ladder's own rule)
     "BLACK_DEEP": 0.0072,
-    "BLACK_SHADOW": 0.0101,
-    "BLACK_LIT": 0.0140,
-    "BLACK_KNEE": 4.0,
+    "BLACK_SHADOW": 0.0125,
+    "BLACK_LIT": 0.0190,
+    "BLACK_KNEE": 6.0,
     # 1b. the rim (2026-09-28): a hard cold edge of light on a man's shadow
     # side, RIM_PX (1080 lines) wide just inside his heaviest line. Its
     # colour is his own at RIM_Q plus a sheen that does not need albedo
@@ -244,8 +284,13 @@ LOOK = {
     # that is barely warm; the warmth is left to what burns
     # 2026-10-03, the System: the shadows navy (slate, 0.78 0.88 1.04, before)
     "SHADOW_TINT": (0.70, 0.84, 1.14),
-    "LIT_TINT": (1.02, 1.00, 0.94),
-    "TINT_KEEP": 0.6,       # how much of the light's hue the tone keeps
+    "LIT_TINT": (1.08, 1.00, 0.84),
+    "TINT_KEEP": 1.5,       # how much of the light's hue the tone keeps
+    # ... on a man (2026-10-03): the world's is over 1, so a fire's pool
+    # carries the fire's colour past what the light alone gives it; a face
+    # under the same fire went neon orange, so the men keep less of it --
+    # a firelit face warm, its skin still its own
+    "TINT_KEEP_FIGHTER": 0.70,
     "EMIT_FROM": 5.0,       # light this many times the key is a lamp, not a surface
     # 2. hatching, in pixels of a 1080-line picture
     "HATCH_PX": 5.0,
@@ -318,9 +363,17 @@ LOOK = {
     # 2026-09-28, the dark seinen: a fighter 0.66 -> 0.60, the world held
     # lower still (0.62 -> 0.55). WORLD_SATURATION stays 0.42: at 0.32 it
     # greys the souq's fire, the one warm light the world is lit by.
-    "SATURATION": 0.60,
-    "WORLD_SATURATION": 0.42,
-    "WORLD_LEVEL": 0.55,
+    "SATURATION": 0.72,
+    "WORLD_SATURATION": 0.55,
+    # 2026-10-03 ("improve color levels at game"): the men 0.60 -> 0.72 and
+    # the world 0.42 -> 0.55, richer; the painted sky keeps 0.42, held under
+    # as it was (check 5a: at 0.55 it kept 0.71 of its paint's colour). The
+    # world's level 0.55 -> 0.75: the pool's dim rim (1d) takes the fight's
+    # weakly firelit ground down a step, and this gives some of it back
+    # (at 0.9 the gate's pools fell under 2: brighter, the film's curve
+    # draws its steps closer).
+    "SKY_SATURATION": 0.42,
+    "WORLD_LEVEL": 0.75,
     "ACCENT_FROM": 0.80,     # a red this pure -- (r - max(g, b)) / r -- starts to count
     "ACCENT_FULL": 0.92,     # ...and is all accent here: #c8102e is 0.95, a rust tee 0.74
     "ACCENT_SAT": 1.06,
@@ -412,7 +465,7 @@ LOOK = {
     # tone (the check sphere's top 0.93). The black point is 0: the film's
     # toe is the black.
     "LV_BLACK": 0.0,
-    "LV_WHITE": 0.68,
+    "LV_WHITE": 0.65,
     "LV_GAMMA": 1.75,
     # 6. speed lines. 2026-09-28, needles: a streak's angular share is
     # (SPEED_W0 + SPEED_W1 * its hash) * reach ** SPEED_TAPER -- a point at
@@ -722,6 +775,9 @@ def _sub(code):
         "T_DEEP": _f(L["T_DEEP"]), "T_SHADOW": _f(L["T_SHADOW"]), "T_HIGH": _f(L["T_HIGHLIGHT"]),
         "T_SHADOW_FIGHTER": _f(L["T_SHADOW_FIGHTER"]),
         "SOFT": _f(L["SOFT"]), "SMOOTH_PX": _f(L["SMOOTH_PX"]), "Q_LIT": _f(L["Q_LIT"]), "Q_HIGH": _f(L["Q_HIGHLIGHT"]),
+        "T_POOL1": _f(L["T_POOL1"]), "T_POOL2": _f(L["T_POOL2"]), "POOL_DIM": _f(L["POOL_DIM"]),
+        "POOL_BRIGHT": _f(L["POOL_BRIGHT"]), "FIGHTER_LEVEL": _f(L["FIGHTER_LEVEL"]), "FIGHTER_KNEE": _f(L["FIGHTER_KNEE"]), "POOL_SAT": _f(L["POOL_SAT"]),
+        "POOL_WARM0": _f(L["POOL_WARM"][0]), "POOL_GAMUT": _f(L["POOL_GAMUT"]), "POOL_WARM1": _f(L["POOL_WARM"][1]),
         "Q_SHADOW": _f(L["Q_SHADOW"]), "Q_DEEP": _f(L["Q_DEEP"]),
         "Q_SHADOW_WORLD": _f(L["Q_SHADOW_WORLD"]), "Q_DEEP_WORLD": _f(L["Q_DEEP_WORLD"]),
         "BLACK_DEEP": _f(L["BLACK_DEEP"]), "BLACK_SHADOW": _f(L["BLACK_SHADOW"]), "BLACK_LIT": _f(L["BLACK_LIT"]), "BLACK_KNEE": _f(L["BLACK_KNEE"]),
@@ -740,12 +796,12 @@ def _sub(code):
         "FOCUS_INNER": _f(L["FOCUS_INNER"]), "FOCUS_OUTER": _f(L["FOCUS_OUTER"]),
         "SPLAT_N": str(int(L["SPLAT_N"])), "SPLAT_FROM": _f(L["SPLAT_FROM"]), "SPLAT_TO": _f(L["SPLAT_TO"]),
         "SPLAT_R0": _f(L["SPLAT_R"][0]), "SPLAT_R1": _f(L["SPLAT_R"][1]), "SPLAT_STRETCH": _f(L["SPLAT_STRETCH"]),
-        "SHADOW_TINT": _f3(L["SHADOW_TINT"]), "TINT_KEEP": _f(L["TINT_KEEP"]),
+        "SHADOW_TINT": _f3(L["SHADOW_TINT"]), "TINT_KEEP": _f(L["TINT_KEEP"]), "TINT_KEEP_FIGHTER": _f(L["TINT_KEEP_FIGHTER"]),
         "EMIT_FROM": _f(L["EMIT_FROM"]), "HATCH_PX": _f(L["HATCH_PX"]), "HATCH_W": _f(L["HATCH_WIDTH"]),
         "HATCH_A": _f(L["HATCH_ALPHA"]), "CROSS_BELOW": _f(L["CROSS_BELOW"]),
         "INK_D": "InkD", "EMBER_D": "EmberD",                 # the palette, from MPC_Anime (2026-10-03)
         "INK": "InkColour.rgb", "EMBER": "EmberColour.rgb",
-        "WORLD_SATURATION": _f(L["WORLD_SATURATION"]), "WORLD_LEVEL": _f(L["WORLD_LEVEL"]),
+        "WORLD_SATURATION": _f(L["WORLD_SATURATION"]), "SKY_SATURATION": _f(L["SKY_SATURATION"]), "WORLD_LEVEL": _f(L["WORLD_LEVEL"]),
         "SKY_HORIZON": _f3(L["SKY_HORIZON"]), "SKY_ZENITH": _f3(L["SKY_ZENITH"]),
         "SKY_ZENITH_SIN": _f(math.sin(math.radians(L["SKY_ZENITH_DEG"]))),
         "MOON_DIR": _f3(moon_dir()), "MOON_COL": _f3(L["MOON_COL"]), "MOON_R_DEG": _f(L["MOON_R_DEG"]),
@@ -868,22 +924,33 @@ float Shad = 1.0 - smoothstep(Ts - SOFT, Ts + SOFT, T);
 float High = smoothstep(T_HIGH - SOFT, T_HIGH + SOFT, T);
 float Qs = Fighter ? Q_SHADOW : Q_SHADOW_WORLD;
 float Qd = Fighter ? Q_DEEP : Q_DEEP_WORLD;
-float Q = lerp(lerp(lerp(Q_LIT, Q_HIGH, High), Qs, Shad), Qd, Deep);
+// 1d. the world's lit tone in three flat steps of its light -- a pool's
+// rim, its body, its heart; a fighter's every tone at his own level
+float Pool1 = smoothstep(T_POOL1 - SOFT, T_POOL1 + SOFT, T);
+float Pool2 = smoothstep(T_POOL2 - SOFT, T_POOL2 + SOFT, T);
+float Gp = Fighter ? 1.0 : lerp(lerp(POOL_DIM, 1.0, Pool1), POOL_BRIGHT, Pool2);
+float Q = lerp(lerp(lerp(Q_LIT * Gp, Q_HIGH * Gp, High), Qs, Shad), Qd, Deep);
 // The tone is laid on the BASE colour, in the light's own hue: a neon
 // sign still colours what it lights, but a glint of white specular does
 // not bleach the skin under it. Far brighter than any lit surface can be
 // is a light itself (a lantern, a sign): it keeps its own colour.
 float3 Hue = C / max(A, 0.02);
-Hue = clamp(lerp(float3(1, 1, 1), Hue / max(dot(Hue, LUMA), 0.0001), TINT_KEEP), 0.0, 2.0);
+float Warm = smoothstep(POOL_WARM0, POOL_WARM1, Hue.r / max(Hue.b, 0.0001));   // the light a fire's
+Hue = clamp(lerp(float3(1, 1, 1), Hue / max(dot(Hue, LUMA), 0.0001), Fighter ? TINT_KEEP_FIGHTER : TINT_KEEP), 0.0, 2.0);
 float3 Out = A * (Q * Key) * Hue;
 Out *= lerp(LIT_TINT, SHADOW_TINT, Shad);
+// 1d. a fighter's level: his dark tones lifted toward FIGHTER_LEVEL, a knee
+// at FIGHTER_KNEE of the key -- black kit and his shadow side up, lit skin,
+// already near the top, all but where it was (and never past it in order)
+float Yf = dot(Out, LUMA) / max(Key, 0.0001) / FIGHTER_KNEE;
+Out *= Fighter ? 1.0 + (FIGHTER_LEVEL - 1.0) / (1.0 + Yf * Yf) : 1.0;
 float Emit = smoothstep(EMIT_FROM, 2.0 * EMIT_FROM, T);
 Out = lerp(Out, C, Emit);
 
 // 1c. the black ladder: black is the ink's alone. Every surface tone keeps
 // a floor -- the deep tone's lower than the shadow's -- lifted in the
 // shadows' navy; the world's is divided by the level the grade holds it to
-// (step 5), so the screen shows it where it is set. Soft (a 4-norm), so a
+// (step 5), so the screen shows it where it is set. Soft (a BLACK_KNEE-norm), so a
 // tone over its floor barely moves. The lines, the hatching and the dots
 // are drawn after, in ink, under it.
 float Lvl = Fighter ? 1.0 : WORLD_LEVEL;
@@ -1054,7 +1121,13 @@ if (!Fighter && !Sky)
 }
 float Red = (Out.r - max(Out.g, Out.b)) / max(Out.r, 0.0001);
 float Accent = max(smoothstep(ACCENT_FROM, ACCENT_FULL, Red), Sky ? 0.0 : Emit);   // the sky has no base colour: not a lamp
-float SatBase = Fighter ? SATURATION : WORLD_SATURATION;
+float SatBase = Fighter ? SATURATION : (Sky ? SKY_SATURATION : lerp(WORLD_SATURATION, POOL_SAT, Pool1 * Warm));
+// over 1 (a fire's pool) pushed no further than takes the least channel
+// POOL_GAMUT of the way to nothing: a pale heart takes the fire's colour,
+// a pool already orange is not clipped
+float Yg = dot(Out, LUMA);
+float SMax = Yg / max(Yg - min(Out.r, min(Out.g, Out.b)), 0.0001);
+SatBase = min(SatBase, max(1.0, lerp(1.0, SMax, POOL_GAMUT)));
 Out = lerp(dot(Out, LUMA).xxx, Out, lerp(SatBase, ACCENT_SAT, Accent));
 
 // 7a. the impact frame, drawn: the lit side ember, the rest ink. It passes
@@ -1650,11 +1723,23 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0, V=N
     high = _smooth(L["T_HIGHLIGHT"] - s, L["T_HIGHLIGHT"] + s, T)
     qs = np.where(fighter, L["Q_SHADOW"], L["Q_SHADOW_WORLD"])
     qd = np.where(fighter, L["Q_DEEP"], L["Q_DEEP_WORLD"])
-    Q = lerp(lerp(lerp(L["Q_LIT"], L["Q_HIGHLIGHT"], high), qs, shad), qd, deep)
+    pool1 = _smooth(L["T_POOL1"] - s, L["T_POOL1"] + s, T)
+    pool2 = _smooth(L["T_POOL2"] - s, L["T_POOL2"] + s, T)
+    gp = np.where(fighter & ("pools_on_men" not in _FLAGS), 1.0, lerp(lerp(L["POOL_DIM"], 1.0, pool1), L["POOL_BRIGHT"], pool2))
+    if "flat_pools" in _FLAGS:
+        gp = np.ones_like(T)
+    Q = lerp(lerp(lerp(L["Q_LIT"] * gp, L["Q_HIGHLIGHT"] * gp, high), qs, shad), qd, deep)
     hue = C / np.maximum(A, 0.02)
-    hue = np.clip(lerp(np.ones(3), hue / np.maximum(hue @ luma, 1e-4)[..., None], L["TINT_KEEP"]), 0.0, 2.0)
+    warm = _smooth(L["POOL_WARM"][0], L["POOL_WARM"][1], hue[..., 0] / np.maximum(hue[..., 2], 1e-4))
+    keep = np.where(fighter, L["TINT_KEEP_FIGHTER"], L["TINT_KEEP"])[..., None]
+    hue = np.clip(lerp(np.ones(3), hue / np.maximum(hue @ luma, 1e-4)[..., None], keep), 0.0, 2.0)
     out = A * (Q * key)[..., None] * hue
     out = out * lerp(np.array(L["LIT_TINT"]), np.array(L["SHADOW_TINT"]), shad[..., None])
+    # 1d. a fighter's level, under a knee: his dark tones lifted, lit skin
+    # all but where it was (y (1 + (l - 1) / (1 + (y/k)^2)) rises with y)
+    yf = (out @ luma) / np.maximum(key, 1e-4) / L["FIGHTER_KNEE"]
+    lvl_f = 1.0 if "flat_men" in _FLAGS else L["FIGHTER_LEVEL"]
+    out = out * np.where(fighter, 1.0 + (lvl_f - 1.0) / (1.0 + yf * yf), 1.0)[..., None]
     emit = _smooth(L["EMIT_FROM"], 2.0 * L["EMIT_FROM"], T)
     out = lerp(out, C, emit[..., None])
 
@@ -1766,7 +1851,13 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0, V=N
     out = lerp(out, np.array(L["HAZE"]) * key, air[..., None])
     red = (out[..., 0] - np.maximum(out[..., 1], out[..., 2])) / np.maximum(out[..., 0], 1e-4)
     accent = np.maximum(_smooth(L["ACCENT_FROM"], L["ACCENT_FULL"], red), np.where(sky, 0.0, emit))
-    sat = lerp(np.where(fighter, L["SATURATION"], L["WORLD_SATURATION"]), L["ACCENT_SAT"], accent)
+    wsat = lerp(L["WORLD_SATURATION"], L["POOL_SAT"], pool1 * (0.0 if "grey_pools" in _FLAGS else warm))
+    yg = out @ luma
+    smax = yg / np.maximum(yg - out.min(axis=-1), 1e-4)
+    if "clipped_pools" not in _FLAGS:
+        wsat = np.minimum(wsat, np.maximum(1.0, lerp(1.0, smax, L["POOL_GAMUT"])))
+    wsat = np.where(sky, L["SKY_SATURATION"], wsat)
+    sat = lerp(np.where(fighter, L["SATURATION"], wsat), L["ACCENT_SAT"], accent)
     out = lerp((out @ luma)[..., None], out, sat[..., None])
 
     # 7a. the impact frame, drawn: the lit side ember, the rest ink (the
@@ -2435,7 +2526,10 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          "wide_aura", "no_core", "aura_through_men", "round_eyes", "eyes_through_hands",
          "no_stencil", "stencil_off", "aura_not_written",
          # 2026-10-03, the black ladder
-         "crushed_blacks", "unlevelled_floor", "grey_floor", "lifted_mids", "ink_lifted", "no_lit_floor")
+         "crushed_blacks", "unlevelled_floor", "grey_floor", "lifted_mids", "ink_lifted", "no_lit_floor",
+         # 2026-10-03, the colour levels
+         "flat_pools", "pools_on_men", "flat_men", "kneeless_men", "grey_pools", "warm_moon_pools",
+         "clipped_pools", "neon_men", "sky_as_world")
 
 
 def power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c):
@@ -2684,6 +2778,16 @@ def check(bite=None, rig=None):
             LOOK["BLACK_LIT"] = LOOK["BLACK_SHADOW"]
         if bite in ("unlevelled_floor", "grey_floor", "ink_lifted"):
             _FLAGS.add(bite)
+        if bite in ("flat_pools", "pools_on_men", "flat_men", "grey_pools", "clipped_pools"):
+            _FLAGS.add(bite)
+        if bite == "kneeless_men":
+            LOOK["FIGHTER_KNEE"] = 1.0e9        # the level on everything he is
+        if bite == "warm_moon_pools":
+            LOOK["POOL_WARM"] = (0.0, 0.01)     # every light a fire's
+        if bite == "neon_men":
+            LOOK["TINT_KEEP_FIGHTER"] = LOOK["TINT_KEEP"]
+        if bite == "sky_as_world":
+            LOOK["SKY_SATURATION"] = LOOK["WORLD_SATURATION"]
         if bite == "clip_preview":
             FILM["tone_curve"] = 0.0        # the preview's old stand-in: no film curve
         if bite == "engine_vignette":
@@ -2938,6 +3042,84 @@ def check(bite=None, rig=None):
                             "the black ladder: the dots read on the world's shadow (L* %s on %.1f)" % (bl_dots_l, bl_sh)
         finally:
             LOOK["GRAIN"], LOOK["PAPER"] = bl_gp
+        # ------------------------------------------------ 2026-10-03, the colour levels
+        # on flat walls and flat men, in CIE L* on the screen (grain and
+        # paper off; the middle of each): a fire's pool is three flat steps
+        # of its light and a man is not stepped by it; a man's level lifts
+        # his dark tones and leaves lit skin a tone, his order kept; what a
+        # fire lights keeps the fire's colour, and what the moon lights
+        # does not, nor is it clipped; a firelit man keeps his own colour
+        cl_gp = LOOK["GRAIN"], LOOK["PAPER"]
+        LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0
+        try:
+            cl_fire, cl_moon = np.array([1.0, 0.50, 0.22]), np.array([0.80, 0.92, 1.12])
+            def cl_wall(cl_alb, cl_t, cl_man, cl_hue=None):
+                cl_c, cl_a, cl_n, cl_d, cl_on = _flat(96, cl_alb, lit=cl_t, depth=600.0, fighter=cl_man)
+                if cl_hue is not None:
+                    cl_c = cl_c * cl_hue / (cl_hue @ luma)
+                cl_dsp, cl_mw = look(cl_c, cl_a, cl_n, cl_d, cl_on)
+                cl_mid = (slice(24, 72), slice(24, 72))
+                cl_fill = ((cl_mw["hatch"][cl_mid] < 0.02) & (cl_mw["screentone"][cl_mid] < 0.02)
+                           & (cl_mw["ink"][cl_mid] < 0.02))
+                cl_px = cl_dsp[cl_mid][cl_fill]
+                cl_sat = (cl_px.max(-1) - cl_px.min(-1)) / np.maximum(cl_px.max(-1), 1e-6)
+                return float(np.median(bl_lstar(cl_px))), float(np.median(cl_sat)), float(np.median(1.0 - cl_sat))
+            # 1. the pool's rim (T 0.8), body (T 1.3) and heart (T 2.4) on a
+            #    world surface (0.15), each a clear step over the last, each
+            #    flat; a man under the same light is one tone
+            cl_rim, cl_body, cl_heart = (cl_wall(0.15, cl_t, False)[0] for cl_t in (0.8, 1.3, 2.4))
+            assert cl_body >= cl_rim + 8.0 and cl_heart >= cl_body + 8.0, \
+                "a fire's pool is three steps of its light (L* rim %.1f, body %.1f, heart %.1f)" % (cl_rim, cl_body, cl_heart)
+            cl_a, cl_b = cl_wall(0.15, 1.1, False)[0], cl_wall(0.15, 1.6, False)[0]
+            assert abs(cl_a - cl_b) <= 1.0, "each step of the pool is flat (L* %.1f and %.1f)" % (cl_a, cl_b)
+            cl_a, cl_b = cl_wall(0.15, 0.8, True)[0], cl_wall(0.15, 1.3, True)[0]
+            assert abs(cl_a - cl_b) <= 1.0, "a man is not stepped by the pool (L* %.1f and %.1f)" % (cl_a, cl_b)
+            # 2. a man's level: his black kit (0.03) lit 6 or more over where
+            #    it was (in shadow it is on the ladder's floor); lit skin
+            #    (0.31) within 2.5; his order kept, lit and in shadow
+            cl_keep = LOOK["FIGHTER_LEVEL"]
+            cl_now = {cl_alb: (cl_wall(cl_alb, 1.2, True)[0], cl_wall(cl_alb, 0.35, True)[0])
+                      for cl_alb in (0.004, 0.03, 0.1, 0.31, 0.6)}
+            LOOK["FIGHTER_LEVEL"] = 1.0
+            try:
+                cl_was = {cl_alb: (cl_wall(cl_alb, 1.2, True)[0], cl_wall(cl_alb, 0.35, True)[0]) for cl_alb in (0.03, 0.31)}
+            finally:
+                LOOK["FIGHTER_LEVEL"] = cl_keep
+            assert cl_now[0.03][0] - cl_was[0.03][0] >= 6.0, \
+                "a man's dark kit is lifted (L* lit %.1f from %.1f)" % (cl_now[0.03][0], cl_was[0.03][0])
+            assert cl_now[0.31][0] - cl_was[0.31][0] <= 2.5, \
+                "a man's lit skin stays where it was, a tone (L* %.1f from %.1f)" % (cl_now[0.31][0], cl_was[0.31][0])
+            for cl_i, cl_tone in ((0, "lit"), (1, "shadow")):
+                cl_seq = [cl_now[cl_alb][cl_i] for cl_alb in sorted(cl_now)]
+                assert all(b >= a - 0.1 for a, b in zip(cl_seq, cl_seq[1:])), \
+                    "a man's level keeps his order (%s L* %s)" % (cl_tone, ", ".join("%.1f" % x for x in cl_seq))
+            # 3. a fire's colour in its pool: under a fire's light the world's
+            #    lit ground keeps half again the colour the world's saturation
+            #    alone gives; under the moon, none
+            def cl_plain(cl_t, cl_hue):
+                cl_k = LOOK["POOL_SAT"]
+                LOOK["POOL_SAT"] = LOOK["WORLD_SATURATION"]
+                try:
+                    return cl_wall(0.15, cl_t, False, cl_hue)[1]
+                finally:
+                    LOOK["POOL_SAT"] = cl_k
+            cl_f, cl_f0 = cl_wall(0.15, 1.3, False, cl_fire)[1], cl_plain(1.3, cl_fire)
+            assert cl_f >= 1.5 * cl_f0, "a fire's pool keeps the fire's colour (saturation %.2f, %.2f without)" % (cl_f, cl_f0)
+            cl_m, cl_m0 = cl_wall(0.15, 1.3, False, cl_moon)[1], cl_plain(1.3, cl_moon)
+            assert abs(cl_m - cl_m0) <= 0.01, "the moon's light is not a fire's (saturation %.3f, %.3f)" % (cl_m, cl_m0)
+            # ... and the pool's colour is not clipped: a pale ground (0.3)
+            #     under that fire keeps its least channel, a twentieth of its
+            #     most or more (POOL_GAMUT; unbounded, nothing)
+            cl_least = cl_wall(0.3, 1.3, False, cl_fire)[2]
+            assert cl_least >= 0.05, "a fire's pool is not clipped (its least channel %.3f of its most)" % cl_least
+            # 4. a firelit man keeps his own colour: under the fire that gives
+            #    the world's ground its colour, a grey on him a quarter as much
+            cl_man = cl_wall(0.3, 1.3, True, cl_fire)[1]
+            cl_wld = cl_wall(0.3, 1.3, False, cl_fire)[1]
+            assert cl_man <= 0.25 and cl_man <= 0.4 * cl_wld, \
+                "a firelit man keeps his own colour (saturation %.2f, the ground's %.2f)" % (cl_man, cl_wld)
+        finally:
+            LOOK["GRAIN"], LOOK["PAPER"] = cl_gp
         # ------------------------------------------------ 2026-10-02, the painted sky
         # a view of the sky alone, up toward the moon (60 degrees across,
         # 0.05 a pixel: a star is a few pixels), at a time it is clear
@@ -3161,8 +3343,11 @@ def check(bite=None, rig=None):
         assert moved > 0.15, "and boils on twos (%.2f of the rows)" % moved
         # 8b. film grain and the page's tooth, on a flat mid-grey wall:
         #     there, small, neither lighter nor darker on the whole, and
-        #     boiling on twos
-        Cg, Ag, Ng, Dg, ong = _flat(n, 0.30, depth=300.0)
+        #     boiling on twos (the wall 0.10, a mid-grey on the screen,
+        #     0.53, since the colour levels of 2026-10-03; at 0.30 it reads
+        #     0.84, where the grain's mid-tone weight all but vanishes and a
+        #     biased grain moved the mean 0.006, under the rule)
+        Cg, Ag, Ng, Dg, ong = _flat(n, 0.10, depth=300.0)
         vig = LOOK["VIGNETTE"]; LOOK["VIGNETTE"] = 0.0
         g0, _ = look(Cg, Ag, Ng, Dg, ong)
         g7, _ = look(Cg, Ag, Ng, Dg, ong, boil=7.0)

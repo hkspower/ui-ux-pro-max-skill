@@ -3202,7 +3202,8 @@ decided: `--graded-check` fails three of its six rules on the souq
 fast ones; the gate's pools 1.37 against 2.0; the gate's fire hue 1.14
 against 1.4; the street passes all three) -- the thresholds are the
 specs' and the picture is the look's; retuning the look or restating the
-thresholds is a look decision recorded here as open. The engine's real
+thresholds is a look decision recorded here as open (closed 2026-10-03
+by retuning the look: "The colour levels"). The engine's real
 buffer level under auto-exposure is unknown, as before.
 
 ## The theme, mastered -- 2026-09-30
@@ -3875,7 +3876,7 @@ of them further: fighter/world contrast 1.16 -> 1.07 against 1.5 (the
 gamma lifts the world's middle more than the men's), the gate's pools
 1.37 -> 1.24 against 2.0, the gate's fire hue 1.14 -> 1.12 against 1.4; the
 street passes all three (pools 2.50, fire 1.55). Still open, a look
-decision; the colour-accuracy work queued next (the engine's own
+decision (closed 2026-10-03: "The colour levels"); the colour-accuracy work queued next (the engine's own
 tonemapper in the preview) will move these numbers again. The committed
 fight scene carries no `Cam_souq-street` / `Cam_souq-gate` (they were in
 the scratch scenes the earlier checks ran on), so `--street` skips and
@@ -3991,7 +3992,8 @@ the six men. The graded check, at the engine's key, still misses the same
 three it missed after the levels (2026-10-02), by the same amounts:
 fighter/world contrast 1.08 (wanted 1.5), the gate's pools p95/p50 1.27
 (wanted 2.0) and its fire R/B 1.11 (wanted 1.4); the street's pools are
-2.41 and its fire 1.44. Those three are open, and were not this job.
+2.41 and its fire 1.44. Those three are open, and were not this job
+(closed 2026-10-03: "The colour levels").
 
 **Not verified:** no engine has run any of it. The film curve is
 reproduced from memory of the engine's shader and checked only against
@@ -5060,6 +5062,130 @@ mesh to place.
 **Not verified:** no engine has built any of the three levels; these are
 Blender's pictures of their plans through the look's numpy mirror, with the
 preview's stand-in exposure.
+
+## The colour levels -- 2026-10-03
+
+Asked as "improve color levels at game", settled with the author as the
+Unreal build (the anime look's grade in `Tools/look/anime_look.py`, both
+post materials and the numpy mirror) and all four of: the three rules the
+graded check had left open, the midtones, the colour's richness, and more
+steps at both ends of the range. The browser build is untouched.
+
+**What was wrong, measured** at the engine's key on the souq's fight, street
+and gate cameras (`anime_preview.py --graded-check`): the men stood level
+with the world (fighter/world contrast 1.09, wanted 1.5); a fire's pool
+had no heart -- every lit surface of the world took one flat tone, lit by
+one fire or by five -- so the gate's ground read p95/p50 1.27 (wanted 2.0);
+and the fire's light came out grey, R/B 1.11 at the gate (wanted 1.4),
+the world held at saturation 0.42.
+
+**What changed** (LOOK; `M_Anime_Post`'s HLSL and the mirror, step 1d and
+step 5):
+- **A fire's pool in three steps.** The world's lit tone is three flat
+  steps of the light it receives: the pool's rim (`T` under `T_POOL1`, 1.0)
+  at `POOL_DIM` 0.40 of the lit tone, its body at the lit tone, its heart
+  (over `T_POOL2`, 1.8) at `POOL_BRIGHT` 2.0 -- concentric bands, as a
+  seinen background paints a lamp's pool. A man is not stepped by it.
+- **The men's level, under a knee.** A fighter is lifted toward
+  `FIGHTER_LEVEL` 2.2 under a knee at `FIGHTER_KNEE` 0.03 of the key: his
+  black kit and his shadow side come up most of the way, his lit skin --
+  a tone near the top already -- all but stays. A flat lift, the first
+  try, blew the check sphere's lit skin to white at 1.5; at 2.4 under a
+  knee of 0.07 it turned his skin's shadow grey; at 3.0 his black kit read
+  mid-grey on the 1080 fight render, where 2.2 keeps it charcoal. The
+  world's level 0.55 -> 0.75.
+- **The fire's colour.** Where the light is a fire's (its red over its
+  blue from `POOL_WARM` 1.05 to 1.4) the world's saturation rises to
+  `POOL_SAT` 1.6 over the pool's body and heart -- the lamp exception the
+  art direction already makes -- pushed no further than takes the least
+  channel `POOL_GAMUT` 0.3 of the way to nothing: the gate's pale heart
+  (fire and moon together) takes the fire's colour, and the street's pool,
+  orange already, is not clipped (unbounded, its blue went to nothing).
+  Under the moon's or a neutral light the world keeps its 0.55. The light's
+  hue is kept more (`TINT_KEEP` 0.6 -> 1.5, `LIT_TINT` 1.02 1.00 0.94 ->
+  1.08 1.00 0.84) and a man's less (`TINT_KEEP_FIGHTER` 0.70: at the
+  world's, a firelit face went neon orange).
+- **Richer colour.** Saturation: the men 0.60 -> 0.72, the world 0.42 ->
+  0.55; the painted sky keeps 0.42 (`SKY_SATURATION`) -- at 0.55 it broke
+  "the sky is not an accent".
+- **Both ends.** Near black, the black ladder's steps opened and evened:
+  the shadow floor 0.0101 -> 0.0125 and the lit 0.0140 -> 0.0190, the knee
+  4 -> 6 (so a grey's shadow still moves under one step: 0.1 L*; the
+  raised floors under the old knee moved it 1.6) -- ink 2, deep 9.6,
+  shadow 18.7, lit 27.8 in L* (it was 9.6, 14.7, 21.1). At the top the white point 0.68 ->
+  0.65: the moon and bone white, the check sphere's lit skin 0.94 (0.92
+  before), a tone; 0.62 took it to 0.97, the rule's edge.
+
+**Measured, before -> after**, on the same renders (540 lines, 16 samples,
+the graded check's own) -- the rules at the engine's key, the L* and C* as
+the previews draw them (their stand-in exposure):
+
+| | before | after |
+| --- | --- | --- |
+| fighter/world contrast (wanted 1.5) | 1.09 | 1.65 |
+| the gate's pools p95/p50 (wanted 2.0) | 1.27 | 2.09 |
+| the gate's fire R/B (wanted 1.4) | 1.11 | 1.57 |
+| the street's pools / fire R/B | 2.42 / 1.44 | 2.91 / 10.95 |
+| the world's shadow fill over the ink | 5.29x | 6.46x |
+| fight, the men's median L* | 24.1 | 32.6 |
+| fight, the men's deep / shadow / lit L* | 5.1 / 21.9 / 29.6 | 13.8 / 31.5 / 36.6 |
+| fight, the world's chroma (C*) / the men's | 6.0 / 6.6 | 15.4 / 10.0 |
+| the street's lit ground L* / chroma | 36.9 / 6.5 | 53.2 / 16.3 |
+| fight, the world's median L* | 22.7 | 17.0 |
+| fight, the screen's median L* | 21.9 | 18.5 |
+
+**The trade-off, plainly.** The world's middle went DOWN, not up: its median
+on the fight camera 22.7 -> 17.0, the street's 22.4 -> 18.4, the gate's
+23.5 -> 19.1. A pool reads at twice its surround only if the surround is
+dark, and the fight's ground and the gate's are the pool's rim (lit at
+0.7-1.0 of the key by fires further off), which is what the rule dims. The
+world's level 0.55 -> 0.75 gave some back (15.3 -> 17.0); at 0.9 the gate's
+pools fell under 2 (brighter, the film's curve draws its steps closer).
+What reads more is the men (their median 24 -> 33, their black kit +11.7
+L* lit), the pools and their heart, the near-black steps and the fire's
+colour. Meeting the three rules and lifting the world's middle both was not
+found; the rules are the spec's, the author can restate them.
+
+**The graded check's fire measure, corrected.** It read the fire's hue on
+the brightest 5 % of any lit ground; at the gate 78 % of those pixels lay
+outside every pool -- moonlit pale flagstone, whose hue no grade can make
+the fire's. It reads the pool's body now as the project defines a pool
+(`build_souq` NIGHT: ground the fire out-lights the moon on, from the
+render's light groups). Without that correction no grade passed it.
+
+**Checked:** `anime_look.py`'s checks pass, with new ones on flat walls and
+flat men: the pool's three steps (8 L* or more apart) and each flat, a man
+not stepped; a man's black kit lifted 6 or more and his lit skin within
+2.5, his order kept lit and in shadow; a fire's pool keeping half again
+the colour the world's saturation alone gives, the moon's light not, the
+pool not clipped; a firelit man keeping his own colour. Nine sabotages
+(`flat_pools`, `pools_on_men`, `flat_men`, `kneeless_men`, `grey_pools`,
+`warm_moon_pools`, `clipped_pools`, `neon_men`, `sky_as_world`), each
+caught; `--bite` 127 of 127 -- 126 in one run (46 min), and `grain_bias`,
+which slipped through it: the grain check's "flat mid-grey wall" (albedo
+0.30) now reads 0.84 on the screen, where the grain's mid-tone weight all
+but vanishes; the wall is 0.10 now (0.53, a mid-grey), and `grain_bias`
+is caught run on its own, with `no_grain` and `static_grain`.
+`--graded-check` passes all six rules,
+and its `--bite` catches 6 of 6. Three of its sabotages had stopped
+biting and were re-made: `flat_world` (the world's level at 1) held the contrast at 1.58 now the
+men are lifted by a level of their own, so it puts them at 1 as well;
+`no_lamps` (lamps out) left the street's pools at 2.02 now the pool's
+steps make the pools, so `flat_pools` takes the steps; `sooted_world` (the
+world painted a quarter as dark) has not reached the ink since the black
+ladder's floors, so it takes the floors with the soot. Re-rendered through
+the look: the souq fight and its hit frames, its sky, street and gate,
+the six men, the HUD four ways, the pause menu, the 3D title (both
+aspects; at 4:3 his middle 0.811, as before), Saud's IK sheet (its 9
+panels' checks pass), the seven city districts, and the fifteen map views
+and their sheet -- each view still passing its own rules; from above every
+district's fires now read as stepped pools.
+
+**Not verified:** no engine has built the materials; the previews are
+the numpy mirror through the film curve at the engine's key. The pool's
+steps are thresholds of the light over the key, so where the exposure
+lands in the editor ("The night's light", the first thing to check there)
+moves which ground is rim and which is body.
 
 ## Working rules
 

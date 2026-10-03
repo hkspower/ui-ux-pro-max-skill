@@ -126,7 +126,7 @@ GRADED = dict(contrast=1.5, shadow_over_ink=2.0, pools=2.0, fire_rb=1.4,
 # --bite only: each breaks the one mechanism a check guards
 SABOTAGE = set()
 NIGHT_BITES = {"no_fires": "pools", "warm_moon": "moon"}
-GRADED_BITES = {"flat_world": "contrast", "sooted_world": "shadow tone", "no_lamps": "pools",
+GRADED_BITES = {"flat_world": "contrast", "sooted_world": "shadow tone", "flat_pools": "pools",
                 "grey_fire": "fire", "chin_down": "eyes", "deep_eyes": "eyes"}
 
 
@@ -700,7 +700,11 @@ def graded_place(got, exposure, over=None):
     """A place camera: the pools and the fire's hue on the graded ground.
     The hue is read on the pool's BODY -- lit ground that is not a lamp
     core (EMIT_FROM: a core keeps its raw light and would make the
-    measure trivial) -- its brightest 5 %."""
+    measure trivial) -- its brightest 5 %. A pool is ground the fire
+    out-lights the moon on (build_souq NIGHT's own definition: the light
+    groups' fire over moon). Until 2026-10-03 the body was any lit ground,
+    and at the gate 78 % of its brightest 5 % lay outside every pool --
+    moonlit pale flagstone, whose hue no grade can make the fire's."""
     luma = np.array(AL.LUMA)
     lin, m, disp = graded_picture(got, exposure, over)
     g = ground_of(got)
@@ -711,6 +715,8 @@ def graded_place(got, exposure, over=None):
              shadow_share=float(((m["shadow"] > 0.5) & g).sum() / max(1, g.sum())),
              core_share=float(((m["emit"] > 0.5) & g).sum() / max(1, g.sum())))
     body = g & (m["shadow"] < 0.5) & (m["emit"] < 0.5)
+    if "Combined_fire" in got:
+        body = body & (got["Combined_fire"][..., :3] @ luma > got["Combined_moon"][..., :3] @ luma)
     if body.any():
         top = body & (Y >= np.percentile(Y[body], 95))
         rgb = disp[top]
@@ -862,8 +868,16 @@ def graded_check(blend, height, samples, bite=False, out=None):
     for which, word in GRADED_BITES.items():
         SABOTAGE.clear()
         SABOTAGE.add(which)
-        over = {"flat_world": dict(WORLD_LEVEL=1.0), "grey_fire": dict(WORLD_SATURATION=0.10),
-                "no_lamps": dict(EMIT_FROM=1.0e9), "deep_eyes": dict(T_DEEP=2.0)}.get(which, {})
+        # (since 2026-10-03: flat_world puts the men at the world's level
+        # too -- they are lifted by their own now, and with the world's
+        # alone at 1 the contrast held 1.58; sooted_world takes the black
+        # ladder's floors with the soot, which hold the fill over the ink
+        # whatever the paint; flat_pools takes the pool's steps, which make
+        # the pools -- with the lamps put out instead, the street's pools
+        # still read 2.02.)
+        over = {"flat_world": dict(WORLD_LEVEL=1.0, FIGHTER_LEVEL=1.0), "grey_fire": dict(WORLD_SATURATION=0.10, POOL_SAT=0.10),
+                "sooted_world": dict(BLACK_DEEP=0.0, BLACK_SHADOW=0.0, BLACK_LIT=0.0),
+                "flat_pools": dict(POOL_DIM=1.0, POOL_BRIGHT=1.0), "deep_eyes": dict(T_DEEP=2.0)}.get(which, {})
         face2 = face
         if which == "chin_down":
             _chin_down()
