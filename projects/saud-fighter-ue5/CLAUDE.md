@@ -4857,6 +4857,88 @@ renders), with the bosses' "a new theme for each" from the same day.
 **Not verified:** nobody has listened to anything here; what is better is
 what the curve and the rules measure. The C++ is not compiled.
 
+## The monkey island -- 2026-10-03
+
+Asked 2026-10-02 as "build 3d map island level with monkeys as enemy and big
+gorilla as map boss, make large island full 4k ... full ik", settled with the
+author as: built in Blender and Python here; a 4 km island AND 4K textures; a
+NEW LEVEL, Unreal only -- JAZIRAT AL-QIRUD, `L_MonkeyIsland`, its own map
+outside the nine districts like the prologue, its own waves of monkeys and the
+gorilla, its numbers in its own Unreal data. The browser build and the ring
+are untouched. Not asked, my default: the way there is a boat from the stone
+island, and back.
+
+**Five tools, each checked and bitten:**
+
+| part | tool | leaves | --bite |
+| --- | --- | --- | --- |
+| the ground | `Tools/levels/build_monkey_island.py` | `Content/Landscape/MonkeyIsland/`: a 4033-square 16-bit heightmap (1 m a vertex, Z scale 100), five weightmaps (Sand, Grass, Jungle, Rock, Mud), `MonkeyIsland_plan.json`; `Docs/monkey-island-map.png` | 7 of 7 |
+| its maps | `Tools/levels/island_surfaces.py` | `Content/Textures/IslandGround/` (the five layers) and `IslandProps/` (palm bark, bark, leaf, coral stone, teak): BaseColor, Normal, Roughness at 4096 square, tiling; `Docs/renders/island-surfaces.png`, `island-prop-surfaces.png` | 8 of 8 |
+| what stands | `Tools/blender/build_island_props.py` | `Content/Models/Island/`: three palms, two jungle trees, three rocks, the temple ruins, a 60 m pier, a boom (a Kuwaiti dhow); `Island_props.json`; `Docs/renders/island-props.png` | 5 of 5 |
+| the creatures | `Tools/blender/build_primates.py` | `Content/Models/{Monkey,Gorilla}.fbx`, 4K fur in `Content/Textures/{Monkey,Gorilla}/`, `rigs/{Monkey,Gorilla}.blend`; `Docs/renders/island-primates.png` | 7 of 7 |
+| their motion | `Tools/blender/build_primate_motion.py` | `Content/Animation/Island/A_{Monkey,Gorilla}_*.fbx`, 15 clips each, `DT_IslandMotion.csv`; `Docs/renders/island-motion.png` | 6 of 6 |
+| the level | `Tools/levels/build_monkey_island_level.py` | the plan and its checks here; `L_MonkeyIsland` in the editor; `Docs/monkey-island-level.png` | 5 of 5 |
+
+**The island.** A coast of 1,650 m warped into bays, a beach, jungle hills to
+a 178 m peak; the boat lands on the west beach, and a trail found by a
+least-grade search (held to 18 %, cut level across) runs 2.2 km east past five
+flattened clearings -- the monkeys' -- to the gorilla's temple on a plateau
+60 m up. The sea is the edge of the world. Every texel of the ground's maps is
+drawn (blades, leaves, ripples, cracks, standing water), held between the ink
+floor and the world's ceiling, DirectX normals (Unreal's).
+
+**The creatures.** On the mannequin's bone names wherever a primate has the
+part (and a tail on the monkey), so the runtime IK, the clip lookup and the
+director work unchanged. A jungle monkey, 1.1 m hunched, hit-and-run; THE
+SILVERBACK, 2.05 m, the boss. Bodies are ellipsoids and capsules over their
+joints, voxel-remeshed, weighted by bone heat; the fur is painted per texel
+from a baked position map. Their clips are posed through an analytic IK, every
+limb, keyed on the deform bones: guard, block, four walks at their own pace,
+light and heavy hits, down, death, get-up, victory, and their strikes on
+existing attack rows (monkey Jab, Hook, Kick; gorilla Cross, Hook and the
+Special -- the chest-beat and the two-fisted slam), timed by `DT_Attacks`.
+
+**The data, hand-authored and Unreal-only** (like `DT_Prologue.json`):
+`Content/Data/DT_IslandFighters.csv` (the two creatures, `FFighterDef`) and
+`DT_MonkeyIsland.json` (five clearings and the temple, `FStageDef`).
+`build_data_assets.py` styles the island's rows as it styles the ring's. The
+level's tool holds the data to the clips: every fighter's moves are its clips'
+strikes, its MoveSpeed the pace its walks were struck at, every clip on disk.
+
+**The C++ it needed** (read-reviewed, never compiled):
+- `FFighterDef::Mesh` -- the body a row's fighter wears; the director puts it on
+  him before he finishes spawning. Empty: the class's own mesh, as before.
+- `FStageDef::bFightAtDirector` -- a fight that stands where its director
+  stands: it wakes within `SiteRadius` of the director, is fought there, and
+  clears when its waves are down. False for every ring row. (The old rule for
+  a row with no district, "far enough along world X", is the strip's.)
+- `SaudMotionComponent::Find` -- the creatures' clips are in `Island/`, and a
+  creature borrows no man's clip (another skeleton); a clip it lacks falls back
+  within its own set.
+- `EAreaSide::Resume` / `?ArriveAt=Resume` -- the boat home opens the world and
+  resumes in the district the save names (`ResumeInDistrict`), without the title.
+
+**The boat.** `build_world.py` moors the boom on a jetty of its own off the
+stone island, on the bearing furthest from every door (225 degrees, 40 or more
+from each) with its hull clear of the shallows' rocks, on the water and its keel
+off the seabed; the way aboard is an `AreaExit` that opens `L_MonkeyIsland`.
+The world's checks hold all of it and 3 new sabotages bite (22 of 22). On the
+island the pier runs 60 m from the water's edge, the boat is moored at its end
+afloat, the PlayerStart is on the deck and the way home is by the boat.
+
+**Not verified.** No engine has imported any of it. Least sure: the
+landscape's import by Python (`build()` tries `LandscapeEditorSubsystem`, and
+otherwise logs the exact settings for Landscape mode's Import); the landscape
+material's layer-blend properties; the data tables' import with their row
+structs; the creatures' capsules -- they spawn in the men's class, so the
+gorilla's head stands above it and the monkey's capsule is too big for it;
+5,752 jungle trees of 29k triangles each lean on Nanite (set on import). The
+stone island's water is its seabed in the world (no water surface exists
+there), so the boat stands over it. Found on the way, not touched:
+`export.mjs --check` reports `config.json` stale, before and after this work;
+and every normal map the Blender tools bake is OpenGL (green up) where Unreal
+reads DirectX -- the island's are written DirectX.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

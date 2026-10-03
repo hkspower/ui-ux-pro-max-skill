@@ -206,6 +206,13 @@ struct FFighterDef : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
 	TSoftClassPtr<AActor> PawnClass;
+
+	/** The body he wears, when it is not his pawn class's own: a row from a
+	    level's own fighter table (the monkey island's creatures,
+	    DT_IslandFighters) names its skeletal mesh here and the director puts
+	    it on him before he finishes spawning. Empty: the class's mesh. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
+	TSoftObjectPtr<class USkeletalMesh> Mesh;
 };
 
 /** One locked wave inside a stage. */
@@ -282,6 +289,15 @@ struct FStageDef : public FTableRowBase
 	/** Endless mode: waves are generated instead of authored, and there is no exit. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
 	bool bSurvival = false;
+
+	/** A fight that stands where its director stands -- a level's own, not a
+	    district of the ring (the monkey island's clearings and its temple,
+	    DT_MonkeyIsland): its waves wake when the player comes within
+	    SaudArena::SiteRadius of the director, are fought there, and the row
+	    is cleared when they are down. Not exported from the browser; false
+	    for every row that is. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
+	bool bFightAtDirector = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stage")
 	TArray<FWaveDef> Waves;

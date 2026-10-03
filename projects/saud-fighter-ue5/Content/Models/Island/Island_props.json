@@ -22,7 +22,7 @@
   "clear_r": 16.0
  },
  "pier": {
-  "length": 30.0,
+  "length": 60.0,
   "width": 3.0,
   "deck": 0.55,
   "post_every": 3.0,
@@ -117,10 +117,10 @@
   },
   "SM_Island_Pier": {
    "file": "Content/Models/Island/SM_Island_Pier.fbx",
-   "tris": 500,
-   "verts": 360,
+   "tris": 940,
+   "verts": 680,
    "kind": "Pier",
-   "length": 30.0,
+   "length": 60.0,
    "deck": 0.55
   },
   "SM_Island_Boat": {

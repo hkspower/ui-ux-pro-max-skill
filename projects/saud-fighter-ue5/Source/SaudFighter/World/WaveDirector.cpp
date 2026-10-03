@@ -7,6 +7,8 @@
 #include "Combat/SaudBrain.h"
 #include "Combat/SaudFeel.h"
 #include "Engine/DataTable.h"
+#include "Engine/SkeletalMesh.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
 #include "Game/SaudGameInstance.h"
 #include "Kismet/GameplayStatics.h"
@@ -170,7 +172,9 @@ void AWaveDirector::Tick(float DeltaSeconds)
 	if (!bArenaLocked && WaveIndex < Waves.Num())
 	{
 		const FWaveDef& Next = Waves[WaveIndex];
-		const bool bReached = Next.TriggerDistance < 0.f
+		const bool bReached = Stage->bFightAtDirector
+			? SaudArena::InCircle(Player->GetActorLocation(), GetActorLocation(), SaudArena::SiteRadius)
+			: Next.TriggerDistance < 0.f
 			|| (UsesSites()
 				? SaudArena::InCircle(Player->GetActorLocation(), WaveSiteWorld(Next), SaudArena::SiteRadius)
 				: LocalX(Player->GetActorLocation()) > Next.TriggerDistance);
@@ -212,7 +216,8 @@ void AWaveDirector::Tick(float DeltaSeconds)
 	// Stage cleared once every wave is down and the end of the way through
 	// is reached: the strip's last 360 cm, which in a round district is the
 	// same fraction of the way along its street.
-	const bool bAtEnd = UsesSites()
+	const bool bAtEnd = Stage->bFightAtDirector ? true
+		: UsesSites()
 		? SaudArena::InCircle(Player->GetActorLocation(),
 			GetActorLocation() + SaudArena::StreetEnd(Stage->Length, SaudArena::DistrictPhase(Stage->Index)),
 			SaudArena::SiteRadius)
@@ -239,8 +244,8 @@ void AWaveDirector::BeginWave(const FWaveDef& Wave)
 	// The fight happens at its site, the room the map kept clear for it; a
 	// wave with no site (it wakes at once) or in a row that is not a
 	// district happens where he is standing.
-	const FVector Where = (UsesSites() && Wave.TriggerDistance >= 0.f)
-		? WaveSiteWorld(Wave) : Player->GetActorLocation();
+	const FVector Where = Stage->bFightAtDirector ? GetActorLocation()
+		: (UsesSites() && Wave.TriggerDistance >= 0.f) ? WaveSiteWorld(Wave) : Player->GetActorLocation();
 	ArenaCentre = FVector(Where.X, Where.Y, GetActorLocation().Z);
 	ApplyArenaBounds();
 
@@ -341,6 +346,15 @@ void AWaveDirector::SpawnFighter(FName Row, int32 Tier, int32 IndexInWave, int32
 	// His clips are his row's: A_Boss_*, A_Saqr_*, A_Zayos_*, and Saud's
 	// for everything a row has none of.
 	Enemy->MotionSet = Row;
+	// A body of his own (a creature from a level's own table), on before
+	// BeginPlay so his clips play on it from his first frame.
+	if (!Def->Mesh.IsNull())
+	{
+		if (USkeletalMesh* Body = Def->Mesh.LoadSynchronous())
+		{
+			Enemy->GetMesh()->SetSkeletalMesh(Body);
+		}
+	}
 	Enemy->FinishSpawning(At);
 
 	const USaudGameInstance* GI = GetWorld()->GetGameInstance<USaudGameInstance>();

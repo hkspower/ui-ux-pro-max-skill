@@ -38,7 +38,9 @@ void ASaudGameMode::BeginPlay()
 	// anywhere else resumes there -- read BEFORE the lines below record where
 	// he is standing, which on a fresh load is always the souq. Only on a
 	// fresh open: a step through a doorway (?ArriveAt) knows where it goes.
-	if (GI && Directors.Num() > 1 && UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt")).IsEmpty())
+	// ?ArriveAt=Resume (a boat home from another level) resumes the same way.
+	const FString ArriveOption = UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt"));
+	if (GI && Directors.Num() > 1 && (ArriveOption.IsEmpty() || ArriveOption == TEXT("Resume")))
 	{
 		ResumeInDistrict(GI->GetProgress().CurrentStage, Directors);
 	}
@@ -96,9 +98,9 @@ void ASaudGameMode::PlaceArrivingPlayer()
 		return;
 	}
 	const FString Arrive = UGameplayStatics::ParseOption(OptionsString, TEXT("ArriveAt"));
-	if (Arrive.IsEmpty() || Arrive == TEXT("West"))
+	if (Arrive.IsEmpty() || Arrive == TEXT("West") || Arrive == TEXT("Resume"))
 	{
-		return;		// PlayerStart already stands at the West door
+		return;		// PlayerStart already stands at the West door; a resume was placed by ResumeInDistrict
 	}
 
 	if (Director)

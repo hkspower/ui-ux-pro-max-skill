@@ -13,7 +13,11 @@ enum class EAreaSide : uint8
 {
 	West,
 	East,
-	Door
+	Door,
+	/** Back to another level's world at the district the save names (its
+	    DestinationStage): the world's own resume, without the title -- the
+	    monkey island's boat home. */
+	Resume
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnExitRefused, EAbility, Needed, FName, NeedsClearing);

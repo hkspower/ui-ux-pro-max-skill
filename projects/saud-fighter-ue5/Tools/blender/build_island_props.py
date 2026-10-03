@@ -18,7 +18,7 @@ textured with the 4K prop maps:
                              standing, most broken, drums fallen), low walls
                              between them, a gate where the trail comes in and a
                              stepped throne opposite it
-    SM_Island_Pier           a teak pier 30 m out from the landing beach
+    SM_Island_Pier           a teak pier 60 m out from the landing beach to water
     SM_Island_Boat           a Kuwaiti boom: a double-ended teak dhow, 14 m, a
                              raked mast and its lateen yard, the rudder -- what
                              brings Saud here from the stone island and back
@@ -84,7 +84,7 @@ TREES = dict(A=dict(h=19.0, seed=11), B=dict(h=24.0, seed=17))
 ROCKS = dict(A=dict(size=1.2, seed=21), B=dict(size=2.6, seed=23), C=dict(size=5.0, seed=29))
 TEMPLE = dict(court_r=16.0, court_h=0.25, plateau_r=22.5, ring_r=19.5, columns=12, drum_h=0.8, drum_r=0.55,
               wall_r=21.4, gate_r=21.0, gate_w=4.0, gate_h=6.0, fight_r=11.0, clear_r=16.0)
-PIER = dict(length=30.0, width=3.0, deck=0.55, post_every=3.0, post_depth=4.0)
+PIER = dict(length=60.0, width=3.0, deck=0.55, post_every=3.0, post_depth=4.0)
 BOAT = dict(length=14.0, beam=4.0, draft=1.2, freeboard=1.3, mast=11.0)
 BUDGET = dict(Palm=16000, Tree=60000, Rock=4000, Temple=40000, Pier=6000, Boat=12000)
 

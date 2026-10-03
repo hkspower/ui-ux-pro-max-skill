@@ -1,0 +1,168 @@
+[
+  {
+    "Name": "Island_Clearing_1",
+    "DisplayName": "THE BEACH PATH",
+    "DisplayNameArabic": "درب الشاطئ",
+    "Briefing": "They drop out of the palms before the sand is off his feet.",
+    "BriefingArabic": "",
+    "Length": 1360,
+    "Tier": 2,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "bFightAtDirector": true,
+    "Waves": [
+      {
+        "TriggerDistance": 0,
+        "Fighters": [
+          "Monkey",
+          "Monkey"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": []
+  },
+  {
+    "Name": "Island_Clearing_2",
+    "DisplayName": "THE FERN CLEARING",
+    "DisplayNameArabic": "فسحة السرخس",
+    "Briefing": "Three of them, and they have been waiting.",
+    "BriefingArabic": "",
+    "Length": 1360,
+    "Tier": 2,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "bFightAtDirector": true,
+    "Waves": [
+      {
+        "TriggerDistance": 0,
+        "Fighters": [
+          "Monkey",
+          "Monkey",
+          "Monkey"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": []
+  },
+  {
+    "Name": "Island_Clearing_3",
+    "DisplayName": "THE FIG",
+    "DisplayNameArabic": "التينة",
+    "Briefing": "The troop comes down the trunk two at a time.",
+    "BriefingArabic": "",
+    "Length": 1360,
+    "Tier": 3,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "bFightAtDirector": true,
+    "Waves": [
+      {
+        "TriggerDistance": 0,
+        "Fighters": [
+          "Monkey",
+          "Monkey"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 0,
+        "Fighters": [
+          "Monkey",
+          "Monkey"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": []
+  },
+  {
+    "Name": "Island_Clearing_4",
+    "DisplayName": "THE STREAM",
+    "DisplayNameArabic": "الجدول",
+    "Briefing": "Mud to the ankle, and they are quicker in it than he is.",
+    "BriefingArabic": "",
+    "Length": 1360,
+    "Tier": 3,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "bFightAtDirector": true,
+    "Waves": [
+      {
+        "TriggerDistance": 0,
+        "Fighters": [
+          "Monkey",
+          "Monkey",
+          "Monkey"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 0,
+        "Fighters": [
+          "Monkey",
+          "Monkey"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": []
+  },
+  {
+    "Name": "Island_Clearing_5",
+    "DisplayName": "THE STAIR",
+    "DisplayNameArabic": "الدرج",
+    "Briefing": "Under the temple wall the whole troop stands its ground.",
+    "BriefingArabic": "",
+    "Length": 1360,
+    "Tier": 4,
+    "bIsBossStage": false,
+    "bSurvival": false,
+    "bFightAtDirector": true,
+    "Waves": [
+      {
+        "TriggerDistance": 0,
+        "Fighters": [
+          "Monkey",
+          "Monkey",
+          "Monkey",
+          "Monkey"
+        ],
+        "TierOverride": -1
+      },
+      {
+        "TriggerDistance": 0,
+        "Fighters": [
+          "Monkey",
+          "Monkey",
+          "Monkey"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": []
+  },
+  {
+    "Name": "Island_Temple",
+    "DisplayName": "THE SILVERBACK",
+    "DisplayNameArabic": "الظهر الفضي",
+    "Briefing": "The ruin is his. He has watched the boat come in.",
+    "BriefingArabic": "",
+    "Length": 1360,
+    "Tier": 4,
+    "bIsBossStage": true,
+    "bSurvival": false,
+    "bFightAtDirector": true,
+    "Waves": [
+      {
+        "TriggerDistance": 0,
+        "Fighters": [
+          "Gorilla"
+        ],
+        "TierOverride": -1
+      }
+    ],
+    "Gates": []
+  }
+]

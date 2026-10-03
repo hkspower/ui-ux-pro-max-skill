@@ -173,9 +173,12 @@ bool USaudMotionComponent::EnemyNear(const AFighterBase* Fighter, float Within)
 UAnimSequence* USaudMotionComponent::Find(FName MotionSet, const FString& Clip)
 {
 	const FString Set = MotionSet.IsNone() ? TEXT("Saud") : MotionSet.ToString();
-	// Saud's clips are in Saud/, the street men's in Street/, every other
-	// set that has its own is a boss's.
-	const FString Folder = (Set == TEXT("Saud") || Set == TEXT("Street")) ? Set : FString(TEXT("Bosses"));
+	// Saud's clips are in Saud/, the street men's in Street/, the monkey
+	// island's creatures' in Island/, every other set that has its own is a
+	// boss's.
+	const bool bCreature = Set == TEXT("Monkey") || Set == TEXT("Gorilla");
+	const FString Folder = (Set == TEXT("Saud") || Set == TEXT("Street")) ? Set
+		: bCreature ? FString(TEXT("Island")) : FString(TEXT("Bosses"));
 
 	const FString Own = FString::Printf(TEXT("/Game/Animation/%s/A_%s_%s.A_%s_%s"),
 	                                    *Folder, *Set, *Clip, *Set, *Clip);
@@ -184,6 +187,12 @@ UAnimSequence* USaudMotionComponent::Find(FName MotionSet, const FString& Clip)
 		return Seq;
 	}
 	if (Set == TEXT("Saud"))
+	{
+		return nullptr;
+	}
+	// A creature borrows nothing: the men's clips are on another skeleton,
+	// and a clip it lacks falls back within its own set (SaudFeel::Fallback).
+	if (bCreature)
 	{
 		return nullptr;
 	}

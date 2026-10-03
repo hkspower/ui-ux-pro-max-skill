@@ -192,7 +192,8 @@ void AAreaExit::HandleOverlap(UPrimitiveComponent*, AActor* Other, UPrimitiveCom
 	// The far side reads these on load: where to stand, and what to carry
 	// across. Travel is a step through a doorway, not a fresh run.
 	FString Options = FString::Printf(TEXT("?ArriveAt=%s"),
-		ArriveAt == EAreaSide::East ? TEXT("East") : ArriveAt == EAreaSide::Door ? TEXT("Door") : TEXT("West"));
+		ArriveAt == EAreaSide::East ? TEXT("East") : ArriveAt == EAreaSide::Door ? TEXT("Door")
+			: ArriveAt == EAreaSide::Resume ? TEXT("Resume") : TEXT("West"));
 	Options += FString::Printf(TEXT("?Health=%d?Stamina=%d?Rage=%d"),
 		FMath::RoundToInt(Player->GetHealth()),
 		FMath::RoundToInt(Player->GetStamina()),

@@ -204,7 +204,10 @@ def plan_styles():
     that makes the fighter feel broken rather than distinct.
     """
     out = []
-    for row in read("DT_Fighters.csv"):
+    # the ring's fighters, then a level's own (the monkey island's creatures,
+    # DT_IslandFighters.csv: hand-authored, Unreal-only), styled the same way
+    island = read("DT_IslandFighters.csv") if os.path.exists(os.path.join(DATA, "DT_IslandFighters.csv")) else []
+    for row in read("DT_Fighters.csv") + island:
         name = row["Name"]
         if name == "Saud":
             continue                    # the player is not driven by a style
@@ -289,8 +292,10 @@ def plan_styles():
             # A careful fighter respects a guard; a brawler swings into it.
             GuardRespect=round(max(0.3, min(0.85,
                 0.35 + num(row, "GuardChance", 0.12) * 0.8)), 2),
-            Notes="Generated from DT_Fighters row '%s'. Edit the browser "
-                  "project, re-export, re-run." % name,
+            Notes=("Generated from DT_Fighters row '%s'. Edit the browser "
+                   "project, re-export, re-run." % name) if row not in island else
+                  ("Generated from DT_IslandFighters row '%s' (hand-authored, Unreal-only). "
+                   "Edit that table and re-run." % name),
         ))
         own = BOSS_DIALS.get(name, {})
         if own and not boss:

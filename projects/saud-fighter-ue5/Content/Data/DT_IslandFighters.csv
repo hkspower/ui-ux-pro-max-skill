@@ -1,0 +1,3 @@
+Name,DisplayName,DisplayNameArabic,MaxHealth,PowerMultiplier,MoveSpeed,PreferredRange,AttackInterval,GuardChance,bHitAndRun,bIsBoss,ExperienceValue,Moves,FightStyle,Mesh
+Monkey,Jungle Monkey,قرد الغابة,34,0.7,300,105,1.1,0.06,true,false,12,"(""Jab"",""Hook"",""Kick"")",/Game/Data/Generated/DA_Style_Monkey.DA_Style_Monkey,/Game/Models/Monkey.Monkey
+Gorilla,SILVERBACK,الظهر الفضي,480,1.6,260,165,1.2,0.3,false,true,260,"(""Cross"",""Hook"",""Special"")",/Game/Data/Generated/DA_Style_Gorilla.DA_Style_Gorilla,/Game/Models/Gorilla.Gorilla

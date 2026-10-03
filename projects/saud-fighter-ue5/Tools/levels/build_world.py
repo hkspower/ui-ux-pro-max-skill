@@ -198,7 +198,7 @@ COLORS_CSV = os.path.join(PROJECT, "Content", "Data", "DT_Colors.csv")
 # darker, blocks and the rim between. Water and iron are Unreal-only colours.
 ROLE_OF_KIND = dict(
     flagstone="paving", concrete="paving", boards="paving", asphalt="paving", sand="paving", paving="paving",
-    jetty="paving",
+    jetty="paving", boat_jetty="paving",
     ground="ground", plateau="ground",
     hall="block", shed="block", block="block", front="block", ruin="block", wreck="block", tent="block",
     seating="block",
@@ -614,6 +614,103 @@ def island(d, idx, scenery, animals):
     animals.extend(beasts)
 
 
+# ------------------------------------------------------------ the boat
+# The way to the monkey island (2026-10-03, Unreal only: L_MonkeyIsland, a
+# level of its own off the ring, Tools/levels/build_monkey_island_level.py).
+# A boom moored at the end of a jetty of its own, run out from the stone
+# island's stone into its shallows on the bearing furthest from every door,
+# clear of the rocks standing in the water; the way aboard is an AreaExit on
+# the jetty's end that opens the island level (?ArriveAt=West, its
+# PlayerStart on its pier). The boat home lands back here by ?ArriveAt=Resume,
+# in the middle of this district (ASaudGameMode::ResumeInDistrict).
+ISLAND_LEVEL = "L_MonkeyIsland"
+ISLAND_FIRST_STAGE = "Island_Clearing_1"
+BOAT = dict(length=1400.0, beam=400.0, draft=120.0, jetty_out=1350.0, jetty_w=460.0,
+            rock_clear=100.0, door_sep=40.0)
+
+
+def boat_place(d, bearing_deg):
+    """The boat's jetty, hull and exit for a bearing, in the district's frame."""
+    E = d["extent"]
+    a = math.radians(bearing_deg)
+    u = (math.cos(a), math.sin(a))
+    t = (-u[1], u[0])
+    r0, r1 = ISL.PLATEAU * E - 200.0, E + BOAT["jetty_out"]
+    rc = r1 - 0.30 * BOAT["length"]
+    side = BOAT["jetty_w"] * 0.5 + BOAT["beam"] * 0.5 + 30.0
+    hull = (u[0] * rc + t[0] * side, u[1] * rc + t[1] * side)
+    return dict(bearing=bearing_deg, r0=r0, r1=r1, hull=hull, u=u,
+                exit=(u[0] * (r1 - 150.0), u[1] * (r1 - 150.0)),
+                z=ISL.SHALLOW_Z + BOAT["draft"] + 5.0)
+
+
+def boat_clearance(d, b):
+    """The least gap between the hull (a segment along the jetty, its beam
+    either side) and any rock in the shallows, centimetres."""
+    hx, hy = b["hull"]
+    ux, uy = b["u"]
+    L = BOAT["length"] * 0.5
+    ax, ay, bx, by = hx - ux * L, hy - uy * L, hx + ux * L, hy + uy * L
+    worst = 1e9
+    for r in d["island"]["rocks"]:
+        px, py = r["x"] - ax, r["y"] - ay
+        dx, dy = bx - ax, by - ay
+        t = max(0.0, min(1.0, (px * dx + py * dy) / (dx * dx + dy * dy)))
+        gap = math.hypot(px - dx * t, py - dy * t) - BOAT["beam"] * 0.5 - r["r"]
+        worst = min(worst, gap)
+    return worst
+
+
+def island_boat(d, idx, scenery, act):
+    """Moor the boat: the bearing furthest from every door whose hull clears
+    every rock; its jetty boards, the boat and the way aboard."""
+    doors = [math.degrees(math.atan2(dy, dx)) for dx, dy, *_ in d["doors"]]
+    best = None
+    for k in range(72):
+        b = boat_place(d, k * 5.0)
+        sep = min(abs((b["bearing"] - x + 180.0) % 360.0 - 180.0) for x in doors)
+        if boat_clearance(d, b) >= BOAT["rock_clear"] and (best is None or sep > best[0]):
+            best = (sep, b)
+    assert best, "no bearing round the stone island moors the boat clear of its rocks"
+    b = best[1]
+    ox, oy = d["ox"], d["oy"]
+    n = max(2, int((b["r1"] - b["r0"]) / 420.0))
+    for j in range(n + 1):
+        rr = lerp(b["r0"], b["r1"], j / float(n))
+        scenery.append(dict(kind="boat_jetty", shape="box", x=ox + b["u"][0] * rr, y=oy + b["u"][1] * rr,
+                            z=ISL.SHORE_Z - 30.0, sx=460.0, sy=620.0, sz=60.0, yaw=b["bearing"],
+                            solid=True, district=idx))
+    act("Boat", "Boat_to_MonkeyIsland", ox + b["hull"][0], oy + b["hull"][1], b["z"], Yaw=b["bearing"],
+        Mesh="SM_Island_Boat")
+    act("LevelExit", "Exit_JaziratAlHajar_Boat_to_MonkeyIsland", ox + b["exit"][0], oy + b["exit"][1],
+        GROUND_Z + 300.0, DestinationLevel=ISLAND_LEVEL, DestinationStage=ISLAND_FIRST_STAGE, ArriveAt="West")
+    d["boat"] = b
+
+
+def check_boat(P):
+    """The boat moored right: off every door, its hull clear of the rocks and
+    on the water (past the waterline, inside the shallows, its keel off the
+    seabed), its jetty whole from the stone to the way aboard, and one way
+    aboard, to the island level."""
+    d = next(x for x in P["districts"].values() if "island" in x)
+    b = d["boat"]
+    E = d["extent"]
+    doors = [math.degrees(math.atan2(dy, dx)) for dx, dy, *_ in d["doors"]]
+    sep = min(abs((b["bearing"] - x + 180.0) % 360.0 - 180.0) for x in doors)
+    assert sep >= BOAT["door_sep"], "the boat is moored %.0f degrees from a door, want %.0f" % (sep, BOAT["door_sep"])
+    assert boat_clearance(d, b) >= BOAT["rock_clear"] - 1.0, "the boat is moored on a rock (%.0f cm clear)" % boat_clearance(d, b)
+    rin = math.hypot(*b["hull"]) - BOAT["length"] * 0.5
+    rout = math.hypot(*b["hull"]) + BOAT["length"] * 0.5
+    assert rin >= ISL.SURF * E and rout <= ISL.SHALLOWS * E, \
+        "the boat is not on the water: %.0f-%.0f cm out, the water %.0f-%.0f" % (rin, rout, ISL.SURF * E, ISL.SHALLOWS * E)
+    assert b["z"] - BOAT["draft"] >= ISL.SHALLOW_Z, "the boat's keel is in the seabed"
+    boards = sorted(math.hypot(p["x"] - d["ox"], p["y"] - d["oy"]) for p in P["scenery"] if p["kind"] == "boat_jetty")
+    assert boards and boards[0] <= ISL.PLATEAU * E and boards[-1] >= math.hypot(*b["exit"]) and \
+        max(y - x for x, y in zip(boards, boards[1:])) <= 600.0, "the boat's jetty does not reach from the stone to the way aboard"
+    ways = [a for a in P["actors"] if a["kind"] == "LevelExit"]
+    assert len(ways) == 1 and ways[0]["props"]["DestinationLevel"] == ISLAND_LEVEL, "the boat has no single way aboard"
+
+
 def souq(d, idx, scenery):
     """SOUQ AL-DAWAR as build_souq.py models it, around this world's doors.
     Its stalls, warehouses, minaret, props and gate are exactly the level's
@@ -684,6 +781,7 @@ def plan(stages, world):
                                   path=path, sites=sites, doors=doors, vocab=v)
         if is_island(stage):
             island(d, idx, scenery, animals)
+            island_boat(d, idx, scenery, act)
         elif is_souq(stage):
             souq(d, idx, scenery)
         else:
@@ -844,6 +942,8 @@ def check(P):
                     assert math.hypot(p["x"] - o["ox"], p["y"] - o["oy"]) >= \
                         o["extent"] + half + GAP - 1.0, \
                         "the island's %s is not clear of %s" % (p["kind"], o["stage"]["Name"])
+
+    check_boat(P)
 
     # Nothing solid stands on the street, in a fight, or off its district.
     on_street = in_fight = off_edge = 0
@@ -1043,6 +1143,18 @@ def bite(verbose=True):
         run = sorted((p for p in boards if abs(math.atan2(p["y"], p["x"]) - ang) < 0.01), key=lambda p: math.hypot(p["x"], p["y"]))
         I["scenery"].remove(run[len(run) // 2])
     case("a missing jetty board", "hole in it", mutate=board_gone)
+    # --- the boat to the monkey island
+    def boat_at_door(P):
+        d = island_of(P); dx, dy = d["doors"][0][:2]
+        d["boat"] = boat_place(d, math.degrees(math.atan2(dy, dx)))
+    case("the boat at a door", "from a door", mutate=boat_at_door)
+    def boat_on_rock(P):
+        d = island_of(P); r = d["island"]["rocks"][0]; b = d["boat"]; b["hull"] = (r["x"], r["y"])
+    case("the boat on a rock", "on a rock", mutate=boat_on_rock)
+    def boat_jetty_short(P):
+        P["scenery"] = [p for p in P["scenery"] if not (p["kind"] == "boat_jetty"
+                        and math.hypot(p["x"] - island_of(P)["ox"], p["y"] - island_of(P)["oy"]) > island_of(P)["extent"])]
+    case("the boat's jetty short", "does not reach", mutate=boat_jetty_short)
     # --- 27-30: the colours
     case("theme drift (Towers, one digit)", "not the browser's", [(T, "Towers", ("#2a3553", "#1a2136"))])
     roles = {k: v for k, v in ROLE_OF_KIND.items() if k != "barrier"}
@@ -1103,7 +1215,7 @@ def describe(P):
         paving_n = sum(1 for p in mine if p["kind"] in (d["vocab"]["paving"], "street"))
         rim_n = sum(1 for p in mine if p["kind"] == rim)
         block_n = sum(1 for p in mine if p["solid"] and p["kind"] not in
-                      ("ground", rim, "plateau", "beach", "jetty", "banner", "crate", "barrel"))
+                      ("ground", rim, "plateau", "beach", "jetty", "boat_jetty", "banner", "crate", "barrel"))
         print("  %-18s (%8.0f, %8.0f) %7.0f m %7d %7d %5d"
               % (d["stage"]["Name"], d["ox"], d["oy"], d["extent"] * 2.0 / 100.0,
                  paving_n, block_n, rim_n))
@@ -1213,8 +1325,8 @@ def draw(P, path):
         x, y = to(a["x"], a["y"])
         col = {"WaveDirector": (255, 255, 255), "Gate": (90, 200, 255),
                "Exit": (120, 255, 120), "PlayerStart": (255, 120, 255),
-               "WaveMarker": (250, 170, 90)}[a["kind"]]
-        r = 4 if a["kind"] in ("Exit", "PlayerStart") else 3
+               "WaveMarker": (250, 170, 90), "Boat": (240, 220, 160), "LevelExit": (255, 230, 80)}[a["kind"]]
+        r = 4 if a["kind"] in ("Exit", "PlayerStart", "LevelExit", "Boat") else 3
         g.ellipse([x - r, y - r, x + r, y + r], fill=col)
     for idx in [P["arena"]] + P["order"]:
         d = D[idx]
@@ -1313,6 +1425,30 @@ def import_city(names):
     return {name: unreal.load_asset("/Game/Models/City/%s" % name) for name in names}
 
 
+def import_island(names):
+    """Inside the editor: the monkey island's prop meshes
+    (Tools/blender/build_island_props.py) into /Game/Models/Island, their
+    surfaces set by surfaces.py. Read-reviewed, not run."""
+    import unreal  # noqa: E402
+    models = os.path.join(PROJECT, "Content", "Models", "Island")
+    tasks = []
+    for name in names:
+        if unreal.EditorAssetLibrary.does_asset_exist("/Game/Models/Island/%s" % name):
+            continue
+        t = unreal.AssetImportTask()
+        t.filename = os.path.join(models, name + ".fbx"); t.destination_path = "/Game/Models/Island"
+        t.automated = True; t.save = True; t.replace_existing = True
+        ui = unreal.FbxImportUI(); ui.import_mesh = True; ui.import_materials = True; ui.import_textures = True
+        ui.import_as_skeletal = False; ui.mesh_type_to_import = unreal.FBXImportType.FBXIT_STATIC_MESH
+        t.options = ui; tasks.append(t)
+    if tasks:
+        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
+        sys.path.insert(0, _LOOK_DIR)
+        import surfaces  # noqa: E402
+        surfaces.build()
+    return {name: unreal.load_asset("/Game/Models/Island/%s" % name) for name in names}
+
+
 def build(P):
     import unreal  # noqa: E402  (only importable inside the editor)
 
@@ -1362,7 +1498,7 @@ def build(P):
 
     island_folder = {"shallows": "Island/Water", "beach": "Island/Ground",
                      "plateau": "Island/Ground", "rock": "Island/Rocks",
-                     "jetty": "Island/Ways", "paving": "Island/Street"}
+                     "jetty": "Island/Ways", "boat_jetty": "Boat", "paving": "Island/Street"}
 
     # --- the souq's own meshes, imported from Content/Models/Souq the way
     #     build_souq.py imports them for its level
@@ -1482,6 +1618,16 @@ def build(P):
                 act.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=0.0, yaw=wall["yaw"]), False)
                 act.set_actor_scale3d(unreal.Vector(*wall["scale"]))
                 act.get_component_by_class(unreal.StaticMeshComponent).set_static_mesh(mesh[wall["mesh"]])
+        elif k == "Boat":
+            boat = import_island([pr["Mesh"]])[pr["Mesh"]]
+            act = spawn(unreal.StaticMeshActor, a["name"], a["x"], a["y"], a["z"], pr["Yaw"], folder="Boat")
+            act.get_component_by_class(unreal.StaticMeshComponent).set_static_mesh(boat)
+            act.set_mobility(unreal.ComponentMobility.STATIC)
+        elif k == "LevelExit":
+            act = spawn(unreal.AreaExit, a["name"], a["x"], a["y"], a["z"], folder="Boat")
+            act.set_editor_property("destination_level", unreal.Name(pr["DestinationLevel"]))
+            act.set_editor_property("destination_stage", unreal.Name(pr["DestinationStage"]))
+            act.set_editor_property("arrive_at", getattr(unreal.AreaSide, pr["ArriveAt"].upper()))
         elif k == "Exit":
             act = spawn(unreal.AreaExit, a["name"], a["x"], a["y"], a["z"], folder="Exits")
             act.set_editor_property("side", getattr(unreal.AreaSide, pr["Side"].upper()))
@@ -1491,7 +1637,7 @@ def build(P):
             made[a["name"]] = act
         else:
             continue
-        if k in ("WaveDirector", "PlayerStart", "Gate", "Exit"):
+        if k in ("WaveDirector", "PlayerStart", "Gate", "Exit", "LevelExit"):
             try:
                 act.set_editor_property("is_spatially_loaded", False)
             except Exception:
