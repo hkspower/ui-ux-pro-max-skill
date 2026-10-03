@@ -342,7 +342,8 @@ JOGGER_OFFSET = 0.007     # the jogger's shell off the skin (the track's 0.010)
 # hips as a box and ended at the crotch in a ledge across the front
 # (2026-10-03, "fix core shape" -- the joggers' waist bulge); a jogger is
 # cut close and its elastic pulls it to him.
-SEAT_FIT = {"track": (0.30, 0.020), "jogger": (0.30, 0.020)}
+SEAT_FIT = {"track": (0.30, 0.020, None),             # (slope, max_grow, front fade y from-to)
+            "jogger": (0.30, 0.012, (-0.06, -0.01))}   # behind only: the front 17 mm off him at 0.97 before
 FOLD_SCALE = 1.0          # the folds' amplitude, for the check's sabotage
 TEE_SLOPE = 0.35          # how fast the tee may narrow under what it hangs from (0.20 tented it off the lats)
 ANGLE_SMOOTH = 10         # passes rounding each slice's hang across angles (was 3)
@@ -429,9 +430,12 @@ def fit(g, kind, body=None, cut=None):
         # above the crotch (0.90) only: run below it, the hull spanned both
         # thighs and hung a skirt between the legs (the first preview)
         pel = np.nonzero(P[:, 2] >= PELVIS_Z)[0]
-        s_slope, s_grow = SEAT_FIT[cut]
+        s_slope, s_grow, s_front = SEAT_FIT[cut]
         out = _drape_region(P, pel, np.array([0.0, 0.012, 1.08]), -Z, X, Y, 0.006, slope=s_slope, max_grow=s_grow)
         wpel = _smoothstep(PELVIS_Z, PELVIS_Z + 0.04, P[pel, 2]) if len(pel) else None
+        if s_front and len(pel):
+            # only behind, over the seat's cleft: fading out toward the front
+            wpel = wpel * _smoothstep(s_front[0], s_front[1], P[pel, 1])
         if len(out):
             grow, dirv = out; D[pel] += dirv * (grow * wpel)[:, None]
         # each leg: hangs from the seat and the thigh, gathered at the cuff

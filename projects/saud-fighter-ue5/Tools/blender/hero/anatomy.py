@@ -173,9 +173,13 @@ PHYSIQUES = {
             (0.930, 0.010, 0.172, 0.116),
             (0.960, 0.008, 0.178, 0.118),
             (1.020, 0.003, 0.160, 0.108),
-            (1.080, -0.003, 0.140, 0.097),
-            (1.140, -0.005, 0.133, 0.093),
-            (1.200, -0.002, 0.150, 0.101),
+            # 2026-10-03 ("fix core shape"): the waist 3-4 mm in across and
+            # deep, under the raised rectus wall (0.140/0.097, 0.133/0.093
+            # before: with the wall the waist measured 0.806); the lower
+            # ribs out 6 mm (0.150) so the climb to the ribcage is even
+            (1.080, -0.001, 0.137, 0.093),
+            (1.140, -0.003, 0.129, 0.089),
+            (1.200, -0.002, 0.156, 0.101),
             (1.270, 0.005, 0.180, 0.112),
             (1.340, 0.010, 0.196, 0.116),
             (1.400, 0.012, 0.206, 0.106),
@@ -185,8 +189,15 @@ PHYSIQUES = {
             (1.530, 0.002, 0.078, 0.064),
         ],
         BACK_MUSCLES={
-            "lat": [(0.176, 1.345, 0.014, 0.042), (0.166, 1.290, 0.013, 0.058), (0.140, 1.228, 0.011, 0.060),
-                    (0.104, 1.172, 0.004, 0.046), (0.068, 1.124, 0.001, 0.034)],
+            # 2026-10-03 ("fix core shape"): the lat's widest link was low
+            # (1.228, 60 mm across) and it ended in 6 cm, so seen from the
+            # front the flank jumped 35 mm out between 1.15 and 1.19 -- a
+            # fin, which the compression top showed. Seven links, the
+            # across shrinking evenly to the waist, a little further in and
+            # prouder (the lat rule 10.9 mm, the V's bulge 0.8)
+            "lat": [(0.176, 1.345, 0.014, 0.042), (0.168, 1.300, 0.015, 0.054), (0.152, 1.255, 0.014, 0.046),
+                    (0.130, 1.210, 0.012, 0.040), (0.112, 1.170, 0.006, 0.034), (0.092, 1.130, 0.002, 0.028),
+                    (0.070, 1.095, 0.000, 0.020)],
             "erector": CANON_BACK_MUSCLES["erector"],
         },
         # its own proportions, held instead of the canonical band where it
@@ -266,12 +277,17 @@ def seated(name, ang, z, axes, along, sink):
 # parted by narrow tendinous lines. Taller rows now, the lines between
 # them narrow, a little less proud, flatter on top, over a strap
 # (RECTUS_STRAP) that carries the lower belly down toward the pubis.
-RECTUS = [(1.246, 0.0325, 0.028, 0.0066), (1.177, 0.0335, 0.029, 0.0070), (1.107, 0.0345, 0.029, 0.0070)]
+# 2026-10-03 ("fix core shape", joined abs): the rows read as six tiles on
+# a flat plate. The strap under them is raised into a wall (5.5 mm, 38 mm
+# half-width; 2.2 and 27 before) that the rows stand out of, each row
+# 1 mm taller and 3 mm prouder over it, their edges a little softer
+# (RECTUS_EX 0.70; 0.62 before). abs 3.6 mm, linea 7.0, ab lines 12 mm.
+RECTUS = [(1.246, 0.0335, 0.028, 0.0096), (1.177, 0.0345, 0.029, 0.0100), (1.107, 0.0355, 0.029, 0.0100)]
 RECTUS_X = 0.034
-RECTUS_EX = 0.62
+RECTUS_EX = 0.70
 # the strap under the rows, (z top, z bottom, half-width, how proud): its
 # edge is the linea semilunaris, the line down the side of the abs
-RECTUS_STRAP = (1.275, 0.990, 0.027, 0.0022)
+RECTUS_STRAP = (1.285, 0.980, 0.038, 0.0055)
 # the external oblique, a band down and forward on the flank, (angle, z):
 # slanted, it reads as the oblique line; beads read as a column of bumps and
 # a vertical chain as a bar
@@ -282,9 +298,11 @@ OBLIQUE = [(1.36, 1.225), (1.28, 1.170), (1.18, 1.115), (1.08, 1.070)]
 # height (the waist curves in at 1.14 and out again: one straight belly
 # stood proud only at the narrowest), (across, crown) along it.
 OBLIQUE_STEP = 0.003
-OBLIQUE_BAND = (0.034, 0.0065)
+OBLIQUE_BAND = (0.050, 0.0060)   # 2026-10-03: broader and flatter (0.034, 0.0065 before)
 OBLIQUE_SEAT = 0.012
-OBLIQUE_FADE = []           # per OBLIQUE point (across, proud) factors; [] is the full band throughout
+# per OBLIQUE point, (across, proud) factors: thinning to its ends, where a
+# full band ended as a rib standing off the waist (2026-10-03)
+OBLIQUE_FADE = [(0.8, 0.7), (1.0, 1.0), (1.0, 1.0), (0.7, 0.4)]
 SERRATUS_PROUD = 0.0045
 # the serratus, four slips on the ribs under the pec's edge, (angle, z),
 # finger-like and interleaved with the oblique's top
@@ -745,7 +763,15 @@ LEAN_FORE = [
     (1.05, 0.029, 0.022, 0.000, 0.0, 0.0),
 ]
 LEAN_THIGH = [
-    (-0.06, 0.082, 0.096, +0.004, -0.010),
+    # 2026-10-03 ("fix core shape"): the tube's top closed into a dome
+    # tucked inside the pelvis -- its flat top at 0.082 stood 6 mm outside
+    # the hips and ended in a shelf across them (11 mm in a centimetre, and
+    # the joggers' box over it); a fuller dome showed through as two
+    # bolsters either side of a groove. Inside, the pelvis loft (an
+    # ellipse, convex) is the surface, down to where the thigh comes out.
+    (-0.13, 0.020, 0.024, -0.004, -0.012),
+    (-0.10, 0.042, 0.052, -0.004, -0.012),
+    (-0.06, 0.062, 0.076, -0.002, -0.010),
     (0.16, 0.082, 0.097, +0.007, -0.008),
     (0.40, 0.077, 0.089, +0.011, -0.002),
     (0.62, 0.069, 0.078, +0.009, 0.0),
@@ -1434,6 +1460,16 @@ def limb_numbers(P):
             widths.append(float("nan")); continue
         widths.append(float(np.sum(dep > 0.5 * np.nanmax(dep)) * 0.002))
     out["abs_groove"] = max(widths)
+    # outline (2026-10-03, "fix core shape"): the trunk seen from the front,
+    # its half-width every centimetre from the hips to under the arms, and
+    # the largest step between two -- the hip shelf the thighs' flat tops
+    # made (11 mm) and the fin the lats' lower edge made (10 mm)
+    ws = []
+    for z in np.arange(0.90, 1.305, 0.01):
+        m = (np.abs(P[:, 2] - z) < 0.003) & (np.abs(P[:, 0]) < 0.25)
+        ws.append(float(np.abs(P[m, 0]).max()) if m.any() else np.nan)
+    ws = np.array(ws)
+    out["outline"] = float(np.nanmax(np.abs(np.diff(ws))))
     return out
 
 
@@ -1458,7 +1494,10 @@ PHYSIQUE_RULES = (("abs", ">=", 0.0035, "no abs: the rectus rows %.1f mm over th
                   # 13.6, 14), and each bitten by --physique-check
                   ("arm_sep", ">=", 0.0015, "no groove down the outside of the arm: %.1f mm between biceps and triceps, want 1.5"),
                   ("quad", ">=", 0.009, "no quadriceps sweep: the outer thigh %.1f mm out of its line, want 9"),
-                  ("abs_groove", "<=", 0.018, "pebbles, not a strap: the lines between the ab rows %.0f mm wide, want 18 or less"))
+                  ("abs_groove", "<=", 0.018, "pebbles, not a strap: the lines between the ab rows %.0f mm wide, want 18 or less"),
+                  # 2026-10-03 ("fix core shape"): 11.1 before (the hip shelf),
+                  # 6.5 after; the old lats alone 9.9, the old thigh tops 11.1
+                  ("outline", "<=", 0.008, "a shelf or a fin: the trunk's outline steps %.1f mm in a centimetre, want 8 or less"))
 
 def check_physique(P, assert_=True):
     """The lean physique's definition on the fine body (physique_numbers):

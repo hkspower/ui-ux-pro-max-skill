@@ -1003,6 +1003,9 @@ def physique_check():
     canon_depth = {0.15: (0.058, 0.006), 0.40: (0.065, 0.014), 0.62: (0.058, 0.009)}
     swollen = [(t, rx) + canon_depth.get(t, (ry, sf)) + (ss, w) for t, rx, ry, sf, ss, w in A.LEAN_UPPER]
     pebbles = [(1.246, 0.027, 0.027, 0.0065), (1.178, 0.029, 0.028, 0.0070), (1.108, 0.030, 0.028, 0.0070)]
+    old_lat = [(0.176, 1.345, 0.014, 0.042), (0.166, 1.290, 0.013, 0.058), (0.140, 1.228, 0.011, 0.060),
+               (0.104, 1.172, 0.004, 0.046), (0.068, 1.124, 0.001, 0.034)]
+    old_thigh = [(-0.06, 0.082, 0.096, +0.004, -0.010)] + A.LEAN_THIGH[3:]
     def band(name):
         # check_proportions names every measure off its band after the colon
         return lambda e: "proportions" in e and name in [s.split()[0] for s in e.split(": ", 1)[1].split(", ")]
@@ -1018,7 +1021,12 @@ def physique_check():
              ("no arm bellies", dict(A=dict(LIMB_BELLIES=legs_only)), "no groove"),
              ("the swollen arm", dict(A=dict(LEAN_UPPER=swollen)), "a sleeve"),
              ("no leg bellies", dict(A=dict(LIMB_BELLIES=arms_only)), "no quadriceps"),
-             ("pebble abs", dict(A=dict(RECTUS=pebbles, RECTUS_EX=0.75, RECTUS_STRAP=None)), "pebbles")]
+             ("pebble abs", dict(A=dict(RECTUS=pebbles, RECTUS_EX=0.75, RECTUS_STRAP=None)), "pebbles"),
+             # 2026-10-03 ("fix core shape"): the lats as they were (a fin
+             # down each flank, 9.9 mm in a centimetre) and the thighs' flat
+             # tops (a shelf across the hips, 11.1)
+             ("the lats' fin", dict(back=dict(lean["BACK_MUSCLES"], lat=old_lat)), "a shelf or a fin"),
+             ("the thighs' shelf", dict(A=dict(LEAN_THIGH=old_thigh)), "a shelf or a fin")]
     for label, patch, word in cases:
         saved = {k: getattr(A, k) for k in patch.get("A", {})}
         lean0 = dict(lean)
