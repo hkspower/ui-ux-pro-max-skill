@@ -138,7 +138,8 @@ void USaudLookSubsystem::Tick(float DeltaTime)
 	}
 	// The world's clock is all but stopped during a freeze; the picture's is
 	// not. Real time, as USaudFeelSubsystem does.
-	Look.Tick(FMath::Clamp(static_cast<float>(FApp::GetDeltaTime()), 0.f, 0.1f));
+	const float RealSeconds = FMath::Clamp(static_cast<float>(FApp::GetDeltaTime()), 0.f, 0.1f);
+	Look.Tick(RealSeconds);
 
 	Write(ESlot::Impact, SaudAnime::Param::Impact, Look.ImpactValue());
 	Write(ESlot::Invert, SaudAnime::Param::ImpactInvert, Look.InvertValue());
@@ -160,6 +161,9 @@ void USaudLookSubsystem::Tick(float DeltaTime)
 	Vec(SaudAnime::Param::BoneColour, Pal.Bone);
 	Vec(SaudAnime::Param::BloodColour, Pal.Blood);
 	Vec(SaudAnime::Param::EmberColour, Pal.Ember);
+	Vec(SaudAnime::Param::SystemColour, Pal.System);
+	Vec(SaudAnime::Param::IceColour, Pal.Ice);
+	Vec(SaudAnime::Param::ShadowColour, Pal.Shadow);
 
 	float Speed = Look.SpeedValue();
 	float X = 0.5f, Y = 0.5f;
@@ -180,7 +184,58 @@ void USaudLookSubsystem::Tick(float DeltaTime)
 	// HAWK FIST: the flame on the player's fist and the burst on the man
 	// his burning punch hit.
 	const APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-	WriteFire(PC ? Cast<ASaudCharacter>(PC->GetPawn()) : nullptr);
+	const ASaudCharacter* Saud = PC ? Cast<ASaudCharacter>(PC->GetPawn()) : nullptr;
+	WriteFire(Saud);
+	WritePower(Saud, RealSeconds);
+}
+
+void USaudLookSubsystem::WritePower(const ASaudCharacter* Saud, float RealSeconds)
+{
+	// Full rage burns at Power::Ready; the finisher (the attack Input_Rage
+	// starts, "Rage") at full.
+	const bool bReady = Saud && Saud->IsRageReady();
+	const bool bFinisher = Saud && Saud->GetCurrentAttackRow() == FName(TEXT("Rage"));
+	Power.Tick(SaudAnime::Power::Target(bReady, bFinisher), RealSeconds);
+	float Level = Power.Level;
+	const USkeletalMeshComponent* Body = Saud ? Saud->GetMesh() : nullptr;
+	if (Level > 0.f && Body)
+	{
+		float X = 0.f, Y = 0.f, Depth = 0.f, Scale = 0.f;
+		if (!Project(Body->GetSocketLocation(TEXT("pelvis")), X, Y, Depth, Scale))
+		{
+			Level = 0.f;      // off the screen: nothing to burn round
+		}
+		else
+		{
+			Set(SaudAnime::Param::AuraX, X);
+			Set(SaudAnime::Param::AuraY, Y);
+			Set(SaudAnime::Param::AuraDepth, Depth);
+			Set(SaudAnime::Param::AuraScale, Scale);
+			// His eyes, from the head joint (at the eye line; there are no
+			// eye bones): forward along his facing, apart across it.
+			const FVector Head = Body->GetSocketLocation(TEXT("head"));
+			const FVector Fwd = Saud->GetActorForwardVector();
+			const FVector Right = Saud->GetActorRightVector();
+			const FVector Mid = Head + Fwd * SaudAnime::Power::EyeForwardCm;
+			const FVector Half = Right * (0.5f * SaudAnime::Power::EyeApartCm);
+			float X0 = 0.f, Y0 = 0.f, D0 = 0.f, S0 = 0.f, X1 = 0.f, Y1 = 0.f, D1 = 0.f, S1 = 0.f;
+			if (Project(Mid - Half, X0, Y0, D0, S0) && Project(Mid + Half, X1, Y1, D1, S1))
+			{
+				Set(SaudAnime::Param::EyeX0, X0);
+				Set(SaudAnime::Param::EyeY0, Y0);
+				Set(SaudAnime::Param::EyeX1, X1);
+				Set(SaudAnime::Param::EyeY1, Y1);
+				Set(SaudAnime::Param::EyeDepth, FMath::Min(D0, D1));
+				Set(SaudAnime::Param::EyeScale, 0.5f * (S0 + S1));
+			}
+			else
+			{
+				Set(SaudAnime::Param::EyeScale, 0.f);
+			}
+		}
+	}
+	Write(ESlot::AuraTime, SaudAnime::Param::AuraTime, Power.Clock);
+	Write(ESlot::Aura, SaudAnime::Param::Aura, Level);
 }
 
 void USaudLookSubsystem::WriteFire(const ASaudCharacter* Saud)

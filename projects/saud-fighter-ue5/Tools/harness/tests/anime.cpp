@@ -56,9 +56,12 @@ static void Blows()
     const SaudFeel::FBlowFeel DF = SaudFeel::ForBlow(true, false, false, true, false, true);
     Check(Frame <= DF.HitStop, "a knockdown's first impact frame is inside the freeze");
 
-    // 2026-09-28. The tone: a blow's blood, a parry's bone.
-    Check(Heavy.Impact.Tone == ETone::Blood && Down.Impact.Tone == ETone::Blood,
-          "a heavy hit and a knockdown are cut in blood");
+    // The tone: since 2026-10-03 (the System) a heavy blow's and a
+    // knockdown's cyan, blood before; a parry's bone. M_Anime_Frame reads
+    // the number: 3 is the System's (anime_look.py checks the other side).
+    Check(Heavy.Impact.Tone == ETone::System && Down.Impact.Tone == ETone::System
+              && static_cast<int>(ETone::System) == 3,
+          "a heavy hit and a knockdown are cut in the System's cyan");
     Check(Parry.Impact.Tone == ETone::Bone, "a parry is cut in bone");
     // The mark: only where a blow lands heavy.
     Check(Heavy.MarkLife > 0.f && Down.MarkLife > 0.f && Light.MarkLife == 0.f && Block.MarkLife == 0.f
@@ -167,7 +170,7 @@ static void State()
     FState B3;
     B3.Add(ForBlow(false, false, true, false));
     B3.MarkBurning();
-    Check(bEmber && B2.Impact.Tone == ETone::Blood && B3.Impact.Tone == ETone::Bone && B3.ToneValue() == 2.f,
+    Check(bEmber && B2.Impact.Tone == ETone::System && B3.Impact.Tone == ETone::Bone && B3.ToneValue() == 2.f,
           "a burning punch's own frame goes ember, and nothing else does");
     FState Idle;
     Idle.MarkBurning();
@@ -224,6 +227,59 @@ static void State()
     Check(std::strcmp(Param::ImpactTone, "ImpactTone") == 0 && std::strcmp(Param::Wound, "Wound") == 0
               && std::strcmp(Param::MarkAge, "MarkAge") == 0 && std::strcmp(Param::MarkSeed, "MarkSeed") == 0,
           "the tone, wound and mark parameter names (anime_look.py checks the other side)");
+}
+
+/** Saud's power-up (2026-10-03): the aura's level from his rage and the
+    finisher, easing up in RiseSeconds and down in FallSeconds, never past
+    what it is asked for; the stencil and the eyes' offsets the look and
+    the subsystem share. (0.25 s and 0.60 s written here.) */
+static void PowerUp()
+{
+    std::printf("POWER\n");
+    using namespace SaudAnime::Power;
+    Check(Target(false, false) == 0.f && Near(Target(true, false), 0.55f) && Target(true, true) == 1.f
+              && Target(false, true) == 1.f,
+          "no aura without full rage; full rage burns at 0.55, the finisher at full");
+    FPower P;
+    bool Climbs = true, Capped = true;
+    float Prev = 0.f;
+    for (int i = 0; i < 60; ++i)                          // 0.25 s at 240 Hz
+    {
+        P.Tick(1.f, 1.f / 240.f);
+        Climbs = Climbs && P.Level > Prev;
+        Capped = Capped && P.Level <= 1.f + 1e-6f;
+        Prev = P.Level;
+    }
+    const bool bUpIn = Near(P.Level, 1.f, 1e-4f);
+    FPower O;                                             // one long frame: it stops at what it is asked
+    O.Tick(Ready, 0.2f);
+    Capped = Capped && Near(O.Level, Ready, 1e-6f);
+    P.Tick(Ready, 0.1f);
+    const bool bHolds = P.Level < 1.f && P.Level > Ready;
+    for (int i = 0; i < 240; ++i) P.Tick(Ready, 1.f / 240.f);
+    const bool bSettles = Near(P.Level, Ready, 1e-5f);
+    Check(Climbs && Capped && bUpIn && bHolds && bSettles,
+          "the aura rises to what it is asked in 0.25 s and falls back slowly, never past it");
+    FPower Q;
+    Q.Level = 1.f;
+    bool Falls = true;
+    for (int i = 0; i < 144; ++i)                         // 0.60 s at 240 Hz
+    {
+        const float Was = Q.Level;
+        Q.Tick(0.f, 1.f / 240.f);
+        Falls = Falls && Q.Level < Was;
+    }
+    Check(Falls && Q.Level < 1e-4f && Q.Level >= 0.f, "...and goes out over 0.60 s");
+    FPower C;
+    C.Tick(0.f, 0.5f);
+    C.Tick(0.f, 0.25f);
+    Check(Near(C.Clock, 0.75f) && C.Level == 0.f, "its clock runs in real time whether it burns or not");
+    Check(SaudStencil == 1 && EyeApartCm > 5.f && EyeApartCm < 8.f && EyeForwardCm > 6.f && EyeForwardCm < 12.f,
+          "the stencil the look reads, and his eyes a face's width apart in front of the head joint");
+    Check(std::strcmp(SaudAnime::Param::Aura, "Aura") == 0 && std::strcmp(SaudAnime::Param::AuraTime, "AuraTime") == 0
+              && std::strcmp(SaudAnime::Param::EyeScale, "EyeScale") == 0
+              && std::strcmp(SaudAnime::Param::SystemColour, "SystemColour") == 0,
+          "the power-up's parameter names (anime_look.py checks the other side)");
 }
 
 using namespace SaudHud;
@@ -674,6 +730,7 @@ int main()
 {
     Blows();
     State();
+    PowerUp();
     Hud();
     Palette();
     if (Fails) { std::printf("%d anime check(s) failed\n", Fails); return 1; }

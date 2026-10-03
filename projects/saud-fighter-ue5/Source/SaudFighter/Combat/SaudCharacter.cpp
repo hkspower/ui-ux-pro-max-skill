@@ -58,6 +58,13 @@ void ASaudCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// His outline for the look's aura (2026-10-03): AFighterBase already
+	// writes custom depth for every fighter; Saud alone writes this stencil.
+	if (USkeletalMeshComponent* Body = GetMesh())
+	{
+		Body->SetCustomDepthStencilValue(SaudAnime::Power::SaudStencil);
+	}
+
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		BaseWalkSpeed = Move->MaxWalkSpeed;

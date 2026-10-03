@@ -9,7 +9,7 @@ mirror of M_Anime_Post's and M_Anime_Frame's HLSL, over them.
 
     python3 Tools/blender/anime_preview.py scenes/SouqAlDawar_fight.blend \
         --out ../../Docs/renders/souq-fight-anime.png [--camera Cam_souq-fight]
-        [--height 1080] [--samples 48] [--blow X Y] [--fire] [--pair] [--street] [--sky]
+        [--height 1080] [--samples 48] [--blow X Y] [--fire] [--rage] [--pair] [--street] [--sky]
     python3 Tools/blender/anime_preview.py --men Saud Thug Brawler \
         --out ../../Docs/renders/anime-men.png
     python3 Tools/blender/anime_preview.py scenes/SouqAlDawar_fight.blend \
@@ -307,6 +307,35 @@ def mark_of(victim, age=1.0 / 24.0, seed=3.0):
     at = victim.matrix_world @ victim.pose.bones["head"].head - Vector((0.0, 0.0, CHIN_UNDER_HEAD_M))
     x, y, depth, scale = project(at)
     return dict(age=age, x=x, y=y, depth=depth, scale=scale, seed=seed)
+
+
+EYE_FORWARD_M = 0.09     # SaudAnime::Power::EyeForwardCm
+EYE_APART_M = 0.064      # SaudAnime::Power::EyeApartCm
+
+
+def aura_of(saud, level=0.55, time=0.4):
+    """Saud's power-up as USaudLookSubsystem::WritePower writes it, from his
+    rig: his middle (the pelvis) projected, and his eyes from the head joint
+    -- at the eye line -- forward along his facing (the rig's -Y) and apart
+    across it."""
+    from mathutils import Vector
+    M = saud.matrix_world
+    pelvis = M @ saud.pose.bones["pelvis"].head
+    head = M @ saud.pose.bones["head"].head
+    fwd = (M.to_3x3() @ Vector((0.0, -1.0, 0.0))).normalized()
+    right = (M.to_3x3() @ Vector((-1.0, 0.0, 0.0))).normalized()
+    x, y, depth, scale = project(pelvis)
+    mid = head + fwd * EYE_FORWARD_M
+    e0, e1 = project(mid - right * (EYE_APART_M / 2)), project(mid + right * (EYE_APART_M / 2))
+    return dict(level=level, x=x, y=y, depth=depth, scale=scale, time=time,
+                eyes=((e0[0], e0[1]), (e1[0], e1[1])), eye_depth=min(e0[2], e1[2]),
+                eye_scale=0.5 * (e0[3] + e1[3]))
+
+
+def saud_of(got):
+    """His outline: the custom stencil's stand-in, the object index pass
+    (render_scene gives Saud's meshes 2, every other fighter 1)."""
+    return got["ObjectIndex"][..., 0] > 1.5
 
 
 def scene_rigs():
@@ -926,8 +955,9 @@ def main():
     if blow:
         c = tuple(float(v) for v in blow)
         lines = dict(speed=1.0, centre=c, seed=3.0)
-        frames = {"impact": dict(impact=1.0, **lines),
-                  "impact-flipped": dict(impact=1.0, invert=1.0, **lines),
+        # (a heavy blow's tone is the System's cyan since 2026-10-03: 3)
+        frames = {"impact": dict(impact=1.0, tone=3.0, **lines),
+                  "impact-flipped": dict(impact=1.0, invert=1.0, tone=3.0, **lines),
                   "speedlines": lines,
                   "impact-parry": dict(impact=1.0, tone=2.0, **lines),
                   "impact-burning": dict(impact=1.0, tone=1.0, **lines),
@@ -946,6 +976,15 @@ def main():
         print("  and %s-{%s}.png: the impact frame with its lines is %d colours before the grain%s"
               % (stem, ",".join(frames), colours,
                  "; the mark on %s's chin at %.2f %.2f, %.0f cm" % (others[0].name, mk["x"], mk["y"], mk["depth"]) if others else ""))
+    # --rage: Saud's power-up, his rage full (0.55) and through the finisher (1)
+    if "--rage" in sys.argv and saud is not None:
+        mask = saud_of(got)
+        for name, level in (("rage", 0.55), ("finisher", 1.0)):
+            a = aura_of(saud, level=level)
+            img, _ = look_from(got, exposure, aura=a, saud=mask)
+            Image.fromarray(img).save("%s-%s.png" % (stem, name))
+        print("  and %s-{rage,finisher}.png: Saud's aura round %d px of him, his eyes at %.3f %.3f and %.3f %.3f"
+              % (stem, int(mask.sum()), a["eyes"][0][0], a["eyes"][0][1], a["eyes"][1][0], a["eyes"][1][1]))
     if "--street" in sys.argv:
         street(os.path.dirname(out), height, samples)
     if "--sky" in sys.argv:

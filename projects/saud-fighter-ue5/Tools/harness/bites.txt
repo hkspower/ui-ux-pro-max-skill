@@ -6,9 +6,9 @@
 # the new ones, scripted.) No sed expression may contain a bar.
 
 # ---- blows: which get an impact frame, of what shape and tone
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#return L;   // a light hit#L.Impact = {Frame, false, false, ETone::Blood}; L.SpeedSeconds = 0.30f; return L;   // a light hit#|a light hit gets no impact frame
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#{2.f \* Frame, false, true, ETone::Blood}#{2.f * Frame, true, false, ETone::Blood}#|a knockdown: two frames, the second flipped
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Impact = {Frame, false, false, ETone::Blood};#L.Impact = {3.f * Frame, false, false, ETone::Blood};#|the heavy's impact frame fits inside its hitstop
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#return L;   // a light hit#L.Impact = {Frame, false, false, ETone::System}; L.SpeedSeconds = 0.30f; return L;   // a light hit#|a light hit gets no impact frame
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#{2.f \* Frame, false, true, ETone::System}#{2.f * Frame, true, false, ETone::System}#|a knockdown: two frames, the second flipped
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Impact = {Frame, false, false, ETone::System};#L.Impact = {3.f * Frame, false, false, ETone::System};#|the heavy's impact frame fits inside its hitstop
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#{2.f \* Frame, true, false, ETone::Bone}#{2.f * Frame, true, false, ETone::Blood}#|a parry is cut in bone
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#return L;   // a light hit#L.MarkLife = MarkSeconds; return L;   // a light hit#|the mark is only on heavy clean hits and knockdowns
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float MarkHold = 2.f \* Frame;#constexpr float MarkHold = 1.f * Frame;#|the mark stands for the whole heavy freeze
@@ -21,7 +21,16 @@ anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float SpeedHold = 0.35f;
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Impact.Seconds >= Left#L.Impact.Seconds >= Left * 0.f#|a shorter impact never replaces a longer one running
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float OnTwos = 2.f \* Frame;#constexpr float OnTwos = Frame;#|the seed changes 12 times a second: on twos
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#Boil = SAUD_TEXT("Boil")#Boil = SAUD_TEXT("Boil2")#|the boil is written as Boil
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#Impact.Tone = ETone::Ember;#Impact.Tone = ETone::Blood;#|a burning punch's own frame goes ember
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Impact.Tone = ETone::Ember;#Impact.Tone = ETone::System;#|a burning punch's own frame goes ember
+# 2026-10-03, the System's hits and Saud's power-up
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Impact = {Frame, false, false, ETone::System};#L.Impact = {Frame, false, false, ETone::Blood};#|a heavy hit and a knockdown are cut in the System's cyan
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Bone = 2, System = 3 };#Bone = 2, System = 4 };#|a heavy hit and a knockdown are cut in the System's cyan
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#return bFinisher ? Finisher : (bRageReady ? Ready : 0.f);#return bFinisher ? Ready : (bRageReady ? Ready : 0.f);#|the finisher at full
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float RiseSeconds = 0.25f;#constexpr float RiseSeconds = 0.05f;#|the aura rises to what it is asked in 0.25 s
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float FallSeconds = 0.60f;#constexpr float FallSeconds = 0.20f;#|...and goes out over 0.60 s
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Level = FMath::Min(T, Level + RealSeconds / RiseSeconds);#Level = Level + RealSeconds / RiseSeconds;#|never past it
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Clock = FMath::Fmod(Clock + RealSeconds, 3600.f);#Clock = FMath::Fmod(Clock + RealSeconds * Level, 3600.f);#|its clock runs in real time
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr int SaudStencil = 1;#constexpr int SaudStencil = 0;#|the stencil the look reads
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#Impact.Seconds > 0.f && ImpactElapsed <= 0.f#Impact.Seconds > 0.f#|a burning punch's own frame goes ember, and nothing else does
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#static_cast<float>(static_cast<int>(Impact.Tone)) : 0.f#0.f : 0.f#|a burning punch's own frame goes ember
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float MarkSeconds = 6.f \* Frame;#constexpr float MarkSeconds = 12.f * Frame;#|the mark runs in real time and is gone at 6/24 s

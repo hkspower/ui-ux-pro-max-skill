@@ -74,6 +74,9 @@ protected:
 private:
 	SaudAnime::FState Look;
 
+	/** Saud's power-up (2026-10-03): his aura's level, eased in real time. */
+	SaudAnime::Power::FPower Power;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialParameterCollection> Collection = nullptr;
 
@@ -100,6 +103,7 @@ private:
 	{
 		Impact, Invert, Speed, Seed, FireHeat, BurnAge, Boil,
 		Tone, Wound, MarkAge, MarkX, MarkY, MarkDepth, MarkScale, MarkSeed,
+		Aura, AuraTime,
 		Count
 	};
 
@@ -112,6 +116,9 @@ private:
 	bool VictimOnScreen(float& OutX, float& OutY) const;
 	void WriteFire(const ASaudCharacter* Saud);
 	void WriteMark();
+	/** Saud's aura and eyes: the level from his rage and the finisher, his
+	    middle and his eyes projected as the fire's fist is. */
+	void WritePower(const ASaudCharacter* Saud, float RealSeconds);
 	/** A world point as the fire parameters want it: viewport fraction (Y
 	    down), scene depth in cm, and the size of one figure pixel there as
 	    a fraction of the viewport's height. False when it cannot be seen. */

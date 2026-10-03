@@ -410,14 +410,16 @@ LOOK = {
     "SPEED_LIGHT_BELOW": 0.30,
     "SPEED_ALPHA_LIGHT": 0.42,
     "SPEED_ON_FIGHTER": 0.0,  # the lines stop at a fighter
-    # A share of the streaks is drawn in blood rather than ink: a two-tone
-    # panel. Linear. 2026-09-28: one blood for the lines, the impact frame
-    # and the HUD, #C01A1F (the HUD's; #8e1420, 0.2705 0.0070 0.0144,
-    # before), brighter, so fewer of the lines are blood: 0.27 -> 0.15
-    # (the same hash picks the red and the drawn lines, which put 55 % of
-    # the streak pixels in blood at 0.27)
+    # A share of the streaks is drawn in an accent rather than ink: a
+    # two-tone panel. Since 2026-10-03 (the System) the accent is the
+    # System's cyan (HUD_SYSTEM); it was blood. Linear. 2026-09-28: one
+    # blood for the lines, the impact frame and the HUD, #C01A1F (the HUD's;
+    # #8e1420, 0.2705 0.0070 0.0144, before), brighter, so fewer of the lines
+    # were blood: 0.27 -> 0.15 (the same hash picks the accent and the drawn
+    # lines, which put 55 % of the streak pixels in it at 0.27). Blood is
+    # the wound's now, and a tone nothing asks for.
     "BLOOD": (0.5271, 0.0103, 0.0137),
-    "SPEED_RED": 0.15,      # 2026-09-26: 0.22 -> 0.27, more of it blood; 2026-09-28: 0.15
+    "SPEED_ACCENT": 0.15,   # 2026-09-26: 0.22 -> 0.27; 2026-09-28: 0.15 (SPEED_RED until 2026-10-03)
     # 7. impact frame. 2026-09-26, the dark: its light half is an EMBER --
     # a blood-orange, the colour of what burns -- where it was paper
     # (a warm newsprint, 0.93 0.88 0.78). BONE is the HUD's lettering, dim
@@ -451,6 +453,42 @@ LOOK = {
     "HUD_DANGER": (1.0, 0.0331, 0.0908),
     "HUD_ICE": (0.8228, 0.9216, 1.0),
     "IMPACT_CUT": 0.45,       # display luminance above which the cut frame is its tone
+    # 8c. Saud's power-up (2026-10-03, the System's style, none of its
+    # names; SaudAnime::Power). When his rage is full a violet aura burns
+    # round his outline, found by the custom-stencil value AURA_STENCIL his
+    # mesh alone writes. Flat, as everything here: a band of HUD_SHADOW
+    # violet AURA_PX figure px out at full (MPC_Anime.Aura 1; the ready
+    # 0.55 burns at that share), its width swayed between AURA_MIN and all
+    # of it by value noise AURA_CELL px across that rises AURA_RISE px a
+    # second -- tongues -- and searched AURA_LIFT of the width below each
+    # pixel, so it stands taller over his head than under his feet; the
+    # inner AURA_CORE of it a core AURA_CORE_MIX of the way from violet to
+    # HUD_ICE; drawn at AURA_A. Looked for in AURA_TAPS directions on three
+    # rings, only in a box AURA_BOX figure px about his middle; never on
+    # him, and never on a man BURST_BEHIND_CM nearer the camera. After the
+    # fire, before the mark and the cut (an impact frame cuts it with the
+    # rest).
+    "AURA_STENCIL": 1,
+    "AURA_PX": 9.0,
+    "AURA_MIN": 0.45,
+    "AURA_CELL": 6.0,
+    "AURA_RISE": 30.0,
+    "AURA_LIFT": 0.6,
+    "AURA_CORE": 0.55,
+    "AURA_CORE_MIX": 0.55,
+    "AURA_A": 0.88,
+    "AURA_TAPS": 12,
+    "AURA_BOX": (70.0, 110.0),
+    # ...and his eyes: an ice core EYE_CORE figure px across, a halo of the
+    # aura's core colour to EYE_HALO, a flare of ice out each side EYE_FLARE
+    # px long and EYE_FLARE_W px thick at the eye, tapering to a point --
+    # all three grown by the aura's level from 0.6 of themselves; hidden by
+    # anything EYE_BEHIND_CM nearer than the eye.
+    "EYE_CORE": 1.1,
+    "EYE_HALO": 2.6,
+    "EYE_FLARE": 13.0,
+    "EYE_FLARE_W": 0.8,
+    "EYE_BEHIND_CM": 6.0,
     # 7c. on an impact frame with the blow on screen, the cut is flipped
     # (tone for ink, ink for tone) along FOCUS lines -- FOCUS_COUNT cells
     # round the blow, FOCUS_KEEP of them drawn, each a needle from its
@@ -472,7 +510,8 @@ LOOK = {
     "SPLAT_STRETCH": 2.4,
     # 7d. the mark where a heavy blow lands (2026-09-28; SaudAnime.h
     # MarkHold / MarkSpark / MarkSeconds, the frames below, checked against
-    # it): a needle star in BONE with an ink edge (MARK_INK_PX, 1080 lines),
+    # it): a needle star in HUD_ICE (BONE until 2026-10-03) with an ink edge
+    # (MARK_INK_PX, 1080 lines), its drops the System's cyan (BLOOD before);
     # MARK_PX figure pixels to its longest tip (about 32 cm), its core
     # MARK_CORE of that, MARK_SPIKES points alternating long and short, each
     # as sharp as MARK_SHARP; full for MARK_HOLD_F film frames, shrinking to
@@ -601,17 +640,27 @@ MPC_SCALARS = (
     ("BurnScale", 0.0),
     ("BurnSeed", 0.0),      # a new set of sparks every burst
     # the hit effects of the dark seinen (2026-09-28, SaudAnime::Param)
-    ("ImpactTone", 0.0),    # the impact frame's light half: 0 blood, 1 ember, 2 bone
+    ("ImpactTone", 0.0),    # the impact frame's light half: 0 blood, 1 ember, 2 bone, 3 the System's cyan
     ("Wound", 0.0),         # 0..1, the player's wound border
     ("MarkAge", -1.0),      # seconds since a heavy blow landed; < 0: no mark
     ("MarkX", 0.5), ("MarkY", 0.5),          # where it landed, 0..1 of the viewport, Y down
     ("MarkDepth", 0.0),     # scene depth there, cm
     ("MarkScale", 0.0),     # one figure pixel there, as a share of the viewport's height
     ("MarkSeed", 0.0),      # a new star and new drops every mark
+    # Saud's power-up (2026-10-03, SaudAnime::Param)
+    ("Aura", 0.0),          # 0 none, 0.55 rage full, 1 the finisher
+    ("AuraX", 0.5), ("AuraY", 0.5),          # his middle, 0..1 of the viewport, Y down
+    ("AuraDepth", 0.0),     # scene depth there, cm
+    ("AuraScale", 0.0),     # one figure pixel there, as a share of the viewport's height
+    ("AuraTime", 0.0),      # real seconds: the tongues rise on it
+    ("EyeX0", 0.5), ("EyeY0", 0.5), ("EyeX1", 0.5), ("EyeY1", 0.5),   # his eyes
+    ("EyeDepth", 0.0),      # scene depth at them, cm
+    ("EyeScale", 0.0),      # one figure pixel there
 )
 # the palette's vectors (2026-10-03, SaudAnime::Param): linear, the live
 # palette's, written by USaudLookSubsystem; their defaults are LOOK's
-MPC_VECTORS = (("InkColour", "INK"), ("BoneColour", "BONE"), ("BloodColour", "BLOOD"), ("EmberColour", "EMBER"))
+MPC_VECTORS = (("InkColour", "INK"), ("BoneColour", "BONE"), ("BloodColour", "BLOOD"), ("EmberColour", "EMBER"),
+               ("SystemColour", "HUD_SYSTEM"), ("IceColour", "HUD_ICE"), ("ShadowColour", "HUD_SHADOW"))
 # the palette the game reads from Content/Data/DT_LookColors.csv: its data
 # name and LOOK's key, in SaudHud::FPalette's order
 PALETTE = (("Ink", "INK"), ("Bone", "BONE"), ("Blood", "BLOOD"), ("Ember", "EMBER"),
@@ -623,6 +672,8 @@ LOOK_COLORS_CSV = os.path.join(os.path.normpath(os.path.join(os.path.dirname(os.
 FIRE_PARAMS = ("FireHeat", "FireX", "FireY", "FireDirX", "FireDirY", "FireDepth", "FireScale", "FireTime",
                "BurnAge", "BurnX", "BurnY", "BurnDepth", "BurnScale", "BurnSeed")
 HIT_PARAMS = ("ImpactTone", "Wound", "MarkAge", "MarkX", "MarkY", "MarkDepth", "MarkScale", "MarkSeed")
+POWER_PARAMS = ("Aura", "AuraX", "AuraY", "AuraDepth", "AuraScale", "AuraTime",
+                "EyeX0", "EyeY0", "EyeX1", "EyeY1", "EyeDepth", "EyeScale")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
@@ -692,7 +743,15 @@ def _sub(code):
         "ACCENT_FROM": _f(L["ACCENT_FROM"]), "ACCENT_FULL": _f(L["ACCENT_FULL"]), "ACCENT_SAT": _f(L["ACCENT_SAT"]),
         "HAZE_NEAR": _f(L["HAZE_NEAR_CM"]), "HAZE_FAR": _f(L["HAZE_FAR_CM"]), "HAZE_MAX": _f(L["HAZE_MAX"]),
         "HAZE": _f3(L["HAZE"]),
-        "BLOOD_D": "BloodD", "SPEED_RED": _f(L["SPEED_RED"]),
+        "BLOOD_D": "BloodD", "SPEED_ACCENT": _f(L["SPEED_ACCENT"]),
+        "SYSTEM_D": "SystemD", "ICE_D": "IceD", "SHADOW_D": "ShadowD",
+        "AURA_STENCIL": _f(L["AURA_STENCIL"]), "AURA_PX": _f(L["AURA_PX"]), "AURA_MIN": _f(L["AURA_MIN"]),
+        "AURA_CELL": _f(L["AURA_CELL"]), "AURA_RISE": _f(L["AURA_RISE"]), "AURA_LIFT": _f(L["AURA_LIFT"]),
+        "AURA_CORE_MIX": _f(L["AURA_CORE_MIX"]), "AURA_CORE": _f(L["AURA_CORE"]), "AURA_A": _f(L["AURA_A"]),
+        "AURA_TAPS": str(int(L["AURA_TAPS"])),
+        "AURA_BOX_X": _f(L["AURA_BOX"][0]), "AURA_BOX_Y": _f(L["AURA_BOX"][1]),
+        "EYE_CORE": _f(L["EYE_CORE"]), "EYE_HALO": _f(L["EYE_HALO"]), "EYE_FLARE_W": _f(L["EYE_FLARE_W"]),
+        "EYE_FLARE": _f(L["EYE_FLARE"]), "EYE_BEHIND": _f(L["EYE_BEHIND_CM"]),
         "SPEED_COUNT": _f(L["SPEED_COUNT"]), "SPEED_INNER": _f(L["SPEED_INNER"]),
         "SPEED_OUTER": _f(L["SPEED_OUTER"]), "SPEED_ON_FIGHTER": _f(L["SPEED_ON_FIGHTER"]),
         "SPEED_A": _f(L["SPEED_ALPHA"]), "IMPACT_CUT": _f(L["IMPACT_CUT"]),
@@ -979,8 +1038,9 @@ def hlsl_frame():
     The vignette (2026-09-26, the dark): the picture's corners taken down
        by VIGNETTE, before the fire (a flame is light) and the cut.
     8. HAWK FIST's fire (hlsl_fire()).
-    7d. The mark where a heavy blow landed (2026-09-28): a bone needle
-       star with an ink edge and blood drops, before the cut.
+    8c. Saud's power-up (2026-10-03): the aura and the eyes (hlsl_power()).
+    7d. The mark where a heavy blow landed (2026-09-28): an ice needle
+       star with an ink edge and the System's cyan drops, before the cut.
     7b. The impact frame cut to exactly two colours: whatever TSR's
        history, bloom or the tonemapper did to M_Anime_Post's ember and
        ink, a pixel brighter than IMPACT_CUT is the impact's TONE and the
@@ -1008,6 +1068,9 @@ float3 InkD = InkColour.rgb <= 0.0031308 ? 12.92 * InkColour.rgb : 1.055 * pow(m
 float3 BoneD = BoneColour.rgb <= 0.0031308 ? 12.92 * BoneColour.rgb : 1.055 * pow(max(BoneColour.rgb, 1e-6), 1.0 / 2.4) - 0.055;
 float3 BloodD = BloodColour.rgb <= 0.0031308 ? 12.92 * BloodColour.rgb : 1.055 * pow(max(BloodColour.rgb, 1e-6), 1.0 / 2.4) - 0.055;
 float3 EmberD = EmberColour.rgb <= 0.0031308 ? 12.92 * EmberColour.rgb : 1.055 * pow(max(EmberColour.rgb, 1e-6), 1.0 / 2.4) - 0.055;
+float3 SystemD = SystemColour.rgb <= 0.0031308 ? 12.92 * SystemColour.rgb : 1.055 * pow(max(SystemColour.rgb, 1e-6), 1.0 / 2.4) - 0.055;
+float3 IceD = IceColour.rgb <= 0.0031308 ? 12.92 * IceColour.rgb : 1.055 * pow(max(IceColour.rgb, 1e-6), 1.0 / 2.4) - 0.055;
+float3 ShadowD = ShadowColour.rgb <= 0.0031308 ? 12.92 * ShadowColour.rgb : 1.055 * pow(max(ShadowColour.rgb, 1e-6), 1.0 / 2.4) - 0.055;
 float3 S = SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, 14), 14, false).rgb;
 float2 UV = GetDefaultSceneTextureUV(Parameters, 1);
 float D = SceneTextureLookup(UV, 1, false).r;
@@ -1029,11 +1092,11 @@ float Vr = length((VUV - 0.5) * float2(Aspect, 1.0)) / (0.5 * sqrt(Aspect * Aspe
 // corners back up and the vignette all but went.
 float3 Out = lerp(pow(saturate((S - LV_BLACK) / (LV_WHITE - LV_BLACK)), 1.0 / LV_GAMMA), S, Imp);
 Out *= 1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr) * (1.0 - Imp);
-""") + hlsl_fire() + _sub(r"""
+""") + hlsl_fire() + hlsl_power() + _sub(r"""
 // 7d. the mark where a heavy blow landed, in units of its radius (MARK_PX
-// figure px, scaled to the man's distance): a bone needle star with an ink
+// figure px, scaled to the man's distance): an ice needle star with an ink
 // edge, full for MARK_HOLD s and shrinking to nothing at MARK_SPARK s, and
-// blood drops flung out of it and falling, gone at MARK_S s; on the man hit
+// the System's cyan drops flung out of it and falling, gone at MARK_S s; on the man hit
 // and what is behind him, never on a man BURST_BEHIND cm nearer
 if (MarkAge >= 0.0 && MarkAge < MARK_S)
 {
@@ -1050,7 +1113,7 @@ if (MarkAge >= 0.0 && MarkAge < MARK_S)
         float Tip = fmod(Mc, 2.0) < 0.5 ? lerp(MARK_LONG0, MARK_LONG1, Mh) : lerp(MARK_SHORT0, MARK_SHORT1, Mh);
         float Edge = (MARK_CORE + (Tip - MARK_CORE) * pow(1.0 - abs(2.0 * frac(Mu) - 1.0), MARK_SHARP)) * Mk;
         float Wi = MARK_INK / 1080.0 / Rm;
-        Out = lerp(Out, Mr < Edge ? BONE_D : INK_D, (Mr < Edge + Wi ? 1.0 : 0.0) * Mb);
+        Out = lerp(Out, Mr < Edge ? ICE_D : INK_D, (Mr < Edge + Wi ? 1.0 : 0.0) * Mb);
     }
     float Tm = MarkAge / MARK_S;
     for (int m = 0; m < MARK_DROPS; m++)
@@ -1061,14 +1124,15 @@ if (MarkAge >= 0.0 && MarkAge < MARK_S)
         float Dd = MARK_DROP_FROM + (MARK_DROP_TO - MARK_DROP_FROM) * (1.0 - (1.0 - Tm) * (1.0 - Tm)) * (0.6 + 0.4 * Hd);
         float Rd = lerp(MARK_DROP_R0, MARK_DROP_R1, Hr) * (1.0 - 0.5 * Tm);
         float2 Pd = float2(cos(6.2831853 * Ha), sin(6.2831853 * Ha)) * Dd + float2(0.0, MARK_DROP_FALL * Tm * Tm);
-        Out = lerp(Out, BLOOD_D, (length(Mv - Pd) < Rd ? 1.0 : 0.0) * Mb);
+        Out = lerp(Out, SYSTEM_D, (length(Mv - Pd) < Rd ? 1.0 : 0.0) * Mb);
     }
 }
 
-// 7b. the cut (the fire and the mark are cut with everything else): the
-// light half in the impact's tone -- a blow's blood, a burning punch's
-// ember, a parry's bone -- and the rest ink
-float3 ToneD = ImpactTone < 0.5 ? BLOOD_D : (ImpactTone < 1.5 ? EMBER_D : BONE_D);
+// 7b. the cut (the fire, the aura and the mark are cut with everything
+// else): the light half in the impact's tone -- a heavy blow's System cyan,
+// a burning punch's ember, a parry's bone (and 0, blood, which nothing
+// asks for since 2026-10-03) -- and the rest ink
+float3 ToneD = ImpactTone < 0.5 ? BLOOD_D : (ImpactTone < 1.5 ? EMBER_D : (ImpactTone < 2.5 ? BONE_D : SYSTEM_D));
 float Cut = dot(Out, LUMA) > IMPACT_CUT ? 1.0 : 0.0;
 Out = lerp(Out, lerp(INK_D, ToneD, Cut), Imp);
 
@@ -1108,7 +1172,7 @@ if (Imp > 0.0 && Speed > 0.0)
 
 // 6. speed lines, behind the figures as a panel draws them: needles, a
 // point at the blow and full width at the edge; bone over dark ground and
-// ink over light; a share in blood; not on an impact frame
+// ink over light; a share in the System's cyan; not on an impact frame
 float Rad = length(Vi);
 float Ang = (atan2(Vi.y, Vi.x) / 6.2831853 + 0.5) * SPEED_COUNT;
 float Rnd = frac(sin(floor(Ang) * 12.9898 + SpeedSeed * 78.233) * 43758.5453);
@@ -1116,7 +1180,7 @@ float Start = SPEED_INNER + 0.25 * Rnd * SPEED_INNER;
 float Wide = (SPEED_W0 + SPEED_W1 * Rnd) * pow(max(smoothstep(Start, SPEED_OUTER, Rad), 1e-6), SPEED_TAPER);
 float Streak = (abs(frac(Ang) - 0.5) < 0.5 * Wide && Rnd >= 0.45 && Rad > Start) ? 1.0 : 0.0;
 bool Dark = dot(Out, LUMA) < SPEED_LIGHT_BELOW;
-float3 LineC = Rnd > 1.0 - SPEED_RED ? BLOOD_D : (Dark ? BONE_D : INK_D);
+float3 LineC = Rnd > 1.0 - SPEED_ACCENT ? SYSTEM_D : (Dark ? BONE_D : INK_D);
 Out = lerp(Out, LineC, Streak * Speed * (Dark ? SPEED_A_LIGHT : SPEED_A) * (Fighter ? SPEED_ON_FIGHTER : 1.0) * (1.0 - Imp));
 
 // 9. the wound, when the player is hit hard: a flat blood border, its inner
@@ -1154,6 +1218,74 @@ float Pd = frac(sin(P1.x * 12.9898 + P1.y * 78.233) * 43758.5453);
 float Pn = lerp(lerp(Pa, Pb, Pf.x), lerp(Pc, Pd, Pf.x), Pf.y);
 Out = lerp(Out, saturate(Out * (1.0 - PAPER * Pn) + GRAIN * 2.0 * Gn * 4.0 * Lg * (1.0 - Lg)), 1.0 - Imp);
 return Out;
+""")
+
+
+def hlsl_power():
+    """Step 8c of M_Anime_Frame: Saud's aura and his eyes, in display
+    values, after the fire and before the mark and the cut. Inputs: the
+    POWER_PARAMS, D, UV, VUV and Aspect in scope; his outline from the
+    custom stencil (scene texture 25, CustomStencil), sampled at an offset
+    the viewport's own UV is turned into the buffer's by (ViewSize /
+    BufferSize), as dynamic resolution needs. power_step() line for line."""
+    return _sub(r"""
+// 8c. Saud's power-up. In figure px about his middle: the violet aura round
+// his outline, flat, its width swayed by rising value noise, searched below
+// each pixel so it stands taller over his head; never on him, never on a
+// man nearer the camera; then his eyes, an ice core in a halo with a flare
+// either side
+float2 VtoB = View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw;
+if (Aura > 0.0 && AuraScale > 0.0)
+{
+    float Fp = AuraScale;
+    float2 Av = (VUV - float2(AuraX, AuraY)) * float2(Aspect, 1.0) / Fp;
+    float Self = abs(SceneTextureLookup(UV, 25, false).r - AURA_STENCIL) < 0.5 ? 1.0 : 0.0;
+    if (abs(Av.x) < AURA_BOX_X && abs(Av.y) < AURA_BOX_Y && Self < 0.5 && D > AuraDepth - BURST_BEHIND)
+    {
+        // the tongues: value noise over (x, y rising), the same hash as the paper's
+        float2 Np = float2(Av.x, Av.y + AuraTime * AURA_RISE) / AURA_CELL;
+        float2 N0 = floor(Np);
+        float2 Nf = Np - N0;
+        Nf = Nf * Nf * (3.0 - 2.0 * Nf);
+        float2 N1 = N0 + 1.0;
+        N0 -= 289.0 * floor(N0 / 289.0);
+        N1 -= 289.0 * floor(N1 / 289.0);
+        float Na = frac(sin(N0.x * 12.9898 + N0.y * 78.233 + 9.0 * 4.1414) * 43758.5453);
+        float Nb = frac(sin(N1.x * 12.9898 + N0.y * 78.233 + 9.0 * 4.1414) * 43758.5453);
+        float Nc = frac(sin(N0.x * 12.9898 + N1.y * 78.233 + 9.0 * 4.1414) * 43758.5453);
+        float Nd = frac(sin(N1.x * 12.9898 + N1.y * 78.233 + 9.0 * 4.1414) * 43758.5453);
+        float Nn = lerp(lerp(Na, Nb, Nf.x), lerp(Nc, Nd, Nf.x), Nf.y);
+        float Wd = AURA_PX * Aura * (AURA_MIN + (1.0 - AURA_MIN) * Nn);
+        float Outer = 0.0, Inner = 0.0;
+        for (int k = 0; k < AURA_TAPS; k++)
+        {
+            float Ak = 6.2831853 * (k + 0.5) / AURA_TAPS;
+            float2 Dk = float2(cos(Ak), sin(Ak));
+            for (int r = 0; r < 3; r++)
+            {
+                float Rr = r == 0 ? 1.0 : (r == 1 ? AURA_CORE : 0.5 * AURA_CORE);
+                float2 Off = (Dk * Rr + float2(0.0, AURA_LIFT)) * Wd * Fp / float2(Aspect, 1.0);
+                float Hit = abs(SceneTextureLookup(UV + Off * VtoB, 25, false).r - AURA_STENCIL) < 0.5 ? 1.0 : 0.0;
+                if (r == 0) Outer = max(Outer, Hit); else Inner = max(Inner, Hit);
+            }
+        }
+        float3 AuraC = Inner > 0.5 ? lerp(SHADOW_D, ICE_D, AURA_CORE_MIX) : SHADOW_D;
+        Out = lerp(Out, AuraC, AURA_A * max(Outer, Inner));
+    }
+}
+if (Aura > 0.0 && EyeScale > 0.0 && D > EyeDepth - EYE_BEHIND)
+{
+    float Grow = 0.6 + 0.4 * saturate(Aura);
+    for (int e = 0; e < 2; e++)
+    {
+        float2 Ec = e == 0 ? float2(EyeX0, EyeY0) : float2(EyeX1, EyeY1);
+        float2 Ev = (VUV - Ec) * float2(Aspect, 1.0) / EyeScale;
+        float Er = length(Ev);
+        float Flare = abs(Ev.y) < EYE_FLARE_W * Grow * (1.0 - abs(Ev.x) / (EYE_FLARE * Grow)) ? 1.0 : 0.0;
+        if (Er < EYE_HALO * Grow) Out = lerp(SHADOW_D, ICE_D, AURA_CORE_MIX);
+        if (Er < EYE_CORE * Grow || Flare > 0.5) Out = ICE_D;
+    }
+}
 """)
 
 
@@ -1715,18 +1847,79 @@ def mark_step(out, D, mark):
                        lerp(L["MARK_SHORT"][0], L["MARK_SHORT"][1], mh))
         edge = (L["MARK_CORE"] + (tip - L["MARK_CORE"]) * (1.0 - np.abs(2.0 * fr(mu) - 1.0)) ** L["MARK_SHARP"]) * mk
         wi = L["MARK_INK_PX"] / 1080.0 / rm
-        col = np.where((mr < edge)[..., None], np.array(display(L["BONE"])), np.array(display(L["INK"])))
+        col = np.where((mr < edge)[..., None], np.array(display(L["BONE"] if "blood_mark" in _FLAGS else L["HUD_ICE"])),
+                       np.array(display(L["INK"])))
         if "soft_star" in _FLAGS:
             col = 0.5 * (col + out)
         out = np.where(((mr < edge + wi) & mb)[..., None], col, out)
     tm = age / mark_s
-    blood = np.array(display(L["BLOOD"]))
+    blood = np.array(display(L["BLOOD"] if "blood_mark" in _FLAGS else L["HUD_SYSTEM"]))
     for i in range(int(L["MARK_DROPS"])):
         ha, hd, hr = (fr(math.sin((i + k) * 12.9898 + seed * 78.233) * 43758.5453) for k in (71.0, 83.0, 97.0))
         dd = L["MARK_DROP_FROM"] + (L["MARK_DROP_TO"] - L["MARK_DROP_FROM"]) * (1.0 - (1.0 - tm) ** 2) * (0.6 + 0.4 * hd)
         rd = lerp(L["MARK_DROP_R"][0], L["MARK_DROP_R"][1], hr) * (1.0 - 0.5 * tm)
         px, py = math.cos(2 * math.pi * ha) * dd, math.sin(2 * math.pi * ha) * dd + L["MARK_DROP_FALL"] * tm * tm
         out = np.where(((np.hypot(mvx - px, mvy - py) < rd) & mb)[..., None], blood, out)
+    return out
+
+
+def power_step(out, D, saud, aura):
+    """Step 8c on a display-valued picture: Saud's aura and eyes. `saud` is
+    his outline (H,W bool, the custom stencil); `aura` a dict: level, x, y
+    (his middle, viewport, y down), depth (cm), scale (a figure px as a
+    share of the height), time (s), eyes ((x0, y0), (x1, y1)), eye_depth,
+    eye_scale. hlsl_power() line for line; a stencil lookup is the texel
+    the offset lands in (floor(centre + offset))."""
+    import numpy as np
+    L = LOOK
+    level = aura.get("level", 0.0)
+    if level <= 0.0:
+        return out
+    H, W = out.shape[:2]
+    lerp = lambda a, b, t: a + (b - a) * t
+    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    asp = W / H
+    vx, vy = (xx + 0.5) / W, (yy + 0.5) / H
+    shadow, ice = np.array(display(L["HUD_SHADOW"])), np.array(display(L["HUD_ICE"]))
+    core = lerp(shadow, ice, L["AURA_CORE_MIX"])
+    fp = aura["scale"]
+    if fp > 0.0:
+        ax, ay = (vx - aura["x"]) * asp / fp, (vy - aura["y"]) / fp
+        box = (np.abs(ax) < L["AURA_BOX"][0]) & (np.abs(ay) < L["AURA_BOX"][1])
+        near = np.ones((H, W), bool) if "aura_through_men" in _FLAGS else D > aura["depth"] - L["BURST_BEHIND_CM"]
+        where = box & near & (np.ones((H, W), bool) if "aura_on_saud" in _FLAGS else ~saud)
+        nn = _vnoise(ax / L["AURA_CELL"], (ay + aura.get("time", 0.0) * L["AURA_RISE"]) / L["AURA_CELL"], 9.0)
+        wd = L["AURA_PX"] * level * (L["AURA_MIN"] + (1.0 - L["AURA_MIN"]) * nn)
+        outer = np.zeros((H, W), bool)
+        inner = np.zeros((H, W), bool)
+        taps = int(L["AURA_TAPS"])
+        for k in range(taps):
+            a = 2 * math.pi * (k + 0.5) / taps
+            dk = (math.cos(a), math.sin(a))
+            for r, rr in enumerate((1.0, L["AURA_CORE"], 0.5 * L["AURA_CORE"])):
+                # the offset in screen px (x across the aspect, y down)
+                ox = (dk[0] * rr) * wd * fp * H
+                oy = (dk[1] * rr + L["AURA_LIFT"]) * wd * fp * H
+                hit = _gather(saud, np.floor(0.5 + ox).astype(int), np.floor(0.5 + oy).astype(int), False)
+                if r == 0:
+                    outer |= hit
+                else:
+                    inner |= hit
+        col = np.where(inner[..., None], core, shadow)
+        alpha = L["AURA_A"] * (outer | inner)
+        if "soft_aura" in _FLAGS:
+            alpha = alpha * (0.3 + 0.7 * nn)
+        alpha = alpha * where
+        out = out + (col - out) * alpha[..., None]
+    if aura.get("eye_scale", 0.0) > 0.0 and "eyes" in aura:
+        shown = np.ones((H, W), bool) if "eyes_through_hands" in _FLAGS else D > aura["eye_depth"] - L["EYE_BEHIND_CM"]
+        grow = 0.6 + 0.4 * min(max(level, 0.0), 1.0)
+        for ex, ey in aura["eyes"]:
+            evx, evy = (vx - ex) * asp / aura["eye_scale"], (vy - ey) / aura["eye_scale"]
+            er = np.hypot(evx, evy)
+            flare = np.abs(evy) < L["EYE_FLARE_W"] * grow * (1.0 - np.abs(evx) / max(L["EYE_FLARE"] * grow, 1e-9))
+            out = np.where(((er < L["EYE_HALO"] * grow) & shown)[..., None], core, out)
+            out = np.where((((er < L["EYE_CORE"] * grow) | flare) & shown)[..., None], ice, out)
     return out
 
 
@@ -1753,13 +1946,15 @@ def wound_step(out, wound):
 
 
 def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None, fist=None, burn=None,
-          boil=0.0, tone=0.0, mark=None, wound=0.0):
+          boil=0.0, tone=0.0, mark=None, wound=0.0, aura=None, saud=None):
     """M_Anime_Frame's steps on a display-valued picture S (H,W,3, 0..1),
     in its order: the levels, the vignette, the fire (needs D, the depth), the mark
     (needs D), the impact frame's cut and 7c, the speed lines, the wound,
-    the grain and the paper. `tone` is MPC_Anime.ImpactTone -- 0 a blow's
-    BLOOD, 1 a burning punch's EMBER, 2 a parry's BONE (None is 0); `mark`
-    a dict for mark_step(); `wound` MPC_Anime.Wound."""
+    the grain and the paper. `tone` is MPC_Anime.ImpactTone -- 0 BLOOD,
+    1 a burning punch's EMBER, 2 a parry's BONE, 3 a heavy blow's System
+    cyan (None is 0); `mark` a dict for mark_step(); `wound`
+    MPC_Anime.Wound; `aura` a dict for power_step() with `saud`, his
+    outline (needs D)."""
     import numpy as np
     L = LOOK
     H, W = S.shape[:2]
@@ -1787,11 +1982,16 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
         out = (levels(S) if lv else S) * shade
     if (fist is not None or burn is not None) and D is not None:
         out = fire(out, D, fist, burn)
+    if aura is not None and saud is not None and D is not None:
+        out = power_step(out, D, saud, aura)
     if mark is not None and D is not None:
         out = mark_step(out, D, mark)
     ink_d = np.array(display(L["INK"]))
     tone = 0.0 if tone is None else float(tone)
-    tone_d = np.array(display(L["BLOOD"] if tone < 0.5 else (L["EMBER"] if tone < 1.5 else L["BONE"])))
+    tone_d = np.array(display(L["BLOOD"] if tone < 0.5 else (L["EMBER"] if tone < 1.5 else
+                                                              (L["BONE"] if tone < 2.5 else L["HUD_SYSTEM"]))))
+    if "blood_blows" in _FLAGS and tone >= 2.5:
+        tone_d = np.array(display(L["BLOOD"]))
     if "ember_blows" in _FLAGS and tone < 0.5:
         tone_d = np.array(display(L["EMBER"]))
     if "blood_parry" in _FLAGS and tone >= 1.5:
@@ -1831,7 +2031,7 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
             out = np.where(flip[..., None], np.where(cut[..., None], ink_d, tone_d), out)
     if speed > 0.0 and (not imp or "lines_through_cut" in _FLAGS):
         # 6. speed lines: needles, bone over dark ground and ink over
-        # light, a share in blood, not on an impact frame
+        # light, a share in the System's cyan, not on an impact frame
         rad = np.hypot(vx, vy)
         ang = (np.arctan2(vy, vx) / (2 * math.pi) + 0.5) * L["SPEED_COUNT"]
         rnd = fr(np.sin(np.floor(ang) * 12.9898 + seed * 78.233) * 43758.5453)
@@ -1840,7 +2040,7 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
                 * np.maximum(_smooth(start, L["SPEED_OUTER"], rad), 1e-6) ** L["SPEED_TAPER"])
         streak = (np.abs(fr(ang) - 0.5) < 0.5 * wide) & (rnd >= 0.45) & (rad > start)
         dark = out @ luma < L["SPEED_LIGHT_BELOW"]
-        line = np.where((rnd > 1.0 - L["SPEED_RED"])[..., None], np.array(display(L["BLOOD"])),
+        line = np.where((rnd > 1.0 - L["SPEED_ACCENT"])[..., None], np.array(display(L["HUD_SYSTEM"])),
                         np.where(dark[..., None], np.array(display(L["BONE"])), ink_d))
         a = (streak * speed * np.where(dark, L["SPEED_ALPHA_LIGHT"], L["SPEED_ALPHA"])
              * np.where(fighter, L["SPEED_ON_FIGHTER"], 1.0))
@@ -2002,7 +2202,7 @@ def to_display(lin):
 
 def look(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, speed=0.0,
          centre=(0.5, 0.5), seed=0.0, fist=None, burn=None, boil=0.0, tone=0.0, mark=None, wound=0.0,
-         V=None, moon=None, sky_time=0.0):
+         V=None, moon=None, sky_time=0.0, aura=None, saud=None):
     """Both materials, in the engine's order: M_Anime_Post, the
     tonemapper's stand-in, M_Anime_Frame. Returns display values (0..1)
     and M_Anime_Post's masks. `fist` and `burn` are HAWK FIST's (fire());
@@ -2011,7 +2211,8 @@ def look(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, speed=0.0,
     out, m = preview(C, A, N, D, fighter, key=key, impact=impact, invert=invert, boil=boil,
                      V=V, moon=moon, sky_time=sky_time)
     return frame(to_display(out), fighter, impact=impact, speed=speed, centre=centre, seed=seed,
-                 D=D, fist=fist, burn=burn, boil=boil, tone=tone, mark=mark, wound=wound), m
+                 D=D, fist=fist, burn=burn, boil=boil, tone=tone, mark=mark, wound=wound,
+                 aura=aura, saud=saud), m
 
 
 def to_8bit(disp):
@@ -2173,7 +2374,102 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          # 2026-10-03, the colours as the engine shows them
          "clip_preview", "engine_vignette", "vignette_before_levels",
          # 2026-10-03, the colours from the data
-         "palette_drift", "constant_ink")
+         "palette_drift", "constant_ink",
+         # 2026-10-03, the System: its hits, Saud's aura and eyes
+         "blood_blows", "blood_mark", "no_aura", "aura_on_saud", "soft_aura", "still_aura", "sunk_aura",
+         "wide_aura", "no_core", "aura_through_men", "round_eyes", "eyes_through_hands",
+         "no_stencil", "stencil_off", "aura_not_written")
+
+
+def power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c):
+    """The power-up's promises on the flat wall (check() calls it with the
+    vignette, grain and paper off): no aura without the level; a band round
+    his outline, never on him, two flat colours, taller over his head than
+    under his feet, no wider than it may be, moving, larger at the
+    finisher, hidden by a nearer man; his eyes ice, flaring sideways,
+    hidden by a nearer hand."""
+    import numpy as np
+    L = LOOK
+    keep = L["VIGNETTE"], L["GRAIN"], L["PAPER"]
+    L["VIGNETTE"], L["GRAIN"], L["PAPER"] = 0.0, 0.0, 0.0
+    try:
+        _power_checks(Cw, Aw, Nw, Dw, onw, nh, is_c)
+    finally:
+        L["VIGNETTE"], L["GRAIN"], L["PAPER"] = keep
+
+
+def _power_checks(Cw, Aw, Nw, Dw, onw, nh, is_c):
+    import numpy as np
+    L = LOOK
+    wall, _ = look(Cw, Aw, Nw, Dw, onw)
+    yh, xh = np.mgrid[0:nh, 0:nh]
+    fp = 1.0 / 170.0                       # a figure px: his 148 px stand 0.87 of the height
+    cx, cy = 0.5, 0.5
+    ux, uy = ((xh + 0.5) / nh - cx) / fp, ((yh + 0.5) / nh - cy) / fp      # figure px about his middle
+    # an upright capsule 26 px across, 120 tall: his outline
+    saud = (np.abs(ux) < 13.0) & (np.abs(uy) < 47.0) | (np.hypot(ux, np.abs(uy) - 47.0) < 13.0)
+    aura = dict(level=0.55, x=cx, y=cy, depth=900.0, scale=fp, time=0.0)
+    on_wall = lambda **kw: look(Cw, Aw, Nw, Dw, onw, saud=saud, **kw)[0]
+    a0 = on_wall(aura=dict(aura, level=0.0))
+    assert np.abs(a0 - wall).max() < 1e-9, "no aura while his rage is not full"
+    a1 = on_wall(aura=aura)
+    ch = np.abs(a1 - wall).sum(axis=2) > 1e-6
+    assert ch.sum() > 400, "his rage full, an aura burns round him (%d px)" % ch.sum()
+    assert not ch[saud].any(), "the aura is round him, never on him (%d px on him)" % ch[saud].sum()
+    cols = np.unique(np.round(a1[ch], 5), axis=0)
+    assert len(cols) == 2, "the aura is flat: a violet band and its core (%d colours)" % len(cols)
+    shadow_over = wall + (np.array(display(L["HUD_SHADOW"])) - wall) * L["AURA_A"]
+    viol = (np.abs(a1 - shadow_over).max(axis=2) < 1e-6) & ch
+    assert viol.sum() > 0.25 * ch.sum() and (ch & ~viol).sum() > 0.1 * ch.sum(), \
+        "the aura is a violet band over an ice-violet core (%d violet of %d)" % (viol.sum(), ch.sum())
+    top, bottom = uy[saud].min(), uy[saud].max()
+    above = (top - uy[ch & (np.abs(ux) < 8.0)]).max()
+    below = (uy[ch & (np.abs(ux) < 8.0)] - bottom).max()
+    assert above > 1.5 * max(below, 0.5), \
+        "the aura rises: it stands taller over his head than under his feet (%.1f px above, %.1f below)" % (above, below)
+    # how far it may reach: the widest a tongue grows, lifted, plus a texel
+    from_him = np.full(saud.shape, 1e9)
+    edge = saud & ~(np.roll(saud, 1, 0) & np.roll(saud, -1, 0) & np.roll(saud, 1, 1) & np.roll(saud, -1, 1))
+    for y, x in zip(*np.nonzero(edge)):
+        from_him = np.minimum(from_him, np.hypot(ux - ux[y, x], uy - uy[y, x]))
+    # (written here, not read from LOOK: 15 figure px -- 18 cm -- at the
+    # finisher, its share of that at the ready, and two texels)
+    reach = 15.0 * aura["level"] + 2.0 / (nh * fp)
+    assert from_him[ch].max() <= reach, \
+        "the aura hugs him: no further out than its tongues reach (%.1f px, %.1f allowed)" % (from_him[ch].max(), reach)
+    a2 = on_wall(aura=dict(aura, time=0.25))
+    moved = (np.abs(a2 - a1).sum(axis=2) > 1e-6).sum()
+    assert moved > 0.1 * ch.sum(), "the aura's tongues rise with time (%d px moved)" % moved
+    af = on_wall(aura=dict(aura, level=1.0))
+    chf = np.abs(af - wall).sum(axis=2) > 1e-6
+    assert chf.sum() > 1.3 * ch.sum(), "it burns larger through the finisher (%d px against %d)" % (chf.sum(), ch.sum())
+    # a man nearer the camera, beside him to his right, hides it there
+    Dn = Dw.copy()
+    man = (ux > 16.0) & (ux < 40.0) & (np.abs(uy) < 30.0)
+    Dn[man] = 400.0
+    an, _ = look(Cw, Aw, Nw, Dn, onw, saud=saud, aura=aura)
+    base_n, _ = look(Cw, Aw, Nw, Dn, onw)
+    chn = np.abs(an - base_n).sum(axis=2) > 1e-6
+    assert ch[man].sum() > 20 and chn[man].sum() == 0, \
+        "a man in front of him hides his aura (%d px of it there, %d drawn)" % (ch[man].sum(), chn[man].sum())
+    # his eyes: two points a little apart high on his head
+    eyes = ((cx - 2.5 * fp, cy - 52.0 * fp), (cx + 2.5 * fp, cy - 52.0 * fp))
+    ea = dict(aura, eyes=eyes, eye_depth=900.0, eye_scale=fp)
+    e1 = on_wall(aura=ea)
+    ice = np.array(display(L["HUD_ICE"]))
+    for ex, ey in eyes:
+        j, i = int(ey * nh), int(ex * nh)
+        assert is_c(e1[j:j + 1, i:i + 1], ice).all(), "his eyes glow ice"
+    lit = is_c(e1, ice) & (np.abs(uy + 52.0) < 6.0)
+    wide, tall = np.ptp(ux[lit]), np.ptp(uy[lit])
+    assert wide > 4.0 * tall, "and flare out sideways, not round (%.1f px across, %.1f tall)" % (wide, tall)
+    De = Dw.copy()
+    hand = (np.abs(ux + 2.5) < 4.0) & (np.abs(uy + 52.0) < 4.0)
+    De[hand] = 700.0
+    eh, _ = look(Cw, Aw, Nw, De, onw, saud=saud, aura=ea)
+    assert not is_c(eh, ice)[hand].any(), "a hand in front of his eye hides its glow"
+    e0 = on_wall(aura=dict(ea, level=0.0))
+    assert np.abs(e0 - wall).max() < 1e-9, "no glow in his eyes without the aura"
 
 
 def check(bite=None, rig=None):
@@ -2210,7 +2506,7 @@ def check(bite=None, rig=None):
         if bite == "no_air":
             LOOK["HAZE_MAX"] = 0.0
         if bite == "ink_lines":
-            LOOK["SPEED_RED"] = 0.0
+            LOOK["SPEED_ACCENT"] = 0.0
         if bite == "sky_shaded":
             LOOK["SKY_DEPTH_CM"] = 1e12
         if bite == "lines_over_men":
@@ -2274,7 +2570,19 @@ def check(bite=None, rig=None):
         if bite == "ink_on_dark":
             LOOK["SPEED_LIGHT_BELOW"] = -1.0
         if bite == "all_blood":
-            LOOK["SPEED_RED"] = 0.60
+            LOOK["SPEED_ACCENT"] = 0.60
+        if bite == "no_aura":
+            LOOK["AURA_A"] = 0.0
+        if bite == "still_aura":
+            LOOK["AURA_RISE"] = 0.0
+        if bite == "sunk_aura":
+            LOOK["AURA_LIFT"] = -LOOK["AURA_LIFT"]
+        if bite == "wide_aura":
+            LOOK["AURA_PX"] = 3.0 * LOOK["AURA_PX"]
+        if bite == "no_core":
+            LOOK["AURA_CORE_MIX"] = 0.0
+        if bite == "round_eyes":
+            LOOK["EYE_FLARE"] = 0.0
         if bite == "old_fog":
             LOOK["HAZE"] = (0.13, 0.145, 0.15)
         if bite == "old_sky":
@@ -2339,6 +2647,9 @@ def check(bite=None, rig=None):
             LOOK["SPARK_STREAK_S"] = 0.0
         if bite == "hud_blood_drift":
             LOOK["BLOOD"] = (0.2705, 0.0070, 0.0144)      # #8E1420, the look's blood until 2026-09-28
+        if bite in ("aura_on_saud", "soft_aura", "aura_through_men", "eyes_through_hands", "blood_blows",
+                    "blood_mark"):
+            _FLAGS.add(bite)
         if bite in ("blood_parry", "tone_in_post", "mark_through_men", "wound_on_impact", "soft_star",
                     "levels_on_impact", "stars_in_clouds", "vignette_before_levels",
                     "palette_drift", "constant_ink"):
@@ -2573,7 +2884,7 @@ def check(bite=None, rig=None):
         is_c = lambda f, c: np.abs(f - c).max(axis=2) < 1e-6
         hue = lambda c: math.degrees(math.atan2(math.sqrt(3) * (c[1] - c[2]), 2 * c[0] - c[1] - c[2]))
         frames = {}
-        for t in (0.0, 1.0, 2.0):
+        for t in (0.0, 1.0, 2.0, 3.0):
             ft, _ = look(C, A, N, D, on, impact=1.0, tone=t)
             fti, _ = look(C, A, N, D, on, impact=1.0, invert=1.0, tone=t)
             colours = np.unique(np.round(ft.reshape(-1, 3), 4), axis=0)
@@ -2594,6 +2905,13 @@ def check(bite=None, rig=None):
             "a burning punch's frame is an ember, not paper (hue %.0f, chroma %.2f)" % (hue(tc1), tc1.max() - tc1.min())
         tc2 = frames[2.0][1]
         assert tc2.max() - tc2.min() < 0.1 and tc2 @ luma > 0.5, "a parry's frame is bone"
+        # a heavy blow's and a knockdown's frame (2026-10-03, the System): its
+        # cyan, a blue-white flash -- blue over red, light
+        tc3 = frames[3.0][1]
+        sysd = np.array(display(LOOK["HUD_SYSTEM"]))
+        dh3 = abs((hue(tc3) - hue(sysd) + 180.0) % 360.0 - 180.0)
+        assert dh3 <= 15.0 and tc3[2] > 1.5 * tc3[0] and tc3 @ luma > 0.5, \
+            "a heavy blow's impact frame is the System's cyan (hue %.0f off, b/r %.1f)" % (dh3, tc3[2] / max(tc3[0], 1e-6))
         em = np.array(LOOK["EMBER"])
         assert em[0] > 2.0 * em[1] and em[1] > em[2], "what burns is an ember, not paper"
         # ... and fills the screen: the vignette does not cut an iris into
@@ -2606,11 +2924,12 @@ def check(bite=None, rig=None):
         assert diff[rr < LOOK["SPEED_INNER"]].mean() == 0.0, "the blow itself is clear"
         assert 0.1 < diff[rr > LOOK["SPEED_OUTER"]].mean() < 0.7, "streaks, not a fill"
         assert diff[on].mean() == 0.0, "the speed lines stop at a fighter"
-        # a share of them blood, the rest bone or ink (2026-09-28: 0.15 to
-        # 0.45, where it was 0.15 to 0.7 and let 55 % through)
-        reds = diff & (sp[..., 0] > sp[..., 1] + 0.15)
+        # a share of them the System's cyan, the rest bone or ink (2026-09-28:
+        # 0.15 to 0.45, where it was 0.15 to 0.7 and let 55 % through; blood
+        # until 2026-10-03)
+        reds = diff & (sp[..., 2] > sp[..., 0] + 0.15)
         share = reds.sum() / max(diff.sum(), 1)
-        assert 0.15 < share < 0.45, "a share of the streaks are blood, the rest bone or ink (%.2f)" % share
+        assert 0.15 < share < 0.45, "a share of the streaks are the System's cyan, the rest bone or ink (%.2f)" % share
         # ... needles: a point at the blow, full width at the edge (off the
         #     sphere, just past their start against beyond SPEED_OUTER)
         near = ~on & (rr > 0.31) & (rr < 0.36)
@@ -2847,26 +3166,32 @@ def check(bite=None, rig=None):
         LOOK["SPARK_STREAK_S"] = streak
         FIRE["RING_A"] = ring_a
         LOOK["VIGNETTE"], LOOK["GRAIN"], LOOK["PAPER"] = keep_h
-        # 7d. the mark: a bone star with an ink edge where the blow landed,
-        #     standing through the freeze (2/24 s), gone by 4/24; its blood
-        #     drops flung out and falling, gone at 6/24
-        bone_d = np.array(display(LOOK["BONE"]))
+        # 7d. the mark: an ice star with an ink edge where the blow landed,
+        #     standing through the freeze (2/24 s), gone by 4/24; its cyan
+        #     drops flung out and falling, gone at 6/24 (bone and blood
+        #     until 2026-10-03)
+        bone_d = np.array(display(LOOK["HUD_ICE"]))
+        sys_d = np.array(display(LOOK["HUD_SYSTEM"]))
         ch0 = np.abs(s0 - wall).sum(axis=2) > 1e-6
         ch1 = np.abs(s1 - wall).sum(axis=2) > 1e-6
         assert ch0.sum() > 300, "the mark is drawn where the blow landed (%d px)" % ch0.sum()
         assert ch1.sum() == ch0.sum(), "it stands through the freeze (%d px, then %d)" % (ch0.sum(), ch1.sum())
         starry = (is_c(s0, bone_d) | is_c(s0, inkd))[ch0].mean()
-        assert starry >= 0.8, "the star is bone with an ink edge (%.2f)" % starry
+        assert starry >= 0.8, "the star is ice with an ink edge (%.2f)" % starry
         assert np.abs(s4 - wall).max() < 1e-9, "the star is gone by 4/24 s"
         rm = np.hypot(((xh + 0.5) / nh - 0.5), ((yh + 0.5) / nh - 0.5)) / (LOOK["MARK_PX"] * mk["scale"])
-        b1, b5 = is_c(d1, bloodd), is_c(d5, bloodd)
-        assert b1.sum() > 20 and b5.sum() > 20, "the mark's drops are blood (%d, %d px)" % (b1.sum(), b5.sum())
+        b1, b5 = is_c(d1, sys_d), is_c(d5, sys_d)
+        assert b1.sum() > 20 and b5.sum() > 20, "the mark's drops are the System's cyan (%d, %d px)" % (b1.sum(), b5.sum())
         fly = np.median(rm[b5]) / max(np.median(rm[b1]), 1e-6)
         assert fly > 1.5, "and are flung out from it (%.2fx as far at 5/24 s as at 1/24)" % fly
         assert np.abs(d6 - wall).max() < 1e-9, "nothing is left of the mark at 6/24 s"
         hid, _ = look(C, A, N, D, on, mark=dict(mk, x=0.75, depth=900.0))     # the man hit is behind the sphere
         dmh = np.abs(hid - base).sum(axis=2) > 1e-6
         assert dmh[on].sum() == 0 and dmh[~on].sum() > 0, "a man in front hides the mark on the man behind him"
+        # 8c. Saud's power-up (2026-10-03), on the flat wall: a man of
+        # figure px FP in the middle (an upright capsule, his outline the
+        # stencil), the aura round him and his eyes
+        power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c)
         # 9. the wound: the middle of the screen untouched; a border of blood
         #    all round it, flat (a few tones and a thin antialiased edge, not
         #    a vignette's gradient), its inner edge torn
@@ -2955,6 +3280,8 @@ def _check_names(bite=None):
     punch's OnBurn reaches the look after the same blow's OnBlow."""
     h = open(os.path.join(ROOT, "Source", "SaudFighter", "Combat", "SaudAnime.h")).read()
     fh = open(os.path.join(ROOT, "Source", "SaudFighter", "Combat", "SaudFire.h")).read()
+    if bite == "aura_not_written":
+        h = h.replace('"AuraTime"', '"AuraClock"')
     for name, _ in MPC_SCALARS:
         where = fh if name in FIRE_PARAMS else h
         assert '"%s"' % name in where, "%s does not write %s" % ("SaudFire.h" if name in FIRE_PARAMS else "SaudAnime.h", name)
@@ -3046,6 +3373,21 @@ def _check_names(bite=None):
         frames = float(m.group(1)) if m.group(1) else 1.0
         assert abs(frames - LOOK[key]) < 1e-6, "SaudAnime.h's %s is %g frames, LOOK's %s %g" % (
             var, frames, key, LOOK[key])
+    # the power-up: the stencil the aura reads is the one Saud's mesh
+    # writes, and the project renders custom depth with stencil
+    m = re.search(r"constexpr int SaudStencil = ([0-9]+);", h)
+    assert m and int(m.group(1)) == LOOK["AURA_STENCIL"], "SaudAnime::Power::SaudStencil is not LOOK's AURA_STENCIL"
+    sc = open(os.path.join(ROOT, "Source", "SaudFighter", "Combat", "SaudCharacter.cpp")).read()
+    if bite == "no_stencil":
+        sc = sc.replace("SetCustomDepthStencilValue(SaudAnime::Power::SaudStencil)", "SetCustomDepthStencilValue(0)")
+    assert "SetCustomDepthStencilValue(SaudAnime::Power::SaudStencil)" in sc, \
+        "ASaudCharacter does not write the stencil the aura reads"
+    ini = open(os.path.join(ROOT, "Config", "DefaultEngine.ini")).read()
+    if bite == "stencil_off":
+        ini = ini.replace("r.CustomDepth=3", "r.CustomDepth=1")
+    assert re.search(r"^r\.CustomDepth=3\s*$", ini, re.M), "the project does not render custom depth with stencil (r.CustomDepth=3)"
+    assert re.search(r"enum class ETone : unsigned char \{ Blood = 0, Ember = 1, Bone = 2, System = 3 \}", h), \
+        "SaudAnime::ETone's numbers are not the ones M_Anime_Frame reads (3 the System)"
     m = re.search(r"constexpr float WoundSeconds = ([0-9.]+)f;", h)
     assert m and abs(float(m.group(1)) - LOOK["WOUND_S"]) < 1e-6, "SaudAnime.h's WoundSeconds is not LOOK's WOUND_S"
     # OnBurn after OnBlow: FState::MarkBurning turns the impact frame the
@@ -3093,7 +3435,8 @@ def palette_csv():
 MATERIALS = {
     MATERIAL_PATH: (hlsl, ("Impact", "ImpactInvert", "Key", "Boil", "InkColour", "EmberColour"), "BL_SCENE_COLOR_AFTER_DOF"),
     FRAME_PATH: (hlsl_frame, ("Impact", "Speed", "SpeedCentreX", "SpeedCentreY", "SpeedSeed", "Boil")
-                 + FIRE_PARAMS + HIT_PARAMS + ("InkColour", "BoneColour", "BloodColour", "EmberColour"),
+                 + FIRE_PARAMS + HIT_PARAMS + POWER_PARAMS
+                 + ("InkColour", "BoneColour", "BloodColour", "EmberColour", "SystemColour", "IceColour", "ShadowColour"),
                  "BL_SCENE_COLOR_AFTER_TONEMAPPING"),
 }
 
@@ -3157,6 +3500,15 @@ def build_in_editor():
         scene = MEL.create_material_expression(mat, unreal.MaterialExpressionSceneTexture, -800, y)
         scene.set_editor_property("scene_texture_id", unreal.SceneTextureId.PPI_POST_PROCESS_INPUT0)
         MEL.connect_material_expressions(scene, "Color", custom, "Scene")
+        if path == FRAME_PATH:
+            # the custom stencil, so the material binds it for the aura's
+            # lookups (2026-10-03); the code reads it by its id, 25
+            stencil = MEL.create_material_expression(mat, unreal.MaterialExpressionSceneTexture, -800, y + 80)
+            stencil.set_editor_property("scene_texture_id", unreal.SceneTextureId.PPI_CUSTOM_STENCIL)
+            ci = unreal.CustomInput()
+            ci.set_editor_property("input_name", "Stencil")
+            custom.set_editor_property("inputs", inputs + [ci])
+            MEL.connect_material_expressions(stencil, "Color", custom, "Stencil")
         MEL.connect_material_property(custom, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
         MEL.recompile_material(mat)
         EAL.save_loaded_asset(mat)

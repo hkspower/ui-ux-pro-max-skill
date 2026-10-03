@@ -4411,6 +4411,74 @@ menu and controls suites 58 of 58 caught. `menu_preview.py` re-renders
 
 **Not verified:** no engine has drawn any of it.
 
+## Saud's power-up, and the System's hits -- 2026-10-03
+
+The third part of "#94" (the Solo Leveling style): Saud's power-up and the
+hit effects, in the System's colours. The rules of every blow ("A blow has
+weight", the dark seinen's hit effects) are unchanged; what they are drawn
+in, and the aura, are new.
+
+**The hits.** A heavy clean blow's and a knockdown's impact frame is the
+System's cyan and ink -- a blue-white flash -- where it was blood and ink
+(`SaudAnime::ETone::System`, 3 to `MPC_Anime.ImpactTone`); a parry stays
+bone and a burning HAWK FIST punch ember (`FState::MarkBurning` now turns
+the cyan to ember). The mark where a heavy blow lands is an ice needle star
+with an ink edge throwing cyan drops (bone and blood before). A share of
+the speed lines are cyan (`SPEED_ACCENT`, the old `SPEED_RED`; blood
+before). The wound -- the player hurt -- stays blood. The materials read
+the System's three colours from three new `MPC_Anime` vectors
+(`SystemColour`, `IceColour`, `ShadowColour`), written each tick from the
+live palette like the other four.
+
+**The aura** (`SaudAnime::Power`, `M_Anime_Frame` step 8c). When his rage
+is full a violet aura burns round Saud: flat, a band of the HUD's violet
+(`HUD_SHADOW`) over an ice-violet core, its width swayed by value noise that
+rises 30 figure px a second -- tongues -- and searched below each pixel so
+it stands taller over his head than under his feet. Through the finisher it
+burns at full. `FPower` eases the level up in 0.25 s and down in 0.60 s, in
+real time (a blow's freeze holds the world, not the aura). His outline is
+the custom stencil: his mesh alone writes `SaudStencil` (1;
+`ASaudCharacter::BeginPlay`), and the project renders custom depth with
+stencil (`r.CustomDepth=3`, `DefaultEngine.ini`). The material looks for
+him in 12 directions on three rings round each pixel, only in a box about
+his middle, and never draws on him or on a man nearer the camera.
+
+**The eyes.** An ice core in a halo of the aura's core colour, with a flare
+of ice out each side tapering to a point; grown with the aura's level;
+hidden by anything 6 cm nearer than the eye (a hand, the back of his own
+head). There are no eye bones: the eyes are taken from the head joint,
+which is at the eye line, 9 cm forward along his facing and 6.4 cm apart
+across it (`USaudLookSubsystem::WritePower`).
+
+**Checked:** the harness passes; `tests/anime.cpp` gains `PowerUp()` -- no
+aura without full rage, 0.55 at full rage and 1 at the finisher, up in
+0.25 s and out over 0.60 s and never past what it is asked, its clock in
+real time, the stencil and the eyes' offsets, the parameter names -- and the
+blows are checked cut in the System's cyan; 56 of 56 of the anime test's
+sabotages caught. `anime_look.py`'s checks pass, with new ones on a flat
+wall and a capsule of a man: no aura while his rage is not full; a band
+round him and never on him; two flat colours, violet and its core; taller
+over his head than under his feet; no further out than its tongues reach;
+moving with time; larger at the finisher; hidden by a man in front; his
+eyes ice, flaring out sideways, hidden by a hand, dark without the aura;
+a heavy blow's frame the System's cyan, the mark ice and cyan, a share of
+the speed lines cyan; the stencil the aura reads is the one Saud writes and
+the project renders it. The look's new sabotages (15, plus the five it touched) are still running; their count is recorded when they end. `anime_preview.py --rage` renders
+the souq fight with Saud's aura at full rage and through the finisher
+(`Docs/renders/souq-fight-anime-rage.png`, `-finisher.png`), his outline
+from the render's object index; the blow's frames are re-rendered in the
+System's tone.
+
+**Not verified:** no engine has compiled the C++ or built the material. As
+remembered, not seen: that a Custom node reads the custom stencil as scene
+texture 25 with its value in `.r`, that a SceneTexture node for it is what
+binds it, and `View.BufferSizeAndInvSize`. **The finisher never shows**:
+the aura's full level is keyed on the attack `Input_Rage` starts, "Rage",
+which is the known bug -- there is no Rage row, so the finisher never
+starts ("Known, not fixed"); until that is fixed only the full-rage aura
+burns. The eyes follow his facing, not his head's turn (the runtime IK turns
+the head up to 70 degrees off it).
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

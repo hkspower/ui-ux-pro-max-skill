@@ -101,6 +101,13 @@ namespace SaudAnime
 		constexpr const SaudChar* BoneColour = SAUD_TEXT("BoneColour");
 		constexpr const SaudChar* BloodColour = SAUD_TEXT("BloodColour");
 		constexpr const SaudChar* EmberColour = SAUD_TEXT("EmberColour");
+		/** The System's three (2026-10-03): the cyan a heavy blow's impact
+		    frame, the mark's drops and a share of the speed lines are drawn
+		    in; the ice of the mark's star, the aura's core and the eyes;
+		    the violet of Saud's aura. */
+		constexpr const SaudChar* SystemColour = SAUD_TEXT("SystemColour");
+		constexpr const SaudChar* IceColour = SAUD_TEXT("IceColour");
+		constexpr const SaudChar* ShadowColour = SAUD_TEXT("ShadowColour");
 		/** Since 2026-09-28, the hit effects of the dark seinen: the impact
 		    frame's tone (ETone as a number: 0 blood, 1 ember, 2 bone), the
 		    player's wound border, and the mark at the point of contact --
@@ -115,19 +122,37 @@ namespace SaudAnime
 		constexpr const SaudChar* MarkDepth = SAUD_TEXT("MarkDepth");
 		constexpr const SaudChar* MarkScale = SAUD_TEXT("MarkScale");
 		constexpr const SaudChar* MarkSeed = SAUD_TEXT("MarkSeed");
+		/** Saud's power-up (2026-10-03, the System's style): the aura's
+		    strength (FPower::Level, 0 none), where his middle is on the
+		    screen (viewport fraction, Y down), how deep (cm) and one figure
+		    pixel there (share of the viewport's height, as the fire's); and
+		    his two eyes the same way (one depth and scale for both). */
+		constexpr const SaudChar* Aura = SAUD_TEXT("Aura");
+		constexpr const SaudChar* AuraX = SAUD_TEXT("AuraX");
+		constexpr const SaudChar* AuraY = SAUD_TEXT("AuraY");
+		constexpr const SaudChar* AuraDepth = SAUD_TEXT("AuraDepth");
+		constexpr const SaudChar* AuraScale = SAUD_TEXT("AuraScale");
+		constexpr const SaudChar* AuraTime = SAUD_TEXT("AuraTime");
+		constexpr const SaudChar* EyeX0 = SAUD_TEXT("EyeX0");
+		constexpr const SaudChar* EyeY0 = SAUD_TEXT("EyeY0");
+		constexpr const SaudChar* EyeX1 = SAUD_TEXT("EyeX1");
+		constexpr const SaudChar* EyeY1 = SAUD_TEXT("EyeY1");
+		constexpr const SaudChar* EyeDepth = SAUD_TEXT("EyeDepth");
+		constexpr const SaudChar* EyeScale = SAUD_TEXT("EyeScale");
 	}
 
 	// ------------------------------------------------------------- the frame
 	constexpr float Frame = 1.f / 24.f;        // one frame of film
 	constexpr float OnTwos = 2.f * Frame;      // the speed lines redraw on twos
 
-	/** What the impact frame's light half is, since 2026-09-28 (the dark
-	    seinen): a blow's BLOOD, a parry's BONE (the reversal, as paper was),
-	    and EMBER only for what burns -- a burning HAWK FIST punch's own
-	    frame (FState::MarkBurning). Until that day every impact frame was
-	    ember (paper before 2026-09-26). The numbers are what M_Anime_Frame
-	    reads from MPC_Anime.ImpactTone. */
-	enum class ETone : unsigned char { Blood = 0, Ember = 1, Bone = 2 };
+	/** What the impact frame's light half is: since 2026-10-03 (the
+	    System's style) a heavy blow's or a knockdown's SYSTEM cyan -- a
+	    blue-white flash -- where it was the dark seinen's BLOOD (2026-09-28);
+	    a parry's BONE (the reversal, as paper was); and EMBER only for what
+	    burns -- a burning HAWK FIST punch's own frame (FState::MarkBurning).
+	    Blood keeps its number and is drawn by nothing ForBlow asks for now.
+	    The numbers are what M_Anime_Frame reads from MPC_Anime.ImpactTone. */
+	enum class ETone : unsigned char { Blood = 0, Ember = 1, Bone = 2, System = 3 };
 
 	/** An impact frame's shape: how long, which of its halves are the
 	    flipped one (ink for its tone), and its tone. */
@@ -139,11 +164,12 @@ namespace SaudAnime
 		ETone Tone = ETone::Blood;
 	};
 
-	/** The mark at the point of contact (since 2026-09-28): a bone needle
-	    star with an ink edge, full for MarkHold -- at least the heavy freeze,
-	    SaudFeel::HitStopHeavy, so it stands for the whole of it -- shrinking
-	    to nothing at MarkSpark, and blood drops flung out of it and falling,
-	    gone at MarkSeconds. Heavy clean hits and knockdowns only. */
+	/** The mark at the point of contact (since 2026-09-28): a needle star
+	    with an ink edge -- ice since 2026-10-03, bone before -- full for
+	    MarkHold -- at least the heavy freeze, SaudFeel::HitStopHeavy, so it
+	    stands for the whole of it -- shrinking to nothing at MarkSpark, and
+	    drops flung out of it and falling -- the System's cyan, blood
+	    before -- gone at MarkSeconds. Heavy clean hits and knockdowns only. */
 	constexpr float MarkHold = 2.f * Frame;
 	constexpr float MarkSpark = 4.f * Frame;
 	constexpr float MarkSeconds = 6.f * Frame;
@@ -164,7 +190,8 @@ namespace SaudAnime
 		float WoundAmp = 0.f;       // 1 when the player is the one hit, or 0
 	};
 
-	/** Heavy clean hit: one frame of ink and blood, a mark where it landed.
+	/** Heavy clean hit: one frame of ink and the System's cyan, a mark where
+	    it landed.
 	    Knockdown: two, the second flipped -- the cut to black a fall gets --
 	    and a mark. Parry: two in bone, the first flipped, because the parry
 	    is the reversal; no mark (nothing landed). Light hits and blocks:
@@ -187,12 +214,12 @@ namespace SaudAnime
 		}
 		if (bKnockdown)
 		{
-			L.Impact = {2.f * Frame, false, true, ETone::Blood};
+			L.Impact = {2.f * Frame, false, true, ETone::System};
 			L.SpeedSeconds = 0.45f;
 		}
 		else if (bHeavy)
 		{
-			L.Impact = {Frame, false, false, ETone::Blood};
+			L.Impact = {Frame, false, false, ETone::System};
 			L.SpeedSeconds = 0.30f;
 		}
 		else
@@ -271,7 +298,7 @@ namespace SaudAnime
 		    alone. */
 		void MarkBurning()
 		{
-			if (Impact.Seconds > 0.f && ImpactElapsed <= 0.f && Impact.Tone == ETone::Blood)
+			if (Impact.Seconds > 0.f && ImpactElapsed <= 0.f && Impact.Tone == ETone::System)
 			{
 				Impact.Tone = ETone::Ember;
 			}
@@ -348,6 +375,57 @@ namespace SaudAnime
 			return static_cast<float>(static_cast<int>(Clock / OnTwos) % 997);
 		}
 	};
+
+	/**
+	 * Saud's power-up (2026-10-03, "#94": the System's style, none of its
+	 * names). When his rage is full a violet aura burns round him -- flat
+	 * tongues of violet over an ice core, rising off his outline, drawn by
+	 * M_Anime_Frame from the custom-stencil value SaudStencil his mesh
+	 * writes -- and his eyes glow ice with a violet halo and a flare either
+	 * side. Through the finisher it burns at full. The level eases up over
+	 * RiseSeconds and down over FallSeconds, in real time (a blow's freeze
+	 * holds the world, not the aura).
+	 */
+	namespace Power
+	{
+		constexpr float Ready = 0.55f;          // rage full
+		constexpr float Finisher = 1.f;         // the finisher thrown
+		constexpr float RiseSeconds = 0.25f;
+		constexpr float FallSeconds = 0.60f;
+		/** The custom-stencil value Saud's mesh writes (and nobody else's);
+		    the project needs the custom depth-stencil pass with stencil
+		    (r.CustomDepth=3). */
+		constexpr int SaudStencil = 1;
+		/** His eyes from the head joint, which is at the eye line (no eye
+		    bones): this far forward along the face, this far apart. */
+		constexpr float EyeForwardCm = 9.f;
+		constexpr float EyeApartCm = 6.4f;
+
+		inline float Target(bool bRageReady, bool bFinisher)
+		{
+			return bFinisher ? Finisher : (bRageReady ? Ready : 0.f);
+		}
+
+		struct FPower
+		{
+			float Level = 0.f;
+			float Clock = 0.f;     // real seconds, MPC_Anime.AuraTime: the tongues rise on it
+
+			void Tick(float TargetLevel, float RealSeconds)
+			{
+				Clock = FMath::Fmod(Clock + RealSeconds, 3600.f);
+				const float T = FMath::Clamp(TargetLevel, 0.f, 1.f);
+				if (Level < T)
+				{
+					Level = FMath::Min(T, Level + RealSeconds / RiseSeconds);
+				}
+				else
+				{
+					Level = FMath::Max(T, Level - RealSeconds / FallSeconds);
+				}
+			}
+		};
+	}
 }
 
 /**
@@ -356,18 +434,12 @@ namespace SaudAnime
  * outermost 5 % is left empty), with type big enough to read from a couch
  * -- CLAUDE.md's "the HUD is read at a distance".
  *
- * The look, since 2026-09-28 ("make all game like dark anime adult style"):
- * a dark seinen's page, not a box HUD. No plates and no keylines round
- * panels: Saud's corner is an ink-wash sweep, torn top and bottom and fading
- * out across the page, with his name, his rage as five leaning cuts, his
- * stamina in ash and his health in blood -- every bar a slash leaning 0.55
- * of its height in an ink keyline, the damage trail in bone, and at low
- * health blood drips hanging under it. The combo is an ink-rimmed blood
- * splat with the count in bone. A boss is named on a manga title panel: an
- * ink band that wipes open, a blood slash behind his name. From 2026-09-26
- * to that day it was a dark fantasy's (dark translucent plates in a bronze
- * keyline, thin flat bars, a sixteen-point seal); before that a manga
- * page's (paper panels, heavy ink borders, a twelve-point starburst).
+ * The look, since 2026-10-03 (the System's style): every part is a window
+ * -- a navy panel cut at two corners, a glowing edge, a heading strip, ice
+ * corner marks -- STATUS, COMBO and WARNING; see "the layout" below. From
+ * 2026-09-28 it was a dark seinen's page (an ink-wash sweep, leaning blood
+ * slashes, a blood splat); from 2026-09-26 a dark fantasy's (translucent
+ * plates in a bronze keyline); before that a manga page's.
  *
  * The whole picture is one pure function, Build(): it emits every triangle
  * (with a colour per vertex) and every text item, and SaudHUD.cpp only
