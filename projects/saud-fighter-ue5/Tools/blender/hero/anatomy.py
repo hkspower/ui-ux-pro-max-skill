@@ -284,6 +284,7 @@ OBLIQUE = [(1.36, 1.225), (1.28, 1.170), (1.18, 1.115), (1.08, 1.070)]
 OBLIQUE_STEP = 0.003
 OBLIQUE_BAND = (0.034, 0.0065)
 OBLIQUE_SEAT = 0.012
+OBLIQUE_FADE = []           # per OBLIQUE point (across, proud) factors; [] is the full band throughout
 SERRATUS_PROUD = 0.0045
 # the serratus, four slips on the ribs under the pec's edge, (angle, z),
 # finger-like and interleaved with the oblique's top
@@ -307,9 +308,10 @@ def definition(physique=None):
         out.append(pillow("rectus%d" % k, (RECTUS_X, y + 0.010 - pr, zc), (hx, 0.010, hz), ex=RECTUS_EX))
     if len(OBLIQUE) >= 2:
         pts, radii = [], []
-        for ang, z in OBLIQUE:
+        fade = OBLIQUE_FADE if len(OBLIQUE_FADE) == len(OBLIQUE) else [(1.0, 1.0)] * len(OBLIQUE)
+        for (ang, z), (fa, fp) in zip(OBLIQUE, fade):
             p, n = trunk_at(ang, z); pts.append(p - n * OBLIQUE_SEAT)
-            radii.append((OBLIQUE_BAND[0], OBLIQUE_SEAT + OBLIQUE_BAND[1]))
+            radii.append((OBLIQUE_BAND[0] * fa, OBLIQUE_SEAT + OBLIQUE_BAND[1] * fp))
         out.extend(chain("oblique", pts, radii, lambda c: trunk_at(math.atan2(c.x, -(c.y + 0.004)), c.z)[1],
                          step=OBLIQUE_STEP))
     for k, (ang, z) in enumerate(SERRATUS):

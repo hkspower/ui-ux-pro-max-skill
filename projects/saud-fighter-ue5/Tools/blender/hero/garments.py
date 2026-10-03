@@ -337,6 +337,12 @@ CLEAR = {"tee": 0.0030, "pants": 0.0045,   # the closest cloth comes to the skin
 # 14.3 mm).
 LEG_FIT = {"track": (0.16, (0.86, 0.98), 0.025), "jogger": (0.30, (0.78, 0.96), 0.016)}
 JOGGER_OFFSET = 0.007     # the jogger's shell off the skin (the track's 0.010)
+# The seat and hips' drape per cut, (slope, max_grow). The jogger's was the
+# track's, 20 mm of hang from the hips: on Saud it stood the cloth off his
+# hips as a box and ended at the crotch in a ledge across the front
+# (2026-10-03, "fix core shape" -- the joggers' waist bulge); a jogger is
+# cut close and its elastic pulls it to him.
+SEAT_FIT = {"track": (0.30, 0.020), "jogger": (0.30, 0.020)}
 FOLD_SCALE = 1.0          # the folds' amplitude, for the check's sabotage
 TEE_SLOPE = 0.35          # how fast the tee may narrow under what it hangs from (0.20 tented it off the lats)
 ANGLE_SMOOTH = 10         # passes rounding each slice's hang across angles (was 3)
@@ -423,7 +429,8 @@ def fit(g, kind, body=None, cut=None):
         # above the crotch (0.90) only: run below it, the hull spanned both
         # thighs and hung a skirt between the legs (the first preview)
         pel = np.nonzero(P[:, 2] >= PELVIS_Z)[0]
-        out = _drape_region(P, pel, np.array([0.0, 0.012, 1.08]), -Z, X, Y, 0.006, slope=0.30, max_grow=0.020)
+        s_slope, s_grow = SEAT_FIT[cut]
+        out = _drape_region(P, pel, np.array([0.0, 0.012, 1.08]), -Z, X, Y, 0.006, slope=s_slope, max_grow=s_grow)
         wpel = _smoothstep(PELVIS_Z, PELVIS_Z + 0.04, P[pel, 2]) if len(pel) else None
         if len(out):
             grow, dirv = out; D[pel] += dirv * (grow * wpel)[:, None]

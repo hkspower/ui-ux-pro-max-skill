@@ -4580,7 +4580,18 @@ it stood with no ladder -- and six sabotages, each caught by its own rule:
 divided by its level), `grey_floor` (a grey lift), `lifted_mids` (floors
 high enough to move the middle), `ink_lifted` (the floor laid over the
 lines too: caught by "ink stays black after the levels"), `no_lit_floor`
-(a black surface's terminator gone). SABOTAGES_LINE RENDERS_LINE
+(a black surface's terminator gone). `--bite` 117 of 118 in one run (73
+min), with every part-4 and black-ladder sabotage among them; the one
+miss, `ink_on_dark`, was not this work's -- since the levels of
+2026-10-03 lifted the test's dark wall, ink lines over it still showed
+0.22 against it and the check, which asked only for contrast, no longer
+told bone from ink. The check now asks that a line over a dark wall is
+lighter than it and over a pale one darker; caught, run on its own, and
+the clean check passes. Re-rendered with the ladder: the souq fight and
+its hit frames (`--blow 0.5 0.36 --fire --rage --sky`), `anime-men.png`,
+the HUD four ways, the menus, the 3D title (both aspects; his middle at
+0.712 / 0.811 as before), Saud's IK sheet (its 9 panels' checks pass) and
+the seven city districts.
 
 **Not verified:** no engine has built the material; the previews are the
 numpy mirror through the film curve. The floors are set at the engine's key
