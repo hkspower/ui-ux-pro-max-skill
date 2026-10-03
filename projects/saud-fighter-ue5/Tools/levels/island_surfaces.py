@@ -645,8 +645,9 @@ def stone(t):
     n = t.n
     courses = 5                                                     # 40 cm courses on a 2 m tile
     yy, xx = (np.mgrid[0:n, 0:n].astype(np.float32) + 0.5) / n        # texel centres: a joint on the wrap is symmetric
-    ck = np.minimum((yy * courses).astype(np.int32), courses - 1)
-    fy = yy * courses - ck
+    cy = yy * courses + 0.37                                       # no bed joint on the wrap itself
+    ck = np.floor(cy).astype(np.int32) % courses
+    fy = cy - np.floor(cy)
     dist_y = np.minimum(fy, 1 - fy) / courses * t.tile_m           # metres to the course's bed
     dist_x = np.zeros((n, n), np.float32)
     bid = np.zeros((n, n), np.int32)
@@ -692,8 +693,9 @@ def wood(t):
     n = t.n
     yy, xx = (np.mgrid[0:n, 0:n].astype(np.float32) + 0.5) / n        # texel centres: a joint on the wrap is symmetric
     planks = 10
-    pk = np.minimum((yy * planks).astype(np.int32), planks - 1)
-    fy = yy * planks - pk
+    py = yy * planks + 0.37                                        # no joint on the wrap itself
+    pk = np.floor(py).astype(np.int32) % planks
+    fy = py - np.floor(py)
     dy = np.minimum(fy, 1 - fy) / planks * t.tile_m
     dx = np.full((n, n), 9.0, np.float32)
     seg = np.zeros((n, n), np.int32)
