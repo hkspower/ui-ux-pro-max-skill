@@ -3973,7 +3973,15 @@ is caught.
 
 **Checked:** `anime_look.py`'s checks pass, with new ones (the preview is
 the film curve; the engine settings pinned are the preview's; the curve's
-tables) and `--bite` BITES_RESULT; the harness passes. RENDERS_RESULT
+tables) and `--bite` 97 of 97 (1951 s); the harness passes. Re-rendered
+through the film curve: the souq fight and its eight hit frames, the sky,
+the gate (the street came out the same), the HUD four ways, the menus, the
+3D title (both aspects), Saud's IK sheet (its 9 panels' checks pass) and
+the six men. The graded check, at the engine's key, still misses the same
+three it missed after the levels (2026-10-02), by the same amounts:
+fighter/world contrast 1.08 (wanted 1.5), the gate's pools p95/p50 1.27
+(wanted 2.0) and its fire R/B 1.11 (wanted 1.4); the street's pools are
+2.41 and its fire 1.44. Those three are open, and were not this job.
 
 **Not verified:** no engine has run any of it. The film curve is
 reproduced from memory of the engine's shader and checked only against
@@ -4036,7 +4044,7 @@ sabotages caught (the drawn blood bound back to the default; a colour with
 no slot). `anime_look.py`: the table is LOOK's to the byte, the defaults
 are LOOK's for all seven, the materials read the four vectors and the
 header writes them; two new sabotages (`palette_drift`, `constant_ink`),
---bite BITES2_RESULT.
+--bite 97 of 97, the two new ones among them.
 
 **Not verified:** nothing compiled against UE 5.4 or run: the
 `CollectionVectorParameter` editor properties, `SetVectorParameterValue`
