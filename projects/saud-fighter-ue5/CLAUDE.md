@@ -4514,6 +4514,58 @@ grade, in `Tools/look/anime_look.py`'s table only.
 **Not verified:** no engine has built the materials; the previews are the
 numpy mirror through the film curve, as before.
 
+## The city districts, as real 3D -- 2026-10-03
+
+Asked as "make the game full 3d map not 2d", settled with the author as
+the Unreal build and a richer 3D world: real 3D buildings, height and
+detail. The souq and the stone island were modelled; the other seven
+districts of `L_AlHalqa_World` -- the gym, the fish market, the towers, the
+marina, the highway, the desert camp and the arenas -- were engine cubes
+and cylinders, one a plot, in their theme's colour.
+
+**`Tools/blender/build_city.py`** builds all 861 of their plots as real
+buildings, 21 kinds: a tower block is floors and slab bands, a window grid
+with lit windows, balconies, a parapet, water tanks and plant on the roof; a
+high-rise a glass curtain on mullions and spandrels with lit floors, a
+stepped crown and a mast; a gym hall brick between pilasters with a roller
+door and a sawtooth roof; a works chimney; a fish shed on posts under a
+pitched iron roof with a counter and crates; a dock crane a lattice tower,
+cab and jib; a quay with its fender and bollards; a marina front glazed
+behind piers with a sign band and an awning; a yacht's mast and stays; a
+rail; a burnt-out wreck; a transmission pylon; jersey barriers; a Bedouin
+tent; outcrops and dunes; arena stands, floodlight masts and the bowl.
+Nothing is moved: `build_world.plan()` still decides every plot, and every
+piece stands inside its own plot's box, so every rule the world is checked
+against still holds.
+
+**How.** The builders are pure Python (boxes, prisms, cylinders, members,
+rocks, mounds in a plot's own frame), and `--check` runs on them without
+Blender. `--build` merges each district's pieces by sector (8 round its
+middle, for culling) into `Content/Models/City/SM_City_<Stage>_<k>.fbx` --
+56 meshes, 106,000 triangles -- with 13 surfaces baked by the souq's own
+material code and weathering (`Content/Textures/City/`), a manifest
+(`City_placement.json`), and `Tools/blender/scenes/City.blend`. In the
+editor, `build_world.py` places each sector mesh at its district's middle
+and keeps the plots' cubes as invisible collision, so the game collides
+with exactly what it did; `surfaces.py` knows the city's sets (its steel's
+metal, its lit windows' and floodlights' light). `--render` draws each
+district through the anime look, lit by its own fires:
+`Docs/renders/city-<Stage>-anime.png` and `city-districts.png`.
+
+**Checked** (`build_city.py`, `--bite` 8 of 8): every kind the seven themes
+use has a builder; every plot more than a cube (a least piece count a kind);
+every piece inside its plot and no taller, the plot on the ground; every
+surface a known one, weathered at the ink floor; 12-40 % of the windows lit;
+the built meshes this plan's (a re-planned world must be rebuilt). The FBX
+of the biggest sector is read back to its vertex count. `build_world.py`'s
+own checks still pass.
+
+**Not verified:** no engine has imported a sector mesh or built the world
+with them. The streets and grounds are still the world's flat primitives;
+the previews stand the buildings on a plain disc. Judged from the renders:
+the arena's stands read as stepped blocks and the dunes as round mounds,
+the roughest of the kinds.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

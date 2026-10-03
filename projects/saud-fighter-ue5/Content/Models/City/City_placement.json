@@ -1,0 +1,5921 @@
+{
+ "units": "centimetres, Z up; each sector mesh's origin is its district's middle",
+ "districts": {
+  "AlHalqa": {
+   "theme": "Arena",
+   "x": 0.0,
+   "y": 0.0,
+   "extent": 6528.0
+  },
+  "BaytAlDarb": {
+   "theme": "Gym",
+   "x": 26162.95090390226,
+   "y": 26162.950903902256,
+   "extent": 10608.0
+  },
+  "MarsaAlFajr": {
+   "theme": "Fishmarket",
+   "x": 37000.0,
+   "y": 0.0,
+   "extent": 13000.0
+  },
+  "AbrajAlMalih": {
+   "theme": "Towers",
+   "x": 26162.95090390226,
+   "y": -26162.950903902256,
+   "extent": 11424.0
+  },
+  "AlHilal": {
+   "theme": "Marina",
+   "x": 2.2655965784226036e-12,
+   "y": -37000.0,
+   "extent": 8976.0
+  },
+  "AlTariqAlMasdud": {
+   "theme": "Highway",
+   "x": -37000.0,
+   "y": -4.531193156845207e-12,
+   "extent": 13000.0
+  },
+  "MukhayyamAlNiran": {
+   "theme": "Desert",
+   "x": -26162.950903902263,
+   "y": 26162.950903902256,
+   "extent": 12240.0
+  }
+ },
+ "sectors": {
+  "SM_City_AbrajAlMalih_0": {
+   "district": "AbrajAlMalih",
+   "sector": 0,
+   "plots": 14,
+   "tris": 2350,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_AbrajAlMalih_1": {
+   "district": "AbrajAlMalih",
+   "sector": 1,
+   "plots": 10,
+   "tris": 1854,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_AbrajAlMalih_2": {
+   "district": "AbrajAlMalih",
+   "sector": 2,
+   "plots": 14,
+   "tris": 2470,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_AbrajAlMalih_3": {
+   "district": "AbrajAlMalih",
+   "sector": 3,
+   "plots": 14,
+   "tris": 2458,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_AbrajAlMalih_4": {
+   "district": "AbrajAlMalih",
+   "sector": 4,
+   "plots": 10,
+   "tris": 1388,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_AbrajAlMalih_5": {
+   "district": "AbrajAlMalih",
+   "sector": 5,
+   "plots": 11,
+   "tris": 1222,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_AbrajAlMalih_6": {
+   "district": "AbrajAlMalih",
+   "sector": 6,
+   "plots": 12,
+   "tris": 1676,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_AbrajAlMalih_7": {
+   "district": "AbrajAlMalih",
+   "sector": 7,
+   "plots": 14,
+   "tris": 2618,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_AlHalqa_0": {
+   "district": "AlHalqa",
+   "sector": 0,
+   "plots": 8,
+   "tris": 764,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Lamp",
+    "M_City_Lit",
+    "M_City_Seat",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHalqa_1": {
+   "district": "AlHalqa",
+   "sector": 1,
+   "plots": 12,
+   "tris": 1412,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Lamp",
+    "M_City_Lit",
+    "M_City_Seat",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHalqa_2": {
+   "district": "AlHalqa",
+   "sector": 2,
+   "plots": 7,
+   "tris": 752,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Lit",
+    "M_City_Seat",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHalqa_3": {
+   "district": "AlHalqa",
+   "sector": 3,
+   "plots": 8,
+   "tris": 720,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Lit",
+    "M_City_Seat",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHalqa_4": {
+   "district": "AlHalqa",
+   "sector": 4,
+   "plots": 10,
+   "tris": 1076,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Lamp",
+    "M_City_Lit",
+    "M_City_Seat",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHalqa_5": {
+   "district": "AlHalqa",
+   "sector": 5,
+   "plots": 9,
+   "tris": 988,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Lit",
+    "M_City_Seat",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHalqa_6": {
+   "district": "AlHalqa",
+   "sector": 6,
+   "plots": 11,
+   "tris": 1200,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Lit",
+    "M_City_Seat",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHalqa_7": {
+   "district": "AlHalqa",
+   "sector": 7,
+   "plots": 11,
+   "tris": 1368,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Lamp",
+    "M_City_Lit",
+    "M_City_Seat",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHilal_0": {
+   "district": "AlHilal",
+   "sector": 0,
+   "plots": 11,
+   "tris": 946,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Plaster",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHilal_1": {
+   "district": "AlHilal",
+   "sector": 1,
+   "plots": 16,
+   "tris": 1328,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Plaster",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHilal_2": {
+   "district": "AlHilal",
+   "sector": 2,
+   "plots": 12,
+   "tris": 974,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Plaster",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHilal_3": {
+   "district": "AlHilal",
+   "sector": 3,
+   "plots": 11,
+   "tris": 968,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Plaster",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHilal_4": {
+   "district": "AlHilal",
+   "sector": 4,
+   "plots": 15,
+   "tris": 1278,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Plaster",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHilal_5": {
+   "district": "AlHilal",
+   "sector": 5,
+   "plots": 14,
+   "tris": 1206,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Plaster",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHilal_6": {
+   "district": "AlHilal",
+   "sector": 6,
+   "plots": 17,
+   "tris": 1444,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Plaster",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlHilal_7": {
+   "district": "AlHilal",
+   "sector": 7,
+   "plots": 11,
+   "tris": 924,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Plaster",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlTariqAlMasdud_0": {
+   "district": "AlTariqAlMasdud",
+   "sector": 0,
+   "plots": 19,
+   "tris": 792,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlTariqAlMasdud_1": {
+   "district": "AlTariqAlMasdud",
+   "sector": 1,
+   "plots": 15,
+   "tris": 1632,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlTariqAlMasdud_2": {
+   "district": "AlTariqAlMasdud",
+   "sector": 2,
+   "plots": 18,
+   "tris": 1704,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlTariqAlMasdud_3": {
+   "district": "AlTariqAlMasdud",
+   "sector": 3,
+   "plots": 17,
+   "tris": 1632,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlTariqAlMasdud_4": {
+   "district": "AlTariqAlMasdud",
+   "sector": 4,
+   "plots": 17,
+   "tris": 1116,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlTariqAlMasdud_5": {
+   "district": "AlTariqAlMasdud",
+   "sector": 5,
+   "plots": 15,
+   "tris": 552,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlTariqAlMasdud_6": {
+   "district": "AlTariqAlMasdud",
+   "sector": 6,
+   "plots": 14,
+   "tris": 624,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_AlTariqAlMasdud_7": {
+   "district": "AlTariqAlMasdud",
+   "sector": 7,
+   "plots": 13,
+   "tris": 408,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_BaytAlDarb_0": {
+   "district": "BaytAlDarb",
+   "sector": 0,
+   "plots": 20,
+   "tris": 3052,
+   "materials": [
+    "M_City_Brick",
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_BaytAlDarb_1": {
+   "district": "BaytAlDarb",
+   "sector": 1,
+   "plots": 15,
+   "tris": 2040,
+   "materials": [
+    "M_City_Brick",
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_BaytAlDarb_2": {
+   "district": "BaytAlDarb",
+   "sector": 2,
+   "plots": 14,
+   "tris": 1796,
+   "materials": [
+    "M_City_Brick",
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_BaytAlDarb_3": {
+   "district": "BaytAlDarb",
+   "sector": 3,
+   "plots": 11,
+   "tris": 1556,
+   "materials": [
+    "M_City_Brick",
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_BaytAlDarb_4": {
+   "district": "BaytAlDarb",
+   "sector": 4,
+   "plots": 11,
+   "tris": 980,
+   "materials": [
+    "M_City_Brick",
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_BaytAlDarb_5": {
+   "district": "BaytAlDarb",
+   "sector": 5,
+   "plots": 17,
+   "tris": 2636,
+   "materials": [
+    "M_City_Brick",
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_BaytAlDarb_6": {
+   "district": "BaytAlDarb",
+   "sector": 6,
+   "plots": 13,
+   "tris": 1908,
+   "materials": [
+    "M_City_Brick",
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_BaytAlDarb_7": {
+   "district": "BaytAlDarb",
+   "sector": 7,
+   "plots": 12,
+   "tris": 1272,
+   "materials": [
+    "M_City_Brick",
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Glass",
+    "M_City_Lit",
+    "M_City_Steel"
+   ]
+  },
+  "SM_City_MarsaAlFajr_0": {
+   "district": "MarsaAlFajr",
+   "sector": 0,
+   "plots": 33,
+   "tris": 4308,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MarsaAlFajr_1": {
+   "district": "MarsaAlFajr",
+   "sector": 1,
+   "plots": 31,
+   "tris": 5214,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MarsaAlFajr_2": {
+   "district": "MarsaAlFajr",
+   "sector": 2,
+   "plots": 28,
+   "tris": 2916,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MarsaAlFajr_3": {
+   "district": "MarsaAlFajr",
+   "sector": 3,
+   "plots": 27,
+   "tris": 2590,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MarsaAlFajr_4": {
+   "district": "MarsaAlFajr",
+   "sector": 4,
+   "plots": 33,
+   "tris": 4212,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MarsaAlFajr_5": {
+   "district": "MarsaAlFajr",
+   "sector": 5,
+   "plots": 29,
+   "tris": 5252,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MarsaAlFajr_6": {
+   "district": "MarsaAlFajr",
+   "sector": 6,
+   "plots": 26,
+   "tris": 4142,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MarsaAlFajr_7": {
+   "district": "MarsaAlFajr",
+   "sector": 7,
+   "plots": 26,
+   "tris": 3038,
+   "materials": [
+    "M_City_Concrete",
+    "M_City_Corrugated",
+    "M_City_Steel",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MukhayyamAlNiran_0": {
+   "district": "MukhayyamAlNiran",
+   "sector": 0,
+   "plots": 11,
+   "tris": 1908,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Sand",
+    "M_City_Stone",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MukhayyamAlNiran_1": {
+   "district": "MukhayyamAlNiran",
+   "sector": 1,
+   "plots": 14,
+   "tris": 2254,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Sand",
+    "M_City_Stone",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MukhayyamAlNiran_2": {
+   "district": "MukhayyamAlNiran",
+   "sector": 2,
+   "plots": 15,
+   "tris": 2396,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Sand",
+    "M_City_Stone",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MukhayyamAlNiran_3": {
+   "district": "MukhayyamAlNiran",
+   "sector": 3,
+   "plots": 13,
+   "tris": 2150,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Sand",
+    "M_City_Stone",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MukhayyamAlNiran_4": {
+   "district": "MukhayyamAlNiran",
+   "sector": 4,
+   "plots": 14,
+   "tris": 2370,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Sand",
+    "M_City_Stone",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MukhayyamAlNiran_5": {
+   "district": "MukhayyamAlNiran",
+   "sector": 5,
+   "plots": 11,
+   "tris": 1836,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Sand",
+    "M_City_Stone",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MukhayyamAlNiran_6": {
+   "district": "MukhayyamAlNiran",
+   "sector": 6,
+   "plots": 13,
+   "tris": 2150,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Sand",
+    "M_City_Stone",
+    "M_City_Wood"
+   ]
+  },
+  "SM_City_MukhayyamAlNiran_7": {
+   "district": "MukhayyamAlNiran",
+   "sector": 7,
+   "plots": 14,
+   "tris": 2176,
+   "materials": [
+    "M_City_Canvas",
+    "M_City_Sand",
+    "M_City_Wood"
+   ]
+  }
+ },
+ "plots": [
+  {
+   "row": 143,
+   "kind": "seating",
+   "district": 8,
+   "sector": 7
+  },
+  {
+   "row": 144,
+   "kind": "seating",
+   "district": 8,
+   "sector": 2
+  },
+  {
+   "row": 145,
+   "kind": "seating",
+   "district": 8,
+   "sector": 4
+  },
+  {
+   "row": 146,
+   "kind": "seating",
+   "district": 8,
+   "sector": 7
+  },
+  {
+   "row": 147,
+   "kind": "floodlight",
+   "district": 8,
+   "sector": 0
+  },
+  {
+   "row": 148,
+   "kind": "seating",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 149,
+   "kind": "seating",
+   "district": 8,
+   "sector": 6
+  },
+  {
+   "row": 150,
+   "kind": "seating",
+   "district": 8,
+   "sector": 6
+  },
+  {
+   "row": 151,
+   "kind": "seating",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 152,
+   "kind": "seating",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 153,
+   "kind": "seating",
+   "district": 8,
+   "sector": 2
+  },
+  {
+   "row": 154,
+   "kind": "seating",
+   "district": 8,
+   "sector": 3
+  },
+  {
+   "row": 155,
+   "kind": "seating",
+   "district": 8,
+   "sector": 3
+  },
+  {
+   "row": 156,
+   "kind": "seating",
+   "district": 8,
+   "sector": 4
+  },
+  {
+   "row": 157,
+   "kind": "floodlight",
+   "district": 8,
+   "sector": 4
+  },
+  {
+   "row": 158,
+   "kind": "seating",
+   "district": 8,
+   "sector": 5
+  },
+  {
+   "row": 159,
+   "kind": "seating",
+   "district": 8,
+   "sector": 6
+  },
+  {
+   "row": 160,
+   "kind": "seating",
+   "district": 8,
+   "sector": 6
+  },
+  {
+   "row": 161,
+   "kind": "seating",
+   "district": 8,
+   "sector": 7
+  },
+  {
+   "row": 162,
+   "kind": "seating",
+   "district": 8,
+   "sector": 0
+  },
+  {
+   "row": 163,
+   "kind": "seating",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 164,
+   "kind": "seating",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 165,
+   "kind": "floodlight",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 166,
+   "kind": "floodlight",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 167,
+   "kind": "seating",
+   "district": 8,
+   "sector": 2
+  },
+  {
+   "row": 168,
+   "kind": "seating",
+   "district": 8,
+   "sector": 4
+  },
+  {
+   "row": 169,
+   "kind": "seating",
+   "district": 8,
+   "sector": 5
+  },
+  {
+   "row": 170,
+   "kind": "seating",
+   "district": 8,
+   "sector": 5
+  },
+  {
+   "row": 171,
+   "kind": "seating",
+   "district": 8,
+   "sector": 5
+  },
+  {
+   "row": 172,
+   "kind": "seating",
+   "district": 8,
+   "sector": 6
+  },
+  {
+   "row": 173,
+   "kind": "seating",
+   "district": 8,
+   "sector": 7
+  },
+  {
+   "row": 174,
+   "kind": "floodlight",
+   "district": 8,
+   "sector": 7
+  },
+  {
+   "row": 175,
+   "kind": "seating",
+   "district": 8,
+   "sector": 7
+  },
+  {
+   "row": 176,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 0
+  },
+  {
+   "row": 177,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 0
+  },
+  {
+   "row": 178,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 0
+  },
+  {
+   "row": 179,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 0
+  },
+  {
+   "row": 180,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 0
+  },
+  {
+   "row": 181,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 0
+  },
+  {
+   "row": 182,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 183,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 184,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 185,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 186,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 1
+  },
+  {
+   "row": 187,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 2
+  },
+  {
+   "row": 188,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 2
+  },
+  {
+   "row": 189,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 2
+  },
+  {
+   "row": 190,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 2
+  },
+  {
+   "row": 191,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 3
+  },
+  {
+   "row": 192,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 3
+  },
+  {
+   "row": 193,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 3
+  },
+  {
+   "row": 194,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 3
+  },
+  {
+   "row": 195,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 3
+  },
+  {
+   "row": 196,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 3
+  },
+  {
+   "row": 197,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 4
+  },
+  {
+   "row": 198,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 4
+  },
+  {
+   "row": 199,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 4
+  },
+  {
+   "row": 200,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 4
+  },
+  {
+   "row": 201,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 4
+  },
+  {
+   "row": 202,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 4
+  },
+  {
+   "row": 203,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 5
+  },
+  {
+   "row": 204,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 5
+  },
+  {
+   "row": 205,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 5
+  },
+  {
+   "row": 206,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 5
+  },
+  {
+   "row": 207,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 5
+  },
+  {
+   "row": 208,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 6
+  },
+  {
+   "row": 209,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 6
+  },
+  {
+   "row": 210,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 6
+  },
+  {
+   "row": 211,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 6
+  },
+  {
+   "row": 212,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 6
+  },
+  {
+   "row": 213,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 6
+  },
+  {
+   "row": 214,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 7
+  },
+  {
+   "row": 215,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 7
+  },
+  {
+   "row": 216,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 7
+  },
+  {
+   "row": 217,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 7
+  },
+  {
+   "row": 218,
+   "kind": "bowl",
+   "district": 8,
+   "sector": 7
+  },
+  {
+   "row": 1104,
+   "kind": "hall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1105,
+   "kind": "hall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1106,
+   "kind": "hall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1107,
+   "kind": "hall",
+   "district": 1,
+   "sector": 3
+  },
+  {
+   "row": 1108,
+   "kind": "hall",
+   "district": 1,
+   "sector": 4
+  },
+  {
+   "row": 1109,
+   "kind": "hall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1110,
+   "kind": "hall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1111,
+   "kind": "hall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1112,
+   "kind": "hall",
+   "district": 1,
+   "sector": 3
+  },
+  {
+   "row": 1113,
+   "kind": "hall",
+   "district": 1,
+   "sector": 4
+  },
+  {
+   "row": 1114,
+   "kind": "hall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1115,
+   "kind": "hall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1116,
+   "kind": "hall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1117,
+   "kind": "hall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1118,
+   "kind": "hall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1119,
+   "kind": "hall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1120,
+   "kind": "hall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1121,
+   "kind": "hall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1122,
+   "kind": "hall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1123,
+   "kind": "hall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1124,
+   "kind": "hall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1125,
+   "kind": "hall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1126,
+   "kind": "hall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1127,
+   "kind": "hall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1128,
+   "kind": "chimney",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1129,
+   "kind": "hall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1130,
+   "kind": "chimney",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1131,
+   "kind": "hall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1132,
+   "kind": "hall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1133,
+   "kind": "hall",
+   "district": 1,
+   "sector": 3
+  },
+  {
+   "row": 1134,
+   "kind": "hall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1135,
+   "kind": "hall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1136,
+   "kind": "hall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1137,
+   "kind": "chimney",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1138,
+   "kind": "hall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1139,
+   "kind": "hall",
+   "district": 1,
+   "sector": 3
+  },
+  {
+   "row": 1140,
+   "kind": "hall",
+   "district": 1,
+   "sector": 3
+  },
+  {
+   "row": 1141,
+   "kind": "hall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1142,
+   "kind": "hall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1143,
+   "kind": "hall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1144,
+   "kind": "hall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1145,
+   "kind": "hall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1146,
+   "kind": "hall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1147,
+   "kind": "hall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1148,
+   "kind": "hall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1149,
+   "kind": "wall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1150,
+   "kind": "wall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1151,
+   "kind": "wall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1152,
+   "kind": "wall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1153,
+   "kind": "wall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1154,
+   "kind": "wall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1155,
+   "kind": "wall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1156,
+   "kind": "wall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1157,
+   "kind": "wall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1158,
+   "kind": "wall",
+   "district": 1,
+   "sector": 0
+  },
+  {
+   "row": 1159,
+   "kind": "wall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1160,
+   "kind": "wall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1161,
+   "kind": "wall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1162,
+   "kind": "wall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1163,
+   "kind": "wall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1164,
+   "kind": "wall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1165,
+   "kind": "wall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1166,
+   "kind": "wall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1167,
+   "kind": "wall",
+   "district": 1,
+   "sector": 1
+  },
+  {
+   "row": 1168,
+   "kind": "wall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1169,
+   "kind": "wall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1170,
+   "kind": "wall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1171,
+   "kind": "wall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1172,
+   "kind": "wall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1173,
+   "kind": "wall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1174,
+   "kind": "wall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1175,
+   "kind": "wall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1176,
+   "kind": "wall",
+   "district": 1,
+   "sector": 2
+  },
+  {
+   "row": 1177,
+   "kind": "wall",
+   "district": 1,
+   "sector": 3
+  },
+  {
+   "row": 1178,
+   "kind": "wall",
+   "district": 1,
+   "sector": 3
+  },
+  {
+   "row": 1179,
+   "kind": "wall",
+   "district": 1,
+   "sector": 3
+  },
+  {
+   "row": 1180,
+   "kind": "wall",
+   "district": 1,
+   "sector": 3
+  },
+  {
+   "row": 1181,
+   "kind": "wall",
+   "district": 1,
+   "sector": 3
+  },
+  {
+   "row": 1182,
+   "kind": "wall",
+   "district": 1,
+   "sector": 3
+  },
+  {
+   "row": 1183,
+   "kind": "wall",
+   "district": 1,
+   "sector": 4
+  },
+  {
+   "row": 1184,
+   "kind": "wall",
+   "district": 1,
+   "sector": 4
+  },
+  {
+   "row": 1185,
+   "kind": "wall",
+   "district": 1,
+   "sector": 4
+  },
+  {
+   "row": 1186,
+   "kind": "wall",
+   "district": 1,
+   "sector": 4
+  },
+  {
+   "row": 1187,
+   "kind": "wall",
+   "district": 1,
+   "sector": 4
+  },
+  {
+   "row": 1188,
+   "kind": "wall",
+   "district": 1,
+   "sector": 4
+  },
+  {
+   "row": 1189,
+   "kind": "wall",
+   "district": 1,
+   "sector": 4
+  },
+  {
+   "row": 1190,
+   "kind": "wall",
+   "district": 1,
+   "sector": 4
+  },
+  {
+   "row": 1191,
+   "kind": "wall",
+   "district": 1,
+   "sector": 4
+  },
+  {
+   "row": 1192,
+   "kind": "wall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1193,
+   "kind": "wall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1194,
+   "kind": "wall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1195,
+   "kind": "wall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1196,
+   "kind": "wall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1197,
+   "kind": "wall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1198,
+   "kind": "wall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1199,
+   "kind": "wall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1200,
+   "kind": "wall",
+   "district": 1,
+   "sector": 5
+  },
+  {
+   "row": 1201,
+   "kind": "wall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1202,
+   "kind": "wall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1203,
+   "kind": "wall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1204,
+   "kind": "wall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1205,
+   "kind": "wall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1206,
+   "kind": "wall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1207,
+   "kind": "wall",
+   "district": 1,
+   "sector": 6
+  },
+  {
+   "row": 1208,
+   "kind": "wall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1209,
+   "kind": "wall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1210,
+   "kind": "wall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1211,
+   "kind": "wall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1212,
+   "kind": "wall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1213,
+   "kind": "wall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1214,
+   "kind": "wall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1215,
+   "kind": "wall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1216,
+   "kind": "wall",
+   "district": 1,
+   "sector": 7
+  },
+  {
+   "row": 1404,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1405,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1406,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1407,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1408,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1409,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1410,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1411,
+   "kind": "crane",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1412,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1413,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1414,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1415,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1416,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1417,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1418,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1419,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1420,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1421,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1422,
+   "kind": "crane",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1423,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1424,
+   "kind": "shed",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1425,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1426,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1427,
+   "kind": "crane",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1428,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1429,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1430,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1431,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1432,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1433,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1434,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1435,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1436,
+   "kind": "shed",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1437,
+   "kind": "shed",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1438,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1439,
+   "kind": "crane",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1440,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1441,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1442,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1443,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1444,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1445,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1446,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1447,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1448,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1449,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1450,
+   "kind": "shed",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1451,
+   "kind": "crane",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1452,
+   "kind": "crane",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1453,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1454,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1455,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1456,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1457,
+   "kind": "crane",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1458,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1459,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1460,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1461,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1462,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1463,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1464,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1465,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1466,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1467,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1468,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1469,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1470,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1471,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1472,
+   "kind": "shed",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1473,
+   "kind": "shed",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1474,
+   "kind": "shed",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1475,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1476,
+   "kind": "crane",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1477,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1478,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1479,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1480,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1481,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1482,
+   "kind": "crane",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1483,
+   "kind": "crane",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1484,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1485,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1486,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1487,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1488,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1489,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1490,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1491,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1492,
+   "kind": "crane",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1493,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1494,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1495,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1496,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1497,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1498,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1499,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1500,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1501,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1502,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1503,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1504,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1505,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1506,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1507,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1508,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1509,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1510,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1511,
+   "kind": "crane",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1512,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1513,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1514,
+   "kind": "crane",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1515,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1516,
+   "kind": "crane",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1517,
+   "kind": "crane",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1518,
+   "kind": "shed",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1519,
+   "kind": "crane",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1520,
+   "kind": "shed",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1521,
+   "kind": "shed",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1522,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1523,
+   "kind": "crane",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1524,
+   "kind": "shed",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1525,
+   "kind": "crane",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1526,
+   "kind": "shed",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1527,
+   "kind": "crane",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1528,
+   "kind": "crane",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1529,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1530,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1531,
+   "kind": "shed",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1532,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1533,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1534,
+   "kind": "shed",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1535,
+   "kind": "crane",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1536,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1537,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1538,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1539,
+   "kind": "shed",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1540,
+   "kind": "crane",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1541,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1542,
+   "kind": "crane",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1543,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1544,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1545,
+   "kind": "shed",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1546,
+   "kind": "crane",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1547,
+   "kind": "shed",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1548,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1549,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1550,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1551,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1552,
+   "kind": "shed",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1553,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1554,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1555,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1556,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1557,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1558,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1559,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1560,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1561,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1562,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1563,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1564,
+   "kind": "quay",
+   "district": 2,
+   "sector": 0
+  },
+  {
+   "row": 1565,
+   "kind": "quay",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1566,
+   "kind": "quay",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1567,
+   "kind": "quay",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1568,
+   "kind": "quay",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1569,
+   "kind": "quay",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1570,
+   "kind": "quay",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1571,
+   "kind": "quay",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1572,
+   "kind": "quay",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1573,
+   "kind": "quay",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1574,
+   "kind": "quay",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1575,
+   "kind": "quay",
+   "district": 2,
+   "sector": 1
+  },
+  {
+   "row": 1576,
+   "kind": "quay",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1577,
+   "kind": "quay",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1578,
+   "kind": "quay",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1579,
+   "kind": "quay",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1580,
+   "kind": "quay",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1581,
+   "kind": "quay",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1582,
+   "kind": "quay",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1583,
+   "kind": "quay",
+   "district": 2,
+   "sector": 2
+  },
+  {
+   "row": 1584,
+   "kind": "quay",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1585,
+   "kind": "quay",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1586,
+   "kind": "quay",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1587,
+   "kind": "quay",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1588,
+   "kind": "quay",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1589,
+   "kind": "quay",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1590,
+   "kind": "quay",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1591,
+   "kind": "quay",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1592,
+   "kind": "quay",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1593,
+   "kind": "quay",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1594,
+   "kind": "quay",
+   "district": 2,
+   "sector": 3
+  },
+  {
+   "row": 1595,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1596,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1597,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1598,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1599,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1600,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1601,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1602,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1603,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1604,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1605,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1606,
+   "kind": "quay",
+   "district": 2,
+   "sector": 4
+  },
+  {
+   "row": 1607,
+   "kind": "quay",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1608,
+   "kind": "quay",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1609,
+   "kind": "quay",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1610,
+   "kind": "quay",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1611,
+   "kind": "quay",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1612,
+   "kind": "quay",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1613,
+   "kind": "quay",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1614,
+   "kind": "quay",
+   "district": 2,
+   "sector": 5
+  },
+  {
+   "row": 1615,
+   "kind": "quay",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1616,
+   "kind": "quay",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1617,
+   "kind": "quay",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1618,
+   "kind": "quay",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1619,
+   "kind": "quay",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1620,
+   "kind": "quay",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1621,
+   "kind": "quay",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1622,
+   "kind": "quay",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1623,
+   "kind": "quay",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1624,
+   "kind": "quay",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1625,
+   "kind": "quay",
+   "district": 2,
+   "sector": 6
+  },
+  {
+   "row": 1626,
+   "kind": "quay",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1627,
+   "kind": "quay",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1628,
+   "kind": "quay",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1629,
+   "kind": "quay",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1630,
+   "kind": "quay",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1631,
+   "kind": "quay",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1632,
+   "kind": "quay",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1633,
+   "kind": "quay",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1634,
+   "kind": "quay",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1635,
+   "kind": "quay",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1636,
+   "kind": "quay",
+   "district": 2,
+   "sector": 7
+  },
+  {
+   "row": 1819,
+   "kind": "block",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1820,
+   "kind": "tower",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1821,
+   "kind": "block",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1822,
+   "kind": "block",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1823,
+   "kind": "tower",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1824,
+   "kind": "tower",
+   "district": 3,
+   "sector": 4
+  },
+  {
+   "row": 1825,
+   "kind": "block",
+   "district": 3,
+   "sector": 5
+  },
+  {
+   "row": 1826,
+   "kind": "tower",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1827,
+   "kind": "block",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1828,
+   "kind": "block",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1829,
+   "kind": "tower",
+   "district": 3,
+   "sector": 1
+  },
+  {
+   "row": 1830,
+   "kind": "block",
+   "district": 3,
+   "sector": 1
+  },
+  {
+   "row": 1831,
+   "kind": "block",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1832,
+   "kind": "block",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1833,
+   "kind": "block",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1834,
+   "kind": "block",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1835,
+   "kind": "tower",
+   "district": 3,
+   "sector": 1
+  },
+  {
+   "row": 1836,
+   "kind": "tower",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1837,
+   "kind": "block",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1838,
+   "kind": "block",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1839,
+   "kind": "tower",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1840,
+   "kind": "tower",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1841,
+   "kind": "tower",
+   "district": 3,
+   "sector": 4
+  },
+  {
+   "row": 1842,
+   "kind": "block",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1843,
+   "kind": "tower",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1844,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1845,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1846,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1847,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1848,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1849,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1850,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1851,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1852,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1853,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 0
+  },
+  {
+   "row": 1854,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 1
+  },
+  {
+   "row": 1855,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 1
+  },
+  {
+   "row": 1856,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 1
+  },
+  {
+   "row": 1857,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 1
+  },
+  {
+   "row": 1858,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 1
+  },
+  {
+   "row": 1859,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 1
+  },
+  {
+   "row": 1860,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 1
+  },
+  {
+   "row": 1861,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1862,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1863,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1864,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1865,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1866,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1867,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1868,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1869,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1870,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 2
+  },
+  {
+   "row": 1871,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1872,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1873,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1874,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1875,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1876,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1877,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1878,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1879,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1880,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 3
+  },
+  {
+   "row": 1881,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 4
+  },
+  {
+   "row": 1882,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 4
+  },
+  {
+   "row": 1883,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 4
+  },
+  {
+   "row": 1884,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 4
+  },
+  {
+   "row": 1885,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 4
+  },
+  {
+   "row": 1886,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 4
+  },
+  {
+   "row": 1887,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 4
+  },
+  {
+   "row": 1888,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 4
+  },
+  {
+   "row": 1889,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 5
+  },
+  {
+   "row": 1890,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 5
+  },
+  {
+   "row": 1891,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 5
+  },
+  {
+   "row": 1892,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 5
+  },
+  {
+   "row": 1893,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 5
+  },
+  {
+   "row": 1894,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 5
+  },
+  {
+   "row": 1895,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 5
+  },
+  {
+   "row": 1896,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 5
+  },
+  {
+   "row": 1897,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 5
+  },
+  {
+   "row": 1898,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 5
+  },
+  {
+   "row": 1899,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1900,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1901,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1902,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1903,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1904,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1905,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1906,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1907,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1908,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 6
+  },
+  {
+   "row": 1909,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1910,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1911,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1912,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1913,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1914,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1915,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1916,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 1917,
+   "kind": "hoarding",
+   "district": 3,
+   "sector": 7
+  },
+  {
+   "row": 2095,
+   "kind": "mast",
+   "district": 4,
+   "sector": 0
+  },
+  {
+   "row": 2096,
+   "kind": "front",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2097,
+   "kind": "front",
+   "district": 4,
+   "sector": 3
+  },
+  {
+   "row": 2098,
+   "kind": "mast",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2099,
+   "kind": "front",
+   "district": 4,
+   "sector": 7
+  },
+  {
+   "row": 2100,
+   "kind": "front",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2101,
+   "kind": "front",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2102,
+   "kind": "front",
+   "district": 4,
+   "sector": 7
+  },
+  {
+   "row": 2103,
+   "kind": "front",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2104,
+   "kind": "front",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2105,
+   "kind": "mast",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2106,
+   "kind": "mast",
+   "district": 4,
+   "sector": 3
+  },
+  {
+   "row": 2107,
+   "kind": "front",
+   "district": 4,
+   "sector": 3
+  },
+  {
+   "row": 2108,
+   "kind": "front",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2109,
+   "kind": "front",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2110,
+   "kind": "mast",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2111,
+   "kind": "front",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2112,
+   "kind": "mast",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2113,
+   "kind": "front",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2114,
+   "kind": "front",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2115,
+   "kind": "front",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2116,
+   "kind": "front",
+   "district": 4,
+   "sector": 0
+  },
+  {
+   "row": 2117,
+   "kind": "front",
+   "district": 4,
+   "sector": 0
+  },
+  {
+   "row": 2118,
+   "kind": "front",
+   "district": 4,
+   "sector": 0
+  },
+  {
+   "row": 2119,
+   "kind": "front",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2120,
+   "kind": "front",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2121,
+   "kind": "front",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2122,
+   "kind": "front",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2123,
+   "kind": "front",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2124,
+   "kind": "mast",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2125,
+   "kind": "front",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2126,
+   "kind": "mast",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2127,
+   "kind": "front",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2128,
+   "kind": "front",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2129,
+   "kind": "mast",
+   "district": 4,
+   "sector": 7
+  },
+  {
+   "row": 2130,
+   "kind": "front",
+   "district": 4,
+   "sector": 0
+  },
+  {
+   "row": 2131,
+   "kind": "front",
+   "district": 4,
+   "sector": 0
+  },
+  {
+   "row": 2132,
+   "kind": "front",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2133,
+   "kind": "front",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2134,
+   "kind": "front",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2135,
+   "kind": "front",
+   "district": 4,
+   "sector": 3
+  },
+  {
+   "row": 2136,
+   "kind": "front",
+   "district": 4,
+   "sector": 3
+  },
+  {
+   "row": 2137,
+   "kind": "front",
+   "district": 4,
+   "sector": 3
+  },
+  {
+   "row": 2138,
+   "kind": "front",
+   "district": 4,
+   "sector": 3
+  },
+  {
+   "row": 2139,
+   "kind": "front",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2140,
+   "kind": "mast",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2141,
+   "kind": "front",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2142,
+   "kind": "front",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2143,
+   "kind": "front",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2144,
+   "kind": "front",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2145,
+   "kind": "mast",
+   "district": 4,
+   "sector": 7
+  },
+  {
+   "row": 2146,
+   "kind": "rail",
+   "district": 4,
+   "sector": 0
+  },
+  {
+   "row": 2147,
+   "kind": "rail",
+   "district": 4,
+   "sector": 0
+  },
+  {
+   "row": 2148,
+   "kind": "rail",
+   "district": 4,
+   "sector": 0
+  },
+  {
+   "row": 2149,
+   "kind": "rail",
+   "district": 4,
+   "sector": 0
+  },
+  {
+   "row": 2150,
+   "kind": "rail",
+   "district": 4,
+   "sector": 0
+  },
+  {
+   "row": 2151,
+   "kind": "rail",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2152,
+   "kind": "rail",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2153,
+   "kind": "rail",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2154,
+   "kind": "rail",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2155,
+   "kind": "rail",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2156,
+   "kind": "rail",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2157,
+   "kind": "rail",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2158,
+   "kind": "rail",
+   "district": 4,
+   "sector": 1
+  },
+  {
+   "row": 2159,
+   "kind": "rail",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2160,
+   "kind": "rail",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2161,
+   "kind": "rail",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2162,
+   "kind": "rail",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2163,
+   "kind": "rail",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2164,
+   "kind": "rail",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2165,
+   "kind": "rail",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2166,
+   "kind": "rail",
+   "district": 4,
+   "sector": 2
+  },
+  {
+   "row": 2167,
+   "kind": "rail",
+   "district": 4,
+   "sector": 3
+  },
+  {
+   "row": 2168,
+   "kind": "rail",
+   "district": 4,
+   "sector": 3
+  },
+  {
+   "row": 2169,
+   "kind": "rail",
+   "district": 4,
+   "sector": 3
+  },
+  {
+   "row": 2170,
+   "kind": "rail",
+   "district": 4,
+   "sector": 3
+  },
+  {
+   "row": 2171,
+   "kind": "rail",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2172,
+   "kind": "rail",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2173,
+   "kind": "rail",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2174,
+   "kind": "rail",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2175,
+   "kind": "rail",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2176,
+   "kind": "rail",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2177,
+   "kind": "rail",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2178,
+   "kind": "rail",
+   "district": 4,
+   "sector": 4
+  },
+  {
+   "row": 2179,
+   "kind": "rail",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2180,
+   "kind": "rail",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2181,
+   "kind": "rail",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2182,
+   "kind": "rail",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2183,
+   "kind": "rail",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2184,
+   "kind": "rail",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2185,
+   "kind": "rail",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2186,
+   "kind": "rail",
+   "district": 4,
+   "sector": 5
+  },
+  {
+   "row": 2187,
+   "kind": "rail",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2188,
+   "kind": "rail",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2189,
+   "kind": "rail",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2190,
+   "kind": "rail",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2191,
+   "kind": "rail",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2192,
+   "kind": "rail",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2193,
+   "kind": "rail",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2194,
+   "kind": "rail",
+   "district": 4,
+   "sector": 6
+  },
+  {
+   "row": 2195,
+   "kind": "rail",
+   "district": 4,
+   "sector": 7
+  },
+  {
+   "row": 2196,
+   "kind": "rail",
+   "district": 4,
+   "sector": 7
+  },
+  {
+   "row": 2197,
+   "kind": "rail",
+   "district": 4,
+   "sector": 7
+  },
+  {
+   "row": 2198,
+   "kind": "rail",
+   "district": 4,
+   "sector": 7
+  },
+  {
+   "row": 2199,
+   "kind": "rail",
+   "district": 4,
+   "sector": 7
+  },
+  {
+   "row": 2200,
+   "kind": "rail",
+   "district": 4,
+   "sector": 7
+  },
+  {
+   "row": 2201,
+   "kind": "rail",
+   "district": 4,
+   "sector": 7
+  },
+  {
+   "row": 2608,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2609,
+   "kind": "pylon",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2610,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2611,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2612,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2613,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2614,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2615,
+   "kind": "pylon",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2616,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2617,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2618,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2619,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2620,
+   "kind": "pylon",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2621,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2622,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2623,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2624,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2625,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2626,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2627,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2628,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2629,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2630,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2631,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2632,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2633,
+   "kind": "pylon",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2634,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2635,
+   "kind": "pylon",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2636,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2637,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2638,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2639,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2640,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2641,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2642,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2643,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2644,
+   "kind": "pylon",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2645,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2646,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2647,
+   "kind": "pylon",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2648,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2649,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2650,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2651,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2652,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2653,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2654,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2655,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2656,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2657,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2658,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2659,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2660,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2661,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2662,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2663,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 0
+  },
+  {
+   "row": 2664,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2665,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2666,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2667,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2668,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2669,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2670,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2671,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 1
+  },
+  {
+   "row": 2672,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2673,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2674,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2675,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2676,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2677,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2678,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2679,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2680,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2681,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2682,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 2
+  },
+  {
+   "row": 2683,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2684,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2685,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2686,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2687,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2688,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2689,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2690,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2691,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2692,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2693,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 3
+  },
+  {
+   "row": 2694,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2695,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2696,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2697,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2698,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2699,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2700,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2701,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2702,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2703,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2704,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2705,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 4
+  },
+  {
+   "row": 2706,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2707,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2708,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2709,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2710,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2711,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2712,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2713,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2714,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2715,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2716,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 5
+  },
+  {
+   "row": 2717,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2718,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2719,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2720,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2721,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2722,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2723,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2724,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2725,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2726,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2727,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2728,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2729,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2730,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2731,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2732,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2733,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2734,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2735,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
+  },
+  {
+   "row": 2926,
+   "kind": "tent",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2927,
+   "kind": "tent",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 2928,
+   "kind": "tent",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2929,
+   "kind": "tent",
+   "district": 7,
+   "sector": 5
+  },
+  {
+   "row": 2930,
+   "kind": "tent",
+   "district": 7,
+   "sector": 0
+  },
+  {
+   "row": 2931,
+   "kind": "rock",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2932,
+   "kind": "tent",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2933,
+   "kind": "rock",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 2934,
+   "kind": "tent",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 2935,
+   "kind": "rock",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2936,
+   "kind": "tent",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2937,
+   "kind": "tent",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2938,
+   "kind": "tent",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 2939,
+   "kind": "tent",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 2940,
+   "kind": "rock",
+   "district": 7,
+   "sector": 0
+  },
+  {
+   "row": 2941,
+   "kind": "tent",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2942,
+   "kind": "tent",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2943,
+   "kind": "tent",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2944,
+   "kind": "rock",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2945,
+   "kind": "rock",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2946,
+   "kind": "rock",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2947,
+   "kind": "rock",
+   "district": 7,
+   "sector": 5
+  },
+  {
+   "row": 2948,
+   "kind": "tent",
+   "district": 7,
+   "sector": 5
+  },
+  {
+   "row": 2949,
+   "kind": "tent",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 2950,
+   "kind": "dune",
+   "district": 7,
+   "sector": 0
+  },
+  {
+   "row": 2951,
+   "kind": "dune",
+   "district": 7,
+   "sector": 0
+  },
+  {
+   "row": 2952,
+   "kind": "dune",
+   "district": 7,
+   "sector": 0
+  },
+  {
+   "row": 2953,
+   "kind": "dune",
+   "district": 7,
+   "sector": 0
+  },
+  {
+   "row": 2954,
+   "kind": "dune",
+   "district": 7,
+   "sector": 0
+  },
+  {
+   "row": 2955,
+   "kind": "dune",
+   "district": 7,
+   "sector": 0
+  },
+  {
+   "row": 2956,
+   "kind": "dune",
+   "district": 7,
+   "sector": 0
+  },
+  {
+   "row": 2957,
+   "kind": "dune",
+   "district": 7,
+   "sector": 0
+  },
+  {
+   "row": 2958,
+   "kind": "dune",
+   "district": 7,
+   "sector": 0
+  },
+  {
+   "row": 2959,
+   "kind": "dune",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2960,
+   "kind": "dune",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2961,
+   "kind": "dune",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2962,
+   "kind": "dune",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2963,
+   "kind": "dune",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2964,
+   "kind": "dune",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2965,
+   "kind": "dune",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2966,
+   "kind": "dune",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2967,
+   "kind": "dune",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2968,
+   "kind": "dune",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2969,
+   "kind": "dune",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2970,
+   "kind": "dune",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2971,
+   "kind": "dune",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2972,
+   "kind": "dune",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2973,
+   "kind": "dune",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2974,
+   "kind": "dune",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2975,
+   "kind": "dune",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2976,
+   "kind": "dune",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2977,
+   "kind": "dune",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2978,
+   "kind": "dune",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2979,
+   "kind": "dune",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2980,
+   "kind": "dune",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2981,
+   "kind": "dune",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2982,
+   "kind": "dune",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2983,
+   "kind": "dune",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2984,
+   "kind": "dune",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2985,
+   "kind": "dune",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2986,
+   "kind": "dune",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2987,
+   "kind": "dune",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2988,
+   "kind": "dune",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2989,
+   "kind": "dune",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2990,
+   "kind": "dune",
+   "district": 7,
+   "sector": 3
+  },
+  {
+   "row": 2991,
+   "kind": "dune",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2992,
+   "kind": "dune",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2993,
+   "kind": "dune",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2994,
+   "kind": "dune",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2995,
+   "kind": "dune",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2996,
+   "kind": "dune",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2997,
+   "kind": "dune",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2998,
+   "kind": "dune",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2999,
+   "kind": "dune",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 3000,
+   "kind": "dune",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 3001,
+   "kind": "dune",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 3002,
+   "kind": "dune",
+   "district": 7,
+   "sector": 5
+  },
+  {
+   "row": 3003,
+   "kind": "dune",
+   "district": 7,
+   "sector": 5
+  },
+  {
+   "row": 3004,
+   "kind": "dune",
+   "district": 7,
+   "sector": 5
+  },
+  {
+   "row": 3005,
+   "kind": "dune",
+   "district": 7,
+   "sector": 5
+  },
+  {
+   "row": 3006,
+   "kind": "dune",
+   "district": 7,
+   "sector": 5
+  },
+  {
+   "row": 3007,
+   "kind": "dune",
+   "district": 7,
+   "sector": 5
+  },
+  {
+   "row": 3008,
+   "kind": "dune",
+   "district": 7,
+   "sector": 5
+  },
+  {
+   "row": 3009,
+   "kind": "dune",
+   "district": 7,
+   "sector": 5
+  },
+  {
+   "row": 3010,
+   "kind": "dune",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 3011,
+   "kind": "dune",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 3012,
+   "kind": "dune",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 3013,
+   "kind": "dune",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 3014,
+   "kind": "dune",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 3015,
+   "kind": "dune",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 3016,
+   "kind": "dune",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 3017,
+   "kind": "dune",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 3018,
+   "kind": "dune",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 3019,
+   "kind": "dune",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 3020,
+   "kind": "dune",
+   "district": 7,
+   "sector": 6
+  },
+  {
+   "row": 3021,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3022,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3023,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3024,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3025,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3026,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3027,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3028,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3029,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3030,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  }
+ ],
+ "readback": {
+  "mesh": "SM_City_MarsaAlFajr_5",
+  "verts": 3284,
+  "height_m": 17.27481871843338
+ }
+}
