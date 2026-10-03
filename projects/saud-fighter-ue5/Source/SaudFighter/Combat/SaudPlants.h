@@ -124,7 +124,7 @@ namespace SaudPlants
 		{ "A_Saud_Kick", 0.530f, 16, 0.0f, { "ffbbbbbbbbbbbbff", "b..............b" } },
 		{ "A_Saud_Knee", 0.470f, 14, 0.0f, { "fbbbbbbbbbbbbf", "b............." } },
 		{ "A_Saud_Mocap_Jog", 0.767f, 23, 278.8f, { ".fffb..................", ".............fffb......" } },
-		{ "A_Saud_Mocap_Run", 0.767f, 23, 313.8f, { "ffffb..................", "............ffffb......" } },
+		{ "A_Saud_Mocap_Run", 0.767f, 23, 313.9f, { "ffffb..................", "............ffffb......" } },
 		{ "A_Saud_Mocap_Walk", 1.100f, 33, 143.1f, { "...ffffffffffffbb................", "..................ffffffffffffbbb" } },
 		{ "A_Saud_Mocap_Walk_Brisk", 1.000f, 30, 170.1f, { "......fffffbbb................", ".................ffffffffbbbb." } },
 		{ "A_Saud_Mocap_Walk_Slow", 1.433f, 43, 99.3f, { "..ffffffffffffffffffbb.....................", ".......................fffffffffffffffbbbbb" } },

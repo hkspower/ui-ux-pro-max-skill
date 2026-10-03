@@ -704,6 +704,37 @@ def knee_pole(hip, knee, ankle, ball, twist_deg=15.0, back=False):
     return K - d * 0.6 if back else K + d * 0.6
 
 
+KNEE_TRACK_IN = 5.0      # degrees a stepping knee points inside its toes
+
+
+def knee_track_pole(hip, knee, ankle, ball, inside_deg=KNEE_TRACK_IN, back=False):
+    """The pole that keeps a STEPPING knee over its toes (2026-10-03, "fix
+    legs when walk": in Saud's steps the planted knee swung from 70 degrees
+    outside its toes to 73 inside while the foot stood still, and the
+    forward step's sat 39 inside). knee_pole() above reads the shin from
+    above, which is the guard's question; when the hips travel half a
+    metre over a planted foot the leg leans and its shin, seen from above,
+    points along the lean whatever the knee does, so the search swung.
+    Here the bend is put along the foot's own heading itself, taken across
+    the hip-to-ankle line -- the knee over the toes whichever way the leg
+    leans -- turned `inside_deg` toward the other leg, an adult's tibial
+    twist. Pure vector maths. `back` mirrors it behind the line."""
+    e = (ankle - hip).normalized()
+    M = hip + e * (knee - hip).dot(e)
+    fh = Vector((ball.x - ankle.x, ball.y - ankle.y, 0.0))
+    b = fh - e * fh.dot(e)
+    if b.length < 1e-6:
+        b = Vector((0.0, -1.0, 0.0)) - e * e.y * -1.0
+    b.normalize()
+    medial = Vector((1.0, 0.0, 0.0)) if ankle.x < 0.0 else Vector((-1.0, 0.0, 0.0))
+    best = None
+    for sgn in (1.0, -1.0):
+        c = Matrix.Rotation(math.radians(sgn * inside_deg), 3, e) @ b
+        if best is None or c.dot(medial) > best.dot(medial):
+            best = c
+    return M - best * 0.6 if back else M + best * 0.6
+
+
 def _foot_floor(mesh_obj, arm_obj, side):
     """The lowest point of the mesh that this foot carries, in world z."""
     depsgraph = bpy.context.evaluated_depsgraph_get()

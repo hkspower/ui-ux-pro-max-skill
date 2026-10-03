@@ -131,6 +131,23 @@ SKATE_MM = 5.0             # a held foot's ball off its plant, at most
 FLOOR_MM = 3.0             # the lowest sole corner through the floor, at most
 SEAM_MM = 5.0              # the hitch at the loop's seam, over the cycle's own, at most
 SPEED_OFF = 0.02           # the clip's speed against the capture's, scaled
+# His legs (2026-10-03, "fix legs when walk"): the actors walk on a slimmer
+# man's track, and Saud's thighs -- 16 cm across in his joggers, the knees
+# 14 -- passed into each other where theirs only brushed (the walk 2.8 cm,
+# the jog 2.7, the run 2.1), and a bending knee turned in up to 35 degrees
+# off his toes. Each foot is carried out from the middle, a constant a clip,
+# until the ankles never come nearer than TRACK_MIN (a constant keeps every
+# held foot held and every swing its shape); a bending knee is kept from
+# turning more than KNEE_IN_MAX inside straight ahead (the knee pole).
+TRACK_MIN = 0.130          # m, the ankles' least lateral spacing
+KNEE_IN_MAX = 5.0          # degrees a bending knee may turn inside straight ahead
+# what the legs are held to: his own trouser legs as capsules -- the half-
+# widths measured on his build (Tools/blender/hero/build, the joggers): the
+# lower thigh 8.0 cm, the knee 6.9, the calf 6.4 then 5.1, the ankle 4.3 --
+# never into each other; and a planted knee over its toes
+LEG_R = ((0.45, 0.080), (1.00, 0.069), (1.35, 0.064), (1.75, 0.051), (2.00, 0.043))
+LEG_CLEAR_MM = 3.0         # the legs into each other, at most
+KNEE_TOE_MAX = 15.0        # degrees a planted, bent knee may point inside its toes
 
 SABOTAGE = set()
 
@@ -619,6 +636,51 @@ def pitch_clear(au, sd, fm, pole, tries=6):
     return low_at(th)[1]
 
 
+def track_spread(targets):
+    """How far each foot is carried out from the middle, one constant for
+    the clip: half of what the ankles' least lateral spacing lacks of
+    TRACK_MIN (none if it has it)."""
+    if "narrow" in SABOTAGE:
+        return 0.0
+    least = min(l.translation.x - r.translation.x for l, r in zip(targets["l"][0], targets["r"][0]))
+    return max(0.0, TRACK_MIN - least) * 0.5
+
+
+def leg_overlap(w):
+    """How far his two trouser legs (capsules of LEG_R along thigh, knee,
+    shank, ankle) pass into each other in one frame's bone heads, metres
+    (negative: the clearance between them)."""
+    def pts(sd):
+        hip, kn, an = w["thigh_" + sd], w["calf_" + sd], w["foot_" + sd]
+        out = []
+        for i in range(29):
+            u = 0.45 + (2.0 - 0.45) * i / 28.0
+            p = hip + (kn - hip) * u if u <= 1.0 else kn + (an - kn) * (u - 1.0)
+            rr = next(r0 + (r1 - r0) * (u - u0) / (u1 - u0) for (u0, r0), (u1, r1) in zip(LEG_R, LEG_R[1:]) if u0 <= u <= u1)
+            out.append((p, rr))
+        return out
+    L, R_ = pts("l"), pts("r")
+    return max(ra + rb - (pa - pb).length for pa, ra in L for pb, rb in R_)
+
+
+def knee_toe(w, sd):
+    """Degrees the knee's bend points inside its toes about the hip-to-ankle
+    line (negative: outside); None for a leg bent under 10 degrees."""
+    import math as _m
+    hip, kn, an, ball = w["thigh_" + sd], w["calf_" + sd], w["foot_" + sd], w["ball_" + sd]
+    if _m.degrees((kn - hip).angle(an - kn)) < 10.0:
+        return None
+    ax = (an - hip).normalized()
+    perp = lambda v: v - ax * v.dot(ax)
+    kd, fd = perp(kn - hip), perp(ball - an)
+    if kd.length < 1e-6 or fd.length < 1e-6:
+        return None
+    kd.normalize(); fd.normalize()
+    other = w["thigh_" + ("r" if sd == "l" else "l")]
+    sign = 1.0 if perp(other - hip).dot(kd - fd) > 0 else -1.0
+    return sign * _m.degrees(fd.angle(kd))
+
+
 def firmness(on):
     """Per frame, how firmly the foot is down: 1 inside a contact, easing to
     0 over its first and last EASE frames, 0 off the ground."""
@@ -639,15 +701,40 @@ def firmness(on):
     return out
 
 
-def knee_pole(x):
+def knee_pole(x, sd=None, firm=0.0):
     """Where the knee points: the way the capture bent it, off the hip-to-
     ankle line, and -- so a nearly straight leg (a run's push-off, a heel
     strike) cannot flip it -- always a centimetre forward. (The foot's own
     facing was tried first: a swinging foot points at the floor, and its
-    level part turned the knee 6 cm sideways in a frame.)"""
-    from mathutils import Vector
-    bend = x["knee"] - (x["hip"] + x["ankle"]) * 0.5
-    return x["knee"] + (bend + Vector((0.0, -0.01, 0.0))).normalized() * 0.5
+    level part turned the knee 6 cm sideways in a frame.) Given the side,
+    the bend is kept from turning more than KNEE_IN_MAX inside straight
+    ahead -- and, as firmly as the foot is down (`firm`), inside the way
+    the foot itself points -- about the hip-to-ankle line (his knees caved
+    in under the actors' narrow track, and a run's toed-out stance put a
+    knee 19 degrees inside its toes)."""
+    import math as _m
+    from mathutils import Vector, Matrix
+    bend = x["knee"] - (x["hip"] + x["ankle"]) * 0.5 + Vector((0.0, -0.01, 0.0))
+    if sd is not None and "knock" not in SABOTAGE:
+        ax = (x["ankle"] - x["hip"]).normalized()
+        perp = lambda v: v - ax * v.dot(ax)
+        ahead = Vector((0.0, -1.0, 0.0))
+        toe = x["ball"] - x["ankle"]; toe.z = 0.0
+        if firm > 0.0 and toe.length > 1e-6:
+            ahead = ahead * (1.0 - firm) + toe.normalized() * firm
+        b, fwd = perp(bend), perp(ahead)
+        if b.length > 1e-6 and fwd.length > 1e-6:
+            b.normalize(); fwd.normalize()
+            inward = Vector((-1.0 if sd == "l" else 1.0, 0.0, 0.0))     # his left is +X
+            side = 1.0 if perp(inward).dot(b) > 0 else -1.0
+            ang = _m.degrees(fwd.angle(b)) * side
+            if ang > KNEE_IN_MAX:
+                rot = Matrix.Rotation(_m.radians(ang - KNEE_IN_MAX), 3, ax)
+                cand = rot @ b
+                if perp(inward).dot(cand) > perp(inward).dot(b):          # the turn went the wrong way
+                    cand = Matrix.Rotation(-_m.radians(ang - KNEE_IN_MAX), 3, ax) @ b
+                bend = cand * bend.length
+    return x["knee"] + bend.normalized() * 0.5
 
 
 def build_clip(au, clip, r):
@@ -660,6 +747,10 @@ def build_clip(au, clip, r):
     frames = cycle_frames(cap, s, L)
     body, feet, speed, Y = retarget(au, clip, r)
     targets = plant(feet, r["down"], speed, frames, cap, s, L, au.rig)
+    spread = track_spread(targets)
+    for sd, sgn in (("l", 1.0), ("r", -1.0)):
+        for m in targets[sd][0]:
+            m.translation.x += sgn * spread
     pb = au.pb
     firm = {sd: firmness(targets[sd][1]) for sd in SIDES}
     # ---- the floor: the capture's ground is not his. The lowest sole corner
@@ -686,7 +777,7 @@ def build_clip(au, clip, r):
                 mats, on = targets[sd]
                 fm = mats[k].copy()
                 fm.translation.z += lift
-                pole = knee_pole(feet[sd][k])
+                pole = knee_pole(feet[sd][k], sd, firm[sd][k])
                 pole.z += lift
                 au.leg(sd, fm, pole)
                 fms[sd], poles[sd] = fm, pole
@@ -794,11 +885,31 @@ def verify(clip, recs, speed, r, targets, body):
     if where:
         fails.append("%s: %s points %.0f degrees off the capture at frame %d (at most %.0f)"
                      % (clip["name"], where[0], where[2], where[1], where[3]))
+    # 4b. his legs: never into each other; a planted, bent knee over its toes
+    worst_ov, ov_at = -1.0, 0
+    for k, rec in enumerate(recs):
+        ov = leg_overlap(rec[1])
+        if ov > worst_ov:
+            worst_ov, ov_at = ov, k
+    if worst_ov * 1000 > LEG_CLEAR_MM:
+        fails.append("%s: his legs pass %.0f mm into each other at frame %d (at most %.0f)"
+                     % (clip["name"], worst_ov * 1000, ov_at + 1, LEG_CLEAR_MM))
+    worst_in, in_at = -180.0, None
+    for sd in SIDES:
+        firm = firmness(on_flags(r, sd, n))
+        for k in range(n):
+            if firm[k] >= 1.0:
+                a = knee_toe(recs[k][1], sd)
+                if a is not None and a > worst_in:
+                    worst_in, in_at = a, (sd, k)
+    if in_at and worst_in > KNEE_TOE_MAX:
+        fails.append("%s: a planted knee turns %.0f degrees inside its toes (%s, frame %d; at most %.0f)"
+                     % (clip["name"], worst_in, in_at[0].upper(), in_at[1] + 1, KNEE_TOE_MAX))
     # 5. the speed
     want = r["speed"]
     if abs(speed / want - 1.0) > SPEED_OFF:
         fails.append("%s: moves at %.2f m/s, the capture at %.2f" % (clip["name"], speed, want))
-    return fails, dict(skate=worst_skate, floor=low, seam=seam)
+    return fails, dict(skate=worst_skate, floor=low, seam=seam, legs=worst_ov, knee_in=worst_in)
 
 
 def strike_check(clip, r, n, k0):
@@ -850,9 +961,12 @@ def build(out_dir=OUT_DIR, sheet=False):
         recs = recs[k0:] + recs[:k0]
         authored.append((c, [(lo, w) for lo, w, _s in recs]))
         rows.append((clip, r, c, speed, m, drop))
-        print("%6.1fs  %-10s %3d frames, %.2f m/s, skate %.1f mm, floor %+.1f mm, seam %.0f mm, hips settled %.1f cm"
+        print("%6.1fs  %-10s %3d frames, %.2f m/s, skate %.1f mm, floor %+.1f mm, seam %.0f mm, hips settled %.1f cm, "
+              "legs %+.0f mm, knee in %.0f deg"
               % (time.time() - t0, clip["name"], len(recs), speed, m["skate"] * 1000, m["floor"] * 1000,
-                 m["seam"] * 1000, drop * 100))
+                 m["seam"] * 1000, drop * 100, m["legs"] * 1000, m["knee_in"]))
+    for f in fails:
+        print("FAIL " + f)
     assert not fails, "the mocap clips break their rules:\n  " + "\n  ".join(fails)
     made = M.to_actions(rig, authored)
     err, where = M.bake_error(rig, made)
@@ -899,6 +1013,8 @@ BITES = [
     ("arms mirrored", "mirror", "Walk", "points"),
     ("no crossfade", "seam", "Run", "hitches"),
     ("off the strike", "phase", "Walk", "left foot strikes"),
+    ("narrow track", "narrow", "Walk", "into each other"),
+    ("knees in", "knock", "Run", "inside its toes"),
 ]
 
 

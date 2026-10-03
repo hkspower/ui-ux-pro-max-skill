@@ -3072,6 +3072,15 @@ def check(bite=None, rig=None):
             nonred = (np.abs(w1 - w0).sum(axis=2) > 0.02) & ~(w1[..., 0] > w1[..., 1] + 0.15)
             contrast = np.abs(dl[nonred]).mean() if nonred.any() else 0.0
             assert contrast >= 0.20, "a line shows against its ground (%.2f over albedo %.2f)" % (contrast, albedo)
+            # ... and in the right ink: lighter than a dark wall (bone), darker
+            # than a pale one (2026-10-03: since the levels lifted the dark
+            # wall, ink over it still showed 0.22 against it and the
+            # contrast alone no longer told bone from ink -- ink_on_dark
+            # stopped biting)
+            way = float(np.median(dl[nonred])) if nonred.any() else 0.0
+            assert (way > 0.0) if albedo < 0.5 else (way < 0.0), \
+                "a line is %s over %s ground (%+.2f over albedo %.2f)" % (
+                    "bone" if albedo < 0.5 else "ink", "dark" if albedo < 0.5 else "light", way, albedo)
         # the vignette: the corners into the dark, the middle untouched
         # (measured without the grain and the paper, which touch every pixel)
         plain = levels(to_display(out))       # (the levels after it, since 2026-10-02)

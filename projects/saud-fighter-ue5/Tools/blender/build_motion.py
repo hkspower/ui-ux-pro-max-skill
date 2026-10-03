@@ -1118,7 +1118,7 @@ def body_frame(au, g, aims, feet, lean=0.0, hips=(0.0, 0.0, 0.0), tilt=0.0, side
     return loc, world, fk, drop
 
 
-def planted_pole(s, fk, g, up=0.0, at=None):
+def planted_pole(s, fk, g, up=0.0, at=None, track=0.0):
     """Where a planted knee's pole goes, from the frame's FK read `fk` --
     or, given `at` = (ankle, ball), from where the foot is actually put
     this frame (a walking foot is 34 cm from where the FK guard has it).
@@ -1145,15 +1145,38 @@ def planted_pole(s, fk, g, up=0.0, at=None):
         import build_saud as L
         ankle, ball = at if at else (fk["an_" + s], fk["ball_" + s])
         pole = L.knee_pole(fk["hip_" + s], fk["kn_" + s], ankle, ball, back=("knee" in SABOTAGE))
+        # a stepping foot (`track`, 0..1: how far it has left its guard
+        # spot) hands its knee to knee_track_pole, the knee over its toes
+        # however the leg leans (2026-10-03); the guard's own knee is kept
+        if track > 0.0 and "knee_screw" not in SABOTAGE:
+            tp = L.knee_track_pole(fk["hip_" + s], fk["kn_" + s], ankle, ball, back=("knee" in SABOTAGE))
+            pole = pole.lerp(tp, track)
         return pole + Vector((0.0, 0.0, up))
     y = 0.6 if "knee" in SABOTAGE else -0.6
     return (fk["hip_" + s] + fk["an_" + s]) * 0.5 + Vector((0.0, y, up))
 
 
-def knee_forward(s, up=0.0, g=None, at=None):
+def knee_forward(s, up=0.0, g=None, at=None, track=0.0):
     """A planted knee's pole as a function of the frame's FK read: see
     planted_pole. Without a guard it is the straight-forward pole."""
-    return lambda fk, s=s: planted_pole(s, fk, g, up, at)
+    return lambda fk, s=s: planted_pole(s, fk, g, up, at, track)
+
+
+# A stepping foot's knee goes over to knee_track_pole as the foot leaves its
+# guard spot: none at the spot (the guard's knee, so a step starts and ends
+# in the guard), all of it this far away (metres, on the floor).
+TRACK_FROM, TRACK_FULL = 0.02, 0.08
+# what steps_check holds a planted, bent knee to: degrees inside its toes,
+# and outside them (the guard's rear knee, kept, reads 21 outside)
+KNEE_STEP_IN, KNEE_STEP_OUT = 15.0, 25.0
+
+
+def track_of(shift):
+    """How far a stepping foot's knee has gone over to knee_track_pole,
+    from how far the foot is from its guard spot on the floor."""
+    d = math.hypot(shift.x, shift.y)
+    t = max(0.0, min(1.0, (d - TRACK_FROM) / (TRACK_FULL - TRACK_FROM)))
+    return t * t * (3.0 - 2.0 * t)
 
 
 def planted_feet(g):
@@ -1423,7 +1446,8 @@ def author_walk(au, c, S):
             # knee sat 18.5 cm outside the foot's line: the guard's foot is
             # 20 cm behind the hip, the landing one 34 ahead)
             here = (g["ctrl_foot_" + s].translation + shift, g["ball_" + s] + shift) if steps else None
-            feet[s] = (Matrix.Translation(shift) @ g["ctrl_foot_" + s], knee_forward(s, g=g, at=here), roll)
+            feet[s] = (Matrix.Translation(shift) @ g["ctrl_foot_" + s],
+                       knee_forward(s, g=g, at=here, track=track_of(shift) if steps else 0.0), roll)
             if down:
                 plant[s][f] = (g["ball_" + s] + d * (centre[s] + off) + pull[s], roll)
                 if stance_fixed and roll > 0.0:
@@ -1546,7 +1570,8 @@ def author_dash(au, c, S):
                 up = 0.07 if s == lead else 0.05
             shift = d * (reach * air) + Vector((0.0, 0.0, up * air))
             here = (g["ctrl_foot_" + s].translation + shift, g["ball_" + s] + shift) if steps else None
-            feet[s] = (Matrix.Translation(shift) @ g["ctrl_foot_" + s], knee_forward(s, g=g, at=here), 0.0)
+            feet[s] = (Matrix.Translation(shift) @ g["ctrl_foot_" + s],
+                       knee_forward(s, g=g, at=here, track=track_of(shift) if steps else 0.0), 0.0)
             if air < 1e-6:
                 plant[s][f] = (g["ball_" + s].copy(), 0.0)
         # the arms ride the body's tilt (hands up, as in the guard, in the
@@ -2209,6 +2234,34 @@ def steps_check(c, rig, fails, ik):
                         c["name"], s, abs(off) * 100.0, "inside" if off < 0 else "outside", f + 1))
                     break
             c["knee_off"][s] = span_off
+        # ---- the knee over its toes on every planted frame, sideways too
+        # (--bite "knee_screw", 2026-10-03): the angle the knee's bend
+        # makes with the foot's heading about the hip-to-ankle line, + when
+        # the knee is inside the toes. The cm band above leaves sideways
+        # out; this does not, and it caught the side step's planted knee
+        # swinging 70 degrees outside to 73 inside over one stance.
+        c["knee_toe"] = {}
+        for s, marks in plant.items():
+            o = "r" if s == "l" else "l"
+            lo, hi = 0.0, 0.0
+            for f in sorted(marks):
+                go(f + 1)
+                hip, kn, an, ball = P("thigh_" + s), P("calf_" + s), P("foot_" + s), P("ball_" + s)
+                if math.degrees((kn - hip).angle(an - kn)) < 10.0:
+                    continue
+                e = (an - hip).normalized()
+                perp = lambda v: v - e * v.dot(e)
+                kd, fd = perp(kn - hip), perp(Vector((ball.x - an.x, ball.y - an.y, 0.0)))
+                if kd.length < 1e-6 or fd.length < 1e-6:
+                    continue
+                kd.normalize(); fd.normalize()
+                ang = math.degrees(fd.angle(kd)) * (1.0 if perp(P("thigh_" + o) - hip).dot(kd - fd) > 0.0 else -1.0)
+                lo, hi = min(lo, ang), max(hi, ang)
+            c["knee_toe"][s] = (lo, hi)
+            if hi > KNEE_STEP_IN or -lo > KNEE_STEP_OUT:
+                fails.append("%s: the planted %s knee turns %.0f degrees %s its toes (at most %.0f)" % (
+                    c["name"], s, hi if hi > KNEE_STEP_IN else -lo, "inside" if hi > KNEE_STEP_IN else "outside",
+                    KNEE_STEP_IN if hi > KNEE_STEP_IN else KNEE_STEP_OUT))
         if not lateral:
             # ---- walk_support (--bite "flat_pelvis"): the pelvis passes
             # within 20 cm of the support foot's ball during its stance --
@@ -2822,6 +2875,7 @@ def bite():
         # Saud's steps (2026-09-30, "improve steps"): steps_check
         ("sole on floor",  "ball_ground",     ["A_Saud_Guard"],         "sole is"),
         ("knee over toes", "knee_fwd_pole",   ["A_Saud_Walk_Fwd"],      "the foot's line"),
+        ("knee screw",     "knee_screw",      ["A_Saud_Walk_Left"],     "its toes"),
         ("walk knee",      "straight_stance", ["A_Saud_Walk_Fwd"],      "knee locks"),
         ("walk jolt",      "straight_stance", ["A_Saud_Walk_Fwd"],      "pelvis jolts"),
         ("walk reach",     "straight_stance", ["A_Saud_Walk_Fwd"],      "of its length"),

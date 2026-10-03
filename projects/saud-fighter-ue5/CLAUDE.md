@@ -4589,6 +4589,58 @@ exposure lands elsewhere in the editor they move with it, as every tone
 does. `pow` of a tone near zero in a Custom node is as remembered to be
 safe (the tone is clamped at 0 first).
 
+## Saud's legs when he walks -- 2026-10-03
+
+Asked as "fix legs when walk", settled with the author as Saud's walk and
+run (the motion capture) and his fight steps (walk and dash, four ways).
+Measured first, on the shipped clips and on his mesh posed through the IK
+sheet's renderer, with his own leg widths taken off his build (in the
+joggers: the lower thigh 8.0 cm across half, the knee 6.9, the calf 6.4,
+the ankle 4.3).
+
+**The walk and run** (`Tools/blender/mocap.py`). The actors walk on a
+slimmer man's track: Saud's legs passed into each other -- the walk 2.8 cm,
+the jog 2.7, the run 2.1, the brisk walk 1.6 -- and a bending knee turned
+up to 35 degrees inside his toes. Now each foot is carried out from the
+middle by one constant a clip until the ankles never come nearer than
+`TRACK_MIN` (13 cm; a constant keeps every held foot held and every swing
+its shape), and the knee pole keeps a bending knee within `KNEE_IN_MAX`
+(5 degrees) of straight ahead -- and, as firmly as the foot is down, of the
+way the foot points (a run's toed-out stance had put a knee 19 inside its
+toes). After: the legs keep 0.5-2.9 cm apart in every frame (as capsules of
+his own widths), a planted knee at most 13 degrees inside its toes (8 on
+the walks), the feet still held (0.0 mm skate), the bake and read-back as
+before (0.02 mm). Two new rules in `verify()` -- "his legs pass into each
+other" (`LEG_R`, `LEG_CLEAR_MM`) and "a planted knee turns inside its
+toes" (`KNEE_TOE_MAX` 15) -- and two sabotages, `narrow` and `knock`:
+`--bite` 9 of 9.
+
+**The fight steps** (`build_motion.py`, `build_saud.knee_track_pole`).
+The planted knee read the shin from above (`knee_pole`, the guard's
+question); when the hips travel half a metre over a planted foot the leg
+leans and the search swung -- the side step's planted knee went from 70
+degrees outside its toes to 73 inside over one stance, the forward step's
+sat 39 inside. A stepping foot's knee now goes over to `knee_track_pole`
+-- the bend along the foot's own heading taken across the hip-to-ankle
+line, 5 degrees inside for an adult's tibial twist -- as the foot leaves
+its guard spot (`TRACK_FROM`/`TRACK_FULL`, 2-8 cm), so every step starts
+and ends on the guard's own knee. After: the side steps' planted knees
+-26..+7 degrees off their toes, the forward and back steps' at most 5-13
+inside; the legs never closer than 5.4 cm. `steps_check` gains the rule on
+every planted frame, sideways included (`KNEE_STEP_IN` 15, `KNEE_STEP_OUT`
+25: the guard's rear knee, kept, reads 21 outside), and the sabotage
+`knee_screw`: `build_motion.py --bite` 76 of 76. Only the eight step clips
+changed; every other Saud clip was rebuilt and compared, within 0.001 mm,
+and left as it was.
+
+`SaudPlants.h` is re-measured on the new clips (the walks' strides and
+contacts); the harness passes.
+
+**Not verified:** nothing compiled or played. 13 cm, 5 and 15 degrees are
+judgements from his measured widths and from a knee over the toes; the
+contact sheets were read as images. `saud-motion.png` was not redrawn (its
+walk panels are the old ones); `saud-mocap.png` was.
+
 ## The city districts, as real 3D -- 2026-10-03
 
 Asked as "make the game full 3d map not 2d", settled with the author as
