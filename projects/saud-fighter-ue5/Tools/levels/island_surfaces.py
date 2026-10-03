@@ -85,19 +85,35 @@ PALETTE = {
                                                    soil="#2e2418", twig="#4a3828")),
     "Rock":   dict(chroma="chroma", hex=dict(stone="#6c6860", dark="#4c4a46", pale="#8c877c", lichen="#8a9058", moss="#3c5228")),
     "Mud":    dict(chroma="chroma", hex=dict(mud="#5a4630", wet="#3a2c1e", dry="#76603e", stone="#6e665a", water="#2a2a26")),
+    # the props' (build_island_props.py): a palm's ringed trunk, a jungle
+    # tree's fissured bark, a leaf, the temple's coral stone, a dhow's teak
+    "PalmBark": dict(chroma="chroma", hex=dict(bark="#6e6252", dark="#3e352c", pale="#8a7d68", lichen="#7f8a5c")),
+    "Bark":     dict(chroma="chroma", hex=dict(bark="#5e5246", dark="#3a3129", pale="#7a6e5e", moss="#4a5a2c")),
+    "Leaf":     dict(chroma="cloth_chroma", hex=dict(green="#3c5a24", light="#5e7a34", edge="#7a7034", spot="#5a4428")),
+    "Stone":    dict(chroma="chroma", hex=dict(a="#8a8070", b="#9a8e78", c="#6e665a", joint="#4a4440", moss="#4a5a2c",
+                                               lichen="#8a9058", stain="#5a5248")),
+    "Wood":     dict(chroma="chroma", hex=dict(teak="#8a7f6c", warm="#7a6650", dark="#4a3e30", gap="#2a241e", iron="#5a3a26")),
 }
+PROPS = ("PalmBark", "Bark", "Leaf", "Stone", "Wood")
+UNTILED = {"Leaf"}              # one leaf, laid once on each leaf's own quad
+TILE_OF = dict(PalmBark=1.0, Bark=1.0, Leaf=0.25, Stone=2.0, Wood=2.0)     # metres a tile is across
+PROP_OUT = os.path.join(ROOT, "Content", "Textures", "IslandProps")
+PROP_SHEET = os.path.join(ROOT, "Docs", "renders", "island-prop-surfaces.png")
 # roughness: each material's range, and the mud's standing water
-ROUGH = dict(Sand=(0.70, 0.97), Grass=(0.55, 0.92), Jungle=(0.45, 0.90), Rock=(0.62, 0.95), Mud=(0.03, 0.85))
+ROUGH = dict(Sand=(0.70, 0.97), Grass=(0.55, 0.92), Jungle=(0.45, 0.90), Rock=(0.62, 0.95), Mud=(0.03, 0.85),
+             PalmBark=(0.70, 0.97), Bark=(0.68, 0.97), Leaf=(0.35, 0.70), Stone=(0.65, 0.97), Wood=(0.60, 0.95))
 WATER_ROUGH = 0.05
 # how much of each height's slope the normal takes: a blade or a leaf edge
 # is a cliff at a millimetre, and a map of cliffs shades as noise, so the
 # litter and the grass are laid back (their mean normal must face out: a
 # normal map averages to straight out, surfaces.py holds it, NORMAL_MEAN_Z)
-NORMAL_GAIN = dict(Sand=1.0, Grass=0.35, Jungle=0.5, Rock=1.0, Mud=1.0)
+NORMAL_GAIN = dict(Sand=1.0, Grass=0.35, Jungle=0.5, Rock=1.0, Mud=1.0,
+                   PalmBark=1.0, Bark=1.0, Leaf=3.0, Stone=1.0, Wood=1.0)
 # and the height is read over this much ground (metres) before its slope is
 # taken, so a blade's edge is a slope a millimetre or two wide whatever the
 # texel, and the map is the same at 1K and 4K
-NORMAL_BLUR_M = dict(Sand=0.0, Grass=0.003, Jungle=0.0015, Rock=0.0, Mud=0.0)
+NORMAL_BLUR_M = dict(Sand=0.0, Grass=0.003, Jungle=0.0015, Rock=0.0, Mud=0.0,
+                     PalmBark=0.0005, Bark=0.0005, Leaf=0.0, Stone=0.0008, Wood=0.0005)
 NORMAL_MEAN_Z = 0.80
 NORMAL_Z_MIN = 0.25             # no texel steeper than this (a blade's edge is a cliff at a millimetre)
 
@@ -114,30 +130,37 @@ def weathered(layer):
 class Tile:
     """One square tile, n texels across TILE_M metres, every draw periodic."""
 
-    def __init__(self, n, seed):
+    def __init__(self, n, seed, tile_m=None):
         self.n = n
-        self.px_m = n / TILE_M
+        self.tile_m = TILE_M if tile_m is None else tile_m
+        self.px_m = n / self.tile_m
         self.rng = np.random.default_rng(seed)
 
     def cells(self, feature_m):
         """How many lattice cells across the tile for features feature_m big."""
-        return max(1, int(round(TILE_M / feature_m)))
+        return max(1, int(round(self.tile_m / feature_m)))
 
-    def noise(self, feature_m):
-        """Value noise, 0..1, periodic over the tile, cells feature_m apart."""
-        n, p = self.n, self.cells(feature_m)
-        if p >= n:
+    def noise(self, feature_m, feature_y_m=None):
+        """Value noise, 0..1, periodic over the tile, cells feature_m apart
+        across and feature_y_m (default the same) down: a grain is a noise
+        long one way and fine the other."""
+        n = self.n
+        px = self.cells(feature_m)
+        py = px if feature_y_m is None else self.cells(feature_y_m)
+        if px >= n and py >= n:
             return self.rng.random((n, n), dtype=np.float32)
-        L = self.rng.random((p, p), dtype=np.float32)
-        u = np.arange(n, dtype=np.float32) * (p / n)
-        i0 = np.floor(u).astype(np.int32)
-        f = u - i0
-        i1 = (i0 + 1) % p
-        i0 %= p
-        s = f * f * f * (f * (f * 6 - 15) + 10)
-        top = L[i0[:, None], i0[None, :]] * (1 - s[None, :]) + L[i0[:, None], i1[None, :]] * s[None, :]
-        bot = L[i1[:, None], i0[None, :]] * (1 - s[None, :]) + L[i1[:, None], i1[None, :]] * s[None, :]
-        return top * (1 - s[:, None]) + bot * s[:, None]
+        px, py = min(px, n), min(py, n)
+        L = self.rng.random((py, px), dtype=np.float32)
+        def axis(p):
+            u = np.arange(n, dtype=np.float32) * (p / n)
+            i0 = np.floor(u).astype(np.int32)
+            f = u - i0
+            return i0 % p, (i0 + 1) % p, f * f * f * (f * (f * 6 - 15) + 10)
+        x0, x1, sx = axis(px)
+        y0, y1, sy = axis(py)
+        top = L[y0[:, None], x0[None, :]] * (1 - sx[None, :]) + L[y0[:, None], x1[None, :]] * sx[None, :]
+        bot = L[y1[:, None], x0[None, :]] * (1 - sx[None, :]) + L[y1[:, None], x1[None, :]] * sx[None, :]
+        return top * (1 - sy[:, None]) + bot * sy[:, None]
 
     def fbm(self, feature_m, octaves=5, gain=0.5):
         """Octaves of noise from feature_m down, 0..1 (about), mean 0.5."""
@@ -532,8 +555,191 @@ def mud(t):
     return c, hs, rough
 
 
-DRAW = dict(Sand=sand, Grass=grass, Jungle=jungle, Rock=rock, Mud=mud)
-SEED = dict(Sand=11, Grass=23, Jungle=37, Rock=41, Mud=53)
+
+
+# ================================================================ the props' surfaces
+
+def palm_bark(t):
+    """A palm's trunk: the rings the old fronds left, a hand apart, wavering
+    round the trunk, the fibre between them running up it, and the odd
+    split. u round the trunk, v up it."""
+    P = weathered("PalmBark")
+    n = t.n
+    yy = (np.arange(n, dtype=np.float32)[:, None] / n) * np.ones((1, n), np.float32)
+    rings = 14                                                      # 7 cm apart on a 1 m tile
+    wob = (t.noise(0.25, 2.0) - 0.5) * 0.6 + (t.noise(0.08, 2.0) - 0.5) * 0.2
+    r = yy * rings + wob
+    f = r - np.floor(r) - 0.5                                       # -0.5..0.5 between two rings
+    d_m = (0.5 - np.abs(f)) / rings                                 # metres to the nearest ring
+    groove = np.exp(-(d_m / 0.004) ** 2)
+    fibre = t.noise(0.0015, 0.03)
+    split = np.clip((t.noise(0.012, 0.15) - 0.86) * 9, 0, 1)
+    h = -0.006 * groove + 0.003 * (1 - (2 * f) ** 2) + (fibre - 0.5) * 0.0012 - split * 0.004
+    c = mix(P["bark"], P["pale"], np.clip(t.fbm(0.2, 3) - 0.4, 0, 1) * 1.4)
+    c = mix(c, P["pale"], np.clip(fibre - 0.6, 0, 1) * 1.2)
+    c = mix(c, P["dark"], np.clip(groove * 0.8 + split, 0, 1))
+    lichen = np.clip((t.fbm(0.12, 4) - 0.62) * 8, 0, 1) * (1 - groove)
+    c = mix(c, P["lichen"], lichen * 0.8)
+    c = c * (0.90 + 0.20 * t.noise(0.0008, 0.004))[..., None]           # the fibres' own mottle
+    rough = 0.86 + 0.08 * groove - 0.06 * np.clip(fibre - 0.5, 0, 1)
+    return c, h, rough
+
+
+def bark(t):
+    """A jungle tree's bark: ridges running up the trunk, split into plates
+    by the fissures between them, moss down in the fissures. u round, v up."""
+    P = weathered("Bark")
+    ridge = 1 - np.abs(2 * t.noise(0.045, 0.45) - 1)
+    ridge2 = 1 - np.abs(2 * t.noise(0.02, 0.2) - 1)
+    plate = np.clip((t.noise(0.06, 0.12) - 0.3) * 2, 0, 1)
+    v = ridge * 0.7 + ridge2 * 0.3
+    fiss = np.clip((0.35 - v) * 4, 0, 1)
+    h = v * 0.010 * (0.6 + 0.4 * plate) + (t.noise(0.0012) - 0.5) * 0.0006
+    c = mix(P["dark"], P["bark"], np.clip(v * 1.6, 0, 1))
+    c = mix(c, P["pale"], np.clip(v - 0.55, 0, 1) * 2.2 * (0.4 + 0.6 * plate))
+    c = mix(c, P["dark"], fiss * 0.9)
+    c = mix(c, P["pale"], np.clip((t.fbm(0.25, 4) - 0.58) * 5, 0, 1) * 0.5 * (1 - fiss))     # grey lichen crust
+    moss = np.clip((t.fbm(0.15, 4) - 0.50) * 5, 0, 1) * fiss
+    c = mix(c, P["moss"], moss * 0.9)
+    grit = t.noise(0.0008)
+    c = mix(c, P["pale"], np.clip(grit - 0.85, 0, 1) * 2.5)
+    c = c * (0.90 + 0.20 * grit)[..., None]
+    rough = 0.84 + 0.10 * fiss
+    return c, h, rough
+
+
+def leaf(t):
+    """One leaf, laid once on its quad: u along it (stalk 0, tip 1), v
+    across (the midrib at the middle). Lateral veins sweep out from the
+    midrib toward the tip; the blade lighter by the rib, drying yellow at
+    the edges and the tip, the odd brown spot."""
+    P = weathered("Leaf")
+    n = t.n
+    y, x = np.mgrid[0:n, 0:n].astype(np.float32) / n
+    across = np.abs(y - 0.5) * 2                                    # 0 at the rib, 1 at the edge
+    rib = np.exp(-(np.abs(y - 0.5) / 0.010) ** 2)
+    veins_n = 16
+    ph = x * veins_n - across * 2.2 + (t.noise(0.05) - 0.5) * 0.3
+    fv = ph - np.floor(ph) - 0.5
+    vein = np.exp(-(np.abs(fv) / 0.06) ** 2) * (1 - across * 0.5)
+    areole = t.noise(0.0015)
+    h = -0.0005 * rib - 0.00015 * vein + (areole - 0.5) * 0.00006 + 0.0004 * (1 - across ** 2)
+    c = mix(P["green"], P["light"], np.clip(rib * 0.8 + vein * 0.35, 0, 1))
+    c = mix(c, P["edge"], np.clip((across - 0.82) * 5, 0, 1) * 0.7 + np.clip((x - 0.9) * 8, 0, 1) * 0.5)
+    spot = np.clip((t.fbm(0.02, 3) - 0.70) * 10, 0, 1)
+    c = mix(c, P["spot"], spot * 0.85)
+    c = mix(c, P["light"], np.clip(areole - 0.7, 0, 1) * 0.5)
+    mott = t.fbm(0.03, 4)
+    c = mix(c, P["light"], np.clip(mott - 0.55, 0, 1) * 1.6)
+    c = c * (0.86 + 0.28 * np.clip(mott, 0, 1))[..., None]
+    c = c * (0.92 + 0.16 * t.noise(0.0004))[..., None]                   # the blade's cells
+    rough = 0.48 + 0.10 * across + 0.12 * spot - 0.06 * rib
+    return c, h, rough
+
+
+def stone(t):
+    """The temple's coral stone, laid in courses: blocks of their own tone
+    with chipped arrises, the joints between them deep and mossy, rain
+    streaks down the faces and lichen on them. u along the course, v up."""
+    P = weathered("Stone")
+    n = t.n
+    courses = 5                                                     # 40 cm courses on a 2 m tile
+    yy, xx = (np.mgrid[0:n, 0:n].astype(np.float32) + 0.5) / n        # texel centres: a joint on the wrap is symmetric
+    ck = np.minimum((yy * courses).astype(np.int32), courses - 1)
+    fy = yy * courses - ck
+    dist_y = np.minimum(fy, 1 - fy) / courses * t.tile_m           # metres to the course's bed
+    dist_x = np.zeros((n, n), np.float32)
+    bid = np.zeros((n, n), np.int32)
+    for k in range(courses):
+        m = int(t.rng.integers(2, 5))
+        cuts = np.sort(t.rng.random(m)).astype(np.float32)
+        row = ck == k
+        xs = xx[row]
+        j = np.searchsorted(cuts, xs)
+        left = np.where(j == 0, cuts[-1] - 1, cuts[np.maximum(j - 1, 0)])
+        right = np.where(j == m, cuts[0] + 1, cuts[np.minimum(j, m - 1)])
+        dist_x[row] = np.minimum(xs - left, right - xs) * t.tile_m
+        bid[row] = k * 8 + (j % m)
+    d = np.minimum(dist_x, dist_y)
+    chip = 0.012 + 0.02 * t.fbm(0.06, 3)
+    bevel = np.clip(d / chip, 0, 1)
+    joint = d < 0.007
+    face = (t.fbm(0.3, 5) - 0.5) * 0.006
+    h = np.where(joint, -0.018, -0.012 * (1 - bevel) ** 2 + face)
+    rnd = np.random.default_rng(5).random(64).astype(np.float32)
+    tone = rnd[bid]
+    c = mix(mix(P["a"], P["b"], tone), P["c"], np.clip(rnd[(bid * 7 + 3) % 64] - 0.4, 0, 1) * 1.6)
+    c = c * (0.85 + 0.3 * t.fbm(0.15, 4))[..., None]
+    c = mix(c, P["stain"], np.clip((t.noise(0.04, 0.5) - 0.55) * 3, 0, 1) * 0.6)
+    lichen = np.clip((t.fbm(0.1, 4) - 0.64) * 9, 0, 1)
+    c = mix(c, P["lichen"], lichen * 0.75)
+    moss = np.clip(1 - d / 0.03, 0, 1) * np.clip((t.fbm(0.25, 3) - 0.35) * 3, 0, 1)
+    c = mix(c, P["joint"], (1 - bevel) * 0.6)
+    c = mix(c, P["moss"], moss * 0.85)
+    grit = t.noise(0.0008)
+    c = mix(c, P["b"], np.clip(grit - 0.82, 0, 1) * 2.5)
+    c = mix(c, P["c"], np.clip(0.18 - grit, 0, 1) * 2.5)
+    c = c * (0.92 + 0.16 * grit)[..., None]
+    rough = 0.86 + 0.08 * (1 - bevel) - 0.06 * lichen
+    return c, h, rough
+
+
+def wood(t):
+    """A dhow's or a pier's teak, sun-bleached: planks along u, 20 cm wide,
+    with the gap between them, butt joints, the grain running the plank's
+    length, the odd knot and the iron nails rusting at the joints."""
+    P = weathered("Wood")
+    n = t.n
+    yy, xx = (np.mgrid[0:n, 0:n].astype(np.float32) + 0.5) / n        # texel centres: a joint on the wrap is symmetric
+    planks = 10
+    pk = np.minimum((yy * planks).astype(np.int32), planks - 1)
+    fy = yy * planks - pk
+    dy = np.minimum(fy, 1 - fy) / planks * t.tile_m
+    dx = np.full((n, n), 9.0, np.float32)
+    seg = np.zeros((n, n), np.int32)
+    nails = np.zeros((n, n), bool)
+    for k in range(planks):
+        cuts = np.sort(t.rng.random(int(t.rng.integers(1, 3)))).astype(np.float32)
+        row = pk == k
+        xs = xx[row]
+        j = np.searchsorted(cuts, xs)
+        m = len(cuts)
+        left = np.where(j == 0, cuts[-1] - 1, cuts[np.maximum(j - 1, 0)])
+        right = np.where(j == m, cuts[0] + 1, cuts[np.minimum(j, m - 1)])
+        dxx = np.minimum(xs - left, right - xs) * t.tile_m
+        dx[row] = dxx
+        seg[row] = k * 4 + (j % m)
+        # two nails each side of every butt joint, a third of the plank in
+        nfy = fy[row]
+        near = (np.abs(dxx - 0.035) < 0.006) & ((np.abs(nfy - 0.3) < 0.03) | (np.abs(nfy - 0.7) < 0.03))
+        nails[row] = near
+    gap = (dy < 0.004) | (dx < 0.003)
+    rnd = np.random.default_rng(9).random(64).astype(np.float32)
+    phase = rnd[seg % 64] * 50
+    grain = t.noise(0.5, 0.004)
+    rings = np.sin(2 * math.pi * (fy * 7 + phase + (t.noise(0.3, 0.05) - 0.5) * 2.5))
+    knot_f1, _, _ = t.worley(0.35)
+    knot = np.clip(1 - knot_f1 / 0.08, 0, 1) ** 2
+    h = (grain - 0.5) * 0.0015 + rings * 0.0004 - knot * 0.0015 - np.clip(1 - dy / 0.006, 0, 1) * 0.004
+    h = np.where(gap, -0.008, h)
+    c = mix(P["teak"], P["warm"], np.clip(rnd[(seg * 5 + 1) % 64] * 0.8 + (grain - 0.5), 0, 1))
+    c = mix(c, P["dark"], np.clip(rings * 0.5 + 0.5, 0, 1) * 0.18 + knot * 0.7)
+    c = mix(c, P["dark"], np.clip((t.fbm(0.4, 3) - 0.6) * 3, 0, 1) * 0.4)          # damp
+    c = np.where(gap[..., None], P["gap"][None, None, :], c)
+    c = np.where(nails[..., None], P["iron"][None, None, :], c)
+    h = np.where(nails, h + 0.001, h)
+    rough = np.where(nails, 0.60, 0.80 + 0.08 * (grain - 0.5) + 0.05 * knot)
+    rough = np.where(gap, 0.93, rough)
+    return c, h, rough
+
+
+DRAW = dict(Sand=sand, Grass=grass, Jungle=jungle, Rock=rock, Mud=mud,
+            PalmBark=palm_bark, Bark=bark, Leaf=leaf, Stone=stone, Wood=wood)
+SEED = dict(Sand=11, Grass=23, Jungle=37, Rock=41, Mud=53, PalmBark=61, Bark=67, Leaf=71, Stone=79, Wood=83)
+
+
+def tile_m(name):
+    return TILE_OF.get(name, TILE_M)
 
 
 def build(size=SIZE, layers=LAYERS):
@@ -541,7 +747,7 @@ def build(size=SIZE, layers=LAYERS):
     out = {}
     for name in layers:
         t0 = time.time()
-        t = Tile(size, SEED[name])
+        t = Tile(size, SEED[name], tile_m(name))
         if "same_colour" in SABOTAGE and name == "Mud":
             c, h, r = DRAW["Sand"](Tile(size, SEED["Mud"]))
         else:
@@ -551,7 +757,7 @@ def build(size=SIZE, layers=LAYERS):
         if "flat_colour" in SABOTAGE and name == "Rock":
             c = np.broadcast_to(c.reshape(-1, 3).mean(0), c.shape).copy()
         c = held(c.astype(np.float32))
-        if "seam" in SABOTAGE and name == "Rock":
+        if "seam" in SABOTAGE and name in ("Rock", "Stone"):
             c = c * np.linspace(0.85, 1.15, size, dtype=np.float32)[None, :, None]
             c = held(c)
         srgb = np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(np.maximum(c, 1e-9), 1 / 2.4) - 0.055)
@@ -617,7 +823,7 @@ def check(maps, size=SIZE):
         c, nm, r = m["colour"], m["normal"], m["rough"]
         if c.shape[:2] != (size, size):
             fails.append("%s is %s, want %d square" % (name, c.shape[:2], size))
-        for what, a in (("colour", c), ("normal", nm), ("roughness", r)):
+        for what, a in (("colour", c), ("normal", nm), ("roughness", r)) if name not in UNTILED else ():
             s = _seam(a)
             if s > 1.2:
                 fails.append("%s's %s does not tile: its wrap steps %.2f x its insides" % (name, what, s))
@@ -629,9 +835,9 @@ def check(maps, size=SIZE):
             fails.append("%s's colour goes over the ceiling: %.3f, want %.2f or less" % (name, y.max(), hi))
         means[name] = lin.reshape(-1, 3).mean(0)
         # detail: at two millimetres (whatever the texel) and at a decimetre
-        st = max(1, int(round(0.002 / (TILE_M / size))))
-        fine = np.abs(y[:, st:] - y[:, :-st]).mean() / max(y.mean(), 1e-6)
-        k = max(1, int(0.1 / (TILE_M / size)))
+        st = max(1, int(round(0.002 / (tile_m(name) / size))))
+        fine = max(np.abs(y[:, st:] - y[:, :-st]).mean(), np.abs(y[st:] - y[:-st]).mean()) / max(y.mean(), 1e-6)
+        k = max(1, int(min(0.1, tile_m(name) * 0.2) / (tile_m(name) / size)))
         cs = y[: (size // k) * k, : (size // k) * k].reshape(size // k, k, size // k, k).mean((1, 3))
         coarse = cs.std() / max(cs.mean(), 1e-6)
         if fine < 0.02 or coarse < 0.03:
@@ -656,7 +862,9 @@ def check(maps, size=SIZE):
     up, down = bump_test()
     if not (up < -0.05 and down > 0.05):
         fails.append("the normals are not DirectX (Unreal's): above a bump green %.2f, below %.2f" % (up, down))
-    labs = {k: _lab(v[None, :])[0] for k, v in means.items()}
+    labs = {k: _lab(v[None, :])[0] for k, v in means.items() if k in LAYERS}
+    if "Leaf" in means and _lab(means["Leaf"][None, :])[0][1] > -1.0:
+        fails.append("the leaf is not green: a* %.1f, want under -1" % _lab(means["Leaf"][None, :])[0][1])
     names = list(labs)
     for i in range(len(names)):
         for j in range(i + 1, len(names)):
@@ -672,21 +880,25 @@ def check(maps, size=SIZE):
 
 # ================================================================ write, draw
 
-def write(maps, out=OUT):
+def write(maps):
+    """Each set's three maps: the ground's into Textures/IslandGround as
+    T_IslandGround_<Layer>_<Role>.png, the props' into Textures/IslandProps
+    as T_IslandProp_<Set>_<Role>.png (surfaces.py claims both by name)."""
     from PIL import Image
-    os.makedirs(out, exist_ok=True)
     total = 0
     for name, m in maps.items():
+        out, pre = (PROP_OUT, "IslandProp") if name in PROPS else (OUT, "IslandGround")
+        os.makedirs(out, exist_ok=True)
         for role, key in (("BaseColor", "colour"), ("Normal", "normal"), ("Roughness", "rough")):
-            p = os.path.join(out, "T_IslandGround_%s_%s.png" % (name, role))
+            p = os.path.join(out, "T_%s_%s_%s.png" % (pre, name, role))
             Image.fromarray(m[key]).save(p, optimize=True)
             total += os.path.getsize(p)
-    print("wrote %s (%.0f MB)" % (out, total / 1e6))
+    print("wrote %d sets (%.0f MB)" % (len(maps), total / 1e6))
 
 
 def draw(maps, path=SHEET):
-    """Each layer twice: the tile laid 2 x 2, lit (a seam would show as a
-    cross), and 50 cm of it at full size."""
+    """Each set twice: the tile laid 2 x 2, lit (a seam would show as a
+    cross), and a quarter of it (a ground's 50 cm) at full size."""
     from PIL import Image, ImageDraw
     cell = 512
     sheet = Image.new("RGB", (cell * 2 + 30, (cell + 28) * len(maps) + 10), (12, 14, 20))
@@ -701,10 +913,12 @@ def draw(maps, path=SHEET):
         img = (disp * 255).astype(np.uint8)
         size = img.shape[0]
         whole = Image.fromarray(np.tile(img, (2, 2, 1))).resize((cell, cell), Image.LANCZOS)
-        crop_px = max(16, int(0.5 / (TILE_M / size)))
+        tm = tile_m(name)
+        crop_px = max(16, int(size * (0.5 / TILE_M if name in LAYERS else 0.25)))
         crop = Image.fromarray(img[:crop_px, :crop_px]).resize((cell, cell), Image.LANCZOS)
         y = 10 + row * (cell + 28)
-        dr.text((10, y), "%s   (left: 8 m, the tile 2 x 2;  right: 50 cm)" % name, fill=(220, 230, 240))
+        dr.text((10, y), "%s   (left: %g m, the tile 2 x 2;  right: %g cm)" % (name, 2 * tm, crop_px / size * tm * 100),
+                fill=(220, 230, 240))
         sheet.paste(whole, (10, y + 16))
         sheet.paste(crop, (20 + cell, y + 16))
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -729,7 +943,9 @@ def main():
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--bite", action="store_true")
     ap.add_argument("--size", type=int, default=SIZE)
+    ap.add_argument("--only", choices=("ground", "props", "all"), default="all")
     a = ap.parse_args()
+    sets = dict(ground=LAYERS, props=PROPS, all=LAYERS + PROPS)[a.only]
     if a.bite:
         size = min(a.size, 1024)
         caught = 0
@@ -743,7 +959,7 @@ def main():
         SABOTAGE.clear()
         print("%d of %d caught" % (caught, len(BITES)))
         sys.exit(0 if caught == len(BITES) else 1)
-    maps = build(a.size)
+    maps = build(a.size, sets)
     f = check(maps, a.size)
     if f:
         print("FAILED:\n  " + "\n  ".join(f))
@@ -753,7 +969,12 @@ def main():
     if not a.check:
         if a.size == SIZE:
             write(maps)
-        draw(maps)
+        g = {k: v for k, v in maps.items() if k in LAYERS}
+        pr = {k: v for k, v in maps.items() if k in PROPS}
+        if g:
+            draw(g, SHEET)
+        if pr:
+            draw(pr, PROP_SHEET)
 
 
 if __name__ == "__main__":

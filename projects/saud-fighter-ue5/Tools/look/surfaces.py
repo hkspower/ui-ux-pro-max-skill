@@ -155,7 +155,7 @@ def _fbx_misses(sets):
         return None
     miss = []
     files = (sorted(glob.glob(os.path.join(MODELS, "*.fbx"))) + sorted(glob.glob(os.path.join(MODELS, "Souq", "*.fbx")))
-             + sorted(glob.glob(os.path.join(MODELS, "City", "*.fbx"))))
+             + sorted(glob.glob(os.path.join(MODELS, "City", "*.fbx"))) + sorted(glob.glob(os.path.join(MODELS, "Island", "*.fbx"))))
     seen = set()
     for f in files:
         bpy.ops.wm.read_factory_settings(use_empty=True)

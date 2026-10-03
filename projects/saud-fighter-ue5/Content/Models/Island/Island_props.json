@@ -1,0 +1,136 @@
+{
+ "units": "centimetres, Z up, baked into the vertices (FBX scale 1.0)",
+ "origins": {
+  "plants_and_rocks": "the foot, on the ground",
+  "temple": "the arena's centre on the plateau; gate on local -X",
+  "pier": "the shore end on the beach; runs out along +X",
+  "boat": "the waterline's middle; bow on +X"
+ },
+ "temple": {
+  "court_r": 16.0,
+  "court_h": 0.25,
+  "plateau_r": 22.5,
+  "ring_r": 19.5,
+  "columns": 12,
+  "drum_h": 0.8,
+  "drum_r": 0.55,
+  "wall_r": 21.4,
+  "gate_r": 21.0,
+  "gate_w": 4.0,
+  "gate_h": 6.0,
+  "fight_r": 11.0,
+  "clear_r": 16.0
+ },
+ "pier": {
+  "length": 30.0,
+  "width": 3.0,
+  "deck": 0.55,
+  "post_every": 3.0,
+  "post_depth": 4.0
+ },
+ "boat": {
+  "length": 14.0,
+  "beam": 4.0,
+  "draft": 1.2,
+  "freeboard": 1.3,
+  "mast": 11.0
+ },
+ "meshes": {
+  "SM_Island_Palm_A": {
+   "file": "Content/Models/Island/SM_Island_Palm_A.fbx",
+   "tris": 8924,
+   "verts": 12308,
+   "kind": "Palm",
+   "height": 9.0,
+   "fronds": 14,
+   "pinnae": 1288
+  },
+  "SM_Island_Palm_B": {
+   "file": "Content/Models/Island/SM_Island_Palm_B.fbx",
+   "tris": 8924,
+   "verts": 12308,
+   "kind": "Palm",
+   "height": 12.0,
+   "fronds": 14,
+   "pinnae": 1288
+  },
+  "SM_Island_Palm_C": {
+   "file": "Content/Models/Island/SM_Island_Palm_C.fbx",
+   "tris": 8924,
+   "verts": 12308,
+   "kind": "Palm",
+   "height": 15.0,
+   "fronds": 14,
+   "pinnae": 1288
+  },
+  "SM_Island_Tree_A": {
+   "file": "Content/Models/Island/SM_Island_Tree_A.fbx",
+   "tris": 29402,
+   "verts": 54414,
+   "kind": "Tree",
+   "height": 19.0,
+   "clusters": 22,
+   "leaves": 6600
+  },
+  "SM_Island_Tree_B": {
+   "file": "Content/Models/Island/SM_Island_Tree_B.fbx",
+   "tris": 29402,
+   "verts": 54414,
+   "kind": "Tree",
+   "height": 24.0,
+   "clusters": 22,
+   "leaves": 6600
+  },
+  "SM_Island_Rock_A": {
+   "file": "Content/Models/Island/SM_Island_Rock_A.fbx",
+   "tris": 528,
+   "verts": 286,
+   "kind": "Rock",
+   "size": 1.2
+  },
+  "SM_Island_Rock_B": {
+   "file": "Content/Models/Island/SM_Island_Rock_B.fbx",
+   "tris": 528,
+   "verts": 286,
+   "kind": "Rock",
+   "size": 2.6
+  },
+  "SM_Island_Rock_C": {
+   "file": "Content/Models/Island/SM_Island_Rock_C.fbx",
+   "tris": 528,
+   "verts": 286,
+   "kind": "Rock",
+   "size": 5.0
+  },
+  "SM_Island_Temple": {
+   "file": "Content/Models/Island/SM_Island_Temple.fbx",
+   "tris": 2788,
+   "verts": 1928,
+   "kind": "Temple",
+   "gate": {
+    "x": -21.0,
+    "y_inner": 2.0,
+    "height": 6.0
+   },
+   "court_r": 16.0,
+   "court_h": 0.25
+  },
+  "SM_Island_Pier": {
+   "file": "Content/Models/Island/SM_Island_Pier.fbx",
+   "tris": 500,
+   "verts": 360,
+   "kind": "Pier",
+   "length": 30.0,
+   "deck": 0.55
+  },
+  "SM_Island_Boat": {
+   "file": "Content/Models/Island/SM_Island_Boat.fbx",
+   "tris": 834,
+   "verts": 511,
+   "kind": "Boat",
+   "length": 14.0,
+   "draft": 1.2,
+   "mast": 11.0
+  }
+ }
+}
