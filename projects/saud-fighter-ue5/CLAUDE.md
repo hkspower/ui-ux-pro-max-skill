@@ -4704,6 +4704,129 @@ the previews stand the buildings on a plain disc. Judged from the renders:
 the arena's stands read as stepped blocks and the dunes as round mounds,
 the roughest of the kinds.
 
+## Saud's core -- 2026-10-03
+
+Asked as "fix core shape", settled with the author as Saud only and all
+three of: the abs joined and the waist tapering, the side fins of the top,
+and the joggers' bulge at the waist. Measured first on his built body and
+in clay from four sides (`hero/anatomy.py`, `hero/garments.py`).
+
+**What was wrong.** Seen from the front the trunk's outline stepped:
+the lats' lower edge ended in 6 cm, so the flank jumped out 35 mm between
+1.15 and 1.19 (10 mm in a centimetre), and the compression top, a hull over
+it, drew that jump as a fin down each side. The thigh tops stood 6 mm
+outside the hips, a flat shelf across them (11 mm in a centimetre) that
+the joggers boxed over. The abs were six pebbles on a flat plate, 18 mm of
+belly between the rows. The joggers' seat drape reached round the front
+and stood 17 mm off him at 0.97.
+
+**What changed.** The lean trunk's waist rows 3-4 mm in across and the
+ribs 6 mm out, so the climb to the ribcage is even; the lats a seven-link
+fan whose lower links run on down into the waist (`BACK_MUSCLES`, lean);
+the abs taller rows on a raised strap (`RECTUS`, `RECTUS_EX` 0.70,
+`RECTUS_STRAP` 5.5 mm), the obliques faded at their ends (`OBLIQUE_FADE`);
+the thigh tops tucked inside the pelvis (`LEAN_THIGH`); the joggers' seat
+drape behind only (`garments.SEAT_FIT`, the front faded out).
+
+**Held, and bitten.** A new rule in `PHYSIQUE_RULES`, `outline`: the
+largest step of the trunk's front half-width between 0.90 and 1.30, at
+most 8 mm in a centimetre -- 11.1 before, 6.5 now. Two new sabotages,
+the lats' old fin and the thighs' old shelf, each caught by it;
+`--physique-check` 16 of 16, the neck 5 of 5, the back 4 of 4 (three of
+the old sabotages had to be re-made: on the new core they no longer broke
+what they named). In his build: waist 0.786, chest 1.062, hips 0.940, V
+1.517; abs 3.6, linea 7.0, oblique 4.0, serratus 3.1 mm; ab lines 12 mm;
+outline 6.5.
+
+**Built, 2026-10-03 (Riyadh):** Saud whole in 42 min, 64,442 tris, 62
+bones, every in-build check passing; the export skeleton identical to
+the last (largest difference 0), so his clips stand. The iron arm
+re-baked, its check passing; `rig_full_ik.py --bite` 17 of 17 and 12 of
+12 stance cases. His a-pose, face, guard, kick and iron arm renders, the
+six men's sheet, the souq fight scene (restaged in a scratch folder, its
+48 souq textures byte-identical to the project's, its paths set back to
+them) and its previews, his IK sheet and the 3D title redrawn.
+
+**Not verified:** no engine has imported him.
+
+## The bosses, each his own -- 2026-10-03
+
+Asked as "improve all bosses' fight style ik", settled as AL-WAHSH, AL-SAQR
+and ZAYOS, the Unreal build, all four of: their fight clips through the IK
+in each one's style, the in-game IK at their size, their fighting
+behaviour, and their hit reactions.
+
+**The IK at their size** (`Combat/SaudIK.h`). The runtime IK's bands were
+Saud's centimetres, and a boss is 1.14-1.55 of him: a foot of ZAYOS's
+standing at his own planted height read as swinging. Every band that is a
+length now grows with the man (`Size`, his leg over Saud's 88.2 cm): the
+planted and swing heights, the ball's up and down bands, the shuffle's
+pace in a guard, the toes' share, the hips' drop and the weight's carry.
+The anim instance passes `BodyScale` and plays a walk at the man's pace
+over his own stride. `tests/ik.cpp` gains a big man (ZAYOS's size) on each
+band; six sabotages, each caught.
+
+**The clips** (`build_motion.py`, `build_saud.py`, `rig_full_ik.py`).
+- **Knees over their toes.** Planted straight forward, a boss's turned-out
+  rear foot had its knee 31 degrees inside its toes in the guard and 22-42
+  in a step. The three boss stances take `knee_track_pole`'s knee
+  (`"knee_pole": "track"`): the bend along the foot's own heading, 5
+  degrees inside. Saud's `knee_pole`, which reads the shin from above, was
+  tried first and put ZAYOS's rear knee 49 degrees OUTSIDE (his wide
+  stance's legs slant out). Now within 12 degrees in every guard and walk;
+  `knee_toe_check` holds them (bite "boss knees"). The rig check on each
+  boss's rig: 17 of 17.
+- **A strike of his own** (`SIGNATURE`), more body through the torso's aims
+  and turn only, so the limb's path, its timing and where it lands are the
+  move's: AL-WAHSH's hook rolls under from the crouch (the chest turned 85
+  degrees at contact -> 94), AL-SAQR's round kick turns the hip right over
+  (18 -> 29), ZAYOS's cross drives the shoulder through (66 -> 80).
+  `signature_check`; bite "boss signature".
+- **The torso from his own guard** was measured and already held: every
+  boss strike that leans in leans from his own hunch (the "lean from guard"
+  rule), so their torso aims stay absolute.
+
+**Hit reactions by weight** (`motion_hits.py`). A blow moved every man the
+same. Now a reaction's displacement -- the lean, the hips, the head, the
+thrown arms -- scales by the square root of Saud's bulk (the browser's `sc`
+x `look.build`) over the man's: Saud and the street men 1, AL-SAQR 0.96,
+AL-WAHSH 0.83, ZAYOS 0.69. The covering arms keep their reach.
+`give_check` holds each boss's head travel against Saud's in the same
+reaction, within 0.12 of his give; bite "heavy men give" (ZAYOS moved 1.02
+of Saud with it broken).
+
+**Behaviour.**
+- **Phase two as the browser has it.** The Unreal build enraged every boss
+  at half health; the browser enrages AL-WAHSH and AL-SAQR only (its
+  `isBoss` line). `SaudBrain::HasPhaseTwo` holds the browser's rule,
+  `AEnemyFighter` enrages only a row it names, and `tests/brain.cpp` reads
+  the browser's line and `DT_Fighters` and holds the header to them (three
+  sabotages, each caught).
+- **His own dials** (`build_data_assets.BOSS_DIALS`, Unreal-only): the rows
+  left the three alike where it shows most -- all three walked in and stood
+  (RangeDiscipline 0.15, the health floor). AL-WAHSH counters from behind
+  his guard (CounterChance 0.14 -> 0.45, PunishChance 0.80) and circles
+  less (0.40); AL-SAQR holds his kicking range (RangeDiscipline 0.80) and
+  resets rather than answering back (CounterChance 0.15); ZAYOS swings into
+  a guard rather than going round it (GuardRespect 0.69 -> 0.35), answers
+  back (0.40) and barely circles (0.10). Each value is kept inside its
+  dial's own derived range, and the tool refuses one that is not, or a row
+  that is not a boss.
+
+**Checked.** The harness passes whole. `build_motion.py`: all 197 clips
+built with every motion check passing (read-back 0.01 mm); the 100 boss
+clips that moved are put back, and every Saud and Street clip came out
+within 0.1 mm of Content and was left. `DT_Pairs.csv` moves by a few
+millimetres on the boss pairs; `SaudPlants.h`, re-measured, is
+unchanged. Three new sabotages in `build_motion.py --bite` (boss knees,
+boss signature, heavy men give), each run unbroken too: 6 of 6. The
+bosses' guard and kick renders, the six men's sheet and the boss and
+pairs contact sheets are redrawn.
+
+**Not verified:** nothing compiled or played; no engine has imported a
+clip or built a style asset. The give's square root, the signature turns
+and the dials are judgements, not measurements of real fighters.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
