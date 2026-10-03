@@ -1802,6 +1802,21 @@ static void Plants()
     for (int I = 0; I < SaudPlants::NumClips; ++I) Found += SaudPlants::Find(SaudPlants::Clips[I].Name) == &SaudPlants::Clips[I];
     Check(bSorted && Found == SaudPlants::NumClips && !SaudPlants::Find("A_Saud_Moonwalk"), "...and every one is found by its name");
 
+    // ---- every motion-capture gait puts each foot down in its loop: a foot
+    // never seen down is never held, and skates (the run's right foot did,
+    // measured against the guard's floor rather than its own)
+    int GaitsBothDown = 0;
+    for (const auto& R : Mocap)
+    {
+        const SaudPlants::FClip* P = SaudPlants::Find(R.at("Name").c_str());
+        if (!P) continue;
+        bool bDown[2] = { false, false };
+        for (int F = 0; F < 2; ++F) for (const char* C = P->Foot[F]; *C; ++C) bDown[F] = bDown[F] || *C != '.';
+        if (bDown[0] && bDown[1]) ++GaitsBothDown;
+        else std::printf("  %s: a foot never down\n", P->Name);
+    }
+    Check(GaitsBothDown == 5, "every motion-capture gait puts each foot down in its loop");
+
     // ---- what the measurements say, held to what the clips are
     int Guards = 0, BadGuards = 0, Walks = 0, BadWalks = 0, Legs = 0, BadLegs = 0, Punches = 0, BadPunches = 0, SideWalks = 0;
     float SideApart = 0.f;
@@ -1931,6 +1946,33 @@ static void Plants()
           "a walk is played at the man's pace from its first frame, by its measured stride");
     Check(Near(StrideRateMeasured(672.8f, 336.4f, 2.f), 1.f, 1e-4f), "...the stride grown with the man drawn twice the size");
     Check(StrideRateMeasured(300.f, 0.f, 1.f) == 1.f, "...and a clip that does not walk keeps its clock");
+    // a guard edging along: held (and so shuffled) at 60 cm/s or under, glides faster
+    Check(HoldsFeetMeasured(false, false, 0.f, true, 55.f) && !HoldsFeetMeasured(false, false, 0.f, true, 130.f)
+              && !HoldsFeetMeasured(false, false, 0.f, false, 55.f),
+          "a block edged along at a guard's pace holds its feet; pushed faster it glides; nothing else does");
+    {
+        // the Block clip walked at 50 cm/s: held, the feet shuffle after it, and a
+        // held ball never slides while it is held
+        Man M; M.In.bHold = HoldsFeetMeasured(false, false, 0.f, true, 50.f);
+        int Steps = 0; float Slide = 0.f;
+        FVector Was[2] = {M.St.Hold[0].Anchor, M.St.Hold[1].Anchor};
+        bool WasHeld[2] = {false, false};
+        for (int I = 1; I <= 120; ++I)
+        {
+            M.In.Mesh = At(FVector(50.f * I / 60.f, 0.f, 0.f), 0.f);
+            M.Step(1.f / 60.f);
+            for (int S = 0; S < 2; ++S)
+            {
+                if (M.St.Hold[S].bStep && M.St.Hold[S].Progress < 1.f) ++Steps;
+                const bool Still = M.St.Hold[S].bHeld && !M.St.Hold[S].bStep;
+                if (Still && WasHeld[S]) Slide = std::fmax(Slide, Flat(M.St.Hold[S].Anchor - Was[S]));
+                Was[S] = M.St.Hold[S].Anchor; WasHeld[S] = Still;
+            }
+        }
+        std::printf("  a block edged along at 50 cm/s: %d frames of stepping in 2 s, a held ball slid %.4f cm\n", Steps, Slide);
+        Check(Steps > 0 && (M.St.Hold[0].bHeld || M.St.Hold[1].bHeld) && Slide < 1e-3f,
+              "a block edged along at 50 cm/s shuffles its feet after it, and a held foot does not slide");
+    }
     Check(HoldsFeetMeasured(false, false, Walk->Stride) && !HoldsFeetMeasured(false, false, 0.f)
           && HoldsFeetMeasured(true, false, 0.f) && HoldsFeetMeasured(false, true, 0.f),
           "a walk holds its feet as the man moves; a block walked glides; a swing or a stand holds");

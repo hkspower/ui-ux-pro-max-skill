@@ -644,7 +644,8 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 	const bool bStanding = Frame.Velocity.Size() < SaudFeel::WalkThreshold;
 	Frame.bSettleFeet = bStanding && !bAttacking;
 	const SaudPlants::FClip* Newest = NewestPlants();
-	Frame.bHoldFeet = Newest ? SaudIK::HoldsFeetMeasured(bAttacking, bStanding, Newest->Stride)
+	Frame.bHoldFeet = Newest ? SaudIK::HoldsFeetMeasured(bAttacking, bStanding, Newest->Stride,
+	                                                     St == EFighterState::Block, Frame.Velocity.Size())
 	                         : SaudIK::HoldsFeet(bAttacking, bStanding, Back.Stride, Fade.Serial);
 
 	// The leg an attack is thrown with is the strike's from its first frame: never held.

@@ -4312,12 +4312,10 @@ into a run keeps the phase; every speed to his fastest inside the rate band;
 every gait's stride is a walk's -- and its seven sabotages caught.
 `tests/ik.cpp` counts the five measured. `mocap.py --bite` 7 of 7.
 
-**Not verified:** nothing compiled or played. The run's right foot is never
-seen down by `measure_plants.py` (its forefoot strike leaves the ball 1.5 cm
-over the guard's floor for one frame, under its two-frame debounce), so the
-runtime holds the run's left foot and not its right; the run's own clip has
-its right foot on the floor. Whether 12 m is the right distance to drop the
-guard, only play will say.
+**Not verified:** nothing compiled or played. Whether 12 m is the right
+distance to drop the guard, only play will say. (The run's right foot was
+never seen down by `measure_plants.py` here; fixed the same day, "The IK,
+polished".)
 
 ## The System's HUD -- 2026-10-03
 
@@ -4513,6 +4511,34 @@ grade, in `Tools/look/anime_look.py`'s table only.
 
 **Not verified:** no engine has built the materials; the previews are the
 numpy mirror through the film curve, as before.
+
+## The IK, polished -- 2026-10-03
+
+Asked as "improve gloss ik", settled as whole-body polish of the in-game IK
+("The in-game IK, improved"). Two holes in the feet, each measured first:
+
+- **A guard edged along skated.** A planted foot was held only standing,
+  striking, or on a walk's measured stride (`SaudIK::HoldsFeetMeasured`), so
+  a block shuffled at a guard's pace -- slower than any walk's stride, and a
+  block plays no walk -- let both feet slide under him. A block at or under
+  `BlockShuffleMax` (60 cm/s) now holds its feet and steps after him;
+  pushed faster (a shove) it still glides, as a block does not step. The
+  anim instance passes the block state and the ground speed. Measured in the
+  harness at 50 cm/s: 81 step frames, 0 cm of slide.
+- **The run's right foot was never down.** `measure_plants.py` measured the
+  motion-capture gaits against the guard's floor, and the run's forefoot
+  strike stands its ball 1.5 cm over that for one frame -- under the
+  debounce -- so the runtime held its left foot and never its right. A
+  motion-capture clip is now measured against its own floor, each foot's
+  lowest point in the loop (the actor's shoes, not the guard's).
+  `SaudPlants.h` regenerated: every gait has both feet down (the run's right
+  foot 5 frames).
+
+**Checked:** the harness passes whole; `tests/ik.cpp` gains the guard's
+shuffle (held at a guard's pace, gliding when pushed, nothing else held) and
+"every motion-capture gait puts each foot down in its loop"; three new
+sabotages, 3 of 3 caught. **Not verified:** nothing compiled or played; 60
+cm/s is a judgement.
 
 ## The city districts, as real 3D -- 2026-10-03
 

@@ -420,3 +420,7 @@ feel|Source/SaudFighter/Combat/SaudFeel.h|s#{EClip::GaitJog, 279.9f}#{EClip::Gai
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#case EClip::GaitJog: case EClip::GaitRun: return EKind::Step;#case EClip::GaitJog: case EClip::GaitRun: return EKind::Stand;#|keeps the phase
 feel|Source/SaudFighter/Combat/SaudFeel.h|s# IsGait(C);# false;#|every gait loops
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#case EClip::GaitJog: case EClip::GaitRun: return EClip::WalkFwd;#case EClip::GaitJog: case EClip::GaitRun: return C;#|falls back to the guard's step forward
+# 2026-10-03, the guard's shuffle: a block edged along slowly holds and steps its feet
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockShuffleMax = 60.f;#constexpr float BlockShuffleMax = 0.f;#|a block edged along at a guard's pace holds its feet
+ik|Source/SaudFighter/Combat/SaudIK.h|s#(bBlocking \&\& GroundSpeed <= BlockShuffleMax)#(bBlocking \&\& GroundSpeed <= 1e9f)#|pushed faster it glides
+ik|Source/SaudFighter/Combat/SaudPlants.h|s#\("A_Saud_Mocap_Jog".*", "\)[^"]*\(" } },\)#\1.......................\2#|every motion-capture gait puts each foot down in its loop

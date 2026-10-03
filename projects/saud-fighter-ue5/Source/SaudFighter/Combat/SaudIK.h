@@ -633,11 +633,22 @@ namespace SaudIK
 		return FMath::Clamp(GroundSpeed / (ClipStride * Scale), StrideRateMin, StrideRateMax);
 	}
 
+	/** A man in his guard pushed or edging along no faster than this holds
+	    his feet and shuffles after them (HoldDrift, one foot at a time, a
+	    StepSeconds step each) -- a guard's shuffle, about two and a half
+	    steps a foot a second at the most; faster, the Block glides as it
+	    did, rather than tap-dance (2026-10-03, "improve gloss ik": the
+	    Block walked at any pace glided). */
+	constexpr float BlockShuffleMax = 60.f;
+
 	/** HoldsFeet from a clip's measured stride: a clip that walks holds its
-	    feet as the man moves; one that does not (the Block walked) glides. */
-	inline bool HoldsFeetMeasured(bool bAttacking, bool bStanding, float ClipStride)
+	    feet as the man moves; one that does not (the Block walked) glides --
+	    unless it is a guard edging along slowly enough to shuffle. */
+	inline bool HoldsFeetMeasured(bool bAttacking, bool bStanding, float ClipStride, bool bBlocking = false,
+	                              float GroundSpeed = 0.f)
 	{
-		return bAttacking || bStanding || ClipStride >= StrideMinSpeed;
+		return bAttacking || bStanding || ClipStride >= StrideMinSpeed
+		    || (bBlocking && GroundSpeed <= BlockShuffleMax);
 	}
 
 	/** One trace's answer, in the mesh's space. */

@@ -24,7 +24,9 @@ the clip's own first frame (ik_sheet.py found this the hard way). Each set's
 Guard clip (A_<Set>_Guard) stands still on the floor for its whole loop, and
 the lower of its two feet in its first frame is flat (Saud's rear heel is up
 in his stance; his lead foot is flat): that foot's ankle and ball heights are
-the man's rest, for both feet. A set is the clip name's second word (A_Saud_..., A_Street_...,
+the man's rest, for both feet -- except Saud's motion capture
+(A_Saud_Mocap_*), which stands on its own actor's floor: each foot's own
+lowest ball and ankle over its loop. A set is the clip name's second word (A_Saud_..., A_Street_...,
 A_Boss_..., A_Saqr_..., A_Zayos_...).
 
 WHAT IT WRITES. Source/SaudFighter/Combat/SaudPlants.h, generated, never
@@ -185,7 +187,15 @@ def measure(rows):
         for r in rs:
             n = int(r["Frames"])
             fr = sample(os.path.join(ANIM, r["folder"], r["File"]), n)
-            marks = classify(fr, rest, scale)
+            here = rest
+            if "_Mocap_" in r["Name"]:
+                # motion capture (mocap.py) stands on its actor's floor, not
+                # the guard's: each foot's own lowest ball and ankle over the
+                # loop are where it is down. Against the guard's floor the
+                # run's forefoot strike stood 1.5 cm proud and its right foot
+                # was never seen down (2026-10-03, "improve gloss ik")
+                here = {k: min(f[k][2] for f in fr) for k in ("ankle_l", "ankle_r", "ball_l", "ball_r")}
+            marks = classify(fr, here, scale)
             loop = r["bLoop"].strip().lower() == "true"
             clips.append(dict(name=r["Name"], seconds=float(r["Seconds"]), frames=n, loop=loop,
                               stride=stride_speed(fr, marks, float(r["Seconds"]), loop),
