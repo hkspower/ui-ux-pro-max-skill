@@ -371,3 +371,6 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#V = V < 0.f ? Wanted : StepGate(V, Wante
 ik|Source/SaudFighter/Combat/SaudIK.h|s#F.Still >= SettleSeconds#F.Still >= 1e9f#|a man standing still steps a foot left off its spot back
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const bool bSteady = F.bHeld \&\& bSettle \&\&#const bool bSteady = F.bHeld \&\& (bSettle \&\& false ? false : true) \&\&#|...but not in a swing
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#return !bSerialMoved \&\& KindOf(Shown) == EKind::Dash \&\& KindOf(Picked) == EKind::Dash;#return !bSerialMoved \&\& false \&\& KindOf(Shown) == KindOf(Picked);#|one dash keeps its clip
+# 2026-10-03, the colours from the data: the HUD draws the live palette
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#inline const FRgba\& Blood = LivePalette().Blood;#inline const FRgba\& Blood = Defaults::Blood;#|a blood set in the live palette is the blood the HUD draws
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#{"Gold", \&FPalette::Gold},##|every palette colour has a slot by its data name

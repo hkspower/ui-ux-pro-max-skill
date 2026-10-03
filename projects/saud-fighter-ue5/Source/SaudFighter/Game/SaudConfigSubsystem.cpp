@@ -1,5 +1,6 @@
 #include "Game/SaudConfigSubsystem.h"
 
+#include "Combat/SaudAnime.h"
 #include "Combat/SaudTypes.h"
 #include "Engine/DataTable.h"
 #include "HttpModule.h"
@@ -54,6 +55,9 @@ void USaudConfigSubsystem::UseBakedTables()
 	UpgradeTable = BakedUpgradeTable.LoadSynchronous();
 	LevelTable   = BakedLevelTable.LoadSynchronous();
 	WeaponTable  = BakedWeaponTable.LoadSynchronous();
+	ColorTable     = BakedColorTable.LoadSynchronous();
+	LookColorTable = BakedLookColorTable.LoadSynchronous();
+	ApplyPalette();
 
 	Source = EBalanceSource::Baked;
 
@@ -282,6 +286,7 @@ bool USaudConfigSubsystem::ApplyPayload(const FString& Json, EBalanceSource NewS
 	UDataTable* NewLevel   = nullptr;
 	UDataTable* NewWeapon  = nullptr;
 	UDataTable* NewStage   = nullptr;
+	UDataTable* NewColor   = nullptr;
 
 	const TArray<TTuple<const TCHAR*, UScriptStruct*, UDataTable**, bool>> Specs =
 	{
@@ -291,7 +296,8 @@ bool USaudConfigSubsystem::ApplyPayload(const FString& Json, EBalanceSource NewS
 		{ TEXT("Upgrades"), FUpgradeDef::StaticStruct(),  &NewUpgrade, false },
 		{ TEXT("Levels"),   FLevelDef::StaticStruct(),    &NewLevel,   false },
 		{ TEXT("Weapons"),  FWeaponDef::StaticStruct(),   &NewWeapon,  false },
-		{ TEXT("Stages"),   FStageDef::StaticStruct(),    &NewStage,   false }
+		{ TEXT("Stages"),   FStageDef::StaticStruct(),    &NewStage,   false },
+		{ TEXT("Colors"),   FColorDef::StaticStruct(),    &NewColor,   false }
 	};
 
 	for (const auto& Spec : Specs)
@@ -338,8 +344,61 @@ bool USaudConfigSubsystem::ApplyPayload(const FString& Json, EBalanceSource NewS
 	if (NewLevel)   { LevelTable   = NewLevel;   }
 	if (NewWeapon)  { WeaponTable  = NewWeapon;  }
 	if (NewStage)   { StageTable   = NewStage;   }
+	if (NewColor)   { ColorTable   = NewColor;   }
+	// The look's palette is Unreal-only and never in the payload: it stays
+	// the baked table's, put back into the live palette all the same.
+	ApplyPalette();
 
 	Revision = NewRevision;
 	Source = NewSource;
 	return true;
+}
+
+/* ------------------------------------------------------------- the colours */
+
+static FLinearColor LinearOf(const FColorDef& C)
+{
+	return FLinearColor(SaudHud::SrgbToLinear(C.R), SaudHud::SrgbToLinear(C.G), SaudHud::SrgbToLinear(C.B), C.A);
+}
+
+FLinearColor USaudConfigSubsystem::FindColor(FName Row, FLinearColor Fallback) const
+{
+	for (const UDataTable* Table : {LookColorTable.Get(), ColorTable.Get()})
+	{
+		if (const FColorDef* C = Table ? Table->FindRow<FColorDef>(Row, TEXT("FindColor"), false) : nullptr)
+		{
+			return LinearOf(*C);
+		}
+	}
+	return Fallback;
+}
+
+void USaudConfigSubsystem::ApplyPalette() const
+{
+	// Back to the defaults first, so a row taken out of the table is the
+	// default again rather than whatever the last table said.
+	SaudHud::LivePalette() = SaudHud::FPalette();
+	if (!LookColorTable)
+	{
+		UE_LOG(LogSaudBalance, Warning,
+			TEXT("DT_LookColors did not load (BakedLookColorTable in DefaultGame.ini): the HUD draws its defaults."));
+		return;
+	}
+	int32 Set = 0;
+	for (const TPair<FName, uint8*>& Pair : LookColorTable->GetRowMap())
+	{
+		const FString Name = Pair.Key.ToString();
+		if (!Name.StartsWith(TEXT("Look_")))
+		{
+			continue;
+		}
+		const FTCHARToUTF8 Slot(*Name.RightChop(5));
+		if (SaudHud::FRgba* P = SaudHud::PaletteSlot(Slot.Get()))
+		{
+			const FLinearColor L = LinearOf(*reinterpret_cast<const FColorDef*>(Pair.Value));
+			*P = SaudHud::FRgba{L.R, L.G, L.B, L.A};
+			++Set;
+		}
+	}
+	UE_LOG(LogSaudBalance, Log, TEXT("Palette: %d of 7 colours from DT_LookColors."), Set);
 }

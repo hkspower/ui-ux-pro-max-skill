@@ -96,6 +96,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Balance")
 	UDataTable* GetWeaponTable() const { return WeaponTable; }
 
+	/* ---- the colours (2026-10-03) ----------------------------------------
+	   The browser's scheme (DT_Colors, 255 rows; also in the remote payload)
+	   and the look's palette (DT_LookColors, Unreal-only, baked). Every time
+	   tables are applied the look's palette is copied into SaudHud's live
+	   palette, which the HUD, the menus and the look draw with. */
+	UFUNCTION(BlueprintPure, Category = "Colour")
+	UDataTable* GetColorTable() const { return ColorTable; }
+
+	UFUNCTION(BlueprintPure, Category = "Colour")
+	UDataTable* GetLookColorTable() const { return LookColorTable; }
+
+	/** A colour by its row name in either table, linear; Fallback if neither
+	    has it. */
+	UFUNCTION(BlueprintPure, Category = "Colour")
+	FLinearColor FindColor(FName Row, FLinearColor Fallback) const;
+
 protected:
 	/* ---- settings, from DefaultGame.ini --------------------------------- */
 
@@ -141,6 +157,12 @@ protected:
 	UPROPERTY(Config, EditAnywhere, Category = "Balance")
 	TSoftObjectPtr<UDataTable> BakedWeaponTable;
 
+	UPROPERTY(Config, EditAnywhere, Category = "Colour")
+	TSoftObjectPtr<UDataTable> BakedColorTable;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Colour")
+	TSoftObjectPtr<UDataTable> BakedLookColorTable;
+
 private:
 	void UseBakedTables();
 	void TryCachedPayload();
@@ -165,6 +187,11 @@ private:
 	UPROPERTY() TObjectPtr<UDataTable> UpgradeTable;
 	UPROPERTY() TObjectPtr<UDataTable> LevelTable;
 	UPROPERTY() TObjectPtr<UDataTable> WeaponTable;
+	UPROPERTY() TObjectPtr<UDataTable> ColorTable;
+	UPROPERTY() TObjectPtr<UDataTable> LookColorTable;
+
+	/** The look's palette rows into SaudHud's live palette. */
+	void ApplyPalette() const;
 
 	EBalanceSource Source = EBalanceSource::Baked;
 	FString Revision;

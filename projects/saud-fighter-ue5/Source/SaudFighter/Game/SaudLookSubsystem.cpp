@@ -148,6 +148,18 @@ void USaudLookSubsystem::Tick(float DeltaTime)
 	// The brush and the grain boil on twos, every frame, whatever else is
 	// drawn: the same seed the speed lines are redrawn on.
 	Write(ESlot::Boil, SaudAnime::Param::Boil, Look.Seed());
+	// The palette the look draws its ink, bone, blood and ember with: the
+	// live one, filled from DT_LookColors (USaudConfigSubsystem). Four
+	// vectors a frame; cheaper than knowing when the tables were applied.
+	const SaudHud::FPalette& Pal = SaudHud::LivePalette();
+	const auto Vec = [this](const TCHAR* Name, const SaudHud::FRgba& C)
+	{
+		UKismetMaterialLibrary::SetVectorParameterValue(this, Collection, FName(Name), FLinearColor(C.R, C.G, C.B, C.A));
+	};
+	Vec(SaudAnime::Param::InkColour, Pal.Ink);
+	Vec(SaudAnime::Param::BoneColour, Pal.Bone);
+	Vec(SaudAnime::Param::BloodColour, Pal.Blood);
+	Vec(SaudAnime::Param::EmberColour, Pal.Ember);
 
 	float Speed = Look.SpeedValue();
 	float X = 0.5f, Y = 0.5f;

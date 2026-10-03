@@ -414,6 +414,42 @@ struct FLevelDef : public FTableRowBase
 	float BonusMana = 0.f;
 };
 
+/** A colour, a row of DT_Colors.csv (the browser's scheme, exported by
+    Tools/export/export.mjs) or DT_LookColors.csv (the look's palette, written
+    by Tools/look/anime_look.py --colors). The row name is the colour's name
+    (Kit_Saud_Band, Look_Blood); R, G, B are the sRGB encoding, 0-1. Read
+    since 2026-10-03, by USaudConfigSubsystem. */
+USTRUCT(BlueprintType)
+struct FColorDef : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Color")
+	FString Group;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Color")
+	FString Key;
+
+	/** As the browser writes it: a hex, or an rgba() for a wash. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Color")
+	FString Css;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Color")
+	FString Hex;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Color")
+	float R = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Color")
+	float G = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Color")
+	float B = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Color")
+	float A = 1.f;
+};
+
 /** What a smashed crate can put in your hands. Every one multiplies punches
     and none of them touch kicks, so picking one up is a trade. */
 USTRUCT(BlueprintType)

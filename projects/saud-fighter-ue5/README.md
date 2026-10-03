@@ -188,6 +188,10 @@ material.
    - `DT_Attacks.csv` → row struct `FAttackDef`
    - `DT_Fighters.csv` → row struct `FFighterDef`
    - `DT_Stages.json` → row struct `FStageDef`
+   - `DT_Colors.csv` → row struct `FColorDef` (the browser's colour scheme)
+   - `DT_LookColors.csv` → row struct `FColorDef` (the palette the HUD, the
+     menus and the anime look draw with; `Tools/look/anime_look.py --colors`
+     writes it)
 4. **Create the input assets** in `/Game/Input` and assign them on `BP_Saud`:
 
    | Asset | Type | Suggested binding |

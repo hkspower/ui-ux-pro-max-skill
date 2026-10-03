@@ -37,6 +37,7 @@
 	#include "CoreMinimal.h"
 	#define SAUD_TEXT(s) TEXT(s)
 #endif
+#include <cmath>
 
 namespace SaudAnime
 {
@@ -92,6 +93,14 @@ namespace SaudAnime
 		    Seed(), written every tick (SpeedSeed only while the speed lines
 		    are up). Since 2026-09-28. */
 		constexpr const SaudChar* Boil = SAUD_TEXT("Boil");
+		/** The palette the look draws its ink, bone, blood and ember with
+		    (2026-10-03): vectors, linear, from the live palette, so the
+		    impact cut, the speed lines, the mark and the wound are the
+		    data's colours too. */
+		constexpr const SaudChar* InkColour = SAUD_TEXT("InkColour");
+		constexpr const SaudChar* BoneColour = SAUD_TEXT("BoneColour");
+		constexpr const SaudChar* BloodColour = SAUD_TEXT("BloodColour");
+		constexpr const SaudChar* EmberColour = SAUD_TEXT("EmberColour");
 		/** Since 2026-09-28, the hit effects of the dark seinen: the impact
 		    frame's tone (ETone as a number: 0 blood, 1 ember, 2 bone), the
 		    player's wound border, and the mark at the point of contact --
@@ -399,8 +408,16 @@ namespace SaudHud
 	    against the trough it sits in (WCAG 2.1 1.4.11, checked in the
 	    harness from these numbers): blood 3.03, ash 4.96, gold 4.08, ember
 	    6.0; the bone trail 3.36 against the blood; bone lettering 11.0
-	    against its ink stroke. */
-	namespace Colour
+	    against its ink stroke.
+
+	    Since 2026-10-03 ("update colors schema at game": the game reads its
+	    colours from the data) these are the DEFAULTS, and what is drawn is
+	    the live palette: the game fills it from Content/Data/
+	    DT_LookColors.csv (Look_Ink ... Look_Gold, written by anime_look.py
+	    from its LOOK and checked against these) when the tables load
+	    (USaudConfigSubsystem), and Colour::Ink and the rest name the live
+	    values, so every line that draws with them draws the data's. */
+	namespace Defaults
 	{
 		constexpr FRgba Ink{0.0022f, 0.0019f, 0.0017f, 1.f};
 		constexpr FRgba Bone{0.56f, 0.52f, 0.44f, 1.f};
@@ -409,6 +426,56 @@ namespace SaudHud
 		constexpr FRgba Trough{0.006f, 0.006f, 0.008f, 1.f};
 		constexpr FRgba Ash{0.2541f, 0.2270f, 0.1714f, 1.f};     // #8A8374, stamina (moss #4A6E33 was 2.93:1)
 		constexpr FRgba Gold{0.3515f, 0.1441f, 0.0160f, 1.f};    // #A06A22, rage
+	}
+
+	struct FPalette
+	{
+		FRgba Ink = Defaults::Ink, Bone = Defaults::Bone, Blood = Defaults::Blood, Ember = Defaults::Ember;
+		FRgba Trough = Defaults::Trough, Ash = Defaults::Ash, Gold = Defaults::Gold;
+	};
+
+	/** The one palette everything draws with. */
+	inline FPalette& LivePalette()
+	{
+		static FPalette P;
+		return P;
+	}
+
+	/** The live palette's colours by their names in the data (Look_<Name>);
+	    nullptr for a name it does not have. */
+	inline FRgba* PaletteSlot(const char* Name)
+	{
+		struct FSlot { const char* Name; FRgba FPalette::* Member; };
+		static const FSlot Slots[] = {
+			{"Ink", &FPalette::Ink}, {"Bone", &FPalette::Bone}, {"Blood", &FPalette::Blood}, {"Ember", &FPalette::Ember},
+			{"Trough", &FPalette::Trough}, {"Ash", &FPalette::Ash}, {"Gold", &FPalette::Gold},
+		};
+		for (const FSlot& S : Slots)
+		{
+			const char* A = S.Name;
+			const char* B = Name;
+			while (*A && *A == *B) { ++A; ++B; }
+			if (*A == 0 && *B == 0) return &(LivePalette().*S.Member);
+		}
+		return nullptr;
+	}
+
+	/** An sRGB-encoded component (the data's R, G, B) to linear. */
+	inline float SrgbToLinear(float C)
+	{
+		return C <= 0.04045f ? C / 12.92f : std::pow((C + 0.055f) / 1.055f, 2.4f);
+	}
+
+	/** Every colour by name, as before: the live palette's. */
+	namespace Colour
+	{
+		inline const FRgba& Ink = LivePalette().Ink;
+		inline const FRgba& Bone = LivePalette().Bone;
+		inline const FRgba& Blood = LivePalette().Blood;
+		inline const FRgba& Ember = LivePalette().Ember;
+		inline const FRgba& Trough = LivePalette().Trough;
+		inline const FRgba& Ash = LivePalette().Ash;
+		inline const FRgba& Gold = LivePalette().Gold;
 	}
 
 	/** The page laid onto a screen: scale by height, centred across. */

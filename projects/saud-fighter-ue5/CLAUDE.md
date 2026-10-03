@@ -3621,7 +3621,8 @@ the table as before.
 -- a place's skyline, arcade, boats and signs, and the rest of the game's
 drawing: 172 hex and 239 rgba literals left across the file (248 hex
 before the move). That is the drawing, not the data, and was not moved. **Not verified:**
-nothing in the Unreal game reads `DT_Colors.csv` -- it has no row struct
+nothing in the Unreal game reads `DT_Colors.csv` (it does since 2026-10-03:
+"The game reads its colours") -- it has no row struct
 and no consumer, as it had none before; the HUD, the menu and the anime
 look keep their own colours in C++ and the Blender tools. The Unity port
 is frozen and its exporter does not read `themes.js`.
@@ -3987,6 +3988,64 @@ emissive strengths carried over from Blender's are its units, not the
 engine's. Seen, not touched: the body materials still have no `HitFlash`
 or `IronArmLevel` parameter and the skin no subsurface profile (each
 already "not built" above); `M_Surface` is where they would go.
+
+## The game reads its colours -- 2026-10-03
+
+Asked as "update colors schema at game", settled as the Unreal build and:
+the game reads its colours from the data. Until today no colour came from
+a table at runtime: `DT_Colors.csv` (the browser's scheme, 255 rows) had no
+row struct and nothing loaded it, and the HUD, the menus and the look drew
+with numbers compiled into `SaudAnime.h` and the generated HLSL.
+
+**Two tables, one row struct.** `FColorDef` (`SaudTypes.h`: Group, Key,
+Css, Hex, R, G, B as the sRGB encoding, A) reads both: `DT_Colors.csv`,
+the browser's, exported as before; and `Content/Data/DT_LookColors.csv`,
+new -- the look's palette, Unreal-only: `Look_Ink`, `Look_Bone`,
+`Look_Blood`, `Look_Ember` (LOOK's own), `Look_Trough`, `Look_Ash`,
+`Look_Gold` (the HUD's three, now in LOOK as `HUD_TROUGH` / `HUD_ASH` /
+`HUD_GOLD`). It is generated, never hand-edited: `python3
+Tools/look/anime_look.py --colors` writes it from LOOK, five places of the
+sRGB so it decodes back within 1e-5, and the look's check fails if the
+file and LOOK differ by a byte. Both are imported into `/Game/Data` with
+row struct `FColorDef` (README, setup step 3) and named in
+`DefaultGame.ini` (`BakedColorTable`, `BakedLookColorTable`).
+
+**The game.** `USaudConfigSubsystem` loads both with the balance tables
+(the browser's also arrives in the remote payload, `Colors`, as it always
+travelled; the look's is baked only), offers `FindColor(Row, Fallback)` on
+either, and every time tables are applied copies the `Look_*` rows into
+`SaudHud::LivePalette()`. The palette in `SaudAnime.h` became that live
+palette: the old constants are `SaudHud::Defaults` (still held to LOOK),
+the palette starts as them and is reset to them before each apply (a row
+taken out of the table is the default again), and `Colour::Ink` and the
+rest are now references to the live values -- so every line of the HUD and
+the menus that drew with them draws the table's, unchanged.
+`USaudLookSubsystem` writes the live ink, bone, blood and ember into four
+new `MPC_Anime` vectors every frame (`InkColour`, `BoneColour`,
+`BloodColour`, `EmberColour`, `SaudAnime::Param`), and both materials read
+them instead of the numbers that were written into their HLSL: the ink
+lines, the impact frame's ember mask (`M_Anime_Post`) and the impact cut,
+the focus lines, the speed lines, the mark, the wound and the fire's ink
+(`M_Anime_Frame`, sRGB-encoded once at its top). The picture does not
+change: the table is LOOK's, checked.
+
+**Checked:** the harness passes, with a new test -- every palette colour
+has a slot by its data name, the palette starts as the defaults, a blood
+set through the live palette is the blood the HUD draws -- and its two
+sabotages caught (the drawn blood bound back to the default; a colour with
+no slot). `anime_look.py`: the table is LOOK's to the byte, the defaults
+are LOOK's for all seven, the materials read the four vectors and the
+header writes them; two new sabotages (`palette_drift`, `constant_ink`),
+--bite BITES2_RESULT.
+
+**Not verified:** nothing compiled against UE 5.4 or run: the
+`CollectionVectorParameter` editor properties, `SetVectorParameterValue`
+with a collection, `FTCHARToUTF8` and the DataTable CSV import of a float
+column are as remembered. The tables must be imported by hand into
+`/Game/Data` like the others; until they are, the log says so and the HUD
+draws its defaults. Nothing in the game reads a browser colour from
+`DT_Colors` yet -- the Unreal HUD and look keep their own palette by
+design -- so `FindColor` on a browser row has no caller today.
 
 ## Working rules
 

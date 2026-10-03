@@ -620,11 +620,48 @@ static void Hud()
     Check(Near(ComboPunch(0.f), 1.35f) && ComboPunch(1.f) < 1.001f, "the count punches and settles");
 }
 
+static bool SameRgb(const FRgba& A, const FRgba& B)
+{
+    return Near(A.R, B.R, 1e-5f) && Near(A.G, B.G, 1e-5f) && Near(A.B, B.B, 1e-5f);
+}
+
+// The HUD draws the LIVE palette, the one the game fills from
+// DT_LookColors.csv (2026-10-03): a colour set through PaletteSlot is the
+// colour drawn, every one of the seven has a slot, and the defaults are
+// what the palette starts as.
+static void Palette()
+{
+    static FDrawList L;
+    const FPage P = FPage::For(1920, 1080);
+    const char* Names[] = {"Ink", "Bone", "Blood", "Ember", "Trough", "Ash", "Gold"};
+    bool bSlots = true;
+    for (const char* N : Names) bSlots = bSlots && PaletteSlot(N) != nullptr;
+    Check(bSlots && PaletteSlot("Pink") == nullptr, "every palette colour has a slot by its data name, and nothing else does");
+    Check(SameRgb(LivePalette().Blood, Defaults::Blood) && SameRgb(Colour::Bone, Defaults::Bone),
+          "the palette starts as the defaults");
+    const FRgba Saved = *PaletteSlot("Blood");
+    const FRgba Green{0.0f, 0.4f, 0.1f, 1.f};
+    *PaletteSlot("Blood") = Green;
+    Build(P, Worst(99, 0.5f), L);
+    bool bGreen = false, bOld = false;
+    for (int t = 0; t < L.NumTris; ++t)
+        for (const FHudVert& V : L.Tris[t].V)
+        {
+            bGreen = bGreen || SameRgb(V.C, Green);
+            bOld = bOld || SameRgb(V.C, Defaults::Blood);
+        }
+    *PaletteSlot("Blood") = Saved;
+    Check(bGreen && !bOld, "a blood set in the live palette is the blood the HUD draws");
+    Check(SameRgb(Colour::Blood, Defaults::Blood), "and the palette put back is the default again");
+    std::printf("  the live palette: 7 slots; a blood set through it drawn\n");
+}
+
 int main()
 {
     Blows();
     State();
     Hud();
+    Palette();
     if (Fails) { std::printf("%d anime check(s) failed\n", Fails); return 1; }
     std::printf("all anime checks passed\n");
     return 0;
