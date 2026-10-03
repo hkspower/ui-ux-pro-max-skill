@@ -17,21 +17,21 @@ Saud_Pair_Street_Combo_Jab_Cross,Saud,Street,A_Street_Combo_Jab_Cross,A_Saud_Pai
 Saud_Pair_Street_Combo_Jab_Cross_Hook,Saud,Street,A_Street_Combo_Jab_Cross_Hook,A_Saud_Pair_Street_Combo_Jab_Cross_Hook,102.8,0.0,180.0,2 8 17,Jab Cross Hook,,5.0
 Saud_Pair_Boss_Jab,Saud,Boss,A_Boss_Jab,A_Saud_Pair_Boss_Jab,107.4,-0.1,180.0,2,Jab,,0.0
 Saud_Pair_Boss_Cross,Saud,Boss,A_Boss_Cross,A_Saud_Pair_Boss_Cross,108.7,-0.0,180.0,3,Cross,,0.0
-Saud_Pair_Boss_Hook,Saud,Boss,A_Boss_Hook,A_Saud_Pair_Boss_Hook,99.6,0.2,-179.9,4,Hook,,0.9
+Saud_Pair_Boss_Hook,Saud,Boss,A_Boss_Hook,A_Saud_Pair_Boss_Hook,100.3,0.2,-179.9,4,Hook,,0.9
 Saud_Pair_Boss_Kick,Saud,Boss,A_Boss_Kick,A_Saud_Pair_Boss_Kick,79.0,-91.2,130.9,5,Kick,,10.6
 Saud_Pair_Boss_Knee,Saud,Boss,A_Boss_Knee,A_Saud_Pair_Boss_Knee,68.7,11.6,-170.4,4,Knee,,9.6
 Saud_Pair_Boss_Special,Saud,Boss,A_Boss_Special,A_Saud_Pair_Boss_Special,122.4,-99.2,141.0,5,Special,Down_Side,12.6
-Saud_Pair_Boss_Combo_Jab_Cross_Hook,Saud,Boss,A_Boss_Combo_Jab_Cross_Hook,A_Saud_Pair_Boss_Combo_Jab_Cross_Hook,104.9,0.0,180.0,2 8 17,Jab Cross Hook,,5.5
-Saud_Pair_Saqr_Kick,Saud,Saqr,A_Saqr_Kick,A_Saud_Pair_Saqr_Kick,82.5,-88.3,133.1,5,Kick,,5.9
+Saud_Pair_Boss_Combo_Jab_Cross_Hook,Saud,Boss,A_Boss_Combo_Jab_Cross_Hook,A_Saud_Pair_Boss_Combo_Jab_Cross_Hook,105.1,0.0,180.0,2 8 17,Jab Cross Hook,,5.1
+Saud_Pair_Saqr_Kick,Saud,Saqr,A_Saqr_Kick,A_Saud_Pair_Saqr_Kick,86.3,-88.3,134.3,5,Kick,,5.9
 Saud_Pair_Saqr_Jab,Saud,Saqr,A_Saqr_Jab,A_Saud_Pair_Saqr_Jab,105.0,-0.1,180.0,2,Jab,,0.1
 Saud_Pair_Saqr_Cross,Saud,Saqr,A_Saqr_Cross,A_Saud_Pair_Saqr_Cross,105.6,0.0,180.0,3,Cross,,0.0
 Saud_Pair_Saqr_Knee,Saud,Saqr,A_Saqr_Knee,A_Saud_Pair_Saqr_Knee,71.7,14.8,-168.3,4,Knee,,7.3
 Saud_Pair_Saqr_Special,Saud,Saqr,A_Saqr_Special,A_Saud_Pair_Saqr_Special,126.5,-97.1,142.5,5,Special,Down_Side,6.7
 Saud_Pair_Zayos_Jab,Saud,Zayos,A_Zayos_Jab,A_Saud_Pair_Zayos_Jab,100.3,-0.1,180.0,2,Jab,,0.0
-Saud_Pair_Zayos_Cross,Saud,Zayos,A_Zayos_Cross,A_Saud_Pair_Zayos_Cross,109.7,-0.0,180.0,3,Cross,,0.0
+Saud_Pair_Zayos_Cross,Saud,Zayos,A_Zayos_Cross,A_Saud_Pair_Zayos_Cross,110.9,-0.0,180.0,3,Cross,,0.0
 Saud_Pair_Zayos_Hook,Saud,Zayos,A_Zayos_Hook,A_Saud_Pair_Zayos_Hook,97.2,0.2,-179.9,4,Hook,,0.9
-Saud_Pair_Zayos_Combo_Jab_Cross_Hook,Saud,Zayos,A_Zayos_Combo_Jab_Cross_Hook,A_Saud_Pair_Zayos_Combo_Jab_Cross_Hook,102.0,0.0,180.0,2 8 17,Jab Cross Hook,,6.9
-Saud_Pair_Zayos_Combo_Hook_Cross,Saud,Zayos,A_Zayos_Combo_Hook_Cross,A_Saud_Pair_Zayos_Combo_Hook_Cross,104.4,0.9,-179.5,4 12,Hook Cross,,7.2
+Saud_Pair_Zayos_Combo_Jab_Cross_Hook,Saud,Zayos,A_Zayos_Combo_Jab_Cross_Hook,A_Saud_Pair_Zayos_Combo_Jab_Cross_Hook,102.4,0.0,180.0,2 8 17,Jab Cross Hook,,7.7
+Saud_Pair_Zayos_Combo_Hook_Cross,Saud,Zayos,A_Zayos_Combo_Hook_Cross,A_Saud_Pair_Zayos_Combo_Hook_Cross,104.1,0.9,-179.5,4 12,Hook Cross,,7.0
 Boss_Pair_Saud_Jab,Boss,Saud,A_Saud_Jab,A_Boss_Pair_Saud_Jab,103.9,-0.1,180.0,2,Jab,,4.2
 Boss_Pair_Saud_Cross,Boss,Saud,A_Saud_Cross,A_Boss_Pair_Saud_Cross,108.8,0.0,180.0,3,Cross,,4.2
 Boss_Pair_Saud_Hook,Boss,Saud,A_Saud_Hook,A_Boss_Pair_Saud_Hook,96.1,0.1,-179.9,4,Hook,,3.3
