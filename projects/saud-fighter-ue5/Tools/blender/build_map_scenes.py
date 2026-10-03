@@ -691,14 +691,16 @@ def build_prologue(out=None):
     fog = next(a for a in acts if a["kind"] == "Fog")["props"]["color"]
     BW = _bw()
     _sky(fog, BW.SOUQ.MOON["sky_strength"] * sky / BW.WORLD_RIG["sky"])
-    # the view: the gym from over the near stand's corner
-    floor = next(a for a in acts if a["kind"] == "Floor")
-    fs = floor["props"]["scale"]
-    cx, cy = floor["x"] / 100, floor["y"] / 100
-    hw, hd = fs[0] * 0.5, fs[1] * 0.5
-    pts = [(cx + sx * hw, cy + sy * hd, z) for sx in (-1, 1) for sy in (-1, 1) for z in (0.0, 3.0)]
-    tgt = (BP.CAGE_CENTRE[0] / 100 + 3.0, 0.0, 0.0)
-    eye = _fit(_dir(-62.0, 34.0), tgt, pts, 30.0, margin=0.03)
+    # the view: the cage between its stands, from over the near stand's
+    # corner -- what stands on the floor framed, the floor's bare margin out
+    pts = []
+    for a in acts:
+        if a["kind"] == "Wall":
+            sx, sy, sz = (v * 50.0 for v in a["props"]["scale"])
+            pts += [((a["x"] + i * sx) / 100, (a["y"] + j * sy) / 100, (a["z"] + k * sz) / 100)
+                    for i in (-1, 1) for j in (-1, 1) for k in (-1, 1)]
+    tgt = (BP.CAGE_CENTRE[0] / 100, 0.0, 0.0)
+    eye = _fit(_dir(-62.0, 34.0), tgt, pts, 30.0, margin=0.05)
     _camera("Cam_Prologue", eye, tgt, 30.0, "Prologue", coll=_coll("Cameras"))
     out = _save_to(out, "prologue")
     print("prologue: %s, %d pieces, %.0f s (%s Riyadh)" % (out, n, time.time() - t0, _now()))
@@ -973,9 +975,13 @@ def island_cameras(P, M):
     import numpy as np
     cams = _coll("Cameras")
     gp = P["ground"]
+    # from over the sea off the west-north-west, 18 degrees up, the moon on
+    # the island's far side: of the framings tried (eleven, 2026-10-03) the
+    # one where most of it reads -- at night its jungle is the deep tone
+    # from any side, and only its bare ground and its coast catch the moon
     R = M.COAST_R_M + M.COAST_WARP_M
-    eye = _fit(_dir(-120.0, 30.0), (0, 0, 0), _ring(0, 0, R, 0.0, gp["peak_m"]), 35.0, margin=0.03)
-    _camera("Cam_MonkeyIsland", eye, (0, 0, 0), 35.0, "MonkeyIsland", coll=cams)
+    eye = _fit(_dir(160.0, 18.0), (0, 0, 0), _ring(0, 0, R * 0.92, 0.0, 120.0), 30.0, margin=0.02)
+    _camera("Cam_MonkeyIsland", eye, (0, 0, 0), 30.0, "MonkeyIsland", coll=cams)
     pr = P["pier"]
     ux, uy = pr["u"]
     mid = (pr["x"] + ux * pr["length"] * 0.45, pr["y"] + uy * pr["length"] * 0.45)
@@ -1263,7 +1269,7 @@ def picture_misses(name, pic, m, got, exposure, lit):
     med = float(np.median(v[world])) if world.any() else 0.0
     if not GREY_BAND[0] <= med <= GREY_BAND[1]:
         out.append("%s: its middle grey is %.2f, want %.2f-%.2f" % (name, med, GREY_BAND[0], GREY_BAND[1]))
-    ink = float((v < 0.035).mean())
+    ink = float((m["ink"] >= 0.5).mean())
     if ink < INK_SHARE:
         out.append("%s: ink on %.2f %% of it, want %.1f %%" % (name, ink * 100, INK_SHARE * 100))
     if lit:
