@@ -362,7 +362,9 @@ def neck_check(lean=False):
         sys.exit(1)
 
 
-LEAN_LATS_OUT = 0.030     # back_check(lean=True)'s 'lats out wide' (the canonical base's is 40 mm)
+LEAN_LATS_OUT = 0.060     # back_check(lean=True)'s 'lats out wide' (the canonical base's is 40 mm; 30 until
+                          # 2026-10-03, when the lean lats went down to the waist in seven links and 30 mm
+                          # out tripped the lat rule, not the V: 1.3 mm of bulge; 60 makes 2.5)
 LATS_PROUD = 0.006
 
 
@@ -1002,9 +1004,14 @@ def physique_check():
     arms_only = [b for b in A.LIMB_BELLIES if b[1] in ("upper", "fore")]
     canon_depth = {0.15: (0.058, 0.006), 0.40: (0.065, 0.014), 0.62: (0.058, 0.009)}
     swollen = [(t, rx) + canon_depth.get(t, (ry, sf)) + (ss, w) for t, rx, ry, sf, ss, w in A.LEAN_UPPER]
-    pebbles = [(1.246, 0.027, 0.027, 0.0065), (1.178, 0.029, 0.028, 0.0070), (1.108, 0.030, 0.028, 0.0070)]
+    # (each row 3 mm prouder than the 2026-10-01 pebbles, as the rows went
+    # with the raised strap on 2026-10-03: as they were, over the narrower
+    # waist they failed "no abs" before "pebbles")
+    pebbles = [(1.246, 0.027, 0.027, 0.0095), (1.178, 0.029, 0.028, 0.0100), (1.108, 0.030, 0.028, 0.0100)]
+    # (without its last link, at the waist's own height: with it the old lat
+    # put the waist 1 mm over its band, caught by the band and not the fin)
     old_lat = [(0.176, 1.345, 0.014, 0.042), (0.166, 1.290, 0.013, 0.058), (0.140, 1.228, 0.011, 0.060),
-               (0.104, 1.172, 0.004, 0.046), (0.068, 1.124, 0.001, 0.034)]
+               (0.104, 1.172, 0.004, 0.046)]
     old_thigh = [(-0.06, 0.082, 0.096, +0.004, -0.010)] + A.LEAN_THIGH[3:]
     def band(name):
         # check_proportions names every measure off its band after the colon
