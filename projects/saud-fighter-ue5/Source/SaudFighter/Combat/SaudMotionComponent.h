@@ -30,11 +30,14 @@ class UAnimSequence;
  *   /Game/Animation/Street/A_Street_<Clip>
  *   /Game/Animation/Saud/A_Saud_<Clip>
  * Since 2026-09-25 Saud stands as a mixed martial artist and nobody else
- * does. The bosses have their strikes and their guard and nothing else, so
- * they walk, block, reel and fall as the street men do; the street men have
- * none of their own and do everything from the Street set. Saud himself
- * never borrows. An attack's clip is its DT_Attacks row (A_Saud_Jab), the
- * rest are SaudFeel::ClipSuffix.
+ * does. The bosses have their strikes, their guard and their own walks, and
+ * borrow the rest (the dashes, a missing reaction) from the street men; the
+ * street men have none of their own and do everything from the Street set.
+ * Saud himself never borrows, nor does an Island creature (Monkey, Gorilla:
+ * another skeleton). An attack's clip is its DT_Attacks row (A_Saud_Jab), the
+ * rest are SaudFeel::ClipSuffix. A clip a set lacks is looked for again down
+ * SaudFeel::FallbackChain (since 2026-10-04: a 360 diagonal its nearer
+ * neighbour, a run clip its walk, a turn the guard), each the set's own way.
  *
  * A clip is never forced on anything already playing it, except when the
  * fighter's MotionSerial moves -- a second jab, a second hit -- which starts
@@ -61,8 +64,8 @@ public:
 	/** Hands the mesh the clip the fighter's state calls for. Pulled by
 	    USaudMotionAnimInstance at the top of each of its updates, so the clip
 	    is this frame's; ticked here only for a Blueprint's own Animation
-	    Blueprint. */
-	void PlayPicked();
+	    Blueprint. DeltaSeconds runs a turn clip's own clock (TurnHold). */
+	void PlayPicked(float DeltaSeconds = 0.f);
 
 	/** Set false to leave the mesh to an Animation Blueprint instead. With
 	    it on, the mesh runs USaudMotionAnimInstance -- the clip plus the
@@ -91,8 +94,9 @@ private:
 	/** The mesh's anim instance when it is ours; null when a Blueprint's. */
 	USaudMotionAnimInstance* Driver() const;
 
+	/** The turn clip playing to its end (SaudFeel::FTurnHold). */
+	SaudFeel::FTurnHold TurnHold;
+
 	UAnimSequence* Find(FName MotionSet, const FString& Clip);
-	/** A living enemy within Within of the fighter, on the ground. */
-	static bool EnemyNear(const AFighterBase* Fighter, float Within);
 	UAnimSequence* LoadOnce(const FString& Path);
 };

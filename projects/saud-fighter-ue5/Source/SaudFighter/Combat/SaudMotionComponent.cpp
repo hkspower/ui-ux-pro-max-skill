@@ -1,12 +1,10 @@
 #include "Combat/SaudMotionComponent.h"
 #include "Combat/FighterBase.h"
 #include "Combat/SaudMotionAnimInstance.h"
-#include "Combat/EnemyFighter.h"
 
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 
 USaudMotionComponent::USaudMotionComponent()
 {
@@ -54,11 +52,11 @@ void USaudMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	// Our anim instance pulls the pick itself; a Blueprint's is handed it here.
 	if (!Driver())
 	{
-		PlayPicked();
+		PlayPicked(DeltaTime);
 	}
 }
 
-void USaudMotionComponent::PlayPicked()
+void USaudMotionComponent::PlayPicked(float DeltaSeconds)
 {
 	AFighterBase* Fighter = Cast<AFighterBase>(GetOwner());
 	USkeletalMeshComponent* Mesh = Fighter ? Fighter->GetMesh() : nullptr;
@@ -93,14 +91,29 @@ void USaudMotionComponent::PlayPicked()
 	const FVector Shown = Inst ? Inst->GetShownFacing() : FVector::ZeroVector;
 	In.Facing = Shown.IsNearlyZero() ? Fighter->GetFacing() : Shown;
 	In.Heading = Flat.IsNearlyZero() ? In.Facing : Flat.GetSafeNormal();
-	// Saud alone walks and runs as a man does (SaudFeel::PickGait); with a
-	// living man within FreeBeyondCm he is on his guard. Saud's own set only:
-	// nobody else has the gaits.
+	// Free or fighting is the fighter's own test, held (AFighterBase::
+	// IsMovingFree, SaudSteer::FreeHeld), the same for everyone: free, he
+	// turns to where he goes and walks and runs as a man does; fighting, he
+	// faces his man and strafes. Saud's set alone has the motion-capture
+	// gaits for going straight ahead; anyone else plays his Run_Fwd / Walk_Fwd.
 	const bool bSaudSet = Fighter->MotionSet.IsNone() || Fighter->MotionSet == FName(TEXT("Saud"));
-	In.bFree = bSaudSet && Fighter->IsPlayerControlled() && !EnemyNear(Fighter, SaudFeel::FreeBeyondCm);
+	In.bFree = Fighter->IsMovingFree();
+	In.bGaits = bSaudSet;
+	In.RunSpeed = Fighter->GetRunSpeed();
 	In.Current = bShown ? ShownClip : SaudFeel::EClip::Guard;
+	// A turn the steer started (a new serial with a turn on) plays its clip to
+	// the end on our own clock (SaudFeel::FTurnHold), unless an attack, a hit,
+	// a fall or a dash takes over (below).
+	const bool bTurnStarted = TurnHold.Step(Fighter->GetLocoTurn(), Fighter->GetLocoTurnSerial(), DeltaSeconds);
+	In.Turn = TurnHold.Turn;
 
 	const SaudFeel::EClip Clip = SaudFeel::Pick(In);
+	const SaudFeel::EKind Kind = SaudFeel::KindOf(Clip);
+	if (Kind == SaudFeel::EKind::Strike || Kind == SaudFeel::EKind::Reel || Kind == SaudFeel::EKind::Fall
+		|| Kind == SaudFeel::EKind::Dash)
+	{
+		TurnHold.Stop();
+	}
 	const FString Name = Clip == SaudFeel::EClip::Attack
 		? Fighter->GetCurrentAttackRow().ToString()
 		: FString(ANSI_TO_TCHAR(SaudFeel::ClipSuffix(Clip)));
@@ -110,7 +123,9 @@ void USaudMotionComponent::PlayPicked()
 	}
 
 	const FName Key(*Name);
-	const bool bSerialMoved = Fighter->MotionSerial != PlayingSerial;
+	// a new turn is a new start, as a second jab is: Turn_L90 after Turn_L90
+	// plays again from its first frame
+	const bool bSerialMoved = Fighter->MotionSerial != PlayingSerial || (bTurnStarted && SaudFeel::IsTurnClip(Clip));
 	if (Key == PlayingName && !bSerialMoved)
 	{
 		return;
@@ -121,10 +136,20 @@ void USaudMotionComponent::PlayPicked()
 	}
 
 	UAnimSequence* Seq = Find(Fighter->MotionSet, Name);
-	if (!Seq && SaudFeel::Fallback(Clip) != Clip)
+	// a turn clip of the set's own carries the turn; one it stands in for
+	// (his guard) does not, and the hips' lag turns him as before
+	const bool bOwnTurn = Seq && SaudFeel::IsTurnClip(Clip);
+	// a set built before what was picked: a reaction by blow plays the old
+	// hit or Down; a diagonal its neighbour nearer the heading, then the
+	// other; a run clip its walk; a turn his guard (SaudFeel::FallbackChain).
+	// Each looked for in the set's own way (Find): an Island set never borrows.
+	if (!Seq && Clip != SaudFeel::EClip::Attack)
 	{
-		// a set built before the reactions by blow: the old hit, or Down
-		Seq = Find(Fighter->MotionSet, FString(ANSI_TO_TCHAR(SaudFeel::ClipSuffix(SaudFeel::Fallback(Clip)))));
+		const SaudFeel::FClipChain Chain = SaudFeel::FallbackChain(Clip, SaudSteer::ErrorDeg(In.Facing, In.Heading));
+		for (int32 I = 1; I < Chain.Num && !Seq; ++I)
+		{
+			Seq = Find(Fighter->MotionSet, FString(ANSI_TO_TCHAR(SaudFeel::ClipSuffix(Chain.Clip[I]))));
+		}
 	}
 	// a second jab, hit, dash or win from its first frame, even while the
 	// first still fades; a loop never restarts
@@ -140,7 +165,7 @@ void USaudMotionComponent::PlayPicked()
 		// Ours: the clip over a crossfade, and the IK over it. The first clip
 		// a man shows comes in whole.
 		const SaudFeel::FCut Cut = bShown ? SaudFeel::CutBetween(ShownClip, Clip, bRestart) : SaudFeel::FCut();
-		Inst->Play(Seq, SaudFeel::Loops(Clip), bRestart, Cut.Seconds, Cut.bMatchPhase);
+		Inst->Play(Seq, SaudFeel::Loops(Clip), bRestart, Cut.Seconds, Cut.bMatchPhase, bOwnTurn);
 		ShownClip = Clip;
 		bShown = true;
 	}
@@ -150,24 +175,6 @@ void USaudMotionComponent::PlayPicked()
 		// playback takes it over for this clip, without the IK.
 		Mesh->PlayAnimation(Seq, SaudFeel::Loops(Clip));
 	}
-}
-
-bool USaudMotionComponent::EnemyNear(const AFighterBase* Fighter, float Within)
-{
-	const UWorld* World = Fighter ? Fighter->GetWorld() : nullptr;
-	if (!World)
-	{
-		return false;
-	}
-	const FVector At = Fighter->GetActorLocation();
-	for (TActorIterator<AEnemyFighter> It(World); It; ++It)
-	{
-		if (It->IsAlive() && FVector::Dist2D(It->GetActorLocation(), At) <= Within)
-		{
-			return true;
-		}
-	}
-	return false;
 }
 
 UAnimSequence* USaudMotionComponent::Find(FName MotionSet, const FString& Clip)

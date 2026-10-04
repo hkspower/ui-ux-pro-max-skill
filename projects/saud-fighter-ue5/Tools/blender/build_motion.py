@@ -25,7 +25,10 @@ guard, and the states a fighter spends the rest of a fight in: walking (four
 ways, because a facing is not a heading here), dashing (four ways), blocking,
 taking a light and a heavy hit, going down and getting up. Their shapes are
 the browser's own drawFighter (index.html:1504-1576) and their lengths are
-the engine's own timers, read out of the C++ that runs them.
+the engine's own timers, read out of the C++ that runs them. (Since
+2026-10-04 every set moves eight ways at two speeds -- Walk_* at WALK_SHARE
+of his speed, Run_* at all of it -- turns in place and pivots out of a run:
+see DIRS and TURN_SECONDS.)
 
 WHY THIS EXISTS. The Unreal build has no animation at all. SaudTypes.h says
 the montage is "Optional -- the game is fully playable without animation",
@@ -467,9 +470,83 @@ def engine_timings():
 WALK_RATE = 11.0
 WALK_BOB_PX = 2.2
 # Saud faces -Y and +X is his left. A heading is not a facing here, so the
-# walk and the dash are four clips each, for a blendspace.
-DIRS = {"Fwd": (0.0, -1.0, 0.0), "Back": (0.0, 1.0, 0.0),
-        "Left": (1.0, 0.0, 0.0), "Right": (-1.0, 0.0, 0.0)}
+# locomotion is a clip per heading: since 2026-10-04 ("360 locomotion", the
+# spec's names) eight of them, relative to the facing, + toward his left --
+# Fwd 0, FwdLeft 45, Left 90, BackLeft 135, Back 180, BackRight -135, Right
+# -90, FwdRight -45 degrees -- for each of two tiers (below). The dash stays
+# four ways (DASH_DIRS).
+_D = math.sqrt(0.5)
+DIRS = {"Fwd": (0.0, -1.0, 0.0), "FwdLeft": (_D, -_D, 0.0), "Left": (1.0, 0.0, 0.0),
+        "BackLeft": (_D, _D, 0.0), "Back": (0.0, 1.0, 0.0), "BackRight": (-_D, _D, 0.0),
+        "Right": (-1.0, 0.0, 0.0), "FwdRight": (-_D, -_D, 0.0)}
+DIR_DEG = {"Fwd": 0, "FwdLeft": 45, "Left": 90, "BackLeft": 135, "Back": 180, "BackRight": -135,
+           "Right": -90, "FwdRight": -45}
+DASH_DIRS = ("Fwd", "Back", "Left", "Right")
+# The two tiers (2026-10-04). RUN: his full speed (DT_Fighters MoveSpeed),
+# the browser's 2*pi/11 s cycle -- what Walk_Fwd/Back/Left/Right were until
+# that day, renamed Run_*, authored exactly as they were, plus the four
+# diagonals. WALK: WALK_SHARE of that speed (SaudSteer::WalkShare), the feet
+# alternating with both on the floor at every change of support in every
+# direction, never both off it.
+#
+# The walk tier's cycle is not the browser's: one cycle a set covers
+# WALK_STRIDE of floor, so its length is WALK_STRIDE / (WALK_SHARE x speed) --
+# Saud and the street men 16 frames (0.53 s) at 153 cm/s, AL-WAHSH 15, AL-
+# SAQR 12, ZAYOS 21. Why so short for a walk (a guard walk is 0.7-1.0 s, was
+# the brief): sideways with no flight each foot's swing moves the gap between
+# the feet by the whole stride, so the gap swings over v*T; at 153 cm/s and
+# 0.7 s that is 1.07 m -- from crossed to 1.1 m apart -- and forward the planted
+# foot rides v*T*duty = 0.64 m under him, which locked or dropped his knees
+# 6 cm (measured on the plan, Tools/blender's gait arithmetic of 2026-10-04).
+# 0.80 m a cycle holds both: Saud's side walk keeps 8+ cm between the balls
+# on his own guard's width, his forward walk's ankle stays in reach.
+WALK_SHARE = 0.45
+WALK_STRIDE = 0.80         # m of floor a walk-tier cycle covers
+WALK_DUTY = 0.60           # each foot on the floor 60 % of the walk's cycle: double support 2 x 10 %
+WALK_TIER_CLEAR = 0.10     # the walk's swing lift (ankle), every set: a walk is not a runner's 30 cm
+WALK_TIER_BOB = 0.012      # m: the walk sinks this much between the mid-stances, twice a cycle
+WALK_FRONT = 0.08          # the walk's feet centred this far toward his front of the hips (the ankle
+                           # is 15.5 cm behind the ball: centred on the ball the toe-off ankle left reach)
+WALK_GAP = 0.12            # m: the least the feet's balls are kept apart across him in the plan (the
+                           # check holds 8 cm, as it holds the run): a side or diagonal walk is spread
+                           # this wide, symmetric about the hips, wherever its own stance is narrower
+# The turns (2026-10-04): in place, from the guard, the body starting turned
+# BACK by the turn (Turn_L90 starts 90 degrees to the right of the root's
+# facing) and stepping round to face it, ending in the guard; and the run's
+# Pivot_180. Their lengths are the game's (SaudSteer::TurnSeconds; check()
+# reads the header and holds these to it): the steering holds the turn that
+# long, so the clips match it to a frame. Signed degrees the body turns, +
+# toward his left: Turn_180 goes round to his right, the open side of an
+# orthodox stance (the lead foot never has to cross in front of the rear).
+TURN_SECONDS = {"Turn_L90": 0.50, "Turn_R90": 0.50, "Turn_180": 0.70, "Pivot_180": 0.45}
+TURN_DEG = {"Turn_L90": 90.0, "Turn_R90": -90.0, "Turn_180": -180.0, "Pivot_180": -180.0}
+TURN_LIFT = 0.08           # a turning step's ankle lift
+TURN_FOLLOW = 0.5          # a planted foot pivots on its ball by this share of the body's turn over it
+TURN_TOL_DEG = 5.0         # a turn's body starts and ends within this of its angle
+STEER_HEADER = os.path.join(PROJECT, "Source", "SaudFighter", "Combat", "SaudSteer.h")
+
+
+def walk_frames(speed):
+    """The walk tier's cycle in frames for a man whose full speed is
+    `speed` cm/s: WALK_STRIDE of floor at WALK_SHARE of it."""
+    return max(8, int(round(WALK_STRIDE / (WALK_SHARE * speed / 100.0) * FPS)))
+
+
+def steer_constants():
+    """SaudSteer::TurnSeconds and WalkShare, read out of the header the game
+    steers by (the movement track's, 2026-10-04) -- or None if it is not
+    there. Parsed, not copied, as engine_timings reads the C++."""
+    import re
+    if not os.path.exists(STEER_HEADER):
+        return None
+    src = open(STEER_HEADER, encoding="utf-8").read()
+    out = {}
+    for name, enum in (("Turn_L90", "L90"), ("Turn_R90", "R90"), ("Turn_180", "Back180"), ("Pivot_180", "Pivot180")):
+        m = re.search(r"ETurn::%s\s*\?\s*([0-9.]+)f" % enum, src)
+        out[name] = float(m.group(1)) if m else None
+    m = re.search(r"constexpr\s+float\s+WalkShare\s*=\s*([0-9.]+)f", src)
+    out["WalkShare"] = float(m.group(1)) if m else None
+    return out
 # index.html:1506-1507, blocking: lean 0.16 against the guard's 0.06, the
 # hip 3 px lower, both arms higher and tighter than the guard's.
 BLOCK_LEAN = 0.16 - BASE_LEAN
@@ -585,6 +662,29 @@ def plan(who=("bosses", "saud", "street")):
     return clips
 
 
+def locomotion(state, speed):
+    """A set's locomotion (2026-10-04, "360 locomotion"): the walk tier and
+    the run tier eight ways each, every loop of a tier on one cycle, the
+    three turns in place and the run's pivot. `state` is the set's clip
+    maker; `speed` his full speed, cm/s."""
+    out = []
+    n = walk_frames(speed)
+    if "two_cycles" in SABOTAGE:
+        n_left = n + 2          # --bite "two_cycles": one walk of the tier on a cycle of its own
+    for d in DIRS:
+        nd = n_left if "two_cycles" in SABOTAGE and d == "Left" else n
+        out.append(state("Walk_%s" % d, "walk", "Walk", nd / float(FPS), loop=True, dir=d, tier="walk",
+                         speed=WALK_SHARE * speed, frames=nd))
+    for d in DIRS:
+        out.append(state("Run_%s" % d, "walk", "Run", 2.0 * math.pi / WALK_RATE, loop=True, dir=d, tier="run"))
+    for name, secs in TURN_SECONDS.items():
+        if "turn_long" in SABOTAGE and name == "Turn_L90":
+            secs += 0.10        # --bite "turn_long": a turn the steering does not hold that long
+        out.append(state(name, "pivot" if name.startswith("Pivot") else "turn", "Turn", secs,
+                         turn=TURN_DEG[name], tier="run" if name.startswith("Pivot") else "walk"))
+    return out
+
+
 def _boss_moves(key, row, who, folder):
     """A boss's own walking, blocking and plain hits, in his own stance
     (2026-09-28, "full suite motions ik"). Until then he borrowed the street
@@ -603,8 +703,7 @@ def _boss_moves(key, row, who, folder):
                  name="A_%s_%s" % (key, name), loop=loop, folder=folder, guard=GUARD_OF.get(key, "boxer"))
         d.update(kw)
         return d
-    for d in DIRS:
-        out.append(state("Walk_%s" % d, "walk", "Walk", 2.0 * math.pi / WALK_RATE, loop=True, dir=d))
+    out += locomotion(state, float(row["MoveSpeed"]))
     out.append(state("Block", "block", "Block", IDLE_SECONDS, loop=True))
     out.append(state("Hit_Light", "hit", "Hit", eng["hit_light"], weight=eng["hit_light"]))
     out.append(state("Hit_Heavy", "hit", "Hit", eng["hit_heavy"], weight=eng["hit_heavy"]))
@@ -636,9 +735,8 @@ def _hero_clips(key, folder, fighters, attacks):
                  loop=loop, folder=folder, guard=GUARD_OF.get(key, "boxer"))
         d.update(kw)
         return d
-    for d in DIRS:
-        clips.append(state("Walk_%s" % d, "walk", "Walk", 2.0 * math.pi / WALK_RATE, loop=True, dir=d))
-    for d in DIRS:
+    clips += locomotion(state, speed)
+    for d in DASH_DIRS:
         clips.append(state("Dash_%s" % d, "dash", "Dash", eng["dash"], dir=d))
     clips.append(state("Block", "block", "Block", IDLE_SECONDS, loop=True))
     clips.append(state("Hit_Light", "hit", "Hit", eng["hit_light"], weight=eng["hit_light"]))
@@ -729,32 +827,76 @@ def check(clips):
         eng = engine_timings()
         need = {"Hit_Light": eng["hit_light"], "Hit_Heavy": eng["hit_heavy"],
                 "Down": eng["down"], "GetUp": eng["getup"]}
-        need.update({"Dash_%s" % d: eng["dash"] for d in DIRS})
+        need.update({"Dash_%s" % d: eng["dash"] for d in DASH_DIRS})
         for name, secs in need.items():
             c = next((c for c in mine if c["move"] == name), None)
             assert c, "%s has no %s clip" % (hero, name)
             assert abs(c["frames"] / float(FPS) - secs) <= 1.0 / FPS, (
                 "%s is %d frames; the engine holds that state %.2fs" % (c["name"], c["frames"], secs))
-        # 10. the walk is the browser's cycle, 2*pi/11 s, to within a frame, a
-        #     loop, one per heading
-        for d in DIRS:
-            c = next(c for c in mine if c["move"] == "Walk_%s" % d)
-            assert c["loop"] and abs(c["frames"] / float(FPS) - 2 * math.pi / WALK_RATE) <= 1.0 / FPS, (
-                "%s is not the browser's walk cycle" % c["name"])
+        # 10. his locomotion (check_locomotion)
+        check_locomotion(clips, hero, float(fighters[SAUD["key"]]["MoveSpeed"]))
     # 12b. each boss walks, blocks and reels in his own stance, as long as
     #      the engine holds him there
     eng = engine_timings()
     for key in (BOSSES if bosses else ()):
-        need = {"Walk_%s" % d: 2 * math.pi / WALK_RATE for d in DIRS}
-        need.update(Block=IDLE_SECONDS, Hit_Light=eng["hit_light"], Hit_Heavy=eng["hit_heavy"])
+        need = dict(Block=IDLE_SECONDS, Hit_Light=eng["hit_light"], Hit_Heavy=eng["hit_heavy"])
         for name, secs in need.items():
             c = next((c for c in clips if c["boss"] == key and c["move"] == name), None)
             assert c, "%s has no %s of his own" % (key, name)
             assert abs(c["frames"] / float(FPS) - secs) <= 1.0 / FPS, "%s is not %.2fs" % (c["name"], secs)
             assert c["guard"] == GUARD_OF[key], "%s is not on his own guard" % c["name"]
+        check_locomotion(clips, key, float(fighters[key]["MoveSpeed"]))
+    # 13. the turns' lengths and the walk's share are the game's own
+    #     (SaudSteer.h), when the header is there to read
+    steer = steer_constants()
+    if steer is not None:
+        for name, secs in TURN_SECONDS.items():
+            assert steer[name] is not None and abs(steer[name] - secs) < 1e-6, (
+                "SaudSteer.h holds %s for %ss; this authors it at %.2f" % (name, steer[name], secs))
+        assert steer["WalkShare"] is not None and abs(steer["WalkShare"] - WALK_SHARE) < 1e-6, (
+            "SaudSteer.h's WalkShare is %s; this strikes the walk tier at %.2f" % (steer["WalkShare"], WALK_SHARE))
     # 12. the hits (motion_hits.check)
     H.check(clips)
     return True
+
+
+def check_locomotion(clips, key, speed):
+    """#10 (2026-10-04): set `key`'s locomotion -- both tiers eight ways, each
+    a loop on his own guard, the run tier on the browser's 2*pi/11 s cycle at
+    his full speed, the walk tier at WALK_SHARE of it on its own cycle, every
+    loop of a tier on ONE cycle (so a change of heading can match phase:
+    --bite "two_cycles"); the three turns and the pivot as long as the game
+    holds them (TURN_SECONDS), to a frame (--bite "turn_long")."""
+    mine = {c["move"]: c for c in clips if c["boss"] == key}
+    for tier, state in (("walk", "Walk"), ("run", "Run")):
+        loops = []
+        for d in DIRS:
+            c = mine.get("%s_%s" % (state, d))
+            assert c, "%s has no %s_%s" % (key, state, d)
+            assert c.get("loop") and c["kind"] == "walk" and c.get("tier") == tier, "%s is not a %s-tier loop" % (c["name"], tier)
+            assert c["guard"] == GUARD_OF.get(key, "boxer"), "%s is not on his own guard" % c["name"]
+            loops.append(c)
+        cycles = sorted({c["frames"] for c in loops})
+        assert len(cycles) == 1, "the %s tier of %s is on %d cycles (%s), not one: %s" % (
+            tier, key, len(cycles), "/".join("%d" % n for n in cycles),
+            ", ".join("%s %d" % (c["name"], c["frames"]) for c in loops if c["frames"] != loops[0]["frames"]))
+        for c in loops:
+            if tier == "run":
+                assert abs(c["frames"] / float(FPS) - 2 * math.pi / WALK_RATE) <= 1.0 / FPS, (
+                    "%s is not the browser's cycle" % c["name"])
+                assert abs(c["speed"] - speed) < 1e-6, "%s is struck at %.0f cm/s, not his %.0f" % (c["name"], c["speed"], speed)
+            else:
+                assert c["frames"] == walk_frames(speed), "%s is %d frames; the walk tier's cycle is %d" % (
+                    c["name"], c["frames"], walk_frames(speed))
+                assert abs(c["speed"] - WALK_SHARE * speed) < 1e-6, "%s is struck at %.0f cm/s, not %.2f of his %.0f" % (
+                    c["name"], c["speed"], WALK_SHARE, speed)
+    for name, secs in TURN_SECONDS.items():
+        c = mine.get(name)
+        assert c, "%s has no %s" % (key, name)
+        assert not c.get("loop") and c["kind"] in ("turn", "pivot"), "%s is not a one-shot turn" % c["name"]
+        assert abs(c["frames"] / float(FPS) - secs) <= 0.5 / FPS + 1e-9, (
+            "%s is %d frames (%.3f s); the game holds the turn %.2f s (TURN_SECONDS)" % (
+                c["name"], c["frames"], c["frames"] / float(FPS), secs))
 
 
 def describe(clips):
@@ -776,8 +918,13 @@ def describe(clips):
                 print("      %-20s %5.2fs %3d frames  contact on %2d  (%.2f/%.2f/%.2f)  %s" % (
                     c["name"], c["seconds"], c["frames"], c["contact"], c["su"], c["ac"], c["rc"], c["limb"]))
             else:
-                print("      %-20s %5.2fs %3d frames  %s%s" % (
-                    c["name"], c["seconds"], c["frames"], c["state"], "  loop" if c.get("loop") else ""))
+                extra = ""
+                if c["kind"] == "walk":
+                    extra = "  %s %.0f cm/s" % (c["dir"], c["speed"])
+                elif c["kind"] in ("turn", "pivot"):
+                    extra = "  %+.0f deg" % c["turn"]
+                print("      %-20s %5.2fs %3d frames  %s%s%s" % (
+                    c["name"], c["seconds"], c["frames"], c["state"], "  loop" if c.get("loop") else "", extra))
         print()
     total = sum(c["frames"] for c in clips)
     print("%d frames at %d fps -- %.1f seconds of motion" % (total, FPS, total / float(FPS)))
@@ -1088,7 +1235,7 @@ def author_strike(au, c, S):
 # ----------------------------------------------------------- the states
 def body_frame(au, g, aims, feet, lean=0.0, hips=(0.0, 0.0, 0.0), tilt=0.0, side_tilt=0.0,
                post_aims=None, hands=None, hand_poles=None, settle=(), twist=None, head_turn=0.0,
-               turn=0.0, max_reach=None, ground_soles=()):
+               turn=0.0, max_reach=None, ground_soles=(), spin=None):
     """One frame of anything that is not a strike: the guard's body shape,
     the hips moved and tipped (tilt + is back, side_tilt + toward his
     left, turn + about the vertical toward his left), the feet put where
@@ -1104,7 +1251,9 @@ def body_frame(au, g, aims, feet, lean=0.0, hips=(0.0, 0.0, 0.0), tilt=0.0, side
     it, swings under the floor -- 4.0 mm at the walks' roll of 0.5 (Saud's
     walks, 2026-09-30; the foot's yaw is the guard's every frame, so the
     dip is the roll's alone). The lift is measured, not modelled: one
-    re-solve of that leg with the control that much higher."""
+    re-solve of that leg with the control that much higher. `spin` =
+    (point, angle) turns the whole posed body about the vertical through
+    that floor point (Author.pivot), after everything is placed."""
     import motion_ik as M
     import rig_full_ik as CR
     from mathutils import Vector, Quaternion, Matrix
@@ -1146,6 +1295,11 @@ def body_frame(au, g, aims, feet, lean=0.0, hips=(0.0, 0.0, 0.0), tilt=0.0, side
         if p is None:
             p = M.pole_from(fk["sh_" + s], fk["el_" + s], fk["wr_" + s], Vector((0.0, 1.0, 0.0)))
         au.arm(s, m, p)
+    if spin:
+        # the whole body turned about the vertical through spin[0] (the
+        # turns and the pivot, 2026-10-04): last, after every control is
+        # placed in the body's own frame (Author.pivot)
+        au.pivot(*spin)
     loc, world = au.record()
     return loc, world, fk, drop
 
@@ -1374,15 +1528,18 @@ def flight_window(beta, phase):
     return start / float(n), length / float(n)
 
 
-def walk_gait(stride, w, lateral, heading):
+def walk_gait(stride, w, lateral, heading, share=1.0):
     """The duty factor and each foot's phase. Forward and back: the feet
     half a cycle apart and on the ground 35 % of it each -- a run, which is
     what 341 cm/s at the browser's 11 rad/s is. Sideways the feet must never
     cross, so the foot on the side he is going leads and the other chases
-    it, and the duty and lag are the pair that keep them furthest apart."""
+    it, and the duty and lag are the pair that keep them furthest apart.
+    `heading` is a DIRS name; a diagonal (2026-10-04) leads with the foot on
+    its side too, and keeps its feet apart across him by `share` (|d.x|,
+    0.707) of what they do along the heading."""
     if not lateral:
         return 0.35, {"l": 0.0, "r": 0.5}
-    lead = "l" if heading == "Left" else "r"
+    lead = "l" if DIRS[heading][0] > 0.0 else "r"
     trail = "r" if lead == "l" else "l"
     if "cross" in SABOTAGE:
         return 0.35, {lead: 0.0, trail: 0.5}
@@ -1391,15 +1548,70 @@ def walk_gait(stride, w, lateral, heading):
         amp = stride * beta
         for i in range(2, 21):
             phi = i / 40.0
-            sep = min(w + walk_offset(u / 60.0, beta, amp)[0] - walk_offset((u / 60.0 - phi) % 1.0, beta, amp)[0]
-                      for u in range(60))
+            if share == 1.0:
+                sep = min(w + walk_offset(u / 60.0, beta, amp)[0] - walk_offset((u / 60.0 - phi) % 1.0, beta, amp)[0]
+                          for u in range(60))
+            else:
+                sep = min(w + share * (walk_offset(u / 60.0, beta, amp)[0] - walk_offset((u / 60.0 - phi) % 1.0, beta, amp)[0])
+                          for u in range(60))
             if best is None or sep > best[0] + 1e-4:
                 best = (sep, beta, phi)
     _sep, beta, phi = best
     return beta, {lead: 0.0, trail: (-phi) % 1.0}
 
 
-def author_walk(au, c, S):
+def gait_spread(beta, phase, amp, dx, n=120):
+    """The least of x_l - x_r, over the cycle, that a plan whose feet stand
+    at the same mean x would have: what its mean spacing across him must
+    be widened by to keep WALK_GAP between them (2026-10-04). `dx` is the
+    heading's share across him (d.x, signed)."""
+    return min(dx * (walk_offset(((k / float(n)) + phase["l"]) % 1.0, beta, amp)[0] -
+                     walk_offset(((k / float(n)) + phase["r"]) % 1.0, beta, amp)[0]) for k in range(n))
+
+
+def walk_tier_gait(N, amp, dx):
+    """The walk tier's feet (2026-10-04): each on the floor WALK_DUTY of the
+    cycle, the left landing at the cycle's start, the right lagging it by
+    the lag that (a) never has both off the floor, (b) has both on it for at
+    least one frame at each change of support, and (c) keeps the feet
+    furthest apart across him -- half a cycle forward and back, where (c)
+    is the same for every lag. --bite "walk_hop" puts both feet on one
+    phase at a run's duty (a hop), "no_double" hands over on the frame
+    with no both-down frame between."""
+    beta = WALK_DUTY
+    if "walk_hop" in SABOTAGE:
+        return 0.35, {"l": 0.0, "r": 0.0}
+    if "no_double" in SABOTAGE:
+        return 0.5, {"l": 0.0, "r": 0.5}
+    best = None
+    for i in range(1, 2 * N):
+        lag = i / float(2 * N)
+        down = [[((f / float(N)) + ph) % 1.0 < beta for ph in (0.0, lag)] for f in range(N)]
+        if any(not (a or b) for a, b in down):
+            continue                                    # (a) a frame with both feet up
+        both = [a and b for a, b in down]
+        runs = planted_runs({f for f in range(N) if both[f]}, N)
+        if len(runs) < 2:
+            continue                                    # (b) a change of support with no both-down frame
+        sep = gait_spread(beta, {"l": 0.0, "r": lag}, amp, dx)
+        key = (round(sep, 4), -abs(lag - 0.5))
+        if best is None or key > best[0]:
+            best = (key, lag)
+    assert best, "no walk-tier lag keeps a foot down and both down at each change of support on %d frames" % N
+    return beta, {"l": 0.0, "r": best[1]}
+
+
+def walk_plan(au, c, S):
+    """Everything a walk or run loop needs to strike a frame (author_walk,
+    and the pivot's two run frames): returns a dict whose "strike"(f, crouch)
+    poses frame f and whose "args"(f, crouch) says what it would pose.
+
+    Two tiers since 2026-10-04 (c["tier"]): "run" -- Run_Fwd/Back/Left/Right
+    authored exactly as Walk_* were (the runner's steps for Saud, every other
+    set's as before), and the four diagonals, whose feet stand at explicit
+    mean spots (below); "walk" -- every heading, at WALK_SHARE of his speed,
+    walk_tier_gait's feet, a 10 cm swing, a gentle bob, the hips held under
+    MaxStretch and the crouch spread for Saud, the crouch spread for all."""
     from mathutils import Vector, Matrix
     guard, _ = S["Guard"]
     aims = aims_at(guard, guard, 0.0, c["stance"])
@@ -1408,9 +1620,26 @@ def author_walk(au, c, S):
     N = c["frames"]
     T = N / float(FPS)
     v = c["speed"] / 100.0
+    tier = c.get("tier", "run")
+    walk = tier == "walk"
+    diag = abs(d.x) > 0.1 and abs(d.y) > 0.1
     lateral = abs(d.x) > 0.5
+    if diag and not walk and "diag_cross" in SABOTAGE:
+        # --bite "diag_cross": a run diagonal authored as the forward run
+        # is -- each foot centred under the hips along the heading, half a
+        # cycle apart -- which stands the bladed guard's feet on one line
+        diag = lateral = False
     w = abs(g["ball_l"].x - g["ball_r"].x)
-    beta, phase = walk_gait(v * T, w, lateral, c["dir"])
+    # the feet's mean spots, for the walk tier and the run's diagonals
+    # (2026-10-04): across him symmetric about the hips at the guard's own
+    # spacing or wider (WALK_GAP between the balls at their closest);
+    # along him, sideways where the guard stands them, forward and back
+    # under the hips a little toward his front, a diagonal between
+    explicit = walk or diag
+    if walk:
+        beta, phase = walk_tier_gait(N, v * T * WALK_DUTY, d.x)
+    else:
+        beta, phase = walk_gait(v * T, w, lateral, c["dir"], share=abs(d.x))
     amp = v * T * beta
     # Saud's walks are a runner's (STEPS_SETS, the constants above); every
     # other set's are authored exactly as before, on this same code, with
@@ -1418,13 +1647,33 @@ def author_walk(au, c, S):
     steps = c["guard"] in STEPS_SETS
     stance_fixed = steps and "straight_stance" not in SABOTAGE
     clear = STEPS_CLEAR if steps and "low_swing" not in SABOTAGE else WALK_CLEAR
+    if walk:
+        clear = WALK_TIER_CLEAR
     # each foot swings about a centre: under the hips along the heading (a
     # runner's foot lands under him, not where the bladed guard had it), and
     # where the guard has it across the heading
     centre = {s: ((g["pelvis"].translation - g["ball_" + s]).dot(d) if not lateral else 0.0) for s in SIDES}
     pull = {s: Vector((0.0, 0.0, 0.0)) for s in SIDES}
     max_reach = None
-    if stance_fixed:
+    spread = 0.0
+    if explicit:
+        P = g["pelvis"].translation
+        front = (WALK_FRONT if walk else (STEPS_CENTRE_FWD if stance_fixed else 0.0)) * abs(d.y)
+        least = gait_spread(beta, phase, amp, d.x)
+        half = max(0.5 * w, 0.5 * (WALK_GAP - least))
+        if "narrow_walk" in SABOTAGE and walk:
+            half = 0.5 * (0.02 - least)       # --bite "narrow_walk": the legs brought in onto each other
+        spread = 2.0 * half
+        for s in SIDES:
+            gy = g["ball_" + s].y
+            want = Vector((P.x + (half if s == "l" else -half),
+                           gy + (P.y - front - gy) * abs(d.y), g["ball_" + s].z))
+            centre[s] = 0.0
+            pull[s] = want - g["ball_" + s]
+            pull[s].z = 0.0
+        if stance_fixed:
+            max_reach = ik_constants()["MaxStretch"] - STEPS_REACH_MARGIN
+    elif stance_fixed:
         # ...10 cm further toward his front, forward and back alike: with
         # the ankle 15.5 cm behind the ball and the hip 3 ahead of the
         # pelvis, the lead ankle at toe-off was 52 cm behind its hip, out of
@@ -1441,25 +1690,26 @@ def author_walk(au, c, S):
                 if abs(away) > STEPS_LATERAL_RAIL:
                     centre[s] -= (abs(away) - STEPS_LATERAL_RAIL) * (1.0 if away > 0 else -1.0)
         max_reach = ik_constants()["MaxStretch"] - STEPS_REACH_MARGIN
-    if steps and not lateral and "flat_pelvis" not in SABOTAGE:
+    if steps and not lateral and not explicit and "flat_pelvis" not in SABOTAGE:
         # the rear foot's rail toward the pelvis: at its mid-stance he stood
         # with the hips 28.6 cm inside the support foot
         across = g["pelvis"].translation - g["ball_r"]
         across = across - d * across.dot(d)
         across.z = 0.0
         pull["r"] = across.normalized() * STEPS_RAIL_PULL
-    flight = flight_window(beta, phase) if steps and lateral else None
+    flight = flight_window(beta, phase) if steps and lateral and not walk else None
     plant = {s: {} for s in SIDES}
 
-    def strike(f, crouch=0.0):
-        """One frame; `crouch` lowers the hips by that much before the
-        feet are placed (the second pass, below)."""
+    def args(f, crouch=0.0):
+        """What frame f is struck from: the feet, the hips, the spine's
+        twist and the rolled planted feet to ground; `crouch` lowers the
+        hips by that much before the feet are placed (the second pass)."""
         u = f / float(N)
         feet, grounded = {}, []
         for s in SIDES:
             us = (u + phase[s]) % 1.0
             off, lift, down = walk_offset(us, beta, amp)
-            if steps and not down:
+            if steps and not down and not walk:
                 lift = lift_profile((us - beta) / (1.0 - beta))
             shift = d * (centre[s] + off) + pull[s] + Vector((0.0, 0.0, clear * lift))
             roll = 0.0
@@ -1480,7 +1730,7 @@ def author_walk(au, c, S):
             # the FK guard has it (solved on the guard's leg, the touchdown
             # knee sat 18.5 cm outside the foot's line: the guard's foot is
             # 20 cm behind the hip, the landing one 34 ahead)
-            here = (g["ctrl_foot_" + s].translation + shift, g["ball_" + s] + shift) if steps else None
+            here = (g["ctrl_foot_" + s].translation + shift, g["ball_" + s] + shift) if (steps or explicit) else None
             feet[s] = (Matrix.Translation(shift) @ g["ctrl_foot_" + s],
                        knee_forward(s, g=g, at=here, track=track_of(shift) if c["guard"] in KNEE_TRACK_SETS else 0.0), roll)
             if down:
@@ -1495,8 +1745,14 @@ def author_walk(au, c, S):
         # two a cycle at its full height it ran him in a squat over knees
         # the guard already bends (judged on the contact sheet).
         bob = -WALK_BOB_PX * PX * 0.5 * (1.0 + math.cos(4.0 * math.pi * (u - beta / 2.0)))
+        if walk:
+            # the walk tier's: highest over each mid-stance, WALK_TIER_BOB
+            # lower between them, where both feet are down
+            bob = -WALK_TIER_BOB * 0.5 * (1.0 - math.cos(4.0 * math.pi * (u - beta / 2.0)))
         hips, twist = (0.0, 0.0, bob), None
-        if steps:
+        if walk:
+            hips = (0.0, 0.0, bob - crouch)
+        elif steps:
             sway = 0.0
             if not lateral and "flat_pelvis" not in SABOTAGE:
                 # the weight over the support foot: toward the lead (his
@@ -1520,18 +1776,42 @@ def author_walk(au, c, S):
                 # opponent (fk_body's head correction is on the sum, 0)
                 a = -STEPS_HIP_TWIST * math.cos(2.0 * math.pi * (u - (1.0 + beta) / 2.0))
                 twist = {"pelvis": a, "spine_02": -a}
-        loc, world, _fk, drop = body_frame(au, g, aims, feet, hips=hips, settle=SIDES, twist=twist, max_reach=max_reach,
-                                           ground_soles=grounded)
-        return loc, world, drop, au.reach_drop, hips[2]
+        elif explicit:
+            hips = (0.0, 0.0, bob - crouch)
+        return dict(feet=feet, hips=hips, twist=twist, grounded=grounded)
 
+    def strike(f, crouch=0.0, spin=None):
+        """One frame; `crouch` lowers the hips by that much before the
+        feet are placed (the second pass, below)."""
+        a = args(f, crouch)
+        loc, world, _fk, drop = body_frame(au, g, aims, a["feet"], hips=a["hips"], settle=SIDES, twist=a["twist"],
+                                           max_reach=max_reach, ground_soles=a["grounded"], spin=spin)
+        return loc, world, drop, au.reach_drop, a["hips"][2]
+
+    # the crouch spread (below) for Saud's loops, and for every set's walk
+    # tier and diagonals
+    spread_crouch = stance_fixed or explicit
+    return dict(g=g, aims=aims, N=N, args=args, strike=strike, plant=plant, beta=beta, phase=phase, amp=amp,
+                max_reach=max_reach, spread_crouch=spread_crouch, spread=spread, d=d)
+
+
+def walk_passes(plan_):
+    """The two passes a loop is struck in (author_walk): the first strikes
+    every frame and learns the ceiling settle and the reach cap put on the
+    hips; the second strikes every frame again under one curve that climbs
+    or falls no faster than STEPS_CROUCH_SLOPE. Returns (out, crouch per
+    frame, info)."""
+    N, strike = plan_["N"], plan_["strike"]
     out = [strike(f) for f in range(N)]
     drops = [o[2] for o in out]
     # the reach cap's count is the FIRST pass's: the second pass strikes
     # every frame with the crouch already under it, so the cap has nothing
     # left to do there and read "0 frames" by construction
     capped = [o[3] for o in out]
-    c["reach_cap"] = (sum(1 for x in capped if x > 0.0005), max(capped) * 100.0)
-    if stance_fixed and max(drops) > 0.001:
+    info = dict(reach_cap=(sum(1 for x in capped if x > 0.0005), max(capped) * 100.0),
+                settled_cm=max(drops) * 100.0)
+    crouch = [0.0] * N
+    if plan_["spread_crouch"] and max(drops) > 0.001:
         # The crouch, spread: where a planted foot is out of the capped
         # reach settle brought the hips down on that frame alone -- the
         # sideways bound's far foot cost 5-10 cm in one frame. Each frame's
@@ -1543,15 +1823,236 @@ def author_walk(au, c, S):
         z = [min(cap[k] + STEPS_CROUCH_SLOPE * min((f - k) % N, (k - f) % N) for k in range(N)) for f in range(N)]
         # the crouch is the first pass's hips over the curve (on the second
         # pass the hips ARE the curve, and it read 0.0 by construction)
-        c["crouch_cm"] = max(o[4] - zf for o, zf in zip(out, z)) * 100.0
-        out = [strike(f, out[f][4] - z[f]) for f in range(N)]
+        info["crouch_cm"] = max(o[4] - zf for o, zf in zip(out, z)) * 100.0
+        crouch = [out[f][4] - z[f] for f in range(N)]
+        out = [strike(f, crouch[f]) for f in range(N)]
         after = [o[3] for o in out]
-        c["reach_cap_after"] = (sum(1 for x in after if x > 0.0005), max(after) * 100.0)
+        info["reach_cap_after"] = (sum(1 for x in after if x > 0.0005), max(after) * 100.0)
+        info["settled_cm"] = max(o[2] for o in out) * 100.0
+    return out, crouch, info
+
+
+def author_walk(au, c, S):
+    p = walk_plan(au, c, S)
+    out, _crouch, info = walk_passes(p)
     frames = [(o[0], o[1]) for o in out]
+    c["plant"] = p["plant"]
+    c["gait"] = dict(duty=p["beta"], lag=p["phase"], stride_cm=p["amp"] * 100.0, spread_cm=p["spread"] * 100.0)
+    c["stand_z"] = p["g"]["pelvis"].translation.z + p["g"]["dz"]
+    c["reach_cap"] = info["reach_cap"]
+    c["settled_cm"] = info["settled_cm"]
+    for k in ("crouch_cm", "reach_cap_after"):
+        if k in info:
+            c[k] = info[k]
+    return frames
+
+
+# ------------------------------------------------------------- the turns
+def turn_schedule(name, N):
+    """A turn's steps (2026-10-04): (side, lift-off frame, landing frame,
+    the foot's spot from, to) -- a spot is its guard spot turned that many
+    degrees about the root -- and the frame the body's turn is done by.
+    The foot on the side he turns to goes first (turning left the lead
+    foot would otherwise be left behind across his front); Turn_180 goes
+    round to his right in three steps, the rear foot half way, the lead
+    foot all the way, the rear foot home."""
+    a = TURN_DEG[name]
+    first, second = ("l", "r") if a > 0 else ("r", "l")
+    if abs(a) < 135.0:
+        done = N - 4
+        h = done // 2
+        return [(first, 1, h + 1, -a, 0.0), (second, h + 1, done, -a, 0.0)], done
+    done = N - 4
+    k = done // 3
+    return [(first, 1, k + 1, -a, -a / 2.0), (second, k + 1, 2 * k + 2, -a, 0.0),
+            (first, 2 * k + 2, done, -a / 2.0, 0.0)], done
+
+
+def foot_spot(f, sched, side):
+    """Where foot `side` is on frame f: (its spot's angle about the root,
+    degrees; how far through a step it is, 0..1, or None when planted)."""
+    ang = None
+    for s, f0, f1, a0, a1 in sched:
+        if s != side:
+            continue
+        if ang is None:
+            ang = a0
+        if f < f0:
+            return ang, None
+        if f <= f1:
+            w = (f - f0) / float(f1 - f0)
+            if w <= 0.0 or w >= 1.0:
+                return (a0 if w <= 0.0 else a1), None
+            return a0 + (a1 - a0) * ease(w), w
+        ang = a1
+    return ang, None
+
+
+def turn_foot(g, s, dev, rel_yaw, lift):
+    """The foot control and the ball, in the body's own frame, of a foot
+    whose spot is its guard spot turned `dev` radians about the root and
+    whose own yaw is the guard's turned `rel_yaw` about its ball."""
+    from mathutils import Matrix, Vector
+    b = g["ball_" + s]
+    at = Matrix.Rotation(dev, 4, "Z") @ Vector((b.x, b.y, b.z))
+    m = (Matrix.Translation(Vector((at.x, at.y, b.z + lift))) @ Matrix.Rotation(rel_yaw, 4, "Z") @
+         Matrix.Translation(-Vector((b.x, b.y, b.z))) @ g["ctrl_foot_" + s])
+    return m, Vector((at.x, at.y, b.z + lift))
+
+
+def author_turn(au, c, S):
+    """Turn_L90 / Turn_R90 / Turn_180 (2026-10-04): in place, from the
+    guard. The body starts turned back by the turn about the root (the game
+    snaps his facing to the wish as the clip starts, so the first frame is
+    where he stood) and comes round on the browser's ease to face the root's
+    facing by `done`, the feet stepping round in turn_schedule's order --
+    each foot's spot turned about the root, a planted foot pivoting on its
+    ball by TURN_FOLLOW of the body's turn over it -- and the last frames
+    are the guard. --bite "turn_still": the body never turns; "turn_short":
+    the last step lands 25 degrees short and the body stays there."""
+    from mathutils import Vector, Matrix
+    guard, _ = S["Guard"]
+    aims = aims_at(guard, guard, 0.0, c["stance"])
+    g = au.capture_guard(aims)
+    N = c["frames"]
+    sched, done = turn_schedule(c["move"], N)
+    A = TURN_DEG[c["move"]]
+    if "turn_still" in SABOTAGE:
+        A = 0.0
+        sched = [(s, f0, f1, 0.0, 0.0) for s, f0, f1, _a0, _a1 in sched]
+    short = 25.0 * (1.0 if A > 0 else -1.0) if "turn_short" in SABOTAGE else 0.0
+    if short:
+        sched = [(s, f0, f1, a0, (a1 - short if a1 == 0.0 else a1)) for s, f0, f1, a0, a1 in sched]
+    steps = c["guard"] in STEPS_SETS
+    max_reach = (ik_constants()["MaxStretch"] - STEPS_REACH_MARGIN) if steps else None
+    frames, plant = [], {s: {} for s in SIDES}
+    for f in range(N):
+        th = -A * (1.0 - ease(min(1.0, f / float(done)))) - short
+        feet, planted = {}, []
+        for s in SIDES:
+            ang, w = foot_spot(f, sched, s)
+            dev = math.radians(ang - th)
+            lift = TURN_LIFT * math.sin(math.pi * w) if w is not None else 0.0
+            m, ball = turn_foot(g, s, dev, (1.0 - TURN_FOLLOW) * dev, lift)
+            shift = ball - g["ball_" + s]
+            here = (m.translation.copy(), ball)
+            feet[s] = (m, knee_forward(s, g=g, at=here, track=track_of(shift) if c["guard"] in KNEE_TRACK_SETS else 0.0), 0.0)
+            if w is None:
+                planted.append(s)
+                b = g["ball_" + s]
+                plant[s][f] = (Matrix.Rotation(math.radians(ang), 4, "Z") @ Vector((b.x, b.y, b.z)), 0.0)
+        loc, world, _fk, _d = body_frame(au, g, aims, feet, settle=planted, max_reach=max_reach,
+                                         spin=((0.0, 0.0), math.radians(th)))
+        frames.append((loc, world))
     c["plant"] = plant
-    c["gait"] = dict(duty=beta, lag=phase, stride_cm=amp * 100.0)
-    c["stand_z"] = g["pelvis"].translation.z + g["dz"]
-    c["settled_cm"] = max(o[2] for o in out) * 100.0
+    c["turn_steps"] = [(s, f0, f1) for s, f0, f1, _a, _b in sched]
+    return frames
+
+
+# The pivot's two run frames: it starts on Run_Fwd's PIVOT_FROM turned 180
+# degrees (the left foot landing as he runs the old way) and ends on its
+# PIVOT_TO (the right foot under him pushing off, the left swinging through),
+# so the run carries on from there in its own phase.
+PIVOT_FROM, PIVOT_TO = 0, 12
+PIVOT_PLANT_R, PIVOT_LIFT_L = 6, 7       # the right foot lands, the left lifts (frames)
+PIVOT_DIP = 0.03                         # m: the hips sink this much over the plant
+
+
+def author_pivot(au, c, S):
+    """Pivot_180 (2026-10-04), the run tier's reversal: from Run_Fwd facing
+    back (the body turned 180 about the root -- the game snaps his facing
+    as it starts), the landing left foot plants and he turns round to his
+    right over it, pivoting on its ball; the right foot comes round and
+    lands under him at Run_Fwd's PIVOT_TO spot, the left lifts and swings
+    through, and the last frame IS Run_Fwd's PIVOT_TO -- the push-off into
+    the run's own phase. Both end frames are struck by the run's own plan
+    (walk_plan), so they are its frames to the bit. --bite "pivot_still":
+    the body never turns; "pivot_off": it ends on another run frame."""
+    from mathutils import Vector, Matrix
+    run = dict(c, move="Run_Fwd", name=c["name"].replace("Pivot_180", "Run_Fwd"), kind="walk", dir="Fwd",
+               tier="run", loop=True, frames=int(round(2.0 * math.pi / WALK_RATE * FPS)))
+    p = walk_plan(au, run, S)
+    _out, crouch, _info = walk_passes(p)
+    g, aims = p["g"], p["aims"]
+    # --bite "pivot_off": the pivot ends on another of the run's frames than
+    # the one it says it hands over on
+    to = PIVOT_TO - 3 if "pivot_off" in SABOTAGE else PIVOT_TO
+    a0, a1 = p["args"](PIVOT_FROM, crouch[PIVOT_FROM]), p["args"](to, crouch[to])
+    assert PIVOT_FROM in p["plant"]["l"] and to in p["plant"]["r"], "the pivot's run frames are not left-down / right-down"
+    N = c["frames"]
+    th0 = -TURN_DEG[c["move"]] if "pivot_still" not in SABOTAGE else 0.0
+    done = N - 2
+    k = TURN_FOLLOW
+    steps = c["guard"] in STEPS_SETS
+    max_reach = (ik_constants()["MaxStretch"] - STEPS_REACH_MARGIN) if steps else None
+
+    def ball_of(a, s):
+        return a["feet"][s][0].translation - g["ctrl_foot_" + s].translation + g["ball_" + s]
+
+    def rot(deg, v):
+        return Matrix.Rotation(math.radians(deg), 4, "Z") @ Vector((v.x, v.y, v.z))
+
+    def foot(s, ball, yaw):
+        """the foot control with its ball at `ball` (body frame) and its yaw
+        turned `yaw` degrees from the guard's about the ball"""
+        b = g["ball_" + s]
+        return (Matrix.Translation(ball) @ Matrix.Rotation(math.radians(yaw), 4, "Z") @
+                Matrix.Translation(-Vector((b.x, b.y, b.z))) @ g["ctrl_foot_" + s])
+    A = rot(th0, ball_of(a0, "l"))                  # the left ball's world spot from the first frame
+    C = ball_of(a1, "r")                            # the right's, where the run has it at PIVOT_TO
+    theta = [th0 * (1.0 - ease(min(1.0, f / float(done)))) for f in range(N)]
+    frames, plant = [], {s: {} for s in SIDES}
+    for f in range(N):
+        th = theta[f]
+        if f == 0 or f == N - 1:
+            a = a0 if f == 0 else a1
+            loc, world, _d, _r, _z = p["strike"](PIVOT_FROM if f == 0 else to,
+                                                  crouch[PIVOT_FROM if f == 0 else to],
+                                                  spin=((0.0, 0.0), math.radians(th)) if f == 0 else None)
+            frames.append((loc, world))
+            if f == 0:
+                plant["l"][f] = (A.copy(), a["feet"]["l"][2])
+            else:
+                plant["r"][f] = (C.copy(), a["feet"]["r"][2])
+            continue
+        feet, planted = {}, []
+        # the left: planted where it landed, pivoting on its ball by
+        # TURN_FOLLOW of the body's turn, then swung through to the run's
+        if f <= PIVOT_LIFT_L:
+            lb, ly, ll = rot(-th, A), (1.0 - k) * (th0 - th), None
+        else:
+            w = (f - PIVOT_LIFT_L) / float(N - 1 - PIVOT_LIFT_L)
+            b0, y0 = rot(-theta[PIVOT_LIFT_L], A), (1.0 - k) * (th0 - theta[PIVOT_LIFT_L])
+            lb, ly, ll = b0.lerp(ball_of(a1, "l"), ease(w)), y0 * (1.0 - ease(w)), w
+        # the right: swung on from the run's first frame to land at the
+        # run's PIVOT_TO spot, then planted there, pivoting the same way
+        if f >= PIVOT_PLANT_R:
+            rb, ry, rl = rot(-th, C), -(1.0 - k) * th, None
+        else:
+            w = f / float(PIVOT_PLANT_R)
+            b1, y1 = rot(-theta[PIVOT_PLANT_R], C), -(1.0 - k) * theta[PIVOT_PLANT_R]
+            rb, ry, rl = ball_of(a0, "r").lerp(b1, ease(w)), y1 * ease(w), w
+        for s, ball, yaw, w in (("l", lb, ly, ll), ("r", rb, ry, rl)):
+            if w is not None:
+                ball = ball + Vector((0.0, 0.0, TURN_LIFT * math.sin(math.pi * w)))
+            m = foot(s, ball, yaw)
+            here = (m.translation.copy(), ball)
+            feet[s] = (m, knee_forward(s, g=g, at=here, track=track_of(ball - g["ball_" + s]) if c["guard"] in KNEE_TRACK_SETS else 0.0), 0.0)
+            if w is None:
+                planted.append(s)
+                plant[s][f] = ((A if s == "l" else C).copy(), 0.0)
+        u = f / float(N - 1)
+        hips = tuple(a0["hips"][i] + (a1["hips"][i] - a0["hips"][i]) * u for i in range(3))
+        hips = (hips[0], hips[1], hips[2] - PIVOT_DIP * math.sin(math.pi * u))
+        tw = None
+        if a0["twist"] or a1["twist"]:
+            keys = set(a0["twist"] or {}) | set(a1["twist"] or {})
+            tw = {n: (a0["twist"] or {}).get(n, 0.0) * (1.0 - u) + (a1["twist"] or {}).get(n, 0.0) * u for n in keys}
+        loc, world, _fk, _d = body_frame(au, g, aims, feet, hips=hips, twist=tw, settle=planted, max_reach=max_reach,
+                                         spin=((0.0, 0.0), math.radians(th)))
+        frames.append((loc, world))
+    c["plant"] = plant
+    c["pivot_run"] = (PIVOT_FROM, PIVOT_TO)
     return frames
 
 
@@ -1887,6 +2388,7 @@ def floor_frame(au, g, aims, p, prev, extra=None):
 
 
 AUTHOR = {"strike": author_strike, "guard": author_strike, "walk": author_walk, "dash": author_dash,
+          "turn": author_turn, "pivot": author_pivot,
           "block": author_block, "hit": author_hit,
           "down": lambda au, c, S: author_floor(au, c, S, down_keys),
           "getup": lambda au, c, S: author_floor(au, c, S, getup_keys)}
@@ -1971,7 +2473,7 @@ def build(clips, out_root, sheet=False):
                 w.writerow([c["name"], c["boss"], c["move"] if c["kind"] == "strike" else "",
                             c["name"] + ".fbx", "%.3f" % c["seconds"], c["frames"],
                             c["contact"], c["limb"] or "", str(c.get("loop", False)).lower(),
-                            str(c["phase_two"]).lower(), c["state"], c.get("dir", ""), H.hits_cell(c)])
+                            str(c["phase_two"]).lower(), c["state"], direction_cell(c), H.hits_cell(c)])
         print("%6.1fs  %s: exported %d fbx + %s" % (time.time() - t0, folder, len(items), os.path.basename(manifest)))
         if sheet:
             # the pairs are drawn two men at a time, below, not here
@@ -1985,6 +2487,18 @@ def build(clips, out_root, sheet=False):
             H.pair_sheet(rig, made, os.path.join(out_root, "pairs-motion.png"))
     readback(made, out_root)
     return made
+
+
+def direction_cell(c):
+    """The manifest's Direction (2026-10-04): a loop's or a dash's heading
+    by its DIRS name (eight for the loops); a turn's signed degrees, +
+    toward his left (Turn_L90 "+90", Turn_R90 "-90", Turn_180 and
+    Pivot_180 "-180": round to his right)."""
+    if c.get("dir"):
+        return c["dir"]
+    if c["kind"] in ("turn", "pivot"):
+        return "%+.0f" % c["turn"]
+    return ""
 
 
 def pairs_yaw_180(path):
@@ -2056,8 +2570,10 @@ def hands_check(c, rig, fails):
         thumb = (W @ pb["thumb_03_" + s].tail - W @ pb["middle_02_" + s].head).length
         return tip / hand_len, thumb / hand_len
 
-    def guard_hand(s, strict=True):
-        """Why this hand is not in a guard, or None."""
+    def guard_hand(s, strict=True, yaw=0.0):
+        """Why this hand is not in a guard, or None. `yaw` (radians): how
+        far the body is turned from the root's facing on this frame (the
+        turns, 2026-10-04), which "toward him" turns with."""
         H = W @ pb["head"].head
         fist = W @ pb["hand_" + s].tail
         el, sh = W @ pb["lowerarm_" + s].head, W @ pb["upperarm_" + s].head
@@ -2096,6 +2612,9 @@ def hands_check(c, rig, fails):
             return "the %s wrist is bent %.0f degrees" % (s, bend)
         m = (W @ pb["hand_" + s].matrix).to_3x3()
         palm = (m @ L.palm_local(rig, s)).normalized()
+        if yaw:
+            from mathutils import Matrix
+            palm = Matrix.Rotation(-yaw, 3, "Z") @ palm
         # rolled, the palms face 0.80-0.89 toward him; left at the roll the
         # aim alone gives them they are 28 and 51 degrees off it
         if palm.y < 0.72:
@@ -2110,11 +2629,13 @@ def hands_check(c, rig, fails):
                 fails.append("%s: the %s hand is open on frame %d (index tip %.2f, thumb %.2f hand lengths)" % (
                     c["name"], s, f, tip, thumb))
                 return
-    if c["kind"] in ("guard", "walk", "dash"):
+    if c["kind"] in ("guard", "walk", "dash", "turn", "pivot"):
+        end_yaw = body_yaw(rig, N) if c["kind"] in ("turn", "pivot") else None
         for f in range(1, N + 1, 3):
+            yaw = math.radians(wrap180(body_yaw(rig, f) - end_yaw)) if end_yaw is not None else 0.0
             go(f)
             for s in SIDES:
-                why = guard_hand(s)
+                why = guard_hand(s, yaw=yaw)
                 if why:
                     fails.append("%s: %s on frame %d" % (c["name"], why, f))
                     return
@@ -2248,7 +2769,7 @@ def steps_check(c, rig, fails, ik):
                 fails.append("%s: the %s sole is %.1f mm %s the floor on frame %d" % (
                     c["name"], s, abs(low) * 1000.0, "through" if low < 0.0 else "over", f + 1))
                 break
-    if c["kind"] not in ("walk", "dash"):
+    if c["kind"] not in ("walk", "dash", "turn", "pivot"):
         return
     # ---- leg_reach (--bite "straight_stance"): no leg the runtime would
     # plant (its ankle under PlantFade) reaches past MaxStretch less 0.005
@@ -2266,8 +2787,19 @@ def steps_check(c, rig, fails, ik):
     if worst[0] > ik["MaxStretch"] - 0.005:
         fails.append("%s: the %s leg reaches %.4f of its length on frame %d, a locked knee (the runtime holds %.3f)" % (
             c["name"], worst[1], worst[0], worst[2], ik["MaxStretch"]))
+    if c["kind"] in ("turn", "pivot"):
+        # the turns (2026-10-04): their planted knees over their toes, as
+        # every step's
+        knee_toe_check(c, rig, fails)
+        return
     d = Vector(DIRS[c["dir"]])
     lateral = abs(d.x) > 0.5
+    # the run tier's rules are a runner's (2026-09-30); the walk tier
+    # (2026-10-04) is held to the leg's own -- reach, knee, jolt, the knee
+    # over the toes -- and to walk_tier_check's in verify(), not to the
+    # runner's swing over the plant band, his weight over the support foot,
+    # the hips' turn with the stride or the bound
+    runner = c.get("tier", "run") == "run"
     if c["kind"] == "walk":
         # ---- walk_knee (--bite "straight_stance"): a runner's knee is never
         # straight -- 20-25 at contact, 35-45 mid-stance
@@ -2293,7 +2825,7 @@ def steps_check(c, rig, fails, ik):
                 c["name"], jolt[0] * 100.0, jolt[1] + 1, (jolt[1] + 1) % N + 1))
         # ---- walk_clear (--bite "low_swing"): each foot's swing peak clears
         # the runtime's plant band, so a step or a slope never drags it
-        for s in SIDES:
+        for s in (SIDES if runner else ()):
             high = -1.0
             for f in range(1, N + 1):
                 go(f); high = max(high, P("foot_" + s).z)
@@ -2335,7 +2867,9 @@ def steps_check(c, rig, fails, ik):
                     break
             c["knee_off"][s] = span_off
         knee_toe_check(c, rig, fails)
-        if not lateral:
+        if not runner:
+            pass
+        elif not lateral:
             # ---- walk_support (--bite "flat_pelvis"): the pelvis passes
             # within 20 cm of the support foot's ball during its stance --
             # at the nearest frame, since the sampled middle frame of a
@@ -2410,6 +2944,158 @@ def steps_check(c, rig, fails, ik):
             fails.append("%s: the %s foot's reach along the heading is only %.1f cm" % (c["name"], lead, reach * 100.0))
         if max(lean) - lean[0] < 8.0:
             fails.append("%s: the lean added into the heading is only %.1f deg" % (c["name"], max(lean) - lean[0]))
+
+
+def body_yaw(rig, f):
+    """Which way the body faces on frame f of the current action: the
+    pelvis's own forward (its rest pose's -Y, as the knee check reads it),
+    flattened, in degrees from -Y, + toward +X (his left)."""
+    import bpy
+    from mathutils import Vector
+    bpy.context.scene.frame_set(f); bpy.context.view_layer.update()
+    pel = rig.pose.bones["pelvis"]
+    local_fwd = pel.bone.matrix_local.to_3x3().inverted() @ Vector((0.0, -1.0, 0.0))
+    fwd = (rig.matrix_world.to_3x3() @ pel.matrix.to_3x3()) @ local_fwd
+    return math.degrees(math.atan2(fwd.x, -fwd.y))
+
+
+def wrap180(a):
+    return (a + 180.0) % 360.0 - 180.0
+
+
+def walk_tier_check(c, rig, fails):
+    """The walk tier's own rules (2026-10-04), on the baked bones: a walk
+    never has both feet off the floor (--bite "walk_hop"); at every change
+    of support both feet are on it together for a frame at least (--bite
+    "no_double"); a foot the plan has down IS down, its ball within 1 cm
+    of the floor."""
+    import bpy
+    pb, W, N = rig.pose.bones, rig.matrix_world, c["frames"]
+    plant = c.get("plant") or {}
+    floor = rig.data.bones["ball_l"].head_local.z
+    down = {s: set() for s in SIDES}
+    worst_air = (0.0, -1)
+    for f in range(N):
+        bpy.context.scene.frame_set(f + 1); bpy.context.view_layer.update()
+        z = {s: (W @ pb["ball_" + s].head).z - floor for s in SIDES}
+        for s in SIDES:
+            if f in plant.get(s, {}):
+                if z[s] > 0.01:
+                    fails.append("%s: the %s foot is meant down on frame %d and is %.1f cm up" % (c["name"], s, f + 1, z[s] * 100))
+                    return
+                down[s].add(f)
+        if not any(f in plant.get(s, {}) for s in SIDES) or min(z.values()) > 0.01:
+            air = min(z.values())
+            if air > worst_air[0] or worst_air[1] < 0:
+                worst_air = (air, f)
+    c["walk_air"] = worst_air
+    if worst_air[1] >= 0:
+        fails.append("%s: a walk with both feet off the floor on frame %d (the lower %.1f cm up) -- it hops" % (
+            c["name"], worst_air[1] + 1, worst_air[0] * 100))
+        return
+    # each landing (a foot's planted run starting) finds the other still down
+    both = down["l"] & down["r"]
+    lands = []
+    for s in SIDES:
+        for run in planted_runs(down[s], N):
+            lands.append((run[0], s, run[0] in both))
+    c["double"] = (len(planted_runs(both, N)), len(both))
+    for f, s, ok in sorted(lands):
+        if not ok:
+            fails.append("%s: the %s foot lands on frame %d with the other already off the floor -- no double support" % (
+                c["name"], s, f + 1))
+            return
+
+
+def legs_apart_check(c, rig, fails):
+    """His two legs never pass into each other (2026-10-04, for every
+    locomotion clip): the trouser legs as capsules of his own widths along
+    thigh, knee, shank and ankle (mocap.LEG_R, measured 2026-10-03 off his
+    build), into each other by no more than mocap.LEG_CLEAR_MM on any
+    frame. --bite "narrow_walk"."""
+    import bpy
+    import mocap as MC
+    pb, W, N = rig.pose.bones, rig.matrix_world, c["frames"]
+    worst = (-1.0, 0)
+    for f in range(1, N + 1):
+        bpy.context.scene.frame_set(f); bpy.context.view_layer.update()
+        w = {n: W @ pb[n].head for s in SIDES for n in ("thigh_" + s, "calf_" + s, "foot_" + s)}
+        ov = MC.leg_overlap(w)
+        if ov > worst[0]:
+            worst = (ov, f)
+    c["legs_mm"] = worst[0] * 1000.0
+    if worst[0] * 1000.0 > MC.LEG_CLEAR_MM:
+        fails.append("%s: the legs pass %.1f mm into each other on frame %d (at most %.0f)" % (
+            c["name"], worst[0] * 1000.0, worst[1], MC.LEG_CLEAR_MM))
+
+
+def turn_check(c, rig, act, by_name, fails):
+    """A turn's rules (2026-10-04), on the baked bones. Turn_*: the body
+    starts turned by its angle back from the root's facing and ends facing
+    it, each within TURN_TOL_DEG of the guard's own facing; it goes round
+    the way it says by its angle (--bite "turn_still"); its first frame is
+    the guard turned by that angle about the root and its last the guard,
+    each within 1 cm (--bite "turn_short"). Pivot_180: the body turns 180
+    over the clip (--bite "pivot_still"), its first frame is Run_Fwd's
+    PIVOT_FROM turned 180 and its last Run_Fwd's PIVOT_TO, within 1 cm --
+    the run goes on in its own phase. Their planted feet are held by the
+    plant check, their lengths by check() (--bite "turn_long")."""
+    import bpy
+    from mathutils import Matrix
+    N = c["frames"]
+    want = TURN_DEG[c["move"]]
+    rig.animation_data.action = act
+    yaws = [body_yaw(rig, f) for f in range(1, N + 1)]
+    turned = sum(wrap180(yaws[i + 1] - yaws[i]) for i in range(N - 1))
+    c["turned_deg"] = turned
+
+    def pose(a, f):
+        rig.animation_data.action = a
+        bpy.context.scene.frame_set(f); bpy.context.view_layer.update()
+        return {b.name: (rig.matrix_world @ b.matrix).translation.copy() for b in rig.pose.bones}
+
+    def apart(a, b, deg=0.0):
+        # the body's bones: root and the mannequin's ik_* bones hang off the
+        # root, which never turns, and are not his body
+        R = Matrix.Rotation(math.radians(deg), 3, "Z")
+        return max(((R @ a[n]) - b[n]).length for n in a if n != "root" and not n.startswith("ik_"))
+    what = "the pivot" if c["kind"] == "pivot" else "the body"
+    if abs(turned - want) > TURN_TOL_DEG:
+        fails.append("%s: %s turns %.0f deg over its length, want %.0f" % (c["name"], what, turned, want))
+    if c["kind"] == "turn":
+        guard = by_name.get("Guard@" + c["boss"])
+        if not guard:
+            fails.append("%s: no guard of his to measure the turn against" % c["name"])
+            return
+        rig.animation_data.action = guard[1]
+        g_yaw = body_yaw(rig, 1)
+        start, end = wrap180(yaws[0] - g_yaw), wrap180(yaws[-1] - g_yaw)
+        c["turn_yaw"] = (start, end)
+        if abs(wrap180(start + want)) > TURN_TOL_DEG:
+            fails.append("%s: the body starts turned %.0f deg from the root's facing, want %.0f" % (c["name"], start, -want))
+        if abs(end) > TURN_TOL_DEG:
+            fails.append("%s: the body ends turned %.0f deg from the root's facing" % (c["name"], end))
+        g1 = pose(guard[1], 1)
+        first, last = pose(act, 1), pose(act, N)
+        c["turn_ends_cm"] = (apart(g1, first, -want) * 100.0, apart(g1, last) * 100.0)
+        if c["turn_ends_cm"][0] > 1.0:
+            fails.append("%s: does not start in the guard turned %.0f deg: %.1f cm from it" % (c["name"], -want, c["turn_ends_cm"][0]))
+        if c["turn_ends_cm"][1] > 1.0:
+            fails.append("%s: ends %.1f cm from the guard" % (c["name"], c["turn_ends_cm"][1]))
+    else:
+        run = by_name.get("Run_Fwd@" + c["boss"])
+        if not run:
+            fails.append("%s: no Run_Fwd of his to measure the pivot against" % c["name"])
+            return
+        k0, k1 = c["pivot_run"]
+        first, last = pose(act, 1), pose(act, N)
+        c["pivot_ends_cm"] = (apart(pose(run[1], k0 + 1), first, -want) * 100.0, apart(pose(run[1], k1 + 1), last) * 100.0)
+        if c["pivot_ends_cm"][0] > 1.0:
+            fails.append("%s: does not start on Run_Fwd's frame %d turned %.0f deg: %.1f cm from it" % (
+                c["name"], k0 + 1, -want, c["pivot_ends_cm"][0]))
+        if c["pivot_ends_cm"][1] > 1.0:
+            fails.append("%s: does not hand over into Run_Fwd's phase: %.1f cm from its frame %d" % (
+                c["name"], c["pivot_ends_cm"][1], k1 + 1))
 
 
 def verify(rig, made):
@@ -2570,9 +3256,9 @@ def verify(rig, made):
                     "%s %.2f, want %s..%s" % (k, v, "" if lo is None else lo, "" if hi is None else hi)
                     for k, v, lo, hi in miss)))
         # ---- the steps (2026-09-30): Saud's guard, walks, dashes and block
-        if c["guard"] in STEPS_SETS and c["kind"] in ("guard", "walk", "dash", "block"):
+        if c["guard"] in STEPS_SETS and c["kind"] in ("guard", "walk", "dash", "block", "turn", "pivot"):
             steps_check(c, rig, fails, ik)
-        elif c["guard"] in KNEE_TRACK_SETS and c["kind"] in ("guard", "walk", "dash", "block"):
+        elif c["guard"] in KNEE_TRACK_SETS and c["kind"] in ("guard", "walk", "dash", "block", "turn", "pivot"):
             knee_toe_check(c, rig, fails)
         if c["kind"] == "strike" and c["guard"] in SIGNATURE and SIGNATURE[c["guard"]][0] == c["move"]:
             signature_check(c, rig, fails)
@@ -2673,6 +3359,13 @@ def verify(rig, made):
             c["gap_cm"] = gap * 100.0
             if gap < 0.08:
                 fails.append("%s: the feet cross -- %.1f cm between them at the closest" % (c["name"], gap * 100))
+            if c.get("tier") == "walk":
+                walk_tier_check(c, rig, fails)
+            legs_apart_check(c, rig, fails)
+        elif c["kind"] in ("turn", "pivot"):
+            turn_check(c, rig, act, by_name, fails)
+            legs_apart_check(c, rig, fails)
+            rig.animation_data.action = act
         elif c["kind"] == "dash":
             ground = min(at(1, "ball_l").z, at(1, "ball_r").z)
             air = max(min(at(f, "ball_l").z, at(f, "ball_r").z) - ground for f in range(1, N + 1))
@@ -2799,6 +3492,27 @@ def verify(rig, made):
                 bits.append("crouch spread to %.1f cm, the cap then fired on %d frames (%.1f cm)" % (
                     (c["crouch_cm"],) + c["reach_cap_after"]))
         print("        %s: %s" % (c["name"], "; ".join(bits)))
+    # the 360 locomotion (2026-10-04)
+    loco = [c for c, _a, _f in made if c["kind"] in ("walk", "turn", "pivot")]
+    for c in loco:
+        bits = []
+        if c["kind"] == "walk":
+            gt = c["gait"]
+            bits.append("%s tier %.0f cm/s, %d frames, duty %.2f, right %.3f behind the left, feet %.1f cm apart at the closest"
+                        % (c.get("tier", "run"), c["speed"], c["frames"], gt["duty"], (gt["lag"]["r"] - gt["lag"]["l"]) % 1.0,
+                           c["gap_cm"]))
+            if "double" in c:
+                bits.append("both down at %d changes of support (%d frames)" % c["double"])
+        else:
+            bits.append("turns %+.1f deg" % c["turned_deg"])
+            if "turn_yaw" in c:
+                bits.append("starts %+.1f, ends %+.1f deg off the root's facing; %.2f / %.2f cm from the guard turned / the guard"
+                            % (c["turn_yaw"] + c["turn_ends_cm"]))
+            if "pivot_ends_cm" in c:
+                bits.append("%.2f / %.2f cm from Run_Fwd's frames it starts and ends on" % c["pivot_ends_cm"])
+        if "legs_mm" in c:
+            bits.append("legs %+.1f mm into each other at the most" % c["legs_mm"])
+        print("        %s: %s" % (c["name"], "; ".join(bits)))
     H.report(made)
 
 
@@ -2901,6 +3615,10 @@ def contact_sheet(rig, made, out_dir, filename):
     for r, (c, cells) in enumerate(rows):
         y = PAD + r * (SH + 20 + PAD)
         label = "%s  %s  %.2fs  %d frames" % (c["name"], c["display"], c["seconds"], c["frames"])
+        if c["kind"] == "walk":
+            label += "   %s tier, %s, %.0f cm/s" % (c.get("tier", "run"), c["dir"], c["speed"])
+        elif c["kind"] in ("turn", "pivot"):
+            label += "   turns %+.0f deg" % c["turn"]
         if c.get("reach_cm") is not None and c["limb"]:
             label += "   reach %.0f cm" % c["reach_cm"]
         dd.text((PAD + 2, y + 4), label, fill=(226, 228, 236))
@@ -2914,6 +3632,10 @@ def contact_sheet(rig, made, out_dir, filename):
 
 
 # ======================================================================= bite
+# sabotages that break the plan, not the motion: check() is what holds them
+PLAN_SABOTAGE = {"two_cycles", "turn_long"}
+
+
 def bite():
     """Each motion check added with the IK rig, made to fail by breaking the
     one thing it guards -- and the same clips, unbroken, passing. A check
@@ -2926,7 +3648,7 @@ def bite():
         ("planted feet",   "plant",  ["A_Saud_Cross", "A_Saud_Kick"],  "slides"),
         ("knees forward",  "knee",   ["A_Street_Guard"],                 "behind the line"),
         ("straight punch", "line",   ["A_Saud_Jab"],                   "off the straight line"),
-        ("feet cross",     "cross",  ["A_Saud_Walk_Left"],             "the feet cross"),
+        ("feet cross",     "cross",  ["A_Saud_Run_Left"],              "the feet cross"),
         ("through floor",  "sink",   ["A_Saud_Down"],                  "through the floor"),
         ("getup start",    "getup",  ["A_Saud_Down", "A_Saud_GetUp"],  "does not start where Down ends"),
         ("closed fists",   "fists",  ["A_Saud_Guard"],                 "hand is open"),
@@ -2952,22 +3674,38 @@ def bite():
         ("victory chin",   "no_chin",  ["A_Saud_Victory"],              "the chin is not up"),
         # Saud's steps (2026-09-30, "improve steps"): steps_check
         ("sole on floor",  "ball_ground",     ["A_Saud_Guard"],         "sole is"),
-        ("knee over toes", "knee_fwd_pole",   ["A_Saud_Walk_Fwd"],      "the foot's line"),
-        ("knee screw",     "knee_screw",      ["A_Saud_Walk_Left"],     "its toes"),
-        ("walk knee",      "straight_stance", ["A_Saud_Walk_Fwd"],      "knee locks"),
-        ("walk jolt",      "straight_stance", ["A_Saud_Walk_Fwd"],      "pelvis jolts"),
-        ("walk reach",     "straight_stance", ["A_Saud_Walk_Fwd"],      "of its length"),
-        ("walk support",   "flat_pelvis",     ["A_Saud_Walk_Fwd"],      "at its mid-stance"),
-        ("side bound",     "dip_bound",       ["A_Saud_Walk_Left"],     "a bound rises"),
+        ("knee over toes", "knee_fwd_pole",   ["A_Saud_Run_Fwd"],       "the foot's line"),
+        ("knee screw",     "knee_screw",      ["A_Saud_Run_Left"],      "its toes"),
+        ("walk knee",      "straight_stance", ["A_Saud_Run_Fwd"],       "knee locks"),
+        ("walk jolt",      "straight_stance", ["A_Saud_Run_Fwd"],       "pelvis jolts"),
+        ("walk reach",     "straight_stance", ["A_Saud_Run_Fwd"],       "of its length"),
+        ("walk support",   "flat_pelvis",     ["A_Saud_Run_Fwd"],       "at its mid-stance"),
+        ("side bound",     "dip_bound",       ["A_Saud_Run_Left"],      "a bound rises"),
         ("dash air",       "feet_down_dash",  ["A_Saud_Dash_Fwd"],      "in the air on only"),
         ("dash reach",     "feet_down_dash",  ["A_Saud_Dash_Fwd"],      "reach along the heading"),
         ("dash lean",      "feet_down_dash",  ["A_Saud_Dash_Fwd"],      "lean added"),
-        ("swing clears",   "low_swing",       ["A_Saud_Walk_Fwd"],      "clears only"),
-        ("hips turn",      "still_hips",      ["A_Saud_Walk_Fwd"],      "hips turn only"),
+        ("swing clears",   "low_swing",       ["A_Saud_Run_Fwd"],       "clears only"),
+        ("hips turn",      "still_hips",      ["A_Saud_Run_Fwd"],       "hips turn only"),
         # the bosses (2026-10-03): a heavier man is moved less by a blow
-        ("boss knees",     "knee_fwd_pole", ["A_Boss_Guard", "A_Zayos_Walk_Fwd", "A_Saqr_Walk_Left"], "its toes"),
+        ("boss knees",     "knee_fwd_pole", ["A_Boss_Guard", "A_Zayos_Run_Fwd", "A_Saqr_Run_Left"], "its toes"),
         ("boss signature", "no_signature", ["A_Boss_Hook", "A_Saqr_Kick", "A_Zayos_Cross"], "his own strike"),
         ("heavy men give", "no_give", ["A_Saud_Hit_Head_Straight", "A_Zayos_Hit_Head_Straight"], "for his weight"),
+        # 360 locomotion (2026-10-04): the walk tier, the diagonals, the
+        # turns and the pivot -- and two rules of the plan, which check()
+        # holds (PLAN_SABOTAGE: the plan itself is made broken)
+        ("diagonal feet",  "diag_cross",  ["A_Saud_Run_FwdLeft"],            "the feet cross"),
+        ("walk no flight", "walk_hop",    ["A_Saud_Walk_Left"],              "it hops"),
+        ("walk double",    "no_double",   ["A_Saud_Walk_Fwd"],               "no double support"),
+        ("legs apart",     "narrow_walk", ["A_Street_Walk_Left"],            "into each other"),
+        ("turn turns",     "turn_still",  ["A_Saud_Guard", "A_Saud_Turn_L90"], "over its length, want"),
+        ("turn starts",    "turn_still",  ["A_Saud_Guard", "A_Saud_Turn_L90"], "the body starts turned"),
+        ("turn from guard", "turn_still", ["A_Saud_Guard", "A_Saud_Turn_L90"], "does not start in the guard"),
+        ("turn ends guard", "turn_short", ["A_Boss_Guard", "A_Boss_Turn_180"], "cm from the guard"),
+        ("turn ends facing", "turn_short", ["A_Boss_Guard", "A_Boss_Turn_180"], "the body ends turned"),
+        ("turn length",    "turn_long",   ["A_Saud_Turn_L90"],               "the game holds the turn"),
+        ("pivot turns",    "pivot_still", ["A_Saud_Run_Fwd", "A_Saud_Pivot_180"], "the pivot turns"),
+        ("pivot phase",    "pivot_off",   ["A_Street_Run_Fwd", "A_Street_Pivot_180"], "into Run_Fwd's phase"),
+        ("one cycle a tier", "two_cycles", ["A_Saud_Walk_Fwd"],             "cycles"),
     ]
     # The POSTURE track's keys, proved on the clip path (2026-09-30): each
     # needs a name from build_saud that lands with that track (the stance
@@ -2998,13 +3736,22 @@ def bite():
                     M.SABOTAGE_GROUND.add("ball")
                 if sab == "rolled_sole":
                     CR.SABOTAGE.add("rolled_sole")
-            clips = [dict(every[n]) for n in names]
-            rig, made = author_all(clips)
-            try:
-                verify(rig, made)
-                msg = None
-            except AssertionError as e:
-                msg = str(e)
+            msg, src = None, every
+            if sab in PLAN_SABOTAGE:
+                # a rule of the plan: the plan made with the sabotage on (or
+                # off), and check() run on all of it
+                src = {c["name"]: c for c in plan(("saud", "street", "bosses"))}
+                try:
+                    check(list(src.values()))
+                except AssertionError as e:
+                    msg = "the plan does not hold:\n  " + str(e)
+            if msg is None:
+                clips = [dict(src[n]) for n in names]
+                rig, made = author_all(clips)
+                try:
+                    verify(rig, made)
+                except AssertionError as e:
+                    msg = str(e)
             if broken:
                 # the line the case matched (a sabotage may fail other
                 # checks first; the line shown is the one that was wanted)

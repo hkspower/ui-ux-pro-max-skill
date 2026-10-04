@@ -42,6 +42,7 @@
 #endif
 
 #include <cmath>
+#include "SaudSteer.h"
 
 namespace SaudFeel
 {
@@ -218,8 +219,73 @@ namespace SaudFeel
 		// the end of a fight (2026-09-28)
 		Death, Victory,
 		// Saud's free walk and run (2026-10-03): motion capture, picked by speed
-		GaitWalkSlow, GaitWalk, GaitWalkBrisk, GaitJog, GaitRun
+		GaitWalkSlow, GaitWalk, GaitWalkBrisk, GaitJog, GaitRun,
+		// 360 locomotion (2026-10-04): the walk tier's diagonals (its four
+		// straight ways are WalkFwd..WalkRight above), the run tier's eight,
+		// and the turns the free steer starts (SaudSteer::ETurn)
+		WalkFwdLeft, WalkBackLeft, WalkBackRight, WalkFwdRight,
+		RunFwd, RunFwdLeft, RunLeft, RunBackLeft, RunBack, RunBackRight, RunRight, RunFwdRight,
+		TurnL90, TurnR90, Turn180, Pivot180
 	};
+
+	// ------------------------------------------------ the eight ways, two tiers
+	// The directions are SaudSteer::EDir's order -- Fwd, FwdLeft, Left,
+	// BackLeft, Back, BackRight, Right, FwdRight; + = his left -- each the
+	// octant centred on index x 45 degrees.
+
+	/** The walk tier's clip for a direction (struck at SaudSteer::WalkShare
+	    of his speed), and the run tier's (his full speed). */
+	inline EClip WalkClip(int Dir)
+	{
+		constexpr EClip T[8] = { EClip::WalkFwd, EClip::WalkFwdLeft, EClip::WalkLeft, EClip::WalkBackLeft,
+		                         EClip::WalkBack, EClip::WalkBackRight, EClip::WalkRight, EClip::WalkFwdRight };
+		return T[((Dir % 8) + 8) % 8];
+	}
+	inline EClip RunClip(int Dir)
+	{
+		constexpr EClip T[8] = { EClip::RunFwd, EClip::RunFwdLeft, EClip::RunLeft, EClip::RunBackLeft,
+		                         EClip::RunBack, EClip::RunBackRight, EClip::RunRight, EClip::RunFwdRight };
+		return T[((Dir % 8) + 8) % 8];
+	}
+
+	/** A walk or run clip's direction, 0..7; -1 for anything else. */
+	inline int DirOf(EClip C)
+	{
+		for (int D = 0; D < 8; ++D)
+		{
+			if (WalkClip(D) == C || RunClip(D) == C) return D;
+		}
+		return -1;
+	}
+
+	/** 0 the walk tier, 1 the run tier, -1 neither. */
+	inline int TierOf(EClip C)
+	{
+		for (int D = 0; D < 8; ++D)
+		{
+			if (WalkClip(D) == C) return 0;
+			if (RunClip(D) == C) return 1;
+		}
+		return -1;
+	}
+
+	inline bool IsTurnClip(EClip C)
+	{
+		return C == EClip::TurnL90 || C == EClip::TurnR90 || C == EClip::Turn180 || C == EClip::Pivot180;
+	}
+
+	/** The clip that carries a turn the steer started. */
+	inline EClip TurnClip(SaudSteer::ETurn T)
+	{
+		switch (T)
+		{
+		case SaudSteer::ETurn::L90:      return EClip::TurnL90;
+		case SaudSteer::ETurn::R90:      return EClip::TurnR90;
+		case SaudSteer::ETurn::Back180:  return EClip::Turn180;
+		case SaudSteer::ETurn::Pivot180: return EClip::Pivot180;
+		default:                         return EClip::Guard;
+		}
+	}
 
 	/** The clip's name in Content/Animation: A_<Set>_<this>. Attack is the
 	    attack row's own name and has none here. */
@@ -255,6 +321,23 @@ namespace SaudFeel
 		case EClip::GaitWalkBrisk:        return "Mocap_Walk_Brisk";
 		case EClip::GaitJog:              return "Mocap_Jog";
 		case EClip::GaitRun:              return "Mocap_Run";
+		// the file names of the 360 spec (A_<Set>_<this>.fbx)
+		case EClip::WalkFwdLeft:          return "Walk_FwdLeft";
+		case EClip::WalkBackLeft:         return "Walk_BackLeft";
+		case EClip::WalkBackRight:        return "Walk_BackRight";
+		case EClip::WalkFwdRight:         return "Walk_FwdRight";
+		case EClip::RunFwd:               return "Run_Fwd";
+		case EClip::RunFwdLeft:           return "Run_FwdLeft";
+		case EClip::RunLeft:              return "Run_Left";
+		case EClip::RunBackLeft:          return "Run_BackLeft";
+		case EClip::RunBack:              return "Run_Back";
+		case EClip::RunBackRight:         return "Run_BackRight";
+		case EClip::RunRight:             return "Run_Right";
+		case EClip::RunFwdRight:          return "Run_FwdRight";
+		case EClip::TurnL90:              return "Turn_L90";
+		case EClip::TurnR90:              return "Turn_R90";
+		case EClip::Turn180:              return "Turn_180";
+		case EClip::Pivot180:             return "Pivot_180";
 		default:               return "";
 		}
 	}
@@ -269,7 +352,22 @@ namespace SaudFeel
 	{
 		return C == EClip::Guard || C == EClip::Block
 			|| C == EClip::WalkFwd || C == EClip::WalkBack || C == EClip::WalkLeft || C == EClip::WalkRight
-			|| IsGait(C);
+			|| TierOf(C) >= 0 || IsGait(C);
+	}
+
+	/** Of a diagonal's two neighbours (45 degrees either side), the one
+	    nearer the heading AngleDeg (off the facing, + his left); a heading on
+	    the diagonal itself goes to the one nearer Fwd -- forward over a side,
+	    a side over back, as SaudFeel::Quadrant breaks its ties. */
+	inline int NearerNeighbour(int Diag, float AngleDeg)
+	{
+		const int A = (Diag + 7) % 8, B = (Diag + 1) % 8;
+		auto Off = [AngleDeg](int D) { return FMath::Abs(SaudSteer::Wrap180(AngleDeg - D * 45.f)); };
+		auto FromFwd = [](int D) { return FMath::Abs(SaudSteer::Wrap180(D * 45.f)); };
+		const float OA = Off(A), OB = Off(B);
+		if (OA < OB - 1e-3f) return A;
+		if (OB < OA - 1e-3f) return B;
+		return FromFwd(A) <= FromFwd(B) ? A : B;
 	}
 
 	/** The clip that stands in for one a motion set does not have: a
@@ -291,8 +389,61 @@ namespace SaudFeel
 		// motion capture not imported yet: the guard's own step forward
 		case EClip::GaitWalkSlow: case EClip::GaitWalk: case EClip::GaitWalkBrisk:
 		case EClip::GaitJog: case EClip::GaitRun: return EClip::WalkFwd;
-		default:                          return C;
+		// the 360 clips (2026-10-04): a turn stands in his guard; a run
+		// clip is its walk; a diagonal its neighbour nearer Fwd (the heading's
+		// own nearer neighbour is FallbackChain's)
+		case EClip::TurnL90: case EClip::TurnR90: case EClip::Turn180: case EClip::Pivot180: return EClip::Guard;
+		default:
+			if (TierOf(C) == 1) return WalkClip(DirOf(C));
+			if (TierOf(C) == 0 && DirOf(C) % 2) return WalkClip(NearerNeighbour(DirOf(C), DirOf(C) * 45.f));
+			return C;
 		}
+	}
+
+	/** What to look for, in order, when a set may not have a clip: the clip
+	    itself first. A diagonal a set lacks falls back to the nearer of its
+	    two neighbours (by the heading's AngleDeg), then the other; a run
+	    clip to its walk; a turn or a pivot to the Guard (the facing has
+	    snapped, the hips' lag is cleared: his guard at the new facing). The
+	    motion component takes the first a set has. */
+	struct FClipChain
+	{
+		EClip Clip[8];
+		int Num = 0;
+		void Add(EClip C)
+		{
+			for (int I = 0; I < Num; ++I) if (Clip[I] == C) return;
+			if (Num < 8) Clip[Num++] = C;
+		}
+	};
+
+	inline FClipChain FallbackChain(EClip C, float AngleDeg)
+	{
+		FClipChain Out;
+		Out.Add(C);
+		const int Dir = DirOf(C), Tier = TierOf(C);
+		if (Dir >= 0)
+		{
+			auto Ways = [&](EClip (*Of)(int))
+			{
+				Out.Add(Of(Dir));
+				if (Dir % 2)
+				{
+					const int Near = NearerNeighbour(Dir, AngleDeg);
+					const int Far = Near == (Dir + 7) % 8 ? (Dir + 1) % 8 : (Dir + 7) % 8;
+					Out.Add(Of(Near));
+					Out.Add(Of(Far));
+				}
+			};
+			if (Tier == 1) Ways(RunClip);
+			Ways(WalkClip);
+			return Out;
+		}
+		if (IsTurnClip(C)) { Out.Add(EClip::Guard); return Out; }
+		const EClip F = Fallback(C);
+		Out.Add(F);
+		Out.Add(Fallback(F));
+		return Out;
 	}
 
 	/** What a blow did, read off the attack row that landed it -- the same
@@ -344,11 +495,22 @@ namespace SaudFeel
 		float Speed = 0.f;             // cm/s on the ground
 		FVector Facing = FVector(1.f, 0.f, 0.f);
 		FVector Heading = FVector(1.f, 0.f, 0.f);
-		/** Saud with no one to fight (no living man within FreeBeyondCm):
-		    he walks and runs as a man does, not on his guard. */
+		/** No one to fight (AFighterBase::IsMovingFree, held: no living
+		    opponent within FreeBeyondCm): he turns to where he goes and walks
+		    and runs as a man does, not on his guard. Every fighter's own. */
 		bool bFree = false;
-		/** The clip showing, so a gait is held through a small change of
-		    speed (GaitHysteresis). */
+		/** His set has Saud's motion-capture gaits (Saud's set): free and
+		    going about where he faces, he plays those rather than Run_Fwd /
+		    Walk_Fwd. */
+		bool bGaits = false;
+		/** His full speed now, cm/s (AFighterBase::GetRunSpeed): the tiers
+		    are struck at it and at SaudSteer::WalkShare of it. */
+		float RunSpeed = 341.f;
+		/** The turn clip playing (FTurnHold): it plays to its end unless an
+		    attack, a hit, a fall or a dash takes over. */
+		SaudSteer::ETurn Turn = SaudSteer::ETurn::None;
+		/** The clip showing, so a gait, a tier and an octant are held
+		    through a small change of speed or heading. */
 		EClip Current = EClip::Guard;
 	};
 
@@ -369,8 +531,10 @@ namespace SaudFeel
 	};
 	/** No living man nearer than this, and Saud walks free; nearer, he is on
 	    his guard and steps as a fighter (the camera frames a fight at 15 m:
-	    this is inside it, so the guard is up before the men are close). */
-	constexpr float FreeBeyondCm = 1200.f;
+	    this is inside it, so the guard is up before the men are close).
+	    Since 2026-10-04 the test is AFighterBase's (SaudSteer::FreeHeld, with
+	    its band); this is its distance, kept under the old name. */
+	constexpr float FreeBeyondCm = SaudSteer::FreeBeyondCm;
 	/** A gait is kept while the speed is within this share past the line to
 	    its neighbour, so a stick held near a line does not flicker between them. */
 	constexpr float GaitHysteresis = 0.08f;
@@ -404,6 +568,83 @@ namespace SaudFeel
 	    capsule's own drift under a guard is not a step. */
 	constexpr float WalkThreshold = 40.f;
 
+	// --------------------------------------------- 360: the tier, the way
+	/** The walk tier is struck at SaudSteer::WalkShare of his run speed and
+	    the run tier at his run speed; the line between them is their
+	    geometric mean (as the gaits' lines are), and the tier showing is
+	    kept until the speed is this share past it, so a stick held on the
+	    line does not flicker between the two. */
+	constexpr float TierHysteresis = 0.08f;
+
+	/** The line between the walk tier and the run tier, cm/s. */
+	inline float TierLine(float RunSpeed)
+	{
+		return std::sqrt(SaudSteer::WalkShare * RunSpeed * RunSpeed);
+	}
+
+	/** 0 the walk tier, 1 the run tier, for a speed; Current (-1 none) kept
+	    within TierHysteresis of the line. */
+	inline int PickTier(float Speed, float RunSpeed, int Current)
+	{
+		if (RunSpeed <= 1.f) return 1;
+		const float Line = TierLine(RunSpeed);
+		if (Current == 0 && Speed <= Line * (1.f + TierHysteresis)) return 0;
+		if (Current == 1 && Speed >= Line * (1.f - TierHysteresis)) return 1;
+		return Speed < Line ? 0 : 1;
+	}
+
+	/** Free, he plays his straight-ahead clip (Saud's gaits; anyone else's
+	    Run_Fwd / Walk_Fwd) while his heading is within this of his drawn
+	    facing, and the strafe of the angle past it; the straight-ahead clip
+	    showing is kept to AheadHoldDeg further. */
+	constexpr float AheadDeg = 30.f;
+	constexpr float AheadHoldDeg = 5.f;
+
+	/** Whether a free man's heading is "straight ahead" of his drawn body. */
+	inline bool FreeAhead(const FVector& Facing, const FVector& Heading, EClip Current)
+	{
+		const float Off = FMath::Abs(SaudSteer::ErrorDeg(Facing, Heading));
+		const bool bShowing = IsGait(Current) || Current == EClip::WalkFwd || Current == EClip::RunFwd;
+		return Off <= AheadDeg + (bShowing ? AheadHoldDeg : 0.f);
+	}
+
+	/** The turn clip's own clock, on the motion component: started when the
+	    fighter's turn serial moves with a turn on (GetLocoTurn,
+	    GetLocoTurnSerial), held for SaudSteer::TurnSeconds -- the clip plays
+	    to its end -- unless Stop() (an attack, a hit, a fall or a dash took
+	    over). */
+	struct FTurnHold
+	{
+		SaudSteer::ETurn Turn = SaudSteer::ETurn::None;
+		float Left = 0.f;
+		int Serial = 0;
+		bool bSeen = false;
+
+		/** One frame; true when a turn started this frame (its clip plays
+		    from its first frame, even after the same turn). */
+		bool Step(SaudSteer::ETurn FighterTurn, int FighterSerial, float Dt)
+		{
+			if (!bSeen || FighterSerial != Serial)
+			{
+				bSeen = true;
+				Serial = FighterSerial;
+				if (FighterTurn != SaudSteer::ETurn::None)
+				{
+					Turn = FighterTurn;
+					Left = SaudSteer::TurnSeconds(Turn);
+					return true;
+				}
+			}
+			if (Turn != SaudSteer::ETurn::None)
+			{
+				Left -= FMath::Max(0.f, Dt);
+				if (Left <= 1e-4f) Stop();
+			}
+			return false;
+		}
+		void Stop() { Turn = SaudSteer::ETurn::None; Left = 0.f; }
+	};
+
 	inline EClip Pick(const FMotionInput& In)
 	{
 		switch (In.State)
@@ -432,17 +673,28 @@ namespace SaudFeel
 		}
 		default: break;
 		}
+		// a turn the free steer started carries his body round: it plays to
+		// its end, and only the four above take over from it
+		if (In.Turn != SaudSteer::ETurn::None) return TurnClip(In.Turn);
 		if (In.GettingUp > 0.f) return EClip::GetUp;
 		// the win, standing: moving or guarding again ends it
 		if (In.Victory > 0.f && !In.bBlocking && In.State != SBlock && In.Speed < WalkThreshold) return EClip::Victory;
 		if (In.bBlocking || In.State == SBlock) return EClip::Block;
 		if (In.Speed >= WalkThreshold)
 		{
-			// free: a man walking, at his pace, the way he faces (he turns to
-			// where he goes: ASaudCharacter faces his heading)
-			if (In.bFree) return PickGait(In.Speed, In.Current);
-			const int Q = Quadrant(In.Facing, In.Heading);
-			return Q == 0 ? EClip::WalkFwd : Q == 1 ? EClip::WalkBack : Q == 2 ? EClip::WalkLeft : EClip::WalkRight;
+			const int Tier = PickTier(In.Speed, In.RunSpeed, TierOf(In.Current));
+			const bool bAhead = FreeAhead(In.Facing, In.Heading, In.Current);
+			if (In.bGaits && bAhead)
+			{
+				// free: a man walking, at his pace, the way he faces (he turns to
+				// where he goes at a rate: SaudSteer::StepFree)
+				if (In.bFree) return PickGait(In.Speed, In.Current);
+			}
+			if (In.bFree && bAhead) return Tier ? EClip::RunFwd : EClip::WalkFwd;
+			// fighting (or free but going off his drawn facing): the strafe of
+			// the heading's octant against the body as drawn, walk or run
+			const int Dir = SaudSteer::Octant(In.Facing, In.Heading, DirOf(In.Current));
+			return Tier ? RunClip(Dir) : WalkClip(Dir);
 		}
 		return EClip::Guard;
 	}
@@ -450,7 +702,7 @@ namespace SaudFeel
 	// ----------------------------------------------------- how a clip gives way
 
 	/** What a clip is to the cut into or out of it. */
-	enum class EKind : unsigned char { Stand, Step, Dash, Guarded, Strike, Reel, Fall, Rise, Win };
+	enum class EKind : unsigned char { Stand, Step, Dash, Guarded, Strike, Reel, Fall, Rise, Win, Turn };
 
 	inline EKind KindOf(EClip C)
 	{
@@ -468,7 +720,8 @@ namespace SaudFeel
 		case EClip::Down: case EClip::DownSide: case EClip::DownFold: case EClip::Death: return EKind::Fall;
 		case EClip::GetUp:   return EKind::Rise;
 		case EClip::Victory: return EKind::Win;
-		default:             return EKind::Stand;
+		case EClip::TurnL90: case EClip::TurnR90: case EClip::Turn180: case EClip::Pivot180: return EKind::Turn;
+		default:             return TierOf(C) >= 0 ? EKind::Step : EKind::Stand;
 		}
 	}
 
@@ -489,6 +742,7 @@ namespace SaudFeel
 	constexpr float CutIntoRise = 0.10f;     // GetUp begins on Down's last frame; under a quarter of its 0.60 s
 	constexpr float CutStep = 0.15f;         // walk to walk: a quarter of the 0.57 s stride, in step
 	constexpr float CutSettle = 0.20f;       // anything unhurried: into the guard or a walk, the block lowered, the win
+	constexpr float CutIntoTurn = 0.06f;     // a turn's first frame is the body turned back where it stood: in at once
 
 	/** The cut from one clip to the next. What is coming decides: a blow,
 	    a reel, a fall, a dash, a block or a rise cut in short; anything
@@ -505,10 +759,12 @@ namespace SaudFeel
 		case EKind::Fall: C.Seconds = CutIntoFall; return C;
 		case EKind::Dash: C.Seconds = CutIntoDash; return C;
 		case EKind::Rise: C.Seconds = CutIntoRise; return C;
+		case EKind::Turn: C.Seconds = CutIntoTurn; return C;
 		case EKind::Guarded: C.Seconds = CutIntoBlock; C.bMatchPhase = A == EKind::Stand && !bRestart; return C;
 		default: break;
 		}
-		C.Seconds = A == EKind::Step && B == EKind::Step ? CutStep : CutSettle;
+		// a pivot pushes off into Run_Fwd's first frame: in as a step
+		C.Seconds = (A == EKind::Step || From == EClip::Pivot180) && B == EKind::Step ? CutStep : CutSettle;
 		C.bMatchPhase = !bRestart && ((A == EKind::Step && B == EKind::Step) || (A == EKind::Guarded && B == EKind::Stand));
 		return C;
 	}

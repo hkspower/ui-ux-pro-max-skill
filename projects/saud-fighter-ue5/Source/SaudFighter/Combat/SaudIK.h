@@ -388,16 +388,54 @@ namespace SaudIK
 	constexpr float FeetOnSeconds = 0.20f;
 	constexpr float FeetOffSeconds = 0.12f;
 	/** A rise or fall of the capsule this much more than the ground it
-	    covered in one frame is a step it took (CharacterMovement steps a
-	    kerb in one frame): no walkable slope rises more than it runs. */
+	    covered in one frame explains is a step it took (CharacterMovement
+	    steps a kerb in one frame). */
 	constexpr float StepAbsorbSlack = 1.f;
+	/** The steepest walkable slope: CharacterMovement's WalkableFloorAngle
+	    (44.765 degrees, its default; tan 0.992). No slope rises faster per
+	    run than this, so with nothing known of the ground a rise past it is
+	    a step. */
+	constexpr float SlopeLimitDegrees = 44.765f;
+	/** With the ground's own grade known (the feet's traces), a rise that
+	    grade does not explain by more than this share of the run, plus
+	    StepAbsorbSlack, is a step: a 5 cm kerb is absorbed at 341 cm/s at
+	    30 Hz (11.4 cm of run a frame), which the slope limit alone would
+	    take for a slope (2026-10-04). */
+	constexpr float StepGradeSlack = 0.15f;
 
-	/** Whether the capsule's move this frame was a step up or down. */
-	inline bool SteppedCapsule(const FVector& Moved)
+	/** Whether the capsule's move this frame was a step up or down, told
+	    from a slope by its rise over its run: against the ground's own
+	    Grade (rise per run along the move, from the feet's traces) when it
+	    is known, held to the slope limit; against the slope limit when not. */
+	inline bool SteppedCapsule(const FVector& Moved, bool bGradeKnown = false, float Grade = 0.f)
 	{
 		const float Rise = Moved.Z;
 		const float Run = FVector(Moved.X, Moved.Y, 0.f).Size();
-		return FMath::Abs(Rise) > Run + StepAbsorbSlack;
+		const float Limit = FMath::Tan(FMath::DegreesToRadians(SlopeLimitDegrees));
+		if (!bGradeKnown) return FMath::Abs(Rise) > Run * Limit + StepAbsorbSlack;
+		const float G = FMath::Clamp(Grade, -Limit, Limit);
+		return FMath::Abs(Rise - Run * G) > StepAbsorbSlack + StepGradeSlack * Run;
+	}
+
+	/** The pelvis drops to the lower foot faster the faster he goes: at
+	    PelvisSettleRate standing, twice it at this speed, and so on, so a
+	    run downhill keeps its legs bent rather than hanging the hips over a
+	    foot already gone down the slope. Rising back is never hurried. */
+	constexpr float PelvisDropDoubleSpeed = 150.f;
+
+	inline float PelvisRate(float Current, float Target, float Speed)
+	{
+		return Target < Current ? PelvisSettleRate * (1.f + FMath::Max(0.f, Speed) / PelvisDropDoubleSpeed) : PelvisSettleRate;
+	}
+
+	/** The part of a change of velocity along the way he goes: a start or a
+	    stop. What is left, square to it, is a curve's -- the lean's
+	    (FLean), not the hips' to throw outward. */
+	inline FVector AlongPath(const FVector& Velocity, const FVector& Last)
+	{
+		const FVector V(Velocity.X, Velocity.Y, 0.f), L(Last.X, Last.Y, 0.f);
+		const FVector Dir = V.Size() > 1.f ? V.GetSafeNormal() : (L.Size() > 1.f ? L.GetSafeNormal() : FVector::ZeroVector);
+		return Dir * FVector::DotProduct(V - L, Dir);
 	}
 	/** The hips carry the body's own changes of speed: they lag a start and
 	    run on past a stop by this many seconds of the change (a 0-to-341
@@ -489,7 +527,8 @@ namespace SaudIK
 	    clip does (see HoldsFeet); bSettle: he stands, and a foot left off
 	    its spot may step back under the clip; Size: his leg over Saud's. */
 	inline void StepHolds(FFootHold (&H)[2], const FBasis& Mesh, const FVector (&Raw)[2], const float (&Lift)[2],
-	                      const float (&Measured)[2], const bool (&bAllowed)[2], bool bHold, bool bSettle, float Size, float Dt)
+	                      const float (&Measured)[2], const bool (&bAllowed)[2], bool bHold, bool bSettle, float Size, float Dt,
+	                      bool bStopping = false)
 	{
 		for (int S = 0; S < 2; ++S)
 		{
@@ -528,8 +567,11 @@ namespace SaudIK
 		{
 			FFootHold& F = H[S];
 			if (!F.bHeld) continue;
+			// a stop (a walk crossfading to his guard): the foot standing holds
+			// until the last swing has landed, though the walk fading out lifts it
+			const bool bLastStance = bStopping && !H[1 - S].bHeld;
 			if (!bAllowed[S]) LetGo(F, false, Mesh, Raw[S]);
-			else if (!F.bDown) LetGo(F, false, Mesh, Raw[S]);
+			else if (!F.bDown && !bLastStance) LetGo(F, false, Mesh, Raw[S]);
 			else if (!bHold) LetGo(F, false, Mesh, Raw[S]);
 		}
 		for (int S = 0; S < 2; ++S)
@@ -692,6 +734,7 @@ namespace SaudIK
 		bool bSettle = false;       // standing, not striking: a foot left off its spot steps back
 		bool bTeleported = false;   // Teleported: nothing carries over but the feet's share
 		bool bBlending = false;     // a crossfade runs: the stride meter waits
+		bool bStopping = false;     // a walk crossfading to a stand (Stopping): the last swing lands first
 		FVector Velocity = FVector::ZeroVector;   // the capsule's, world, flat
 		FFootIn Foot[2];
 		int ClipSerial = 0;
@@ -786,6 +829,37 @@ namespace SaudIK
 		return P;
 	}
 
+	/** The ground's grade along the capsule's move, rise per run: the mean
+	    of the walkable normals the feet's traces found (the mesh's own
+	    space, its Z up), false when none. A kerb's top and foot are level,
+	    so its grade is none and the capsule's rise is a step; a ramp's is
+	    its own, and the capsule climbing it is not. */
+	inline bool GroundGrade(const FFeetIn& In, const FVector& MovedWorld, float& OutGrade)
+	{
+		OutGrade = 0.f;
+		const FVector Flat(MovedWorld.X, MovedWorld.Y, 0.f);
+		if (Flat.Size() < 1e-3f) return false;
+		FVector D = DirToMesh(In.Mesh, Flat.GetSafeNormal());
+		D.Z = 0.f;
+		D = D.GetSafeNormal();
+		float Sum = 0.f;
+		int N = 0;
+		for (int S = 0; S < 2; ++S)
+		{
+			const FGroundPoint* Points[2] = { &In.Foot[S].HeelGround, &In.Foot[S].BallGround };
+			for (const FGroundPoint* G : Points)
+			{
+				const FVector Nm = G->Normal.GetSafeNormal();
+				if (!G->bHit || Nm.Z < WalkableZ) continue;
+				Sum += static_cast<float>(-(Nm.X * D.X + Nm.Y * D.Y) / Nm.Z);
+				++N;
+			}
+		}
+		if (N == 0) return false;
+		OutGrade = Sum / N;
+		return true;
+	}
+
 	/** One frame of the feet: holds, ground, hips. Mesh space out. */
 	inline FFeetPlan StepFeet(FFeetState& St, const FFeetIn& In, float Dt)
 	{
@@ -811,7 +885,7 @@ namespace SaudIK
 			Lift[S] = In.Foot[S].Ball.Z - In.Foot[S].BallRest;
 			bAllowed[S] = In.bWanted && !In.Foot[S].bStrike;
 		}
-		StepHolds(St.Hold, In.Mesh, Raw, Lift, In.Down, bAllowed, In.bHold, In.bSettle, Size, Dt);
+		StepHolds(St.Hold, In.Mesh, Raw, Lift, In.Down, bAllowed, In.bHold, In.bSettle, Size, Dt, In.bStopping);
 		if (!In.bBlending) MeasureStride(St.Stride, In.ClipSerial, In.ClipTime, Raw, Lift);
 		const bool bKnown = St.bKnown;
 
@@ -819,7 +893,9 @@ namespace SaudIK
 		// drawn where it was and settles after, as the feet do.
 		{
 			const FVector Moved = In.Mesh.Origin - St.LastOrigin;
-			if (bKnown && In.bWanted && SteppedCapsule(Moved))
+			float Grade = 0.f;
+			const bool bGrade = GroundGrade(In, Moved, Grade);
+			if (bKnown && In.bWanted && SteppedCapsule(Moved, bGrade, Grade))
 			{
 				const float Rise = Moved.Z;
 				const float Taken = Rise / Scale;
@@ -861,10 +937,12 @@ namespace SaudIK
 			O.ToeShare = A * GroundShare(Lift[S] - Floor, Size);
 			O.Share = A;
 		}
-		St.PelvisZ = Settle(St.PelvisZ, FMath::Max(Drop, -MaxPelvisDrop * Size), PelvisSettleRate, Dt);
+		const float PelvisTo = FMath::Max(Drop, -MaxPelvisDrop * Size);
+		St.PelvisZ = Settle(St.PelvisZ, PelvisTo, PelvisRate(St.PelvisZ, PelvisTo, FVector(In.Velocity.X, In.Velocity.Y, 0.f).Size()), Dt);
 
-		// The hips carry the body's own changes of speed, on the ground.
-		const FVector Change = DirToMesh(In.Mesh, In.Velocity - St.LastVelocity) / Scale;
+		// The hips carry the body's own starts and stops, on the ground; a
+		// curve's sideways change is the lean's (FLean), not an outward throw.
+		const FVector Change = DirToMesh(In.Mesh, AlongPath(In.Velocity, St.LastVelocity)) / Scale;
 		St.LastVelocity = In.Velocity;
 		const float Kick[2] = { static_cast<float>(Change.X), static_cast<float>(Change.Y) };
 		for (int K = 0; K < 2; ++K)
@@ -1515,6 +1593,11 @@ namespace SaudIK
 		float Pitch = 0.f;     // the face's pitch, + up
 		float Side = 1.f;      // the shoulder a man past the limit is held over
 		FRamp Weight;          // how much of the chest's and face's turn shows: 0 the clip's own
+		// a turn clip carrying the turn (TurnStep's TurnClip): the lag it found
+		// and how far the clip has come in, never back
+		bool bClip = false;
+		float ClipHips = 0.f;
+		float ClipShare = 0.f;
 	};
 
 	/** One frame. Turned: how far the actor's yaw moved since the last frame.
@@ -1524,8 +1607,15 @@ namespace SaudIK
 	    lets go. The hips go round the short way and drag the chest and face
 	    with them; each then comes on toward its own aim, off the facing, at
 	    its own rate. */
+	/** TurnClip: a turn or a pivot clip (Turn_L90 ... Pivot_180) is the
+	    newest clip, at this crossfade weight; -1 when none is. Such a clip
+	    carries the turn itself -- its first frame is the body turned back
+	    where it stood -- so the hips' lag must not turn the body a second
+	    time: as the clip comes in the lag goes out with it (the drawn body
+	    stays where it stood through the cut), and it is held at zero for as
+	    long as the clip is the newest. (2026-10-04) */
 	inline void TurnStep(FTurn& S, float Turned, float RawYaw, float LookPitch,
-	                     bool bMayLook, bool bLying, bool bStriking, bool bTeleported, float Dt)
+	                     bool bMayLook, bool bLying, bool bStriking, bool bTeleported, float Dt, float TurnClip = -1.f)
 	{
 		if (bTeleported)
 		{
@@ -1542,9 +1632,18 @@ namespace SaudIK
 			S.Hips = H;
 		}
 		const float Q = bStriking ? StrikeQuicken : 1.f;
+		if (TurnClip >= 0.f && !bTeleported)
+		{
+			if (!S.bClip) { S.bClip = true; S.ClipHips = S.Hips; S.ClipShare = 0.f; }
+			else S.ClipHips -= WrapDegrees(Turned);
+			S.ClipShare = FMath::Max(S.ClipShare, FMath::Min(TurnClip, 1.f));
+		}
+		else S.bClip = false;
 		const float Hips = S.Hips;
+		// a turn clip: the lag out as the clip comes in, then held at none
+		if (S.bClip) S.Hips = S.ClipHips * (1.f - S.ClipShare);
 		// on the floor the body lies where it fell; it comes round as he gets up
-		if (!bLying) S.Hips = SettleCapped(Hips, 0.f, HipsRate * Q, HipsMaxTurn * Q, Dt);
+		else if (!bLying) S.Hips = SettleCapped(Hips, 0.f, HipsRate * Q, HipsMaxTurn * Q, Dt);
 		// reeling, the face is the blow's: no look, but the body still comes round to its facing
 		const float Yaw = bMayLook ? HoldSide(RawYaw, S.Side) : 0.f;
 		const float Pitch = bMayLook ? LookPitch : 0.f;
@@ -1852,5 +1951,155 @@ namespace SaudIK
 		{
 			Out[S] = Known >= 0.5f ? Down[S] / Known : -1.f;
 		}
+	}
+
+	// ------------------------------------------------- 360: lean, traces, stops
+
+	/** The body leans into a turn as a runner does (2026-10-04): the pelvis
+	    and the chain over it tilt toward the turn's centre by
+	    atan(v * yawrate / g) -- the angle at which the ground's push and his
+	    weight make the curve -- no further than LeanWalkMaxDeg at his walk
+	    tier's pace and under, LeanRunMaxDeg at his run, straight between; a
+	    start tips it forward and a stop back, atan(dv/dt / g), to
+	    LeanPitchMaxDeg; all of it eased (LeanOmega, a critically damped
+	    spring: 95 % in 0.47 s), and held in the world's directions, so a
+	    body coming round under it does not swing it -- carried round with
+	    his way as it turns (CarryLean), so a steady curve's lean is whole
+	    and square to it, not trailing the turn. */
+	constexpr float Gravity = 980.f;               // cm/s^2
+	constexpr float LeanWalkMaxDeg = 12.f;
+	constexpr float LeanRunMaxDeg = 20.f;
+	constexpr float LeanPitchMaxDeg = 6.f;
+	constexpr float LeanOmega = 10.f;
+	/** Under this he is standing: no curve is read from a heading that
+	    turns while he barely moves (SaudFeel::WalkThreshold). */
+	constexpr float LeanMinSpeed = 40.f;
+
+	struct FLean
+	{
+		FEase Tilt[2];                         // world X and Y of the tilt, degrees toward that way
+		FVector LastVelocity = FVector::ZeroVector;
+		bool bKnown = false;
+	};
+
+	/** How far he may lean into a curve at a speed: WalkSpeed is his walk
+	    tier's (SaudSteer::WalkShare of his run), RunSpeed his run's. */
+	inline float LeanLimit(float Speed, float WalkSpeed, float RunSpeed)
+	{
+		const float Span = RunSpeed - WalkSpeed;
+		const float T = Span > 1.f ? FMath::Clamp((Speed - WalkSpeed) / Span, 0.f, 1.f) : 1.f;
+		return LeanWalkMaxDeg + (LeanRunMaxDeg - LeanWalkMaxDeg) * T;
+	}
+
+	/** The lean he is asked for this frame, world, degrees: toward the
+	    curve's centre by its turn, along his way by his change of speed. */
+	inline FVector LeanWanted(const FVector& Velocity, const FVector& Last, float WalkSpeed, float RunSpeed, float Dt)
+	{
+		const FVector V(Velocity.X, Velocity.Y, 0.f), L(Last.X, Last.Y, 0.f);
+		const float Sp = static_cast<float>(V.Size()), Sl = static_cast<float>(L.Size());
+		FVector Out = FVector::ZeroVector;
+		if (Dt <= 1e-5f) return Out;
+		if (Sp > LeanMinSpeed && Sl > LeanMinSpeed)
+		{
+			const FVector A = L / Sl, B = V / Sp;
+			const float Turn = FMath::Atan2(static_cast<float>(A.X * B.Y - A.Y * B.X), static_cast<float>(A.X * B.X + A.Y * B.Y));
+			const float YawRate = Turn / Dt;                                   // rad/s, + toward his left of the way
+			const float Roll = FMath::Min(FMath::RadiansToDegrees(FMath::Atan(Sp * FMath::Abs(YawRate) / Gravity)),
+			                              LeanLimit(Sp, WalkSpeed, RunSpeed));
+			const FVector Centre = FVector::CrossProduct(FVector::UpVector, B) * (YawRate >= 0.f ? 1.0 : -1.0);
+			Out += Centre * Roll;
+		}
+		const FVector Way = Sp > 1.f ? V / Sp : (Sl > 1.f ? L / Sl : FVector::ZeroVector);
+		const float Pitch = FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan((Sp - Sl) / Dt / Gravity)), -LeanPitchMaxDeg, LeanPitchMaxDeg);
+		Out += Way * Pitch;
+		return Out;
+	}
+
+	/** The eased lean carried round by the turn of his way this frame
+	    (radians, + toward his left), its speed too: a curve's lean turns with
+	    the curve. Under LeanMinSpeed his way has no turn to carry. */
+	inline void CarryLean(FLean& S, const FVector& Velocity)
+	{
+		const FVector V(Velocity.X, Velocity.Y, 0.f), L(S.LastVelocity.X, S.LastVelocity.Y, 0.f);
+		if (!S.bKnown || V.Size() <= LeanMinSpeed || L.Size() <= LeanMinSpeed) return;
+		const float Turn = FMath::Atan2(static_cast<float>(L.X * V.Y - L.Y * V.X), static_cast<float>(L.X * V.X + L.Y * V.Y));
+		const float C = FMath::Cos(Turn), Sn = FMath::Sin(Turn);
+		const float X = S.Tilt[0].X, Y = S.Tilt[1].X, VX = S.Tilt[0].V, VY = S.Tilt[1].V;
+		S.Tilt[0].X = X * C - Y * Sn; S.Tilt[1].X = X * Sn + Y * C;
+		S.Tilt[0].V = VX * C - VY * Sn; S.Tilt[1].V = VX * Sn + VY * C;
+	}
+
+	/** One frame of the lean; bOn: on the ground and standing up (the
+	    feet's), else it eases out. A Dt of 0 (the freeze) holds it. */
+	inline void StepLean(FLean& S, const FVector& Velocity, float WalkSpeed, float RunSpeed, bool bOn, float Dt, bool bTeleported = false)
+	{
+		if (bTeleported) { const FLean Keep = S; S = FLean(); S.Tilt[0] = Keep.Tilt[0]; S.Tilt[1] = Keep.Tilt[1]; }
+		if (Dt <= 0.f) return;
+		CarryLean(S, Velocity);
+		const FVector Want = bOn && S.bKnown ? LeanWanted(Velocity, S.LastVelocity, WalkSpeed, RunSpeed, Dt) : FVector::ZeroVector;
+		S.Tilt[0].To(static_cast<float>(Want.X), LeanOmega, Dt);
+		S.Tilt[1].To(static_cast<float>(Want.Y), LeanOmega, Dt);
+		S.LastVelocity = FVector(Velocity.X, Velocity.Y, 0.f);
+		S.bKnown = true;
+	}
+
+	/** The lean as a turn of the pelvis: about Axis (world, level: up
+	    crossed with the way he leans) by Degrees, which tips his up toward
+	    the lean, the way FQuat(Axis, Radians) turns it. */
+	inline void LeanAxisAngle(const FLean& S, FVector& OutAxis, float& OutDegrees)
+	{
+		const FVector T(S.Tilt[0].X, S.Tilt[1].X, 0.f);
+		OutDegrees = static_cast<float>(T.Size());
+		OutAxis = OutDegrees > 1e-4f ? FVector::CrossProduct(FVector::UpVector, T / OutDegrees) : FVector(1.f, 0.f, 0.f);
+	}
+
+	/** Where to trace for a foot this frame: where it was drawn last, plus
+	    its own velocity times this frame's Dt -- where it will be, not where
+	    it was. A planted foot stands still and is traced where it stands; a
+	    swing at a run is traced a frame ahead (at 341 cm/s and 30 Hz the
+	    swing foot travels 20 cm and more in a frame). Its speed is held to
+	    TraceLeadMaxSpeed, so one bad frame never sends a trace far away. */
+	constexpr float TraceLeadMaxSpeed = 2000.f;
+
+	struct FFootTrack
+	{
+		FVector Last = FVector::ZeroVector;
+		FVector Velocity = FVector::ZeroVector;
+		bool bValid = false;
+		/** Where it was drawn this frame, Dt after the last. */
+		void Push(const FVector& At, float Dt)
+		{
+			if (bValid && Dt > 1e-4f)
+			{
+				FVector V = (At - Last) / Dt;
+				V.Z = 0.f;
+				const float Sp = static_cast<float>(V.Size());
+				Velocity = Sp > TraceLeadMaxSpeed ? V * (TraceLeadMaxSpeed / Sp) : V;
+			}
+			else if (!bValid)
+			{
+				Velocity = FVector::ZeroVector;
+			}
+			Last = At;
+			bValid = true;
+		}
+		FVector Ahead(float Dt) const { return Last + Velocity * FMath::Max(0.f, Dt); }
+	};
+
+	/** A stop: the newest clip stands (measured, striding under
+	    StrideMinSpeed) over a walk still fading out (measured, striding
+	    over it). Unmeasured clips cannot tell, and are not stops. */
+	inline bool Stopping(const FCrossfade& Mix, const SaudPlants::FClip* const* Plants, int NumPlants)
+	{
+		if (Mix.Num < 2) return false;
+		auto PlantsOf = [&](int Clip) -> const SaudPlants::FClip* { return Clip >= 0 && Clip < NumPlants ? Plants[Clip] : nullptr; };
+		const SaudPlants::FClip* New = PlantsOf(Mix.Layers[0].Clip);
+		if (!New || New->Stride >= StrideMinSpeed) return false;
+		for (int I = 1; I < Mix.Num; ++I)
+		{
+			const SaudPlants::FClip* P = PlantsOf(Mix.Layers[I].Clip);
+			if (P && Mix.Layers[I].bLoop && P->Stride >= StrideMinSpeed && Mix.Layers[I].Weight > 0.f) return true;
+		}
+		return false;
 	}
 }

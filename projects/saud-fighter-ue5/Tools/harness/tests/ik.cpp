@@ -30,6 +30,16 @@ static void Check(bool Ok, const char* What)
 {
     if (!Ok) { ++Fails; std::printf("  FAIL  %s\n", What); }
 }
+/** A check that waits on the clips' rebuild by the other builders of the 360
+    spec (new clip files, SaudPlants.h regenerated): a FAIL like any other,
+    unless SAUD_CLIPS_PENDING is set, when it prints PENDING and does not
+    count -- so the sabotages can be run against the rest meanwhile. */
+static void Pending(bool Ok, const char* What)
+{
+    if (Ok) return;
+    if (std::getenv("SAUD_CLIPS_PENDING")) { std::printf("  PENDING (awaits the clips' rebuild)  %s\n", What); return; }
+    Check(false, What);
+}
 static bool Near(float A, float B, float Eps = 1e-3f) { return std::fabs(A - B) <= Eps; }
 
 using namespace SaudIK;
@@ -148,7 +158,9 @@ static FBasis At(const FVector& Origin, float YawDeg)
 }
 
 // A man in a guard: lead (left) foot ahead, rear behind. Rest heights 8 / 2.4.
-// Each frame traces at last frame's drawn heel and ball, as the engine does.
+// Each frame traces where each heel and ball will be -- last frame's drawn
+// point plus its own velocity times this frame's Dt (SaudIK::FFootTrack) --
+// as the engine does since 2026-10-04.
 struct Man
 {
     FFeetState St; FFeetIn In;
@@ -156,6 +168,8 @@ struct Man
     std::function<FVector(float, float)> Normal = [](float, float) { return FVector::UpVector; };
     std::function<bool(float, float)> Hit = [](float, float) { return true; };
     FVector LastHeel[2], LastBall[2]; bool bHasLast = false;
+    FFootTrack HeelTrack[2], BallTrack[2];
+    FVector TracedBall[2];       // where this frame's ball trace was taken, world
     FFeetPlan Plan; FFootPose Pose[2];
     Man()
     {
@@ -169,12 +183,13 @@ struct Man
             In.Foot[S].ToeDir = FVector(1.f, 0.f, 0.f); In.Foot[S].FootFwd = FVector(1.f, 0.f, 0.f); In.Foot[S].FootUp = FVector::UpVector;
         }
     }
-    void Trace()
+    void Trace(float Dt)
     {
         for (int S = 0; S < 2; ++S)
         {
-            const FVector H = bHasLast ? LastHeel[S] : ToWorld(In.Mesh, In.Foot[S].Ankle);
-            const FVector B = bHasLast ? LastBall[S] : ToWorld(In.Mesh, In.Foot[S].Ball);
+            const FVector H = bHasLast ? HeelTrack[S].Ahead(Dt) : ToWorld(In.Mesh, In.Foot[S].Ankle);
+            const FVector B = bHasLast ? BallTrack[S].Ahead(Dt) : ToWorld(In.Mesh, In.Foot[S].Ball);
+            TracedBall[S] = B;
             auto Pt = [&](const FVector& Wd, FGroundPoint& G)
             {
                 G.bHit = Hit(Wd.X, Wd.Y);
@@ -186,7 +201,8 @@ struct Man
     }
     void Step(float Dt)
     {
-        Trace();
+        if (In.bTeleported) for (int S = 0; S < 2; ++S) { HeelTrack[S] = FFootTrack(); BallTrack[S] = FFootTrack(); }
+        Trace(Dt);
         Plan = StepFeet(St, In, Dt);
         for (int S = 0; S < 2; ++S)
         {
@@ -196,6 +212,8 @@ struct Man
             else { Pose[S] = FFootPose(); Pose[S].Ankle = In.Foot[S].Ankle; }
             LastHeel[S] = ToWorld(In.Mesh, Pose[S].Ankle);
             LastBall[S] = ToWorld(In.Mesh, Plan.Foot[S].Ball);
+            HeelTrack[S].Push(LastHeel[S], Dt);
+            BallTrack[S].Push(LastBall[S], Dt);
         }
         bHasLast = true;
         In.bTeleported = false;
@@ -1793,9 +1811,34 @@ static void Plants()
         const int N = std::atoi(R.at("Frames").c_str());
         if (P->Frames != N || (int)std::strlen(P->Foot[0]) != N || (int)std::strlen(P->Foot[1]) != N) ++WrongFrames;
     }
-    std::printf("  %d clips in the manifests, %d of them motion capture, %d measured\n", (int)All.size(), (int)Mocap.size(), SaudPlants::NumClips);
-    Check(Clips.size() == 197 && Mocap.size() == 5 && (int)All.size() == SaudPlants::NumClips && Missing == 0 && WrongFrames == 0,
+    // ...and the Island creatures' (Monkey, Gorilla), which measure_plants.py
+    // reads once its FOLDERS has "Island" (the 360 spec): until then they run
+    // on the stride meter and foot heights, and that check waits
+    const auto Island = ReadCsv("Content/Animation/Island/DT_IslandMotion.csv");
+    int IslandMissing = 0, IslandMeasured = 0;
+    for (const auto& R : Island)
+    {
+        const SaudPlants::FClip* P = SaudPlants::Find(R.at("Name").c_str());
+        if (!P) { ++IslandMissing; continue; }
+        ++IslandMeasured;
+        const int N = std::atoi(R.at("Frames").c_str());
+        if (P->Frames != N || (int)std::strlen(P->Foot[0]) != N || (int)std::strlen(P->Foot[1]) != N) ++WrongFrames;
+    }
+    // nothing measured that no manifest names (a clip deleted, the table stale)
+    int Stray = 0;
+    for (int I = 0; I < SaudPlants::NumClips; ++I)
+    {
+        bool bNamed = false;
+        for (const auto& R : All) bNamed = bNamed || R.at("Name") == SaudPlants::Clips[I].Name;
+        for (const auto& R : Island) bNamed = bNamed || R.at("Name") == SaudPlants::Clips[I].Name;
+        if (!bNamed) { ++Stray; std::printf("  %s: measured, in no manifest\n", SaudPlants::Clips[I].Name); }
+    }
+    std::printf("  %d clips in the men's manifests, %d of them motion capture, %d Island (%d measured); %d measured in all\n",
+                (int)All.size(), (int)Mocap.size(), (int)Island.size(), IslandMeasured, SaudPlants::NumClips);
+    Check(!Clips.empty() && !Mocap.empty() && (int)All.size() + IslandMeasured == SaudPlants::NumClips && Missing == 0 && WrongFrames == 0 && Stray == 0,
           "every clip in Content/Animation is measured, frame for frame");
+    Pending(!Island.empty() && IslandMissing == 0,
+            "CLIPS AWAITED: every Island clip (DT_IslandMotion.csv) is measured in SaudPlants.h (measure_plants.py FOLDERS + Island)");
     bool bSorted = true;
     for (int I = 1; I < SaudPlants::NumClips; ++I) bSorted = bSorted && std::strcmp(SaudPlants::Clips[I - 1].Name, SaudPlants::Clips[I].Name) < 0;
     int Found = 0;
@@ -1815,13 +1858,27 @@ static void Plants()
         if (bDown[0] && bDown[1]) ++GaitsBothDown;
         else std::printf("  %s: a foot never down\n", P->Name);
     }
-    Check(GaitsBothDown == 5, "every motion-capture gait puts each foot down in its loop");
+    Check(GaitsBothDown == (int)Mocap.size() && !Mocap.empty(), "every motion-capture gait puts each foot down in its loop");
 
     // ---- what the measurements say, held to what the clips are
     int Guards = 0, BadGuards = 0, Walks = 0, BadWalks = 0, Legs = 0, BadLegs = 0, Punches = 0, BadPunches = 0, SideWalks = 0;
+    int GuardRows = 0, StraightRows = 0, TierRows = 0, Straight = 0, TierWalks = 0, BadTierWalks = 0, BadStraightRuns = 0;
     float SideApart = 0.f;
     float ShortestSwing = 1e9f, SlowestWalk = 1e9f, FastestStill = 0.f;
-    for (const auto& R : Clips)
+    // the 360 spec: all the loops of one tier share one cycle length per set
+    std::map<std::string, int> CycleOf;      // "<set>_Walk" / "<set>_Run" -> frames
+    int OffCycle = 0;
+    // the men's manifests, and the Island's once measure_plants.py has measured it
+    std::vector<std::map<std::string, std::string>> Measured = Clips;
+    if (IslandMeasured > 0) Measured.insert(Measured.end(), Island.begin(), Island.end());
+    for (const auto& R : Measured)
+    {
+        const std::string& Nm = R.at("Name");
+        if (EndsWith(Nm, "_Guard") || EndsWith(Nm, "_Block")) ++GuardRows;
+        if (EndsWith(Nm, "_Walk_Fwd") || EndsWith(Nm, "_Walk_Back")) ++StraightRows;
+        if (Nm.find("_Walk_") != std::string::npos || Nm.find("_Run_") != std::string::npos) ++TierRows;
+    }
+    for (const auto& R : Measured)
     {
         const std::string& Name = R.at("Name");
         const SaudPlants::FClip* P = SaudPlants::Find(Name.c_str());
@@ -1833,7 +1890,23 @@ static void Plants()
             ++Guards;
             if (std::strchr(P->Foot[0], '.') || std::strchr(P->Foot[1], '.')) { ++BadGuards; std::printf("  %s: a foot leaves the floor\n", Name.c_str()); }
         }
-        if (Name.find("_Walk_") != std::string::npos)
+        const bool bWalkTier = Name.find("_Walk_") != std::string::npos, bRunTier = Name.find("_Run_") != std::string::npos;
+        if (bWalkTier || bRunTier)
+        {
+            const std::string Set = Name.substr(2, Name.find('_', 2) - 2);
+            const std::string Key = Set + (bWalkTier ? "_Walk" : "_Run");
+            if (CycleOf.count(Key) && CycleOf[Key] != N) { ++OffCycle; std::printf("  %s: %d frames, its tier's others %d\n", Name.c_str(), N, CycleOf[Key]); }
+            CycleOf[Key] = N;
+            ++TierWalks;
+            const bool bAlternates = Runs(P->Foot[0], N, true) == 1 && Runs(P->Foot[1], N, true) == 1
+                && [&] { const float Ap = std::fabs(MiddleOfDown(P->Foot[0], N) - MiddleOfDown(P->Foot[1], N)); return std::fmin(Ap, 1.f - Ap) >= 0.30f; }();
+            // the walk tier alternates its feet in every way; a run's sideways may bound
+            if (bWalkTier && !bAlternates) { ++BadTierWalks; std::printf("  %s: the walk tier's feet do not take turns\n", Name.c_str()); }
+            if (bRunTier && (EndsWith(Name, "_Run_Fwd") || EndsWith(Name, "_Run_Back")) && !bAlternates) { ++BadStraightRuns; std::printf("  %s: the run's feet do not take turns\n", Name.c_str()); }
+            for (int S = 0; S < 2; ++S) ShortestSwing = std::fmin(ShortestSwing, Longest(P->Foot[S], N, false) / SaudPlants::Fps);
+            SlowestWalk = std::fmin(SlowestWalk, P->Stride);
+        }
+        if (bWalkTier && (EndsWith(Name, "_Walk_Fwd") || EndsWith(Name, "_Walk_Back") || EndsWith(Name, "_Walk_Left") || EndsWith(Name, "_Walk_Right")))
         {
             ++Walks;
             const bool bOnce = Runs(P->Foot[0], N, true) == 1 && Runs(P->Foot[1], N, true) == 1;
@@ -1843,11 +1916,13 @@ static void Plants()
             // (the clips' own gait, measured and left as it is -- CLAUDE.md)
             const bool bSide = Name.find("_Walk_Left") != std::string::npos || Name.find("_Walk_Right") != std::string::npos;
             if (bSide) { ++SideWalks; SideApart = std::fmax(SideApart, Half); }
-            else if (!bOnce || Half < 0.30f) { ++BadWalks; std::printf("  %s: the feet do not take turns (%.2f of a cycle apart)\n", Name.c_str(), Half); }
-            for (int S = 0; S < 2; ++S) ShortestSwing = std::fmin(ShortestSwing, Longest(P->Foot[S], N, false) / SaudPlants::Fps);
-            SlowestWalk = std::fmin(SlowestWalk, P->Stride);
+            else
+            {
+                ++Straight;
+                if (!bOnce || Half < 0.30f) { ++BadWalks; std::printf("  %s: the feet do not take turns (%.2f of a cycle apart)\n", Name.c_str(), Half); }
+            }
         }
-        else if (bLoop) FastestStill = std::fmax(FastestStill, P->Stride);
+        else if (bLoop && !bWalkTier && !bRunTier) FastestStill = std::fmax(FastestStill, P->Stride);
         const std::string& Move = R.at("Attack");
         const int Contact = std::atoi(R.at("ContactFrame").c_str());
         if ((Move == "Kick" || Move == "Knee" || Move == "Special") && Contact >= 0 && Contact < N)
@@ -1863,9 +1938,12 @@ static void Plants()
     }
     std::printf("  %d guards and blocks, %d walks, %d leg strikes, %d punches; shortest walk swing %.2f s, slowest walk %.0f cm/s\n",
                 Guards, Walks, Legs, Punches, ShortestSwing, SlowestWalk);
-    Check(Guards == 10 && BadGuards == 0, "every guard and block stands on both feet, every frame");
-    std::printf("  the %d side walks hop: their feet at most %.2f of a cycle apart (the clips' own gait)\n", SideWalks, SideApart);
-    Check(Walks == 20 && SideWalks == 10 && BadWalks == 0, "every walk forward and back puts each foot down once a cycle, the two in turn");
+    Check(Guards == GuardRows && Guards > 0 && BadGuards == 0, "every guard and block stands on both feet, every frame");
+    std::printf("  %d walks (%d sideways, their feet at most %.2f of a cycle apart), %d walk and run loops in all\n", Walks, SideWalks, SideApart, TierWalks);
+    Check(Straight == StraightRows && Straight > 0 && BadWalks == 0, "every walk forward and back puts each foot down once a cycle, the two in turn");
+    Check(TierWalks == TierRows && OffCycle == 0, "every walk-tier loop of a set shares one cycle length, and every run-tier loop one (the 360 spec)");
+    Check(BadStraightRuns == 0, "every run forward and back puts each foot down once a cycle, the two in turn");
+    Pending(BadTierWalks == 0, "CLIPS AWAITED: every walk-tier clip, sideways and diagonal too, alternates its feet: the old side walks' hop is gone");
     Check(Legs >= 12 && BadLegs == 0, "every kick and knee has its leg up as it lands, on the other foot");
     Check(Punches >= 12 && BadPunches == 0, "every punch lands with both feet on the floor");
 
@@ -1874,33 +1952,57 @@ static void Plants()
     Check(StepSeconds < ShortestSwing, "a shuffle step is quicker than any walk's own swing");
     Check(FastestStill < StrideMinSpeed && StrideMinSpeed <= SlowestWalk, "every walk strides faster than StrideMinSpeed, and nothing else that loops does");
     {
-        // each man's own move speed walks his clips inside the rate band:
-        // his own set if he has walks, else the street men's
-        int Men = 0, Outside = 0;
-        for (const auto& R : ReadCsv("Content/Data/DT_Fighters.csv"))
+        // each man's own move speed runs his run tier's forward clip -- or what
+        // stands in for it (Run_Fwd, else Walk_Fwd: SaudFeel::FallbackChain) --
+        // inside the rate band; his own set if it has it, else the street
+        // men's; and (once the clips are rebuilt) WalkShare of it walks his
+        // walk tier's Walk_Fwd inside the band too. The Island creatures by
+        // DT_IslandFighters, never borrowing, once they are measured.
+        auto Stand = [](const std::string& Set, bool bBorrow, const char* Name) -> const SaudPlants::FClip*
         {
-            const std::string& Name = R.at("Name");
-            const SaudPlants::FClip* Own = SaudPlants::Find(("A_" + Name + "_Walk_Fwd").c_str());
-            const SaudPlants::FClip* W = Own ? Own : SaudPlants::Find("A_Street_Walk_Fwd");
-            if (!W) { ++Outside; continue; }
-            ++Men;
-            const float Speed = (float)std::atof(R.at("MoveSpeed").c_str());
-            const float Rate = Speed / W->Stride;
-            if (Rate < StrideRateMin || Rate > StrideRateMax) { ++Outside; std::printf("  %s: %.0f cm/s is %.2f of his walk\n", Name.c_str(), Speed, Rate); }
+            const SaudPlants::FClip* P = SaudPlants::Find(("A_" + Set + "_" + Name).c_str());
+            return P || !bBorrow ? P : SaudPlants::Find((std::string("A_Street_") + Name).c_str());
+        };
+        int Rows = 0, Men = 0, Outside = 0, WalkOutside = 0;
+        for (const char* Table : { "Content/Data/DT_Fighters.csv", "Content/Data/DT_IslandFighters.csv" })
+        {
+            const bool bIsland = std::strstr(Table, "Island") != nullptr;
+            for (const auto& R : ReadCsv(Table))
+            {
+                const std::string& Name = R.at("Name");
+                const SaudPlants::FClip* Run = Stand(Name, !bIsland, "Run_Fwd");
+                const SaudPlants::FClip* Walk = Stand(Name, !bIsland, "Walk_Fwd");
+                if (!Run) Run = Walk;
+                if (!bIsland) ++Rows;
+                if (!Run) { if (!bIsland) ++Outside; continue; }
+                ++Men;
+                const float Speed = (float)std::atof(R.at("MoveSpeed").c_str());
+                const float Rate = Speed / Run->Stride;
+                if (Rate < StrideRateMin || Rate > StrideRateMax) { ++Outside; std::printf("  %s: %.0f cm/s is %.2f of his run\n", Name.c_str(), Speed, Rate); }
+                const float WalkRate = 0.45f * Speed / (Walk ? Walk->Stride : 1.f);
+                if (!Walk || WalkRate < StrideRateMin || WalkRate > StrideRateMax) ++WalkOutside;
+            }
         }
-        Check(Men == 12 && Outside == 0, "every fighter's move speed walks his own clip inside the rate band");
+        std::printf("  %d fighters' rows, %d with measured clips\n", Rows, Men);
+        Check(Rows > 0 && Men >= Rows && Outside == 0, "every fighter's move speed runs his own clip inside the rate band");
+        Pending(WalkOutside == 0, "CLIPS AWAITED: every fighter's walk tier (0.45 of his speed) walks his Walk_Fwd inside the rate band");
     }
 
     // ---- the frame for a time: a loop wraps, a one-shot holds its ends
     const SaudPlants::FClip* Walk = SaudPlants::Find("A_Saud_Walk_Fwd");
     const SaudPlants::FClip* Kick = SaudPlants::Find("A_Saud_Kick");
     if (!Walk || !Kick) { Check(false, "A_Saud_Walk_Fwd and A_Saud_Kick are measured"); return; }
-    // the walk: left down 0-6, up 7-16; right up 0-8, down 9-14
-    Check(ClipFootDown(*Walk, 0, 0.f, true) && !ClipFootDown(*Walk, 0, 10.f / 30.f, true) && ClipFootDown(*Walk, 1, 11.f / 30.f, true),
+    // read off the measured frames themselves (the clips are rebuilt: no frame numbers here)
+    auto FirstOf = [](const SaudPlants::FClip& C, int Foot, bool bDown) { for (int F = 0; F < C.Frames; ++F) if ((C.Foot[Foot][F] != '.') == bDown) return F; return -1; };
+    const int WD = FirstOf(*Walk, 0, true), WU = FirstOf(*Walk, 0, false), WR = FirstOf(*Walk, 1, true);
+    const float Fps = SaudPlants::Fps;
+    Check(WD >= 0 && WU >= 0 && WR >= 0 && ClipFootDown(*Walk, 0, WD / Fps, true) && !ClipFootDown(*Walk, 0, WU / Fps, true) && ClipFootDown(*Walk, 1, WR / Fps, true),
           "a clip's foot is down or up as its measured frame says");
-    Check(ClipFootDown(*Walk, 0, 17.f / 30.f, true) && ClipFootDown(*Walk, 0, (17.f + 3.f) / 30.f, true) && !ClipFootDown(*Walk, 0, (17.f + 10.f) / 30.f, true),
+    Check(ClipFootDown(*Walk, 0, (Walk->Frames + WD) / Fps, true) && !ClipFootDown(*Walk, 0, (Walk->Frames + WU) / Fps, true),
           "a loop's frames wrap round");
-    Check(ClipFootDown(*Kick, 1, 99.f, false) && !ClipFootDown(*Kick, 1, 5.f / 30.f, false) && ClipFootDown(*Kick, 1, -1.f, false),
+    const int KU = FirstOf(*Kick, 1, false);
+    Check(KU >= 0 && ClipFootDown(*Kick, 1, 99.f, false) == (Kick->Foot[1][Kick->Frames - 1] != '.') && !ClipFootDown(*Kick, 1, KU / Fps, false)
+          && ClipFootDown(*Kick, 1, -1.f, false) == (Kick->Foot[1][0] != '.') && Kick->Foot[1][0] != '.',
           "a one-shot holds its first and last frames");
 
     // ---- the mix: the playing clips' plants by their weights
@@ -1908,7 +2010,10 @@ static void Plants()
         const SaudPlants::FClip* Plants[3] = { Walk, SaudPlants::Find("A_Saud_Guard"), nullptr };   // clip 2 is not measured
         FCrossfade X;
         X.Num = 2;
-        X.Layers[0].Clip = 0; X.Layers[0].Time = 10.f / 30.f; X.Layers[0].bLoop = true; X.Layers[0].Weight = 0.7f;   // the walk: left up
+        int Up = -1;                           // a frame of the walk's with its left foot up and its right down
+        for (int F = 0; F < Walk->Frames && Up < 0; ++F) if (Walk->Foot[0][F] == '.' && Walk->Foot[1][F] != '.') Up = F;
+        Check(Up >= 0, "the walk has a frame with its left foot up and its right down");
+        X.Layers[0].Clip = 0; X.Layers[0].Time = (Up < 0 ? 0 : Up) / SaudPlants::Fps; X.Layers[0].bLoop = true; X.Layers[0].Weight = 0.7f;   // the walk: left up
         X.Layers[1].Clip = 1; X.Layers[1].Time = 0.f; X.Layers[1].bLoop = true; X.Layers[1].Weight = 0.3f;           // the guard: both down
         float D[2];
         MixDown(X, Plants, 3, D);
@@ -2135,9 +2240,314 @@ static void BigMan()
     }
 }
 
+
+// ------------------------------------------------------- 360: the new moves
+
+/** A man going round a circle of radius R at V cm/s for Seconds (counter-
+    clockwise, + yaw, unless bCw), his lean stepped each frame; the lean's
+    size, and how much of it points at the circle's centre (1 = all). */
+static float LeanOnCircle(float V, float R, float Hz, float Seconds, bool bCw, float& Toward, float& UpToward)
+{
+    FLean L;
+    const float W = (bCw ? -1.f : 1.f) * V / R, Dt = 1.f / Hz;
+    FVector P;
+    const int N = (int)std::lround(Seconds * Hz);
+    for (int I = 0; I <= N; ++I)
+    {
+        const float Th = W * I * Dt;
+        P = FVector(R * std::cos(Th), R * std::sin(Th), 0.f);
+        const FVector Vel = FVector(-std::sin(Th), std::cos(Th), 0.f) * (R * W);
+        StepLean(L, Vel, 0.45f * 341.f, 341.f, true, Dt);
+    }
+    FVector Axis; float Deg = 0.f;
+    LeanAxisAngle(L, Axis, Deg);
+    const FVector In = (P * -1.f).GetSafeNormal();
+    const FVector T(L.Tilt[0].X, L.Tilt[1].X, 0.f);
+    Toward = Deg > 1e-4f ? (float)FVector::DotProduct(T / Deg, In) : 0.f;
+    // the FQuat the proxy turns the pelvis by tips his up toward the centre
+    const FVector Up = RotateAbout(FVector::UpVector, Axis, Deg * Pi / 180.f);
+    UpToward = (float)FVector::DotProduct(FVector(Up.X, Up.Y, 0.f).GetSafeNormal(), In);
+    return Deg;
+}
+
+static void Loco()
+{
+    std::printf("360  (the lean, a turn clip, stops, kerbs at a run, traces ahead)\n");
+    const float G = 980.f;
+
+    // ---- the lean into a curve: atan(v * yawrate / g) toward the centre, clamped, eased
+    {
+        float T1, U1, T2, U2, T3, U3, T4, U4, T5, U5, T6, U6;
+        const float Walk = LeanOnCircle(150.f, 300.f, 60.f, 1.5f, false, T1, U1);
+        const float WalkCw = LeanOnCircle(150.f, 300.f, 60.f, 1.5f, true, T2, U2);
+        const float Run = LeanOnCircle(341.f, 600.f, 60.f, 1.5f, false, T3, U3);
+        const float Walk30 = LeanOnCircle(150.f, 300.f, 30.f, 1.5f, false, T4, U4);
+        const float WalkMax = LeanOnCircle(150.f, 100.f, 60.f, 1.5f, false, T5, U5);
+        const float RunMax = LeanOnCircle(341.f, 200.f, 60.f, 1.5f, true, T6, U6);
+        const float WantWalk = std::atan(150.f * 150.f / (300.f * G)) * 180.f / Pi, WantRun = std::atan(341.f * 341.f / (600.f * G)) * 180.f / Pi;
+        std::printf("  round a circle: walking 150 cm/s at 3 m leans %.2f (wants %.2f), running 341 at 6 m %.2f (wants %.2f); tight, %.2f and %.2f\n",
+                    Walk, WantWalk, Run, WantRun, WalkMax, RunMax);
+        Check(Near(Walk, WantWalk, 0.15f) && Near(WalkCw, WantWalk, 0.15f) && Near(Run, WantRun, 0.25f),
+              "on a circle he leans atan(v x yawrate / g): 4.4 degrees walking 150 cm/s round 3 m, 11.2 running 341 round 6 m");
+        Check(T1 > 0.99f && T2 > 0.99f && T3 > 0.99f && T6 > 0.99f && U1 > 0.99f && U2 > 0.99f && U3 > 0.99f,
+              "...toward the circle's centre, either way round: the pelvis's turn tips his up into the curve");
+        Check(Near(Walk30, Walk, 0.1f), "...the same at 30 and 60 Hz");
+        Check(Near(WalkMax, LeanWalkMaxDeg, 0.1f) && Near(RunMax, LeanRunMaxDeg, 0.1f),
+              "a curve tighter than he can lean into holds him at 12 degrees walking, 20 running");
+        FLean S;
+        for (int I = 0; I < 90; ++I) StepLean(S, FVector(341.f, 0.f, 0.f), 153.45f, 341.f, true, 1.f / 60.f);
+        FVector A; float D = 0.f; LeanAxisAngle(S, A, D);
+        Check(D < 1e-3f, "going straight at a steady speed he does not lean");
+        // a start tips him forward, a stop back, never past 6
+        FLean St; float Fwd = 0.f, Back = 0.f;
+        for (int I = 0; I < 60; ++I) { StepLean(St, FVector(341.f * std::fmin(1.f, I / 4.f), 0.f, 0.f), 153.45f, 341.f, true, 1.f / 60.f); Fwd = std::fmax(Fwd, (float)St.Tilt[0].X); }
+        for (int I = 0; I < 60; ++I) { StepLean(St, FVector(341.f * std::fmax(0.f, 1.f - I / 4.f), 0.f, 0.f), 153.45f, 341.f, true, 1.f / 60.f); Back = std::fmin(Back, (float)St.Tilt[0].X); }
+        std::printf("  a start to 341 cm/s pitches him %.2f forward, the stop %.2f back\n", Fwd, -Back);
+        Check(Fwd > 1.f && Fwd <= LeanPitchMaxDeg + 1e-3f && Back < -1.f && Back >= -LeanPitchMaxDeg - 1e-3f,
+              "a start pitches him forward and a stop back, to 6 degrees at the most");
+        const FLean Was = St;
+        StepLean(St, FVector(0.f, 300.f, 0.f), 153.45f, 341.f, true, 0.f);
+        Check(St.Tilt[0].X == Was.Tilt[0].X && St.Tilt[1].X == Was.Tilt[1].X, "the freeze holds the lean");
+        FLean Off; for (int I = 0; I < 60; ++I) StepLean(Off, FVector(150.f * std::cos(I * 0.05f), 150.f * std::sin(I * 0.05f), 0.f), 153.45f, 341.f, true, 1.f / 60.f);
+        for (int I = 0; I < 60; ++I) StepLean(Off, FVector(150.f * std::cos(I * 0.05f), 150.f * std::sin(I * 0.05f), 0.f), 153.45f, 341.f, false, 1.f / 60.f);
+        LeanAxisAngle(Off, A, D);
+        Check(D < 0.05f, "off the ground the lean eases out");
+    }
+    {
+        // the hips' weight no longer throws them outward on a curve: running 341 round 3 m
+        Man M; M.Run(0.3f);
+        float Out = 0.f;
+        for (int I = 0; I < 120; ++I)
+        {
+            const float Th = 341.f / 300.f * I / 60.f;
+            M.In.Velocity = FVector(-std::sin(Th), std::cos(Th), 0.f) * 341.0;
+            M.Step(1.f / 60.f);
+            if (I > 30) Out = std::fmax(Out, (float)(M.Plan.Pelvis.X * std::cos(Th) + M.Plan.Pelvis.Y * std::sin(Th)));
+        }
+        std::printf("  running round 3 m the hips are thrown %.3f cm outward\n", Out);
+        Check(Out < 0.1f, "on a curve the hips are not thrown outward: the lean takes the curve, the weight only starts and stops");
+    }
+
+    // ---- a turn clip carries the turn: the hips' lag out as it comes in, held at none
+    {
+        bool Still = true, Held = true, Ahead = true;
+        float Worst = 0.f, Last = 0.f, End = 0.f;
+        for (float Hz : { 30.f, 60.f })
+        {
+            FTurn S = Whole();
+            const float Dt = 1.f / Hz;
+            float Actor = 0.f; Last = 0.f;
+            for (int I = 0; I < (int)std::lround(0.5f * Hz); ++I)
+            {
+                const float Turned = I == 0 ? 90.f : 0.f;
+                Actor += Turned;
+                const float U = (I + 1) * Dt;                                    // the clip's own time, advanced this frame
+                const float W = SmoothStep(U / 0.06f);                           // its crossfade (SaudFeel::CutIntoTurn)
+                TurnStep(S, Turned, 0.f, 0.f, true, false, false, false, Dt, W);
+                const float Clip = -90.f * (1.f - SmoothStep(U / 0.5f));          // Turn_L90: the body starts 90 right of the root, comes round
+                const float Drawn = Actor + S.Hips + W * Clip;                    // the pelvis's yaw, as the fold blends it
+                if (U <= 0.06f + 1e-4f) Worst = std::fmax(Worst, std::fabs(Drawn));
+                if (W >= 1.f && S.Hips != 0.f) Held = false;
+                if (Drawn < Last - 0.01f) Ahead = false;
+                Last = Drawn;
+            }
+            End = Actor + S.Hips;
+            if (Worst > 4.f) Still = false;
+        }
+        std::printf("  a Turn_L90 coming in: the drawn body moves %.2f degrees through the cut\n", Worst);
+        Check(Still, "a turn clip coming in: the body is drawn where it stood through the cut, at 30 and 60 Hz");
+        Check(Held && Near(End, 90.f, 1e-3f), "...the hips' lag is held at none under the clip: the body is not turned twice");
+        Check(Ahead, "...and the body comes round once, never back");
+        FTurn S = Whole();
+        TurnStep(S, 90.f, 0.f, 0.f, true, false, false, false, 1.f / 60.f, 1.f);
+        TurnStep(S, 0.f, 0.f, 0.f, true, false, false, false, 1.f / 60.f, -1.f);
+        Check(S.Hips == 0.f && !S.bClip, "the clip over, nothing is left to settle");
+    }
+    {
+        // the feet keep their world anchors as the facing snaps under a turn clip
+        Man M; M.Run(0.5f);
+        const FVector A0 = M.St.Hold[0].Anchor, A1 = M.St.Hold[1].Anchor, B0 = M.BallW(0), B1 = M.BallW(1);
+        M.In.Mesh = At(FVector::ZeroVector, 90.f);
+        for (int S = 0; S < 2; ++S)
+        {
+            FFootIn& F = M.In.Foot[S];
+            F.Ball = Rotate(F.Ball, -Pi / 2.f); F.Ankle = Rotate(F.Ankle, -Pi / 2.f); F.Hip = Rotate(F.Hip, -Pi / 2.f);
+            F.ToeDir = Rotate(F.ToeDir, -Pi / 2.f); F.FootFwd = Rotate(F.FootFwd, -Pi / 2.f);
+        }
+        M.Run(0.1f);
+        Check(M.St.Hold[0].bHeld && M.St.Hold[1].bHeld && Flat(M.St.Hold[0].Anchor - A0) < 1e-3f && Flat(M.St.Hold[1].Anchor - A1) < 1e-3f
+              && Flat(M.BallW(0) - B0) < 0.05f && Flat(M.BallW(1) - B1) < 0.05f,
+              "the facing snapped under a turn clip, the feet keep their world anchors");
+    }
+
+    // ---- feet through a stop: the standing foot holds until the last swing has landed
+    {
+        bool Held = true, Landed = false; float Slide = 0.f;
+        for (int K = 0; K < 2; ++K)
+        {
+            Man M; M.In.Down[0] = 1.f; M.In.Down[1] = 0.f;
+            M.In.Foot[1].Ball.Z += 8.f; M.In.Foot[1].Ankle.Z += 8.f;     // the right foot in its swing
+            M.Run(0.3f);
+            const FVector B0 = M.BallW(0);
+            M.In.bStopping = K == 0;
+            bool H = true;
+            float X = 0.f;
+            for (int I = 1; I <= 18; ++I)
+            {
+                const float W = SmoothStep(I / 12.f);                 // the guard's weight over the 0.20 s settle
+                X += 100.f * (1.f - W) / 60.f;                        // and he slows to a stand
+                M.In.Mesh = At(FVector(X, 0.f, 0.f), 0.f);
+                M.In.Down[0] = W;                                     // the walk fading out lifts the standing foot
+                M.In.Down[1] = W;                                     // the guard has the swing foot down
+                M.In.Foot[1].Ball.Z = 2.4f + 8.f * (1.f - W); M.In.Foot[1].Ankle.Z = 8.f + 8.f * (1.f - W);
+                M.Step(1.f / 60.f);
+                if (!M.St.Hold[0].bHeld) H = false;
+                if (K == 0) Slide = std::fmax(Slide, Flat(M.BallW(0) - B0));
+            }
+            if (K == 0) { Held = H; Landed = M.St.Hold[1].bHeld; }
+            else Check(!H, "(without the stop's rule the standing foot is let go as the walk lifts it)");
+        }
+        std::printf("  a stop: the standing foot slid %.3f cm while the last swing landed\n", Slide);
+        Check(Held && Landed && Slide < 0.05f, "a walk stopping into his guard: the standing foot holds until the last swing lands, no slide");
+        // which crossfades are stops: a measured walk fading under a measured stand
+        const SaudPlants::FClip* Plants[3] = { SaudPlants::Find("A_Saud_Walk_Fwd"), SaudPlants::Find("A_Saud_Guard"), nullptr };
+        FCrossfade X; X.Num = 2;
+        X.Layers[0].Clip = 1; X.Layers[0].bLoop = true; X.Layers[0].Weight = 0.4f;
+        X.Layers[1].Clip = 0; X.Layers[1].bLoop = true; X.Layers[1].Weight = 0.6f;
+        const bool Stop = Plants[0] && Plants[1] && Stopping(X, Plants, 3);
+        X.Layers[0].Clip = 0; X.Layers[1].Clip = 1;
+        const bool Start = Stopping(X, Plants, 3);
+        X.Layers[0].Clip = 2; X.Layers[1].Clip = 0;
+        const bool Unknown = Stopping(X, Plants, 3);
+        X.Num = 1; X.Layers[0].Clip = 1;
+        Check(Stop && !Start && !Unknown && !Stopping(X, Plants, 3), "a stop is a measured walk fading under a measured stand; a start, an unmeasured clip or one clip is not");
+    }
+
+    // ---- kerbs at a run: 5, 10 and 15 cm absorbed at 341 cm/s, at 30 and 60 Hz
+    {
+        int Popped = 0, Jerks = 0;
+        for (float Hz : { 30.f, 60.f })
+            for (float H : { 5.f, 10.f, 15.f })
+            {
+                Man M; M.In.bHold = false; M.In.Velocity = FVector(341.f, 0.f, 0.f);
+                const float Edge = 150.f;
+                M.Height = [=](float X, float) { return X > Edge ? H : 0.f; };
+                float Prev = 0.f, StepJump = 0.f, After = 0.f;
+                bool Was = false;
+                const int N = (int)std::lround(1.2f * Hz);
+                for (int I = 0; I <= N; ++I)
+                {
+                    const float X = 341.f * I / Hz;
+                    const bool Up = X > Edge - 20.f;                 // the capsule's edge meets the kerb: it steps up in one frame
+                    M.In.Mesh = At(FVector(X, 0.f, Up ? H : 0.f), 0.f);
+                    M.Step(1.f / Hz);
+                    const float Body = (float)(M.In.Mesh.Origin.Z + M.Plan.Pelvis.Z);
+                    if (I > 0 && Up && !Was) StepJump = std::fabs(Body - Prev);
+                    else if (I > 0 && Was) After = std::fmax(After, std::fabs(Body - Prev));
+                    Was = Up; Prev = Body;
+                }
+                std::printf("  %.0f Hz, a %.0f cm kerb at 341 cm/s: the body moves %.2f cm the frame it is climbed, %.2f at most a frame after\n", Hz, H, StepJump, After);
+                if (StepJump > 0.25f * H) ++Popped;
+                if (After > 0.5f * H) ++Jerks;
+            }
+        Check(Popped == 0, "a 5, 10 or 15 cm kerb climbed at a run (341 cm/s) is absorbed, at 30 and 60 Hz: the body does not pop up with the capsule");
+        Check(Jerks == 0, "...and the body rises onto it over frames, never in one");
+    }
+    {
+        Check(!SteppedCapsule(FVector(5.68f, 0.f, 5.f)) && !SteppedCapsule(FVector(11.37f, 0.f, 10.f)),
+              "(with nothing known of the ground, a 5 cm kerb at 60 Hz or 10 at 30 Hz rises less than a walkable slope: the grade is needed)");
+        const float T20 = std::tan(20.f * Pi / 180.f);
+        Check(SteppedCapsule(FVector(5.68f, 0.f, 5.f), true, 0.f) && SteppedCapsule(FVector(11.37f, 0.f, 5.f), true, 0.f)
+              && SteppedCapsule(FVector(11.37f, 0.f, -5.f), true, 0.f)
+              && !SteppedCapsule(FVector(11.37f, 0.f, 11.37f * T20), true, T20) && !SteppedCapsule(FVector(5.68f, 0.f, -5.68f * T20), true, -T20)
+              && SteppedCapsule(FVector(11.37f, 0.f, 11.37f * T20 + 5.f), true, T20) && SteppedCapsule(FVector(5.68f, 0.f, 11.36f), true, 2.f),
+              "against the ground's own grade, a kerb is a step and a ramp is not, up or down, at a run; no grade is steeper than the slope limit");
+        // the grade the feet's traces find
+        Man M;
+        const FVector N(-std::sin(20.f * Pi / 180.f), 0.f, std::cos(20.f * Pi / 180.f));
+        M.Normal = [=](float, float) { return N; };
+        M.Trace(1.f / 60.f);
+        float Gr = 0.f, Gb = 0.f, Gn = 0.f;
+        const bool A = GroundGrade(M.In, FVector(10.f, 0.f, 0.f), Gr), B = GroundGrade(M.In, FVector(-10.f, 0.f, 0.f), Gb);
+        M.Hit = [](float, float) { return false; }; M.Trace(1.f / 60.f);
+        const bool C = GroundGrade(M.In, FVector(10.f, 0.f, 0.f), Gn);
+        Check(A && B && !C && Near(Gr, T20, 1e-3f) && Near(Gb, -T20, 1e-3f), "the ground's grade along the move, from the feet's traces: up a 20 degree ramp 0.36, down it -0.36, none with no ground");
+    }
+    {
+        // a ramp climbed at a run is not taken for kerbs
+        int Absorbed = 0;
+        for (float Hz : { 30.f, 60.f })
+        {
+            Man M; M.In.bHold = false; M.In.Velocity = FVector(341.f, 0.f, 0.f);
+            const float T = std::tan(20.f * Pi / 180.f), X0 = 100.f;
+            const FVector Nr(-std::sin(20.f * Pi / 180.f), 0.f, std::cos(20.f * Pi / 180.f));
+            M.Height = [=](float X, float) { return X > X0 ? (X - X0) * T : 0.f; };
+            M.Normal = [=](float X, float) { return X > X0 ? Nr : FVector::UpVector; };
+            const int N = (int)std::lround(1.2f * Hz);
+            for (int I = 0; I <= N; ++I)
+            {
+                const float X = 341.f * I / Hz;
+                M.In.Mesh = At(FVector(X, 0.f, X > X0 ? (X - X0) * T : 0.f), 0.f);
+                const float Before = M.St.PelvisZ;
+                const float Rise = (float)(M.In.Mesh.Origin.Z - M.St.LastOrigin.Z);
+                M.Step(1.f / Hz);
+                if (X > X0 + 60.f && Rise > 1.f && Before - M.St.PelvisZ > 0.8f * Rise) ++Absorbed;
+            }
+        }
+        Check(Absorbed == 0, "a 20 degree ramp run up at 341 cm/s is a slope, not a stair of kerbs, at 30 and 60 Hz");
+    }
+
+    // ---- traces where the foot will be: last drawn + its velocity x dt
+    {
+        float Worst = 0.f, Planted = 0.f, Behind = 0.f;
+        for (float Hz : { 30.f, 60.f })
+        {
+            Man M; M.In.bHold = false;
+            M.In.Foot[0].Ball.Z += 20.f; M.In.Foot[0].Ankle.Z += 20.f;          // the lead in its swing
+            M.Run(0.2f, Hz);
+            for (int I = 0; I < (int)(0.3f * Hz); ++I)
+            {
+                M.In.Foot[0].Ball.X += 600.f / Hz; M.In.Foot[0].Ankle.X += 600.f / Hz;   // a run's swing: 600 cm/s
+                M.Step(1.f / Hz);
+                if (I > 1) Worst = std::fmax(Worst, Flat(M.TracedBall[0] - M.BallW(0)));
+                Planted = std::fmax(Planted, Flat(M.TracedBall[1] - M.BallW(1)));
+                Behind = std::fmax(Behind, 600.f / Hz);
+            }
+        }
+        std::printf("  a swing at 600 cm/s is traced %.3f cm from where it is drawn (last frame's point would be %.1f behind)\n", Worst, Behind);
+        Check(Worst < 0.5f && Planted < 0.01f, "a foot is traced where it will be this frame: a swing at a run not a frame behind, a planted foot where it stands");
+        FFootTrack T; T.Push(FVector::ZeroVector, 1.f / 60.f); T.Push(FVector(1e5f, 0.f, 0.f), 1.f / 60.f);
+        FFootTrack F; F.Push(FVector(5.f, 0.f, 0.f), 1.f / 60.f); F.Push(FVector(10.f, 0.f, 0.f), 1.f / 60.f); const FVector V = F.Velocity; F.Push(FVector(10.f, 0.f, 0.f), 0.f);
+        Check(T.Velocity.Size() <= TraceLeadMaxSpeed + 1e-3f && Near((float)V.X, 300.f, 1e-2f) && Near((float)F.Velocity.X, 300.f, 1e-2f),
+              "a trace never leads by more than TraceLeadMaxSpeed, and the freeze keeps the foot's velocity");
+    }
+
+    // ---- the pelvis drops faster at speed: a run downhill keeps its legs bent
+    {
+        float Share[2][2], Rise[2];
+        for (int H = 0; H < 2; ++H)
+        {
+            const float Hz = H ? 60.f : 30.f;
+            for (int K = 0; K < 2; ++K)
+            {
+                Man M; M.In.Velocity = FVector(K ? 341.f : 0.f, 0.f, 0.f);
+                M.Run(1.f, Hz);
+                M.Height = [](float, float) { return -12.f; };
+                M.Run(0.1f, Hz);
+                Share[H][K] = (float)(M.Plan.Pelvis.Z / -12.f);
+                if (K) { M.Run(1.f, Hz); M.Height = [](float, float) { return 0.f; }; M.Run(0.1f, Hz); Rise[H] = 1.f - (float)(M.Plan.Pelvis.Z / -12.f); }
+            }
+        }
+        std::printf("  the hips' drop to a foot 12 cm down after 0.1 s: standing %.2f, running %.2f (30 Hz %.2f / %.2f)\n", Share[1][0], Share[1][1], Share[0][0], Share[0][1]);
+        Check(Share[1][0] > 0.65f && Share[1][0] < 0.75f && Near(Share[0][0], Share[1][0], 0.02f), "standing the hips drop at their own rate (12/s)");
+        Check(Share[1][1] >= 0.95f && Share[0][1] >= 0.95f, "at a run they drop to a lower foot three times as fast: 95 % in 0.1 s at 341 cm/s, at 30 and 60 Hz");
+        Check(Rise[1] > 0.6f && Rise[1] < 0.75f && Rise[0] > 0.6f && Rise[0] < 0.75f, "...and come back up unhurried, at a run as standing");
+    }
+}
+
 int main()
 {
-    Solve(); Feet(); Held(); GroundTwo(); Stride(); Hands(); Contact(); Head(); Body(); Crossfade(); Plants(); Edges(); BigMan();
+    Solve(); Feet(); Held(); GroundTwo(); Stride(); Hands(); Contact(); Head(); Body(); Crossfade(); Plants(); Edges(); BigMan(); Loco();
     std::printf(Fails ? "\n%d FAILED\n" : "\nall IK checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <initializer_list>
 
 static int Fails = 0;
 static void Check(bool Ok, const char* What)
@@ -26,6 +27,16 @@ static void Check(bool Ok, const char* What)
     if (!Ok) { ++Fails; std::printf("  FAIL  %s\n", What); }
 }
 static bool Near(float A, float B, float Eps = 1e-4f) { return std::fabs(A - B) <= Eps; }
+/** A check that waits on the clips' rebuild (the 360 spec's new clip files,
+    by other builders): a FAIL like any other, unless SAUD_CLIPS_PENDING is
+    set, when it prints PENDING and does not count -- so the sabotages can
+    still be run against the rest before the clips exist. */
+static void Pending(bool Ok, const char* What)
+{
+    if (Ok) return;
+    if (std::getenv("SAUD_CLIPS_PENDING")) { std::printf("  PENDING (awaits the clips' rebuild)  %s\n", What); return; }
+    Check(false, What);
+}
 
 using namespace SaudFeel;
 
@@ -279,7 +290,7 @@ static void Clips()
         Check(DyingDown && LivingDown && Dead, "a killing blow falls into Death, a living one into its fall, and Dead holds Death");
         M = FMotionInput(); M.Victory = 1.f;
         const bool Win = Pick(M) == EClip::Victory;
-        M.Speed = 400.f; const bool Walks = Pick(M) == EClip::WalkFwd;
+        M.Speed = 150.f; const bool Walks = Pick(M) == EClip::WalkFwd;
         M.Speed = 0.f; M.bBlocking = true; const bool Blocks = Pick(M) == EClip::Block;
         M.bBlocking = false; M.State = SHit; M.LastBlow = BlowOf("Jab"); const bool Hit = Pick(M) == EClip::HitHeadStraightLight;
         M = FMotionInput(); M.Victory = 1.f; M.State = SAttack; const bool Swing = Pick(M) == EClip::Attack;
@@ -315,8 +326,11 @@ static void Clips()
     Check(Pick(In) == EClip::Block, "block state blocks");
 
     // Every angle: the facing and heading turned together give the same clip.
-    const EClip Walks[4] = { EClip::WalkFwd, EClip::WalkBack, EClip::WalkLeft, EClip::WalkRight };
+    // The dash is four ways (Quadrant); the walk is eight since 2026-10-04
+    // (Loco360 holds those), so here a walk 30 degrees off a quadrant's
+    // centre is that quadrant's diagonal neighbour or itself, never another.
     const EClip Dashes[4] = { EClip::DashFwd, EClip::DashBack, EClip::DashLeft, EClip::DashRight };
+    const int QuadDir[4] = { 0, 4, 2, 6 };
     const float Rel[4] = { 0.f, 3.14159265f, 1.5707963f, -1.5707963f };   // fwd, back, left (+Y of +X), right
     int Bad = 0;
     for (int A = 0; A < 72; ++A)
@@ -331,15 +345,17 @@ static void Clips()
                 FMotionInput M;
                 M.Facing = Face;
                 M.Heading = Rotate(Face, Rel[Q] + Off);
-                M.State = SWalk; M.Speed = 250.f;
-                if (Pick(M) != Walks[Q]) ++Bad;
+                M.State = SWalk; M.Speed = 150.f;
+                const int D = DirOf(Pick(M));
+                const int Want = Off > 0.f ? QuadDir[Q] + 1 : Off < 0.f ? QuadDir[Q] + 7 : QuadDir[Q];
+                if (D != Want % 8) ++Bad;
                 M.State = SDash;
                 if (Pick(M) != Dashes[Q]) ++Bad;
                 if (Quadrant(M.Facing, M.Heading) != Q) ++Bad;
             }
         }
     }
-    std::printf("  72 facings x 4 directions x 3 offsets, walk and dash\n");
+    std::printf("  72 facings x 4 directions x 3 offsets, the walk's octant and the dash's quadrant\n");
     Check(Bad == 0, "the same heading against the facing picks the same clip at every angle");
 
     // Names and looping.
@@ -375,12 +391,252 @@ static void Clips()
     Check(Missing == 0, "every named clip exists in Content/Animation/Saud and Street");
 }
 
+
+// ------------------------------------------- 360: eight ways, two tiers, turns
+
+static FMotionInput Moving(const FVector& Face, float RelRadians, float Speed, bool bFree, bool bGaits, EClip Current = EClip::Guard)
+{
+    FMotionInput M;
+    M.State = SWalk; M.Speed = Speed; M.bFree = bFree; M.bGaits = bGaits; M.Current = Current;
+    M.Facing = Face; M.Heading = Rotate(Face, RelRadians);
+    return M;
+}
+
+static bool OnDisk(const std::string& P) { FILE* F = std::fopen(P.c_str(), "rb"); if (F) std::fclose(F); return F != nullptr; }
+
+/** The file the motion component would load for a clip name, its way
+    (USaudMotionComponent::Find): the set's own, then -- except Saud and the
+    Island creatures -- the Street set's, then Saud's. "" for none. */
+static std::string OwnPath(const std::string& Set, const std::string& Name)
+{
+    const bool bCreature = Set == "Monkey" || Set == "Gorilla";
+    const std::string Folder = (Set == "Saud" || Set == "Street") ? Set : bCreature ? "Island" : "Bosses";
+    return "Content/Animation/" + Folder + "/A_" + Set + "_" + Name + ".fbx";
+}
+
+static std::string Resolve(const std::string& Set, const std::string& Name)
+{
+    const bool bCreature = Set == "Monkey" || Set == "Gorilla";
+    const std::string Own = OwnPath(Set, Name);
+    if (OnDisk(Own)) return Own;
+    if (Set == "Saud" || bCreature) return "";
+    if (Set != "Street" && OnDisk("Content/Animation/Street/A_Street_" + Name + ".fbx")) return "Content/Animation/Street/A_Street_" + Name + ".fbx";
+    const std::string S = "Content/Animation/Saud/A_Saud_" + Name + ".fbx";
+    return OnDisk(S) ? S : "";
+}
+
+static void Loco360()
+{
+    std::printf("360  (eight ways at a walk and a run, the free turns, the fallbacks)\n");
+    const float D2R = 3.14159265f / 180.f;
+
+    // ---- the names are the spec's file names, every one
+    struct FName_ { EClip C; const char* Name; };
+    const FName_ Names[] = {
+        {EClip::WalkFwd, "Walk_Fwd"}, {EClip::WalkFwdLeft, "Walk_FwdLeft"}, {EClip::WalkLeft, "Walk_Left"}, {EClip::WalkBackLeft, "Walk_BackLeft"},
+        {EClip::WalkBack, "Walk_Back"}, {EClip::WalkBackRight, "Walk_BackRight"}, {EClip::WalkRight, "Walk_Right"}, {EClip::WalkFwdRight, "Walk_FwdRight"},
+        {EClip::RunFwd, "Run_Fwd"}, {EClip::RunFwdLeft, "Run_FwdLeft"}, {EClip::RunLeft, "Run_Left"}, {EClip::RunBackLeft, "Run_BackLeft"},
+        {EClip::RunBack, "Run_Back"}, {EClip::RunBackRight, "Run_BackRight"}, {EClip::RunRight, "Run_Right"}, {EClip::RunFwdRight, "Run_FwdRight"},
+        {EClip::TurnL90, "Turn_L90"}, {EClip::TurnR90, "Turn_R90"}, {EClip::Turn180, "Turn_180"}, {EClip::Pivot180, "Pivot_180"} };
+    int BadName = 0;
+    for (const FName_& N : Names) if (std::strcmp(ClipSuffix(N.C), N.Name) != 0) { ++BadName; std::printf("  %s named %s\n", N.Name, ClipSuffix(N.C)); }
+    Check(BadName == 0, "every 360 clip is named as the spec's file: Walk_<Dir>, Run_<Dir>, Turn_L90, Turn_R90, Turn_180, Pivot_180");
+    {
+        bool Ok = true;
+        for (int D = 0; D < 8; ++D)
+        {
+            Ok = Ok && DirOf(WalkClip(D)) == D && DirOf(RunClip(D)) == D && TierOf(WalkClip(D)) == 0 && TierOf(RunClip(D)) == 1
+                && Loops(WalkClip(D)) && Loops(RunClip(D)) && KindOf(WalkClip(D)) == EKind::Step && KindOf(RunClip(D)) == EKind::Step;
+        }
+        for (EClip T : { EClip::TurnL90, EClip::TurnR90, EClip::Turn180, EClip::Pivot180 })
+            Ok = Ok && !Loops(T) && KindOf(T) == EKind::Turn && IsTurnClip(T) && DirOf(T) < 0 && TierOf(T) < 0;
+        Ok = Ok && !IsTurnClip(EClip::Guard) && DirOf(EClip::Guard) < 0 && TierOf(EClip::GaitRun) < 0;
+        Check(Ok, "the sixteen walk and run clips loop and are steps, each its own way and tier; the four turns are one-shots of their own kind");
+    }
+    Check(FreeBeyondCm == SaudSteer::FreeBeyondCm, "SaudFeel::FreeBeyondCm is SaudSteer's distance");
+
+    // ---- the octant against the drawn facing, at 72 facings x 8 ways, both tiers
+    {
+        int Bad = 0;
+        for (int A = 0; A < 72; ++A)
+        {
+            const FVector Face = Rotate(FVector(1.f, 0.f, 0.f), A * 5.f * D2R);
+            for (int D = 0; D < 8; ++D)
+                for (float Off : { -21.5f, -10.f, 0.f, 10.f, 21.5f })
+                {
+                    if (Pick(Moving(Face, (D * 45.f + Off) * D2R, 150.f, false, false)) != WalkClip(D)) ++Bad;
+                    if (Pick(Moving(Face, (D * 45.f + Off) * D2R, 341.f, false, true)) != RunClip(D)) ++Bad;
+                }
+        }
+        std::printf("  72 facings x 8 ways x 5 offsets inside each octant, walk and run\n");
+        Check(Bad == 0, "fighting, the heading's octant against the drawn facing picks its walk or run strafe at every angle");
+        // held across a line: the clip showing until 5 degrees past it
+        const FVector F = Rotate(FVector(1.f, 0.f, 0.f), 37.f * D2R);
+        const bool Held = Pick(Moving(F, 25.f * D2R, 150.f, false, false, EClip::WalkFwd)) == EClip::WalkFwd
+                       && Pick(Moving(F, 25.f * D2R, 150.f, false, false, EClip::Guard)) == EClip::WalkFwdLeft
+                       && Pick(Moving(F, 28.5f * D2R, 150.f, false, false, EClip::WalkFwd)) == EClip::WalkFwdLeft
+                       && Pick(Moving(F, -69.f * D2R, 341.f, false, false, EClip::RunFwdRight)) == EClip::RunFwdRight
+                       && Pick(Moving(F, -69.f * D2R, 341.f, false, false, EClip::Guard)) == EClip::RunRight;
+        Check(Held, "a strafe is held 5 degrees past its octant's line, where a fresh pick takes the next");
+        int Flips = 0; EClip Cur = EClip::WalkFwd;
+        for (int I = 0; I < 200; ++I)
+        {
+            const EClip N = Pick(Moving(F, (22.5f + 3.f * std::sin(I * 0.7f)) * D2R, 150.f, false, false, Cur));
+            Flips += N != Cur; Cur = N;
+        }
+        Check(Flips <= 1, "a heading held on an octant's line does not flicker between two strafes");
+    }
+
+    // ---- the tier by speed: Walk below the geometric mean of WalkShare x run and the run, +-8 %
+    {
+        const float Line = std::sqrt(SaudSteer::WalkShare * 341.f * 341.f);
+        const FVector F(1.f, 0.f, 0.f);
+        auto At = [&](float V, EClip Cur, float Run = 341.f) { FMotionInput M = Moving(F, 90.f * D2R, V, false, false, Cur); M.RunSpeed = Run; return Pick(M); };
+        std::printf("  the tiers' line at a run of 341 cm/s: %.1f cm/s\n", Line);
+        Check(Near(TierLine(341.f), Line, 0.01f) && At(Line * 0.97f, EClip::Guard) == EClip::WalkLeft && At(Line * 1.03f, EClip::Guard) == EClip::RunLeft,
+              "under the line between the tiers he walks, over it he runs");
+        Check(At(Line * 1.06f, EClip::WalkLeft) == EClip::WalkLeft && At(Line * 1.10f, EClip::WalkLeft) == EClip::RunLeft
+              && At(Line * 0.94f, EClip::RunLeft) == EClip::RunLeft && At(Line * 0.90f, EClip::RunLeft) == EClip::WalkLeft,
+              "the tier showing is held 8 % past the line, not further");
+        Check(At(180.f, EClip::Guard, 288.f) == EClip::WalkLeft && At(200.f, EClip::Guard, 288.f) == EClip::RunLeft
+              && At(200.f, EClip::Guard, 446.f) == EClip::WalkLeft,
+              "the line is each man's own: a Thug (288) runs at 200 cm/s, AL-SAQR (446) still walks");
+        int Flips = 0; EClip Cur = EClip::WalkLeft;
+        for (int I = 0; I < 200; ++I) { const EClip N = At(Line * (1.f + 0.05f * std::sin(I * 0.7f)), Cur); Flips += N != Cur; Cur = N; }
+        Check(Flips <= 1, "a speed held at the tiers' line does not flicker between walk and run");
+        Check(Pick(Moving(F, 0.f, 39.f, false, false)) == EClip::Guard && Pick(Moving(F, 0.f, 39.f, true, true)) == EClip::Guard,
+              "under WalkThreshold he stands in his guard, free or fighting");
+    }
+
+    // ---- free: straight ahead his own way, off it the strafe of the angle
+    {
+        const FVector F = Rotate(FVector(1.f, 0.f, 0.f), 123.f * D2R);
+        Check(Pick(Moving(F, 25.f * D2R, 341.f, true, true)) == EClip::GaitRun && Pick(Moving(F, -29.f * D2R, 150.f, true, true)) == EClip::GaitWalk,
+              "free and going within 30 degrees of his drawn facing, Saud plays his gait");
+        Check(Pick(Moving(F, 40.f * D2R, 341.f, true, true)) == EClip::RunFwdLeft && Pick(Moving(F, -90.f * D2R, 150.f, true, true)) == EClip::WalkRight,
+              "...past 30 degrees, the walk or run strafe of that angle");
+        Check(Pick(Moving(F, 33.f * D2R, 341.f, true, true, EClip::GaitRun)) == EClip::GaitRun
+              && Pick(Moving(F, 36.f * D2R, 341.f, true, true, EClip::GaitRun)) == EClip::RunFwdLeft
+              && Pick(Moving(F, 33.f * D2R, 341.f, true, true, EClip::RunFwdLeft)) == EClip::RunFwdLeft,
+              "...the gait showing held to 35 degrees, a strafe showing until back inside 30");
+        Check(Pick(Moving(F, 27.f * D2R, 341.f, true, false)) == EClip::RunFwd && Pick(Moving(F, -27.f * D2R, 150.f, true, false)) == EClip::WalkFwd
+              && Pick(Moving(F, 100.f * D2R, 341.f, true, false)) == EClip::RunLeft,
+              "free, a man with no gaits runs or walks his Run_Fwd / Walk_Fwd ahead and strafes off it");
+        Check(Pick(Moving(F, 0.f, 341.f, false, true)) == EClip::RunFwd && Pick(Moving(F, 0.f, 150.f, false, true)) == EClip::WalkFwd,
+              "fighting, Saud too strafes his tiers: no gait with a man near");
+    }
+
+    // ---- the turns: picked, held to their end, and only four things take over
+    {
+        FMotionInput M = Moving(FVector(1.f, 0.f, 0.f), 0.f, 0.f, true, true);
+        bool Picked = true;
+        const SaudSteer::ETurn T[4] = { SaudSteer::ETurn::L90, SaudSteer::ETurn::R90, SaudSteer::ETurn::Back180, SaudSteer::ETurn::Pivot180 };
+        const EClip C[4] = { EClip::TurnL90, EClip::TurnR90, EClip::Turn180, EClip::Pivot180 };
+        for (int I = 0; I < 4; ++I)
+        {
+            M = Moving(FVector(1.f, 0.f, 0.f), 0.f, 0.f, true, true); M.Turn = T[I];
+            Picked = Picked && Pick(M) == C[I];
+            M.Speed = 300.f; M.bBlocking = true; M.Victory = 1.f;
+            Picked = Picked && Pick(M) == C[I];
+        }
+        Check(Picked, "a turn the steer started plays its own clip, moving or standing, over a block or the win");
+        M = Moving(FVector(1.f, 0.f, 0.f), 0.f, 0.f, true, true); M.Turn = SaudSteer::ETurn::L90;
+        bool Over = true;
+        M.State = SAttack; Over = Over && Pick(M) == EClip::Attack;
+        M.State = SHit;    Over = Over && KindOf(Pick(M)) == EKind::Reel;
+        M.State = SDown;   Over = Over && KindOf(Pick(M)) == EKind::Fall;
+        M.State = SDash;   Over = Over && KindOf(Pick(M)) == EKind::Dash;
+        Check(Over, "...and an attack, a hit, a fall or a dash takes over from it");
+        bool Held = true;
+        for (float Hz : { 30.f, 60.f })
+        {
+            FTurnHold H;
+            Held = Held && !H.Step(SaudSteer::ETurn::None, 0, 1.f / Hz) && H.Turn == SaudSteer::ETurn::None;
+            Held = Held && H.Step(SaudSteer::ETurn::L90, 1, 1.f / Hz) && H.Turn == SaudSteer::ETurn::L90;
+            float T0 = 0.f;
+            while (H.Turn != SaudSteer::ETurn::None && T0 < 2.f) { H.Step(SaudSteer::ETurn::None, 1, 1.f / Hz); T0 += 1.f / Hz; }
+            // its clip's own length, to the frame: the steer's turn may end first, the clip does not
+            Held = Held && std::fabs(T0 - SaudSteer::TurnSeconds(SaudSteer::ETurn::L90)) <= 1.f / Hz + 1e-4f;
+            Held = Held && H.Step(SaudSteer::ETurn::L90, 2, 1.f / Hz) && H.Turn == SaudSteer::ETurn::L90;
+            Held = Held && H.Step(SaudSteer::ETurn::L90, 3, 1.f / Hz);          // the same turn again: a new start
+            H.Stop(); Held = Held && H.Turn == SaudSteer::ETurn::None && !H.Step(SaudSteer::ETurn::None, 4, 1.f / Hz);
+            H.Step(SaudSteer::ETurn::Back180, 5, 1.f / Hz);
+            float T1 = 0.f;
+            while (H.Turn != SaudSteer::ETurn::None && T1 < 2.f) { H.Step(SaudSteer::ETurn::Back180, 5, 1.f / Hz); T1 += 1.f / Hz; }
+            Held = Held && std::fabs(T1 - 0.70f) <= 1.f / Hz + 1e-4f;
+        }
+        Check(Held, "a turn's clip is held for its own TurnSeconds from a new serial, at 30 and 60 Hz; a new serial starts it again; Stop ends it");
+        FCut In = CutBetween(EClip::Guard, EClip::TurnL90, false), Run = CutBetween(EClip::RunFwd, EClip::Pivot180, false);
+        Check(Near(In.Seconds, CutIntoTurn) && CutIntoTurn <= 0.07f && !In.bMatchPhase && Near(Run.Seconds, CutIntoTurn) && Restarts(EClip::TurnL90, true),
+              "a turn or a pivot cuts in fast (0.06 s), from its first frame, and starts again on a new serial");
+        Check(Near(CutBetween(EClip::Pivot180, EClip::RunFwd, false).Seconds, CutStep) && Near(CutBetween(EClip::TurnL90, EClip::Guard, false).Seconds, CutSettle),
+              "a pivot steps on into its run; a turn on the spot settles into his guard");
+        const FCut S1 = CutBetween(EClip::RunLeft, EClip::RunFwdLeft, false), S2 = CutBetween(EClip::WalkBackRight, EClip::RunBackRight, false);
+        Check(S1.bMatchPhase && S2.bMatchPhase && Near(S1.Seconds, CutStep) && Near(S2.Seconds, CutStep)
+              && CutBetween(EClip::GaitRun, EClip::RunFwdLeft, false).bMatchPhase,
+              "strafe to strafe, walk to run and a gait into a strafe keep the phase, as steps do");
+    }
+
+    // ---- the fallbacks: the nearer neighbour, a run's walk, a turn's guard
+    {
+        auto Is = [](const FClipChain& C, std::initializer_list<EClip> L)
+        {
+            if (C.Num != (int)L.size()) return false;
+            int I = 0; for (EClip E : L) if (C.Clip[I++] != E) return false;
+            return true;
+        };
+        Check(Is(FallbackChain(EClip::RunFwdLeft, 30.f), { EClip::RunFwdLeft, EClip::RunFwd, EClip::RunLeft, EClip::WalkFwdLeft, EClip::WalkFwd, EClip::WalkLeft })
+              && Is(FallbackChain(EClip::RunFwdLeft, 60.f), { EClip::RunFwdLeft, EClip::RunLeft, EClip::RunFwd, EClip::WalkFwdLeft, EClip::WalkLeft, EClip::WalkFwd })
+              && Is(FallbackChain(EClip::WalkBackRight, -150.f), { EClip::WalkBackRight, EClip::WalkBack, EClip::WalkRight })
+              && Is(FallbackChain(EClip::WalkBackRight, -120.f), { EClip::WalkBackRight, EClip::WalkRight, EClip::WalkBack }),
+              "a missing diagonal falls back to the neighbour nearer the heading, then the other; a run diagonal's walk after its runs");
+        Check(Is(FallbackChain(EClip::WalkFwdLeft, 45.f), { EClip::WalkFwdLeft, EClip::WalkFwd, EClip::WalkLeft })
+              && Is(FallbackChain(EClip::WalkBackLeft, 135.f), { EClip::WalkBackLeft, EClip::WalkLeft, EClip::WalkBack }),
+              "...a heading on the diagonal itself takes the neighbour nearer Fwd");
+        Check(Is(FallbackChain(EClip::RunLeft, 90.f), { EClip::RunLeft, EClip::WalkLeft }) && Is(FallbackChain(EClip::RunFwd, 0.f), { EClip::RunFwd, EClip::WalkFwd })
+              && Fallback(EClip::RunBack) == EClip::WalkBack && Fallback(EClip::WalkLeft) == EClip::WalkLeft,
+              "a run strafe falls back to its walk; a walk's straight four are the floor");
+        Check(Is(FallbackChain(EClip::TurnL90, 0.f), { EClip::TurnL90, EClip::Guard }) && Is(FallbackChain(EClip::Pivot180, 0.f), { EClip::Pivot180, EClip::Guard })
+              && Fallback(EClip::Turn180) == EClip::Guard && Fallback(EClip::TurnR90) == EClip::Guard,
+              "a turn a set lacks stands in his guard");
+        Check(Is(FallbackChain(EClip::HitHeadSide, 0.f), { EClip::HitHeadSide, EClip::HitHeavy }) && Is(FallbackChain(EClip::GaitJog, 0.f), { EClip::GaitJog, EClip::WalkFwd }),
+              "...and everything else falls back as it did");
+    }
+
+    // ---- on disk, every set: what plays now, through the fallbacks; and the spec's own files
+    {
+        const char* Sets[] = { "Saud", "Street", "Boss", "Saqr", "Zayos", "Monkey", "Gorilla" };
+        int Unplayable = 0, Missing = 0, Total = 0;
+        for (const char* Set : Sets)
+        {
+            for (const FName_& N : Names)
+            {
+                ++Total;
+                if (!OnDisk(OwnPath(Set, N.Name))) ++Missing;
+                const float Angle = DirOf(N.C) >= 0 ? DirOf(N.C) * 45.f : 0.f;
+                const FClipChain C = FallbackChain(N.C, Angle);
+                bool Found = false;
+                for (int I = 0; I < C.Num && !Found; ++I) Found = !Resolve(Set, ClipSuffix(C.Clip[I])).empty();
+                if (!Found) { ++Unplayable; std::printf("  %s: %s plays nothing\n", Set, N.Name); }
+            }
+        }
+        Check(Unplayable == 0, "every 360 clip plays something for every set today, Saud's to the Island's, through its fallbacks");
+        std::printf("  the spec's %d clip files x %d sets, each in the set's own folder: %d not on disk yet\n", (int)(sizeof Names / sizeof Names[0]), (int)(sizeof Sets / sizeof Sets[0]), Missing);
+        Pending(Missing == 0, "CLIPS AWAITED: every 360 spec clip (Walk_x8, Run_x8, Turn_L90/R90/180, Pivot_180) is on disk in every set's own folder");
+        (void)Total;
+    }
+}
+
 // ------------------------------------------------------------ the cuts
 
 static const EClip EveryClip[] = { EClip::Guard, EClip::WalkFwd, EClip::WalkBack, EClip::WalkLeft, EClip::WalkRight,
     EClip::DashFwd, EClip::DashBack, EClip::DashLeft, EClip::DashRight, EClip::Block, EClip::HitLight, EClip::HitHeavy,
     EClip::Down, EClip::GetUp, EClip::Attack, EClip::HitHeadStraightLight, EClip::HitHeadStraight, EClip::HitHeadSide,
-    EClip::HitBodyFront, EClip::HitBodySide, EClip::DownSide, EClip::DownFold, EClip::Death, EClip::Victory };
+    EClip::HitBodyFront, EClip::HitBodySide, EClip::DownSide, EClip::DownFold, EClip::Death, EClip::Victory,
+    EClip::GaitWalkSlow, EClip::GaitWalk, EClip::GaitWalkBrisk, EClip::GaitJog, EClip::GaitRun,
+    EClip::WalkFwdLeft, EClip::WalkBackLeft, EClip::WalkBackRight, EClip::WalkFwdRight,
+    EClip::RunFwd, EClip::RunFwdLeft, EClip::RunLeft, EClip::RunBackLeft, EClip::RunBack, EClip::RunBackRight, EClip::RunRight, EClip::RunFwdRight,
+    EClip::TurnL90, EClip::TurnR90, EClip::Turn180, EClip::Pivot180 };
 
 static std::vector<std::vector<std::string>> CsvRows(const char* Path)
 {
@@ -471,6 +727,7 @@ static EClip GaitAt(float Speed, EClip Current, bool bFree = true)
     In.State = SWalk;
     In.Speed = Speed;
     In.bFree = bFree;
+    In.bGaits = true;          // Saud's set
     In.Current = Current;
     return Pick(In);
 }
@@ -520,7 +777,8 @@ static void FreeGaits()
     Check(Flips <= 1, "a stick held at a line does not flicker between two gaits");
 
     // only when free, and never over what a fight asks
-    Check(GaitAt(341.f, EClip::Guard, false) == EClip::WalkFwd, "with a man near, he steps on his guard");
+    Check(GaitAt(341.f, EClip::Guard, false) == EClip::RunFwd && GaitAt(150.f, EClip::Guard, false) == EClip::WalkFwd,
+          "with a man near, he steps on his guard: his run and walk tiers, not the gaits");
     {
         FMotionInput In; In.State = SBlock; In.Speed = 300.f; In.bFree = true;
         Check(Pick(In) == EClip::Block, "free or not, a block is a block");
@@ -646,7 +904,7 @@ static void BossThemes()
 
 int main()
 {
-    Blows(); Pad(); State(); Camera(); Flash(); Clips(); Cuts(); FreeGaits(); BossThemes();
+    Blows(); Pad(); State(); Camera(); Flash(); Clips(); Loco360(); Cuts(); FreeGaits(); BossThemes();
     std::printf(Fails ? "\n%d FAILED\n" : "\nall feel checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

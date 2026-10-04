@@ -164,6 +164,7 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 	In.bSettle = Frame.bSettleFeet;
 	In.bTeleported = Frame.bTeleported || bMissed;
 	In.bBlending = N > 1;
+	In.bStopping = Frame.bStopping;
 	In.Velocity = Frame.Velocity;
 	In.ClipSerial = Frame.ClipSerial;
 	In.ClipTime = Frame.ClipTime;
@@ -217,6 +218,14 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 	{
 		FTransform T = CS.GetComponentSpaceTransform(Pelvis);
 		T.AddToTranslation(Plan.Pelvis);
+		// the lean into a curve, a start or a stop (SaudIK::FLean): the pelvis
+		// turned about its own joint, so the chain over it leans with it and
+		// the legs, solved below from where the hips are, keep the feet
+		if (Frame.LeanDegrees > 0.01f)
+		{
+			const FQuat Lean(Frame.LeanAxis, FMath::DegreesToRadians(Frame.LeanDegrees * Plan.Alpha));
+			T.SetRotation((Lean * T.GetRotation()).GetNormalized());
+		}
 		CS.SetComponentSpaceTransform(Pelvis, T);
 	}
 
@@ -369,6 +378,10 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 		{
 			Back.Heel[S] = C2W.TransformPosition(CS.GetComponentSpaceTransform(Legs[S].Foot).GetLocation());
 			Back.Ball[S] = C2W.TransformPosition(CS.GetComponentSpaceTransform(Legs[S].Ball).GetLocation());
+			// and how fast each went, for next frame's traces where it will be
+			if (In.bTeleported) { Back.HeelTrack[S] = SaudIK::FFootTrack(); Back.BallTrack[S] = SaudIK::FFootTrack(); }
+			Back.HeelTrack[S].Push(Back.Heel[S], Dt);
+			Back.BallTrack[S].Push(Back.Ball[S], Dt);
 		}
 	}
 	Back.bValid = bLegs;
@@ -443,6 +456,8 @@ void USaudMotionAnimInstance::NativeInitializeAnimation()
 	Frame = FSaudIKFrame();
 	Clips.Reset();
 	ClipPlants.Reset();
+	ClipTurns.Reset();
+	Lean = SaudIK::FLean();
 	Fade = SaudIK::FCrossfade();
 	Clock = 0.0;
 	bMeasured = false;
@@ -462,7 +477,8 @@ void USaudMotionAnimInstance::NativeInitializeAnimation()
 	bLookAtThreat = false;
 }
 
-void USaudMotionAnimInstance::Play(UAnimSequence* Sequence, bool bLoop, bool bRestart, float CutSeconds, bool bMatchPhase)
+void USaudMotionAnimInstance::Play(UAnimSequence* Sequence, bool bLoop, bool bRestart, float CutSeconds, bool bMatchPhase,
+                                   bool bTurn)
 {
 	if (!Sequence)
 	{
@@ -474,6 +490,7 @@ void USaudMotionAnimInstance::Play(UAnimSequence* Sequence, bool bLoop, bool bRe
 		Id = Clips.Add(Sequence);
 		// its measured feet, by the asset's name (A_Saud_Walk_Fwd): the two arrays stay in step
 		ClipPlants.Add(SaudPlants::Find(TCHAR_TO_ANSI(*Sequence->GetName())));
+		ClipTurns.Add(bTurn);
 	}
 	Fade.Play(Id, Sequence->GetPlayLength(), bLoop, bRestart, CutSeconds, bMatchPhase);
 }
@@ -481,6 +498,11 @@ void USaudMotionAnimInstance::Play(UAnimSequence* Sequence, bool bLoop, bool bRe
 const SaudPlants::FClip* USaudMotionAnimInstance::NewestPlants() const
 {
 	return Fade.Num > 0 && ClipPlants.IsValidIndex(Fade.Layers[0].Clip) ? ClipPlants[Fade.Layers[0].Clip] : nullptr;
+}
+
+bool USaudMotionAnimInstance::NewestTurns() const
+{
+	return Fade.Num > 0 && ClipTurns.IsValidIndex(Fade.Layers[0].Clip) && ClipTurns[Fade.Layers[0].Clip];
 }
 
 UAnimSequence* USaudMotionAnimInstance::GetPlaying() const
@@ -515,14 +537,15 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 	// frame's: the motion component itself ticks after the mesh.
 	if (Fighter && Fighter->Motion)
 	{
-		Fighter->Motion->PlayPicked();
+		Fighter->Motion->PlayPicked(DeltaSeconds);
 	}
 
 	// A looping walk at the pace the man moves: by the clip's measured stride
 	// (SaudPlants) from its first frame, or else by what the proxy's stride
-	// meter has read of it (SaudIK::StrideRate).
+	// meter has read of it (SaudIK::StrideRate). A turn or pivot clip is a
+	// one-shot timed to the steer's hold (SaudSteer::TurnSeconds): always 1x.
 	float Rate = 1.f;
-	if (Fighter && Mesh && Fade.Num > 0 && Fade.Layers[0].bLoop)
+	if (Fighter && Mesh && Fade.Num > 0 && Fade.Layers[0].bLoop && !NewestTurns())
 	{
 		const FVector V = Fighter->GetVelocity();
 		const float Ground = static_cast<float>(FVector(V.X, V.Y, 0.f).Size());
@@ -568,6 +591,8 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 	Frame.GuardAlpha[0] = Frame.GuardAlpha[1] = 0.f;
 	Frame.HipsYaw = 0.f;
 	Frame.bChain = false;
+	Frame.LeanDegrees = 0.f;
+	Frame.bStopping = false;
 	if (!Fighter || !Mesh || !Mesh->GetSkeletalMeshAsset())
 	{
 		return;
@@ -650,6 +675,19 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 	Frame.bHoldFeet = Newest ? SaudIK::HoldsFeetMeasured(bAttacking, bStanding, Newest->Stride,
 	                                                     St == EFighterState::Block, Frame.Velocity.Size(), BodyScale)
 	                         : SaudIK::HoldsFeet(bAttacking, bStanding, Back.Stride, Fade.Serial);
+	// a walk crossfading to his guard: the standing foot holds until the last swing lands
+	Frame.bStopping = SaudIK::Stopping(Fade, ClipPlants.GetData(), ClipPlants.Num());
+
+	// The lean into a curve, a start or a stop, in the world's directions,
+	// handed over in the mesh's: on with the feet (SaudIK::StepLean)
+	{
+		const float RunSpeed = FMath::Max(1.f, Fighter->GetRunSpeed());
+		SaudIK::StepLean(Lean, Frame.Velocity, SaudSteer::WalkShare * RunSpeed, RunSpeed, Frame.bFeetWanted, DeltaSeconds, bTeleported);
+		FVector Axis; float Degrees = 0.f;
+		SaudIK::LeanAxisAngle(Lean, Axis, Degrees);
+		Frame.LeanAxis = Mesh->GetComponentTransform().InverseTransformVectorNoScale(Axis).GetSafeNormal();
+		Frame.LeanDegrees = Frame.LeanAxis.IsNearlyZero() ? 0.f : Degrees;
+	}
 
 	// The leg an attack is thrown with is the strike's from its first frame: never held.
 	Frame.StrikeLeg = -1;
@@ -676,7 +714,9 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 			SaudIK::FGroundPoint& G = Frame.Ground[S][K];
 			G = SaudIK::FGroundPoint();
 			if (!Frame.bFeetWanted) continue;
-			const FVector At = Back.bValid ? (K ? Back.Ball[S] : Back.Heel[S])
+			// where the foot will be this frame: where it was drawn plus its own
+			// velocity (SaudIK::FFootTrack) -- a swing at a run is a frame ahead
+			const FVector At = Back.bValid ? (K ? Back.BallTrack[S].Ahead(DeltaSeconds) : Back.HeelTrack[S].Ahead(DeltaSeconds))
 			                               : Mesh->GetSocketLocation(K ? BallBone[S] : FootBone[S]);   // the first frame only
 			FHitResult Hit;
 			G.bHit = World->LineTraceSingleByObjectType(Hit, FVector(At.X, At.Y, FloorZ + TraceUp),
@@ -938,8 +978,11 @@ void USaudMotionAnimInstance::UpdateTurn(AFighterBase* Fighter, bool bTeleported
 			? Theirs->GetSocketLocation(HeadBone) : Target->GetActorLocation() + FVector(0.f, 0.f, 60.f);
 		SaudIK::LookAngles(Location, Eyes, Forward, Target->GetActorLocation(), His, RawYaw, Pitch);
 	}
+	// a turn or pivot clip carries the turn itself: the lag goes out as it
+	// comes in and is held at none under it, so the body is not turned twice
+	const float TurnClip = NewestTurns() ? Fade.Layers[0].Weight : -1.f;
 	SaudIK::TurnStep(Turn, Turned, RawYaw, Pitch, bMayLook && Target != nullptr, bLying,
-	                 St == EFighterState::Attack, bTeleported, DeltaSeconds);
+	                 St == EFighterState::Attack, bTeleported, DeltaSeconds, TurnClip);
 
 	// Handed over in the mesh's own space.
 	const FTransform& C2W = Mesh->GetComponentTransform();

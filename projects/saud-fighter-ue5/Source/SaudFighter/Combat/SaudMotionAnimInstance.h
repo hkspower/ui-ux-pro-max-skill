@@ -52,6 +52,7 @@ struct FSaudIKFrame
 	int32 StrikeLeg = -1;                        // the side an attack is thrown with, all attack long; -1 none
 	FVector Velocity = FVector::ZeroVector;      // the capsule's, world, flat
 	bool bSettleFeet = false;                    // standing, not striking (SaudIK::SettleDrift)
+	bool bStopping = false;                      // a walk crossfading to a stand (SaudIK::Stopping): the last swing lands first
 	SaudIK::FGroundPoint Ground[2][2];           // [side][0 heel, 1 ball]: WORLD point and normal
 	float AnkleRest[2] = { 0.f, 0.f };          // foot_'s height in the reference pose
 	float BallRest[2] = { 0.f, 0.f };           // ball_'s
@@ -86,6 +87,12 @@ struct FSaudIKFrame
 
 	// The guard: how much of the face's own turn each fist is carried by.
 	float GuardAlpha[2] = { 0.f, 0.f };
+
+	// The lean into a curve, a start or a stop (SaudIK::FLean): the pelvis --
+	// and the chain over it -- turned about LeanAxis (mesh space, level) by
+	// LeanDegrees, the feet's share taken by the proxy.
+	FVector LeanAxis = FVector(1.f, 0.f, 0.f);
+	float LeanDegrees = 0.f;
 };
 
 /** What the proxy drew last frame, for the game thread: where to trace the
@@ -95,6 +102,10 @@ struct FSaudFeetBack
 	bool bValid = false;
 	FVector Heel[2] = { FVector::ZeroVector, FVector::ZeroVector };   // world: foot_l/r as drawn
 	FVector Ball[2] = { FVector::ZeroVector, FVector::ZeroVector };   // world: ball_l/r as drawn
+	// each as drawn and how fast it went: the next traces are taken where it
+	// will be, not where it was (SaudIK::FFootTrack, 2026-10-04)
+	SaudIK::FFootTrack HeelTrack[2];
+	SaudIK::FFootTrack BallTrack[2];
 	SaudIK::FStrideMeter Stride;
 };
 
@@ -151,8 +162,11 @@ class SAUDFIGHTER_API USaudMotionAnimInstance : public UAnimInstance
 public:
 	/** Start a clip over a crossfade of CutSeconds. A clip already playing is
 	    left alone unless bRestart; bMatchPhase starts a loop at the share of
-	    its cycle the clip it replaces had reached (SaudFeel::CutBetween). */
-	void Play(UAnimSequence* Sequence, bool bLoop, bool bRestart, float CutSeconds = 0.f, bool bMatchPhase = false);
+	    its cycle the clip it replaces had reached (SaudFeel::CutBetween).
+	    bTurn: a turn or pivot clip (Turn_L90 ... Pivot_180) that carries the
+	    turn itself, so the hips' lag is cleared under it (SaudIK::TurnStep). */
+	void Play(UAnimSequence* Sequence, bool bLoop, bool bRestart, float CutSeconds = 0.f, bool bMatchPhase = false,
+	          bool bTurn = false);
 
 	/** On real time rather than the world's: under the title, which holds
 	    the world paused, he still breathes in his guard. A freeze (hit
@@ -197,6 +211,12 @@ private:
 	    or null for a clip measure_plants.py has not measured. Static data. */
 	TArray<const SaudPlants::FClip*> ClipPlants;
 
+	/** Each of Clips: a turn or pivot clip, which carries its own turn. */
+	TArray<bool> ClipTurns;
+
+	/** Whether the newest clip is a turn or pivot clip. */
+	bool NewestTurns() const;
+
 	/** The newest clip's measured plants, or null. */
 	const SaudPlants::FClip* NewestPlants() const;
 
@@ -210,6 +230,9 @@ private:
 
 	/** Feet: how long the capsule has been falling (a blow's push falls it a few frames). */
 	float AirTime = 0.f;
+
+	/** The lean into curves, starts and stops (SaudIK::StepLean). */
+	SaudIK::FLean Lean;
 
 	/** The strike: its kind, the man it is drawn to, his size, the mark held
 	    in this mesh's space, and the guarded stop eased in. */
