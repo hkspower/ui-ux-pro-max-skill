@@ -11,6 +11,9 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REAL = resolve(HERE, '../../Content/Data/config.json');
+// every colour the export writes, one row each (the scheme's 58 until
+// 2026-10-02, 255 since every colour in the data went in)
+const COLOURS = readFileSync(resolve(HERE, '../../Content/Data/DT_Colors.csv'), 'utf8').trim().split('\n').length - 1;
 const tmp = mkdtempSync(join(tmpdir(), 'saud-api-'));
 const CONFIG = join(tmp, 'config.json'), SAVES = join(tmp, 'saves');
 copyFileSync(REAL, CONFIG);
@@ -42,7 +45,7 @@ try {
   r = await fetch(BASE + '/v1/config'); const cfg = await r.json();
   check(r.status === 200 && cfg.Revision === revision, '/v1/config is the payload');
   check(Array.isArray(cfg.Fighters) && cfg.Fighters.some(f => f.Name === 'Zayos'), 'the payload has the roster, ZAYOS included');
-  check(Array.isArray(cfg.Colors) && cfg.Colors.length === 38, 'the payload carries the 38 colours (' + (cfg.Colors || []).length + ')');
+  check(Array.isArray(cfg.Colors) && cfg.Colors.length === COLOURS, 'the payload carries DT_Colors.csv\'s ' + COLOURS + ' colours (' + (cfg.Colors || []).length + ')');
   check(Array.isArray(cfg.Sounds) && cfg.Sounds.some(s => s.Name === 'Music_Under'), 'and the sound catalogue with the new music cues');
   r = await fetch(BASE + '/v1/config', { headers: { 'if-none-match': `"${revision}"` } });
   check(r.status === 304, 'a current ETag gets 304');

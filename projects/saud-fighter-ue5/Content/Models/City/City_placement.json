@@ -4515,62 +4515,14 @@
    "sector": 7
   },
   {
-   "row": 2608,
-   "kind": "wreck",
-   "district": 6,
-   "sector": 2
-  },
-  {
-   "row": 2609,
-   "kind": "pylon",
-   "district": 6,
-   "sector": 3
-  },
-  {
-   "row": 2610,
-   "kind": "wreck",
-   "district": 6,
-   "sector": 0
-  },
-  {
-   "row": 2611,
-   "kind": "wreck",
-   "district": 6,
-   "sector": 6
-  },
-  {
-   "row": 2612,
-   "kind": "wreck",
-   "district": 6,
-   "sector": 0
-  },
-  {
-   "row": 2613,
-   "kind": "wreck",
-   "district": 6,
-   "sector": 1
-  },
-  {
-   "row": 2614,
-   "kind": "wreck",
-   "district": 6,
-   "sector": 1
-  },
-  {
-   "row": 2615,
-   "kind": "pylon",
-   "district": 6,
-   "sector": 2
-  },
-  {
    "row": 2616,
    "kind": "wreck",
    "district": 6,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2617,
-   "kind": "wreck",
+   "kind": "pylon",
    "district": 6,
    "sector": 3
   },
@@ -4584,247 +4536,247 @@
    "row": 2619,
    "kind": "wreck",
    "district": 6,
-   "sector": 2
+   "sector": 6
   },
   {
    "row": 2620,
-   "kind": "pylon",
+   "kind": "wreck",
    "district": 6,
-   "sector": 3
+   "sector": 0
   },
   {
    "row": 2621,
    "kind": "wreck",
    "district": 6,
-   "sector": 4
+   "sector": 1
   },
   {
    "row": 2622,
    "kind": "wreck",
    "district": 6,
-   "sector": 5
+   "sector": 1
   },
   {
    "row": 2623,
-   "kind": "wreck",
+   "kind": "pylon",
    "district": 6,
-   "sector": 6
+   "sector": 2
   },
   {
    "row": 2624,
    "kind": "wreck",
    "district": 6,
-   "sector": 0
+   "sector": 3
   },
   {
    "row": 2625,
    "kind": "wreck",
    "district": 6,
-   "sector": 2
+   "sector": 3
   },
   {
    "row": 2626,
    "kind": "wreck",
    "district": 6,
-   "sector": 3
+   "sector": 0
   },
   {
    "row": 2627,
    "kind": "wreck",
    "district": 6,
-   "sector": 4
+   "sector": 2
   },
   {
    "row": 2628,
-   "kind": "wreck",
+   "kind": "pylon",
    "district": 6,
-   "sector": 5
+   "sector": 3
   },
   {
    "row": 2629,
    "kind": "wreck",
    "district": 6,
-   "sector": 7
+   "sector": 4
   },
   {
    "row": 2630,
    "kind": "wreck",
    "district": 6,
-   "sector": 0
+   "sector": 5
   },
   {
    "row": 2631,
    "kind": "wreck",
    "district": 6,
-   "sector": 0
+   "sector": 6
   },
   {
    "row": 2632,
    "kind": "wreck",
    "district": 6,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2633,
-   "kind": "pylon",
+   "kind": "wreck",
    "district": 6,
-   "sector": 1
+   "sector": 2
   },
   {
    "row": 2634,
    "kind": "wreck",
    "district": 6,
-   "sector": 1
+   "sector": 3
   },
   {
    "row": 2635,
-   "kind": "pylon",
+   "kind": "wreck",
    "district": 6,
-   "sector": 2
+   "sector": 4
   },
   {
    "row": 2636,
    "kind": "wreck",
    "district": 6,
-   "sector": 2
+   "sector": 5
   },
   {
    "row": 2637,
    "kind": "wreck",
    "district": 6,
-   "sector": 4
+   "sector": 7
   },
   {
    "row": 2638,
    "kind": "wreck",
    "district": 6,
-   "sector": 5
+   "sector": 0
   },
   {
    "row": 2639,
    "kind": "wreck",
    "district": 6,
-   "sector": 6
+   "sector": 0
   },
   {
    "row": 2640,
    "kind": "wreck",
    "district": 6,
-   "sector": 6
+   "sector": 1
   },
   {
    "row": 2641,
-   "kind": "wreck",
+   "kind": "pylon",
    "district": 6,
-   "sector": 6
+   "sector": 1
   },
   {
    "row": 2642,
    "kind": "wreck",
    "district": 6,
-   "sector": 0
+   "sector": 1
   },
   {
    "row": 2643,
-   "kind": "wreck",
+   "kind": "pylon",
    "district": 6,
-   "sector": 1
+   "sector": 2
   },
   {
    "row": 2644,
-   "kind": "pylon",
-   "district": 6,
-   "sector": 1
-  },
-  {
-   "row": 2645,
    "kind": "wreck",
    "district": 6,
    "sector": 2
   },
   {
+   "row": 2645,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 4
+  },
+  {
    "row": 2646,
-   "kind": "wreck",
-   "district": 6,
-   "sector": 3
-  },
-  {
-   "row": 2647,
-   "kind": "pylon",
-   "district": 6,
-   "sector": 4
-  },
-  {
-   "row": 2648,
-   "kind": "wreck",
-   "district": 6,
-   "sector": 4
-  },
-  {
-   "row": 2649,
    "kind": "wreck",
    "district": 6,
    "sector": 5
   },
   {
-   "row": 2650,
+   "row": 2647,
    "kind": "wreck",
    "district": 6,
    "sector": 6
   },
   {
+   "row": 2648,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2649,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 6
+  },
+  {
+   "row": 2650,
+   "kind": "wreck",
+   "district": 6,
+   "sector": 0
+  },
+  {
    "row": 2651,
    "kind": "wreck",
    "district": 6,
-   "sector": 7
+   "sector": 1
   },
   {
    "row": 2652,
-   "kind": "barrier",
+   "kind": "pylon",
    "district": 6,
-   "sector": 0
+   "sector": 1
   },
   {
    "row": 2653,
-   "kind": "barrier",
+   "kind": "wreck",
    "district": 6,
-   "sector": 0
+   "sector": 2
   },
   {
    "row": 2654,
-   "kind": "barrier",
+   "kind": "wreck",
    "district": 6,
-   "sector": 0
+   "sector": 3
   },
   {
    "row": 2655,
-   "kind": "barrier",
+   "kind": "pylon",
    "district": 6,
-   "sector": 0
+   "sector": 4
   },
   {
    "row": 2656,
-   "kind": "barrier",
+   "kind": "wreck",
    "district": 6,
-   "sector": 0
+   "sector": 4
   },
   {
    "row": 2657,
-   "kind": "barrier",
+   "kind": "wreck",
    "district": 6,
-   "sector": 0
+   "sector": 5
   },
   {
    "row": 2658,
-   "kind": "barrier",
+   "kind": "wreck",
    "district": 6,
-   "sector": 0
+   "sector": 6
   },
   {
    "row": 2659,
-   "kind": "barrier",
+   "kind": "wreck",
    "district": 6,
-   "sector": 0
+   "sector": 7
   },
   {
    "row": 2660,
@@ -4854,97 +4806,97 @@
    "row": 2664,
    "kind": "barrier",
    "district": 6,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2665,
    "kind": "barrier",
    "district": 6,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2666,
    "kind": "barrier",
    "district": 6,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2667,
    "kind": "barrier",
    "district": 6,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2668,
    "kind": "barrier",
    "district": 6,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2669,
    "kind": "barrier",
    "district": 6,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2670,
    "kind": "barrier",
    "district": 6,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2671,
    "kind": "barrier",
    "district": 6,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2672,
    "kind": "barrier",
    "district": 6,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2673,
    "kind": "barrier",
    "district": 6,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2674,
    "kind": "barrier",
    "district": 6,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2675,
    "kind": "barrier",
    "district": 6,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2676,
    "kind": "barrier",
    "district": 6,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2677,
    "kind": "barrier",
    "district": 6,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2678,
    "kind": "barrier",
    "district": 6,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2679,
    "kind": "barrier",
    "district": 6,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2680,
@@ -4968,49 +4920,49 @@
    "row": 2683,
    "kind": "barrier",
    "district": 6,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2684,
    "kind": "barrier",
    "district": 6,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2685,
    "kind": "barrier",
    "district": 6,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2686,
    "kind": "barrier",
    "district": 6,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2687,
    "kind": "barrier",
    "district": 6,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2688,
    "kind": "barrier",
    "district": 6,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2689,
    "kind": "barrier",
    "district": 6,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2690,
    "kind": "barrier",
    "district": 6,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2691,
@@ -5034,49 +4986,49 @@
    "row": 2694,
    "kind": "barrier",
    "district": 6,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2695,
    "kind": "barrier",
    "district": 6,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2696,
    "kind": "barrier",
    "district": 6,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2697,
    "kind": "barrier",
    "district": 6,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2698,
    "kind": "barrier",
    "district": 6,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2699,
    "kind": "barrier",
    "district": 6,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2700,
    "kind": "barrier",
    "district": 6,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2701,
    "kind": "barrier",
    "district": 6,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2702,
@@ -5106,49 +5058,49 @@
    "row": 2706,
    "kind": "barrier",
    "district": 6,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 2707,
    "kind": "barrier",
    "district": 6,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 2708,
    "kind": "barrier",
    "district": 6,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 2709,
    "kind": "barrier",
    "district": 6,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 2710,
    "kind": "barrier",
    "district": 6,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 2711,
    "kind": "barrier",
    "district": 6,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 2712,
    "kind": "barrier",
    "district": 6,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 2713,
    "kind": "barrier",
    "district": 6,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 2714,
@@ -5172,97 +5124,97 @@
    "row": 2717,
    "kind": "barrier",
    "district": 6,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 2718,
    "kind": "barrier",
    "district": 6,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 2719,
    "kind": "barrier",
    "district": 6,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 2720,
    "kind": "barrier",
    "district": 6,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 2721,
    "kind": "barrier",
    "district": 6,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 2722,
    "kind": "barrier",
    "district": 6,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 2723,
    "kind": "barrier",
    "district": 6,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 2724,
    "kind": "barrier",
    "district": 6,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 2725,
    "kind": "barrier",
    "district": 6,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 2726,
    "kind": "barrier",
    "district": 6,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 2727,
    "kind": "barrier",
    "district": 6,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 2728,
    "kind": "barrier",
    "district": 6,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 2729,
    "kind": "barrier",
    "district": 6,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 2730,
    "kind": "barrier",
    "district": 6,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 2731,
    "kind": "barrier",
    "district": 6,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 2732,
    "kind": "barrier",
    "district": 6,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 2733,
@@ -5283,196 +5235,196 @@
    "sector": 7
   },
   {
-   "row": 2926,
-   "kind": "tent",
-   "district": 7,
-   "sector": 2
+   "row": 2736,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
   },
   {
-   "row": 2927,
-   "kind": "tent",
-   "district": 7,
-   "sector": 6
+   "row": 2737,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
   },
   {
-   "row": 2928,
-   "kind": "tent",
-   "district": 7,
-   "sector": 1
+   "row": 2738,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
   },
   {
-   "row": 2929,
-   "kind": "tent",
-   "district": 7,
-   "sector": 5
+   "row": 2739,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
   },
   {
-   "row": 2930,
-   "kind": "tent",
-   "district": 7,
-   "sector": 0
+   "row": 2740,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
   },
   {
-   "row": 2931,
-   "kind": "rock",
-   "district": 7,
-   "sector": 1
+   "row": 2741,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
   },
   {
-   "row": 2932,
-   "kind": "tent",
-   "district": 7,
-   "sector": 4
+   "row": 2742,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
   },
   {
-   "row": 2933,
-   "kind": "rock",
-   "district": 7,
-   "sector": 6
+   "row": 2743,
+   "kind": "barrier",
+   "district": 6,
+   "sector": 7
   },
   {
    "row": 2934,
    "kind": "tent",
    "district": 7,
-   "sector": 7
+   "sector": 2
   },
   {
    "row": 2935,
-   "kind": "rock",
+   "kind": "tent",
    "district": 7,
-   "sector": 2
+   "sector": 6
   },
   {
    "row": 2936,
    "kind": "tent",
    "district": 7,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2937,
    "kind": "tent",
    "district": 7,
-   "sector": 3
+   "sector": 5
   },
   {
    "row": 2938,
    "kind": "tent",
    "district": 7,
-   "sector": 7
-  },
-  {
-   "row": 2939,
-   "kind": "tent",
-   "district": 7,
-   "sector": 7
-  },
-  {
-   "row": 2940,
-   "kind": "rock",
-   "district": 7,
    "sector": 0
   },
   {
-   "row": 2941,
-   "kind": "tent",
+   "row": 2939,
+   "kind": "rock",
    "district": 7,
    "sector": 1
+  },
+  {
+   "row": 2940,
+   "kind": "tent",
+   "district": 7,
+   "sector": 4
+  },
+  {
+   "row": 2941,
+   "kind": "rock",
+   "district": 7,
+   "sector": 6
   },
   {
    "row": 2942,
    "kind": "tent",
    "district": 7,
-   "sector": 2
+   "sector": 7
   },
   {
    "row": 2943,
-   "kind": "tent",
+   "kind": "rock",
    "district": 7,
    "sector": 2
   },
   {
    "row": 2944,
-   "kind": "rock",
+   "kind": "tent",
+   "district": 7,
+   "sector": 2
+  },
+  {
+   "row": 2945,
+   "kind": "tent",
    "district": 7,
    "sector": 3
   },
   {
-   "row": 2945,
-   "kind": "rock",
-   "district": 7,
-   "sector": 4
-  },
-  {
    "row": 2946,
-   "kind": "rock",
-   "district": 7,
-   "sector": 4
-  },
-  {
-   "row": 2947,
-   "kind": "rock",
-   "district": 7,
-   "sector": 5
-  },
-  {
-   "row": 2948,
-   "kind": "tent",
-   "district": 7,
-   "sector": 5
-  },
-  {
-   "row": 2949,
    "kind": "tent",
    "district": 7,
    "sector": 7
   },
   {
-   "row": 2950,
-   "kind": "dune",
+   "row": 2947,
+   "kind": "tent",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 2948,
+   "kind": "rock",
    "district": 7,
    "sector": 0
+  },
+  {
+   "row": 2949,
+   "kind": "tent",
+   "district": 7,
+   "sector": 1
+  },
+  {
+   "row": 2950,
+   "kind": "tent",
+   "district": 7,
+   "sector": 2
   },
   {
    "row": 2951,
-   "kind": "dune",
+   "kind": "tent",
    "district": 7,
-   "sector": 0
+   "sector": 2
   },
   {
    "row": 2952,
-   "kind": "dune",
+   "kind": "rock",
    "district": 7,
-   "sector": 0
+   "sector": 3
   },
   {
    "row": 2953,
-   "kind": "dune",
+   "kind": "rock",
    "district": 7,
-   "sector": 0
+   "sector": 4
   },
   {
    "row": 2954,
-   "kind": "dune",
+   "kind": "rock",
    "district": 7,
-   "sector": 0
+   "sector": 4
   },
   {
    "row": 2955,
-   "kind": "dune",
+   "kind": "rock",
    "district": 7,
-   "sector": 0
+   "sector": 5
   },
   {
    "row": 2956,
-   "kind": "dune",
+   "kind": "tent",
    "district": 7,
-   "sector": 0
+   "sector": 5
   },
   {
    "row": 2957,
-   "kind": "dune",
+   "kind": "tent",
    "district": 7,
-   "sector": 0
+   "sector": 7
   },
   {
    "row": 2958,
@@ -5484,49 +5436,49 @@
    "row": 2959,
    "kind": "dune",
    "district": 7,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2960,
    "kind": "dune",
    "district": 7,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2961,
    "kind": "dune",
    "district": 7,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2962,
    "kind": "dune",
    "district": 7,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2963,
    "kind": "dune",
    "district": 7,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2964,
    "kind": "dune",
    "district": 7,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2965,
    "kind": "dune",
    "district": 7,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2966,
    "kind": "dune",
    "district": 7,
-   "sector": 1
+   "sector": 0
   },
   {
    "row": 2967,
@@ -5550,49 +5502,49 @@
    "row": 2970,
    "kind": "dune",
    "district": 7,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2971,
    "kind": "dune",
    "district": 7,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2972,
    "kind": "dune",
    "district": 7,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2973,
    "kind": "dune",
    "district": 7,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2974,
    "kind": "dune",
    "district": 7,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2975,
    "kind": "dune",
    "district": 7,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2976,
    "kind": "dune",
    "district": 7,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2977,
    "kind": "dune",
    "district": 7,
-   "sector": 2
+   "sector": 1
   },
   {
    "row": 2978,
@@ -5610,49 +5562,49 @@
    "row": 2980,
    "kind": "dune",
    "district": 7,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2981,
    "kind": "dune",
    "district": 7,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2982,
    "kind": "dune",
    "district": 7,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2983,
    "kind": "dune",
    "district": 7,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2984,
    "kind": "dune",
    "district": 7,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2985,
    "kind": "dune",
    "district": 7,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2986,
    "kind": "dune",
    "district": 7,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2987,
    "kind": "dune",
    "district": 7,
-   "sector": 3
+   "sector": 2
   },
   {
    "row": 2988,
@@ -5676,49 +5628,49 @@
    "row": 2991,
    "kind": "dune",
    "district": 7,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2992,
    "kind": "dune",
    "district": 7,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2993,
    "kind": "dune",
    "district": 7,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2994,
    "kind": "dune",
    "district": 7,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2995,
    "kind": "dune",
    "district": 7,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2996,
    "kind": "dune",
    "district": 7,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2997,
    "kind": "dune",
    "district": 7,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2998,
    "kind": "dune",
    "district": 7,
-   "sector": 4
+   "sector": 3
   },
   {
    "row": 2999,
@@ -5742,97 +5694,97 @@
    "row": 3002,
    "kind": "dune",
    "district": 7,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 3003,
    "kind": "dune",
    "district": 7,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 3004,
    "kind": "dune",
    "district": 7,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 3005,
    "kind": "dune",
    "district": 7,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 3006,
    "kind": "dune",
    "district": 7,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 3007,
    "kind": "dune",
    "district": 7,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 3008,
    "kind": "dune",
    "district": 7,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 3009,
    "kind": "dune",
    "district": 7,
-   "sector": 5
+   "sector": 4
   },
   {
    "row": 3010,
    "kind": "dune",
    "district": 7,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 3011,
    "kind": "dune",
    "district": 7,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 3012,
    "kind": "dune",
    "district": 7,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 3013,
    "kind": "dune",
    "district": 7,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 3014,
    "kind": "dune",
    "district": 7,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 3015,
    "kind": "dune",
    "district": 7,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 3016,
    "kind": "dune",
    "district": 7,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 3017,
    "kind": "dune",
    "district": 7,
-   "sector": 6
+   "sector": 5
   },
   {
    "row": 3018,
@@ -5856,49 +5808,49 @@
    "row": 3021,
    "kind": "dune",
    "district": 7,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 3022,
    "kind": "dune",
    "district": 7,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 3023,
    "kind": "dune",
    "district": 7,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 3024,
    "kind": "dune",
    "district": 7,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 3025,
    "kind": "dune",
    "district": 7,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 3026,
    "kind": "dune",
    "district": 7,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 3027,
    "kind": "dune",
    "district": 7,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 3028,
    "kind": "dune",
    "district": 7,
-   "sector": 7
+   "sector": 6
   },
   {
    "row": 3029,
@@ -5908,6 +5860,54 @@
   },
   {
    "row": 3030,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3031,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3032,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3033,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3034,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3035,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3036,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3037,
+   "kind": "dune",
+   "district": 7,
+   "sector": 7
+  },
+  {
+   "row": 3038,
    "kind": "dune",
    "district": 7,
    "sector": 7

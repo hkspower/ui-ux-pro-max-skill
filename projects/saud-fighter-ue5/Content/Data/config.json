@@ -4943,7 +4943,7 @@
       "bSpatial": false,
       "Cooldown": 0,
       "Lead": 0,
-      "Description": "The title fights -- ZAYOS in the cellar"
+      "Description": "Every boss fight until a boss has a theme of his own (Music_Wahsh / Music_Saqr / Music_Zayos"
     },
     {
       "Name": "Music_Under",
@@ -4970,6 +4970,6 @@
       "Description": "The roofs. The stage loop opened out: wind, wide reverb, oud and qanun high above the street."
     }
   ],
-  "Revision": "ef0229b7d0b01b52",
-  "GeneratedAt": "2026-10-02T13:59:18.793Z"
+  "Revision": "fda4d83b5645c8a7",
+  "GeneratedAt": "2026-10-04T04:38:11.143Z"
 }
