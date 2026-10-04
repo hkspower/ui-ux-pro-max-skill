@@ -2292,7 +2292,7 @@ static void Loco()
         Check(T1 > 0.99f && T2 > 0.99f && T3 > 0.99f && T6 > 0.99f && U1 > 0.99f && U2 > 0.99f && U3 > 0.99f,
               "...toward the circle's centre, either way round: the pelvis's turn tips his up into the curve");
         Check(Near(Walk30, Walk, 0.1f), "...the same at 30 and 60 Hz");
-        Check(Near(WalkMax, LeanWalkMaxDeg, 0.1f) && Near(RunMax, LeanRunMaxDeg, 0.1f),
+        Check(Near(WalkMax, 12.f, 0.1f) && Near(RunMax, 20.f, 0.1f),
               "a curve tighter than he can lean into holds him at 12 degrees walking, 20 running");
         FLean S;
         for (int I = 0; I < 90; ++I) StepLean(S, FVector(341.f, 0.f, 0.f), 153.45f, 341.f, true, 1.f / 60.f);
@@ -2302,8 +2302,11 @@ static void Loco()
         FLean St; float Fwd = 0.f, Back = 0.f;
         for (int I = 0; I < 60; ++I) { StepLean(St, FVector(341.f * std::fmin(1.f, I / 4.f), 0.f, 0.f), 153.45f, 341.f, true, 1.f / 60.f); Fwd = std::fmax(Fwd, (float)St.Tilt[0].X); }
         for (int I = 0; I < 60; ++I) { StepLean(St, FVector(341.f * std::fmax(0.f, 1.f - I / 4.f), 0.f, 0.f), 153.45f, 341.f, true, 1.f / 60.f); Back = std::fmin(Back, (float)St.Tilt[0].X); }
-        std::printf("  a start to 341 cm/s pitches him %.2f forward, the stop %.2f back\n", Fwd, -Back);
-        Check(Fwd > 1.f && Fwd <= LeanPitchMaxDeg + 1e-3f && Back < -1.f && Back >= -LeanPitchMaxDeg - 1e-3f,
+        // and a long one, 0 to 341 over half a second (680 cm/s^2, 35 degrees by atan): held to 6
+        FLean Lg; float Long = 0.f;
+        for (int I = 0; I < 60; ++I) { StepLean(Lg, FVector(341.f * std::fmin(1.f, I / 30.f), 0.f, 0.f), 153.45f, 341.f, true, 1.f / 60.f); Long = std::fmax(Long, (float)Lg.Tilt[0].X); }
+        std::printf("  a start to 341 cm/s in 4 frames pitches him %.2f forward, the stop %.2f back; over half a second, %.2f\n", Fwd, -Back, Long);
+        Check(Fwd > 1.f && Fwd <= 6.001f && Back < -1.f && Back >= -6.001f && Long > 5.f && Long <= 6.001f,
               "a start pitches him forward and a stop back, to 6 degrees at the most");
         const FLean Was = St;
         StepLean(St, FVector(0.f, 300.f, 0.f), 153.45f, 341.f, true, 0.f);
@@ -2419,8 +2422,11 @@ static void Loco()
         const bool Start = Stopping(X, Plants, 3);
         X.Layers[0].Clip = 2; X.Layers[1].Clip = 0;
         const bool Unknown = Stopping(X, Plants, 3);
+        X.Layers[0].Clip = 0; X.Layers[1].Clip = 0;
+        const bool WalkToWalk = Stopping(X, Plants, 3);
         X.Num = 1; X.Layers[0].Clip = 1;
-        Check(Stop && !Start && !Unknown && !Stopping(X, Plants, 3), "a stop is a measured walk fading under a measured stand; a start, an unmeasured clip or one clip is not");
+        Check(Stop && !Start && !Unknown && !WalkToWalk && !Stopping(X, Plants, 3),
+              "a stop is a measured walk fading under a measured stand; a start, a walk into a walk, an unmeasured clip or one clip is not");
     }
 
     // ---- kerbs at a run: 5, 10 and 15 cm absorbed at 341 cm/s, at 30 and 60 Hz
@@ -2442,7 +2448,7 @@ static void Loco()
                     M.In.Mesh = At(FVector(X, 0.f, Up ? H : 0.f), 0.f);
                     M.Step(1.f / Hz);
                     const float Body = (float)(M.In.Mesh.Origin.Z + M.Plan.Pelvis.Z);
-                    if (I > 0 && Up && !Was) StepJump = std::fabs(Body - Prev);
+                    if (I > 0 && Up && !Was) StepJump = M.St.Absorbed != 0.f ? std::fabs(Body - Prev) : 99.f;
                     else if (I > 0 && Was) After = std::fmax(After, std::fabs(Body - Prev));
                     Was = Up; Prev = Body;
                 }
@@ -2488,10 +2494,8 @@ static void Loco()
             {
                 const float X = 341.f * I / Hz;
                 M.In.Mesh = At(FVector(X, 0.f, X > X0 ? (X - X0) * T : 0.f), 0.f);
-                const float Before = M.St.PelvisZ;
-                const float Rise = (float)(M.In.Mesh.Origin.Z - M.St.LastOrigin.Z);
                 M.Step(1.f / Hz);
-                if (X > X0 + 60.f && Rise > 1.f && Before - M.St.PelvisZ > 0.8f * Rise) ++Absorbed;
+                if (X > X0 + 60.f && M.St.Absorbed != 0.f) ++Absorbed;
             }
         }
         Check(Absorbed == 0, "a 20 degree ramp run up at 341 cm/s is a slope, not a stair of kerbs, at 30 and 60 Hz");

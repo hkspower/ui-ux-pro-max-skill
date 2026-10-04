@@ -40,17 +40,17 @@ sys.path.insert(0, os.path.join(ROOT, "Tools", "blender"))
 
 # name, clip, speed cm/s, turn deg/s, seconds, way, attack, strike leg, the one-line why
 CASES = (
-    ("walk at his own pace", "A_Saud_Walk_Fwd", 336.0, 0.0, 1.2, "fwd", 0, -1,
+    ("walk at his own pace", "A_Saud_Run_Fwd", 336.0, 0.0, 1.2, "fwd", 0, -1,
      "Saud's walk, at the 336 cm/s it was made for"),
-    ("walk faster than the clip", "A_Saud_Walk_Fwd", 504.0, 0.0, 1.2, "fwd", 0, -1,
+    ("walk faster than the clip", "A_Saud_Run_Fwd", 504.0, 0.0, 1.2, "fwd", 0, -1,
      "the street runner's 504 cm/s on a 336 cm/s walk"),
-    ("walk slower than the clip", "A_Saud_Walk_Fwd", 120.0, 0.0, 1.6, "fwd", 0, -1,
+    ("walk slower than the clip", "A_Saud_Run_Fwd", 120.0, 0.0, 1.6, "fwd", 0, -1,
      "an approach at 120 cm/s: under half the walk's own pace"),
     ("turn on the spot", "A_Saud_Guard", 0.0, 150.0, 1.2, "fwd", 0, -1,
      "the guard while the facing swings 150 degrees a second"),
-    ("ZAYOS walks", "A_Zayos_Walk_Fwd", 259.0, 40.0, 1.4, "fwd", 0, -1,
+    ("ZAYOS walks", "A_Zayos_Run_Fwd", 259.0, 40.0, 1.4, "fwd", 0, -1,
      "ZAYOS at his own 259 cm/s, curving 40 degrees a second"),
-    ("a side walk", "A_Saud_Walk_Left", 336.0, 0.0, 1.2, "left", 0, -1,
+    ("a side walk", "A_Saud_Run_Left", 336.0, 0.0, 1.2, "left", 0, -1,
      "to his left at his pace; the clip hops, both feet together"),
     ("a kick", "A_Saud_Kick", 0.0, 0.0, 0.53, "fwd", 1, 1,
      "the left foot stands; the right leg is the strike's"),

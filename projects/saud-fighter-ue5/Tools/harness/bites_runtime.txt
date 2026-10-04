@@ -41,7 +41,7 @@ feel|Source/SaudFighter/Combat/SaudFeel.h|s#Left = SaudSteer::TurnSeconds(Turn);
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#Left -= FMath::Max(0.f, Dt);#Left -= FMath::Max(0.f, Dt); if (FighterTurn == SaudSteer::ETurn::None) Left = 0.f;#|a turn's clip is held for its own TurnSeconds
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#FighterSerial != Serial)#(FighterSerial != Serial \&\& Turn == SaudSteer::ETurn::None))#|a new serial starts it again
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#constexpr float CutIntoTurn = 0.06f;#constexpr float CutIntoTurn = 0.20f;#|a turn or a pivot cuts in fast
-feel|Source/SaudFighter/Combat/SaudFeel.h|s#From == EClip::Pivot180) \&\& B#From == EClip::Pivot180 \&\& false) \&\& B#|a pivot steps on into its run
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#From == EClip::Pivot180) \&\& B#(From == EClip::Pivot180 \&\& false)) \&\& B#|a pivot steps on into its run
 
 # ---- the fallbacks
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (OA < OB - 1e-3f) return A;#if (OA > OB + 1e-3f) return A;#|falls back to the neighbour nearer the heading
@@ -61,7 +61,7 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#Out += Centre \* Roll;#Out += Centre * R
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Out += Way \* Pitch;#Out += Way * (-Pitch);#|a start pitches him forward and a stop back
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float LeanPitchMaxDeg = 6.f;#constexpr float LeanPitchMaxDeg = 30.f;#|to 6 degrees at the most
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bTeleported) { const FLean Keep = S;#Dt = FMath::Max(Dt, 1.f / 60.f); if (bTeleported) { const FLean Keep = S;#|the freeze holds the lean
-ik|Source/SaudFighter/Combat/SaudIK.h|s#const FVector Want = bOn \&\& S.bKnown ?#const FVector Want = S.bKnown ?#|off the ground the lean eases out
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const FVector Want = bOn \&\& S.bKnown ?#const FVector Want = (static_cast<void>(bOn), S.bKnown) ?#|off the ground the lean eases out
 ik|Source/SaudFighter/Combat/SaudIK.h|s#AlongPath(In.Velocity, St.LastVelocity)#(In.Velocity - St.LastVelocity)#|on a curve the hips are not thrown outward
 
 # ---- a turn clip carries the turn
@@ -82,12 +82,12 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#Sum += static_cast<float>(-(Nm.X \* D.X 
 
 # ---- traces where the foot will be
 ik|Source/SaudFighter/Combat/SaudIK.h|s#FVector Ahead(float Dt) const { return Last + Velocity \* FMath::Max(0.f, Dt); }#FVector Ahead(float Dt) const { return Last + Velocity * 0.f * Dt; }#|a foot is traced where it will be this frame
-ik|Source/SaudFighter/Combat/SaudIK.h|s#Velocity = Sp > TraceLeadMaxSpeed ? V \* (TraceLeadMaxSpeed / Sp) : V;#Velocity = V + 0.f * Sp;#|a trace never leads by more than TraceLeadMaxSpeed
+ik|Source/SaudFighter/Combat/SaudIK.h|s#V \* (TraceLeadMaxSpeed / Sp) : V;#V * (1.f + 0.f * Sp) : V;#|a trace never leads by more than TraceLeadMaxSpeed
 ik|Source/SaudFighter/Combat/SaudIK.h|s#else if (!bValid)#else#|the freeze keeps the foot's velocity
 
 # ---- the pelvis drops faster at speed
 ik|Source/SaudFighter/Combat/SaudIK.h|s#PelvisSettleRate \* (1.f + FMath::Max(0.f, Speed) / PelvisDropDoubleSpeed)#PelvisSettleRate + 0.f * Speed / PelvisDropDoubleSpeed#|at a run they drop to a lower foot three times as fast
-ik|Source/SaudFighter/Combat/SaudIK.h|s#return Target < Current ? PelvisSettleRate#return true ? PelvisSettleRate#|come back up unhurried
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return Target < Current ? PelvisSettleRate#return Target < Current + 1e9f ? PelvisSettleRate#|come back up unhurried
 
 # ---- the measured clips: one cycle per tier per set (data, the copy's SaudPlants.h)
 ik|Source/SaudFighter/Combat/SaudPlants.h|s#{ "A_Saud_Walk_Back", 0.571f, 17,#{ "A_Saud_Walk_Back", 0.571f, 18,#|every walk-tier loop of a set shares one cycle length

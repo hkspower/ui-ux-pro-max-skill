@@ -755,6 +755,7 @@ namespace SaudIK
 		FVector LastOrigin = FVector::ZeroVector;
 		bool bKnown = false;
 		FStrideMeter Stride;
+		float Absorbed = 0.f;          // the capsule's step taken in by the hips this frame (mesh units), 0 none
 	};
 
 	struct FFootPlan
@@ -893,12 +894,14 @@ namespace SaudIK
 		// drawn where it was and settles after, as the feet do.
 		{
 			const FVector Moved = In.Mesh.Origin - St.LastOrigin;
+			St.Absorbed = 0.f;
 			float Grade = 0.f;
 			const bool bGrade = GroundGrade(In, Moved, Grade);
 			if (bKnown && In.bWanted && SteppedCapsule(Moved, bGrade, Grade))
 			{
 				const float Rise = Moved.Z;
 				const float Taken = Rise / Scale;
+				St.Absorbed = Taken;
 				St.PelvisZ -= Taken;
 				St.FootZ[0] -= Taken;
 				St.FootZ[1] -= Taken;
