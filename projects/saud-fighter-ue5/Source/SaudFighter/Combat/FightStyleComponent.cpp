@@ -91,7 +91,15 @@ void UFightStyleComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	const float Distance = SaudArena::Flat(To);
 
 	Band = Style->BandFor(Distance);
-	Fighter->FaceTowards(Them);
+	// Fighting, he faces his man. Free -- far from him, past
+	// SaudSteer::FreeBeyondCm -- he turns toward where his feet take him
+	// instead, at a rate (TickFootwork, AFighterBase::SteerFree); a turn
+	// clip already playing is let finish the same way.
+	const bool bSteerFree = Fighter->IsMovingFree() || Fighter->GetLocoTurn() != SaudSteer::ETurn::None;
+	if (!bSteerFree)
+	{
+		Fighter->FaceTowards(Them);
+	}
 
 	TickRead(DeltaTime, To, Distance);
 	TickDefence(DeltaTime, Distance);
@@ -429,9 +437,17 @@ void UFightStyleComponent::TickFootwork(float DeltaTime, const FVector& To, floa
 	// where the first left off, which quietly makes a circling step faster
 	// than a straight one.
 	const FVector Step = Towards * Forward + Across * Sideways + Round * RoundStep + Clear * 0.8f;
-	if (!Step.IsNearlyZero())
+	// Free, the body turns toward the step at the free rate (a turn on the
+	// spot or a pivot holding his feet while its clip plays); fighting, he
+	// already faces his man and this is a strafe.
+	float Share = 1.f;
+	if (Fighter->IsMovingFree() || Fighter->GetLocoTurn() != SaudSteer::ETurn::None)
 	{
-		Fighter->AddMovementInput(Step.GetSafeNormal2D(), FMath::Min(1.f, Step.Size2D()) * Scale);
+		Share = Fighter->SteerFree(Step.GetSafeNormal2D(), Step.SizeSquared2D() > SaudSteer::PushedSq, DeltaTime);
+	}
+	if (!Step.IsNearlyZero() && Share > 0.f)
+	{
+		Fighter->AddMovementInput(Step.GetSafeNormal2D(), FMath::Min(1.f, Step.Size2D()) * Scale * Share);
 	}
 
 	Fighter->State = Step.IsNearlyZero() ? EFighterState::Idle : EFighterState::Walk;

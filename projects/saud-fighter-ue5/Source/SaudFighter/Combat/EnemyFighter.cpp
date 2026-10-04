@@ -153,7 +153,13 @@ void AEnemyFighter::TickAI(float DeltaSeconds, ASaudCharacter* Player)
 	const FVector Target = Player->GetActorLocation();
 	const FVector Delta = Target - Self;
 
-	FaceTowards(Target);
+	// Fighting, he faces the player; free (past SaudSteer::FreeBeyondCm) he
+	// turns toward where he goes at a rate, below, as the styled brain does.
+	const bool bSteerFree = IsMovingFree() || GetLocoTurn() != SaudSteer::ETurn::None;
+	if (!bSteerFree)
+	{
+		FaceTowards(Target);
+	}
 
 	// Guard when the player commits nearby — this is what makes bouncers a
 	// wall. Measured flat and against the facing: this was |X| < 240 and a
@@ -223,7 +229,11 @@ void AEnemyFighter::TickAI(float DeltaSeconds, ASaudCharacter* Player)
 		// One call, not one per axis: two calls are two sweeps and the second
 		// starts where the first left off, which doubles a diagonal.
 		const FVector Dir = ToDesired.GetSafeNormal2D();
-		AddMovementInput(Dir, bBlocking ? 0.4f : 1.f);
+		const float Share = bSteerFree ? SteerFree(Dir, true, DeltaSeconds) : 1.f;
+		if (Share > 0.f)
+		{
+			AddMovementInput(Dir, (bBlocking ? 0.4f : 1.f) * Share);
+		}
 		State = EFighterState::Walk;
 	}
 	else if (State == EFighterState::Walk)

@@ -193,7 +193,8 @@ protected:
 	    here. */
 	bool TryDash();
 
-	/** Turns toward whichever enemy is nearest before committing to a strike. */
+	/** Turns toward the nearest living enemy, by flat distance, before
+	    committing to a strike. */
 	void FaceNearestEnemy();
 
 	/** Advances jab -> cross -> hook while taps stay inside the combo window. */
@@ -236,7 +237,10 @@ private:
 	void UpdateCamera();
 	void UpdateCameraFades(const FVector& Eye, float Dt);
 
-	float BaseWalkSpeed = 520.f;
+	/** His speed before the SPEED upgrade: the MoveSpeed attribute (341,
+	    Player.json's BaseMoveSpeed), set on his movement component in
+	    BeginPlay. */
+	float BaseWalkSpeed = SaudCamera::RunSpeedCm;
 
 	/** HAWK FIST: the MP (the browser's p.mp), the flame and the burst's
 	    clock, whether this swing burns (decided when it starts, as

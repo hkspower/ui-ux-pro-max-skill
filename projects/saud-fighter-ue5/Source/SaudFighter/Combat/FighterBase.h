@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
 #include "Combat/SaudTypes.h"
+#include "Combat/SaudSteer.h"
 #include "FighterBase.generated.h"
 
 class UDataTable;
@@ -140,6 +141,44 @@ public:
 
 	/** Advances a climb in progress. Called from Tick; does nothing otherwise. */
 	void Tick_Climb(float DeltaSeconds);
+
+	// ------------------------------------------------------------- steering
+	/*
+	 * Free or fighting (Combat/SaudSteer.h, 2026-10-04, "360 motion"). Free:
+	 * no living opponent within SaudSteer::FreeBeyondCm, held through
+	 * FreeBandCm -- worked out every Tick from the nearest by flat distance.
+	 * Fighting, he faces his man and strafes; free, he turns toward where he
+	 * goes at a rate (SteerFree), on the spot or in a pivot when the turn is
+	 * big. The same for everyone: Saud's opponents are the AEnemyFighters,
+	 * an enemy's the player. The clip picker reads these four.
+	 */
+
+	/** The free/fight test, held. */
+	bool IsMovingFree() const { return bMovingFree; }
+
+	/** The turn clip playing (Turn_L90 / Turn_R90 / Turn_180 / Pivot_180),
+	    None when there is none. */
+	SaudSteer::ETurn GetLocoTurn() const { return LocoTurn.Turn; }
+
+	/** Moves by one on every turn started, so a turn straight after the same
+	    turn plays from its first frame. */
+	int32 GetLocoTurnSerial() const { return LocoTurn.Serial; }
+
+	/** His full speed now, cm/s: the movement component's MaxWalkSpeed (his
+	    upgrades, an enraged boss's x1.2). The run tier plays at it, the walk
+	    tier at SaudSteer::WalkShare of it. */
+	float GetRunSpeed() const;
+
+	/** The nearest living opponent by flat distance (GatherOpponents), or
+	    null; how far he is in OutDistance (left alone when there is none). */
+	AFighterBase* NearestOpponent(float* OutDistance = nullptr) const;
+
+	/** One frame of a free man's facing toward Wish (SaudSteer::StepFree):
+	    the rate-limited turn, or a turn on the spot / pivot starting (the
+	    facing snapped to the wish), or the hold of one in progress. Returns
+	    the share of his movement to apply this frame: 0 while a turn holds
+	    it. bPushed: the wish counts (a stick past SaudSteer::PushedSq). */
+	float SteerFree(const FVector& Wish, bool bPushed, float DeltaSeconds);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities")
@@ -312,6 +351,15 @@ protected:
 	float DownRemaining = 0.f;
 	float InvulnerableRemaining = 0.f;
 	FVector Facing = FVector(1.f, 0.f, 0.f);
+
+	/** Turn the facing to a yaw (degrees) now: SteerFree's step. */
+	void FaceYaw(float YawDeg);
+
+	/** IsMovingFree's held answer, and the turn in progress with its clock
+	    and serial (SaudSteer). A strike, a blow, a fall or a dash ends a
+	    turn; nothing else does. */
+	bool bMovingFree = false;
+	SaudSteer::FTurnState LocoTurn;
 
 	/** Set the frame block is pressed; a hit inside this window is a parry. */
 	float ParryWindowRemaining = 0.f;

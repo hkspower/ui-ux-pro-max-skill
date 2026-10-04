@@ -5,6 +5,7 @@
 #include "Game/SaudInputBindings.h"
 #include "Game/SaudLookSubsystem.h"
 #include "Game/SaudMenuSubsystem.h"
+#include "Gameplay/SaudAttributeSet.h"
 
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -65,9 +66,15 @@ void ASaudCharacter::BeginPlay()
 		Body->SetCustomDepthStencilValue(SaudAnime::Power::SaudStencil);
 	}
 
+	// His base speed is his data's: the MoveSpeed attribute, 341 cm/s
+	// (USaudAttributeSet's InitMoveSpeed: Player.json's BaseMoveSpeed, the
+	// browser's 142 px/s). It read the movement component's own MaxWalkSpeed
+	// here, which nothing had set -- UE's default 600 -- so he ran at 600
+	// and up while the gaits, the camera and the harness all said 341.
+	BaseWalkSpeed = (Attributes && Attributes->GetMoveSpeed() > 0.f) ? Attributes->GetMoveSpeed() : SaudCamera::RunSpeedCm;
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
-		BaseWalkSpeed = Move->MaxWalkSpeed;
+		Move->MaxWalkSpeed = BaseWalkSpeed;
 	}
 	ApplyUpgrades();
 
@@ -281,20 +288,36 @@ void ASaudCharacter::Tick(float DeltaSeconds)
 	if (!IsBusy() && State != EFighterState::Dash)
 	{
 		const float SpeedScale = bBlocking ? 0.38f : 1.f;
+		// Against the camera, not the world. A camera that swings makes
+		// "push the stick away from you" mean something different every
+		// second otherwise, and a district becomes unnavigable the first
+		// time you turn a corner.
+		const FVector Wish = SaudArena::CameraRelative(MoveInput.X, MoveInput.Y, CameraYaw);
+
+		// Which way he faces (Combat/SaudSteer.h). It snapped to the stick
+		// every frame, in a fight too, so he never strafed and a reversal
+		// at a run was the mesh spinning.
+		float Share = 1.f;
+		if (IsMovingFree() || GetLocoTurn() != SaudSteer::ETurn::None)
+		{
+			// FREE: his body turns toward where he goes at a rate; from
+			// standing a big turn is a turn on the spot, a reversal at a run
+			// a pivot, his movement held while the clip carries the turn (a
+			// turn begun before men came near plays out the same way).
+			Share = SteerFree(Wish, Wish.SizeSquared2D() > SaudSteer::PushedSq, DeltaSeconds);
+		}
+		else if (const AFighterBase* Man = NearestOpponent())
+		{
+			// FIGHTING: he faces his man and moves along the stick without
+			// turning to it -- a strafe, any of eight ways.
+			FaceTowards(Man->GetActorLocation());
+		}
+
 		if (!MoveInput.IsNearlyZero())
 		{
-			// Against the camera, not the world. A camera that swings makes
-			// "push the stick away from you" mean something different every
-			// second otherwise, and a district becomes unnavigable the first
-			// time you turn a corner.
-			const FVector Wish = SaudArena::CameraRelative(MoveInput.X, MoveInput.Y, CameraYaw);
-			AddMovementInput(Wish, SpeedScale);
-
-			// Face where you are going. It used to be a sign on X, which is
-			// why he could only ever look two ways.
-			if (Wish.SizeSquared2D() > 0.03f)
+			if (Share > 0.f)
 			{
-				FaceTowards(GetActorLocation() + Wish);
+				AddMovementInput(Wish, SpeedScale * Share);
 			}
 			State = EFighterState::Walk;
 		}
@@ -510,29 +533,12 @@ void ASaudCharacter::ResolveAttackHits(const FAttackDef& Attack)
 
 void ASaudCharacter::FaceNearestEnemy()
 {
-	TArray<AFighterBase*> Targets;
-	GatherTargets(Targets);
-
-	AFighterBase* Best = nullptr;
-	float BestScore = TNumericLimits<float>::Max();
-	const FVector Origin = GetActorLocation();
-
-	for (AFighterBase* T : Targets)
+	// The nearest living man, flat. It scored |X| + 2|Y| and would not turn
+	// to a man within 20 cm of him in world X -- the strip's "in front",
+	// which left a man due north or south of him never faced.
+	if (const AFighterBase* Man = NearestOpponent())
 	{
-		const FVector D = T->GetActorLocation() - Origin;
-		// Weight depth heavily: someone directly ahead matters more than
-		// someone the same distance away but on a different line.
-		const float Score = FMath::Abs(D.X) + FMath::Abs(D.Y) * 2.f;
-		if (Score < BestScore)
-		{
-			BestScore = Score;
-			Best = T;
-		}
-	}
-
-	if (Best && FMath::Abs(Best->GetActorLocation().X - Origin.X) > 20.f)
-	{
-		FaceTowards(Best->GetActorLocation());
+		FaceTowards(Man->GetActorLocation());
 	}
 }
 
@@ -570,17 +576,10 @@ void ASaudCharacter::Input_Kick()
 	FaceNearestEnemy();
 
 	// Close in and it becomes a knee — a roundhouse at that range would whiff.
-	TArray<AFighterBase*> Targets;
-	GatherTargets(Targets);
-	bool bClose = false;
-	for (const AFighterBase* T : Targets)
-	{
-		if (FMath::Abs(T->GetActorLocation().X - GetActorLocation().X) < 120.f)
-		{
-			bClose = true;
-			break;
-		}
-	}
+	// Flat distance to the nearest man; it was |dX| in world X, a strip's.
+	float Nearest = TNumericLimits<float>::Max();
+	NearestOpponent(&Nearest);
+	const bool bClose = Nearest < 120.f;
 	BeginAttackBookkeeping();
 	StartAttack(bClose ? TEXT("Knee") : TEXT("Kick"));
 }
@@ -619,7 +618,9 @@ bool ASaudCharacter::TryDash()
 	++MotionSerial;
 	InvulnerableRemaining = bLeap ? 0.34f : 0.26f;
 
-	const FVector Dir = FVector(MoveInput.X, MoveInput.Y, 0.f).GetSafeNormal();
+	// Against the camera, as the walk is: it read the raw stick as world X
+	// and Y, so a dash went somewhere else than the step it came from.
+	const FVector Dir = SaudArena::CameraRelative(MoveInput.X, MoveInput.Y, CameraYaw).GetSafeNormal();
 	LaunchCharacter(Dir * (bLeap ? 1500.f : 1150.f), true, false);
 	if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this))
 	{

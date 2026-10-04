@@ -144,6 +144,65 @@ void AFighterBase::GatherOpponents(TArray<AFighterBase*>& OutTargets) const
 	GatherTargets(OutTargets);
 }
 
+AFighterBase* AFighterBase::NearestOpponent(float* OutDistance) const
+{
+	TArray<AFighterBase*> Targets;
+	GatherOpponents(Targets);
+
+	const FVector Origin = GetActorLocation();
+	float Best = TNumericLimits<float>::Max();
+	AFighterBase* Nearest = nullptr;
+	for (AFighterBase* T : Targets)
+	{
+		if (!IsValid(T) || !T->IsAlive())
+		{
+			continue;
+		}
+		// Flat: a fight is on the ground, and no direction is "in front".
+		const float D = static_cast<float>(FVector::Dist2D(T->GetActorLocation(), Origin));
+		if (D < Best)
+		{
+			Best = D;
+			Nearest = T;
+		}
+	}
+	if (Nearest && OutDistance)
+	{
+		*OutDistance = Best;
+	}
+	return Nearest;
+}
+
+float AFighterBase::GetRunSpeed() const
+{
+	const UCharacterMovementComponent* Move = GetCharacterMovement();
+	return Move ? Move->MaxWalkSpeed : 0.f;
+}
+
+float AFighterBase::SteerFree(const FVector& Wish, bool bPushed, float DeltaSeconds)
+{
+	SaudSteer::FFreeIn In;
+	In.Dt = DeltaSeconds;
+	In.FacingYaw = SaudSteer::YawOf(Facing);
+	In.Wish = FVector(Wish.X, Wish.Y, 0.f);
+	In.bPushed = bPushed;
+	In.Speed = static_cast<float>(GetVelocity().Size2D());
+	In.RunSpeed = GetRunSpeed();
+	const SaudSteer::FFreeOut Out = SaudSteer::StepFree(LocoTurn, In);
+	FaceYaw(Out.FacingYaw);
+	return Out.MoveShare;
+}
+
+void AFighterBase::FaceYaw(float YawDeg)
+{
+	if (FMath::Abs(SaudSteer::Wrap180(YawDeg - SaudSteer::YawOf(Facing))) < 1e-3f)
+	{
+		return;
+	}
+	Facing = SaudSteer::DirOf(YawDeg);
+	SetActorRotation(FRotator(0.f, YawDeg, 0.f));
+}
+
 void AFighterBase::SpendStamina(float Amount)
 {
 	if (Attributes)
@@ -207,6 +266,21 @@ void AFighterBase::Tick(float DeltaSeconds)
 
 	TickTimers(DeltaSeconds);
 	Tick_Climb(DeltaSeconds);
+
+	// Free or fighting, held through its band (SaudSteer::FreeHeld), from
+	// the nearest living opponent, flat; and the turn's clock. A strike, a
+	// blow, a fall or a dash takes over from a turn clip.
+	float Nearest = TNumericLimits<float>::Max();
+	NearestOpponent(&Nearest);
+	bMovingFree = SaudSteer::FreeHeld(Nearest, bMovingFree);
+	if (IsBusy() || State == EFighterState::Dash)
+	{
+		SaudSteer::CancelTurn(LocoTurn);
+	}
+	else
+	{
+		SaudSteer::TickTurn(LocoTurn, DeltaSeconds);
+	}
 
 	// The tags mirror the timers: whatever put one on, running out takes it
 	// off, so nothing can be left permanently stunned by a cancelled hit.
