@@ -493,13 +493,14 @@ DASH_DIRS = ("Fwd", "Back", "Left", "Right")
 # WALK_STRIDE of floor, so its length is WALK_STRIDE / (WALK_SHARE x speed) --
 # Saud and the street men 16 frames (0.53 s) at 153 cm/s, AL-WAHSH 15, AL-
 # SAQR 12, ZAYOS 21. Why so short for a walk (a guard walk is 0.7-1.0 s, was
-# the brief): sideways with no flight each foot's swing moves the gap between
-# the feet by the whole stride, so the gap swings over v*T; at 153 cm/s and
-# 0.7 s that is 1.07 m -- from crossed to 1.1 m apart -- and forward the planted
-# foot rides v*T*duty = 0.64 m under him, which locked or dropped his knees
-# 6 cm (measured on the plan, Tools/blender's gait arithmetic of 2026-10-04).
-# 0.80 m a cycle holds both: Saud's side walk keeps 8+ cm between the balls
-# on his own guard's width, his forward walk's ankle stays in reach.
+# the brief): sideways with no flight neither swing overlaps the other, so
+# each moves the gap between the feet by the whole stride and the gap swings
+# over v*T -- at 153 cm/s and 0.7 s, 1.07 m: on Saud's 40 cm guard, from 3
+# cm crossed to a metre apart; and forward the planted foot rides v*T*duty
+# = 0.64 m under him, which takes his hips 6 cm under the guard to keep the
+# knee off its lock (the gait's arithmetic on the guards' own feet,
+# 2026-10-04). 0.80 m a cycle keeps the feet apart with the side walk's
+# stance spread no more than 5 cm (WALK_GAP), the forward ankle in reach.
 WALK_SHARE = 0.45
 WALK_STRIDE = 0.80         # m of floor a walk-tier cycle covers
 WALK_DUTY = 0.60           # each foot on the floor 60 % of the walk's cycle: double support 2 x 10 %
@@ -1640,6 +1641,11 @@ def walk_plan(au, c, S):
         beta, phase = walk_tier_gait(N, v * T * WALK_DUTY, d.x)
     else:
         beta, phase = walk_gait(v * T, w, lateral, c["dir"], share=abs(d.x))
+        if diag:
+            # a diagonal's left foot lands on its first frame, whichever
+            # foot leads, as in every walk-tier loop and Run_Fwd/Back
+            # (Run_Right, authored as it always was, lands the right)
+            phase = {s: (ph - phase["l"]) % 1.0 for s, ph in phase.items()}
     amp = v * T * beta
     # Saud's walks are a runner's (STEPS_SETS, the constants above); every
     # other set's are authored exactly as before, on this same code, with
@@ -3472,9 +3478,10 @@ def verify(rig, made):
     for c in steps:
         bits = ["leg reach %.4f" % c["reach"]]
         if c["kind"] == "walk":
-            bits.append("knee %.0f deg at the least, pelvis step %.1f cm, swing %.1f/%.1f cm" % (
-                c["knee_min"], c["jolt_cm"], c["clear_l_cm"], c["clear_r_cm"]))
-            if "knee_off" in c:
+            bits.append("knee %.0f deg at the least, pelvis step %.1f cm" % (c["knee_min"], c["jolt_cm"]))
+            if "clear_l_cm" in c:
+                bits.append("swing %.1f/%.1f cm" % (c["clear_l_cm"], c["clear_r_cm"]))
+            if c.get("knee_off"):
                 bits.append("knee off the foot's line %s" % ", ".join(
                     "%s %+.1f..%+.1f cm" % (s, v[0] * 100, v[1] * 100) for s, v in sorted(c["knee_off"].items())))
             if "support_l_cm" in c:
@@ -3501,6 +3508,8 @@ def verify(rig, made):
             bits.append("%s tier %.0f cm/s, %d frames, duty %.2f, right %.3f behind the left, feet %.1f cm apart at the closest"
                         % (c.get("tier", "run"), c["speed"], c["frames"], gt["duty"], (gt["lag"]["r"] - gt["lag"]["l"]) % 1.0,
                            c["gap_cm"]))
+            if gt.get("spread_cm"):
+                bits.append("feet set %.1f cm apart across him" % gt["spread_cm"])
             if "double" in c:
                 bits.append("both down at %d changes of support (%d frames)" % c["double"])
         else:
@@ -3702,7 +3711,7 @@ def bite():
         ("turn from guard", "turn_still", ["A_Saud_Guard", "A_Saud_Turn_L90"], "does not start in the guard"),
         ("turn ends guard", "turn_short", ["A_Boss_Guard", "A_Boss_Turn_180"], "cm from the guard"),
         ("turn ends facing", "turn_short", ["A_Boss_Guard", "A_Boss_Turn_180"], "the body ends turned"),
-        ("turn length",    "turn_long",   ["A_Saud_Turn_L90"],               "the game holds the turn"),
+        ("turn length",    "turn_long",   ["A_Saud_Guard", "A_Saud_Turn_L90"], "the game holds the turn"),
         ("pivot turns",    "pivot_still", ["A_Saud_Run_Fwd", "A_Saud_Pivot_180"], "the pivot turns"),
         ("pivot phase",    "pivot_off",   ["A_Street_Run_Fwd", "A_Street_Pivot_180"], "into Run_Fwd's phase"),
         ("one cycle a tier", "two_cycles", ["A_Saud_Walk_Fwd"],             "cycles"),
