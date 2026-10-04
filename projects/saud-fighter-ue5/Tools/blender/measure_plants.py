@@ -10,8 +10,8 @@ themselves (Unreal build; asked 2026-10-02 as "improve plants ik").
 WHY. The runtime IK (Combat/SaudIK.h) holds a planted foot where it was put
 down. Until now it guessed which foot was planted from how high the clip had
 it, every frame, against thresholds no clip was ever measured against. The
-clips are all here, every frame of every one, so this reads them: each of
-the 197 FBX files in Content/Animation is imported and every frame's ankle
+clips are all here, every frame of every one, so this reads them: every FBX
+the men's and the island's manifests list in Content/Animation is imported and every frame's ankle
 (foot_l/r) and ball (ball_l/r) is read, in the engine's frame. A foot is
 DOWN on a frame when its ball is within BallDown of where that man's ball
 sits in his own guard, and FLAT when its ankle is within AnkleDown of where
@@ -27,7 +27,25 @@ in his stance; his lead foot is flat): that foot's ankle and ball heights are
 the man's rest, for both feet -- except Saud's motion capture
 (A_Saud_Mocap_*), which stands on its own actor's floor: each foot's own
 lowest ball and ankle over its loop. A set is the clip name's second word (A_Saud_..., A_Street_...,
-A_Boss_..., A_Saqr_..., A_Zayos_...).
+A_Boss_..., A_Saqr_..., A_Zayos_..., and the island's A_Monkey_...,
+A_Gorilla_..., Content/Animation/Island, DT_IslandMotion.csv -- measured
+since 2026-10-04, the 360 locomotion: each creature against its own guard
+and its own leg).
+
+WHAT IS MEASURED, by kind, not by name (so the 360 locomotion's names --
+Walk_<Dir> and Run_<Dir> x8, Turn_L90 / Turn_R90 / Turn_180, Pivot_180 --
+are measured as the old walks were): every clip's plants, frame by frame;
+a LOOP's stride as well (how fast its planted balls travel, whichever way);
+a one-shot (a turn, the pivot) has no stride.
+
+TWO KEYING CONVENTIONS. build_motion.py keys a loop's n frames; the
+island's tool keys n + 1, the last a copy of the first (its manifest's
+Frames is n + 1, its Seconds n / 30). A loop whose Frames is one over
+Seconds x 30 is taken as that: its stride is measured over its n distinct
+frames (the step from the last back to the first counted once), and its
+plants are written for all n + 1 frames as keyed. Where the importer puts
+authored frame 0 is read from the imported action (frame 2 for
+build_motion's files, frame 1 for the island's), not assumed.
 
 WHAT IT WRITES. Source/SaudFighter/Combat/SaudPlants.h, generated, never
 hand-edited: per clip its name, seconds, frame count, its own stride speed
@@ -37,8 +55,9 @@ walk), and per foot one character a frame:
     '.'  in the air       'b'  down on the ball, heel up
     'f'  flat, heel and ball down
 The engine finds a clip by its asset name. Frame f is at f / 30 s
-(build_motion.FPS); Blender's importer puts authored frame f at f + 2
-(build_motion.readback).
+(build_motion.FPS); Blender's importer puts authored frame f at f + 2 for
+build_motion's files (build_motion.readback) and f + 1 for the island's --
+read from the action, above.
 
 Engine frame: centimetres, X forward, Y right, Z up. Blender's is metres
 with the man facing -Y and his left at +X, so engine = (-y, -x, z) x 100.
@@ -54,7 +73,7 @@ ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 ANIM = os.path.join(ROOT, "Content", "Animation")
 OUT = os.path.join(ROOT, "Source", "SaudFighter", "Combat", "SaudPlants.h")
 FPS = 30
-FOLDERS = ("Saud", "Street", "Bosses")
+FOLDERS = ("Saud", "Street", "Bosses", "Island")
 
 # A ball within this of its guard height is on the floor, and an ankle
 # within this of its guard height has the heel down. Saud's centimetres,
@@ -98,9 +117,12 @@ def sample(path, frames):
     rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
     pb = rig.pose.bones
     W = rig.matrix_world
+    # authored frame 0 is the action's first key: frame 2 for build_motion's
+    # files, frame 1 for build_primate_motion's (Blender's FBX importer)
+    first = int(round(rig.animation_data.action.frame_range[0]))
     out = []
     for f in range(frames):
-        bpy.context.scene.frame_set(f + 2)
+        bpy.context.scene.frame_set(f + first)
         bpy.context.view_layer.update()
         fr = {}
         for s in ("l", "r"):
@@ -155,6 +177,8 @@ def stride_speed(frames, marks, seconds, loop):
     dt = 1.0 / FPS
     v = []
     n = len(frames)
+    if n == round(seconds * FPS) + 1:
+        n -= 1                      # the island's n + 1 keying: the last frame is the first again
     for s in ("l", "r"):
         for f in range(n):
             g = (f + 1) % n

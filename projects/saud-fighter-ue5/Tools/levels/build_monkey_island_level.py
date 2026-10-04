@@ -82,8 +82,15 @@ SITE_RADIUS_M = 9.0          # SaudArena::SiteRadius (900 cm)
 DIRECTOR_REACH_M = 64.0      # DistrictExtent(1360) 6000 cm + the 400 cm margin: the round a director answers for
 PIER_EDGE_M = 0.8           # the pier starts where the beach comes down to this, seaward of the landing
 BOAT_LEN_M, BOAT_BEAM_M, BOAT_DRAFT_M = 14.0, 4.0, 1.2
-NEED_CLIPS = ("Guard", "Walk_Fwd", "Walk_Back", "Walk_Left", "Walk_Right", "Block", "Hit_Light", "Hit_Heavy",
-              "Down", "GetUp", "Death", "Victory")
+# the clips the engine asks a creature for: since 2026-10-04 the 360
+# locomotion's names (its binding spec, section 1) -- a walk tier and a run
+# tier, eight ways each, the three turns on the spot and the run's pivot
+LOCO_DIRS = ("Fwd", "FwdLeft", "Left", "BackLeft", "Back", "BackRight", "Right", "FwdRight")
+TURN_SECONDS = {"Turn_L90": 0.50, "Turn_R90": 0.50, "Turn_180": 0.70, "Pivot_180": 0.45}   # SaudSteer::TurnSeconds
+WALK_SHARE = 0.45                                                                          # SaudSteer::WalkShare
+NEED_CLIPS = (("Guard",) + tuple("Walk_" + d for d in LOCO_DIRS) + tuple("Run_" + d for d in LOCO_DIRS)
+              + tuple(TURN_SECONDS) + ("Block", "Hit_Light", "Hit_Heavy", "Down", "GetUp", "Death", "Victory"))
+FPS = 30
 # foliage: the cell a plant stands in (one at most, jittered), its layer and
 # the least weight of it, the heights it grows at (m), the steepest ground
 # (deg), and how far it keeps from the trail (m)
@@ -633,11 +640,19 @@ def check(P):
         for b in dirs[i + 1:]:
             if math.hypot(a["x"] - b["x"], a["y"] - b["y"]) < 2 * DIRECTOR_REACH_M:
                 miss.append("%s and %s answer for the same ground" % (a["name"], b["name"]))
-    # the data: every fighter known, every move a row, every clip on disk, the pace the walks were struck at
+    # the data: every fighter known, every move a row, every clip on disk
+    # and in the manifest, a turn as long as the game holds it, his
+    # MoveSpeed the pace his RUN tier was struck at and his walks at the
+    # spec's share of it
     import importlib.util
     spec = importlib.util.spec_from_file_location("bpm", os.path.join(PROJECT, "Tools", "blender", "build_primate_motion.py"))
     bpm = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(bpm)
+    mpath = os.path.join(ANIM, "DT_IslandMotion.csv")
+    motion = {}
+    if os.path.exists(mpath):
+        with open(mpath, newline="", encoding="utf-8") as fh:
+            motion = {r["Name"]: r for r in csv.DictReader(fh)}
     for row in stages.values():
         for w in row["Waves"]:
             for f in w["Fighters"]:
@@ -649,12 +664,24 @@ def check(P):
             if m not in attacks:
                 miss.append("%s throws %s, which is not an attack row" % (name, m))
         for c in NEED_CLIPS + tuple(moves):
-            if not os.path.exists(os.path.join(ANIM, "A_%s_%s.fbx" % (name, c))):
+            gone = "clip_missing" in SABOTAGE and name == "Gorilla" and c == "Run_FwdLeft"
+            if gone or not os.path.exists(os.path.join(ANIM, "A_%s_%s.fbx" % (name, c))):
                 miss.append("%s has no clip %s" % (name, c))
+            elif "A_%s_%s" % (name, c) not in motion:
+                miss.append("%s's clip %s is not in DT_IslandMotion.csv" % (name, c))
+        for c, secs in TURN_SECONDS.items():
+            row = motion.get("A_%s_%s" % (name, c))
+            if row:
+                got = float(row["Seconds"]) + (0.1 if "turn_drift" in SABOTAGE and c == "Turn_180" else 0.0)
+                if abs(got - secs) * FPS > 1.0 + 1e-6:
+                    miss.append("%s's %s lasts %.3f s, the game holds it %.2f s" % (name, c, got, secs))
         if set(moves) != set(bpm.STRIKES.get(name, ())):
             miss.append("%s's moves %s are not the strikes his clips were struck for %s" % (name, moves, bpm.STRIKES.get(name)))
-        if abs(float(r["MoveSpeed"]) - bpm.PACE.get(name, -1)) > 0.5:
-            miss.append("%s moves at %s cm/s, his walks were struck at %s" % (name, r["MoveSpeed"], bpm.PACE.get(name)))
+        speed = float(r["MoveSpeed"]) * (WALK_SHARE if "speed_walk" in SABOTAGE and name == "Monkey" else 1.0)
+        if abs(speed - bpm.PACE.get(name, -1)) > 0.5:
+            miss.append("%s moves at %.0f cm/s, his runs were struck at %s" % (name, speed, bpm.PACE.get(name)))
+        if abs(getattr(bpm, "WALK_SHARE", -1.0) - WALK_SHARE) > 1e-9:
+            miss.append("%s's walks were struck at %s of his run, the spec's share is %s" % (name, getattr(bpm, "WALK_SHARE", None), WALK_SHARE))
         mesh = r["Mesh"].split("/")[-1].split(".")[0]
         if not os.path.exists(os.path.join(PROJECT, "Content", "Models", mesh + ".fbx")):
             miss.append("%s wears %s, which is not in Content/Models" % (name, mesh))
@@ -1241,6 +1268,10 @@ BITES = [
     ("the temple's fight lit", "court_short", "temple is fought by moonlight"),
     ("the court evenly round", "court_uneven", "not evenly round"),
     ("no court pyre it can spare", "court_extra", "court has 6 pyres where 5"),
+    # the creatures' clips (2026-10-04, the 360 locomotion)
+    ("every clip on disk", "clip_missing", "has no clip Run_FwdLeft"),
+    ("a turn as long as the game's", "turn_drift", "Turn_180 lasts"),
+    ("MoveSpeed the run's pace", "speed_walk", "his runs were struck at"),
 ]
 
 
