@@ -91,9 +91,11 @@ CHECKED (--check, on the saved scenes; --bite breaks each once):
     engine ends it; the prologue's ten; the island's three props and every
     plant (instance by instance, mesh and place), its ground equal to the
     heightmap at every vertex, the sea; its night -- one light per planned
-    fire at its flame, the world's power and end, the souq's mesh at its
-    foot, and nothing solid (a column, a wall, the throne, the pier, the
-    boat, a trunk, a rock, as built) inside any fire's own column;
+    fire at its flame, the world's power, the fire's colour (its
+    temperature on) and spawn_night's size, ended where the engine ends it
+    as read from the nodes that end it, the souq's mesh at its foot, and
+    nothing solid (a column, a wall, the throne, the pier, the boat, a
+    trunk, a rock, as built) inside any fire's own column;
   - each district's pieces lie round its middle, inside its reach, and no
     two overlapping tops share a plane;
   - every camera has its target inside the middle 80 % of its frame, and
@@ -102,7 +104,11 @@ CHECKED (--check, on the saved scenes; --bite breaks each once):
   - the rendered views: the frame mostly world, not sky; ink drawn; a
     middle grey neither black nor blown; and a view of a lit district, or
     of the island with a fire in its frame, has its pools (somewhere on its
-    ground a fire out-lights the moon).
+    ground a fire out-lights the moon) -- bitten on a small render of the
+    souq's view and of the island's landing, each with its fires out.
+  --bite runs the island's scene unbroken first, and counts none of the
+  island's cases if it fails (a scene left behind its plan would miss on
+  its own).
 
 UNVERIFIED, AND WHAT IS NOT THE GAME'S. These are Blender's pictures of the
 levels' plans, through the look's numpy mirror; no engine has built any of
@@ -155,8 +161,11 @@ GROUND_SHARE = 0.30          # a rendered view: at least this much of the frame 
 GREY_BAND = (0.06, 0.75)     # ... its median display value inside this
 INK_SHARE = 0.003            # ... ink on at least this share of it
 HOLE_L = 12.0                # ... and no more than HOLE_SHARE of it a black hole: drawn under
-HOLE_SHARE = 0.03            #     this L* and neither sky nor ink (a line, a hatch, a dot) --
-                             #     the dark night settled 2026-10-04, "night, no black holes"
+HOLE_SHARE = 0.05            #     this L* and neither sky nor ink (a line, a hatch, a dot) --
+                             #     the dark night settled 2026-10-04, "night, no black holes".
+                             #     Measured then: 0.2-2.0 % of every view, the island's clearing
+                             #     3.9 % (its near trees' shaded side in the vignette's corners);
+                             #     drawn the old way, at the stand-in key, 10-59 %
 SABOTAGE = set()
 
 
@@ -429,6 +438,51 @@ def attenuation_pools():
     lan = re.search(r'set_attenuation_radius\(NIGHT\["lantern"\]\["pool_m"\] \* ([\d.]+) \* 100\.0\)', src)
     assert fire and lan, "spawn_night no longer says how far its lights reach"
     return float(fire.group(1)), float(lan.group(1))
+
+
+def fire_radius_m():
+    """How big a fire is as a light, metres: spawn_night's source radius
+    (cm), read from its source as attenuation_pools reads its reach -- the
+    0.15 the world scene and the souq's own scene write as a number."""
+    import inspect
+    import re
+    m = re.search(r'"source_radius", ([\d.]+)\)', inspect.getsource(_bw().SOUQ.spawn_night))
+    assert m, "spawn_night no longer says how big a fire is"
+    return float(m.group(1)) / 100.0
+
+
+def window_reach(L):
+    """Where a light's own nodes end it, metres: R of the engine's window as
+    _engine_falloff builds it -- the Ray Length into a Divide by R, its
+    fourth power, one less that (clamped), its square, into the emission's
+    strength -- or None when the nodes are not that window. A light's
+    "attenuation_m" says what was asked for; this is what the render draws."""
+    if not L.use_nodes or L.node_tree is None:
+        return None
+    lp = [n for n in L.node_tree.nodes if n.type == "LIGHT_PATH"]
+    if len(lp) != 1:
+        return None
+
+    def into(sock, kind, op=None, index=None):
+        """The one node sock runs into, if it is that kind (and operation)
+        and the link lands on its input `index`; else None."""
+        if len(sock.links) != 1:
+            return None
+        k = sock.links[0]
+        n = k.to_node
+        if n.type != kind or (op is not None and n.operation != op) or (index is not None and k.to_socket != n.inputs[index]):
+            return None
+        return n
+    d = into(lp[0].outputs["Ray Length"], "MATH", "DIVIDE", 0)
+    p4 = None if d is None else into(d.outputs[0], "MATH", "POWER", 0)
+    om = None if p4 is None else into(p4.outputs[0], "MATH", "SUBTRACT", 1)
+    sq = None if om is None else into(om.outputs[0], "MATH", "POWER", 0)
+    em = None if sq is None else into(sq.outputs[0], "EMISSION")
+    if em is None or sq.outputs[0].links[0].to_socket.name != "Strength" or d.inputs[1].is_linked or \
+            p4.inputs[1].default_value != 4.0 or om.inputs[0].default_value != 1.0 or not om.use_clamp or \
+            sq.inputs[1].default_value != 2.0:
+        return None
+    return float(d.inputs[1].default_value)
 
 
 def _engine_falloff(L, reach_m):
@@ -1080,9 +1134,10 @@ def build_island(out=None):
         kinds.objects.link(o)
     # --- the night: every fire where the level's plan puts it (its
     #     check_night proved them), lit as the world scene lights its own --
-    #     a point light 4 pi I x the moon on open ground, 1800 K, ended where
-    #     spawn_night ends it with the engine's window -- and the souq's
-    #     mesh at its foot, in this scene's map metres
+    #     a point light 4 pi I x the moon on open ground, 1800 K, the size
+    #     of spawn_night's flame, ended where spawn_night ends it with the
+    #     engine's window -- and the souq's mesh at its foot, in this
+    #     scene's map metres
     night_c = _coll("Night")
     E_moon = moon_ground(BW.WORLD_RIG)
     fire_pools, _ = attenuation_pools()
@@ -1091,7 +1146,7 @@ def build_island(out=None):
     for i, f in enumerate(fires):
         L = bpy.data.lights.new("Fire_MonkeyIsland_%02d" % i, "POINT")
         L.energy = 4.0 * math.pi * f["I"] * E_moon
-        L.shadow_soft_size = 0.15
+        L.shadow_soft_size = fire_radius_m()
         L.use_temperature = True
         L.temperature = f["temp"]
         _engine_falloff(L, f["pool"] * fire_pools)
@@ -1456,8 +1511,11 @@ def _winding(tri, q):
 def check_island_night(P, dg, miss):
     """The island's night in the scene: one night_fire light per planned
     fire, at its flame (its foot and its height), as the world scene sizes
-    its own (4 pi I x the moon on open ground) and ending where spawn_night
-    ends it; the souq's mesh at its foot; and nothing solid -- the temple's
+    its own (4 pi I x the moon on open ground), the fire's colour (its
+    temperature on: off, Cycles draws the light white whatever it says) and
+    spawn_night's size, and ending where spawn_night ends it -- read from
+    the nodes that end it (window_reach), not only from what they were
+    asked; the souq's mesh at its foot; and nothing solid -- the temple's
     columns, walls, gate and throne, the pier, the boat, a plant's trunk or
     a rock, as built -- inside any fire's own column, its foot's radius from
     its foot to its flame (by the meshes themselves, which the level's plan
@@ -1470,6 +1528,7 @@ def check_island_night(P, dg, miss):
     BW = _bw()
     E_moon = moon_ground(BW.WORLD_RIG)
     fire_pools, _ = attenuation_pools()
+    radius = fire_radius_m()
     lights = {o["fire"]: o for o in bpy.data.objects if o.type == "LIGHT" and o.get("night_fire")}
     meshes = {o["fire"]: o for o in bpy.data.objects if o.type == "MESH" and "fire" in o}
     if len(lights) != len(fires):
@@ -1479,12 +1538,16 @@ def check_island_night(P, dg, miss):
         if o is None or (o.location - Vector((f["x"], f["y"], f["z"] + f["h"]))).length > 0.01:
             miss.append("the island: fire %d's light is not at its flame where the plan puts it" % i)
             continue
-        if abs(o.data.energy / (4.0 * math.pi * f["I"] * E_moon) - 1.0) > 1e-4 or abs(o.data.temperature - f["temp"]) > 1e-3:
-            miss.append("the island: fire %d's light is %.0f W at %.0f K, not the world's %.0f W at %.0f K"
-                        % (i, o.data.energy, o.data.temperature, 4.0 * math.pi * f["I"] * E_moon, f["temp"]))
-        if abs(o.data.get("attenuation_m", -1.0) - f["pool"] * fire_pools) > 1e-6 or o.data.node_tree is None or \
-                not any(n.type == "LIGHT_PATH" and n.outputs["Ray Length"].links for n in o.data.node_tree.nodes):
-            miss.append("the island: fire %d's light is without the engine's end" % i)
+        L, W = o.data, 4.0 * math.pi * f["I"] * E_moon
+        if abs(L.energy / W - 1.0) > 1e-4 or not L.use_temperature or abs(L.temperature - f["temp"]) > 1e-3 or \
+                abs(L.shadow_soft_size - radius) > 1e-6:
+            miss.append("the island: fire %d's light is %.0f W %s, %.2f m round, not the world's %.0f W at %.0f K, %.2f m"
+                        % (i, L.energy, "at %.0f K" % L.temperature if L.use_temperature else "and white (no temperature)",
+                           L.shadow_soft_size, W, f["temp"], radius))
+        reach, want = window_reach(L), f["pool"] * fire_pools
+        if reach is None or abs(reach / want - 1.0) > 1e-5 or abs(L.get("attenuation_m", -1.0) - want) > 1e-6:
+            miss.append("the island: fire %d's light is without the engine's end: its nodes end it %s, spawn_night at %.1f m"
+                        % (i, "nowhere" if reach is None else "at %.1f m" % reach, want))
         if m is None or m.data.name != f["mesh"] or (m.location - Vector((f["x"], f["y"], f["z"]))).length > 0.01:
             miss.append("the island: fire %d's %s is not at its foot" % (i, f["mesh"]))
     # every solid the scene draws, as a tree in its own frame with how it is
@@ -1742,9 +1805,18 @@ def bite():
             _open(scene)
             mutate()
         got = CHECKS[scene]([])
-        ok = any(expect in g for g in got)
+        ok = any(expect in g for g in got) and not (scene == "island" and island_clean)
         caught += ok
         print("  %-34s %s%s" % (label, "caught" if ok else "MISSED", "" if ok else " (%s)" % got[:2]))
+
+    # the island's cases count only on an island scene that passes its own
+    # checks unbroken: one left behind its plan (a fire added or moved since
+    # it was built) misses "night lights" by itself, and every case that
+    # looks for that would be "caught" without having broken anything
+    _open("island")
+    island_clean = check_island([])
+    print("  %-34s %s" % ("the island, unbroken", "passes" if not island_clean else
+                          "FAILS, so none of its cases counts: %s" % "; ".join(island_clean[:2])))
 
     def drop_district():
         for o in [o for o in bpy.data.objects if o.get("district") == "MarsaAlFajr"]:
@@ -1785,6 +1857,25 @@ def bite():
         f = next(o for o in bpy.data.objects if o.type == "LIGHT" and o.get("night_fire") and o.get("kind") == "pyre")
         bpy.ops.mesh.primitive_ico_sphere_add(radius=1.5, location=f.location - type(f.location)((0.0, 0.0, 1.5)))
 
+    def island_light(i=10):
+        return next(o for o in bpy.data.objects if o.type == "LIGHT" and o.get("night_fire") and o.get("fire") == i).data
+
+    def power_drift():
+        island_light().energy *= 1.3
+
+    def white_fire():
+        island_light().use_temperature = False
+
+    def window_wide():
+        # the Divide the Ray Length runs into, its reach tripled: the light
+        # still says its own attenuation_m, and the old rule read only that
+        L = island_light()
+        lp = next(n for n in L.node_tree.nodes if n.type == "LIGHT_PATH")
+        lp.outputs["Ray Length"].links[0].to_node.inputs[1].default_value *= 3.0
+
+    def fire_mesh_moved():
+        next(o for o in bpy.data.objects if o.type == "MESH" and o.get("fire") == 10).location.x += 1.0
+
     case("a district missing", "world", drop_district, "MarsaAlFajr")
     case("a camera turned away", "world", turn_away, "not in its frame")
     case("a view blocked", "world", block, "behind something")
@@ -1800,6 +1891,10 @@ def bite():
     case("an island fire out", "island", fire_out, "night lights")
     case("an island fire unbuilt", "island", None, "night lights", rebuild="lost_fire")
     case("a rock on an island fire", "island", rock_on_fire, "stands inside")
+    case("an island fire's power drifts", "island", power_drift, "not the world's")
+    case("an island fire drawn white", "island", white_fire, "not the world's")
+    case("an island fire's window wide", "island", window_wide, "engine's end")
+    case("an island fire's mesh moved", "island", fire_mesh_moved, "not at its foot")
     # the rendered view's own rules: no black holes -- the view drawn at
     # the preview's stand-in key, as every view was until 2026-10-04 --
     # and a lit district's pools, its fires out
@@ -1827,6 +1922,24 @@ def bite():
     ok = any("pool" in b for b in bad)
     caught += ok
     print("  %-34s %s" % ("a view's fires dark", "caught" if ok else "MISSED (%s)" % bad))
+    # the island's views, the same: what turns the pool rule on for them is
+    # _lit's island branch (a fire in the view's frame), so the rule is asked
+    # through it -- the landing with its fires lit has its pools, and with
+    # them out must miss them; a _lit that never calls the island lit
+    # misses neither, and fails this case
+    cases += 1
+    _open("island")
+    cam = bpy.data.objects["Cam_MonkeyIsland_Landing"]
+    pic, m, got, exposure = render_view(cam, size=(320, 180), samples=4)
+    clean = [b for b in picture_misses(cam["view"], pic, m, got, exposure, _lit("island", cam)) if "pool" in b]
+    for o in [o for o in bpy.data.objects if o.type == "LIGHT" and o.get("night_fire")]:
+        o.data.energy = 0.0
+    pic, m, got, exposure = render_view(cam, size=(320, 180), samples=4)
+    bad = [b for b in picture_misses(cam["view"], pic, m, got, exposure, _lit("island", cam)) if "pool" in b]
+    ok = bool(bad) and not clean and not island_clean
+    caught += ok
+    print("  %-34s %s" % ("an island view's fires dark", "caught: " + bad[0] if ok else
+                         "MISSED (lit %s; broken %s)" % (clean or "has its pools", bad or "has its pools")))
     print("bite: %d of %d caught" % (caught, cases))
     return caught, cases
 

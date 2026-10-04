@@ -33,7 +33,9 @@ THE PLAN, worked out here and checked here (no engine):
 - the night (2026-10-03): the world's moon, sky, fog and exposure, and
   fire where it is dark -- the souq's braziers and pyres, by its numbers
   and its rules, along the way from the pier to the temple (THE NIGHT,
-  below): 86 of them, checked by check_night().
+  below): 86 of them, checked by check_night(), and held to the souq's
+  light budget per what is streamed in round a man by Tools/look/
+  lighting.py -- the level is a partitioned world for that.
 
     python3 build_monkey_island_level.py           plan, check, draw
     python3 build_monkey_island_level.py --bite    each rule broken once
@@ -45,7 +47,10 @@ call for it; build() tries LandscapeEditorSubsystem and, failing that,
 prints the exact settings for Landscape mode's Import) and the landscape
 material's layer-blend node properties. Both are as remembered. The fires
 are spawned by build_souq.spawn_night, as the open world's are, and are as
-unverified as theirs.
+unverified as theirs. So is the partitioned world: new_level's
+is_partitioned_world, the landscape imported into it (Landscape mode splits
+an import into streaming proxies there, as remembered), and
+is_spatially_loaded on what must stay loaded.
 """
 
 import csv
@@ -135,6 +140,18 @@ COUNTS = dict(Palm=(250, 4000), Tree=(1500, 12000), Rock=(100, 3000))
 # sea, the walkway, every fight, every plant's and rock's foot, the pier and
 # the boat; the temple's columns, walls and throne are held off by the
 # preview, against the temple's own mesh (build_map_scenes.check_island).
+# WHAT IT COSTS. The souq holds each of its districts to NIGHT's budget --
+# 96 lights, 32 of them shadowed, 32 smoke columns (its check 16,
+# build_world's 33) -- a district being what is loaded at once. The island
+# is no district: its fires are every one the souq's, shadowed and smoking,
+# 86 of them over 2.3 km of one level, against the budget's 32. So
+# it is held to that budget per what is streamed in round a man -- every
+# light within World Partition's loading range of any spot on it, its
+# directors, its start, its way home and every fire (Tools/look/lighting.py,
+# LOADED_M: 22 lights, 22 shadowed, 22 smoke at the worst) -- and build()
+# makes it a partitioned world, so that is what is loaded: a plain level
+# would load all 86 smoke columns at once, and a smoke column has no draw
+# distance to cull it by (a light does: LIGHT_CULL).
 FIRE_SEED = M.SEED                                       # the island's own stream for the souq's hash
 FIRE_ON_GROUND_M = SOUQ.STREET_Z_CM / 100.0              # a foot no further off its ground than the souq's flagstones stand off its sand
 
@@ -477,6 +494,97 @@ def night(P):
 def _night_sabotage(P, fires):
     """--bite: each of the night's rules broken once, after the plan."""
     way = [f for f in fires if f["where"] == "way"]
+    clearing = [f for f in fires if f["where"] == "clearing"]
+    court = [f for f in fires if f["where"] == "court"]
+    deck = next(f for f in fires if f["on"] == "deck")
+    path, s_, h = [tuple(p) for p in P["way"]], P["way_s"], P["h"]
+    pr, bt, ar = P["pier"], P["boat"], P["ground"]["arena"]
+    ux, uy = pr["u"]
+
+    def stand(f, x, y, z=None):
+        f["x"], f["y"] = x, y
+        f["z"] = at(h, x, y) if z is None else z
+
+    def round_court(f, deg):
+        """f carried deg round the temple's middle, as far from it as it was."""
+        a = math.atan2(f["y"] - ar["y"], f["x"] - ar["x"]) + math.radians(deg)
+        r = math.hypot(f["x"] - ar["x"], f["y"] - ar["y"])
+        stand(f, ar["x"] + math.cos(a) * r, ar["y"] + math.sin(a) * r)
+    # every fire NIGHT's own, each way that can drift: a kind that is not
+    # the night's, a number (its height), a flag (its shadow), its watts
+    if "bad_kind" in SABOTAGE:
+        way[30]["kind"] = "torch"
+    if "spec_h_drift" in SABOTAGE:
+        clearing[4]["h"] = 3.5
+    if "fire_unshadowed" in SABOTAGE:
+        way[7]["shadow"] = False
+    if "watts_drift" in SABOTAGE:
+        way[5]["watts"] *= 1.5
+    # the deck's brazier: off the deck to the side away from the boat, and
+    # back down the deck into the way home
+    if "deck_off" in SABOTAGE:
+        stand(deck, deck["x"] + uy * 3.0, deck["y"] - ux * 3.0, deck["z"])
+    if "deck_in_way_home" in SABOTAGE:
+        stand(deck, pr["x"] + ux * 40.0, pr["y"] + uy * 40.0, deck["z"])
+    if "fire_in_boat" in SABOTAGE:
+        stand(deck, bt["x"], bt["y"], deck["z"])
+    # where a ground fire may not stand: on steeper ground than the trail
+    # climbs (the first way brazier with such ground within 30 m square out
+    # from the trail, either side, carried onto it -- the trail mostly runs
+    # through gentle ground, two of the 67 have any), on the pier, on the
+    # temple's court, past its verge, in a clearing's fight
+    if "fire_steep" in SABOTAGE:
+        def steep():
+            for f in way:
+                hm = f["half"] / 100.0
+                _, _, tx, ty = SOUQ._at(path, s_, f["s"])
+                for sd in (f["side"], -f["side"]):
+                    for k in range(1, 61):
+                        x, y = f["x"] - ty * sd * 0.5 * k, f["y"] + tx * sd * 0.5 * k
+                        if at(h, x, y) > M.LAND_MIN_M and misfit(h, x, y, at(h, x, y), hm) > 1.5 * M.TRAIL_GRADE * hm:
+                            return f, x, y
+        f, x, y = steep()
+        stand(f, x, y)
+    if "fire_on_pier" in SABOTAGE:
+        stand(fires[0], pr["x"] + ux * 2.0, pr["y"] + uy * 2.0)
+    if "fire_on_court" in SABOTAGE:
+        f = court[2]
+        a = math.atan2(f["y"] - ar["y"], f["x"] - ar["x"])
+        stand(f, ar["x"] + math.cos(a) * 12.0, ar["y"] + math.sin(a) * 12.0)
+    if "way_past_verge" in SABOTAGE:
+        f = way[18]
+        _, _, tx, ty = SOUQ._at(path, s_, f["s"])
+        stand(f, f["x"] - ty * f["side"] * 6.0, f["y"] + tx * f["side"] * 6.0)
+    if "fire_in_fight" in SABOTAGE:
+        s = P["ground"]["sites"][clearing[2]["site"]]
+        stand(clearing[2], s["x"], s["y"])
+    # a clearing's pair: one pyre half a walk-out past the souq's arc, one
+    # on the other verge, and a clearing's pair walked 15 m further out
+    # (still on the arc, whole walk-outs) so its fight is left to the moon
+    if "clearing_off_arc" in SABOTAGE:
+        f = clearing[6]
+        f["s"] += f["side"] * 0.25
+        x, y, f["yaw"] = _verge(path, s_, f["s"], f["side"], f["half"] / 100.0)
+        stand(f, x, y)
+    if "clearing_wrong_verge" in SABOTAGE:
+        f = clearing[7]
+        f["side"] = -f["side"]
+        x, y, f["yaw"] = _verge(path, s_, f["s"], f["side"], f["half"] / 100.0)
+        stand(f, x, y)
+    if "clearing_dark" in SABOTAGE:
+        for f in clearing:
+            if f["site"] == 2:
+                f["s"] += f["side"] * 15.0
+                x, y, f["yaw"] = _verge(path, s_, f["s"], f["side"], f["half"] / 100.0)
+                stand(f, x, y)
+    # the temple's court: one pyre turned 10 degrees off its place in the
+    # ring, and the ring one pyre bigger than its fight needs
+    if "court_uneven" in SABOTAGE:
+        round_court(court[1], 10.0)
+    if "court_extra" in SABOTAGE:
+        for f in court:
+            fires.remove(f)
+        fires += _court_ring(P, P["court_n"] + 1)
     if "trail_gap" in SABOTAGE:
         fires.remove(way[20])
         fires.remove(way[21])
@@ -896,9 +1004,13 @@ def build(P):
     # a second time here
     fire_mesh = SOUQ.import_meshes(sorted({f["mesh"] for f in P["fires"]}))
 
-    # the level
+    # the level, a partitioned world: the night is held to the souq's light
+    # budget per what is streamed in round a man (THE NIGHT, WHAT IT COSTS),
+    # and only a partitioned world streams -- a plain level would load all
+    # 86 fires and their 86 smoke columns at once. As remembered, not run:
+    # UE 5.1+'s NewLevel(AssetPath, bIsPartitionedWorld).
     les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
-    les.new_level(LEVEL)
+    les.new_level(LEVEL, is_partitioned_world=True)
     world = ELL.get_editor_world()
     settings = world.get_world_settings()
     gm = unreal.load_class(None, "/Script/SaudFighter.SaudGameMode")
@@ -909,6 +1021,18 @@ def build(P):
         a = ELL.spawn_actor_from_class(cls, unreal.Vector(*xyz), unreal.Rotator(roll=0.0, pitch=0.0, yaw=yaw))
         a.set_actor_label(label)
         a.set_folder_path("SAUD/%s" % folder)
+        return a
+
+    def pin(a):
+        """Loaded wherever he is, never streamed out: build_world.build()'s
+        own rule for the game's actors (its directors, start, gates and
+        exits), here theirs; and the sea's, the moon's, the sky's, the fog's
+        and the exposure's, which stand at the island's middle, 1.6 km from
+        the pier he lands on."""
+        try:
+            a.set_editor_property("is_spatially_loaded", False)
+        except Exception:
+            pass
         return a
 
     # the ground: the landscape from its heightmap, painted by its layers
@@ -930,7 +1054,7 @@ def build(P):
             % (os.path.join(LAND, "H_MonkeyIsland.png"), ls["location_cm"], ls["scale"],
                "/Game/Materials/Island/M_MonkeyIsland_Ground", ", ".join(M.LAYERS)))
     # the sea
-    sea = spawn(unreal.StaticMeshActor, "Sea", (0.0, 0.0, 0.0), folder="Island/Sea")
+    sea = pin(spawn(unreal.StaticMeshActor, "Sea", (0.0, 0.0, 0.0), folder="Island/Sea"))
     sea.get_component_by_class(unreal.StaticMeshComponent).set_static_mesh(unreal.load_asset("/Engine/BasicShapes/Plane"))
     sea.set_actor_scale3d(unreal.Vector(4600.0, 4600.0, 1.0))
     # the props, the plants
@@ -955,15 +1079,15 @@ def build(P):
     tabs = {n: unreal.load_asset("/Game/Data/%s" % n) for n in ("DT_MonkeyIsland", "DT_IslandFighters", "DT_Attacks")}
     for a in P["actors"]:
         if a["kind"] == "WaveDirector":
-            act = spawn(unreal.WaveDirector, a["name"], ue(a["x"], a["y"], a["z"]), folder="Island/Directors")
+            act = pin(spawn(unreal.WaveDirector, a["name"], ue(a["x"], a["y"], a["z"]), folder="Island/Directors"))
             act.set_editor_property("stage_row", unreal.Name(a["row"]))
             act.set_editor_property("stage_table", tabs["DT_MonkeyIsland"])
             act.set_editor_property("fighter_table", tabs["DT_IslandFighters"])
             act.set_editor_property("attack_table", tabs["DT_Attacks"])
         elif a["kind"] == "PlayerStart":
-            spawn(unreal.PlayerStart, a["name"], ue(a["x"], a["y"], a["z"]), ue_yaw(a["bearing"]), folder="Island/Directors")
+            pin(spawn(unreal.PlayerStart, a["name"], ue(a["x"], a["y"], a["z"]), ue_yaw(a["bearing"]), folder="Island/Directors"))
         elif a["kind"] == "Exit":
-            act = spawn(unreal.AreaExit, a["name"], ue(a["x"], a["y"], a["z"]), folder="Island/Boat")
+            act = pin(spawn(unreal.AreaExit, a["name"], ue(a["x"], a["y"], a["z"]), folder="Island/Boat"))
             act.set_editor_property("destination_level", unreal.Name(a["DestinationLevel"]))
             act.set_editor_property("destination_stage", unreal.Name(a["DestinationStage"]))
             act.set_editor_property("arrive_at", unreal.AreaSide.RESUME)
@@ -981,19 +1105,19 @@ def build(P):
     # beach; the world is flat and has none of that.
     import build_world as BW                          # noqa: E402
     r = BW.WORLD_RIG
-    moon = spawn(unreal.DirectionalLight, "Moon", (0.0, 0.0, 30000.0), folder="Lighting")
+    moon = pin(spawn(unreal.DirectionalLight, "Moon", (0.0, 0.0, 30000.0), folder="Lighting"))
     moon.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=r["pitch"], yaw=r["yaw"]), False)
     lc = moon.get_component_by_class(unreal.DirectionalLightComponent)
     lc.set_intensity(r["lux"])
     lc.set_light_color(unreal.LinearColor(*r["sun"]))
     lc.set_editor_property("light_source_angle", r["angle"])    # the moon's disc: hard shadows
     lc.set_editor_property("atmosphere_sun_light", True)
-    sky = spawn(unreal.SkyLight, "SkyLight", (0.0, 0.0, 25000.0), folder="Lighting")
+    sky = pin(spawn(unreal.SkyLight, "SkyLight", (0.0, 0.0, 25000.0), folder="Lighting"))
     slc = sky.get_component_by_class(unreal.SkyLightComponent)
     slc.set_intensity(r["sky"])
     slc.set_editor_property("real_time_capture", True)
-    spawn(unreal.SkyAtmosphere, "Sky", (0.0, 0.0, 0.0), folder="Lighting")
-    fog = spawn(unreal.ExponentialHeightFog, "Fog", (0.0, 0.0, 0.0), folder="Lighting")
+    pin(spawn(unreal.SkyAtmosphere, "Sky", (0.0, 0.0, 0.0), folder="Lighting"))
+    fog = pin(spawn(unreal.ExponentialHeightFog, "Fog", (0.0, 0.0, 0.0), folder="Lighting"))
     fc = fog.get_component_by_class(unreal.ExponentialHeightFogComponent)
     fc.set_editor_property("fog_density", r["fogd"])
     fc.set_editor_property("fog_inscattering_luminance", unreal.LinearColor(*r["fog"]))
@@ -1011,7 +1135,7 @@ def build(P):
     mist.set_editor_property("fog_height_falloff", air["mist"]["falloff"])
     mist.set_editor_property("fog_height_offset", air["mist"]["offset"])
     fc.set_editor_property("second_fog_data", mist)
-    ppv = spawn(unreal.PostProcessVolume, "Exposure", (0.0, 0.0, 0.0), folder="Lighting")
+    ppv = pin(spawn(unreal.PostProcessVolume, "Exposure", (0.0, 0.0, 0.0), folder="Lighting"))
     ppv.set_editor_property("unbound", True)
     s = ppv.get_editor_property("settings")
     s.set_editor_property("override_auto_exposure_method", True)
@@ -1097,9 +1221,26 @@ BITES = [
     ("no fire in the walkway", "fire_in_walkway", "in the walkway"),
     ("no fire in a rock", "fire_in_rock", "stands in a rock"),
     ("every fire NIGHT's own", "fire_spec_drift", "UE candela make"),
+    ("... in its Blender watts", "watts_drift", "Blender watts make"),
+    ("... one of NIGHT's kinds", "bad_kind", "a fire of kind torch"),
+    ("... its height NIGHT's", "spec_h_drift", "pyre's h is 3.5"),
+    ("... its shadow NIGHT's", "fire_unshadowed", "brazier's shadow is False"),
     ("the pier's two", "pier_head_dark", "the pier has"),
+    ("the deck's brazier on the deck", "deck_off", "not on the pier's deck"),
+    ("... past the way home", "deck_in_way_home", "in the way home"),
+    ("no fire in the boat", "fire_in_boat", "stands in the boat"),
+    ("no fire on steep ground", "fire_steep", "steeper than the trail"),
+    ("no ground fire on the pier", "fire_on_pier", "stands on the pier"),
+    ("no fire on the temple's court", "fire_on_court", "on the temple's court"),
+    ("every way fire on its verge", "way_past_verge", "past its verge"),
+    ("no fire in a clearing's fight", "fire_in_fight", "in a clearing's fight"),
+    ("a clearing's pyre on its arc", "clearing_off_arc", "not the souq's arc"),
+    ("... and on its verge", "clearing_wrong_verge", "not the souq's arc"),
+    ("each clearing's fight lit", "clearing_dark", "clearing 3 is fought by moonlight"),
     ("the temple's gate pair", "no_gate_pyres", "gate has 0"),
     ("the temple's fight lit", "court_short", "temple is fought by moonlight"),
+    ("the court evenly round", "court_uneven", "not evenly round"),
+    ("no court pyre it can spare", "court_extra", "court has 6 pyres where 5"),
 ]
 
 

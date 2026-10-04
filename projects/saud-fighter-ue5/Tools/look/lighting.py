@@ -35,9 +35,15 @@ held here to have it off, or the bias is not the exposure.
 THE ISLAND (2026-10-03). L_MonkeyIsland had no light but the moon; it has
 the souq's fires now (build_monkey_island_level.py, THE NIGHT), and is held
 here to the same rules as the world: its fires spawned by spawn_night() (so
-every one is Movable, drawn by its pool and tagged), its exposure the
-world's, and at most DRAWN_CAP lights drawn around any spot on it -- its
-directors, its start, its way home and every fire.
+every one is Movable, drawn by its pool and tagged), every planned row of
+them; its exposure the world's, and loaded wherever he is; and at most
+DRAWN_CAP lights drawn around any spot on it -- its directors, its start,
+its way home and every fire. And to the souq's own budget (NIGHT["budget"],
+which the souq and the world hold per district): the island is one level
+2.3 km long, 86 fires against the budget's 32, so it is held per what is
+streamed in round a man -- every light within LOADED_M of any of those
+spots -- and its level must be a partitioned world, or that is not what is
+loaded.
 
 Read from the sources, not run: no engine has opened this project.
 """
@@ -134,14 +140,27 @@ def lights_of(W, cull=None):
 
 def island_lights_of(I):
     """The island's fires and spots, as lights_of() gives the world's: (x, y)
-    cm, pool m, shadowed; its directors, its start, its way home and every
-    fire. The plan is made once per loaded builder."""
+    cm, pool m, shadowed, and smoking (a fifth the world's rows do not
+    carry); its directors, its start, its way home and every fire. The plan
+    is made once per loaded builder."""
     if not hasattr(I, "_lit_plan"):
         I._lit_plan = I.plan()
     P = I._lit_plan
-    out = [(f["x"] * 100.0, f["y"] * 100.0, f["pool"], bool(f["shadow"])) for f in P["fires"]]
+    out = [(f["x"] * 100.0, f["y"] * 100.0, f["pool"], bool(f["shadow"]), bool(f.get("smoke"))) for f in P["fires"]]
     spots = [(a["x"] * 100.0, a["y"] * 100.0) for a in P["actors"] if a["kind"] in ("WaveDirector", "PlayerStart", "Exit")]
-    return out, spots + [(x, y) for x, y, _, _ in out]
+    return out, spots + [(l[0], l[1]) for l in out]
+
+
+def island_budget(I, loaded_m=LOADED_M):
+    """The souq's budget as the island streams: the most lights, the most
+    shadowed and the most smoke volumes within loaded_m of any spot on it,
+    nothing culled -- what is loaded round a man in a partitioned world."""
+    lights, spots = island_lights_of(I)
+    most = [0, 0, 0]
+    for x, y in spots:
+        near = [l for l in lights if math.hypot(l[0] - x, l[1] - y) <= loaded_m * 100.0]
+        most = [max(most[0], len(near)), max(most[1], sum(1 for l in near if l[3])), max(most[2], sum(1 for l in near if l[4]))]
+    return most
 
 
 def measure(W, cull=None, loaded_m=None, I=None):
@@ -187,9 +206,14 @@ def check(T=None, W=None, cull=None, I=None):
             miss.append("spawn_night() cuts a %s light off at its distance instead of fading it" % what)
     if not re.search(r'if f\["shadow"\]:\s*\n\s*a\.set_editor_property\("tags", \[unreal\.Name\(LIGHT_CULL\["tag"\]\)\]\)', fires):
         miss.append("spawn_night() does not tag a shadowed fire, so the game never limits its shadow")
-    # 2b. the island's fires spawned by spawn_night(), every one of its rows
-    if not re.search(r'SOUQ\.spawn_night\(spawn_at, rows,', _between(T["island"], "def build(P):", "\ndef ")):
+    # 2b. the island's fires spawned by spawn_night(), every one of its rows:
+    #     the call, fed straight from a list made of the whole of P["fires"]
+    #     on the line before it -- no filter, no slice, nothing between
+    build = _between(T["island"], "def build(P):", "\ndef ")
+    if not re.search(r'SOUQ\.spawn_night\(spawn_at, rows,', build):
         miss.append("the island's build spawns its fires some other way than spawn_night(): not culled, not tagged")
+    elif not re.search(r'\n(\s*)rows = \[[^\n]* for f in P\["fires"\]\]\n\1lights, smoke = SOUQ\.spawn_night\(spawn_at, rows,', build):
+        miss.append("the island's build hands spawn_night() other rows than every planned fire")
     # 3. the world's exposure: the volume, and the rule
     vol = _between(T["world"], 'spawn(unreal.PostProcessVolume, "Exposure"', 'post.set_editor_property("settings", pp)')
     if not vol:
@@ -223,6 +247,14 @@ def check(T=None, W=None, cull=None, I=None):
                           ('"auto_exposure_bias", BW.exposure_bias()', "its bias is not the world's exposure_bias()")):
             if want not in vol:
                 miss.append("the island's exposure: %s" % why)
+        # the volume stands at the island's middle, 1.6 km from the pier: in
+        # its partitioned world (3c) it must not be streamed with the ground
+        if 'ppv = pin(spawn(unreal.PostProcessVolume, "Exposure"' not in T["island"]:
+            miss.append("the island's exposure is streamed with the ground at its middle: at the pier there is none")
+    # 3c. the island's level a partitioned world, so that what its budget is
+    #     held to (6b) is what is loaded
+    if "les.new_level(LEVEL, is_partitioned_world=True)" not in build:
+        miss.append("the island's level is not partitioned: every fire and every smoke column on it is loaded at once")
     # 4. the stage levels' and the prologue's manual exposure: the physical camera off
     for k in ("levels", "prologue"):
         part = _between(T[k], "AEM_MANUAL", "auto_exposure_bias")
@@ -238,6 +270,13 @@ def check(T=None, W=None, cull=None, I=None):
     (drawn, shadowed), _, _, _ = measure(W, cull, I=I)
     if drawn > DRAWN_CAP:
         miss.append("%d night lights drawn around one spot on the island, more than %d" % (drawn, DRAWN_CAP))
+    # 6b. the island within the souq's budget, per what is streamed in round
+    #     a man (the souq and the world hold it per district)
+    B = S.NIGHT["budget"]
+    lights, shadowed, smoke = island_budget(I)
+    if lights > B["lights"] or shadowed > B["shadowed"] or smoke > B["smoke"]:
+        miss.append("%d lights, %d shadowed, %d smoke volumes within %.0f m of one spot on the island: over the budget "
+                    "%d / %d / %d" % (lights, shadowed, smoke, LOADED_M, B["lights"], B["shadowed"], B["smoke"]))
     return miss
 
 
@@ -271,6 +310,18 @@ def _bites():
             return P
         I.plan = crowded
 
+    def island_over_budget(T, W, cull, I):
+        """Two fires where the island's plan puts one: still inside
+        DRAWN_CAP round every spot (32 at the worst), over the budget
+        within LOADED_M (44 at the worst) -- caught by 6b alone."""
+        plan = I.plan
+
+        def doubled():
+            P = plan()
+            P["fires"] = [dict(f) for f in P["fires"] for _ in range(2)]
+            return P
+        I.plan = doubled
+
     return {
         "header_drift": cull_to("degrees", 3.0),
         "tag_drift": text("header", 'ShadowTag = "SaudShadow"', 'ShadowTag = "SaudShadows"'),
@@ -292,6 +343,11 @@ def _bites():
         "island_unlit": text("island", "SOUQ.spawn_night(spawn_at, rows,", "SOUQ.spawn_lights(spawn_at, rows,"),
         "island_physical": text("island", PHYSICAL_OFF, PHYSICAL_OFF.replace("False", "True")),
         "island_crowded": island_crowded,
+        "island_filtered": text("island", 'for f in P["fires"]]\n', 'for f in P["fires"] if f["kind"] == "pyre"]\n'),
+        "island_exposure_out": text("island", 'ppv = pin(spawn(unreal.PostProcessVolume, "Exposure"',
+                                    'ppv = (spawn(unreal.PostProcessVolume, "Exposure"'),
+        "island_unpartitioned": text("island", "les.new_level(LEVEL, is_partitioned_world=True)", "les.new_level(LEVEL)"),
+        "island_over_budget": island_over_budget,
     }
 
 
@@ -326,6 +382,9 @@ def main():
     (d0, s0), _, _, _ = measure(W, loaded_m=LOADED_M, I=I)
     print("  the island: %d lights, %d shadowed; around the worst of its %d spots %d drawn, %d shadowed "
           "(with no cull: %d, %d)" % (n, ns, spots, drawn, shadowed, d0, s0))
+    B = W.SOUQ.NIGHT["budget"]
+    print("  the island's budget, within %.0f m of any spot (it streams): %d lights, %d shadowed, %d smoke "
+          "(at most %d / %d / %d)" % ((LOADED_M,) + tuple(island_budget(I)) + (B["lights"], B["shadowed"], B["smoke"])))
     print("  casting:  at most %d (SaudLight::ShadowBudget, the nearest)" % _header(texts()["header"])["budget"])
     print("  exposure: bias %+.2f EV, the moon on open ground at %.2f of Key" % (W.exposure_bias(), W.MOON_TONE))
     for m in miss:
