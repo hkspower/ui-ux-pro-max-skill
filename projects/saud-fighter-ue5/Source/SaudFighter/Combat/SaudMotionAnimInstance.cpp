@@ -478,7 +478,7 @@ void USaudMotionAnimInstance::NativeInitializeAnimation()
 }
 
 void USaudMotionAnimInstance::Play(UAnimSequence* Sequence, bool bLoop, bool bRestart, float CutSeconds, bool bMatchPhase,
-                                   bool bTurn)
+                                   bool bTurn, float ShareShift, float StartShare)
 {
 	if (!Sequence)
 	{
@@ -492,7 +492,7 @@ void USaudMotionAnimInstance::Play(UAnimSequence* Sequence, bool bLoop, bool bRe
 		ClipPlants.Add(SaudPlants::Find(TCHAR_TO_ANSI(*Sequence->GetName())));
 		ClipTurns.Add(bTurn);
 	}
-	Fade.Play(Id, Sequence->GetPlayLength(), bLoop, bRestart, CutSeconds, bMatchPhase);
+	Fade.Play(Id, Sequence->GetPlayLength(), bLoop, bRestart, CutSeconds, bMatchPhase, ShareShift, StartShare);
 }
 
 const SaudPlants::FClip* USaudMotionAnimInstance::NewestPlants() const

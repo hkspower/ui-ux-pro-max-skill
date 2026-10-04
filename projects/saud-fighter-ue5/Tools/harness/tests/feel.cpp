@@ -571,6 +571,20 @@ static void Loco360()
               "a turn or a pivot cuts in fast (0.06 s), from its first frame, and starts again on a new serial");
         Check(Near(CutBetween(EClip::Pivot180, EClip::RunFwd, false).Seconds, CutStep) && Near(CutBetween(EClip::TurnL90, EClip::Guard, false).Seconds, CutSettle),
               "a pivot steps on into its run; a turn on the spot settles into his guard");
+        // the pivot's last frame is a frame of Run_Fwd, by set (the clip builders' measure)
+        bool Share = true;
+        for (const char* Men : { "Saud", "Street", "Thug", "Brawler", "Boss", "Saqr", "Zayos" })
+            Share = Share && Near(PivotRunShare(Men), 13.f / 17.f) && Near(CutBetween(EClip::Pivot180, EClip::RunFwd, false, Men).StartShare, 13.f / 17.f);
+        Share = Share && Near(PivotRunShare("Monkey"), 10.f / 12.f) && Near(PivotRunShare("Gorilla"), 15.f / 20.f)
+            && Near(CutBetween(EClip::Pivot180, EClip::GaitRun, false, "Saud").StartShare, 13.f / 17.f)
+            && Near(CutBetween(EClip::Pivot180, EClip::WalkFwd, false, "Gorilla").StartShare, 0.75f)
+            && CutBetween(EClip::Pivot180, EClip::Guard, false, "Saud").StartShare < 0.f
+            && CutBetween(EClip::Pivot180, EClip::RunFwd, true, "Saud").StartShare < 0.f
+            && CutBetween(EClip::RunFwd, EClip::RunFwdLeft, false, "Saud").StartShare < 0.f;
+        Check(Share, "a pivot hands over into Run_Fwd at its set's own phase: the men 13 of 17, the Monkey 10 of 12, the Gorilla 15 of 20");
+        Check(Near(CutBetween(EClip::RunFwd, EClip::RunRight, false).ShareShift, 0.5f) && Near(CutBetween(EClip::RunRight, EClip::RunFwdRight, false).ShareShift, -0.5f)
+              && Near(CutBetween(EClip::RunFwd, EClip::RunLeft, false).ShareShift, 0.f) && Near(CutBetween(EClip::WalkFwd, EClip::WalkRight, false).ShareShift, 0.f),
+              "a phase-matched cut into or out of Run_Right keeps the feet: its right foot lands first, half a cycle off the rest");
         const FCut S1 = CutBetween(EClip::RunLeft, EClip::RunFwdLeft, false), S2 = CutBetween(EClip::WalkBackRight, EClip::RunBackRight, false);
         Check(S1.bMatchPhase && S2.bMatchPhase && Near(S1.Seconds, CutStep) && Near(S2.Seconds, CutStep)
               && CutBetween(EClip::GaitRun, EClip::RunFwdLeft, false).bMatchPhase,

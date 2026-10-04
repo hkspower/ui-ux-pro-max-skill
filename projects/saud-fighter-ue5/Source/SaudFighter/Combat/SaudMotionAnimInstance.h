@@ -164,9 +164,10 @@ public:
 	    left alone unless bRestart; bMatchPhase starts a loop at the share of
 	    its cycle the clip it replaces had reached (SaudFeel::CutBetween).
 	    bTurn: a turn or pivot clip (Turn_L90 ... Pivot_180) that carries the
-	    turn itself, so the hips' lag is cleared under it (SaudIK::TurnStep). */
+	    turn itself, so the hips' lag is cleared under it (SaudIK::TurnStep).
+	    ShareShift, StartShare: SaudFeel::FCut's, for SaudIK::FCrossfade::Play. */
 	void Play(UAnimSequence* Sequence, bool bLoop, bool bRestart, float CutSeconds = 0.f, bool bMatchPhase = false,
-	          bool bTurn = false);
+	          bool bTurn = false, float ShareShift = 0.f, float StartShare = -1.f);
 
 	/** On real time rather than the world's: under the title, which holds
 	    the world paused, he still breathes in his guard. A freeze (hit

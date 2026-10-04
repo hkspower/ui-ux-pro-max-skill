@@ -732,7 +732,46 @@ namespace SaudFeel
 	{
 		float Seconds = 0.f;
 		bool bMatchPhase = false;
+		/** With bMatchPhase: what to add to the old clip's share of its cycle
+		    so the new one comes in on the same foot (LeftStrikeShare). */
+		float ShareShift = 0.f;
+		/** 0..1, or -1 for none: start the new loop at this share of its
+		    cycle, less what the old one-shot still had to play (a pivot's
+		    hand-over into his run: PivotRunShare). */
+		float StartShare = -1.f;
 	};
+
+	/** Where in a step loop's cycle his left foot strikes, as a share: every
+	    walk and run clip of the 360 spec, and every gait, lands the left
+	    foot on its first frame -- except Run_Left and Run_Right, the old
+	    full-speed side steps kept as they were, which land the foot on the
+	    side they travel to first: Run_Right its right, so its left comes half
+	    a cycle on. A cut that keeps the phase keeps the feet by these. */
+	inline float LeftStrikeShare(EClip C)
+	{
+		return C == EClip::RunRight ? 0.5f : 0.f;
+	}
+
+	/** The share of Run_Fwd's cycle a set's Pivot_180 hands over at (its last
+	    frame pushes off into that frame of the run), measured from the clips
+	    by their builders (2026-10-04): the men's -- Saud, Street, Boss, Saqr,
+	    Zayos, and the street rows that play Street's -- frame 13 of 17; the
+	    Monkey's 10 of 12; the Gorilla's 15 of 20. */
+	inline float PivotRunShare(const char* Set)
+	{
+		auto Is = [Set](const char* N) { const char* A = Set ? Set : ""; while (*A && *N && *A == *N) { ++A; ++N; } return *A == 0 && *N == 0; };
+		if (Is("Monkey"))  return 10.f / 12.f;
+		if (Is("Gorilla")) return 15.f / 20.f;
+		return 13.f / 17.f;
+	}
+
+	/** The clips a pivot hands over into at its run's phase: his straight-
+	    ahead loops, every one of which lands the left foot on its first
+	    frame (Run_Fwd, Walk_Fwd, the gaits). */
+	inline bool TakesPivotPhase(EClip C)
+	{
+		return C == EClip::RunFwd || C == EClip::WalkFwd || IsGait(C);
+	}
 
 	constexpr float CutIntoStrike = 0.05f;   // whole before the Jab's first active frame (0.07 s): the blow lands as thrown
 	constexpr float CutIntoReel = 0.03f;     // under the reaction's own 40 ms rise: the jolt is the clip's, not the cut's
@@ -766,6 +805,16 @@ namespace SaudFeel
 		// a pivot pushes off into Run_Fwd's first frame: in as a step
 		C.Seconds = (A == EKind::Step || From == EClip::Pivot180) && B == EKind::Step ? CutStep : CutSettle;
 		C.bMatchPhase = !bRestart && ((A == EKind::Step && B == EKind::Step) || (A == EKind::Guarded && B == EKind::Stand));
+		if (C.bMatchPhase) C.ShareShift = LeftStrikeShare(To) - LeftStrikeShare(From);
+		return C;
+	}
+
+	/** CutBetween for a man of motion set Set: a pivot handing over into his
+	    run starts it at the set's own hand-over share (PivotRunShare). */
+	inline FCut CutBetween(EClip From, EClip To, bool bRestart, const char* Set)
+	{
+		FCut C = CutBetween(From, To, bRestart);
+		if (From == EClip::Pivot180 && TakesPivotPhase(To) && !bRestart) C.StartShare = PivotRunShare(Set);
 		return C;
 	}
 

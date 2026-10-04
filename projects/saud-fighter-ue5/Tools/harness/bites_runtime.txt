@@ -49,7 +49,10 @@ feel|Source/SaudFighter/Combat/SaudFeel.h|s#return FromFwd(A) <= FromFwd(B) ? A 
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (Tier == 1) Ways(RunClip);#if (Tier == 1) { Ways(RunClip); return Out; }#|a run strafe falls back to its walk
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (TierOf(C) == 1) return WalkClip(DirOf(C));#if (TierOf(C) == 1) return C;#|a run strafe falls back to its walk
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (IsTurnClip(C)) { Out.Add(EClip::Guard); return Out; }#if (IsTurnClip(C)) return Out;#|a turn a set lacks stands in his guard
-feel|Source/SaudFighter/Combat/SaudFeel.h|s#Ways(WalkClip);#if (Tier == 0) Ways(WalkClip);#|every 360 clip plays something for every set today
+# (with every 360 clip now on disk for every set, "every 360 clip plays
+# something for every set today" can no longer be broken from the sources;
+# this one breaks the run-to-walk chain it would have caught)
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#Ways(WalkClip);#if (Tier == 0) Ways(WalkClip);#|a run diagonal's walk after its runs
 
 # ---- the lean into a curve, a start, a stop
 ik|Source/SaudFighter/Combat/SaudIK.h|s#FMath::Atan(Sp \* FMath::Abs(YawRate) / Gravity)#FMath::Atan(FMath::Abs(YawRate) / Gravity * 100.f)#|on a circle he leans atan(v x yawrate / g)
@@ -89,5 +92,13 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#else if (!bValid)#else#|the freeze keeps
 ik|Source/SaudFighter/Combat/SaudIK.h|s#PelvisSettleRate \* (1.f + FMath::Max(0.f, Speed) / PelvisDropDoubleSpeed)#PelvisSettleRate + 0.f * Speed / PelvisDropDoubleSpeed#|at a run they drop to a lower foot three times as fast
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return Target < Current ? PelvisSettleRate#return Target < Current + 1e9f ? PelvisSettleRate#|come back up unhurried
 
-# ---- the measured clips: one cycle per tier per set (data, the copy's SaudPlants.h)
-ik|Source/SaudFighter/Combat/SaudPlants.h|s#{ "A_Saud_Walk_Back", 0.571f, 17,#{ "A_Saud_Walk_Back", 0.571f, 18,#|every walk-tier loop of a set shares one cycle length
+# (ik's "every walk-tier loop of a set shares one cycle length" reads the
+# manifests under Content/, which bite.sh does not copy: a data check, no
+# sabotage of the sources can reach it)
+
+# ---- a pivot's hand-over into its run, and the feet's own phase (2026-10-04, the clip tracks' measures)
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (Is("Monkey"))  return 10.f / 12.f;#if (Is("Monkey"))  return 10.f / 13.f;#|a pivot hands over into Run_Fwd at its set's own phase
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (From == EClip::Pivot180 \&\& TakesPivotPhase(To) \&\& !bRestart) C.StartShare#if (false \&\& TakesPivotPhase(To) \&\& !bRestart) C.StartShare#|a pivot hands over into Run_Fwd at its set's own phase
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return C == EClip::RunRight ? 0.5f : 0.f;#return 0.f * static_cast<float>(C);#|a phase-matched cut into or out of Run_Right keeps the feet
+ik|Source/SaudFighter/Combat/SaudIK.h|s#- Remaining, Length);#- 0.f * Remaining, Length);#|a pivot's run comes in so it meets the run's frame as the pivot ends
+ik|Source/SaudFighter/Combat/SaudIK.h|s#In.Time = FMath::Fmod(In.Time + Length \* (ShareShift + 2.f), Length);#In.Time = FMath::Fmod(In.Time + Length * (0.f * ShareShift + 2.f), Length);#|a matched cut shifts by the feet's own phase

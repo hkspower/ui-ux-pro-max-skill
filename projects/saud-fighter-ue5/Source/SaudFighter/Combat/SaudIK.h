@@ -1817,7 +1817,12 @@ namespace SaudIK
 		float Elapsed = 0.f;
 		int Serial = 0;
 
-		void Play(int Clip, float Length, bool bLoop, bool bRestart, float CutSeconds, bool bMatchPhase)
+		/** ShareShift: added to the matched share (the feet's own phase:
+		    SaudFeel::LeftStrikeShare). StartShare (0..1, -1 none): a new loop
+		    starts there, less what the one-shot it replaces still had to play,
+		    so a pivot's last frame meets its run's frame. */
+		void Play(int Clip, float Length, bool bLoop, bool bRestart, float CutSeconds, bool bMatchPhase,
+		          float ShareShift = 0.f, float StartShare = -1.f)
 		{
 			if (Num > 0 && Layers[0].Clip == Clip && !bRestart)
 			{
@@ -1848,6 +1853,12 @@ namespace SaudIK
 				if (bMatchPhase && bLoop && Num > 0 && Layers[0].bLoop && Layers[0].Length > 0.f)
 				{
 					In.Time = Length * (Layers[0].Time / Layers[0].Length);
+					if (ShareShift != 0.f && Length > 0.f) In.Time = FMath::Fmod(In.Time + Length * (ShareShift + 2.f), Length);
+				}
+				else if (StartShare >= 0.f && bLoop && Length > 0.f)
+				{
+					const float Remaining = Num > 0 && !Layers[0].bLoop ? FMath::Clamp(Layers[0].Length - Layers[0].Time, 0.f, Length) : 0.f;
+					In.Time = FMath::Fmod(Length * (FMath::Clamp(StartShare, 0.f, 1.f) + 1.f) - Remaining, Length);
 				}
 				if (Num == MaxLayers) DropLightest();
 			}

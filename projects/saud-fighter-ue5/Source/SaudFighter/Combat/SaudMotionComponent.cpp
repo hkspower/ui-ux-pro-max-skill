@@ -164,8 +164,10 @@ void USaudMotionComponent::PlayPicked(float DeltaSeconds)
 	{
 		// Ours: the clip over a crossfade, and the IK over it. The first clip
 		// a man shows comes in whole.
-		const SaudFeel::FCut Cut = bShown ? SaudFeel::CutBetween(ShownClip, Clip, bRestart) : SaudFeel::FCut();
-		Inst->Play(Seq, SaudFeel::Loops(Clip), bRestart, Cut.Seconds, Cut.bMatchPhase, bOwnTurn);
+		// (a pivot hands over into his run at his set's own share of its cycle)
+		const FString SetName = Fighter->MotionSet.IsNone() ? FString(TEXT("Saud")) : Fighter->MotionSet.ToString();
+		const SaudFeel::FCut Cut = bShown ? SaudFeel::CutBetween(ShownClip, Clip, bRestart, TCHAR_TO_ANSI(*SetName)) : SaudFeel::FCut();
+		Inst->Play(Seq, SaudFeel::Loops(Clip), bRestart, Cut.Seconds, Cut.bMatchPhase, bOwnTurn, Cut.ShareShift, Cut.StartShare);
 		ShownClip = Clip;
 		bShown = true;
 	}
