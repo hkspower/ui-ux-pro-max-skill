@@ -165,7 +165,7 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#const bool bOtherStands = O.bHeld;#const
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const bool bMine = Drift\[S\] >= Drift\[1 - S\]#const bool bMine = Drift[S] >= 0.f#|the foot further off its hold steps first
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Size = 0.5f \* (In.Foot\[0\].LegLength + In.Foot\[1\].LegLength) / SaudLegLength;#const float Size = 1.f + 0.f * In.Foot[0].LegLength;#|a man twice Saud's size steps at twice the drift
 ik|Source/SaudFighter/Combat/SaudIK.h|s#F.Anchor = ToWorld(Mesh, DrawnBall(F, Mesh, Raw\[S\]));#F.Anchor = ToWorld(Mesh, Raw[S]);#|a foot planted again mid-hand-back is held where it is drawn
-ik|Source/SaudFighter/Combat/SaudIK.h|s#: Lift\[S\] - Floor <= (F.bDown ? BallUpHeight : BallDownHeight) \&\& Lift\[S\] <= BallRestBand;#: Lift[S] <= 12.f + 0.f * Floor;#|a street man's 10 cm swing is never held
+ik|Source/SaudFighter/Combat/SaudIK.h|s#: Lift\[S\] - Floor <= (F.bDown ? BallUpHeight : BallDownHeight) \* Size \&\& Lift\[S\] <= BallRestBand \* Size;#: Lift[S] <= 12.f + 0.f * Floor * Size;#|a street man's 10 cm swing is never held
 ik|Source/SaudFighter/Combat/SaudIK.h|s#(F.bDown ? BallUpHeight : BallDownHeight)#(F.bDown ? BallDownHeight : BallDownHeight)#|a held ball 1.2 cm up stays held
 ik|Source/SaudFighter/Combat/SaudIK.h|s#(F.bDown ? BallUpHeight : BallDownHeight)#(F.bDown ? BallUpHeight : BallUpHeight)#|...and a free one 1.2 cm up is not taken
 ik|Source/SaudFighter/Combat/SaudIK.h|s#: Lift\[S\] - Floor <=#: Lift[S] - 0.f * Floor <=#|a clip retargeted 3 cm off a man's rest still plants his feet
@@ -176,7 +176,7 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!bHold) continue;#if (bHold \&\& !bH
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bAttacking) return true;#if (bAttacking) return false;#|an attack, a man standing, or a clip whose feet step holds its feet; nothing else
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return M.Clip == ClipSerial && M.bValid && M.Speed >= StrideMinSpeed;#return M.bValid \&\& M.Speed >= StrideMinSpeed + 0.f * ClipSerial;#|an attack, a man standing, or a clip whose feet step holds its feet; nothing else
 ik|Source/SaudFighter/Combat/SaudIK.h|s#bAllowed\[S\] = In.bWanted && !In.Foot\[S\].bStrike;#bAllowed[S] = In.bWanted;#|the strike's leg is never held
-ik|Source/SaudFighter/Combat/SaudIK.h|s#H.Seconds = bStep ? StepSeconds : ReleaseSeconds;#H.Seconds = bStep ? StepSeconds : 0.001f;#|a kick's leg leaves the ground and comes back with no jump
+ik|Source/SaudFighter/Combat/SaudIK.h|s#H.Seconds = bStep ? Step : Release;#H.Seconds = bStep ? Step : 0.001f + 0.f * Release;#|a kick's leg leaves the ground and comes back with no jump
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (Far(Most) < Far(0.f))#if (false \&\& Far(Most) < Far(0.f))#|the roll brings the ankle back inside 98.5 % of the leg, under 30 degrees
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float ToeUpDegrees = 55.f;#constexpr float ToeUpDegrees = 10.f;#|toes bend up to lie flat when the heel rolls
 
@@ -188,29 +188,29 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bAcross) { N = FVector::UpVector; P.
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const bool bBN = B.bHit && BNZ >= WalkableZ;#const bool bBN = B.bHit; (void)BNZ;#|the face of a step gives its height, not its slope
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Z = FMath::Max(Z, P.BallFloor - BallSoleZ);#Z = FMath::Max(Z, P.BallFloor - BallSoleZ - 100.f);#|a swinging foot never goes through a step, ball first
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Z = FMath::Max(Z, P.HeelFloor - HeelAfterZ);#Z = FMath::Max(Z, P.HeelFloor - HeelAfterZ - 100.f);#|a swinging foot never goes through a step, heel first
-ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Share = PlantAlpha(F.Ankle.Z - F.AnkleRest) \* GroundShare(Lift);#const float Share = 1.f + 0.f * Lift * F.AnkleRest;#|...and is not pulled down into a dip
-ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Share = PlantAlpha(F.Ankle.Z - F.AnkleRest) \* GroundShare(Lift);#const float Share = PlantAlpha(F.Ankle.Z - F.AnkleRest) + 0.f * GroundShare(Lift);#|a street man's swing over a ditch leaves the hips
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Share = PlantAlpha(F.Ankle.Z - F.AnkleRest, Size) \* GroundShare(Lift, Size);#const float Share = 1.f + 0.f * Lift * F.AnkleRest * Size;#|...and is not pulled down into a dip
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Share = PlantAlpha(F.Ankle.Z - F.AnkleRest, Size) \* GroundShare(Lift, Size);#const float Share = PlantAlpha(F.Ankle.Z - F.AnkleRest, Size) + 0.f * GroundShare(Lift, Size);#|a street man's swing over a ditch leaves the hips
 ik|Source/SaudFighter/Combat/SaudIK.h|s#P.Planted = Ground \* Share;#P.Planted = Share > 0.f ? Ground : 0.f;#|the hips do not lurch as a foot lifts out of the ground's share
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float FootRiseRate = 40.f;#constexpr float FootRiseRate = 18.f;#|a foot meets a step up within four frames
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const FVector Back = TurnUpTo(Plan.Tilt, F.Ankle - F.Ball);#const FVector Back = F.Ankle - F.Ball;#|on a ramp the ball stays on its ground and the heel comes onto it
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Most = FMath::Min(1.f, Limit / Angle);#const float Most = 0.5f + 0.f * Limit / Angle;#|on a 20 degree ramp the foot tilts 20
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Most = FMath::Min(1.f, Limit / Angle);#const float Most = 1.f + 0.f * Limit / Angle;#|a 40 degree ramp tilts the foot 30
 ik|Source/SaudFighter/Combat/SaudIK.h|s#FVector Flat = Toe - Ground \* Into;#FVector Flat = Toe + Ground * 0.f * Into;#|the toes lie flat on a 40 degree slope
-ik|Source/SaudFighter/Combat/SaudIK.h|s#O.ToeShare = A \* GroundShare(Lift\[S\] - Floor);#O.ToeShare = A + 0.f * GroundShare(Lift[S] - Floor);#|a foot in the air keeps its toes
+ik|Source/SaudFighter/Combat/SaudIK.h|s#O.ToeShare = A \* GroundShare(Lift\[S\] - Floor, Size);#O.ToeShare = A + 0.f * GroundShare(Lift[S] - Floor, Size);#|a foot in the air keeps its toes
 ik|Source/SaudFighter/Combat/SaudIK.h|s#St.Tilt\[S\] = SettleNormal(St.Tilt\[S\], DirToWorld(In.Mesh, P.Tilt), FootSettleRate, Dt);#St.Tilt[S] = SettleNormal(St.Tilt[S], P.Tilt, FootSettleRate, Dt);#;s#const FVector Tilt = DirToMesh(In.Mesh, St.Tilt\[S\]).GetSafeNormal();#const FVector Tilt = St.Tilt[S].GetSafeNormal();#|a sole on a ramp stays on it while the man turns on the spot
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return Swing(Current, Current, Target, 1.f - FMath::Exp(-Rate \* Dt)).GetSafeNormal();#return Swing(Current, Current, Target, 1.f + 0.f * Rate * Dt).GetSafeNormal();#|the sole eases onto a ramp
 ik|Source/SaudFighter/Combat/SaudIK.h|s#O.Tilt = LimitedTilt(Tilt, A);#O.Tilt = LimitedTilt(Tilt, 1.f + 0.f * A);#|the soles fade with the feet
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Drop = FMath::Min(Drop, P.Planted);#Drop = FMath::Max(Drop, P.Planted);#|the pelvis goes down to the lower foot
 ik|Source/SaudFighter/Combat/SaudIK.h|s#float Drop = 0.f;#float Drop = 100.f;#|a step up under the feet never lifts the hips
-ik|Source/SaudFighter/Combat/SaudIK.h|s#St.PelvisZ = Settle(St.PelvisZ, FMath::Max(Drop, -MaxPelvisDrop), PelvisSettleRate, Dt);#St.PelvisZ = Settle(St.PelvisZ, Drop + 0.f * MaxPelvisDrop, PelvisSettleRate, Dt);#|a drop is not reached for, by the feet
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float PelvisTo = FMath::Max(Drop, -MaxPelvisDrop \* Size);#const float PelvisTo = Drop + 0.f * MaxPelvisDrop * Size;#|a drop is not reached for, by the feet
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Out.Pelvis = FVector(St.Weight\[0\].X, St.Weight\[1\].X, St.PelvisZ) \* A;#Out.Pelvis = FVector(St.Weight[0].X, St.Weight[1].X, St.PelvisZ);#|the hips fade with the feet
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (In.bTeleported)#if (In.bTeleported \&\& false)#|a man put somewhere new starts his feet afresh
 ik|Source/SaudFighter/Combat/SaudIK.h|s#St.PelvisZ -= Taken;#St.PelvisZ -= 0.f * Taken;#|a kerb the capsule steps up in one frame does not lift the body that frame
-ik|Source/SaudFighter/Combat/SaudIK.h|s#return FMath::Abs(Rise) > Run + StepAbsorbSlack;#return FMath::Abs(Rise) > Run - 10.f + 0.f * StepAbsorbSlack;#|a walk up a walkable ramp is not a step
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!bGradeKnown) return FMath::Abs(Rise) > Run \* Limit + StepAbsorbSlack;#if (!bGradeKnown) return FMath::Abs(Rise) > Run * Limit - 10.f + StepAbsorbSlack;#|a walk up a walkable ramp is not a step
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float WeightKick = 0.6f;#constexpr float WeightKick = 0.f;#|the hips carry a start: back 3-8 cm
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float WeightRate = 14.f;#constexpr float WeightRate = 4.f;#|...and home within 0.4 s
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bKnown && In.bWanted) W.V -= Kick\[K\] \* WeightKick;#if (bKnown \&\& In.bWanted) W.V -= (Kick[K] + 1.f) * WeightKick;#|a steady speed carries no lag
-ik|Source/SaudFighter/Combat/SaudIK.h|s#if (FMath::Abs(W.X) > WeightMaxCm)#if (false \&\& FMath::Abs(W.X) > WeightMaxCm)#|a launch is held to 8 cm
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (FMath::Abs(W.X) > WMax)#if (false \&\& FMath::Abs(W.X) > WMax)#|a launch is held to 8 cm
 ik|Source/SaudFighter/Combat/SaudIK.h|s#W.To(0.f, WeightRate, Dt);#W.To(0.f, WeightRate, FMath::Max(Dt, 1.f / 60.f));#|the freeze holds the hips
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (Dt <= 0.f) return;#if (Dt <= 0.f) Dt = 1.f / 60.f;#|the freeze holds a spring where it is
 
@@ -352,12 +352,12 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#Down\[S\] += L.Weight;#Down[S] += 1.f;#|
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Out\[S\] = Known >= 0.5f ? Down\[S\] / Known : -1.f;#Out[S] = Known > 0.f ? Down[S] / Known : -1.f;#|...and the heights decide when most of it is not
 ik|Source/SaudFighter/Combat/SaudIK.h|s#GroundSpeed / (ClipStride \* Scale)#GroundSpeed / (ClipStride + 0.f * Scale)#|...the stride grown with the man drawn twice the size
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (ClipStride < StrideMinSpeed) return 1.f;#if (ClipStride < 0.f) return 1.f;#|...and a clip that does not walk keeps its clock
-ik|Source/SaudFighter/Combat/SaudIK.h|s#ClipStride >= StrideMinSpeed;#ClipStride >= 0.f;#|a block walked glides
+ik|Source/SaudFighter/Combat/SaudIK.h|s#ClipStride >= StrideMinSpeed$#ClipStride >= 0.f#|a block walked glides
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float ReleaseSeconds = 0.08f;#constexpr float ReleaseSeconds = 0.10f;#|a foot is handed back inside the first third of the shortest walk swing
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StepSeconds = 0.14f;#constexpr float StepSeconds = 0.30f;#|a shuffle step is quicker than any walk's own swing
-ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StrideMinSpeed = 100.f;#constexpr float StrideMinSpeed = 300.f;#|every walk strides faster than StrideMinSpeed
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StrideMinSpeed = 80.f;#constexpr float StrideMinSpeed = 300.f;#|every walk strides faster than StrideMinSpeed
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StrideRateMax = 1.6f;#constexpr float StrideRateMax = 1.5f;#|every fighter's move speed walks his own clip inside the rate band
-ik|Source/SaudFighter/Combat/SaudPlants.h|s#{ "A_Saud_Walk_Fwd", 0.571f, 17, 336.4f, { "fffffbb..........",#{ "A_Saud_Walk_Fwd", 0.571f, 17, 336.4f, { "fffffffffffffffff",#|every walk forward and back puts each foot down once a cycle
+ik|Source/SaudFighter/Combat/SaudPlants.h|s#\({ "A_Saud_Walk_Fwd", [^{]*{ "\)[fb.]*#\1ffffffffffffffff#|every walk forward and back puts each foot down once a cycle
 ik|Source/SaudFighter/Combat/SaudPlants.h|s#{ "A_Saud_Guard", 2.618f, 79, 0.0f, { "f#{ "A_Saud_Guard", 2.618f, 79, 0.0f, { ".#|every guard and block stands on both feet
 ik|Source/SaudFighter/Combat/SaudPlants.h|s#"ffbbbbbbbbbbbbff", "b..............b" } },#"ffbbbbbbbbbbbbff", "bbbbbbbbbbbbbbbb" } },#|every kick and knee has its leg up as it lands
 ik|Source/SaudFighter/Combat/SaudPlants.h|s#{ "A_Saud_Jab", 0.260f, 8, 0.0f, { "ffffffff", "bbbbbbbb" } },#{ "A_Saud_Jab", 0.260f, 8, 0.0f, { "ffffffff", "........" } },#|every punch lands with both feet on the floor
@@ -374,7 +374,7 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float MaxHeelRollDegrees = 30.
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BallRestBand = 5.f;#constexpr float BallRestBand = 1000.f;#|a hop is not a stand
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float HoldDriftHard = 30.f;#constexpr float HoldDriftHard = 1e9f;#|a shove, not a shuffle
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float ToeDownDegrees = 10.f;#constexpr float ToeDownDegrees = 90.f;#|toes bend down no further than 10 degrees
-ik|Source/SaudFighter/Combat/SaudIK.h|s#return FMath::Abs(Rise) > Run + StepAbsorbSlack;#return Rise > Run + StepAbsorbSlack;#|a kerb stepped down in a frame is a step
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!bGradeKnown) return FMath::Abs(Rise) > Run \* Limit + StepAbsorbSlack;#if (!bGradeKnown) return Rise > Run * Limit + StepAbsorbSlack;#|a kerb stepped down in a frame is a step
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Z > St.FootZ\[S\] ? FootRiseRate : FootSettleRate, Dt);#Z > St.FootZ[S] ? FootRiseRate : 1000.f, Dt);#|a foot steps down off a kerb over frames
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bKnown \&\& In.bWanted) W.V#if (bKnown) W.V#|the hips carry no change of speed in the air
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StrideMeterRate = 8.f;#constexpr float StrideMeterRate = 1000.f;#|the stride meter follows its samples at 8 a clip second
@@ -422,7 +422,7 @@ feel|Source/SaudFighter/Combat/SaudFeel.h|s# IsGait(C);# false;#|every gait loop
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#case EClip::GaitJog: case EClip::GaitRun: return EClip::WalkFwd;#case EClip::GaitJog: case EClip::GaitRun: return C;#|falls back to the guard's step forward
 # 2026-10-03, the guard's shuffle: a block edged along slowly holds and steps its feet
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockShuffleMax = 60.f;#constexpr float BlockShuffleMax = 0.f;#|a block edged along at a guard's pace holds its feet
-ik|Source/SaudFighter/Combat/SaudIK.h|s#(bBlocking \&\& GroundSpeed <= BlockShuffleMax)#(bBlocking \&\& GroundSpeed <= 1e9f)#|pushed faster it glides
+ik|Source/SaudFighter/Combat/SaudIK.h|s#GroundSpeed <= BlockShuffleMax \* FMath::Max(Size, 0.1f)#GroundSpeed <= 1e9f * FMath::Max(Size, 0.1f)#|pushed faster it glides
 ik|Source/SaudFighter/Combat/SaudPlants.h|s#\("A_Saud_Mocap_Jog".*", "\)[^"]*\(" } },\)#\1.......................\2#|every motion-capture gait puts each foot down in its loop
 ik|Source/SaudFighter/Combat/SaudIK.h|s#(FootHeightAboveFloor - PlantHeight \* K)#(FootHeightAboveFloor - PlantHeight)#|his foot is planted under his own 14.8 cm
 ik|Source/SaudFighter/Combat/SaudIK.h|s#(Lift - BallUpHeight \* K)#(Lift - BallUpHeight)#|his ball's share of the ground fades over his own heights
@@ -440,3 +440,170 @@ brain|Source/SaudFighter/Combat/SaudBrain.h|s#return \*A == 0 \&\& \*N == 0; };#
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#return "Music_Zayos";#return "Music_Wahsh";#|theme is his alone
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (Is("Saqr"))  return "Music_Saqr";##|Saqr fights to a theme of his own
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (Is("Boss"))  return "Music_Wahsh";#if (Is("Boss") or Is("Thug")) return "Music_Wahsh";#|is no boss and has no boss theme
+
+# The 360 locomotion's steering (SaudSteer.h, tests/steer.cpp), 2026-10-04:
+# every sabotage Tools/harness/bite.sh applies, one a line, in bites.txt's
+# format -- to be merged into it:
+#   test|file|sed expression|text of the FAIL line it must cause
+# Each breaks one rule; each must be caught by the check written for it.
+# No sed expression may contain a bar.
+
+# ---- the names
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#return Turn == ETurn::L90 ? 0.50f#return Turn == ETurn::L90 ? 0.55f#|the turn clips' lengths are 0.50 0.50 0.70 0.45 s
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#: Turn == ETurn::Back180 ? 0.70f#: Turn == ETurn::Back180 ? 0.60f#|the turn clips' lengths are 0.50 0.50 0.70 0.45 s
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#constexpr float WalkShare = 0.45f;#constexpr float WalkShare = 0.5f;#|the walk tier at 0.45 of his speed
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#constexpr float StandingCm = 40.f;#constexpr float StandingCm = 50.f;#|standing is the Guard's speed
+
+# ---- the eight ways
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#return A >= 0.f ? K : (NumDirs - K) % NumDirs;#return K;#|+ is his left
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#const int K = static_cast<int>(N - Floor <= 0.5f ? Floor : Floor + 1.f);#const int K = static_cast<int>(N - Floor < 0.5f ? Floor : Floor + 1.f);#|a line goes to the octant nearer Fwd
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#constexpr float OctantHoldDeg = 5.f;#constexpr float OctantHoldDeg = 0.f;#|an octant is held 5 degrees past its line
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#constexpr float OctantHoldDeg = 5.f;#constexpr float OctantHoldDeg = 10.f;#|past the hold, the neighbour
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#if (Off <= OctantHalfDeg + OctantHoldDeg) return Current;#if (Off <= OctantHalfDeg + OctantHoldDeg) return Current; else return Current;#|past the hold, the neighbour
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#if (!bHas) return (Current >= 0 \&\& Current < NumDirs) ? Current : Fwd;#if (!bHas) return Fwd;#|no heading keeps what showed
+
+# ---- free or fighting
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#constexpr float FreeBandCm = 100.f;#constexpr float FreeBandCm = 0.f;#|the free test holds through its band
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#: NearestCm > FreeBeyondCm;#: NearestCm >= FreeBeyondCm - FreeBandCm;#|the free test holds through its band
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#return bWasFree ? NearestCm >= FreeBeyondCm - FreeBandCm#return bWasFree ? NearestCm > FreeBeyondCm#|a man shifting on the line flips him once
+
+# ---- the rate
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#constexpr float TurnRateRun = 360.f;#constexpr float TurnRateRun = 540.f;#|a runner turns slower
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#const float Walk = WalkShare \* RunSpeed;#const float Walk = 0.f;#|540 deg/s walking
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#Out.FacingYaw = StepYaw(Out.FacingYaw, Want, FreeTurnRate(In.Speed, In.RunSpeed) \* In.Dt);#Out.FacingYaw = StepYaw(Out.FacingYaw, Want, FreeTurnRate(In.Speed, In.RunSpeed) / 60.f);#|the same turn at 30 and 60 Hz
+
+# ---- the turn on the spot
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#return Error > 0.f ? ETurn::L90 : ETurn::R90;#return Error > 0.f ? ETurn::R90 : ETurn::L90;#|a quarter turn to his left is Turn_L90
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#constexpr float TurnAboveDeg = 45.f;#constexpr float TurnAboveDeg = 30.f;#|no turn on the spot within 45 degrees
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#constexpr float BackAboveDeg = 135.f;#constexpr float BackAboveDeg = 150.f;#|past 135 degrees it is Turn_180
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#if (In.Speed < StandingCm)#if (In.Speed < 0.f)#|the turn chosen at every 5 degrees
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#Out.FacingYaw = Wrap180(Want);#Out.FacingYaw = Out.FacingYaw;#|the facing snaps to the wish as a turn starts
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#++S.Serial;#S.Serial += 0;#|every new turn moves the serial
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#if (S.Turn != ETurn::None)#if (false)#|a turn holds his movement for its own length
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#S.Left -= Dt;#S.Left -= 2.f * Dt;#|a turn holds his movement for its own length
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#^\t\tS.Turn = ETurn::None;$#\t\t;#|a strike, a blow or a dash ends the turn
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#if (!In.bPushed #if (false #|a stick not pushed turns nothing
+
+# ---- the pivot
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#Speed > PivotShare \* RunSpeed;#Speed >= 0.f;#|a pivot only at speed
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#constexpr float PivotShare = 0.6f;#constexpr float PivotShare = 0.7f;#|a reversal at a run is a pivot
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#constexpr float PivotAboveDeg = 135.f;#constexpr float PivotAboveDeg = 90.f;#|a pivot only at speed, only for a reversal past 135
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#: Turn == ETurn::Pivot180 ? 0.45f#: Turn == ETurn::Pivot180 ? 0.60f#|the pivot holds 0.45 s
+
+# ---- the chase
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#return Wrap180(FMath::Abs(Gap) <= Step ? WantYaw : #return Wrap180(false ? WantYaw : #|the facing never overshoots
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#const float Gap = Wrap180(WantYaw - Yaw);#const float Gap = WantYaw - Yaw;#|the short way round
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#const float Step = FMath::Max(0.f, MaxStepDeg);#const float Step = FMath::Max(0.f, 1.5f * MaxStepDeg);#|no more than the rate allows in a frame
+steer|Source/SaudFighter/Combat/SaudSteer.h|s#if (A <= -180.f) A += 360.f;#if (A < -180.f) A += 360.f;#|an angle wraps into (-180, 180]
+
+# The 360 locomotion's runtime sabotages (track C, 2026-10-04, Riyadh), in
+# bites.txt's format, to be merged into it:
+#   test|file|sed expression|text of the FAIL line it must cause
+# Each breaks one new rule of SaudFeel.h (the clip choice) or SaudIK.h (the
+# IK for the new moves) and must be caught by the check written for it.
+# No sed expression may contain a bar.
+
+# ---- names, loops, kinds
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return "Run_BackLeft";#return "Run_Back_Left";#|every 360 clip is named as the spec's file
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return "Turn_180";#return "Turn180";#|every 360 clip is named as the spec's file
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return "Pivot_180";#return "Pivot180";#|every 360 clip is named as the spec's file
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#TierOf(C) >= 0 \(..\) IsGait#false \1 IsGait#|the sixteen walk and run clips loop
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return TierOf(C) >= 0 ? EKind::Step : EKind::Stand;#return EKind::Stand;#|the sixteen walk and run clips loop and are steps
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#case EClip::TurnL90: case EClip::TurnR90: case EClip::Turn180: case EClip::Pivot180: return EKind::Turn;##|the four turns are one-shots of their own kind
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#constexpr float FreeBeyondCm = SaudSteer::FreeBeyondCm;#constexpr float FreeBeyondCm = 1500.f;#|SaudFeel::FreeBeyondCm is SaudSteer's distance
+
+# ---- the octant against the drawn facing, held
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#const int Dir = SaudSteer::Octant(In.Facing, In.Heading, DirOf(In.Current));#const int Dir = SaudSteer::Octant(In.Facing, In.Heading, DirOf(In.Current)) / 2 * 2;#|picks its walk or run strafe at every angle
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#SaudSteer::Octant(In.Facing, In.Heading, DirOf(In.Current))#SaudSteer::Octant(In.Facing, In.Heading, -1 + 0 * DirOf(In.Current))#|a strafe is held 5 degrees past its octant's line
+
+# ---- the tier by speed, held, each man's own
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return std::sqrt(SaudSteer::WalkShare \* RunSpeed \* RunSpeed);#return std::sqrt(SaudSteer::WalkShare) * RunSpeed * 0.9f;#|under the line between the tiers he walks
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#constexpr float TierHysteresis = 0.08f;#constexpr float TierHysteresis = 0.f;#|the tier showing is held 8 % past the line
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#constexpr float TierHysteresis = 0.08f;#constexpr float TierHysteresis = 0.20f;#|the tier showing is held 8 % past the line, not further
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#const int Tier = PickTier(In.Speed, In.RunSpeed, TierOf(In.Current));#const int Tier = PickTier(In.Speed, 341.f + 0.f * In.RunSpeed, TierOf(In.Current));#|the line is each man's own
+
+# ---- free: ahead his own way, off it the strafe
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#constexpr float AheadDeg = 30.f;#constexpr float AheadDeg = 45.f;#|past 30 degrees, the walk or run strafe of that angle
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#constexpr float AheadHoldDeg = 5.f;#constexpr float AheadHoldDeg = 0.f;#|the gait showing held to 35 degrees
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (In.bFree \&\& bAhead) return Tier ? EClip::RunFwd : EClip::WalkFwd;##|a man with no gaits runs or walks his Run_Fwd / Walk_Fwd ahead
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (In.bGaits \&\& bAhead)#if (bAhead)#|a man with no gaits runs or walks his Run_Fwd / Walk_Fwd ahead
+
+# ---- the turns: picked, held to their end, four things over them
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (In.Turn != SaudSteer::ETurn::None) return TurnClip(In.Turn);##|a turn the steer started plays its own clip
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#case SaudSteer::ETurn::Back180:  return EClip::Turn180;#case SaudSteer::ETurn::Back180:  return EClip::TurnL90;#|a turn the steer started plays its own clip
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#case SAttack: return EClip::Attack;#case SAttack: if (In.Turn != SaudSteer::ETurn::None) return TurnClip(In.Turn); return EClip::Attack;#|an attack, a hit, a fall or a dash takes over from it
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#Left = SaudSteer::TurnSeconds(Turn);#Left = SaudSteer::TurnSeconds(Turn) * 0.5f;#|a turn's clip is held for its own TurnSeconds
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#Left -= FMath::Max(0.f, Dt);#Left -= FMath::Max(0.f, Dt); if (FighterTurn == SaudSteer::ETurn::None) Left = 0.f;#|a turn's clip is held for its own TurnSeconds
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#FighterSerial != Serial)#(FighterSerial != Serial \&\& Turn == SaudSteer::ETurn::None))#|a new serial starts it again
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#constexpr float CutIntoTurn = 0.06f;#constexpr float CutIntoTurn = 0.20f;#|a turn or a pivot cuts in fast
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#From == EClip::Pivot180) \&\& B#(From == EClip::Pivot180 \&\& false)) \&\& B#|a pivot steps on into its run
+
+# ---- the fallbacks
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (OA < OB - 1e-3f) return A;#if (OA > OB + 1e-3f) return A;#|falls back to the neighbour nearer the heading
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return FromFwd(A) <= FromFwd(B) ? A : B;#return FromFwd(A) <= FromFwd(B) ? B : A;#|a heading on the diagonal itself takes the neighbour nearer Fwd
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (Tier == 1) Ways(RunClip);#if (Tier == 1) { Ways(RunClip); return Out; }#|a run strafe falls back to its walk
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (TierOf(C) == 1) return WalkClip(DirOf(C));#if (TierOf(C) == 1) return C;#|a run strafe falls back to its walk
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (IsTurnClip(C)) { Out.Add(EClip::Guard); return Out; }#if (IsTurnClip(C)) return Out;#|a turn a set lacks stands in his guard
+# (with every 360 clip now on disk for every set, "every 360 clip plays
+# something for every set today" can no longer be broken from the sources;
+# this one breaks the run-to-walk chain it would have caught)
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#Ways(WalkClip);#if (Tier == 0) Ways(WalkClip);#|a run diagonal's walk after its runs
+
+# ---- the lean into a curve, a start, a stop
+ik|Source/SaudFighter/Combat/SaudIK.h|s#FMath::Atan(Sp \* FMath::Abs(YawRate) / Gravity)#FMath::Atan(FMath::Abs(YawRate) / Gravity * 100.f)#|on a circle he leans atan(v x yawrate / g)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#(YawRate >= 0.f ? 1.0 : -1.0)#(YawRate >= 0.f ? -1.0 : 1.0)#|toward the circle's centre, either way round
+ik|Source/SaudFighter/Combat/SaudIK.h|s#CarryLean(S, Velocity);#(void)0;#|toward the circle's centre, either way round
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float LeanWalkMaxDeg = 12.f;#constexpr float LeanWalkMaxDeg = 15.f;#|holds him at 12 degrees walking, 20 running
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float LeanRunMaxDeg = 20.f;#constexpr float LeanRunMaxDeg = 25.f;#|holds him at 12 degrees walking, 20 running
+ik|Source/SaudFighter/Combat/SaudIK.h|s#Out += Centre \* Roll;#Out += Centre * Roll + B * 0.5f;#|going straight at a steady speed he does not lean
+ik|Source/SaudFighter/Combat/SaudIK.h|s#Out += Way \* Pitch;#Out += Way * (-Pitch);#|a start pitches him forward and a stop back
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float LeanPitchMaxDeg = 6.f;#constexpr float LeanPitchMaxDeg = 30.f;#|to 6 degrees at the most
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bTeleported) { const FLean Keep = S;#Dt = FMath::Max(Dt, 1.f / 60.f); if (bTeleported) { const FLean Keep = S;#|the freeze holds the lean
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const FVector Want = bOn \&\& S.bKnown ?#const FVector Want = (static_cast<void>(bOn), S.bKnown) ?#|off the ground the lean eases out
+ik|Source/SaudFighter/Combat/SaudIK.h|s#AlongPath(In.Velocity, St.LastVelocity)#(In.Velocity - St.LastVelocity)#|on a curve the hips are not thrown outward
+
+# ---- a turn clip carries the turn
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (S.bClip) S.Hips = S.ClipHips \* (1.f - S.ClipShare);#if (false) S.Hips = 0.f;#|the hips' lag is held at none under the clip
+ik|Source/SaudFighter/Combat/SaudIK.h|s#S.ClipShare = FMath::Max(S.ClipShare, FMath::Min(TurnClip, 1.f));#S.ClipShare = 1.f + 0.f * TurnClip;#|the body is drawn where it stood through the cut
+
+# ---- feet through a stop
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const bool bLastStance = bStopping \&\& !H\[1 - S\].bHeld;#const bool bLastStance = false \&\& bStopping;#|the standing foot holds until the last swing lands
+ik|Source/SaudFighter/Combat/SaudIK.h|s#New->Stride >= StrideMinSpeed) return false;#false) return false;#|a stop is a measured walk fading under a measured stand
+
+# ---- kerbs and slopes at a run
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return FMath::Abs(Rise - Run \* G) > StepAbsorbSlack + StepGradeSlack \* Run;#return FMath::Abs(Rise) > Run * Limit + StepAbsorbSlack + 0.f * G;#|kerb climbed at a run (341 cm/s) is absorbed
+ik|Source/SaudFighter/Combat/SaudIK.h|s#SteppedCapsule(Moved, bGrade, Grade)#SteppedCapsule(Moved, bGrade \&\& false, Grade)#|kerb climbed at a run (341 cm/s) is absorbed
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float StepGradeSlack = 0.15f;#constexpr float StepGradeSlack = 0.6f;#|kerb climbed at a run (341 cm/s) is absorbed
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float G = FMath::Clamp(Grade, -Limit, Limit);#const float G = Grade + 0.f * Limit;#|no grade is steeper than the slope limit
+ik|Source/SaudFighter/Combat/SaudIK.h|s#OutGrade = Sum / N;#OutGrade = 0.f * Sum / N;#|a 20 degree ramp run up at 341 cm/s is a slope
+ik|Source/SaudFighter/Combat/SaudIK.h|s#Sum += static_cast<float>(-(Nm.X \* D.X + Nm.Y \* D.Y) / Nm.Z);#Sum += static_cast<float>((Nm.X * D.X + Nm.Y * D.Y) / Nm.Z);#|the ground's grade along the move, from the feet's traces
+
+# ---- traces where the foot will be
+ik|Source/SaudFighter/Combat/SaudIK.h|s#FVector Ahead(float Dt) const { return Last + Velocity \* FMath::Max(0.f, Dt); }#FVector Ahead(float Dt) const { return Last + Velocity * 0.f * Dt; }#|a foot is traced where it will be this frame
+ik|Source/SaudFighter/Combat/SaudIK.h|s#V \* (TraceLeadMaxSpeed / Sp) : V;#V * (1.f + 0.f * Sp) : V;#|a trace never leads by more than TraceLeadMaxSpeed
+ik|Source/SaudFighter/Combat/SaudIK.h|s#else if (!bValid)#else#|the freeze keeps the foot's velocity
+
+# ---- the pelvis drops faster at speed
+ik|Source/SaudFighter/Combat/SaudIK.h|s#PelvisSettleRate \* (1.f + FMath::Max(0.f, Speed) / PelvisDropDoubleSpeed)#PelvisSettleRate + 0.f * Speed / PelvisDropDoubleSpeed#|at a run they drop to a lower foot three times as fast
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return Target < Current ? PelvisSettleRate#return Target < Current + 1e9f ? PelvisSettleRate#|come back up unhurried
+
+# (ik's "every walk-tier loop of a set shares one cycle length" reads the
+# manifests under Content/, which bite.sh does not copy: a data check, no
+# sabotage of the sources can reach it)
+
+# ---- a pivot's hand-over into its run, and the feet's own phase (2026-10-04, the clip tracks' measures)
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (Is("Monkey"))  return 10.f / 12.f;#if (Is("Monkey"))  return 10.f / 13.f;#|a pivot hands over into Run_Fwd at its set's own phase
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#if (From == EClip::Pivot180 \&\& TakesPivotPhase(To) \&\& !bRestart) C.StartShare#if (false \&\& TakesPivotPhase(To) \&\& !bRestart) C.StartShare#|a pivot hands over into Run_Fwd at its set's own phase
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return C == EClip::RunRight ? 0.5f : 0.f;#return 0.f * static_cast<float>(C);#|a phase-matched cut into or out of Run_Right keeps the feet
+ik|Source/SaudFighter/Combat/SaudIK.h|s#- Remaining, Length);#- 0.f * Remaining, Length);#|a pivot's run comes in so it meets the run's frame as the pivot ends
+ik|Source/SaudFighter/Combat/SaudIK.h|s#In.Time = FMath::Fmod(In.Time + Length \* (ShareShift + 2.f), Length);#In.Time = FMath::Fmod(In.Time + Length * (0.f * ShareShift + 2.f), Length);#|a matched cut shifts by the feet's own phase
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return FMath::Abs(Rise - Run \* G) > #return (Rise - Run * G) > #|a kerb is a step and a ramp is not, up or down, at a run
+
+# ---- each man's own time, and each set's own striking limbs (2026-10-04, after SaudPlants.h was regenerated)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#FMath::Min(ReleaseSeconds, ClipSwingSeconds(\*Newest) / 3.f)#FMath::Min(ReleaseSeconds, ClipSwingSeconds(*Newest) / 1.f)#|a foot is handed back inside the first third of the shortest walk swing
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float ShuffleShareOfSwing = 0.85f;#constexpr float ShuffleShareOfSwing = 1.2f;#|a shuffle step is quicker than any walk's own swing
+ik|Source/SaudFighter/Combat/SaudIK.h|s#Out = Of("Street");#Out = Of("Saud") + 1.f;#|a street row's are Street's
+ik|Source/SaudFighter/Combat/SaudIK.h|s#In.ReleaseSeconds, In.StepSeconds);#ReleaseSeconds, In.StepSeconds);#|a foot is handed back and a shuffle stepped in the man's own time
+ik|Source/SaudFighter/Combat/SaudIK.h|s#H.Seconds = bStep ? Step : Release;#H.Seconds = bStep ? StepSeconds + 0.f * Step : Release;#|a foot is handed back and a shuffle stepped in the man's own time
+ik|Source/SaudFighter/Combat/SaudIK.h|s#else if (Is(Row, "Special")) Arm('r');##|StrikeOf a set's row is the limb its own clip throws with
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (Is(Row, "Jab")) Arm('r');#if (Is(Row, "Jab")) Arm('l');#|StrikeOf a set's row is the limb its own clip throws with

@@ -27,16 +27,6 @@ static void Check(bool Ok, const char* What)
     if (!Ok) { ++Fails; std::printf("  FAIL  %s\n", What); }
 }
 static bool Near(float A, float B, float Eps = 1e-4f) { return std::fabs(A - B) <= Eps; }
-/** A check that waits on the clips' rebuild (the 360 spec's new clip files,
-    by other builders): a FAIL like any other, unless SAUD_CLIPS_PENDING is
-    set, when it prints PENDING and does not count -- so the sabotages can
-    still be run against the rest before the clips exist. */
-static void Pending(bool Ok, const char* What)
-{
-    if (Ok) return;
-    if (std::getenv("SAUD_CLIPS_PENDING")) { std::printf("  PENDING (awaits the clips' rebuild)  %s\n", What); return; }
-    Check(false, What);
-}
 
 using namespace SaudFeel;
 
@@ -636,7 +626,7 @@ static void Loco360()
         }
         Check(Unplayable == 0, "every 360 clip plays something for every set today, Saud's to the Island's, through its fallbacks");
         std::printf("  the spec's %d clip files x %d sets, each in the set's own folder: %d not on disk yet\n", (int)(sizeof Names / sizeof Names[0]), (int)(sizeof Sets / sizeof Sets[0]), Missing);
-        Pending(Missing == 0, "CLIPS AWAITED: every 360 spec clip (Walk_x8, Run_x8, Turn_L90/R90/180, Pivot_180) is on disk in every set's own folder");
+        Check(Missing == 0, "every 360 spec clip (Walk_x8, Run_x8, Turn_L90/R90/180, Pivot_180) is on disk in every set's own folder");
         (void)Total;
     }
 }

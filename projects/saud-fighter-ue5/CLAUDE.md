@@ -4318,7 +4318,9 @@ every gait's stride is a walk's -- and its seven sabotages caught.
 `tests/ik.cpp` counts the five measured. `mocap.py --bite` 7 of 7.
 
 **Not verified:** nothing compiled or played. Whether 12 m is the right
-distance to drop the guard, only play will say. (The run's right foot was
+distance to drop the guard, only play will say. (Since 2026-10-04 the free test
+is every fighter's, with a 1100-1200 cm band, and free he turns to run
+rather than snapping: "Walking and running all 360 degrees".) (The run's right foot was
 never seen down by `measure_plants.py` here; fixed the same day, "The IK,
 polished".)
 
@@ -5190,6 +5192,361 @@ the numpy mirror through the film curve at the engine's key. The pool's
 steps are thresholds of the light over the key, so where the exposure
 lands in the editor ("The night's light", the first thing to check there)
 moves which ground is rim and which is body.
+
+## The dark areas, and the previews as the game draws them -- 2026-10-04
+
+Asked as "scan for all very dark area then fix them / full improve and
+render all maps game / reduce over black areas", settled with the author
+as the Unreal build, a dark seinen night with no black holes (no large
+area under L* 12 but the ink and the night sky), and all four levers: the
+look's night tones, the maps' night light, more lights where it is dark,
+and the map renders themselves.
+
+**The scan.** Every map view, the seven city districts and the souq's
+fight, street and gate were rendered once (800 x 450, the light groups
+kept) and every pixel under L* 12 traced to a cause: sky, ink (lines,
+hatching, screentone), or a hole -- a surface in the deep, shadow or lit
+tone drawn under L* 12 -- and, for a hole, whether the moon, a fire or
+nothing lit it, the paint's albedo, the vignette and the air. On the
+renders then committed, 10-59 % of each night view was a hole (the souq's
+map 30 %, the island's clearing 59 %, the fight 14 %); the median world
+L* 6-18.
+
+**What it found.** The holes were mostly not the look, and not the
+night. Three causes, in order of size:
+- **The previews were not the game's picture.** `anime_preview.
+  look_from` -- which every preview, map view, district render, title and
+  IK sheet goes through -- drew the look at the preview's own key, the
+  light its rule calls lit (0.31-0.56 on the night scenes). The look's
+  tones, its black floors, the air and the sky are all multiplied by the
+  key and the ink is not; in the game the exposure puts the key at 1. So
+  every night preview stood 0.8-1.7 EV under what the game would draw:
+  the shadow floor L* 18.7 drew at about 6, the deep at 3. "The night's
+  light" (2026-10-03) said the previews were the game's picture; they
+  were not. `graded_picture` already drew at the engine's level, which is
+  why the graded rules passed on numbers the renders never showed.
+- **Each frame keyed itself.** The preview's key was the men's light at
+  its 55th percentile when there were men in the frame, else twice the
+  moon's median over the frame's own ground. The open world has had one
+  fixed exposure since "The night's light" -- the moon on open ground at
+  half the key, whoever is in the frame and wherever it looks -- but here
+  the fight keyed 1.4x the world's, and in one scene the street keyed
+  0.34, the gate 0.56 (its flagstones catch the low souq moon's glare
+  toward the camera) and the sky shot 0.05 (its ground all in the roofs'
+  shadow: drawn at that key, its street came out white).
+- **The city's district renders lit another night.** `build_city.py
+  --render` put its moon 90 degrees off `WORLD_RIG`'s bearing, gave it no
+  sky, and lit its fires at the souq's power, sized for the souq's
+  24-degree render moon.
+And one in the look: the deep tone -- a surface nothing lights but the
+sky, a moon shadow beyond every fire -- sat on a floor of L* 9.6, under
+the line, on every paint.
+
+**What changed.**
+- **The previews draw as the game does** (`anime_preview.look_from`): the
+  buffer over its key, looked at with key 1.0 -- `graded_picture`'s
+  level. Every preview tool picks it up.
+- **The night's key is the world's exposure, worked as the engine works
+  it** (`key_of`, `moon_open`): `KEY_OVER_MOON` times the moon on open
+  ground -- the render moon's strength times the sine of its height over
+  pi, `exposure_bias()`'s own arithmetic (the light's colour and the sky
+  not counted) -- one number for the scene: 0.311 for the souq (its fight
+  frame measured 0.313), 0.470 for the world and the island (their views
+  measured 0.40-0.51 on their ground). The men's percentile only without
+  a moon (a studio rig, the prologue's day).
+- **The city renders take the world's night** (`build_city.render`):
+  `WORLD_RIG`'s moon through `build_map_scenes`' own `_sun` and
+  `rig_travel`, the world scene's sky, and every fire sized 4 pi I times
+  the moon on open ground and ended where `spawn_night` ends it -- the
+  same night as the world's map views.
+- **The look, re-tuned on the game's picture** (`anime_look.py`, LOOK;
+  both materials and the mirror). Every number the colour levels set
+  (2026-10-03) was set on the darker previews; on the game's picture the
+  fight read as a dusk (its median L* 34.5) and its black kit mid-grey.
+  The world's level 0.75 -> 0.55; the pool's steps on the world's key --
+  the fight's ground is lit 1.0-1.4 by its pyres, so the body starts at
+  `T_POOL1` 1.6 (1.0) and that ground is the rim the men stand off, the
+  heart at 1.85 (1.8), the rim `POOL_DIM` 0.34 (0.40), the heart
+  `POOL_BRIGHT` 2.4 (2.0); the men's lift `FIGHTER_LEVEL` 1.8 (2.2); the
+  white point `LV_WHITE` 0.77 (0.65: a lit face read 0.91, near white;
+  0.85 now, bone still white); the vignette 0.45 -> 0.38 (its corners the
+  last near-black of the island's views; under 0.38 the men's contrast,
+  measured on the whole frame, fell under 1.5); the sky x0.88 (it stays
+  darker than the street in front of it). The black ladder raised so the
+  deep tone is over the line: floors deep 0.0072 -> 0.0105, shadow
+  0.0125 -> 0.0155, lit 0.0190 -> 0.0220, knee 6 -> 10 -- in L* on the
+  game's picture ink 1.9, deep 13.9, shadow 21.4, lit 28.6 (were 2, 9.6,
+  18.7, 27.8).
+- **Fires on the monkey island** (`build_monkey_island_level.py`, THE
+  NIGHT). It had no light but the moon. Now 86 fires, every one the
+  souq's own (`build_souq._fire`, NIGHT's numbers, `WORLD_RIG`'s candela),
+  spawned in the editor through the world's `spawn_night`: a brazier at
+  the pier's foot and one at its head, 67 braziers along the 2,274 m way
+  from the pier to the temple (on its verge, 20.5-36.9 m apart, the
+  souq's lattice jittered from the light before so no gap passes 37.5 m),
+  a pyre either side of each of the five clearings (the souq's own arc
+  rule), the souq's door pair at the temple's gate and five pyres round
+  its court -- five, the least that gives its fight a moon's worth of
+  firelight at its middle (four gives 0.92). Held per streamed region to
+  the souq's budget (at most 22 lights, 22 shadowed, 22 smoke volumes
+  within 256 m of any spot, against 96 / 32 / 32), with the level made a
+  partitioned world and its rig, directors and exposure pinned, so only
+  what is near is loaded; at most 16 drawn around any spot. In the map
+  scene each is a light at its flame sized, coloured and ended as the
+  world's, the souq's mesh at its foot, and nothing solid in its column
+  (a temple column, the throne, a trunk, a rock -- by the meshes
+  themselves). Its checks were reviewed adversarially; the seven findings
+  were all real and all fixed.
+- **The rendered views are held to it** (`build_map_scenes.
+  picture_misses`, `hole_share`): no more than `HOLE_SHARE` 5 % of a view
+  drawn under L* 12 that is neither sky nor ink. Measured: every view 0.2-
+  2.0 %, the island's clearing 3.9 % (its near trees' shaded side in the
+  vignette's corners: speckle, not an area); drawn the old way 10-59 %.
+
+**Measured, before -> after**, every view at 800 x 450 with light groups:
+holes (under L* 12, not ink, not sky) as a share of the frame, and the
+screen's median L*; "before" is the committed renders' way of drawing
+(the stand-in level, the committed look), "the game, old look" the same
+buffers at the engine's key through the committed look.
+
+| view | before | the game, old look | after | median L*, before -> after |
+| --- | --- | --- | --- | --- |
+| city: AbrajAlMalih | 35.3 % | - | 0.6 % | 10.4 -> 26.7 |
+| city: AlHalqa | 27.4 % | - | 2.0 % | 9.4 -> 23.1 |
+| city: AlHilal | 20.8 % | - | 0.8 % | 12.3 -> 25.8 |
+| city: AlTariqAlMasdud | 2.5 % | - | 0.2 % | 18.8 -> 27.5 |
+| city: BaytAlDarb | 35.3 % | - | 1.1 % | 9.3 -> 25.1 |
+| city: MarsaAlFajr | 36.5 % | - | 1.0 % | 10.6 -> 24.6 |
+| city: MukhayyamAlNiran | 27.1 % | - | 1.9 % | 10.2 -> 21.7 |
+| AbrajAlMalih | 23.1 % | 3.6 % | 1.0 % | 15.3 -> 27.7 |
+| AlHalqa | 18.9 % | 1.7 % | 0.4 % | 16.2 -> 27.6 |
+| AlHilal | 24.3 % | 2.9 % | 1.1 % | 18.1 -> 28.4 |
+| AlTariqAlMasdud | 34.3 % | 2.0 % | 1.0 % | 14.7 -> 25.4 |
+| BaytAlDarb | 25.5 % | 1.9 % | 0.9 % | 14.9 -> 27.6 |
+| JaziratAlHajar | 38.2 % | 1.4 % | 0.8 % | 13.3 -> 24.5 |
+| MarsaAlFajr | 32.1 % | 1.4 % | 0.9 % | 14.3 -> 25.9 |
+| MonkeyIsland-Clearing | 58.7 % | 9.9 % | 3.9 % | 6.9 -> 23.1 |
+| MonkeyIsland-Landing | 56.3 % | 6.5 % | 2.6 % | 7.8 -> 21.3 |
+| MonkeyIsland-Temple | 27.0 % | 9.2 % | 1.7 % | 15.2 -> 27.4 |
+| MonkeyIsland | 37.9 % | 6.3 % | 2.0 % | 12.2 -> 23.9 |
+| MukhayyamAlNiran | 35.5 % | 1.6 % | 1.0 % | 13.4 -> 24.0 |
+| Prologue | 0.0 % | 0.1 % | 0.2 % | 50.6 -> 33.8 |
+| SouqAlDawar | 30.4 % | 2.1 % | 1.0 % | 13.8 -> 24.5 |
+| World | 20.0 % | 0.8 % | 0.6 % | 16.2 -> 28.1 |
+
+("The game, old look" is blank for the city: its old renders lit another
+night, so the same buffers do not exist. The prologue's gym is lit by its
+day sun and keys on its world, as before; drawn at that key rather than
+over it, its median comes down from 50.6 to 33.8, still the brightest
+place in the game.)
+
+The graded rules on the souq (540 lines, 16 samples, at the engine's
+key, one key for all its cameras, 0.311): fighter/world contrast 1.65 ->
+1.74 (wanted 1.5); the world's shadow fill 6.46x -> 7.97x the ink (2x);
+the gate's pools 2.09 -> 2.34 (2.0) and its fire R/B 1.57 -> 1.78 (1.4);
+the street's pools 2.91 -> 3.67 and fire 10.95 -> 6.30; the fight, the
+street and the gate keyed 0.440, 0.410 and 0.560 before, each its own.
+
+**The districts were not given lights.** Under the game's own picture
+the seven city districts and the souq keep 0.2-1.8 % of a frame as
+holes, what is left in moon shadows beyond their fires' reach, under the
+2 % a dark night was settled at; new lights there would light the night
+away rather than fill a hole.
+
+**Checked:** `anime_look.py`'s checks pass, the black ladder's rules on
+the new floors among them; `--graded-check` passes all six rules and its
+`--bite` catches 8 of 8 -- two new: `stand_in_level` (the previews drawn
+at the stand-in key: 146 8-bit steps off the graded picture) and
+`fighter_key` (the night keyed on the men), and with the one-key change
+`frame_key` (each camera keyed on its own ground: 0.313, 0.339, 0.560,
+caught by "one level, one exposure") -- 9 of 9; `anime_look.py --bite`
+127 of 127 (81 min, the CPU shared); `build_map_scenes.py --bite` 22 of
+22, the new hole rule caught when a view is drawn at the old stand-in key
+(the souq's view: 37.1 % holes); the island's level builder 32 of 32 and
+`lighting.py --bite` 22 of 22 (the island's fires).
+
+**Re-rendered**, every one drawn as the game draws it: the souq fight and
+its hit, fire, rage and finisher frames, its sky (keyed now on the
+level's 0.311, where its own ground in the roofs' shadow had keyed 0.054
+and drawn the street white), street and gate; the six men; the HUD four
+ways and the menus; the 3D title both aspects; Saud's IK sheet (its 9
+panels' checks pass); the seven city districts; all fifteen map views and
+their sheet -- the world's ten twice, the second after the city's rows
+were put right ("The build, up to date").
+
+**Not verified:** no engine has built any of it. The previews now draw
+at the engine's key -- the game's picture IF the world's manual exposure
+lands the moon at half the key as `exposure_bias()` says ("The night's
+light": the first thing to check in the editor). Two gaps are known and
+not closed: `exposure_bias()` counts the moon's lux but not its colour's
+luminance (0.678) -- if Unreal does not normalise a light's colour, the
+moonlit ground lands at a third of the key, not half, and the game is
+darker than these previews by about 0.56 EV; and the preview's sky fill
+(the world colour at 0.25) is not derived from the engine's sky light
+(0.30 capturing a sky atmosphere the 2 lux moon lights), so how dark a
+moon shadow is in the game is not known from here.
+
+## Walking and running all 360 degrees -- 2026-10-04
+
+Asked as "make 360 motion move walk and run" and "improve ik", settled
+with the author as the Unreal build, BOTH ways of moving -- turn and run
+any way when free, strafe all 8 ways at walk and at run speed while facing
+the man in a fight -- for EVERYONE (Saud, the street men, AL-WAHSH,
+AL-SAQR, ZAYOS, the Monkey, the Gorilla), and the in-game IK for the new
+moves. The browser build is untouched.
+
+**What it was, read off the code.** Saud snapped to face his stick every
+frame, in a fight too, so he never strafed; his three other walks played
+only while his drawn body caught up after a snap. Every fighter had four
+walks struck at his full speed (a run, really) and played them at any
+speed from 26 to 446 cm/s; nobody had diagonals, a walk tier, a turn on
+the spot, a stop or a pivot; the side walks hopped (both feet down, then
+both up), so no two neighbours could be blended; and the in-game IK had no
+lean, threw the hips OUTWARD on a curve, and let a kerb under about 7 cm
+pop the body at run speed. And Saud moved at Unreal's default 600 cm/s:
+his 341 (`USaudAttributeSet`) never reached his movement component.
+
+**The names** (one table, the clips' and the game's): per set,
+`Walk_<Dir>` x8 -- the walk tier, 0.45 of his speed -- `Run_<Dir>` x8 at
+his full speed, `Turn_L90`, `Turn_R90` (0.50 s), `Turn_180` (0.70 s) and
+`Pivot_180` (14 frames, the steering holds it 0.45 s); Dir is Fwd,
+FwdLeft, Left, BackLeft, Back, BackRight, Right, FwdRight, against his
+facing, + his left. The four old full-speed walks are `Run_Fwd/Back/Left/
+Right` now, to 0.0000 mm; `Walk_Fwd/Back/Left/Right` are the new walk
+tier.
+
+**The steering** (`Combat/SaudSteer.h`, engine-free, and every fighter's
+tick). Free is no living opponent within 1200 cm, fighting again inside
+1100 (one test for every fighter; the camera's 15 m framing is its own).
+FIGHTING, he faces his man -- the nearest living one by flat distance
+(`FaceNearestEnemy` rewritten so: its |X|+2|Y| strip scoring and 20 cm
+world-X gate are gone, and the kick-or-knee choice is by flat distance
+too) -- and moves along his stick without turning to it. FREE, his facing
+chases his heading at 540 deg/s walking, 360 at a run; standing with the
+stick pushed 45 degrees or more off, he turns on the spot first (L90,
+R90, 180 past 135) with his feet held for the turn's length; reversing
+past 135 at over 0.6 of his run speed is a pivot. An enemy beyond 12 m of
+his man steers the same way; within it he faces his man as before and his
+footwork's summed step is his strafe. Saud's MaxWalkSpeed is his 341 now
+(the SPEED upgrade's +34 a level, where the data says 22, is left as the
+known item it was); his dash goes the way his camera-relative stick
+points (it read the raw stick).
+
+**The clip** (`SaudFeel::Pick`): the tier by speed (the line at
+sqrt(0.45) of his run speed -- 229 cm/s for Saud -- held +-8 %), the
+direction by the octant of his heading against his DRAWN facing (22.5
+degree wedges, 5 degrees of hold on each line); free, Saud's motion-
+capture gait when the heading is within 30 degrees of his facing, else
+the strafe of that angle (an enemy: Run_Fwd / Walk_Fwd); a turn plays to
+its end unless a strike, a hit, a fall or a dash takes over; a pivot hands
+over into Run_Fwd at its own phase (13/17 for the men, 10/12 the Monkey,
+15/20 the Gorilla); a diagonal a set lacks falls back to its nearer
+neighbour, a run to its walk, a turn to the guard.
+
+**The clips.**
+- *The men* (`build_motion.py`, the IK rig): walk tier on a 0.80 m stride
+  at duty 0.60, the feet alternating with both down at each change and
+  never both up (Saud and Street 16 frames at 153 cm/s, AL-WAHSH 15 at
+  157, AL-SAQR 12 at 201, ZAYOS 21 at 117), sideways and diagonally widened
+  only as far as 12 cm between the balls needs; run diagonals near in step
+  at the stance's width; the turns step round, planted feet held (worst
+  slide over all 277 clips 0.3 mm), starting turned back by their angle
+  and ending in the guard to 0.03 cm; the pivot from Run_Fwd's frame 1
+  turned round to its frame 13. 277 clips, read back 0.01 mm; the other 177
+  within 0.003 mm of what they were, so they were left.
+- *The creatures* (`build_primate_motion.py`, their analytic IK): the same
+  set on one cycle a creature (the Monkey 0.40 s, walk 135 / run 300
+  cm/s; the Gorilla 0.667 s, 117 / 260), the runs' sides and diagonals a
+  gallop that never crosses (the old sideways walk crossed by 22 cm), the
+  walks with double support, their turns one foot at a time.
+
+**The IK for the new moves** (`SaudIK.h`, the anim instance).
+- *Lean*: the body rolls toward the curve's centre by atan(v x yaw rate /
+  g), up to 12 degrees at a walk and 20 at a run (measured 4.4 degrees
+  walking 150 cm/s round 3 m, 11.2 running 341 round 6 m), and pitches up
+  to 6 degrees on a start and a stop; only the along-path change of speed
+  throws the hips now (0.000 cm outward running round 3 m).
+- *Turns*: a turn or pivot clip carries the turn -- the hips' lag is taken
+  out as it fades in, so the body turns once -- and the feet keep their
+  world anchors.
+- *Stops*: the standing foot is not let go until the other is held (0.000
+  cm of slide).
+- *Kerbs at a run*: a capsule's rise is told from a slope by the grade the
+  feet's traces found (5, 10 and 15 cm kerbs absorbed at 341 cm/s at 30
+  and 60 Hz; a 20 degree ramp is not); each foot is traced where it will
+  be this frame (a 600 cm/s swing 0.000 cm off, against 20 cm behind); the
+  pelvis drops faster at speed.
+- *Each man's own time*: a foot is handed back over a third of the
+  playing clip's quickest swing at most (0.08 s where the swing allows, the
+  Monkey's walk 0.033 s), a shuffle step in at most 0.85 of his set's
+  quickest swing (0.14 s for the men as before; AL-SAQR 0.113, the Monkey
+  0.085).
+- *The creatures' strikes*: the IK took their limbs from the men's table
+  -- the Gorilla's two-fisted Special as a kick, the Monkey's jab on the
+  wrong hand; they come from the clips' own manifests now.
+
+**Checked.** The harness passes whole, `tests/steer.cpp` new; `bite.sh`
+491 of 491 (the 387 of before, 34 of the steering, 62 of the clip choice
+and IK, 8 from their review; the 11 lines that no longer applied -- 2
+retired by the new kerb rule, 9 stale before this work -- repaired to the
+current code, none dropped). `build_motion.py --bite` 108 of 108;
+`build_primate_motion.py --bite` 36 of 36 (both creatures);
+`build_monkey_island_level.py --bite` 35 of 35. `SaudPlants.h`
+regenerated: 344 clips, the Island's for the first time. The plant
+preview reproduces its numbers exactly on the renamed clips.
+
+**Not verified:** nothing is compiled against UE 5.4 or played; no engine
+has imported a clip. Judgements, not measurements: 1200/1100 cm, 540/360
+deg/s, 45 and 135 degrees, 0.45, the turns' and the pivot's footwork, the
+walk tier's stride and duty, the lean's clamps. "+ is his left" follows
+the convention the code already had; if the FBX import mirrors it, every
+turn and strafe mirrors with it. Thin margins: the Monkey's Run_Left
+reaches 0.993 of its leg; a pivot's planted leg is briefly turned 71
+degrees against the hips. **Seen, not touched**: the ability path's
+`AFighterBase::FaceNearestOpponent` still scores by |X|+2|Y|.
+
+## The build, up to date -- 2026-10-04
+
+Asked as "make full unreal engine update game", settled as: bring the
+whole Unreal build up to date -- every generator and export run, what had
+gone stale rebuilt, every check run. Every generator, exporter and checker
+was inventoried with its command and outputs first.
+
+**What was stale, and what was done:**
+- `Content/Data/config.json` against `DT_Sounds.csv` (one description):
+  re-exported; `export.mjs --check` passes.
+- `Content/Models/City/City_placement.json`: the boat's jetty rows
+  (303a905) shifted 16 row ids in the highway and the desert, so the
+  editor hid the wrong ground cubes and the world scene drew 16 plots
+  twice. Every plot matched by district, sector and kind, so the 56 meshes
+  stand; the manifest's rows were rewritten from the plan, the world scene
+  rebuilt (`build_map_scenes.py --build world`, its check passing) and its
+  ten views re-rendered.
+- `Tools/api/test.mjs` asked for 38 colours where the payload has had 255
+  since 2026-10-02: it reads the count from `DT_Colors.csv` (39 of 39; an
+  off count still fails).
+- `SaudPlants.h`, the motion sheets and the plant preview, with the 360
+  clips (above).
+
+**Checked, all passing:** `export.mjs --check`; `build_world.py`,
+`build_levels.py`, `build_island.py`, `build_prologue.py`,
+`build_data_assets.py`, `park_cars.py --check`, `build_monkey_island.py
+--check`, `lay_out_world.py`; `build_souq.py --check`, `build_city.py
+--check`, `build_island_props.py --check`, `build_primates.py`,
+`build_fighters.py --check`, `build_map_scenes.py --check`;
+`anime_look.py` (and `--bite` 127 of 127), `data_colours.py` and
+`--baked`, `lighting.py`, `surfaces.py`, `camera_fade.py`;
+`motion_package.py --check`, `master.py --check`, `master_music.py --check`
+on `M_Menu.wav`; `Tools/api/test.mjs` and `test-portal.mjs`; the Unity
+car tool under Mono; the harness and `bite.sh` (above). None of them
+changed a tracked file. `master_music.py --check` fails `M_Stage` and
+`M_Boss` by design: it knows only the whole-piece target, and the loops'
+own rules run inside their mastering ("The music, on one target").
+
+**Not rebuilt, and why:** the men's meshes, rigs, the souq, the island
+props and creatures were each built by their current generators (the git
+history says so); rebuilding them would change nothing but file ids.
+No engine version change was asked for; the project is still UE 5.4.
 
 ## Working rules
 

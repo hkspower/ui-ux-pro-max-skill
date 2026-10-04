@@ -499,7 +499,8 @@ namespace SaudIK
 	/** Starts handing a held foot back to the clip, from where it is drawn,
 	    in the mesh's space: a foot let go moves with the man, never trails
 	    behind him in the world. */
-	inline void LetGo(FFootHold& H, bool bStep, const FBasis& Mesh, const FVector& Raw)
+	inline void LetGo(FFootHold& H, bool bStep, const FBasis& Mesh, const FVector& Raw,
+	                  float Release = ReleaseSeconds, float Step = StepSeconds)
 	{
 		FVector D = DrawnBall(H, Mesh, Raw) - Raw;
 		D.Z = 0.f;
@@ -507,7 +508,7 @@ namespace SaudIK
 		H.bHeld = false;
 		H.Weight = 1.f;
 		H.Progress = 0.f;
-		H.Seconds = bStep ? StepSeconds : ReleaseSeconds;
+		H.Seconds = bStep ? Step : Release;
 		H.bStep = bStep;
 	}
 
@@ -528,7 +529,7 @@ namespace SaudIK
 	    its spot may step back under the clip; Size: his leg over Saud's. */
 	inline void StepHolds(FFootHold (&H)[2], const FBasis& Mesh, const FVector (&Raw)[2], const float (&Lift)[2],
 	                      const float (&Measured)[2], const bool (&bAllowed)[2], bool bHold, bool bSettle, float Size, float Dt,
-	                      bool bStopping = false)
+	                      bool bStopping = false, float Release = ReleaseSeconds, float Step = StepSeconds)
 	{
 		for (int S = 0; S < 2; ++S)
 		{
@@ -570,9 +571,9 @@ namespace SaudIK
 			// a stop (a walk crossfading to his guard): the foot standing holds
 			// until the last swing has landed, though the walk fading out lifts it
 			const bool bLastStance = bStopping && !H[1 - S].bHeld;
-			if (!bAllowed[S]) LetGo(F, false, Mesh, Raw[S]);
-			else if (!F.bDown && !bLastStance) LetGo(F, false, Mesh, Raw[S]);
-			else if (!bHold) LetGo(F, false, Mesh, Raw[S]);
+			if (!bAllowed[S]) LetGo(F, false, Mesh, Raw[S], Release, Step);
+			else if (!F.bDown && !bLastStance) LetGo(F, false, Mesh, Raw[S], Release, Step);
+			else if (!bHold) LetGo(F, false, Mesh, Raw[S], Release, Step);
 		}
 		for (int S = 0; S < 2; ++S)
 		{
@@ -581,7 +582,7 @@ namespace SaudIK
 			if (!F.bHeld) continue;
 			const bool bOtherStands = O.bHeld;
 			const bool bMine = Drift[S] >= Drift[1 - S] || Drift[1 - S] <= HoldDrift * WorldSize;
-			if (Drift[S] > HoldDriftHard * WorldSize || (Drift[S] > HoldDrift * WorldSize && bOtherStands && bMine)) LetGo(F, true, Mesh, Raw[S]);
+			if (Drift[S] > HoldDriftHard * WorldSize || (Drift[S] > HoldDrift * WorldSize && bOtherStands && bMine)) LetGo(F, true, Mesh, Raw[S], Release, Step);
 		}
 		for (int S = 0; S < 2; ++S)
 		{
@@ -595,7 +596,7 @@ namespace SaudIK
 			FFootHold& F = H[Far];
 			if (F.bHeld && H[1 - Far].bHeld && F.Still >= SettleSeconds && Drift[Far] > SettleDrift * WorldSize)
 			{
-				LetGo(F, true, Mesh, Raw[Far]);
+				LetGo(F, true, Mesh, Raw[Far], Release, Step);
 				F.Still = 0.f;
 			}
 		}
@@ -735,6 +736,8 @@ namespace SaudIK
 		bool bTeleported = false;   // Teleported: nothing carries over but the feet's share
 		bool bBlending = false;     // a crossfade runs: the stride meter waits
 		bool bStopping = false;     // a walk crossfading to a stand (Stopping): the last swing lands first
+		float ReleaseSeconds = SaudIK::ReleaseSeconds;   // ReleaseFor the newest clip
+		float StepSeconds = SaudIK::StepSeconds;         // ShuffleFor his set
 		FVector Velocity = FVector::ZeroVector;   // the capsule's, world, flat
 		FFootIn Foot[2];
 		int ClipSerial = 0;
@@ -886,7 +889,8 @@ namespace SaudIK
 			Lift[S] = In.Foot[S].Ball.Z - In.Foot[S].BallRest;
 			bAllowed[S] = In.bWanted && !In.Foot[S].bStrike;
 		}
-		StepHolds(St.Hold, In.Mesh, Raw, Lift, In.Down, bAllowed, In.bHold, In.bSettle, Size, Dt, In.bStopping);
+		StepHolds(St.Hold, In.Mesh, Raw, Lift, In.Down, bAllowed, In.bHold, In.bSettle, Size, Dt, In.bStopping,
+		          In.ReleaseSeconds, In.StepSeconds);
 		if (!In.bBlending) MeasureStride(St.Stride, In.ClipSerial, In.ClipTime, Raw, Lift);
 		const bool bKnown = St.bKnown;
 
@@ -1098,6 +1102,40 @@ namespace SaudIK
 	inline ELimb StrikingLimb(const char* AttackRow, char& OutSide)
 	{
 		const FStrike K = StrikeOf(AttackRow);
+		OutSide = K.Side;
+		return K.Limb;
+	}
+
+	/** The table for a motion set: the men's is StrikeOf's, the same in every
+	    set; the Island creatures throw their own (DT_IslandMotion.csv's Limb,
+	    build_primate_motion.py): the Monkey jabs with his right hand, hooks
+	    with his left and kicks with his right foot; the Gorilla crosses with
+	    his right, hooks with his left, and his Special is a slam of the right
+	    fist, not a kick (2026-10-04: "Special" read as the men's rear-leg
+	    blow held his slamming arm's leg off the ground and drew a foot at the
+	    man). The mark stays the row's. */
+	inline FStrike StrikeOf(const char* Row, const char* Set)
+	{
+		FStrike K = StrikeOf(Row);
+		if (!Row || !Set) return K;
+		auto Is = [](const char* A, const char* B) { while (*A && *B && *A == *B) { ++A; ++B; } return *A == 0 && *B == 0; };
+		auto Arm = [&K](char Side) { K.Limb = ELimb::Arm; K.Side = Side; K.Tip = ETip::Knuckles; K.Skin = KnuckleSkin; };
+		if (Is(Set, "Monkey"))
+		{
+			if (Is(Row, "Jab")) Arm('r');
+			else if (Is(Row, "Hook")) Arm('l');
+		}
+		else if (Is(Set, "Gorilla"))
+		{
+			if (Is(Row, "Hook")) Arm('l');
+			else if (Is(Row, "Special")) Arm('r');
+		}
+		return K;
+	}
+
+	inline ELimb StrikingLimb(const char* AttackRow, const char* Set, char& OutSide)
+	{
+		const FStrike K = StrikeOf(AttackRow, Set);
 		OutSide = K.Side;
 		return K.Limb;
 	}
@@ -2115,5 +2153,83 @@ namespace SaudIK
 			if (P && Mix.Layers[I].bLoop && P->Stride >= StrideMinSpeed && Mix.Layers[I].Weight > 0.f) return true;
 		}
 		return false;
+	}
+
+	// ---------------------------- the hand-back and the shuffle, per clip and set
+
+	/** A clip's quickest swing, seconds: of its two feet, the shorter of each
+	    foot's longest time in the air round its loop (SaudPlants); a very
+	    large number for a clip with a foot that never leaves the floor. */
+	inline float ClipSwingSeconds(const SaudPlants::FClip& C)
+	{
+		float Out = 1e9f;
+		for (int S = 0; S < 2; ++S)
+		{
+			int Best = 0;
+			for (int I = 0; I < C.Frames; ++I)
+			{
+				int L = 0;
+				while (L < C.Frames && C.Foot[S][(I + L) % C.Frames] == '.') ++L;
+				Best = L > Best ? L : Best;
+			}
+			if (Best > 0) Out = FMath::Min(Out, Best / SaudPlants::Fps);
+		}
+		return Out;
+	}
+
+	/** A foot the clip lifts is handed back inside the first third of the
+	    clip's own quickest swing: ReleaseSeconds (0.08 s, the men's old
+	    walks' 0.27 s swing over three and more) unless the clip swings
+	    faster -- the walk tier's 0.20 s (Saud, Street), Saqr's 0.13, the
+	    Monkey's 0.10 (2026-10-04). An unmeasured clip keeps ReleaseSeconds. */
+	inline float ReleaseFor(const SaudPlants::FClip* Newest)
+	{
+		return Newest ? FMath::Min(ReleaseSeconds, ClipSwingSeconds(*Newest) / 3.f) : ReleaseSeconds;
+	}
+
+	/** A shuffle step (a foot the man moved off steps back under him) takes
+	    at most this share of his own quickest walk or run swing. */
+	constexpr float ShuffleShareOfSwing = 0.85f;
+
+	/** The quickest swing among a motion set's walk and run loops
+	    (A_<Set>_Walk_* and A_<Set>_Run_*), as the motion component finds
+	    them: a man with none of his own plays the street men's, then Saud's;
+	    an Island creature borrows nothing. A very large number for none. */
+	inline float SetSwingSeconds(const char* Set)
+	{
+		auto Starts = [](const char* N, const char* P) { while (*P) { if (*N != *P) return false; ++N; ++P; } return true; };
+		auto Of = [&](const char* S) -> float
+		{
+			char W[64], R[64];
+			int I = 0;
+			for (const char* P = "A_"; *P && I < 40; ++P) W[I++] = *P;
+			for (const char* P = S; *P && I < 40; ++P) W[I++] = *P;
+			for (int K = 0; K < I; ++K) R[K] = W[K];
+			int J = I;
+			for (const char* P = "_Walk_"; *P; ++P) W[I++] = *P;
+			for (const char* P = "_Run_"; *P; ++P) R[J++] = *P;
+			W[I] = 0; R[J] = 0;
+			float Out = 1e9f;
+			for (int C = 0; C < SaudPlants::NumClips; ++C)
+			{
+				const SaudPlants::FClip& P = SaudPlants::Clips[C];
+				if (Starts(P.Name, W) || Starts(P.Name, R)) Out = FMath::Min(Out, ClipSwingSeconds(P));
+			}
+			return Out;
+		};
+		const char* S = Set && *Set ? Set : "Saud";
+		float Out = Of(S);
+		auto Is = [](const char* A, const char* B) { while (*A && *B && *A == *B) { ++A; ++B; } return *A == 0 && *B == 0; };
+		if (Out < 1e8f || Is(S, "Saud") || Is(S, "Monkey") || Is(S, "Gorilla")) return Out;
+		Out = Of("Street");
+		return Out < 1e8f ? Out : Of("Saud");
+	}
+
+	/** His shuffle step's seconds: StepSeconds (0.14 s), unless his own
+	    walks swing quicker than that allows (ShuffleShareOfSwing of his
+	    quickest): Saqr 0.113 s, the Monkey 0.085; everyone else keeps 0.14. */
+	inline float ShuffleFor(const char* Set)
+	{
+		return FMath::Min(StepSeconds, ShuffleShareOfSwing * SetSwingSeconds(Set));
 	}
 }

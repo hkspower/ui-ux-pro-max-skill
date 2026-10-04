@@ -30,16 +30,6 @@ static void Check(bool Ok, const char* What)
 {
     if (!Ok) { ++Fails; std::printf("  FAIL  %s\n", What); }
 }
-/** A check that waits on the clips' rebuild by the other builders of the 360
-    spec (new clip files, SaudPlants.h regenerated): a FAIL like any other,
-    unless SAUD_CLIPS_PENDING is set, when it prints PENDING and does not
-    count -- so the sabotages can be run against the rest meanwhile. */
-static void Pending(bool Ok, const char* What)
-{
-    if (Ok) return;
-    if (std::getenv("SAUD_CLIPS_PENDING")) { std::printf("  PENDING (awaits the clips' rebuild)  %s\n", What); return; }
-    Check(false, What);
-}
 static bool Near(float A, float B, float Eps = 1e-3f) { return std::fabs(A - B) <= Eps; }
 
 using namespace SaudIK;
@@ -740,6 +730,8 @@ static std::string Slurp(const char* Path)
     return S;
 }
 
+static std::vector<std::map<std::string, std::string>> ReadCsv(const char* Path);
+
 static void Hands()
 {
     std::printf("HANDS  (the striking limb, and when it is drawn)\n");
@@ -777,6 +769,28 @@ static void Hands()
         }
         std::printf("  %d attack rows in the motion table\n", Rows);
         Check(Rows == 6 && Wrong == 0, "StrikingLimb agrees with DT_SaudMotion's Limb for every attack");
+    }
+    {
+        // every set's attack clips, men and Island: the table StrikeOf(Row, Set) reads is their Limb
+        int Rows = 0, Wrong = 0;
+        for (const char* M : { "Content/Animation/Saud/DT_SaudMotion.csv", "Content/Animation/Street/DT_StreetMotion.csv",
+                               "Content/Animation/Bosses/DT_BossMotion.csv", "Content/Animation/Island/DT_IslandMotion.csv" })
+            for (const auto& R : ReadCsv(M))
+            {
+                if (!R.count("Attack") || R.at("Attack").empty() || !R.count("Limb")) continue;
+                ++Rows;
+                char Side = 0;
+                const ELimb L = StrikingLimb(R.at("Attack").c_str(), R.at("Fighter").c_str(), Side);
+                const std::string& W = R.at("Limb");
+                const bool Ok = ((W == "lead_arm" || W == "hand_l") && L == ELimb::Arm && Side == 'l')
+                             || ((W == "rear_arm" || W == "hand_r") && L == ELimb::Arm && Side == 'r')
+                             || ((W == "rear_leg" || W == "foot_r") && L == ELimb::Leg && Side == 'r')
+                             || (W == "foot_l" && L == ELimb::Leg && Side == 'l');
+                if (!Ok) { ++Wrong; std::printf("  %s's %s: the manifest says %s\n", R.at("Fighter").c_str(), R.at("Attack").c_str(), W.c_str()); }
+            }
+        std::printf("  %d attack clips in every set's manifest\n", Rows);
+        Check(Rows >= 30 && Wrong == 0 && StrikeOf("Special", "Gorilla").Tip == ETip::Knuckles && StrikeOf("Special", "Saud").Limb == ELimb::Leg,
+              "StrikeOf a set's row is the limb its own clip throws with, every set, the Island's too");
     }
     char S = 'x';
     Check(StrikingLimb("Rage", S) == ELimb::None && S == 0, "an unknown row strikes with nothing");
@@ -1838,10 +1852,10 @@ static void Plants()
     int MeasuredMen = (int)All.size() - Missing;
     Check(!Clips.empty() && !Mocap.empty() && MeasuredMen + IslandMeasured == SaudPlants::NumClips && Stray == 0,
           "every clip measured is in a manifest, and nothing else is in the table");
-    Pending(Missing == 0 && WrongFrames == 0,
-            "CLIPS AWAITED: every clip in the men's manifests is measured in SaudPlants.h, frame for frame (measure_plants.py, to be rerun)");
-    Pending(!Island.empty() && IslandMissing == 0,
-            "CLIPS AWAITED: every Island clip (DT_IslandMotion.csv) is measured in SaudPlants.h (measure_plants.py FOLDERS + Island)");
+    Check(Missing == 0 && WrongFrames == 0,
+            "every clip in Content/Animation is measured, frame for frame: the men's manifests, motion capture too");
+    Check(!Island.empty() && IslandMissing == 0,
+            "every clip in Content/Animation is measured: the Island's (DT_IslandMotion.csv) too");
     bool bSorted = true;
     for (int I = 1; I < SaudPlants::NumClips; ++I) bSorted = bSorted && std::strcmp(SaudPlants::Clips[I - 1].Name, SaudPlants::Clips[I].Name) < 0;
     int Found = 0;
@@ -1935,14 +1949,19 @@ static void Plants()
             }
         }
         else if (bLoop && !bWalkTier && !bRunTier) FastestStill = std::fmax(FastestStill, P->Stride);
-        const std::string& Move = R.at("Attack");
+        // a leg strike or a punch by the clip's own Limb column, not the move's
+        // name: the Gorilla's Special is a slam of his right fist (2026-10-04)
+        const std::string& Limb = R.count("Limb") ? R.at("Limb") : std::string();
+        const bool bLeg = Limb.find("leg") != std::string::npos || Limb.find("foot") != std::string::npos;
+        const bool bArm = Limb.find("arm") != std::string::npos || Limb.find("hand") != std::string::npos;
+        const int LegSide = Limb == "foot_l" ? 0 : 1;                     // rear_leg and foot_r: the right
         const int Contact = std::atoi(R.at("ContactFrame").c_str());
-        if ((Move == "Kick" || Move == "Knee" || Move == "Special") && Contact >= 0 && Contact < N)
+        if (bLeg && Contact >= 0 && Contact < N)
         {
             ++Legs;
-            if (P->Foot[1][Contact] != '.' || std::strchr(P->Foot[0], '.')) { ++BadLegs; std::printf("  %s: the strike's leg is not up at contact, or the other leaves the floor\n", Name.c_str()); }
+            if (P->Foot[LegSide][Contact] != '.' || std::strchr(P->Foot[1 - LegSide], '.')) { ++BadLegs; std::printf("  %s: the strike's leg is not up at contact, or the other leaves the floor\n", Name.c_str()); }
         }
-        if ((Move == "Jab" || Move == "Cross" || Move == "Hook") && Contact >= 0 && Contact < N)
+        if (bArm && Contact >= 0 && Contact < N)
         {
             ++Punches;
             if (P->Foot[0][Contact] == '.' || P->Foot[1][Contact] == '.') { ++BadPunches; std::printf("  %s: a foot is off the floor as the punch lands\n", Name.c_str()); }
@@ -1956,13 +1975,41 @@ static void Plants()
     (void)TierRows;
     Check(!CycleOf.empty() && OffCycle == 0, "every walk-tier loop of a set shares one cycle length, and every run-tier loop one (the 360 spec)");
     Check(BadStraightRuns == 0, "every run forward and back puts each foot down once a cycle, the two in turn");
-    Pending(BadTierWalks == 0, "CLIPS AWAITED: every walk-tier clip, sideways and diagonal too, alternates its feet: the old side walks' hop is gone");
+    Check(BadTierWalks == 0, "every walk-tier clip, sideways and diagonal too, alternates its feet: the old side walks' hop is gone");
     Check(Legs >= 12 && BadLegs == 0, "every kick and knee has its leg up as it lands, on the other foot");
     Check(Punches >= 12 && BadPunches == 0, "every punch lands with both feet on the floor");
 
     // ---- the numbers the hold runs on, against the measured clips
-    Check(ReleaseSeconds <= ShortestSwing / 3.f, "a foot is handed back inside the first third of the shortest walk swing");
-    Check(StepSeconds < ShortestSwing, "a shuffle step is quicker than any walk's own swing");
+    // the hand-back and the shuffle, per clip and per set, as each fighter plays them
+    {
+        int Late = 0, Clips_ = 0, MenChanged = 0;
+        for (const auto& R : Measured)
+        {
+            const std::string& Name = R.at("Name");
+            if (Name.find("_Walk_") == std::string::npos && Name.find("_Run_") == std::string::npos) continue;
+            const SaudPlants::FClip* P = SaudPlants::Find(Name.c_str());
+            if (!P) continue;
+            ++Clips_;
+            if (ReleaseFor(P) > ClipSwingSeconds(*P) / 3.f + 1e-6f) { ++Late; std::printf("  %s: handed back over %.3f s, its swing %.3f\n", Name.c_str(), ReleaseFor(P), ClipSwingSeconds(*P)); }
+            if (ClipSwingSeconds(*P) >= 3.f * ReleaseSeconds && ReleaseFor(P) != ReleaseSeconds) ++MenChanged;
+        }
+        std::printf("  shortest walk or run swing %.2f s; the hand-back %.3f s on it, %.2f s on a clip that swings in 0.24 s or more\n",
+                    ShortestSwing, ShortestSwing / 3.f, ReleaseSeconds);
+        Check(Clips_ > 0 && Late == 0 && MenChanged == 0 && ReleaseFor(nullptr) == ReleaseSeconds && Near(ReleaseSeconds, 0.08f, 1e-6f),
+              "a foot is handed back inside the first third of the shortest walk swing: of each clip's own, 0.08 s where that allows");
+        int Slow = 0, Sets = 0;
+        for (const char* Set : { "Saud", "Street", "Thug", "Brawler", "Boss", "Saqr", "Zayos", "Monkey", "Gorilla" })
+        {
+            const float Sw = SetSwingSeconds(Set), St = ShuffleFor(Set);
+            std::printf("  %s: quickest swing %.3f s, shuffle step %.3f s\n", Set, Sw, St);
+            ++Sets;
+            if (!(Sw < 1e8f) || St >= Sw) ++Slow;
+        }
+        const bool MenKept = Near(ShuffleFor("Saud"), 0.14f, 1e-6f) && Near(ShuffleFor("Street"), 0.14f, 1e-6f) && Near(ShuffleFor("Boss"), 0.14f, 1e-6f)
+                          && Near(ShuffleFor("Zayos"), 0.14f, 1e-6f) && Near(SetSwingSeconds("Thug"), SetSwingSeconds("Street"), 1e-6f);
+        Check(Sets == 9 && Slow == 0 && MenKept && Near(StepSeconds, 0.14f, 1e-6f),
+              "a shuffle step is quicker than any walk's own swing: his own set's, 0.14 s where that allows (a street row's are Street's)");
+    }
     Check(FastestStill < StrideMinSpeed && StrideMinSpeed <= SlowestWalk, "every walk strides faster than StrideMinSpeed, and nothing else that loops does");
     {
         // each man's own move speed runs his run tier's forward clip -- or what
@@ -1998,7 +2045,7 @@ static void Plants()
         }
         std::printf("  %d fighters' rows, %d with measured clips\n", Rows, Men);
         Check(Rows > 0 && Men >= Rows && Outside == 0, "every fighter's move speed walks his own clip inside the rate band: his run tier's Run_Fwd, or what stands in for it");
-        Pending(WalkOutside == 0, "CLIPS AWAITED: every fighter's walk tier (0.45 of his speed) walks his Walk_Fwd inside the rate band");
+        Check(WalkOutside == 0, "every fighter's walk tier (0.45 of his speed) walks his Walk_Fwd inside the rate band");
     }
 
     // ---- the frame for a time: a loop wraps, a one-shot holds its ends
@@ -2537,6 +2584,26 @@ static void Loco()
         FFootTrack F; F.Push(FVector(5.f, 0.f, 0.f), 1.f / 60.f); F.Push(FVector(10.f, 0.f, 0.f), 1.f / 60.f); const FVector V = F.Velocity; F.Push(FVector(10.f, 0.f, 0.f), 0.f);
         Check(T.Velocity.Size() <= TraceLeadMaxSpeed + 1e-3f && Near((float)V.X, 300.f, 1e-2f) && Near((float)F.Velocity.X, 300.f, 1e-2f),
               "a trace never leads by more than TraceLeadMaxSpeed, and the freeze keeps the foot's velocity");
+    }
+
+    // ---- the hand-back and the shuffle at the man's own swing (the Monkey's: 0.033 and 0.085 s)
+    {
+        Man M; M.In.Down[0] = M.In.Down[1] = 1.f; M.Run(0.3f);
+        const SaudPlants::FClip* Walk = SaudPlants::Find("A_Monkey_Walk_Fwd");
+        M.In.ReleaseSeconds = Walk ? ReleaseFor(Walk) : ReleaseSeconds;
+        M.In.StepSeconds = ShuffleFor("Monkey");
+        M.In.Down[0] = 0.f;
+        int Frames = 0;
+        M.Step(1.f / 60.f);
+        while (M.St.Hold[0].Progress < 1.f && Frames < 60) { M.Step(1.f / 60.f); ++Frames; }
+        Man D; D.In.StepSeconds = ShuffleFor("Monkey"); D.Run(0.5f);
+        D.In.Foot[1].Ball.X += 20.f; D.In.Foot[1].Ankle.X += 20.f;        // carried 20 cm off: a shuffle
+        D.Step(1.f / 60.f);
+        int Shuffle = 0;
+        while (!D.St.Hold[1].bHeld && Shuffle < 60) { D.Step(1.f / 60.f); ++Shuffle; }
+        std::printf("  the Monkey's walk hands a foot back in %d frames at 60 Hz; his shuffle takes %d\n", Frames + 1, Shuffle + 1);
+        Check(Walk && Frames + 1 <= 3 && Shuffle + 1 <= 8 && Shuffle + 1 >= 5,
+              "a foot is handed back and a shuffle stepped in the man's own time: the Monkey's 0.033 s and 0.085 s");
     }
 
     // ---- a pivot hands over into its run at the run's own frame

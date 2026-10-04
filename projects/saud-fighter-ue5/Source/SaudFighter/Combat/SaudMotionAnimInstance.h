@@ -53,6 +53,8 @@ struct FSaudIKFrame
 	FVector Velocity = FVector::ZeroVector;      // the capsule's, world, flat
 	bool bSettleFeet = false;                    // standing, not striking (SaudIK::SettleDrift)
 	bool bStopping = false;                      // a walk crossfading to a stand (SaudIK::Stopping): the last swing lands first
+	float ReleaseSeconds = SaudIK::ReleaseSeconds;   // a lifted foot's hand-back (SaudIK::ReleaseFor the newest clip)
+	float StepSeconds = SaudIK::StepSeconds;         // a shuffle step (SaudIK::ShuffleFor his set)
 	SaudIK::FGroundPoint Ground[2][2];           // [side][0 heel, 1 ball]: WORLD point and normal
 	float AnkleRest[2] = { 0.f, 0.f };          // foot_'s height in the reference pose
 	float BallRest[2] = { 0.f, 0.f };           // ball_'s
@@ -234,6 +236,10 @@ private:
 
 	/** The lean into curves, starts and stops (SaudIK::StepLean). */
 	SaudIK::FLean Lean;
+
+	/** His shuffle step's seconds (SaudIK::ShuffleFor), for the set it was found for. */
+	FName ShuffleSet = NAME_None;
+	float ShuffleSeconds = 0.f;
 
 	/** The strike: its kind, the man it is drawn to, his size, the mark held
 	    in this mesh's space, and the guarded stop eased in. */

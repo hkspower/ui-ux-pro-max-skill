@@ -64,6 +64,13 @@ namespace
 		return SaudIK::BodyScale(Height) * static_cast<float>(M->GetComponentScale().Z);
 	}
 
+	/** A fighter's motion set by name ("Saud" for none): an Island creature
+	    throws with his own limbs (SaudIK::StrikeOf(Row, Set)). */
+	FString SetOf(const AFighterBase* F)
+	{
+		return !F || F->MotionSet.IsNone() ? FString(TEXT("Saud")) : F->MotionSet.ToString();
+	}
+
 	/** An attack row as a number for SaudIK::FStrikeTrack: -1 for none. */
 	int32 RowIdOf(FName Row)
 	{
@@ -165,6 +172,8 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 	In.bTeleported = Frame.bTeleported || bMissed;
 	In.bBlending = N > 1;
 	In.bStopping = Frame.bStopping;
+	In.ReleaseSeconds = Frame.ReleaseSeconds;
+	In.StepSeconds = Frame.StepSeconds;
 	In.Velocity = Frame.Velocity;
 	In.ClipSerial = Frame.ClipSerial;
 	In.ClipTime = Frame.ClipTime;
@@ -458,6 +467,8 @@ void USaudMotionAnimInstance::NativeInitializeAnimation()
 	ClipPlants.Reset();
 	ClipTurns.Reset();
 	Lean = SaudIK::FLean();
+	ShuffleSet = NAME_None;
+	ShuffleSeconds = 0.f;
 	Fade = SaudIK::FCrossfade();
 	Clock = 0.0;
 	bMeasured = false;
@@ -677,6 +688,15 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 	                         : SaudIK::HoldsFeet(bAttacking, bStanding, Back.Stride, Fade.Serial);
 	// a walk crossfading to his guard: the standing foot holds until the last swing lands
 	Frame.bStopping = SaudIK::Stopping(Fade, ClipPlants.GetData(), ClipPlants.Num());
+	// a foot handed back inside the newest clip's own quickest swing; a shuffle
+	// inside his set's (SaudIK::ReleaseFor, ShuffleFor; the set's looked up once)
+	Frame.ReleaseSeconds = SaudIK::ReleaseFor(Newest);
+	if (Fighter->MotionSet != ShuffleSet || ShuffleSeconds <= 0.f)
+	{
+		ShuffleSet = Fighter->MotionSet;
+		ShuffleSeconds = SaudIK::ShuffleFor(TCHAR_TO_ANSI(*SetOf(Fighter)));
+	}
+	Frame.StepSeconds = ShuffleSeconds;
 
 	// The lean into a curve, a start or a stop, in the world's directions,
 	// handed over in the mesh's: on with the feet (SaudIK::StepLean)
@@ -694,7 +714,7 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 	if (bAttacking)
 	{
 		char Side = 0;
-		if (SaudIK::StrikingLimb(TCHAR_TO_ANSI(*Fighter->GetCurrentAttackRow().ToString()), Side) == SaudIK::ELimb::Leg)
+		if (SaudIK::StrikingLimb(TCHAR_TO_ANSI(*Fighter->GetCurrentAttackRow().ToString()), TCHAR_TO_ANSI(*SetOf(Fighter)), Side) == SaudIK::ELimb::Leg)
 		{
 			Frame.StrikeLeg = Side == 'r' ? 1 : 0;
 		}
@@ -736,7 +756,7 @@ void USaudMotionAnimInstance::UpdateStrike(AFighterBase* Fighter, float DeltaSec
 	USkeletalMeshComponent* Mesh = GetSkelMeshComponent();
 	const FAttackDef* Attack = Fighter->State == EFighterState::Attack ? Fighter->GetCurrentAttack() : nullptr;
 	const FName Row = Attack ? Fighter->GetCurrentAttackRow() : NAME_None;
-	const SaudIK::FStrike Kind = Attack ? SaudIK::StrikeOf(TCHAR_TO_ANSI(*Row.ToString())) : SaudIK::FStrike();
+	const SaudIK::FStrike Kind = Attack ? SaudIK::StrikeOf(TCHAR_TO_ANSI(*Row.ToString()), TCHAR_TO_ANSI(*SetOf(Fighter))) : SaudIK::FStrike();
 	const bool bLive = bHandsOnContact && Mesh && Kind.Limb != SaudIK::ELimb::None;
 	const int32 RowId = RowIdOf(Row);
 	const float Elapsed = Fighter->GetAttackElapsed();
@@ -854,7 +874,7 @@ void USaudMotionAnimInstance::UpdateBlock(AFighterBase* Fighter, float DeltaSeco
 		if (!IsValid(A) || A->State != EFighterState::Attack) return nullptr;
 		const FAttackDef* Att = A->GetCurrentAttack();
 		char Side = 0;
-		if (!Att || SaudIK::StrikingLimb(TCHAR_TO_ANSI(*A->GetCurrentAttackRow().ToString()), Side) == SaudIK::ELimb::None) return nullptr;
+		if (!Att || SaudIK::StrikingLimb(TCHAR_TO_ANSI(*A->GetCurrentAttackRow().ToString()), TCHAR_TO_ANSI(*SetOf(A)), Side) == SaudIK::ELimb::None) return nullptr;
 		if (!SaudIK::InBlowBox(A->GetActorLocation(), A->GetFacing(), Me, Att->Reach + A->GetAttackReachBonus(*Att), Att->DepthTolerance)) return nullptr;
 		return SaudArena::Covers(MyFacing, A->GetActorLocation() - Me) ? Att : nullptr;
 	};
@@ -895,7 +915,7 @@ void USaudMotionAnimInstance::UpdateBlock(AFighterBase* Fighter, float DeltaSeco
 	if (From && Att && From->GetMesh() && Mesh)
 	{
 		BlockClock = From->GetAttackElapsed();
-		const SaudIK::FStrike K = SaudIK::StrikeOf(TCHAR_TO_ANSI(*BlockRow.ToString()));
+		const SaudIK::FStrike K = SaudIK::StrikeOf(TCHAR_TO_ANSI(*BlockRow.ToString()), TCHAR_TO_ANSI(*SetOf(From)));
 		// the striker's own clock, his whole wind-up: the guard arrives as the blow does
 		const float S = SaudIK::ContactAlpha(BlockClock, Att->Startup, Att->Active, Att->Startup, true);
 		const FVector Mark = SaudIK::MarkPoint(Mesh->GetSocketLocation(MarkBoneOf(K.Bone)), Me, From->GetActorLocation(), K.Mark, BodyScale, MyFacing);
@@ -1011,7 +1031,7 @@ void USaudMotionAnimInstance::UpdateGuard(AFighterBase* Fighter, float DeltaSeco
 	const bool bSwinging = St == EFighterState::Attack && Fighter->GetCurrentAttack();
 	char Side = 0;
 	const SaudIK::ELimb Limb = bSwinging
-		? SaudIK::StrikingLimb(TCHAR_TO_ANSI(*Fighter->GetCurrentAttackRow().ToString()), Side) : SaudIK::ELimb::None;
+		? SaudIK::StrikingLimb(TCHAR_TO_ANSI(*Fighter->GetCurrentAttackRow().ToString()), TCHAR_TO_ANSI(*SetOf(Fighter)), Side) : SaudIK::ELimb::None;
 	for (int32 S = 0; S < 2; ++S)
 	{
 		const bool bThrowing = Limb == SaudIK::ELimb::Arm && Side == (S ? 'r' : 'l');
