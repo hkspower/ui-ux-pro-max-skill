@@ -5,7 +5,9 @@
     python3 build_fighters.py thug brawler     some of them
     python3 build_fighters.py --fast           1K textures, quick renders
     python3 build_fighters.py --coarse         a rough body, to check the stages
-    python3 build_fighters.py --check          the roster and the palette only
+    python3 build_fighters.py --check          the roster and the palette, and every man's rest pose (hero/posture)
+    python3 build_fighters.py --posture-bite   the rest-pose posture rules, unbroken on all six, then each broken once
+    python3 build_fighters.py --posture-sheet [--before DIR]   Docs/renders/posture-rest.png, front and side
     python3 build_fighters.py --hair-check     every cut's geometry checked, and the check bitten
     python3 build_fighters.py --nose-check     every man's nose (FACES, NOSES): profile, widths about its crest, bitten
     python3 build_fighters.py --eye-check      the eye's shape (every man's lids, Saud's hooded) and the open eye on a built head, bitten
@@ -1331,8 +1333,57 @@ def vein_check():
     bites.done()
 
 
+def posture_check():
+    """--check's rest pose (2026-10-07, "Posture and Body Alignment and
+    Straightness"): all six men, every rule in hero/posture -- the spine
+    and the plumb line in side view, no sideways tilt, the shoulder and
+    hip lines level, the mirrored joints mirrored, the head on the
+    spine's line and neither pitched nor rolled, the pelvis square, the
+    feet parallel and level, the A-pose arms alike -- on the generator's
+    joint table (held to the shipped export) and the export's eyes and
+    shoes (the glTF, read with numpy). Asserts on a miss."""
+    from hero import posture as PO
+    print("rest pose (hero/posture): each rule's item nearest its limit")
+    PO.check()
+    print("  every man straight on all %d rules" % len(PO.RULES))
+
+
+def posture_bite():
+    """--posture-bite: the six men unbroken first, then Saud's rest pose
+    broken once per rule (hero/posture.sabotages: hunched, leaning,
+    shrugged, hip hiked, knock-kneed, head rolled, pelvis twisted, toe
+    out, sole rolled, arm winged); each must be caught by its own rule's
+    message and by no other rule's."""
+    from hero import posture as PO
+    bites = _Bites("posture")
+    men = bites.clean("(unbroken) six men", lambda: PO.check(verbose=False))
+    if men:
+        print("  %-26s passes" % "(unbroken) six men")
+    saud = PO.man("saud", "Saud")
+
+    def run(rule, breaker):
+        miss = PO.misses(PO.broken(saud, breaker))
+        others = [x for x in miss if not x.startswith(rule + ":")]
+        assert not others, "another rule: " + "; ".join(others)
+        assert not miss, "; ".join(miss)
+    for name, rule, breaker in PO.sabotages():
+        bites.run(name, lambda e, rule=rule: e.startswith(rule + ":"), lambda rule=rule, breaker=breaker: run(rule, breaker))
+    bites.done()
+
+
 def main():
     argv = sys.argv[1:]
+    if "--posture-bite" in argv:
+        posture_bite()
+        return
+    if "--posture-sheet" in argv:
+        # Docs/renders/posture-rest.png: front and side, every man, the
+        # plumb line, the shoulder and hip lines; --before DIR draws an
+        # older Content/Models beside the current one
+        from hero import posture as PO
+        before = os.path.abspath(argv[argv.index("--before") + 1]) if "--before" in argv else PO.MODELS
+        print("  wrote %s" % PO.sheet(os.path.join(HERE, "..", "..", "Docs", "renders", "posture-rest.png"), before=before))
+        return
     if "--hair-check" in argv:
         hair_check()
         return
@@ -1374,6 +1425,7 @@ def main():
         return
     check(kinds)
     if "--check" in flags:
+        posture_check()
         return
     out = os.path.join(HERE, "hero", "build")
     if "--out" in flags:

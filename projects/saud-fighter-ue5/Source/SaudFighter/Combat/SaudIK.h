@@ -26,6 +26,12 @@
  *            share of the way, within what a trunk and a neck do.
  *   clips    one clip gives way to the next on a crossfade, each at its
  *            own time, never in a cut.
+ *   posture  after the hips' drop, the lean and the look, and before the
+ *            legs are solved to the feet: his hips level, his trunk not
+ *            tipped sideways, his shoulder line level, his head over his
+ *            spine, his eyes level and his hips not twisted against his
+ *            feet -- each against his OWN guard (SaudStances.h), so a
+ *            designed lean or guard is kept and only a fault comes out.
  *
  * All of it is FVector arithmetic on positions; turning positions into bone
  * rotations is the engine's part. Header of free functions and plain structs
@@ -39,6 +45,7 @@
 #endif
 #include "SaudArena.h"
 #include "SaudPlants.h"
+#include "SaudStances.h"
 
 namespace SaudIK
 {

@@ -3324,7 +3324,8 @@ def _system_checks(Cw, Aw, Nw, Dw, onw, nh, is_c):
     sk_end = shot(saud=saud3, sysfx=dict(b3, burst=0.49))
     rk_end = shot(saud=saud3, sysfx=dict(b3, rank=0.86))
     rk_mid = shot(saud=saud3, sysfx=dict(b3, rank=0.55))
-    r_sk, r_rk = rad3[changed(sk_end) & ~saud3].max(), rad3[changed(rk_end) & ~saud3].max()
+    reach_of = lambda img: rad3[changed(img) & ~saud3].max() if (changed(img) & ~saud3).any() else 0.0
+    r_sk, r_rk = reach_of(sk_end), reach_of(rk_end)
     assert r_rk > 1.4 * r_sk and changed(rk_mid).sum() > 50, \
         "a rank's ring is wider than a skill's and slower (%.0f px against %.0f; at 0.55 s %d px)" % (
             r_rk, r_sk, changed(rk_mid).sum())
