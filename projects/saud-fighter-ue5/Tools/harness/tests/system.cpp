@@ -9,7 +9,7 @@
  * Solo Leveling's terms anywhere, and the open quest shown from the first
  * landing to the victory and removed after it.
  *
- * Every check here has a sabotage in Tools/harness/bites_system.txt.
+ * Every check here has a sabotage in Tools/harness/bites.txt.
  */
 #include "../HarnessTypes.h"
 #include "../../../Source/SaudFighter/Combat/SaudSystem.h"

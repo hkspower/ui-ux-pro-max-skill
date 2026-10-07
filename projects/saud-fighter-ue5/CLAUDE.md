@@ -5611,12 +5611,28 @@ on game time, so a hit freeze holds it. The level builders place the
 portals from the data and mark the arena door; their checks and bites
 hold it. Render: `Docs/renders/gate-portals.png`.
 
+**The effects** (`anime_look.py` SysFx in `M_Anime_Frame`, `SaudAnime::
+SystemFx`, `USaudLookSubsystem::OnSystemEvent`), drawn before the mark
+and the impact cut, inked, never on Saud and never on a man in front of
+him: LEVEL UP, a cyan pillar (alpha 0.55) rising round him with ice dashes
+climbing it, 1.2 s; SKILL ACQUIRED, a ring off his middle and a rim on
+him, 0.5-0.6 s (HAWK FIST's violet and ember); RANK, a wider ring, 0.9 s;
+QUEST COMPLETE, a stepped cyan glow at the screen's edge, 0.8 s; GATE
+OPENED, an ice star and ring at the gate, 0.45 s; Saud's heavy blows
+leave a short cyan trail of the striking fist or foot (the last 0.12 s,
+0.36 s on screen). HAWK FIST's fire gains a violet edge; the night's rim
+and horizon lean a little bluer and a vignette tints the corners cold,
+brightness unchanged. Renders: `Docs/renders/souq-fight-anime-levelup,
+-skill, -hawk-skill, -rankup, -quest, -trail, -trail-impact`,
+`souq-gate-anime-flash`; the fight frames re-struck in the new accents.
+
 **Checked:** `Tools/harness/run.sh` (system, menu and the rest), the
-sabotages merged into `bites.txt` (bite.sh now copies all of
+sabotages merged into `bites.txt` (680 of 680 caught) (bite.sh now copies all of
 `Source/SaudFighter` and `Content/Data` and runs the test from the copy's
 root, so data and the game instance can be sabotaged too); `portal.py`
 (23/23), `build_gates.py --bite` (19/19), `build_souq.py --bite`,
-`build_world.py --bite`, `build_levels.py --bite`. **Not verified:** no
+`build_world.py --bite`, `build_levels.py --bite`; `anime_look.py` and
+`--bite` (169 of 169), its graded and dark-area rules unchanged. **Not verified:** no
 engine has compiled any of it, imported the portal meshes or built the
 material; `DT_SystemLines.json` is read as JSON from `Content/Data` until
 it is imported as a DataTable, which a packaged build will not include
