@@ -1,4 +1,6 @@
 #include "World/AreaExit.h"
+#include "World/AbilityGate.h"      // SaudPortal: the portal's slot and timings
+#include "Components/StaticMeshComponent.h"
 #include "Combat/SaudArena.h"
 #include "Game/SaudAudioSubsystem.h"
 
@@ -11,7 +13,9 @@
 
 AAreaExit::AAreaExit()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	// Only the arena door ticks (its portal); BeginPlay turns it on there.
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	Trigger = CreateDefaultSubobject<UBoxComponent>(TEXT("Trigger"));
 	SetRootComponent(Trigger);
@@ -21,6 +25,19 @@ AAreaExit::AAreaExit()
 	Trigger->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	Trigger->SetCollisionResponseToAllChannels(ECR_Ignore);
 	Trigger->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+
+	// The portal stands on the floor the trigger stands on, its face across
+	// the way through: the mesh's face is its local Y, the way through the
+	// trigger's X, so a quarter turn.
+	Portal = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Portal"));
+	Portal->SetupAttachment(Trigger);
+	Portal->SetRelativeLocation(FVector(0.f, 0.f, -300.f));
+	Portal->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
+	Portal->SetUsingAbsoluteScale(true);
+	Portal->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Portal->SetCastShadow(false);
+	Portal->SetCanEverAffectNavigation(false);
+	Portal->SetVisibility(false);
 }
 
 void AAreaExit::BeginPlay()
@@ -35,6 +52,62 @@ void AAreaExit::BeginPlay()
 	// the middle lay 14 m deep into the district along the road.
 	const FVector In = GetInward();
 	SetActorRotation(FRotator(0.f, FMath::RadiansToDegrees(FMath::Atan2(In.Y, In.X)), 0.f));
+
+	// Only the arena door is a portal; it stands on the trigger's own floor.
+	Portal->SetRelativeLocation(FVector(0.f, 0.f, -Trigger->GetUnscaledBoxExtent().Z));
+	if (bArenaDoor && Portal->GetStaticMesh())
+	{
+		const USaudGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance<USaudGameInstance>() : nullptr;
+		PortalState = IsOpenFor(GI) ? SaudPortal::Openable : SaudPortal::Sealed;
+		WritePortal();
+		SetActorTickEnabled(true);
+	}
+	else
+	{
+		Portal->SetVisibility(false);
+	}
+}
+
+void AAreaExit::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	TickPortal(DeltaSeconds);
+}
+
+void AAreaExit::TickPortal(float DeltaSeconds)
+{
+	if (bPortalFlare)
+	{
+		// Used: flare and collapse over OpenSeconds, then whole again, sealed,
+		// waking back to what the way is (a door is not used up).
+		PortalState = FMath::Max(PortalState, SaudPortal::Openable) + DeltaSeconds / SaudPortal::OpenSeconds;
+		if (PortalState >= SaudPortal::Gone)
+		{
+			bPortalFlare = false;
+			PortalState = SaudPortal::Sealed;
+		}
+	}
+	else
+	{
+		const UWorld* World = GetWorld();
+		const USaudGameInstance* GI = World ? World->GetGameInstance<USaudGameInstance>() : nullptr;
+		const float Target = IsOpenFor(GI) ? SaudPortal::Openable : SaudPortal::Sealed;
+		const float Step = DeltaSeconds / SaudPortal::WakeSeconds;
+		PortalState = PortalState > Target ? FMath::Max(Target, PortalState - Step)
+			: FMath::Min(Target, PortalState + Step);
+	}
+	WritePortal();
+}
+
+void AAreaExit::WritePortal()
+{
+	if (PortalState == PortalWritten)
+	{
+		return;
+	}
+	PortalWritten = PortalState;
+	Portal->SetCustomPrimitiveDataFloat(SaudPortal::DataIndex, PortalState);
+	Portal->SetVisibility(PortalState < SaudPortal::Gone);
 }
 
 FVector AAreaExit::GetInward() const
@@ -140,6 +213,11 @@ void AAreaExit::HandleOverlap(UPrimitiveComponent*, AActor* Other, UPrimitiveCom
 				bHasAbility ? AfterClearedStage : NAME_None);
 		}
 		return;
+	}
+
+	if (bArenaDoor)
+	{
+		bPortalFlare = true;          // the portal flares as he walks through it
 	}
 
 	if (DestinationExit)

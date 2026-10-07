@@ -6,6 +6,7 @@
 #include "AreaExit.generated.h"
 
 class UBoxComponent;
+class UStaticMeshComponent;
 
 /** Which edge of the area this is. Mirrors DT_World.json's West / East / Door. */
 UENUM(BlueprintType)
@@ -49,6 +50,7 @@ public:
 	AAreaExit();
 
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
 
 	/** Level to open. The map's asset name, e.g. L_BaytAlDarb. Unused when
 	    the destination is in this level -- see DestinationExit. */
@@ -96,6 +98,14 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Exit")
 	FOnExitRefused OnExitRefused;
 
+	/** The door that leads to the arena: the one exit whose destination is
+	    the title fight -- DT_Stages' arena row (Theme Arena, a boss stage,
+	    not survival: AL-HALQA, index 8). Set by the level builders from the
+	    data (build_gates.is_arena_door), never by hand. Only this door
+	    draws the System's crimson portal; every other exit is a street. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
+	bool bArenaDoor = false;
+
 	UFUNCTION(BlueprintPure, Category = "Exit")
 	bool IsOpenFor(const class USaudGameInstance* GI) const;
 
@@ -108,7 +118,23 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Exit")
 	TObjectPtr<UBoxComponent> Trigger = nullptr;
 
+	/** The arena door's portal (SM_Portal_ArenaDoor, set by the level
+	    builders): standing on the trigger's floor, across the way through
+	    (the trigger's thin X), collides with nothing. Hidden on every other
+	    exit. Its state is SaudPortal's (World/AbilityGate.h): sealed while
+	    the way is shut to him (no HAWK FIST), openable when it is open, a
+	    flare when he walks through it, then whole again -- a door is not
+	    used up. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Exit")
+	TObjectPtr<UStaticMeshComponent> Portal = nullptr;
+
 private:
+	void TickPortal(float DeltaSeconds);
+	void WritePortal();
+	float PortalState = 0.f;
+	float PortalWritten = -1.f;
+	bool bPortalFlare = false;
+
 	/** A refusal every frame would spam the HUD; one per approach is enough. */
 	float RefuseCooldown = 0.f;
 	bool bTravelling = false;

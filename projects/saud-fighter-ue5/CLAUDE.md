@@ -3675,8 +3675,10 @@ holds world time): the focus glides between plates in 0.18 s (a
 crossfade and a 14 px nudge, not a free cursor, so at rest it is exactly
 the old drawing; it jumps across the wrap and on opening a screen); on
 opening, the wash wipes in over 0.35 s, the heading fades, and the plates
-slide in from the left one after another (0.08 s, then 0.05 s apart, 0.30
-s each) -- all settled by 0.60 s, inside title-safe the whole way.
+slide in from the left one after another (0.05 s, then 0.05 s apart, 0.24
+s each; 0.08 and 0.30 until 2026-10-07, when the seven-plate TRAINING
+screen would still have been sliding at 0.68 s) -- all settled by 0.60 s,
+inside title-safe the whole way.
 
 **Checked** (`Tools/harness/tests/menu.cpp`, all pass): the items with and
 without a save, the confirm flows, Back on the Title, the levels' clamp

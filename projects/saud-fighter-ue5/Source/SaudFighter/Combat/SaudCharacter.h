@@ -52,7 +52,11 @@ public:
 	float GetMana() const { return Mana; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	float GetManaFraction() const { return Mana / SaudFire::MaxMana; }
+	float GetManaFraction() const { return MaxMana > 0.f ? Mana / MaxMana : 0.f; }
+
+	/** SaudFire::MaxMana plus his level's MP (ApplyUpgrades). */
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	float GetMaxMana() const { return MaxMana; }
 
 	/** hawkReady(): HAWK FIST carried and the MP to burn. */
 	UFUNCTION(BlueprintPure, Category = "Combat")
@@ -247,6 +251,10 @@ private:
 	    hawkAttack() does) and whether it has spent its MP yet (once per
 	    swing, on the first man it lands on: applyHit's hawkSwing). */
 	float Mana = SaudFire::MaxMana;
+	float MaxMana = SaudFire::MaxMana;
+	/** A level earned mid-stage (a kill's XP) raises the maxima at once. */
+	UFUNCTION()
+	void HandleExperienceChanged(int32 NewTotal);
 	SaudFire::FState Fire;
 	bool bAttackBurning = false;
 	bool bHawkSpent = false;

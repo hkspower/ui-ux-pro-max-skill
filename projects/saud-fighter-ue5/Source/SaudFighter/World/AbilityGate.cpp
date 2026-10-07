@@ -7,6 +7,8 @@
 #include "Game/SaudGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 
+FOnGateOpenedNative AAbilityGate::OnAnyGateOpened;
+
 AAbilityGate::AAbilityGate()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -20,6 +22,16 @@ AAbilityGate::AAbilityGate()
 	Trigger->SetBoxExtent(FVector(180.f, 200.f, 150.f));
 	Trigger->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	Trigger->SetCollisionResponseToAllChannels(ECR_Overlap);
+
+	// The portal: its origin is the gate box's middle, which is the cube's
+	// own origin; the souq's gate wall stands on its foot, so the builders
+	// lift it there. Its size is its own, whatever the gate's scale.
+	Portal = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Portal"));
+	Portal->SetupAttachment(Mesh);
+	Portal->SetUsingAbsoluteScale(true);
+	Portal->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Portal->SetCastShadow(false);
+	Portal->SetCanEverAffectNavigation(false);
 }
 
 void AAbilityGate::BeginPlay()
@@ -41,6 +53,52 @@ void AAbilityGate::BeginPlay()
 			BP_OnOpened();
 		}
 	}
+
+	// Opened on an earlier visit: no portal. Else it starts as it stands,
+	// sealed or openable, without waking in front of him.
+	PortalState = bOpen ? SaudPortal::Gone : (CanBeOpened() ? SaudPortal::Openable : SaudPortal::Sealed);
+	WritePortal();
+}
+
+void AAbilityGate::TickPortal(float DeltaSeconds)
+{
+	const USaudGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance<USaudGameInstance>() : nullptr;
+	// Opened elsewhere (another copy of this gate, a loaded save) is gone
+	// without a flare; opened here, the flare runs out first.
+	if (!bOpening && (bOpen || (GI && GI->IsGateOpen(GateId))))
+	{
+		PortalState = SaudPortal::Gone;
+	}
+	else if (bOpening)
+	{
+		// Game time: a blow's freeze holds the flare, as it holds the swirl.
+		PortalState = FMath::Min(SaudPortal::Gone,
+			FMath::Max(PortalState, SaudPortal::Openable) + DeltaSeconds / SaudPortal::OpenSeconds);
+		if (PortalState >= SaudPortal::Gone)
+		{
+			bOpening = false;
+		}
+	}
+	else
+	{
+		const float Target = CanBeOpened() ? SaudPortal::Openable : SaudPortal::Sealed;
+		const float Step = DeltaSeconds / SaudPortal::WakeSeconds;
+		PortalState = PortalState > Target ? FMath::Max(Target, PortalState - Step)
+			: FMath::Min(Target, PortalState + Step);
+	}
+	WritePortal();
+}
+
+void AAbilityGate::WritePortal()
+{
+	if (!Portal || PortalState == PortalWritten)
+	{
+		return;
+	}
+	PortalWritten = PortalState;
+	Portal->SetCustomPrimitiveDataFloat(SaudPortal::DataIndex, PortalState);
+	// Gone is not drawn at all, and has no mesh to cost anything.
+	Portal->SetVisibility(PortalState < SaudPortal::Gone && Portal->GetStaticMesh() != nullptr);
 }
 
 EAbility AAbilityGate::GetRequiredAbility() const
@@ -69,6 +127,8 @@ bool AAbilityGate::CanBeOpened() const
 void AAbilityGate::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	TickPortal(DeltaSeconds);
 
 	if (bOpen)
 	{
@@ -143,6 +203,9 @@ void AAbilityGate::Open()
 		return;
 	}
 	bOpen = true;
+	// the portal flares and collapses (TickPortal, over SaudPortal::OpenSeconds)
+	bOpening = true;
+	PortalState = FMath::Max(PortalState, SaudPortal::Openable);
 
 	if (USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this))
 	{
@@ -167,5 +230,6 @@ void AAbilityGate::Open()
 	}
 
 	OnGateOpened.Broadcast();
+	OnAnyGateOpened.Broadcast(GateId, this);
 	BP_OnOpened();
 }

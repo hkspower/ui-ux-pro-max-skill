@@ -78,10 +78,16 @@ namespace SaudControls
 #endif
 
 #include "../../../Source/SaudFighter/Combat/SaudMenu.h"
+#include "../../../Source/SaudFighter/Combat/SaudFire.h"
 
 #include <cstdio>
 #include <cmath>
 #include <initializer_list>
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <vector>
 
 static int Fails = 0;
 static void Check(bool Ok, const char* What)
@@ -172,7 +178,7 @@ static const FMenuText* ItemText(int Item)
 /** A text's box from its anchor and the header's own width estimate. */
 static FBox TextBox(const FMenuText& X)
 {
-	const float W = TextWidth(X.Slot, X.Value, X.Height);
+	const float W = TextWidth(X.Slot, X.Value, X.Height, X.Aux);
 	FBox B;
 	Add(B, {X.bCentre ? X.At.X - 0.5f * W : X.At.X, X.At.Y});
 	Add(B, {X.bCentre ? X.At.X + 0.5f * W : X.At.X + W, X.At.Y + X.Height});
@@ -213,18 +219,60 @@ static int IndexOf(const FMenuModel& M, EItem It)
 /** A model on a screen, opened the way the engine opens it: Title or Pause
     by Open, Settings and Controls through the item that opens them, a
     Confirm through QUIT or NEW GAME on the Title. */
+/** A save part way through the game (2026-10-07): 500 XP to spend, BOXING
+    2 and KICKING 1 bought, VAULT and DASH LEAP found, the quest open. */
+static FStatus MidStatus(int Spendable = 500, bool bWon = false)
+{
+	const int Tracks[Train::Tracks] = {2, 1, 0, 0, 0, 0};
+	const bool Skills[SaudMenu::Skills] = {true, true, false, false, false};
+	return MakeStatus(Spendable, Tracks, Skills, bWon);
+}
+
+/** The screen a case is under: the Pause for the status, the training,
+    their Confirm and anything opened from the Pause; else the Title. */
+static EScreen RootOf(EScreen S, EScreen From, EAsk Ask)
+{
+	if (S == EScreen::Status || S == EScreen::Training || (S == EScreen::Confirm && Ask == EAsk::Train)) return EScreen::Pause;
+	if (From == EScreen::Status || From == EScreen::Training) return EScreen::Pause;
+	return S == EScreen::Pause ? EScreen::Pause : From;
+}
+
+/** A model on a screen, opened the way the engine opens it: Title or Pause
+    by Open, Settings and Controls through the item that opens them, a
+    Confirm through QUIT or NEW GAME on the Title; the Status and the
+    Training through the Pause (a Training From the Status through the
+    Status's TRAINING), the Train question through the Training's first
+    track. */
 static FMenuModel Model(EScreen S, bool bSave, EPad Pad, EScreen From = EScreen::Title, EAsk Ask = EAsk::Quit)
 {
 	FMenuModel M;
 	M.bHasSave = bSave;
 	M.Pad = Pad;
-	const bool bSub = S == EScreen::Settings || S == EScreen::Controls || S == EScreen::Confirm;
-	Open(M, bSub ? From : S);
+	M.Status = MidStatus();
+	const bool bTrainAsk = S == EScreen::Confirm && Ask == EAsk::Train;
+	const bool bSub = S == EScreen::Settings || S == EScreen::Controls || S == EScreen::Confirm || S == EScreen::Status
+	                  || S == EScreen::Training;
+	Open(M, bSub ? RootOf(S, From, Ask) : S);
 	if (S == EScreen::Settings) { M.Focus = IndexOf(M, EItem::Settings); Navigate(M, EAction::Confirm); }
 	if (S == EScreen::Controls) { M.Focus = IndexOf(M, EItem::Controls); Navigate(M, EAction::Confirm); }
-	if (S == EScreen::Confirm)
+	if (S == EScreen::Confirm && !bTrainAsk)
 	{
 		M.Focus = IndexOf(M, Ask == EAsk::NewGame ? EItem::NewGame : EItem::Quit);
+		Navigate(M, EAction::Confirm);
+	}
+	if (S == EScreen::Status || From == EScreen::Status)
+	{
+		M.Focus = IndexOf(M, EItem::Status);
+		Navigate(M, EAction::Confirm);
+	}
+	if (S == EScreen::Training || bTrainAsk)
+	{
+		M.Focus = IndexOf(M, EItem::Training);
+		Navigate(M, EAction::Confirm);
+	}
+	if (bTrainAsk)
+	{
+		M.Focus = IndexOf(M, EItem::TrainBox);
 		Navigate(M, EAction::Confirm);
 	}
 	M.Since = 1.f;
@@ -254,8 +302,18 @@ static void ModelRules()
 		      && Cq.Focus == 0, "Confirm: NO first, and focused, so a stray press is safe; then YES");
 		FMenuModel Pa = Model(EScreen::Pause, true, EPad::Xbox);
 		N = Items(Pa, I);
-		Check(N == 4 && I[0] == EItem::Resume && I[1] == EItem::Controls && I[2] == EItem::Settings
-		      && I[3] == EItem::QuitToTitle, "Pause: RESUME, CONTROLS, SETTINGS, QUIT TO TITLE");
+		Check(N == 6 && I[0] == EItem::Resume && I[1] == EItem::Status && I[2] == EItem::Training && I[3] == EItem::Controls
+		      && I[4] == EItem::Settings && I[5] == EItem::QuitToTitle,
+		      "Pause: RESUME, STATUS, TRAINING, CONTROLS, SETTINGS, QUIT TO TITLE");
+		FMenuModel St = Model(EScreen::Status, true, EPad::Xbox);
+		N = Items(St, I);
+		Check(St.Screen == EScreen::Status && N == 2 && I[0] == EItem::Training && I[1] == EItem::Back,
+		      "Status: the window, and TRAINING, BACK");
+		FMenuModel Tr = Model(EScreen::Training, true, EPad::Xbox);
+		N = Items(Tr, I);
+		Check(Tr.Screen == EScreen::Training && N == 7 && I[0] == EItem::TrainBox && I[1] == EItem::TrainKick
+		      && I[2] == EItem::TrainVit && I[3] == EItem::TrainSpd && I[4] == EItem::TrainStam && I[5] == EItem::TrainIron
+		      && I[6] == EItem::Back, "Training: BOXING, KICKING, VITALITY, SPEED, STAMINA, IRON ARM, BACK");
 		FMenuModel Se = Model(EScreen::Settings, true, EPad::Xbox);
 		N = Items(Se, I);
 		Check(Se.Screen == EScreen::Settings && N == 5 && I[0] == EItem::Difficulty && I[1] == EItem::Sound
@@ -269,7 +327,8 @@ static void ModelRules()
 	// the focus wraps, both ways, on every screen
 	{
 		bool Wraps = true;
-		const EScreen Screens[5] = {EScreen::Title, EScreen::Pause, EScreen::Settings, EScreen::Controls, EScreen::Confirm};
+		const EScreen Screens[7] = {EScreen::Title, EScreen::Pause, EScreen::Settings, EScreen::Controls, EScreen::Confirm,
+		                            EScreen::Status, EScreen::Training};
 		for (EScreen S : Screens)
 		{
 			FMenuModel M = Model(S, true, EPad::Xbox);
@@ -290,6 +349,7 @@ static void ModelRules()
 		bool InRange = true, ShownIsPad = true, DiffIn = true, LevelsIn = true;
 		unsigned Seed = 12345u;
 		FMenuModel M = Model(EScreen::Title, true, EPad::PlayStation);
+		M.Status = MidStatus(4000);   // enough to buy, so the walk buys
 		for (int i = 0; i < 6000; ++i)
 		{
 			Seed = Seed * 1664525u + 1013904223u;
@@ -304,6 +364,7 @@ static void ModelRules()
 				M.bHasSave = (Seed & 1u) != 0u;
 			}
 			if (E == EMenuEffect::Resume) Open(M, (Seed & 2u) ? EScreen::Pause : EScreen::Title);
+			InRange = InRange && M.Status.Spendable >= 0 && M.Depth >= 0 && M.Depth <= FMenuModel::MaxDepth;
 			InRange = InRange && M.Focus >= 0 && M.Focus < ItemCount(M);
 			ShownIsPad = ShownIsPad && M.Shown != EPad::Keyboard;
 			DiffIn = DiffIn && M.DifficultyIndex >= 0 && M.DifficultyIndex <= 2;
@@ -362,9 +423,9 @@ static void ModelRules()
 
 		M = Model(EScreen::Pause, true, EPad::Xbox);
 		Check(Navigate(M, EAction::Confirm) == EMenuEffect::Resume, "RESUME resumes");
-		M.Focus = 3;
+		M.Focus = IndexOf(M, EItem::QuitToTitle);
 		Check(Navigate(M, EAction::Confirm) == EMenuEffect::QuitToTitle, "QUIT TO TITLE quits to the title");
-		M.Focus = 1;
+		M.Focus = IndexOf(M, EItem::Controls);
 		Check(Navigate(M, EAction::Confirm) == EMenuEffect::Tap && M.Screen == EScreen::Controls, "the pause's CONTROLS opens the page");
 		Check(Navigate(M, EAction::Pause) == EMenuEffect::None, "the pause button does nothing on a sub-page");
 		M = Model(EScreen::Pause, true, EPad::Xbox);
@@ -485,8 +546,8 @@ static void ModelRules()
 		Jumps = Jumps && Near(ShownFocus(M), static_cast<float>(ItemCount(M) - 1));
 		M = Model(EScreen::Pause, true, EPad::Xbox);
 		Navigate(M, EAction::NavDown);
-		Navigate(M, EAction::Confirm);              // CONTROLS, mid-glide
-		Jumps = Jumps && M.Screen == EScreen::Controls && Near(ShownFocus(M), 0.f);
+		Navigate(M, EAction::Confirm);              // STATUS, mid-glide
+		Jumps = Jumps && M.Screen == EScreen::Status && Near(ShownFocus(M), 0.f);
 		Check(Glides, "the focus glides to the next item over 0.18 s, never past it, its shares adding to one");
 		Check(Jumps, "...and jumps across the wrap and when a screen opens");
 		Navigated += 5;
@@ -506,6 +567,11 @@ static const FCase Cases[] = {
 	{EScreen::Controls, true, EScreen::Pause, "controls from pause", EAsk::Quit},
 	{EScreen::Confirm, false, EScreen::Title, "confirm quit", EAsk::Quit},
 	{EScreen::Confirm, true, EScreen::Title, "confirm new game", EAsk::NewGame},
+	// 2026-10-07
+	{EScreen::Status, true, EScreen::Pause, "status", EAsk::Quit},
+	{EScreen::Training, true, EScreen::Pause, "training", EAsk::Quit},
+	{EScreen::Training, true, EScreen::Status, "training from status", EAsk::Quit},
+	{EScreen::Confirm, true, EScreen::Pause, "confirm train", EAsk::Train},
 };
 static const EPad Pads[3] = {EPad::Xbox, EPad::PlayStation, EPad::Keyboard};
 static const float Clocks[4] = {0.f, 0.7f, 1.3f, 2.05f};
@@ -517,7 +583,7 @@ static void PageRules()
 	bool Apart = true, OneFocus = true, FocusReads = true, Labelled = true, Palette = true, Fits = true;
 	bool StripOnLine = true, StripPad = true, StripApart = true, ScrimWhole = true, Heading = true;
 	bool Continue = true, ValuesRead = true, Pulses = true, OffDiagram = true, BigGlyphs = true, StripWords = true;
-	float GapOf[5] = {-1.f, -1.f, -1.f, -1.f, -1.f};   // slash bottom to the first plate, page px, per screen
+	float GapOf[7] = {-1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f};   // slash bottom to the first plate, page px, per screen
 	bool Hinted = true, Tagged = true, Metered = true, Nudged = true;
 	bool GapsAgree = true;
 	int Builds = 0, WorstTris = 0, WorstTexts = 0;
@@ -787,7 +853,7 @@ static void PageRules()
 						// the scrim: the whole screen under the pause and what it
 						// opens, and under the diagram; none under the title
 						{
-							const bool bWant = C.Screen == EScreen::Pause || C.From == EScreen::Pause || C.Screen == EScreen::Controls;
+							const bool bWant = RootOf(C.Screen, C.From, C.Ask) == EScreen::Pause || C.Screen == EScreen::Controls;
 							const FBox S = PartBox(EMenuPart::Scrim);
 							ScrimWhole = ScrimWhole && S.Any == bWant
 							             && (!bWant || (Near(S.X0, 0.f) && Near(S.Y0, 0.f) && Near(S.X1, P.ScreenW) && Near(S.Y1, P.ScreenH)));
@@ -798,8 +864,10 @@ static void PageRules()
 						{
 							const FMenuText* H = FindText(C.Screen == EScreen::Title ? EMenuText::Saud
 							                              : C.Screen == EScreen::Pause ? EMenuText::Paused
-							                              : C.Screen == EScreen::Confirm ? EMenuText::AskHead : EMenuText::SettingsHead);
-							Heading = Heading && (C.Screen != EScreen::Confirm || (H && H->Value == (C.Ask == EAsk::NewGame ? 1 : 0)));
+							                              : C.Screen == EScreen::Confirm ? EMenuText::AskHead
+							                              : C.Screen == EScreen::Status ? EMenuText::StatusHead
+							                              : C.Screen == EScreen::Training ? EMenuText::TrainingHead : EMenuText::SettingsHead);
+							Heading = Heading && (C.Screen != EScreen::Confirm || (H && H->Value == static_cast<int>(C.Ask)));
 							const FBox S = PartBox(EMenuPart::Slash);
 							Heading = Heading && H && SameRgb(H->Colour, SaudHud::Colour::Ice) && S.Any
 							          && S.Y0 >= H->At.Y + H->Height - 0.5f && S.X0 >= H->At.X - 0.5f;
@@ -869,10 +937,11 @@ static void PageRules()
 	Check(Tagged, "CONTINUE carries the stage the save has reached, on its own plate, clear of its label");
 	Check(Metered, "SOUND and MUSIC are ten-segment meters on their own plates, lit to the level, clear of the label");
 	Check(Nudged, "at rest the focused plate stands 14 page px out of the column");
-	std::printf("  the slash to the first plate: title %.0f, pause %.0f, settings %.0f, confirm %.0f page px\n", GapOf[0],
-	            GapOf[1], GapOf[2], GapOf[4]);
+	std::printf("  the slash to the first plate: title %.0f, pause %.0f, settings %.0f, confirm %.0f, status %.0f, "
+	            "training %.0f page px\n", GapOf[0], GapOf[1], GapOf[2], GapOf[4], GapOf[5], GapOf[6]);
 	Check(GapsAgree && GapOf[0] >= 0.f && GapOf[1] >= 0.f && GapOf[2] >= 0.f && GapOf[4] >= 0.f && Near(GapOf[0], GapOf[1], 2.f)
-	      && Near(GapOf[0], GapOf[2], 2.f) && Near(GapOf[0], GapOf[4], 2.f),
+	      && Near(GapOf[0], GapOf[2], 2.f) && Near(GapOf[0], GapOf[4], 2.f) && Near(GapOf[0], GapOf[5], 2.f)
+	      && Near(GapOf[0], GapOf[6], 2.f),
 	      "the first plate sits the same distance under the slash on every screen");
 	std::printf("  %d builds: %d cases x %d pads x every focus x %d clocks at %d shapes\n", Builds,
 	            static_cast<int>(sizeof(Cases) / sizeof(Cases[0])), 3, 4, static_cast<int>(sizeof(Shapes) / sizeof(Shapes[0])));
@@ -1013,10 +1082,657 @@ static void PageRules()
 	}
 }
 
+// ============================================ STATUS AND TRAINING (2026-10-07)
+// The System's status window and its store. The numbers first -- the ladder,
+// the costs, the ids, the stats are the game's own, read from its data and
+// its engine source -- then the model (buying spends, levels the track, is
+// asked first, is refused when poor or maxed, never costs a level), then the
+// two pages as Build draws them at the seven shapes.
+
+static std::string Slurp(const char* Path)
+{
+	std::string S;
+	if (FILE* F = std::fopen(Path, "rb"))
+	{
+		char Buf[4096];
+		size_t N;
+		while ((N = std::fread(Buf, 1, sizeof Buf, F)) > 0) S.append(Buf, N);
+		std::fclose(F);
+	}
+	return S;
+}
+/** The file with every space, tab and line break taken out. */
+static std::string Squeezed(const char* Path)
+{
+	std::string S = Slurp(Path), O;
+	for (char C : S) if (C != ' ' && C != '\t' && C != '\n' && C != '\r') O += C;
+	return O;
+}
+/** A CSV's rows (a quoted field may hold commas), the header first. */
+static std::vector<std::vector<std::string>> CsvRows(const char* Path)
+{
+	std::vector<std::vector<std::string>> Rows;
+	const std::string S = Slurp(Path);
+	std::vector<std::string> Row;
+	std::string Field;
+	bool bQuoted = false;
+	for (size_t i = 0; i < S.size(); ++i)
+	{
+		const char C = S[i];
+		if (bQuoted)
+		{
+			if (C == '"' && i + 1 < S.size() && S[i + 1] == '"') { Field += '"'; ++i; }
+			else if (C == '"') bQuoted = false;
+			else Field += C;
+		}
+		else if (C == '"') bQuoted = true;
+		else if (C == ',') { Row.push_back(Field); Field.clear(); }
+		else if (C == '\n') { Row.push_back(Field); Field.clear(); Rows.push_back(Row); Row.clear(); }
+		else if (C != '\r') Field += C;
+	}
+	if (!Field.empty() || !Row.empty()) { Row.push_back(Field); Rows.push_back(Row); }
+	return Rows;
+}
+static int Column(const std::vector<std::string>& Header, const char* Name)
+{
+	for (size_t i = 0; i < Header.size(); ++i) if (Header[i] == Name) return static_cast<int>(i);
+	return -1;
+}
+/** The number after "Key": in a JSON file (the first). */
+static float JsonNumber(const std::string& S, const char* Key, bool& Found)
+{
+	const std::string K = std::string("\"") + Key + "\":";
+	const size_t At = S.find(K);
+	Found = At != std::string::npos;
+	return Found ? std::strtof(S.c_str() + At + K.size(), nullptr) : 0.f;
+}
+/** The body of a C++ function in a file, from its name to its closing
+    brace at the start of a line. */
+static std::string Body(const char* Path, const char* Signature)
+{
+	const std::string S = Slurp(Path);
+	const size_t At = S.find(Signature);
+	if (At == std::string::npos) return std::string();
+	const size_t End = S.find("\n}", At);
+	return S.substr(At, End == std::string::npos ? std::string::npos : End - At + 2);
+}
+static std::string NoSpace(const std::string& S)
+{
+	std::string O;
+	for (char C : S) if (C != ' ' && C != '\t' && C != '\n' && C != '\r') O += C;
+	return O;
+}
+
+static void TrainingNumbers()
+{
+	std::printf("NUMBERS  (the ladder, the costs, the ids, the stats: the game's own)\n");
+	// the ladder: DT_Levels.csv, every row
+	{
+		const auto Rows = CsvRows("Content/Data/DT_Levels.csv");
+		const int CL = Rows.empty() ? -1 : Column(Rows[0], "Level");
+		const int CX = Rows.empty() ? -1 : Column(Rows[0], "ExperienceRequired");
+		const int CT = Rows.empty() ? -1 : Column(Rows[0], "Title");
+		bool Xp = CL >= 0 && CX >= 0 && CT >= 0 && Rows.size() == static_cast<size_t>(Ladder::MaxLevel) + 1;
+		bool Titles = Xp, Levels = Xp;
+		for (size_t r = 1; Xp && r < Rows.size(); ++r)
+		{
+			const int L = std::atoi(Rows[r][static_cast<size_t>(CL)].c_str());
+			const int Need = std::atoi(Rows[r][static_cast<size_t>(CX)].c_str());
+			Xp = Xp && L == static_cast<int>(r) && Ladder::Need(L) == Need;
+			Titles = Titles && Rows[r][static_cast<size_t>(CT)] == Ladder::RankName(Ladder::RankOf(L));
+			Levels = Levels && Ladder::LevelOf(Need) == L && (L == 1 || Ladder::LevelOf(Need - 1) == L - 1);
+		}
+		Levels = Levels && Ladder::LevelOf(1000000) == Ladder::MaxLevel && Ladder::LevelOf(0) == 1;
+		bool F = false;
+		const float Max = JsonNumber(Slurp("Content/Data/Player.json"), "LevelMax", F);
+		Check(Xp && F && static_cast<int>(Max) == Ladder::MaxLevel, "the ladder is DT_Levels.csv's: the XP every level needs, to 20");
+		Check(Titles, "every level's title is DT_Levels.csv's: ROOKIE .. CHAMPION");
+		Check(Levels, "the level is the highest the earned XP reaches, and never past 20");
+	}
+	// the tracks: DT_Upgrades.csv, every row
+	{
+		const auto Rows = CsvRows("Content/Data/DT_Upgrades.csv");
+		const int CTr = Rows.empty() ? -1 : Column(Rows[0], "Track");
+		const int CN = Rows.empty() ? -1 : Column(Rows[0], "DisplayName");
+		const int CL = Rows.empty() ? -1 : Column(Rows[0], "Level");
+		const int CC = Rows.empty() ? -1 : Column(Rows[0], "Cost");
+		const int CCu = Rows.empty() ? -1 : Column(Rows[0], "CumulativeCost");
+		bool Ids = CTr >= 0 && CN >= 0 && CL >= 0 && CC >= 0 && CCu >= 0
+		           && Rows.size() == static_cast<size_t>(Train::Tracks * Train::MaxLevel) + 1;
+		bool Costs = Ids, Names = Ids;
+		int MaxSeen = 0;
+		for (size_t r = 1; Ids && r < Rows.size(); ++r)
+		{
+			const std::string& Id = Rows[r][static_cast<size_t>(CTr)];
+			const int Want = static_cast<int>((r - 1) / Train::MaxLevel);   // the table's own order
+			const int L = std::atoi(Rows[r][static_cast<size_t>(CL)].c_str());
+			Ids = Ids && Train::TrackOf(Id.c_str()) == Want && Id == Train::Id(Want);
+			Names = Names && Rows[r][static_cast<size_t>(CN)] == Train::Name(Want);
+			Costs = Costs && Train::Cost(L - 1) == std::atoi(Rows[r][static_cast<size_t>(CC)].c_str())
+			        && Train::Spent(L) == std::atoi(Rows[r][static_cast<size_t>(CCu)].c_str());
+			MaxSeen = std::max(MaxSeen, L);
+		}
+		bool F = false;
+		const float Max = JsonNumber(Slurp("Content/Data/Player.json"), "UpgradeMaxLevel", F);
+		Check(Ids, "every DT_Upgrades Track id is a track the shop buys: Box, Kick, Vit, Spd, Stam, Iron");
+		Check(Names, "the tracks' names are DT_Upgrades.csv's");
+		Check(Costs && MaxSeen == Train::MaxLevel && F && static_cast<int>(Max) == Train::MaxLevel,
+		      "the costs are DT_Upgrades.csv's, level by level and summed, five levels a track");
+		Check(Train::TrackOf("Boxing") == 0 && Train::TrackOf("Stamina") == 4 && Train::TrackOf("Iron") == 5
+		      && Train::TrackOf("box") < 0 && Train::TrackOf("") < 0 && Train::TrackOf("Rage") < 0,
+		      "the old long ids still buy; anything else is no track");
+	}
+	// the shop's own call: TryPurchaseUpgrade and GetUpgradeCost go through
+	// that table (read from the engine source: it cannot be compiled here)
+	{
+		const std::string Buy = NoSpace(Body("Source/SaudFighter/Game/SaudGameInstance.cpp", "bool USaudGameInstance::TryPurchaseUpgrade"));
+		const std::string Cost = NoSpace(Body("Source/SaudFighter/Game/SaudGameInstance.cpp", "int32 USaudGameInstance::GetUpgradeCost"));
+		const std::string Spent = NoSpace(Body("Source/SaudFighter/Game/SaudGameInstance.cpp", "int32 USaudGameInstance::GetSpentExperience"));
+		const std::string H = Squeezed("Source/SaudFighter/Game/SaudGameInstance.h");
+		Check(!Buy.empty() && Buy.find("SaudMenu::Train::TrackOf(TCHAR_TO_ANSI(*TrackId.ToString()))") != std::string::npos
+		      && Buy.find("TEXT(\"Boxing\")") == std::string::npos && Buy.find("&Progress.BoxingLevel,&Progress.KickingLevel,"
+		      "&Progress.VitalityLevel,&Progress.SpeedLevel,&Progress.StaminaLevel,&Progress.IronArmLevel") != std::string::npos
+		      && Buy.find("GetUpgradeCost(*Level)") != std::string::npos && Buy.find("SaudMenu::Train::MaxLevel") != std::string::npos,
+		      "TryPurchaseUpgrade takes the table's ids through SaudMenu::Train, the tracks in the table's order");
+		Check(Cost.find("returnSaudMenu::Train::Cost(CurrentLevel);") != std::string::npos
+		      && Spent.find("SaudMenu::Train::Spent(Progress.BoxingLevel)") != std::string::npos
+		      && Spent.find("SaudMenu::Train::Spent(Progress.IronArmLevel)") != std::string::npos
+		      && H.find("GetEarnedExperience()const{returnProgress.Experience+GetSpentExperience();}") != std::string::npos,
+		      "GetUpgradeCost is the table's; the earned XP is the spendable plus what the six tracks cost");
+		// the quest closes on the arena: AlHalqa, AL-WAHSH's boss stage
+		const std::string Won = NoSpace(Body("Source/SaudFighter/Game/SaudGameInstance.cpp", "bool USaudGameInstance::HasWonTheTitle"));
+		const std::string Stages = Squeezed("Content/Data/DT_Stages.json");
+		const size_t At = Stages.find("\"Name\":\"AlHalqa\"");
+		const size_t Next = At == std::string::npos ? At : Stages.find("\"Name\":", At + 10);
+		const std::string Row = At == std::string::npos ? std::string() : Stages.substr(At, Next == std::string::npos ? std::string::npos : Next - At);
+		Check(Won.find("ClearedStages.Contains(FName(TEXT(\"AlHalqa\")))") != std::string::npos
+		      && Row.find("\"bIsBossStage\":true") != std::string::npos && Row.find("\"Index\":8") != std::string::npos,
+		      "the title is won when AL-HALQA, the arena's boss stage, is cleared");
+	}
+	// HP, MP, STAMINA: what the game gives (ApplyUpgrades; SaudFire's MP)
+	{
+		const std::string J = Slurp("Content/Data/Player.json");
+		bool F1, F2, F3, F4, F5;
+		const int H = static_cast<int>(JsonNumber(J, "BaseHealth", F1)), V = static_cast<int>(JsonNumber(J, "Vitality", F2));
+		const int St = static_cast<int>(JsonNumber(J, "BaseStamina", F3)), Sp = static_cast<int>(JsonNumber(J, "Stamina", F4));
+		const int Mp = static_cast<int>(JsonNumber(J, "BaseMana", F5));
+		const std::string Apply = NoSpace(Body("Source/SaudFighter/Combat/SaudCharacter.cpp", "void ASaudCharacter::ApplyUpgrades"));
+		Check(F1 && F2 && F3 && F4 && F5 && H == Stats::BaseHealth && V == Stats::HealthPerVitality && St == Stats::BaseStamina
+		      && Sp == Stats::StaminaPerLevel && Mp == Stats::BaseMana && Near(static_cast<float>(Stats::BaseMana), SaudFire::MaxMana)
+		      && Apply.find("MaxHealth=100.f+P.VitalityLevel*18.f+SaudMenu::Stats::LevelHealth(Level);") != std::string::npos
+		      && Apply.find("MaxStamina=100.f+P.StaminaLevel*12.f;") != std::string::npos
+		      && Apply.find("MaxMana=SaudFire::MaxMana+SaudMenu::Stats::LevelMana(Level);") != std::string::npos
+		      && Apply.find("constint32Level=GI->GetLevel();") != std::string::npos,
+		      "HP, MP and STAMINA are the game's: Player.json's and the level's, as ApplyUpgrades and SaudFire give them");
+		// the level's own HP and MP: DT_Levels' BonusHealth / BonusMana at every rung
+		const auto Rows = CsvRows("Content/Data/DT_Levels.csv");
+		const int CL = Rows.empty() ? -1 : Column(Rows[0], "Level");
+		const int CH = Rows.empty() ? -1 : Column(Rows[0], "BonusHealth");
+		const int CM = Rows.empty() ? -1 : Column(Rows[0], "BonusMana");
+		bool Rung = CL >= 0 && CH >= 0 && CM >= 0 && Rows.size() == static_cast<size_t>(Ladder::MaxLevel) + 1;
+		for (size_t R = 1; Rung && R < Rows.size(); ++R)
+		{
+			const int L = std::atoi(Rows[R][static_cast<size_t>(CL)].c_str());
+			Rung = std::atoi(Rows[R][static_cast<size_t>(CH)].c_str()) == Stats::LevelHealth(L)
+			    && std::atoi(Rows[R][static_cast<size_t>(CM)].c_str()) == Stats::LevelMana(L);
+		}
+		const std::string Ch = Squeezed("Source/SaudFighter/Combat/SaudCharacter.cpp");
+		const std::string ChH = Squeezed("Source/SaudFighter/Combat/SaudCharacter.h");
+		Check(Rung && Stats::LevelHealth(1) == 0 && Stats::LevelMana(1) == 0,
+		      "every level's HP and MP are DT_Levels.csv's: +6 HP, +4 MP a level past the first");
+		Check(Ch.find("Mana=FMath::Min(MaxMana,Mana+SaudFire::ManaRegenPerSecond*DeltaSeconds);") != std::string::npos
+		      && Ch.find("Mana=FMath::Min(MaxMana,Mana+SaudFire::ManaPerLandedHit);") != std::string::npos
+		      && Ch.find("OnExperienceChanged.AddUniqueDynamic(this,&ASaudCharacter::HandleExperienceChanged);") != std::string::npos
+		      && ChH.find("returnMaxMana>0.f?Mana/MaxMana:0.f;") != std::string::npos,
+		      "his MP fills to the level's MP, the bar reads it, and a level earned mid-stage raises it at once");
+	}
+	// the five skills: DT_Talents' names, in EAbility's order
+	{
+		const auto Rows = CsvRows("Content/Data/DT_Talents.csv");
+		const int CN = Rows.empty() ? -1 : Column(Rows[0], "DisplayName");
+		bool Ok = CN >= 0 && Rows.size() == static_cast<size_t>(SaudMenu::Skills) + 1;
+		for (int K = 0; Ok && K < SaudMenu::Skills; ++K) Ok = Rows[static_cast<size_t>(K) + 1][static_cast<size_t>(CN)] == SkillName(K);
+		const std::string T = Squeezed("Source/SaudFighter/Combat/SaudTypes.h");
+		const size_t E = T.find("enumclassEAbility:uint8{");
+		const size_t A[5] = {T.find("Vault,", E), T.find("DashLeap,", E), T.find("PowerKick,", E), T.find("Haymaker,", E),
+		                     T.find("HawkFist,", E)};
+		Ok = Ok && E != std::string::npos && T.find("None", E) < A[0];
+		for (int K = 0; Ok && K < 4; ++K) Ok = A[K] != std::string::npos && A[K] < A[K + 1];
+		Check(Ok && A[4] != std::string::npos && std::strcmp(SkillName(HawkFistSkill), "HAWK FIST") == 0,
+		      "the five skills are DT_Talents.csv's, in EAbility's order, HAWK FIST the last");
+	}
+	// the status from a save
+	{
+		const int Zero[Train::Tracks] = {};
+		const bool None[SaudMenu::Skills] = {};
+		const FStatus S0 = MakeStatus(0, Zero, None, false);
+		Check(S0.Level == 1 && S0.Rank == 0 && S0.Earned == 0 && S0.LevelFloor == 0 && S0.LevelNext == 21 && S0.MaxHealth == 100
+		      && S0.MaxMana == 40 && S0.MaxStamina == 100 && S0.bQuestOpen, "a new save: LEVEL 1, ROOKIE, 21 XP to LEVEL 2, HP 100, MP 40, STAMINA 100");
+		const FStatus S1 = MidStatus(300);
+		Check(S1.Earned == 300 + 370 + 120 && S1.Spendable == 300, "the earned XP is the spendable plus what training has cost");
+		const int Tv[Train::Tracks] = {0, 0, 3, 0, 2, 0};
+		const FStatus S2 = MakeStatus(0, Tv, None, true);
+		Check(S2.MaxHealth == 154 + 6 * (S2.Level - 1) && S2.MaxStamina == 124 && S2.MaxMana == 40 + 4 * (S2.Level - 1) && S2.Level > 1,
+		      "VITALITY gives 18 HP a level, STAMINA 12, and his level 6 HP and 4 MP a rung");
+		Check(!S2.bQuestOpen, "the quest is removed once the title is won");
+		const int Tm[Train::Tracks] = {5, 5, 5, 5, 5, 5};
+		const FStatus S3 = MakeStatus(500, Tm, None, false);
+		Check(S3.Level == Ladder::MaxLevel && S3.LevelNext == 0 && S3.Rank == 5, "every track maxed is past LEVEL 20: CHAMPION, at the top");
+	}
+}
+
+/** The first text of a slot (and, for repeats, the n-th). */
+static const FMenuText* NthText(EMenuText Slot, int N)
+{
+	for (int t = 0; t < List.NumTexts; ++t)
+		if (List.Texts[t].Slot == Slot && N-- == 0) return &List.Texts[t];
+	return nullptr;
+}
+static int CountText(EMenuText Slot)
+{
+	int N = 0;
+	for (int t = 0; t < List.NumTexts; ++t) N += List.Texts[t].Slot == Slot;
+	return N;
+}
+static bool Inside(const FBox& In, const FBox& B, float E = 0.5f)
+{
+	return B.Any && In.Any && B.X0 >= In.X0 - E && B.Y0 >= In.Y0 - E && B.X1 <= In.X1 + E && B.Y1 <= In.Y1 + E;
+}
+
+/** A status model with a given save, on the Status page, at rest. */
+static FMenuModel StatusModel(EPad Pad, const FStatus& S)
+{
+	FMenuModel M = Model(EScreen::Status, true, Pad);
+	M.Status = S;
+	M.Since = 1.f;
+	return M;
+}
+
+static void StatusPage()
+{
+	std::printf("STATUS  (the System's window, at the seven shapes)\n");
+	const int Early[Train::Tracks] = {0, 0, 0, 0, 0, 0}, Mid[Train::Tracks] = {2, 1, 1, 0, 0, 0},
+	          Late[Train::Tracks] = {5, 4, 5, 3, 4, 5}, Top[Train::Tracks] = {5, 5, 5, 5, 5, 5};
+	const bool SkE[SaudMenu::Skills] = {}, SkM[SaudMenu::Skills] = {true, true, false, false, false},
+	           SkL[SaudMenu::Skills] = {true, true, true, true, true}, SkOdd[SaudMenu::Skills] = {false, true, false, true, true};
+	const FStatus Saves[6] = {MakeStatus(35, Early, SkE, false), MakeStatus(300, Mid, SkM, false),
+	                          MakeStatus(640, Late, SkL, false), MakeStatus(640, Late, SkL, true),
+	                          MakeStatus(99999, Top, SkL, true), MakeStatus(0, Mid, SkOdd, false)};
+	bool Present = true, Values = true, InWindow = true, Apart = true, Clear = true, Skills = true, Hawk = true;
+	bool Quest = true, Bar = true, Pipped = true, Framed = true, Glows = true;
+	int Builds = 0;
+	for (const auto& Sh : Shapes)
+	{
+		const FPage P = FPage::For(Sh[0], Sh[1]);
+		for (const FStatus& S : Saves)
+		{
+			for (EPad Pad : Pads)
+			{
+				for (int Focus = 0; Focus < 2; ++Focus)
+				{
+					FMenuModel M = StatusModel(Pad, S);
+					M.Focus = Focus;
+					M.FocusFrom = static_cast<float>(Focus);
+					Build(P, M, List);
+					++Builds;
+					const FMenuLayout L = Lay(P, M);
+					FBox Win;
+					Add(Win, {L.Window.X, L.Window.Y});
+					Add(Win, {L.Window.X + L.Window.W, L.Window.Y + L.Window.H});
+					// every line of the window is there, saying the save
+					const FMenuText* Name = FindText(EMenuText::WinName);
+					const FMenuText* Lv = FindText(EMenuText::LevelLine);
+					const FMenuText* Rk = FindText(EMenuText::RankTitle);
+					const FMenuText* Xl = FindText(EMenuText::XpLine);
+					const FMenuText* Xn = FindText(EMenuText::XpToNext);
+					const FMenuText* Hp = FindText(EMenuText::StatHp);
+					const FMenuText* Mp = FindText(EMenuText::StatMp);
+					const FMenuText* Stm = FindText(EMenuText::StatStamina);
+					const FMenuText* Qn = FindText(EMenuText::QuestName);
+					Present = Present && Name && Lv && Rk && Xl && Xn && Hp && Mp && Stm && Qn && FindText(EMenuText::XpLabel)
+					          && CountText(EMenuText::Section) == 3 && CountText(EMenuText::SkillName) == SaudMenu::Skills
+					          && CountText(EMenuText::TrackName) == Train::Tracks;
+					if (!Present) continue;
+					const bool bTop = S.LevelNext <= 0;
+					Values = Values && Lv->Value == S.Level && Rk->Value == S.Rank && Xl->Value == S.Earned
+					         && Xl->Aux == (bTop ? 0 : S.LevelNext) && Xn->Value == (bTop ? 0 : S.LevelNext - S.Earned)
+					         && Xn->Aux == (bTop ? 0 : S.Level + 1) && Hp->Value == S.MaxHealth && Mp->Value == S.MaxMana
+					         && Stm->Value == S.MaxStamina;
+					for (int k = 0; k < 3; ++k) Values = Values && NthText(EMenuText::Section, k)->Value == k;
+					// the quest: FIND THE WAY UP, IN PROGRESS, until the title is won
+					Quest = Quest && Qn->Value == (S.bQuestOpen ? 0 : 1)
+					        && (FindText(EMenuText::QuestState) != nullptr) == S.bQuestOpen;
+					// the skills: the name when found, "?" when not; the slot
+					// lit and marked when found; HAWK FIST's violet either way
+					for (int K = 0; K < SaudMenu::Skills; ++K)
+					{
+						const FMenuText* X = NthText(EMenuText::SkillName, K);
+						Skills = Skills && X && X->Value == K && X->Aux == (S.Skill[K] ? 1 : 0)
+						         && (S.Skill[K] ? SameRgb(X->Colour, SaudHud::Colour::Ice) && X->Colour.A > 0.99f : X->Colour.A < 0.6f);
+						int Marks = 0;
+						for (int t = 0; t < List.NumTris; ++t)
+							Marks += List.Tris[t].Part == EMenuPart::Mark && List.Tris[t].Tag == 2 + K;
+						Skills = Skills && Marks == (S.Skill[K] ? 2 : 0);
+						// the slot's keyline: the first Keyline triangles of the window, two a slot
+						int Seen = 0;
+						for (int t = 0; t < List.NumTris; ++t)
+						{
+							const FMenuTri& T = List.Tris[t];
+							if (T.Part != EMenuPart::Keyline || T.Item != -1) continue;
+							if (Seen++ != 2 * K) continue;
+							const FRgba Want = K == HawkFistSkill ? SaudHud::Colour::Shadow : SaudHud::Colour::System;
+							(K == HawkFistSkill ? Hawk : Skills) = (K == HawkFistSkill ? Hawk : Skills) && SameRgb(T.V[0].C, Want)
+							                                       && (S.Skill[K] ? T.V[0].C.A > 0.99f : T.V[0].C.A < 0.6f);
+							FBox Sl;
+							for (const FMenuVert& V : T.V) Add(Sl, V.P);
+							Skills = Skills && Overlap(Sl, TextBox(*X));
+						}
+						Skills = Skills && Seen == 2 * SaudMenu::Skills;
+					}
+					// every track's five pips, lit to its level
+					int Lit[Train::Tracks] = {}, Segs = 0;
+					for (int t = 0; t < List.NumTris; ++t)
+					{
+						const FMenuTri& T = List.Tris[t];
+						if (T.Part != EMenuPart::Meter || T.Item != -1) continue;
+						++Segs;
+						FBox B;
+						for (const FMenuVert& V : T.V) Add(B, V.P);
+						for (int Tk = 0; Tk < Train::Tracks; ++Tk)
+						{
+							const FRect& R = L.Pips[Tk];
+							if (B.Y0 >= R.Y - 0.5f && B.Y1 <= R.Y + R.H + 0.5f) Lit[Tk] += T.Tag;
+						}
+					}
+					Pipped = Pipped && Segs == 2 * 5 * Train::Tracks;
+					for (int Tk = 0; Tk < Train::Tracks; ++Tk) Pipped = Pipped && Lit[Tk] == 2 * S.Track[Tk];
+					// the XP bar: through this level as far as the earned XP is
+					{
+						FBox Fill, Trough;
+						for (int t = 0; t < List.NumTris; ++t)
+							if (List.Tris[t].Part == EMenuPart::Bar)
+								for (const FMenuVert& V : List.Tris[t].V) Add(List.Tris[t].Tag == 2 ? Fill : (List.Tris[t].Tag == 1 ? Trough : Win), V.P);
+						const float Want = bTop ? 1.f
+						    : static_cast<float>(S.Earned - S.LevelFloor) / static_cast<float>(S.LevelNext - S.LevelFloor);
+						const float Got = Fill.Any ? (Fill.X1 - Fill.X0) / (Trough.X1 - Trough.X0) : 0.f;
+						Bar = Bar && Trough.Any && Near(Got, Want, 1.f / (Trough.X1 - Trough.X0) + 1e-3f)
+						      && (!Fill.Any || (Near(Fill.X0, Trough.X0, 0.5f) && Fill.Y0 >= Trough.Y0 - 0.5f && Fill.Y1 <= Trough.Y1 + 0.5f));
+						Bar = Bar && Contrast(SaudHud::Colour::System, SaudHud::Colour::Trough) >= 3.f;
+					}
+					// every text of the window inside it, none touching another
+					for (int t = 0; t < List.NumTexts; ++t)
+					{
+						const FMenuText& X = List.Texts[t];
+						if (X.Part != EMenuPart::Window) continue;
+						const FBox B = TextBox(X);
+						InWindow = InWindow && Inside(Win, B);
+						for (int u = t + 1; u < List.NumTexts; ++u)
+							if (List.Texts[u].Part == EMenuPart::Window && Overlap(B, TextBox(List.Texts[u]))) Apart = false;
+					}
+					// the window clear of the column: its plates, the heading,
+					// the bar, the hint and the prompt strip -- its glow included
+					{
+						FBox Whole;
+						for (int t = 0; t < List.NumTris; ++t)
+						{
+							const EMenuPart Pt = List.Tris[t].Part;
+							if (Pt == EMenuPart::Glow || Pt == EMenuPart::Window || Pt == EMenuPart::Edge || Pt == EMenuPart::Bracket)
+								for (const FMenuVert& V : List.Tris[t].V) Add(Whole, V.P);
+						}
+						for (int i = 0; i < 2; ++i) Clear = Clear && !Overlap(Whole, ItemBox(i, false));
+						Clear = Clear && !Overlap(Whole, PartBox(EMenuPart::Slash)) && !Overlap(Whole, PartBox(EMenuPart::Glyph));
+						for (int t = 0; t < List.NumTexts; ++t)
+							if (List.Texts[t].Part != EMenuPart::Window) Clear = Clear && !Overlap(Whole, TextBox(List.Texts[t]));
+						Clear = Clear && Inside(Whole, Win, 0.5f) && Whole.X0 < Win.X0 && Whole.X1 > Win.X1;
+					}
+					// the window's look: a solid cyan edge, a glow fading to
+					// nothing, the navy panel, ice corner marks outside it
+					{
+						bool Edge = false, GlowIn = false, GlowOut = true;
+						int Brackets = 0;
+						for (int t = 0; t < List.NumTris; ++t)
+						{
+							const FMenuTri& T = List.Tris[t];
+							if (T.Part == EMenuPart::Edge) Edge = Edge || (SameRgb(T.V[0].C, SaudHud::Colour::System) && T.V[0].C.A > 0.99f);
+							if (T.Part == EMenuPart::Glow)
+							{
+								GlowIn = GlowIn || T.V[2].C.A > 0.3f;
+								// each glow triangle reaches the outer ring, where it is nothing
+								GlowOut = GlowOut && std::fmin(T.V[0].C.A, std::fmin(T.V[1].C.A, T.V[2].C.A)) < 1e-4f;
+							}
+							if (T.Part == EMenuPart::Window) Glows = Glows && (SameRgb(T.V[0].C, SaudHud::Colour::Panel) || SameRgb(T.V[0].C, SaudHud::Colour::System));
+							if (T.Part == EMenuPart::Bracket)
+							{
+								++Brackets;
+								for (const FMenuVert& V : T.V) Framed = Framed && !(V.P.X > Win.X0 + 0.5f && V.P.X < Win.X1 - 0.5f && V.P.Y > Win.Y0 + 0.5f && V.P.Y < Win.Y1 - 0.5f)
+								                                                && SameRgb(T.V[0].C, SaudHud::Colour::Ice);
+							}
+						}
+						Glows = Glows && Edge && GlowIn && GlowOut;
+						Framed = Framed && Brackets == 8;
+					}
+				}
+			}
+		}
+	}
+	std::printf("  %d builds: 6 saves x 3 pads x 2 focuses at 7 shapes\n", Builds);
+	Check(Present, "the status window shows SAUD, the level, the rank, XP, HP, MP, STAMINA, the skills, the tracks, the quest");
+	Check(Values, "...each read off the save: the level and rank from the earned XP, the XP to the next, the game's HP, MP, STAMINA");
+	Check(Skills, "a skill found shows its name in a lit, marked slot; one not found a dim '?' in a dim slot");
+	Check(Hawk, "HAWK FIST's slot is violet, found or not");
+	Check(Pipped, "every track shows its five levels, lit to the level bought");
+	Check(Bar, "the XP bar is as full as the earned XP is through the level (full at the top), 3:1 on its trough");
+	Check(Quest, "the quest is FIND THE WAY UP, IN PROGRESS, until the title is won, then removed");
+	Check(InWindow && Apart, "every line of the window is inside it, none touching another");
+	Check(Clear, "the window stands clear of the column, the heading, the hint and the prompt strip, its glow included");
+	Check(Glows, "the window is the System's: a solid cyan edge, a glow fading to nothing, the navy panel");
+	Check(Framed, "...and ice corner marks outside its two uncut corners");
+}
+
+static void TrainingPage()
+{
+	std::printf("TRAINING  (the store, at the seven shapes)\n");
+	const int Tracks[Train::Tracks] = {2, 1, 0, 5, 4, 0};
+	const bool Sk[SaudMenu::Skills] = {true, false, false, false, false};
+	bool Plates = true, Costs = true, Poor = true, Spend = true, Hints = true, Clear = true;
+	int Builds = 0;
+	for (const auto& Sh : Shapes)
+	{
+		const FPage P = FPage::For(Sh[0], Sh[1]);
+		for (int Xp : {0, 300, 600, 9999})
+		{
+			for (EPad Pad : Pads)
+			{
+				for (int Focus = 0; Focus < 7; ++Focus)
+				{
+					FMenuModel M = Model(EScreen::Training, true, Pad);
+					M.Status = MakeStatus(Xp, Tracks, Sk, false);
+					M.Focus = Focus;
+					M.FocusFrom = static_cast<float>(Focus);
+					Build(P, M, List);
+					++Builds;
+					const FMenuText* Sx = FindText(EMenuText::SpendXp);
+					Spend = Spend && Sx && Sx->Value == Xp && Sx->Colour.A > 0.99f && SameRgb(Sx->Colour, SaudHud::Colour::Ice)
+					        && Sx->At.Y >= PartBox(EMenuPart::Slash).Y1 && TextBox(*Sx).Y1 <= ItemBox(0, false).Y0;
+					const FMenuText* Hn = FindText(EMenuText::Hint);
+					Hints = Hints && Hn && Hn->Value == (Focus < 6 ? static_cast<int>(EHint::TrainBox) + Focus : static_cast<int>(EHint::BackPause));
+					for (int T = 0; T < Train::Tracks; ++T)
+					{
+						const FBox Pl = ItemBox(T, true);
+						const FMenuText* Lb = ItemText(T);
+						const FMenuText* Ct = nullptr;
+						for (int t = 0; t < List.NumTexts; ++t)
+							if (List.Texts[t].Item == T && List.Texts[t].Slot == EMenuText::CostTag) Ct = &List.Texts[t];
+						FBox Pips;
+						int Segs = 0, Lit = 0, Rules = 0;
+						for (int t = 0; t < List.NumTris; ++t)
+						{
+							const FMenuTri& Tr = List.Tris[t];
+							if (Tr.Item != T) continue;
+							if (Tr.Part == EMenuPart::Meter) { ++Segs; Lit += Tr.Tag; for (const FMenuVert& V : Tr.V) Add(Pips, V.P); }
+							if (Tr.Part == EMenuPart::Mark) { ++Rules; Poor = Poor && SameRgb(Tr.V[0].C, SaudHud::Colour::Danger); }
+						}
+						Plates = Plates && Lb && Lb->Slot == EMenuText::TrackName && Lb->Value == T && Segs == 10
+						         && Lit == 2 * Tracks[T] && Inside(Pl, Pips) && TextBox(*Lb).X1 < Pips.X0;
+						const bool bTop = Tracks[T] >= Train::MaxLevel;
+						Costs = Costs && Ct && Ct->Value == (bTop ? -1 : Train::Cost(Tracks[T])) && Inside(Pl, TextBox(*Ct))
+						        && Pips.X1 < TextBox(*Ct).X0;
+						Poor = Poor && Rules == (!bTop && Xp < Train::Cost(Tracks[T]) ? 2 : 0);
+					}
+					// the pips of every plate line up
+					float X0 = -1.f;
+					for (int T = 0; T < Train::Tracks; ++T)
+					{
+						FBox Pi;
+						for (int t = 0; t < List.NumTris; ++t)
+							if (List.Tris[t].Item == T && List.Tris[t].Part == EMenuPart::Meter)
+								for (const FMenuVert& V : List.Tris[t].V) Add(Pi, V.P);
+						const float X = Pi.X0 - ItemBox(T, true).X0;
+						if (X0 < 0.f) X0 = X;
+						Clear = Clear && Near(X, X0, 0.5f);
+					}
+				}
+			}
+		}
+	}
+	std::printf("  %d builds: 4 purses x 3 pads x 7 focuses at 7 shapes\n", Builds);
+	Check(Plates, "every track's plate: its name, then its five levels lit to the level bought");
+	Check(Costs, "...then what the next level costs (MAX at the top), right on the plate, clear of the pips");
+	Check(Clear, "the pips of every plate line up");
+	Check(Poor, "a crimson rule under every cost the XP will not cover, and only those");
+	Check(Spend, "the XP to spend under the heading's bar, in ice, above the plates");
+	Check(Hints, "the hint says what each track gives (BACK: back to the pause)");
+}
+
+static void Buying()
+{
+	std::printf("BUYING  (the model)\n");
+	// asked first: Confirm on a track it can buy opens the question, NO first
+	{
+		FMenuModel M = Model(EScreen::Training, true, EPad::Xbox);
+		M.Status = MidStatus(600);   // BOXING at 2: 380 for the third
+		const int Box = IndexOf(M, EItem::TrainBox);
+		M.Focus = Box;
+		Check(Navigate(M, EAction::Confirm) == EMenuEffect::Tap && M.Screen == EScreen::Confirm && M.Ask == EAsk::Train
+		      && M.TrainTrack == 0 && M.Focus == 0 && M.Status.Spendable == 600, "a track it can buy is asked first, on NO; nothing spent yet");
+		Check(Navigate(M, EAction::Confirm) == EMenuEffect::Back && M.Screen == EScreen::Training && M.Focus == Box
+		      && M.Status.Spendable == 600 && M.Status.Track[0] == 2, "...NO goes back to the track, nothing spent");
+		Navigate(M, EAction::Confirm);
+		Check(Navigate(M, EAction::Back) == EMenuEffect::Back && M.Screen == EScreen::Training && M.Status.Spendable == 600,
+		      "...Back is NO");
+		Navigate(M, EAction::Confirm);
+		Navigate(M, EAction::NavDown);
+		const int Level = M.Status.Level, Earned = M.Status.Earned;
+		Check(Navigate(M, EAction::Confirm) == EMenuEffect::Train && M.Screen == EScreen::Training && M.Focus == Box
+		      && M.TrainTrack == 0, "YES buys it: Train, back on the track");
+		Check(M.Status.Spendable == 600 - 380 && M.Status.Track[0] == 3, "...the cost spent, the track a level up");
+		Check(M.Status.Level == Level && M.Status.Earned == Earned, "...and his level does not move: training never costs one");
+	}
+	// refused: too poor, or at the top
+	{
+		FMenuModel M = Model(EScreen::Training, true, EPad::Xbox);
+		M.Status = MidStatus(379);   // BOXING's third is 380
+		M.Focus = IndexOf(M, EItem::TrainBox);
+		Check(Navigate(M, EAction::Confirm) == EMenuEffect::Denied && M.Screen == EScreen::Training && M.Status.Spendable == 379
+		      && M.Status.Track[0] == 2, "a cost the XP will not cover is denied, nothing spent");
+		Check(HintOf(M, EItem::TrainBox) == EHint::Poor, "...the hint says NOT ENOUGH XP");
+		const FPage P = FPage::For(1920, 1080);
+		M.Since = 1.f;
+		Build(P, M, List);
+		bool Crimson = false;
+		for (int t = 0; t < List.NumTris; ++t)
+			if (List.Tris[t].Item == M.Focus && List.Tris[t].Part == EMenuPart::Keyline)
+				Crimson = SameRgb(List.Tris[t].V[0].C, SaudHud::Colour::Danger);
+		Check(Crimson, "...its plate's keyline crimson");
+		Step(M, DeniedSeconds + 0.01f);
+		Check(HintOf(M, EItem::TrainBox) == EHint::TrainBox, "...for 1.2 s, then the hint is the track's again");
+		Navigate(M, EAction::Confirm);
+		Navigate(M, EAction::NavDown);
+		Check(HintOf(M, EItem::TrainKick) == EHint::TrainKick && M.DeniedLeft <= 0.f, "...or until the focus moves");
+		M.Status = MidStatus(99999);
+		M.Status.Track[5] = Train::MaxLevel;
+		M.Focus = IndexOf(M, EItem::TrainIron);
+		Check(Navigate(M, EAction::Confirm) == EMenuEffect::Denied && M.Status.Spendable == 99999 && HintOf(M, EItem::TrainIron) == EHint::Maxed,
+		      "a track at its top is denied: FULLY TRAINED");
+		// a purse emptied under an open question is refused at YES
+		M = Model(EScreen::Training, true, EPad::Xbox);
+		M.Status = MidStatus(500);
+		M.Focus = IndexOf(M, EItem::TrainBox);
+		Navigate(M, EAction::Confirm);
+		M.Status.Spendable = 10;
+		Navigate(M, EAction::NavDown);
+		Check(Navigate(M, EAction::Confirm) == EMenuEffect::Denied && M.Status.Spendable == 10 && M.Status.Track[0] == 2,
+		      "YES is checked again: a purse emptied under the question is denied");
+	}
+	// the question names the track and the level, and YES carries the cost
+	{
+		FMenuModel M = Model(EScreen::Confirm, true, EPad::Xbox, EScreen::Pause, EAsk::Train);
+		const FPage P = FPage::For(1920, 1080);
+		Build(P, M, List);
+		const FMenuText* Hn = FindText(EMenuText::Hint);
+		const FMenuText* Ct = FindText(EMenuText::CostTag);
+		Check(Hn && Hn->Value == static_cast<int>(EHint::AskTrain) && Hn->Aux == 0 * 10 + 3
+		      && std::strcmp(Spell(Hn->Slot, Hn->Value, Hn->Aux).S, "TRAIN BOXING TO LEVEL 3") == 0
+		      && FindText(EMenuText::AskHead) && FindText(EMenuText::AskHead)->Value == 2,
+		      "the question: TRAIN? -- TRAIN BOXING TO LEVEL 3");
+		Check(Ct && Ct->Item == 1 && Ct->Value == Train::Cost(2), "...its YES carries the cost");
+	}
+	// back out the way in: Pause > Status > Training > the question > YES,
+	// then Back, Back: on the Pause's STATUS
+	{
+		FMenuModel M = Model(EScreen::Confirm, true, EPad::Xbox, EScreen::Status, EAsk::Train);
+		const bool In = M.Screen == EScreen::Confirm && M.Root == EScreen::Pause;
+		Navigate(M, EAction::NavDown);
+		const bool Bought = Navigate(M, EAction::Confirm) == EMenuEffect::Train && M.Screen == EScreen::Training;
+		const bool Hint = HintOf(M, EItem::Back) == EHint::BackStatus;
+		const bool Up1 = Navigate(M, EAction::Back) == EMenuEffect::Back && M.Screen == EScreen::Status && M.Focus == 0;
+		const bool Up2 = Navigate(M, EAction::Back) == EMenuEffect::Back && M.Screen == EScreen::Pause
+		                 && M.Focus == IndexOf(M, EItem::Status);
+		Check(In && Bought && Hint && Up1 && Up2,
+		      "Back goes back the way in: the Training to the Status, the Status to the Pause's STATUS");
+		FMenuModel T = Model(EScreen::Training, true, EPad::Xbox, EScreen::Pause);
+		Check(Navigate(T, EAction::Back) == EMenuEffect::Back && T.Screen == EScreen::Pause && T.Focus == IndexOf(T, EItem::Training)
+		      && Navigate(T, EAction::Back) == EMenuEffect::Resume, "...the Training opened from the Pause to its TRAINING");
+		FMenuModel S = Model(EScreen::Status, true, EPad::Xbox);
+		Check(Navigate(S, EAction::NavLeft) == EMenuEffect::None && Navigate(S, EAction::Pause) == EMenuEffect::None
+		      && S.Screen == EScreen::Status, "left, right and the pause button do nothing on the status");
+	}
+	// spelled: every slot's string is what Chars measures
+	{
+		bool Ok = true;
+		for (int Sl = 0; Sl <= static_cast<int>(EMenuText::QuestState); ++Sl)
+		{
+			if (Sl == static_cast<int>(EMenuText::ControlsText)) continue;
+			for (int V = -1; V < 30; ++V)
+				for (int A = 0; A < 60; A += 7)
+				{
+					const FSpelled S = Spell(static_cast<EMenuText>(Sl), V, A);
+					int N = 0;
+					while (S.S[N]) ++N;
+					Ok = Ok && N == Chars(static_cast<EMenuText>(Sl), V, A) && (N > 0 || V < 0 || V > 5 || (Sl == static_cast<int>(EMenuText::SkillName) && V > 4));
+				}
+		}
+		Check(Ok && std::strcmp(Spell(EMenuText::CostTag, 640).S, "640 XP") == 0 && std::strcmp(Spell(EMenuText::CostTag, -1).S, "MAX") == 0
+		      && std::strcmp(Spell(EMenuText::XpLine, 790, 860).S, "790 / 860 XP") == 0
+		      && std::strcmp(Spell(EMenuText::XpToNext, 70, 15).S, "70 TO LEVEL 15") == 0
+		      && std::strcmp(Spell(EMenuText::SkillName, 4, 0).S, "?") == 0 && std::strcmp(Spell(EMenuText::SkillName, 4, 1).S, "HAWK FIST") == 0
+		      && std::strcmp(Spell(EMenuText::QuestName, 0).S, "FIND THE WAY UP") == 0
+		      && std::strcmp(Spell(EMenuText::QuestState, 0).S, "IN PROGRESS") == 0,
+		      "every slot spells itself, and Chars is its length");
+		Check(SpellsItself(EMenuText::QuestName, 0) && SpellsItself(EMenuText::AskHead, 2) && !SpellsItself(EMenuText::AskHead, 1)
+		      && SpellsItself(EMenuText::Hint, static_cast<int>(EHint::AskTrain)) && !SpellsItself(EMenuText::Hint, 0)
+		      && !SpellsItself(EMenuText::Resume, 0), "the engine is told which slots it must spell from here");
+	}
+}
+
 int main()
 {
 	ModelRules();
 	PageRules();
+	TrainingNumbers();
+	StatusPage();
+	TrainingPage();
+	Buying();
 #if defined(SAUD_MENU_STUB_CONTROLS)
 	std::printf("  (built against the stub of SaudControls: Glyph asked for xbox %d, ps %d, keyboard %d times)\n",
 	            SaudControls::StubGlyphPad[0], SaudControls::StubGlyphPad[1], SaudControls::StubGlyphPad[2]);

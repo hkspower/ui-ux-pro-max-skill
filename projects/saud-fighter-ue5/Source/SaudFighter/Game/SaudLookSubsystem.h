@@ -4,8 +4,10 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Combat/SaudAnime.h"
 #include "Combat/SaudFire.h"
+#include "Combat/SaudTypes.h"
 #include "SaudLookSubsystem.generated.h"
 
+class AActor;
 class AFighterBase;
 class ASaudCharacter;
 class APostProcessVolume;
@@ -43,6 +45,17 @@ struct FHitResultData;
  * heavy blow landed, projected each tick from the victim as he moves, the
  * same way the fire's burst is.
  *
+ * The System's events (2026-10-07): the windows track calls OnSystemEvent
+ * when the System speaks -- a level, a skill, a rank, a quest done, a gate
+ * opened -- and the picture answers (SaudAnime::SystemFx): a pillar of cyan
+ * light round Saud, a ring burst and a rim on him, a wider ring, a glow
+ * round the screen's edge, a flash at the gate. Their ages run in real time
+ * and Saud and the gate are projected each tick, as the fire's fist is. And
+ * a heavy blow of Saud's that lands leaves a thin cyan trail along the path
+ * his striking limb took (SystemFx::FTrail): the limb's tip is recorded
+ * through every heavy swing of his and the last 0.12 s of it taken when the
+ * blow lands.
+ *
  * If the assets are not there (the editor script has not been run), it
  * logs once and does nothing: the game is exactly the game without it.
  */
@@ -63,6 +76,14 @@ public:
 	    call) goes ember. */
 	void OnBurn(const AFighterBase* Victim);
 
+	/** The System spoke (the windows track, SaudSystemSubsystem): the picture
+	    shows Fx. Where is what it happened at -- the gate for GateOpened (no
+	    gate, no flash); a level, a skill and a rank are drawn about the
+	    player's Saud whatever Where is, and a quest round the screen. Skill:
+	    the talent a SkillAcquired gave -- HAWK FIST's is drawn in violet and
+	    ember; left None, the System's cyan and ice. */
+	void OnSystemEvent(SaudAnime::ESystemFx Fx, const AActor* Where, EAbility Skill = EAbility::None);
+
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Deinitialize() override;
 	virtual void Tick(float DeltaTime) override;
@@ -76,6 +97,21 @@ private:
 
 	/** Saud's power-up (2026-10-03): his aura's level, eased in real time. */
 	SaudAnime::Power::FPower Power;
+
+	/** The System's events in the picture, and the trail on his heavy blows
+	    (2026-10-07), in real time. */
+	SaudAnime::SystemFx::FEvents SysFx;
+	SaudAnime::SystemFx::FTrail Trail;
+
+	/** Real seconds since the world began: the trail's samples are stamped
+	    with it. */
+	float RealClock = 0.f;
+
+	/** The heavy swing whose limb is being recorded (None between swings). */
+	FName TrailRow = NAME_None;
+
+	/** The gate a GateOpened flash is drawn at. */
+	TWeakObjectPtr<const AActor> FlashAt;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialParameterCollection> Collection = nullptr;
@@ -104,6 +140,7 @@ private:
 		Impact, Invert, Speed, Seed, FireHeat, BurnAge, Boil,
 		Tone, Wound, MarkAge, MarkX, MarkY, MarkDepth, MarkScale, MarkSeed,
 		Aura, AuraTime,
+		SysPillarAge, SysBurstAge, SysBurstHawk, SysRankAge, SysQuestAge, SysFlashAge, TrailAge,
 		Count
 	};
 
@@ -119,6 +156,16 @@ private:
 	/** Saud's aura and eyes: the level from his rage and the finisher, his
 	    middle and his eyes projected as the fire's fist is. */
 	void WritePower(const ASaudCharacter* Saud, float RealSeconds);
+	/** The System's events: their ages, Saud's middle and feet while one is
+	    drawn about him, the gate's point while it flashes. */
+	void WriteSystem(const ASaudCharacter* Saud);
+	/** The trail: the striking limb's tip recorded through a heavy swing of
+	    his, and the trail's points projected while it shows. */
+	void RecordTrail(const ASaudCharacter* Saud);
+	void WriteTrail();
+	/** The world position of the tip Saud's current strike lands with (the
+	    knuckles, the ball of the foot, the knee); false between strikes. */
+	bool StrikingTip(const ASaudCharacter* Saud, FVector& OutTip) const;
 	/** A world point as the fire parameters want it: viewport fraction (Y
 	    down), scene depth in cm, and the size of one figure pixel there as
 	    a fraction of the viewport's height. False when it cannot be seen. */

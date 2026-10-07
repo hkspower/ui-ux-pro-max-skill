@@ -607,3 +607,178 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#In.ReleaseSeconds, In.StepSeconds);#Rele
 ik|Source/SaudFighter/Combat/SaudIK.h|s#H.Seconds = bStep ? Step : Release;#H.Seconds = bStep ? StepSeconds + 0.f * Step : Release;#|a foot is handed back and a shuffle stepped in the man's own time
 ik|Source/SaudFighter/Combat/SaudIK.h|s#else if (Is(Row, "Special")) Arm('r');##|StrikeOf a set's row is the limb its own clip throws with
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (Is(Row, "Jab")) Arm('r');#if (Is(Row, "Jab")) Arm('l');#|StrikeOf a set's row is the limb its own clip throws with
+
+# The status and training screens' sabotages (2026-10-07, "the System,
+# deeper", track B), in bites.txt's format:
+#   test|file|sed expression|text of the FAIL line it must cause
+# Each breaks one rule tests/menu.cpp holds for the STATUS and TRAINING
+# screens, the ladder, the costs and the shop's call, and must be caught by
+# the check written for it. No sed expression may contain a bar.
+#
+# Run with a copy of bite.sh that reads this file, copies Source/SaudFighter/
+# Game and Content/Data into its scratch tree as well (two of these break
+# Game/SaudGameInstance.cpp, which the test reads as text) and runs the test
+# from that tree, so the test reads the broken copy. bites.txt's own runner
+# copies only Combat and Tools/harness and runs from the project root.
+
+# ---- the numbers: the ladder, the costs, the ids, the stats
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#return 120 + 130 \* Level;#return 120 + 120 * Level;#|the costs are DT_Upgrades.csv's, level by level and summed
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#{"Box", "Kick", "Vit", "Spd", "Stam", "Iron"}#{"Boxing", "Kick", "Vit", "Spd", "Stam", "Iron"}#|every DT_Upgrades Track id is a track the shop buys
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (Same(Name, Id(T))#if (Same(Name, LongId(T))#|every DT_Upgrades Track id is a track the shop buys
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#return (180 \* N + 31 \* N \* N + 5) / 10;#return (180 * N + 31 * N * N) / 10;#|the ladder is DT_Levels.csv's
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (Level >= 6) return 2;#if (Level >= 7) return 2;#|every level's title is DT_Levels.csv's
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#while (L < MaxLevel && Earned >= Need(L + 1)) ++L;#while (L < MaxLevel \&\& Earned > Need(L + 1)) ++L;#|the level is the highest the earned XP reaches
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#S.Earned = S.Spendable + Spent;#S.Earned = S.Spendable;#|the earned XP is the spendable plus what training has cost
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#S.Earned = S.Spendable + Spent;#S.Earned = S.Spendable;#|his level does not move: training never costs one
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#HealthPerVitality = 18;#HealthPerVitality = 20;#|HP, MP and STAMINA are the game's
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Stats::HealthPerVitality \* S.Track\[2\];#Stats::HealthPerVitality * S.Track[0];#|VITALITY gives 18 HP a level, STAMINA 12
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#S.bQuestOpen = !bWonTitle;#S.bQuestOpen = static_cast<bool>(1 + 0 * bWonTitle);#|the quest is removed once the title is won
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#{"VAULT", "DASH LEAP", "POWER KICK"#{"VAULT", "POWER KICK", "DASH LEAP"#|the five skills are DT_Talents.csv's
+# ---- the shop's own call (Game/SaudGameInstance.cpp, read as text)
+menu|Source/SaudFighter/Game/SaudGameInstance.cpp|s#SaudMenu::Train::TrackOf(TCHAR_TO_ANSI(\*TrackId.ToString()))#(TrackId == TEXT("Boxing") ? 0 : -1)#|TryPurchaseUpgrade takes the table's ids through SaudMenu::Train
+menu|Source/SaudFighter/Game/SaudGameInstance.cpp|s#{\&Progress.BoxingLevel, \&Progress.KickingLevel,#{\&Progress.KickingLevel, \&Progress.BoxingLevel,#|TryPurchaseUpgrade takes the table's ids through SaudMenu::Train
+menu|Source/SaudFighter/Game/SaudGameInstance.cpp|s#return SaudMenu::Train::Cost(CurrentLevel);#return 120 + CurrentLevel * 130;#|GetUpgradeCost is the table's
+menu|Source/SaudFighter/Game/SaudGameInstance.h|s#{ return Progress.Experience + GetSpentExperience(); }#{ return Progress.Experience; }#|the earned XP is the spendable plus what the six tracks cost
+menu|Source/SaudFighter/Game/SaudGameInstance.cpp|s#FName(TEXT("AlHalqa"))#FName(TEXT("BilaNihaya"))#|the title is won when AL-HALQA, the arena's boss stage, is cleared
+
+# ---- buying, in the model
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#return AskTrain(M, TrackOfItem(I));#M.TrainTrack = TrackOfItem(I); return Buy(M);#|a track it can buy is asked first, on NO
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (M.Status.Spendable < Train::Cost(L)) return Deny(M, M.Focus, false);#{}#|a cost the XP will not cover is denied, nothing spent
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (L >= Train::MaxLevel) return Deny(M, M.Focus, true);#{}#|a track at its top is denied: FULLY TRAINED
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#S.Spendable -= Train::Cost(L);#S.Spendable -= 0;#|the cost spent, the track a level up
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#++S.Track\[T\];#S.Track[T] += 0;#|the cost spent, the track a level up
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (S.Spendable < Train::Cost(L)) return Deny(M, M.Focus, false);#{}#|YES is checked again
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#return M.bDeniedMaxed ? EHint::Maxed : EHint::Poor;#return EHint::Maxed;#|the hint says NOT ENOUGH XP
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Fade(bDenied ? Colour::Danger :#Fade(bDenied ? Colour::System :#|its plate's keyline crimson
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#M.DeniedLeft = FMath::Max(0.f, M.DeniedLeft - Dt);#M.DeniedLeft = FMath::Max(0.f, M.DeniedLeft - 0.f * Dt);#|then the hint is the track's again
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#M.DeniedLeft = 0.f;   // a denial is about the item it was on##|or until the focus moves
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (M.Screen != M.Root && M.Depth < FMenuModel::MaxDepth)#if (false \&\& M.Depth < FMenuModel::MaxDepth)#|Back goes back the way in
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#M.ReturnTo = M.OuterTo\[M.Depth\];#M.ReturnTo = M.Screen;#|Back goes back the way in
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#return M.ReturnTo == EScreen::Status ? EHint::BackStatus#return M.ReturnTo == EScreen::Status ? EHint::BackPause#|Back goes back the way in
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#const bool bScrim = M.Root == EScreen::Pause#const bool bScrim = M.ReturnTo == EScreen::Pause#|the pause (and what it opens, and the diagram) stands over a scrim
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Out\[1\] = EItem::Status;#Out[1] = EItem::Controls;#|Pause: RESUME, STATUS, TRAINING, CONTROLS, SETTINGS, QUIT TO TITLE
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#PlateArrive = 0.24f;#PlateArrive = 0.30f;#|is settled -- the page at rest -- by 0.6 s
+
+# ---- the status window
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Line(EMenuText::LevelLine, S.Level,#Line(EMenuText::LevelLine, S.Rank,#|each read off the save
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#bTop ? 0 : S.LevelNext - S.Earned,#bTop ? 0 : S.LevelNext,#|each read off the save
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Line(EMenuText::StatHp, S.MaxHealth,#Line(EMenuText::StatHp, S.MaxMana,#|each read off the save
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Line(EMenuText::SkillName, K, bHas ? 1 : 0,#Line(EMenuText::SkillName, K, 1,#|a skill found shows its name in a lit, marked slot
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#^\t\t\t\tif (bHas)$#\t\t\t\tif (true)#|a skill found shows its name in a lit, marked slot
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#const FRgba Edge = K == HawkFistSkill ? SaudHud::WithAlpha(Colour::Shadow#const FRgba Edge = K == HawkFistSkill ? SaudHud::WithAlpha(Colour::System#|HAWK FIST's slot is violet
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#P.Px(WinPipGap), S.Track\[Tk\], Cyan#P.Px(WinPipGap), S.Track[Tk] / 2, Cyan#|every track shows its five levels, lit to the level bought
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#static_cast<float>(S.Earned - S.LevelFloor)#static_cast<float>(S.Earned)#|the XP bar is as full as the earned XP is through the level
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Line(EMenuText::QuestName, S.bQuestOpen ? 0 : 1,#Line(EMenuText::QuestName, 0,#|the quest is FIND THE WAY UP, IN PROGRESS, until the title is won
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#^\t\t\tif (S.bQuestOpen)$#\t\t\tif (true)#|the quest is FIND THE WAY UP, IN PROGRESS, until the title is won
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#L.Stat\[2\] = {In + 0.58f \* CW, At};#L.Stat[2] = {In + 0.80f * CW, At};#|every line of the window is inside it, none touching another
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#constexpr float WinGap = 48.f;#constexpr float WinGap = 0.f;#|the window stands clear of the column
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#P.Right() - P.Px(SaudHud::WindowInset) - X#P.Right() - X#|every vertex the menu draws is inside the title-safe area
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#WithAlpha(Colour::System, 0.f), EMenuPart::Glow#WithAlpha(Colour::System, 0.3f), EMenuPart::Glow#|the window is the System's: a solid cyan edge, a glow fading to nothing
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#const FRgba Ice = WithAlpha(Colour::Ice, 0.9f \* A);#const FRgba Ice = WithAlpha(Colour::System, 0.9f * A);#|ice corner marks outside its two uncut corners
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#R.W \*= Arrive(M, WinDelay, WinWipe);#R.W *= Arrive(M, WinDelay, 0.8f);#|is settled -- the page at rest -- by 0.6 s
+
+# ---- the training
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Pips(Out, Pr, P.Px(PipGap), Lv,#Pips(Out, Pr, P.Px(PipGap), Lv / 2,#|every track's plate: its name, then its five levels lit to the level bought
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#const int Cost = bTop ? -1 : Train::Cost(Lv);#const int Cost = bTop ? -1 : Train::Cost(Lv + 1);#|then what the next level costs (MAX at the top)
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Train::Cost(Train::MaxLevel - 1), TH);#Cost, TH);#|the pips of every plate line up
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (!bTop && M.Status.Spendable < Cost)#if (!bTop)#|a crimson rule under every cost the XP will not cover, and only those
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Out.Text(EMenuText::SpendXp, M.Status.Spendable,#Out.Text(EMenuText::SpendXp, M.Status.Earned,#|the XP to spend under the heading's bar
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#return static_cast<EHint>(static_cast<int>(EHint::TrainBox) + TrackOfItem(I));#return EHint::TrainBox;#|the hint says what each track gives
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#M.Status.Track\[M.TrainTrack\] + 1 : 0;#M.Status.Track[M.TrainTrack] : 0;#|the question: TRAIN? -- TRAIN BOXING TO LEVEL 3
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (List\[i\] == EItem::ConfirmYes && M.Ask == EAsk::Train#if (false \&\& M.Ask == EAsk::Train#|its YES carries the cost
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#O.Num(Value).Add(" XP");#O.Num(Value).Add("XP");#|every slot spells itself, and Chars is its length
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (static_cast<int>(Slot) >= static_cast<int>(EMenuText::Status)) return true;#if (static_cast<int>(Slot) >= static_cast<int>(EMenuText::QuestState)) return true;#|the engine is told which slots it must spell from here
+
+
+# The System's sabotages (2026-10-07), in bites.txt's format, one a line:
+#   test|file|sed expression|text of the FAIL line it must cause
+# Each breaks one rule tests/system.cpp holds; each must be caught by the
+# check written for it. Run with a copy of bite.sh that reads this file and
+# also copies Content/Data (the lines are data) and runs the test from the
+# copy's root (the lead merges this into bites.txt; until then
+# BITES=Tools/harness/bites_system.txt and the two changes). No sed
+# expression may contain a bar.
+
+# ---- the queue
+system|Source/SaudFighter/Combat/SaudSystem.h|s#case EKind::LevelUp:       return {60,#case EKind::LevelUp:       return {75,#|at once: QUEST COMPLETE, then LEVEL UP
+system|Source/SaudFighter/Combat/SaudSystem.h|s#if (!Window.bOn \&\& WindowWait <= 0.f)#if (WindowWait <= 0.f)#|at most one window and one toast at once
+system|Source/SaudFighter/Combat/SaudSystem.h|s#Wait = FMath::Max(Wait, S->bCut ? 0.f : (S == \&Window ? WindowGap : ToastGap));#Wait = 0.f;#|a level up during a quest complete waits for it to go, and a gap after
+system|Source/SaudFighter/Combat/SaudSystem.h|s#constexpr float WindowGap = 0.20f;#constexpr float WindowGap = 0.f;#|a gap of at least 0.20 s between one window and the next
+system|Source/SaudFighter/Combat/SaudSystem.h|s#return {100, ELane::Window, 0.20f, 2.6f, 0.30f, true};#return {100, ELane::Window, 0.20f, 2.6f, 0.30f, false};#|a man going down cuts what is showing
+system|Source/SaudFighter/Combat/SaudSystem.h|s#Queue\[i\].Args.Hp += E.Args.Hp;#Queue[i].Args.Hp = E.Args.Hp;#|two level ups not yet shown are one window
+system|Source/SaudFighter/Combat/SaudSystem.h|s#constexpr float BossHold = SaudHud::BannerRevealSeconds + 0.30f;#constexpr float BossHold = 0.f;#|the boss's WARNING is the HUD's
+system|Source/SaudFighter/Combat/SaudSystem.h|s#default:                   return {0, ELane::None,#default:                   return {0, ELane::Window,#|the boss's WARNING is the HUD's: no System window of its own
+system|Source/SaudFighter/Combat/SaudSystem.h|s#case EKind::GateCleared:   return {20, ELane::Toast,#case EKind::GateCleared:   return {20, ELane::Window,#|the toast is the gate's, the window everything else's
+system|Source/SaudFighter/Combat/SaudSystem.h|s#else if (FindPending(E.Kind, E.Key) >= 0)#else if (false \&\& FindPending(E.Kind, E.Key) >= 0)#|an area's quest pushed twice before it shows is said once
+system|Source/SaudFighter/Combat/SaudSystem.h|s#if (PriorityOf(Queue\[Low\]) >= R.Priority) return;#if (true) return;#|a full queue drops the least of what waits
+system|Source/SaudFighter/Combat/SaudSystem.h|s#if (NumOpened < 2) Opened\[NumOpened++\] = Into.E.Kind;#(void)Opened;#|what opened is reported for the look's flourish
+system|Source/SaudFighter/Combat/SaudSystem.h|s#if (K == EKind::SkillAcquired \&\& Same(Key, "HawkFist")) return ETint::Shadow;#(void)Key;#|drawn: HAWK FIST's window edged violet
+system|Source/SaudFighter/Combat/SaudSystem.h|s#if (K == EKind::Down) return ETint::Danger;#(void)0;#|a man going down cuts what is showing, at once, and the window is crimson
+
+# ---- the clock
+system|Source/SaudFighter/Combat/SaudSystem.h|s#const float Dt = FMath::Clamp(Clock.Real, 0.f, 0.25f);#const float Dt = FMath::Clamp(Clock.World, 0.f, 0.25f);#|the same through a blow's freeze
+system|Source/SaudFighter/Combat/SaudSystem.h|s#S->Age += Dt;#S->Age += 2.f * Dt;#|a window opens, holds and closes over its own real seconds
+system|Source/SaudFighter/Combat/SaudSystem.h|s#bool TextShown() const { return Age >= Open; }#bool TextShown() const { return Age >= 0.5f * Open; }#|every word inside its own window
+system|Source/SaudFighter/Combat/SaudSystem.h|s#return {85, ELane::Window, 0.20f, 1.8f, 0.12f, false};#return {85, ELane::Window, 0.20f, 1.8f, 0.40f, false};#|AL-SAQR's window fades fast
+system|Source/SaudFighter/Combat/SaudSystem.h|s#ReadMin = 2.4f#ReadMin = 1.0f#|the victory's window holds longest; the rest long enough to read
+system|Source/SaudFighter/Combat/SaudSystem.h|s#return {90, ELane::Window, 0.40f, 4.0f, 0.60f, false};#return {90, ELane::Window, 0.40f, 2.0f, 0.60f, false};#|the victory's window holds longest
+
+# ---- the open quest
+system|Source/SaudFighter/Combat/SaudSystem.h|s#if (Into.E.Kind == EKind::QuestGiven) bQuestOpen = true;#(void)0;#|the open quest is shown from the first landing's window
+system|Source/SaudFighter/Combat/SaudSystem.h|s#if (Into.E.Kind == EKind::QuestRemoved) bQuestOpen = false;#(void)0;#|the victory's QUEST REMOVED takes the open quest away
+system|Source/SaudFighter/Combat/SaudSystem.h|s#QuestShow = bQuestOpen ? FMath::Min#QuestShow = true ? FMath::Min#|the open quest is not shown before the first landing
+
+# ---- the page
+system|Source/SaudFighter/Combat/SaudSystem.h|s#const float Y = P.Top() + Inset;#const float Y = P.Top() + Inset + P.Px(60.f);#|nothing the System draws is over the fight's centre box
+system|Source/SaudFighter/Combat/SaudSystem.h|s#return FMath::Min(FMath::Max(Need, P.Px(SideMinW)), Avail);#return FMath::Max(Need, P.Px(SideMinW + 200.f));#|nothing the System draws is over the fight's centre box
+system|Source/SaudFighter/Combat/SaudSystem.h|s#const float Clear = StatusRight(P) + P.Px(GapPx) + Inset;#const float Clear = StatusRight(P) - P.Px(40.f);#|nothing the System draws is over the HUD's own windows
+system|Source/SaudFighter/Combat/SaudSystem.h|s#return {P.Left() + P.Px(SaudHud::WindowInset), StatusBottom(P)#return {P.Left(), StatusBottom(P)#|every vertex the System draws is inside title-safe
+system|Source/SaudFighter/Combat/SaudSystem.h|s#StatusBottom(P) + P.Px(GapPx) + P.Px(SaudHud::WindowInset), W, QuestHeight(P)#StatusBottom(P) - P.Px(30.f), W, QuestHeight(P)#|nothing the System draws is over the HUD's own windows
+system|Source/SaudFighter/Combat/SaudSystem.h|s#const float Y = bUnderQuest ?#const float Y = (bUnderQuest \&\& false) ?#|the window, the toast and the open quest never overlap
+system|Source/SaudFighter/Combat/SaudSystem.h|s#constexpr float TopPad = 8.f, RowGap = 4.f, BottomPad = 10.f;#constexpr float TopPad = 8.f, RowGap = 4.f, BottomPad = 40.f;#|nothing the System draws is over the fight's centre box
+system|Source/SaudFighter/Combat/SaudSystem.h|s#constexpr float HeadText = 40.f;#constexpr float HeadText = 26.f;#|no word the System shows is under 1/36 of the screen
+system|Source/SaudFighter/Combat/SaudSystem.h|s#const float Pad = P.Px(PadPx), Stroke = P.Px(SaudHud::TextStroke), Head = P.Px(SaudHud::HeadH);#const float Pad = P.Px(PadPx), Stroke = P.Px(1.f), Head = P.Px(SaudHud::HeadH);#|every word stroked in ink
+system|Source/SaudFighter/Combat/SaudSystem.h|s#SaudHud::LerpColour(SaudHud::Colour::Shadow, SaudHud::Colour::Ice, 0.5f)#SaudHud::Colour::Shadow#|headings 4.5:1 against it, the rest 7:1
+system|Source/SaudFighter/Combat/SaudSystem.h|s#const FRgba Ice = A(SaudHud::Colour::Ice), Title#const FRgba Ice = A(EdgeColour(Tint)), Title#|headings 4.5:1 against it, the rest 7:1
+system|Source/SaudFighter/Combat/SaudSystem.h|s#SaudHud::Window(Out.Shapes, P, R, EdgeColour(Tint), 1.f,#SaudHud::Window(Out.Shapes, P, R, EdgeColour(Tint), 0.f,#|every System window has a solid edge and a glow
+system|Source/SaudFighter/Combat/SaudSystem.h|s#constexpr float RowSep = 28.f;#constexpr float RowSep = -60.f;#|the first line and its reward never run into each other
+system|Source/SaudFighter/Combat/SaudSystem.h|s#inline float QuestHeight(const FPage\& P) { return P.Px(SaudHud::HeadH + 6.f#inline float QuestHeight(const FPage\& P) { return P.Px(SaudHud::HeadH + 406.f#|the System darkens at most 9 % of the screen
+
+# ---- the lines (Content/Data/DT_SystemLines.json)
+system|Content/Data/DT_SystemLines.json|s#Low ledges are yours.#Low ledges are now yours.#|fixed: SKILL ACQUIRED  VAULT.
+system|Content/Data/DT_SystemLines.json|s#This was not yours. It is now.#It was never yours. It is now.#|fixed: SKILL ACQUIRED  HAWK FIST.
+system|Content/Data/DT_SystemLines.json|s#HP +{hp}. MP +{mp}.#HP+{hp} MP+{mp}#|fixed: LEVEL UP  Level 7.
+system|Content/Data/DT_SystemLines.json|s#Reward: --.#Reward: none.#|fixed: QUEST  FIND THE WAY UP.
+system|Content/Data/DT_SystemLines.json|s#The Halqa knows your name.#The Halqa knows you.#|fixed: RANK  PROSPECT.
+system|Content/Data/DT_SystemLines.json|s#They want to see you.#They want to see what you can do.#|fixed: the striking house
+system|Content/Data/DT_SystemLines.json|s#No longer required.#Completed.#|fixed: QUEST REMOVED
+system|Content/Data/DT_SystemLines.json|s#You are where you began.#You are back where you started.#|fixed: QUEST UPDATED
+system|Content/Data/DT_SystemLines.json|s#"Title": "YOU WENT DOWN"#"Title": "YOU WENT DOWN", "Head": "GET UP."#|fixed: a plain YOU WENT DOWN
+system|Content/Data/DT_SystemLines.json|s#"Beneath": "FIND THE WAY UP", "Status": "IN PROGRESS"#"Beneath": "", "Status": ""#|fixed: QUEST COMPLETE + XP
+system|Content/Data/DT_SystemLines.json|s#It sits behind a fight.#It sits behind a fight, Hunter.#|no forbidden term
+system|Content/Data/DT_SystemLines.json|s#The house knows your name.#The house knows your name, up above.#|no forbidden term
+system|Content/Data/DT_SystemLines.json|s#Just the next wave.#Just the next S-rank wave.#|no forbidden term
+system|Content/Data/DT_SystemLines.json|s#Broken ground is yours.#Broken ground is yours, Player.#|no forbidden term
+system|Content/Data/DT_SystemLines.json|/"StageEntered_AlHilal"/d|every stage in DT_Stages.json has its entered line
+system|Content/Data/DT_SystemLines.json|s#"NameArabic": "سوق الدوار"#"NameArabic": "سوق"#|the stage lines carry the stage data's own name and Arabic
+system|Content/Data/DT_SystemLines.json|s#"StoryArabic": "ست جولات، والبيت كله يراقب"#"StoryArabic": ""#|the stage lines carry the stage data's own name and Arabic
+system|Content/Data/DT_SystemLines.json|s#"NameArabic": "قبضة الباز"#"NameArabic": ""#|the talent lines carry DT_Talents' own Arabic
+system|Content/Data/DT_SystemLines.json|/"SkillAcquired_PowerKick"/d|every talent in DT_Talents.csv has its SKILL ACQUIRED line
+system|Content/Data/DT_SystemLines.json|/"RankUp_CONTENDER"/d|every rank on the ladder past ROOKIE has its line
+system|Content/Data/DT_SystemLines.json|s#"Title": "AL-SAQR"#"Title": "THE FALCON"#|AL-SAQR's line
+system|Content/Data/DT_SystemLines.json|s#A year, and you stop asking. Fight.#A year from now you will have stopped asking too. Fight.#|AL-SAQR's line
+system|Content/Data/DT_SystemLines.json|/"Name": "Down"/d|every event has a line
+system|Content/Data/DT_SystemLines.json|s#Level {level}.#Level {lvl}.#|every placeholder in a line is one the System fills
+system|Content/Data/DT_SystemLines.json|s#"Head": "THE RAID."#"Head": "THE RAID…"#|the drawn words are plain ASCII
+system|Content/Data/DT_SystemLines.json|s#Not a patrol. Tower by tower.#Not a patrol. They take it tower by tower, all night.#|every line fits its window at every screen shape
+system|Content/Data/DT_SystemLines.json|s#"Head": "{quest}", "Body": ""#"Head": "{quest}", "Body": "Done."#|no window has both a sentence and a quest beneath it
+system|Content/Data/DT_SystemLines.json|s#"Name": "LevelUp", "Event": "LevelUp"#"Name": "Level", "Event": "LevelUp"#|every row is named Event_Key
+
+# The level's own HP and MP (2026-10-07, the System's LEVEL UP made true)
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#HealthPerRung = 6, ManaPerRung = 4#HealthPerRung = 6, ManaPerRung = 5#|every level's HP and MP are DT_Levels.csv's
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Stats::HealthPerVitality \* S.Track\[2\] + Stats::LevelHealth(S.Level)#Stats::HealthPerVitality * S.Track[2]#|his level 6 HP and 4 MP a rung
+menu|Source/SaudFighter/Combat/SaudCharacter.cpp|s#MaxMana    = SaudFire::MaxMana + SaudMenu::Stats::LevelMana(Level);#MaxMana    = SaudFire::MaxMana;#|HP, MP and STAMINA are the game's
+menu|Source/SaudFighter/Combat/SaudCharacter.cpp|s#P.VitalityLevel \* 18.f + SaudMenu::Stats::LevelHealth(Level)#P.VitalityLevel * 18.f#|HP, MP and STAMINA are the game's
+menu|Source/SaudFighter/Combat/SaudCharacter.cpp|s#Mana = FMath::Min(MaxMana, Mana + SaudFire::ManaPerLandedHit);#Mana = FMath::Min(SaudFire::MaxMana, Mana + SaudFire::ManaPerLandedHit);#|his MP fills to the level's MP
+menu|Source/SaudFighter/Combat/SaudCharacter.cpp|s#GI->OnExperienceChanged.AddUniqueDynamic(this, .*##|his MP fills to the level's MP
+menu|Source/SaudFighter/Combat/SaudCharacter.h|s#return MaxMana > 0.f ? Mana / MaxMana : 0.f;#return Mana / SaudFire::MaxMana;#|his MP fills to the level's MP

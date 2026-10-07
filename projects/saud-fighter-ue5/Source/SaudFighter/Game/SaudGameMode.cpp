@@ -5,6 +5,7 @@
 #include "Game/SaudHUD.h"
 #include "Game/SaudGameInstance.h"
 #include "Game/SaudMenuSubsystem.h"
+#include "Game/SaudSystemSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "World/WaveDirector.h"
 #include "Engine/DataTable.h"
@@ -250,11 +251,13 @@ void ASaudGameMode::CompleteStage(FName StageRow)
 	}
 
 	GI->SaveProgress();
+	USaudSystemSubsystem::StageCleared(this, StageRow, Director->ExperienceEarned + Bonus);   // QUEST COMPLETE; the arena's, QUEST REMOVED
 	BP_OnStageCleared(Rank, Director->ExperienceEarned + Bonus);
 }
 
 void ASaudGameMode::FailStage()
 {
+	USaudSystemSubsystem::WentDown(this);   // the System: YOU WENT DOWN
 	if (USaudGameInstance* GI = GetGameInstance<USaudGameInstance>())
 	{
 		GI->SaveProgress();

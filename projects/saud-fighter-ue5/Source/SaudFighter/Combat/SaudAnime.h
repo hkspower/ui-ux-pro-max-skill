@@ -139,7 +139,44 @@ namespace SaudAnime
 		constexpr const SaudChar* EyeY1 = SAUD_TEXT("EyeY1");
 		constexpr const SaudChar* EyeDepth = SAUD_TEXT("EyeDepth");
 		constexpr const SaudChar* EyeScale = SAUD_TEXT("EyeScale");
+		/** The System's events seen in the picture (2026-10-07, SystemFx
+		    below): each effect's age in real seconds (-1: none), HAWK FIST's
+		    skill (1: violet and ember), Saud's middle and his feet on the
+		    screen (viewport fraction, Y down), how deep (cm) and one figure
+		    pixel there (share of the viewport's height, as the fire's); the
+		    gate's flash the same way. */
+		constexpr const SaudChar* SysPillarAge = SAUD_TEXT("SysPillarAge");
+		constexpr const SaudChar* SysBurstAge = SAUD_TEXT("SysBurstAge");
+		constexpr const SaudChar* SysBurstHawk = SAUD_TEXT("SysBurstHawk");
+		constexpr const SaudChar* SysRankAge = SAUD_TEXT("SysRankAge");
+		constexpr const SaudChar* SysQuestAge = SAUD_TEXT("SysQuestAge");
+		constexpr const SaudChar* SysFlashAge = SAUD_TEXT("SysFlashAge");
+		constexpr const SaudChar* SysX = SAUD_TEXT("SysX");
+		constexpr const SaudChar* SysY = SAUD_TEXT("SysY");
+		constexpr const SaudChar* SysFootX = SAUD_TEXT("SysFootX");
+		constexpr const SaudChar* SysFootY = SAUD_TEXT("SysFootY");
+		constexpr const SaudChar* SysDepth = SAUD_TEXT("SysDepth");
+		constexpr const SaudChar* SysScale = SAUD_TEXT("SysScale");
+		constexpr const SaudChar* SysFlashX = SAUD_TEXT("SysFlashX");
+		constexpr const SaudChar* SysFlashY = SAUD_TEXT("SysFlashY");
+		constexpr const SaudChar* SysFlashDepth = SAUD_TEXT("SysFlashDepth");
+		constexpr const SaudChar* SysFlashScale = SAUD_TEXT("SysFlashScale");
+		/** The trail of a heavy blow of Saud's (2026-10-07): its age in real
+		    seconds (-1: none), its points newest (the contact) first, how
+		    deep (the nearest point, cm) and one figure pixel there. */
+		constexpr const SaudChar* TrailAge = SAUD_TEXT("TrailAge");
+		constexpr const SaudChar* TrailDepth = SAUD_TEXT("TrailDepth");
+		constexpr const SaudChar* TrailScale = SAUD_TEXT("TrailScale");
+		constexpr const SaudChar* TrailX[6] = {SAUD_TEXT("TrailX0"), SAUD_TEXT("TrailX1"), SAUD_TEXT("TrailX2"),
+		                                       SAUD_TEXT("TrailX3"), SAUD_TEXT("TrailX4"), SAUD_TEXT("TrailX5")};
+		constexpr const SaudChar* TrailY[6] = {SAUD_TEXT("TrailY0"), SAUD_TEXT("TrailY1"), SAUD_TEXT("TrailY2"),
+		                                       SAUD_TEXT("TrailY3"), SAUD_TEXT("TrailY4"), SAUD_TEXT("TrailY5")};
 	}
+
+	/** The System's events the picture shows (2026-10-07, the windows track
+	    calls USaudLookSubsystem::OnSystemEvent with one). unsigned char is
+	    the engine's uint8. */
+	enum class ESystemFx : unsigned char { None, LevelUp, SkillAcquired, RankUp, QuestComplete, GateOpened };
 
 	// ------------------------------------------------------------- the frame
 	constexpr float Frame = 1.f / 24.f;        // one frame of film
@@ -422,6 +459,228 @@ namespace SaudAnime
 				else
 				{
 					Level = FMath::Max(T, Level - RealSeconds / FallSeconds);
+				}
+			}
+		};
+	}
+
+	/**
+	 * The System's events, seen in the picture (2026-10-07: "the System,
+	 * deeper", its style, none of its names). The windows say what happened;
+	 * this is what the picture does at the same moment, drawn by
+	 * M_Anime_Frame step 8d from the ages written here:
+	 *
+	 *  - LevelUp: a pillar of the System's cyan light rising round Saud from
+	 *    the ground, flat-toned, inked, PillarSeconds;
+	 *  - SkillAcquired: a ring burst off his middle and a brief cyan-ice rim
+	 *    on him (BurstSeconds, RimSeconds) -- HAWK FIST's in violet and ember;
+	 *  - RankUp: a wider, slower ring (RankSeconds);
+	 *  - QuestComplete: a short glow round the screen's edge (QuestSeconds);
+	 *  - GateOpened: a flash at the gate's own point on the screen
+	 *    (FlashSeconds).
+	 *
+	 * And the System's energy on his strikes: a heavy blow of Saud's that
+	 * lands leaves a thin cyan trail along the path his striking limb took
+	 * the last TrailSpanSeconds, for TrailSeconds -- never an enemy's.
+	 *
+	 * All of it runs in REAL time, like FPower: a blow's freeze holds the
+	 * world, not the System. Each effect has its own slot, so a quest that
+	 * completes with a level and a rank shows all three; a second event of
+	 * one kind restarts it.
+	 */
+	namespace SystemFx
+	{
+		constexpr float PillarSeconds = 1.20f;
+		constexpr float BurstSeconds = 0.50f;
+		constexpr float RimSeconds = 0.60f;
+		constexpr float RankSeconds = 0.90f;
+		constexpr float QuestSeconds = 0.80f;
+		constexpr float FlashSeconds = 0.45f;
+		constexpr float TrailSeconds = 0.30f;
+		constexpr float TrailSpanSeconds = 0.12f;
+		constexpr int TrailPoints = 6;
+
+		/** How long an event's slot runs: a skill's slot lasts as long as
+		    the longer of its ring and its rim. */
+		inline float SecondsOf(ESystemFx Fx)
+		{
+			switch (Fx)
+			{
+			case ESystemFx::LevelUp:       return PillarSeconds;
+			case ESystemFx::SkillAcquired: return BurstSeconds > RimSeconds ? BurstSeconds : RimSeconds;
+			case ESystemFx::RankUp:        return RankSeconds;
+			case ESystemFx::QuestComplete: return QuestSeconds;
+			case ESystemFx::GateOpened:    return FlashSeconds;
+			default:                       return 0.f;
+			}
+		}
+
+		/** Drawn about Saud (projected from him each tick), rather than at
+		    the gate or round the screen. */
+		inline bool OnSaud(ESystemFx Fx)
+		{
+			return Fx == ESystemFx::LevelUp || Fx == ESystemFx::SkillAcquired || Fx == ESystemFx::RankUp;
+		}
+
+		constexpr int Slots = 6;   // ESystemFx's values, None's slot unused
+
+		struct FEvents
+		{
+			float Age[Slots] = {-1.f, -1.f, -1.f, -1.f, -1.f, -1.f};
+			bool bHawk = false;    // the skill showing is HAWK FIST
+
+			void Add(ESystemFx Fx, bool bHawkFist = false)
+			{
+				if (Fx == ESystemFx::None)
+				{
+					return;
+				}
+				Age[static_cast<int>(Fx)] = 0.f;
+				if (Fx == ESystemFx::SkillAcquired)
+				{
+					bHawk = bHawkFist;
+				}
+			}
+
+			void Tick(float RealSeconds)
+			{
+				for (int i = 1; i < Slots; ++i)
+				{
+					if (Age[i] < 0.f)
+					{
+						continue;
+					}
+					Age[i] += RealSeconds;
+					if (Age[i] >= SecondsOf(static_cast<ESystemFx>(i)))
+					{
+						Age[i] = -1.f;
+					}
+				}
+			}
+
+			/** Seconds since the event, real time; -1 when it is not showing. */
+			float AgeOf(ESystemFx Fx) const
+			{
+				return Fx == ESystemFx::None ? -1.f : Age[static_cast<int>(Fx)];
+			}
+
+			/** Anything drawn about Saud is showing: he must be projected. */
+			bool AnyOnSaud() const
+			{
+				return Age[static_cast<int>(ESystemFx::LevelUp)] >= 0.f
+					|| Age[static_cast<int>(ESystemFx::SkillAcquired)] >= 0.f
+					|| Age[static_cast<int>(ESystemFx::RankUp)] >= 0.f;
+			}
+
+			float HawkValue() const
+			{
+				return bHawk ? 1.f : 0.f;
+			}
+		};
+
+		/** Which blows leave the trail: Saud's own heavy ones that were not
+		    parried (a parry takes the swing away) -- never a blow an enemy
+		    lands on him. */
+		inline bool TrailFor(bool bAttackerIsPlayer, bool bHeavy, bool bParried)
+		{
+			return bAttackerIsPlayer && bHeavy && !bParried;
+		}
+
+		/** One place the striking limb's tip was, and when (real seconds). */
+		struct FTrailSample
+		{
+			FVector P = FVector::ZeroVector;
+			float T = 0.f;
+		};
+
+		/**
+		 * The striking limb's path and the trail made from it. While a heavy
+		 * swing of his runs, every tick pushes the tip's world position; a
+		 * blow that lands takes the last TrailSpanSeconds of it as
+		 * TrailPoints points at even times, the newest -- the contact -- first,
+		 * and shows them for TrailSeconds. The points stay where they are in
+		 * the world (an after-image), projected each tick.
+		 */
+		struct FTrail
+		{
+			static constexpr int Ring = 32;
+			FTrailSample Samples[Ring];
+			int Count = 0;
+			int Next = 0;
+			FVector Points[TrailPoints];
+			float Age = -1.f;
+
+			void Push(const FVector& P, float T)
+			{
+				Samples[Next].P = P;
+				Samples[Next].T = T;
+				Next = (Next + 1) % Ring;
+				Count = Count < Ring ? Count + 1 : Ring;
+			}
+
+			/** The swing is over (or another began): its path is forgotten.
+			    A trail already showing is left alone. */
+			void Forget()
+			{
+				Count = 0;
+				Next = 0;
+			}
+
+			/** The i-th newest sample (0 the newest). */
+			const FTrailSample& Newest(int i) const
+			{
+				return Samples[(Next - 1 - i + 2 * Ring) % Ring];
+			}
+
+			/** Where the tip was at time T: the samples either side, mixed;
+			    before the first, the first. */
+			FVector At(float T) const
+			{
+				for (int i = 0; i + 1 < Count; ++i)
+				{
+					const FTrailSample& A = Newest(i + 1);
+					const FTrailSample& B = Newest(i);
+					if (T >= A.T)
+					{
+						const float K = B.T > A.T ? FMath::Clamp((T - A.T) / (B.T - A.T), 0.f, 1.f) : 1.f;
+						return A.P + (B.P - A.P) * K;
+					}
+				}
+				return Newest(Count - 1).P;
+			}
+
+			/** A blow landed now: the last TrailSpanSeconds of the path become
+			    the trail. False -- and nothing drawn -- with under two samples
+			    or a limb that has not moved. */
+			bool Capture()
+			{
+				if (Count < 2)
+				{
+					return false;
+				}
+				const float Now = Newest(0).T;
+				for (int i = 0; i < TrailPoints; ++i)
+				{
+					Points[i] = At(Now - TrailSpanSeconds * static_cast<float>(i) / static_cast<float>(TrailPoints - 1));
+				}
+				if ((Points[0] - Points[TrailPoints - 1]).Size() < 1.0)
+				{
+					return false;
+				}
+				Age = 0.f;
+				return true;
+			}
+
+			void Tick(float RealSeconds)
+			{
+				if (Age < 0.f)
+				{
+					return;
+				}
+				Age += RealSeconds;
+				if (Age >= TrailSeconds)
+				{
+					Age = -1.f;
 				}
 			}
 		};

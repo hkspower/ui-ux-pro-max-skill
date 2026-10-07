@@ -2,6 +2,7 @@
 #include "Gameplay/SaudAbilitySystemComponent.h"
 #include "Combat/FighterBase.h"
 #include "Game/SaudAudioSubsystem.h"
+#include "Combat/SaudMenu.h"
 
 #include "Kismet/GameplayStatics.h"
 
@@ -56,15 +57,16 @@ void USaudGameInstance::AddExperience(int32 Amount)
 
 bool USaudGameInstance::TryPurchaseUpgrade(FName TrackId)
 {
-	int32* Level = nullptr;
-	if (TrackId == TEXT("Boxing"))        Level = &Progress.BoxingLevel;
-	else if (TrackId == TEXT("Kicking"))  Level = &Progress.KickingLevel;
-	else if (TrackId == TEXT("Vitality")) Level = &Progress.VitalityLevel;
-	else if (TrackId == TEXT("Speed"))    Level = &Progress.SpeedLevel;
-	else if (TrackId == TEXT("Stamina"))  Level = &Progress.StaminaLevel;
-	else if (TrackId == TEXT("Iron"))     Level = &Progress.IronArmLevel;	// DT_Upgrades' own Track id
+	// DT_Upgrades' own ids (Box, Kick, Vit, Spd, Stam, Iron), through the one
+	// table the training screen and the harness use. Until 2026-10-07 this
+	// compared against Boxing / Kicking / Vitality / Speed / Stamina, so the
+	// table's own id bought nothing but IRON ARM.
+	const int32 Track = SaudMenu::Train::TrackOf(TCHAR_TO_ANSI(*TrackId.ToString()));
+	int32* const Levels[SaudMenu::Train::Tracks] = {&Progress.BoxingLevel, &Progress.KickingLevel, &Progress.VitalityLevel,
+	                                                &Progress.SpeedLevel, &Progress.StaminaLevel, &Progress.IronArmLevel};
+	int32* Level = Track >= 0 && Track < SaudMenu::Train::Tracks ? Levels[Track] : nullptr;
 
-	if (!Level || *Level >= 5)
+	if (!Level || *Level >= SaudMenu::Train::MaxLevel)
 	{
 		return false;
 	}
@@ -80,6 +82,34 @@ bool USaudGameInstance::TryPurchaseUpgrade(FName TrackId)
 	OnExperienceChanged.Broadcast(Progress.Experience);
 	SaveProgress();
 	return true;
+}
+
+int32 USaudGameInstance::GetUpgradeCost(int32 CurrentLevel) const
+{
+	return SaudMenu::Train::Cost(CurrentLevel);
+}
+
+int32 USaudGameInstance::GetSpentExperience() const
+{
+	return SaudMenu::Train::Spent(Progress.BoxingLevel) + SaudMenu::Train::Spent(Progress.KickingLevel)
+	     + SaudMenu::Train::Spent(Progress.VitalityLevel) + SaudMenu::Train::Spent(Progress.SpeedLevel)
+	     + SaudMenu::Train::Spent(Progress.StaminaLevel) + SaudMenu::Train::Spent(Progress.IronArmLevel);
+}
+
+int32 USaudGameInstance::GetLevel() const
+{
+	return SaudMenu::Ladder::LevelOf(GetEarnedExperience());
+}
+
+int32 USaudGameInstance::GetRankIndex() const
+{
+	return SaudMenu::Ladder::RankOf(GetLevel());
+}
+
+bool USaudGameInstance::HasWonTheTitle() const
+{
+	// the arena's stage row (DT_Stages.json, index 8; AL-WAHSH's)
+	return Progress.ClearedStages.Contains(FName(TEXT("AlHalqa")));
 }
 
 bool USaudGameInstance::GrantAbility(EAbility Ability)

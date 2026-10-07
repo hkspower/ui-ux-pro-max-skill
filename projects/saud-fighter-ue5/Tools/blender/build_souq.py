@@ -334,6 +334,20 @@ AWNING = dict(out=1.10, drop=0.35, tongues=9, tongue=(0.0, 0.30), tip=0.03, shar
 PLINTH = dict(h=0.40, proud=0.012)
 
 
+def _load_gates():
+    """The System's portals (Tools/blender/build_gates.py): which portal a
+    gate and the arena's door wear, and the rules they stand by. Plain
+    Python at import."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("build_gates", os.path.join(HERE, "build_gates.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+GATES = _load_gates()
+
+
 def extent_of(stage):
     return max(MIN_EXTENT, min(MAX_EXTENT, float(stage["Length"]) * LENGTH_TO_EXTENT))
 
@@ -768,7 +782,7 @@ def plan(bearing=None, street_mesh="SM_Souq_Street"):
     for gi, g in enumerate(stage.get("Gates", [])):
         t = min(1.0, max(0.0, g["Distance"] / L)); sx, sy = spiral(t, E, phase + 0.5)
         act("Gate", "Gate_%d_%s" % (gi + 1, g["Type"]), sx, sy, 150.0, GateType=g["Type"], RewardAbility=g["RewardAbility"],
-            RewardExperience=g["RewardExperience"], GateId="%s_gate%d" % (stage["Name"], gi + 1))
+            RewardExperience=g["RewardExperience"], GateId="%s_gate%d" % (stage["Name"], gi + 1), **GATES.gate_props(g["Type"]))
         sites.append(dict(kind="gate", i=gi, x=sx, y=sy, r=SITE_RADIUS * 0.7, gate=g, t=t))
         nx, ny = nearest_on_path(path, sx, sy)
         gate = dict(x=sx, y=sy, yaw=facing(sx, sy, nx, ny), type=g["Type"])
@@ -781,7 +795,8 @@ def plan(bearing=None, street_mesh="SM_Souq_Street"):
         x, y = math.cos(rad) * r, math.sin(rad) * r
         after = stages[link["AfterCleared"]]["Name"] if link["AfterCleared"] >= 0 else ""
         act("Exit", "Exit_%s_to_%s" % (side, dest["Name"]), x, y, 300.0, Side=side, DestinationLevel="L_" + dest["Name"],
-            DestinationStage=dest["Name"], RequiredAbility=link["RequiredAbility"], AfterClearedStage=after, ArriveAt=back)
+            DestinationStage=dest["Name"], RequiredAbility=link["RequiredAbility"], AfterClearedStage=after, ArriveAt=back,
+            **GATES.exit_props(dest["Name"], stages))
         doors[side] = (x, y)
     sx, sy = doors["West"] if "West" in doors else (300.0, 0.0)
     act("PlayerStart", "PlayerStart", sx, sy, 110.0)
@@ -1139,6 +1154,16 @@ def check(P, against_levels=True):
                                    ("awning %d" % i, [AWNING["drop"] + t for t in awning_hem(i)], AWNING["drop"] + AWNING["tongue"][1])):
             assert len(cut) >= 5 and max(cut) - min(cut) >= 0.15 * height, \
                 "the %s hangs clean: %d tongues within %.2f of each other" % (label, len(cut), max(cut) - min(cut))
+    # 34. the System's portals (build_gates): the gate wears its kind's, the
+    #     arena's door its own and no street exit one, the door's portal
+    #     across its way clear of every fight and of the fires beside it
+    miss = GATES.placement_misses(P["actors"], load()[0], middle=lambda a: (0.0, 0.0),
+                                  fights=lambda a: [(s["x"], s["y"], s["r"]) for s in sites if s["kind"] == "wave"],
+                                  solids=lambda a: [(f["x"], f["y"], f["half"]) for f in P["door_fires"]],
+                                  expect_doors=sum(1 for a in P["actors"] if a["kind"] == "Exit"
+                                                   and GATES.is_arena_door(a["props"]["DestinationStage"], load()[0])),
+                                  where="the souq: ")
+    assert not miss, miss[0]
     print("checked: %snothing solid stands in" % ("the plan agrees with build_levels.py to the centimetre, " if against_levels else ""))
     print("the street or a fight or off the edge, every door is a gap, the way through stays in,")
     print("every crate is on the street, the gate is beside the road in its actor's box, one minaret.")
@@ -1147,6 +1172,7 @@ def check(P, against_levels=True):
     print("door lit, %.0f %% of the way between fights in %d pools (longest dark run %d m), %d lights"
           % (stats["lit"] * 100.0, stats["pools"], stats["dark_run_m"], stats["lights"]))
     print("(%d shadowed), %.1f kerb props per 100 m, puddles on the flagstones, the cloth torn." % (stats["shadowed"], per))
+    print("The portals: the gate wears its kind's, the arena's door its own, clear of every fight and fire.")
 
 
 def check_palette():
@@ -1452,6 +1478,11 @@ def bite(verbose=True):
     # 23. torn cloth
     case("clean hem", none, "hangs clean", [(TATTER, "cut", (0.0, 0.0))])
     case("clean awning", none, "hangs clean", [(AWNING, "tongue", (0.0, 0.0))])
+    # 34. the portals
+    def gate_bare(P): next(a for a in P["actors"] if a["kind"] == "Gate")["props"].pop("Portal")
+    def door_bare(P): next(a for a in P["actors"] if a["props"].get("ArenaDoor"))["props"]["ArenaDoor"] = False
+    case("gate without its portal", gate_bare, "has no portal")
+    case("arena door without its portal", door_bare, "the arena's door")
     if verbose:
         print("\n%-28s %s" % ("check", "when the plan is broken"))
         for label, ok, msg in cases:
@@ -2919,6 +2950,9 @@ def build_in_editor(P):
         gate.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=0.0, yaw=g["yaw"]), False)
         gate.set_actor_scale3d(unreal.Vector(*g["scale"]))
         gate.get_component_by_class(unreal.StaticMeshComponent).set_static_mesh(mesh["SM_Souq_GateWall"])
+        # the portal rides on the wall; the wall's origin is its foot, the
+        # portal's the box's middle (build_gates)
+        GATES.attach_gate(gate, g["type"], GATES.import_meshes(), foot=True)
     if not LES.save_current_level():
         unreal.log_error("Could not save %s" % path)
 

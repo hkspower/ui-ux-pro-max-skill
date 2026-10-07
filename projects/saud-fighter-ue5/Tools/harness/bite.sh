@@ -9,7 +9,10 @@
 #   test|file|sed expression|text of the FAIL line it must cause
 # - test: Tools/harness/tests/<test>.cpp
 # - file: relative to the project root, and under a directory this copies
-#   (Source/SaudFighter/Combat or Tools/harness): a file the harness compiles
+#   (Source/SaudFighter, Content/Data or Tools/harness): a file the harness
+#   compiles or reads; the rest of Content and Tools is linked, read-only in
+#   spirit, and the test runs from the copy's root (2026-10-07: the System's
+#   lines are data, and the status screen reads SaudGameInstance)
 # - the sed expression is applied to that file in the copy; a sed that
 #   changes nothing is refused ("did not apply"), never counted
 # - caught only if the test builds with run.sh's flags, exits 1, and prints
@@ -24,9 +27,15 @@ TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 
 fresh() {   # a clean copy of what the harness compiles, same layout
     rm -rf "$TMP/src"
-    mkdir -p "$TMP/src/Source/SaudFighter" "$TMP/src/Tools"
-    cp -r Source/SaudFighter/Combat "$TMP/src/Source/SaudFighter/"
+    mkdir -p "$TMP/src/Source" "$TMP/src/Tools" "$TMP/src/Content"
+    cp -r Source/SaudFighter "$TMP/src/Source/"
     cp -r Tools/harness "$TMP/src/Tools/"
+    cp -r Content/Data "$TMP/src/Content/"
+    local d
+    [ -e "$TMP/saud-fighter" ] || ln -s "$(cd .. && pwd)/saud-fighter" "$TMP/saud-fighter"   # the browser game, ../
+    for d in Content/* Tools/*; do
+        [ -e "$TMP/src/$d" ] || ln -s "$PWD/$d" "$TMP/src/$d"
+    done
 }
 
 run_test() {   # $1 test name; builds and runs it in the copy; output in $TMP/out
@@ -34,7 +43,7 @@ run_test() {   # $1 test name; builds and runs it in the copy; output in $TMP/ou
             > "$TMP/out" 2>&1; then
         return 2
     fi
-    "$TMP/t" > "$TMP/out" 2>&1
+    (cd "$TMP/src" && "$TMP/t") > "$TMP/out" 2>&1
 }
 
 t0=$(date +%s)

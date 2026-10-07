@@ -45,6 +45,13 @@ struct FInputActionValue;
  * audio subsystem's buses), held left/right repeating on a level, and the
  * menu's motion -- the entrance and the focus glide -- on SaudMenu::Step.
  *
+ * Since 2026-10-07 (the System, deeper): the Pause's STATUS -- the
+ * System's status window: his level and rank on the Halqa's ladder, the
+ * XP to the next, HP / MP / STAMINA, the five skills, the six tracks, the
+ * open quest -- and TRAINING, the six tracks bought with XP through
+ * USaudGameInstance::TryPurchaseUpgrade. Both read the save here
+ * (ReadStatus) into the model's FStatus.
+ *
  * The title is live since 2026-10-01: behind the menu the world is
  * Saud himself, in his guard where the level put him, framed by an
  * ASaudTitleCamera (Combat/SaudTitle.h's shot) sweeping slowly in front
@@ -91,6 +98,13 @@ private:
 	void Apply(SaudMenu::EMenuEffect Effect);
 	void ReadSettings();
 	void WriteSettings();
+	/** The save, as the status window and the training show it
+	    (SaudMenu::FStatus): read on every Open and after every buy. */
+	void ReadStatus();
+	/** A level of the track the model bought (EMenuEffect::Train): the
+	    game instance's TryPurchaseUpgrade with the table's own id, his
+	    upgrades applied to him at once, the save read back. */
+	void BuyTrained();
 	void SetFightContext(bool bOn);
 	void SetMenuContext(bool bOn);
 	/** The menu's own input component on the player controller, bound once. */

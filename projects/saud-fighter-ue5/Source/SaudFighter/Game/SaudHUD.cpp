@@ -3,6 +3,7 @@
 #include "Combat/SaudCharacter.h"
 #include "Combat/SaudControls.h"
 #include "Game/SaudMenuSubsystem.h"
+#include "Game/SaudSystemSubsystem.h"
 
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
@@ -54,6 +55,14 @@ void ASaudHUD::DrawHUD()
 	{
 		Build(Page, State, List);
 		Emit();
+		// The System, over the fight and under a menu: its clock is real
+		// time, held under a menu as the rest is; the world's beside it.
+		if (USaudSystemSubsystem* Sys = USaudSystemSubsystem::Get(this))
+		{
+			Sys->Advance(Dt, bMenu ? 0.f : GetWorld()->GetDeltaSeconds(), GetWorld());
+			SaudSystem::Build(Page, Sys->Model(), SysList);
+			EmitSystem();
+		}
 	}
 	if (bMenu)
 	{
@@ -252,8 +261,27 @@ void ASaudHUD::Text(const FHudText& T, const FString& S)
 	DrawText(T.At, T.Height, T.Colour, T.Stroke, T.bCentre, S);
 }
 
+void ASaudHUD::EmitSystem()
+{
+	int32 Done = 0;
+	for (int32 i = 0; i < SysList.NumTexts; ++i)
+	{
+		const SaudSystem::FSysText& T = SysList.Texts[i];
+		DrawTris(Canvas, SysList.Shapes.Tris, Done, T.TrisBefore);
+		Done = T.TrisBefore;
+		DrawTextAligned(T.At, T.Height, T.Colour, T.Stroke, T.Align, FString(UTF8_TO_TCHAR(T.S)));
+	}
+	DrawTris(Canvas, SysList.Shapes.Tris, Done, SysList.Shapes.NumTris);
+}
+
 void ASaudHUD::DrawText(const FPoint& At, float Height, const FRgba& TextColour, float Stroke, bool bCentre,
                         const FString& S)
+{
+	DrawTextAligned(At, Height, TextColour, Stroke, bCentre ? SaudSystem::EAlign::Centre : SaudSystem::EAlign::Left, S);
+}
+
+void ASaudHUD::DrawTextAligned(const FPoint& At, float Height, const FRgba& TextColour, float Stroke,
+                               SaudSystem::EAlign Align, const FString& S)
 {
 	UFont* Font = GEngine ? GEngine->GetLargeFont() : nullptr;
 	if (!Font || S.IsEmpty())
@@ -263,11 +291,11 @@ void ASaudHUD::DrawText(const FPoint& At, float Height, const FRgba& TextColour,
 	const float Native = FMath::Max(1.f, static_cast<float>(Font->GetMaxCharHeight()));
 	const float Scale = Height / Native;
 	float X = At.X;
-	if (bCentre)
+	if (Align != SaudSystem::EAlign::Left)
 	{
 		float W = 0.f, H = 0.f;
 		Canvas->StrLen(Font, S, W, H);
-		X -= 0.5f * W * Scale;
+		X -= (Align == SaudSystem::EAlign::Centre ? 0.5f : 1.f) * W * Scale;
 	}
 	// The ink stroke: the text eight times in ink, Stroke away round it,
 	// then the fill over them -- heavy lettering that reads over the world,
@@ -316,6 +344,12 @@ void ASaudHUD::FlushMenu(int32 From, int32 To)
 FString ASaudHUD::MenuString(const SaudMenu::FMenuText& T)
 {
 	using SaudMenu::EMenuText;
+	// The slots the menu spells itself (the STATUS and TRAINING screens,
+	// the confirm's words; SaudMenu::Spell, held by the harness).
+	if (SaudMenu::SpellsItself(T.Slot, T.Value))
+	{
+		return FString(UTF8_TO_TCHAR(SaudMenu::Spell(T.Slot, T.Value, T.Aux).S));
+	}
 	const bool bOn = T.Value != 0;
 	switch (T.Slot)
 	{

@@ -1,6 +1,7 @@
 #include "Combat/SaudCharacter.h"
 #include "Combat/SaudArena.h"
 #include "Combat/SaudIK.h"
+#include "Combat/SaudMenu.h"
 #include "Game/SaudAudioSubsystem.h"
 #include "Game/SaudInputBindings.h"
 #include "Game/SaudLookSubsystem.h"
@@ -77,6 +78,11 @@ void ASaudCharacter::BeginPlay()
 		Move->MaxWalkSpeed = BaseWalkSpeed;
 	}
 	ApplyUpgrades();
+	Mana = MaxMana;   // makePlayer(): p.mp = p.maxMp
+	if (USaudGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance<USaudGameInstance>() : nullptr)
+	{
+		GI->OnExperienceChanged.AddUniqueDynamic(this, &ASaudCharacter::HandleExperienceChanged);
+	}
 
 	if (const APlayerController* PC = Cast<APlayerController>(GetController()))
 	{
@@ -100,10 +106,16 @@ void ASaudCharacter::ApplyUpgrades()
 	}
 
 	const FSaudProgress& P = GI->GetProgress();
-	MaxHealth  = 100.f + P.VitalityLevel * 18.f;
+	// The level's own HP and MP (levels.js perLevel, DT_Levels' BonusHealth
+	// / BonusMana): the browser's makePlayer() adds them, and the System's
+	// LEVEL UP window promises them (2026-10-07).
+	const int32 Level = GI->GetLevel();
+	MaxHealth  = 100.f + P.VitalityLevel * 18.f + SaudMenu::Stats::LevelHealth(Level);
 	MaxStamina = 100.f + P.StaminaLevel  * 12.f;
+	MaxMana    = SaudFire::MaxMana + SaudMenu::Stats::LevelMana(Level);
 	Health  = FMath::Min(Health  <= 0.f ? MaxHealth  : Health,  MaxHealth);
 	Stamina = FMath::Min(Stamina <= 0.f ? MaxStamina : Stamina, MaxStamina);
+	Mana    = FMath::Min(Mana, MaxMana);
 
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
@@ -119,6 +131,11 @@ void ASaudCharacter::ApplyUpgrades()
 		Body->SetScalarParameterValueOnMaterials(TEXT("IronArmLevel"),
 			FMath::Clamp(P.IronArmLevel / 5.f, 0.f, 1.f));
 	}
+}
+
+void ASaudCharacter::HandleExperienceChanged(int32 NewTotal)
+{
+	ApplyUpgrades();
 }
 
 float ASaudCharacter::GetOutgoingDamageMultiplier(const FAttackDef& Attack) const
@@ -268,7 +285,7 @@ void ASaudCharacter::Tick(float DeltaSeconds)
 	// HAWK FIST: MP back slowly with the clock (the browser's mpRegen.idle),
 	// and the flame eased toward lit or out, in game time -- it stands
 	// still through a freeze as the browser's does.
-	Mana = FMath::Min(SaudFire::MaxMana, Mana + SaudFire::ManaRegenPerSecond * DeltaSeconds);
+	Mana = FMath::Min(MaxMana, Mana + SaudFire::ManaRegenPerSecond * DeltaSeconds);
 	Fire.Tick(DeltaSeconds, IsHawkLit());
 
 	if (DashRemaining > 0.f)
@@ -694,7 +711,7 @@ void ASaudCharacter::OnHitLanded(AFighterBase* Victim, const FHitResultData& Hit
 	}
 	else
 	{
-		Mana = FMath::Min(SaudFire::MaxMana, Mana + SaudFire::ManaPerLandedHit);
+		Mana = FMath::Min(MaxMana, Mana + SaudFire::ManaPerLandedHit);
 	}
 
 	if (Hit.bBlocked || Hit.Damage <= 0.f)

@@ -1,5 +1,6 @@
 #include "Game/SaudMenuSubsystem.h"
 #include "Combat/FighterBase.h"
+#include "Combat/SaudCharacter.h"
 #include "Combat/SaudMotionAnimInstance.h"
 #include "Combat/SaudMotionComponent.h"
 #include "Combat/SaudTypes.h"
@@ -108,6 +109,7 @@ void USaudMenuSubsystem::Open(EScreen Screen)
 	}
 
 	ReadSettings();
+	ReadStatus();
 	if (USaudInputBindings* Bindings = USaudInputBindings::Get(this))
 	{
 		Bindings->RefreshPad();
@@ -483,6 +485,11 @@ void USaudMenuSubsystem::Apply(EMenuEffect Effect)
 		Cue(TEXT("UI_Tap"));
 		break;
 
+	case EMenuEffect::Train:
+		// the model has bought it on its own copy; the save is the truth
+		BuyTrained();
+		break;
+
 	case EMenuEffect::Tap:
 		Cue(TEXT("UI_Tap"));
 		break;
@@ -521,6 +528,52 @@ void USaudMenuSubsystem::ReadSettings()
 	// campaign's nine (the browser build's CAMPAIGN; the stage table does
 	// not mark the survival stage apart, so the count is the model's own)
 	Menu.StageReached = Menu.bHasSave ? FMath::Clamp(P.UnlockedStages, 1, Menu.StageCount) : 0;
+}
+
+void USaudMenuSubsystem::ReadStatus()
+{
+	const UWorld* World = GetWorld();
+	const USaudGameInstance* GI = World ? World->GetGameInstance<USaudGameInstance>() : nullptr;
+	if (!GI)
+	{
+		return;
+	}
+	const FSaudProgress& P = GI->GetProgress();
+	const int Tracks[SaudMenu::Train::Tracks] = {P.BoxingLevel, P.KickingLevel, P.VitalityLevel,
+	                                              P.SpeedLevel, P.StaminaLevel, P.IronArmLevel};
+	// the five talents in EAbility's order: Vault (1) .. HawkFist (5)
+	bool Skills[SaudMenu::Skills] = {};
+	for (int K = 0; K < SaudMenu::Skills; ++K)
+	{
+		Skills[K] = GI->HasAbility(static_cast<EAbility>(K + 1));
+	}
+	Menu.Status = SaudMenu::MakeStatus(P.Experience, Tracks, Skills, GI->HasWonTheTitle());
+}
+
+void USaudMenuSubsystem::BuyTrained()
+{
+	UWorld* World = GetWorld();
+	USaudGameInstance* GI = World ? World->GetGameInstance<USaudGameInstance>() : nullptr;
+	USaudAudioSubsystem* Audio = USaudAudioSubsystem::Get(this);
+	const int32 Track = Menu.TrainTrack;
+	const bool bBought = GI && Track >= 0 && Track < SaudMenu::Train::Tracks
+	                     && GI->TryPurchaseUpgrade(FName(UTF8_TO_TCHAR(SaudMenu::Train::Id(Track))));
+	if (bBought)
+	{
+		// his max health, stamina, speed and the iron arm, now -- not on
+		// the next level open
+		if (ASaudCharacter* Saud = Cast<ASaudCharacter>(UGameplayStatics::GetPlayerPawn(World, 0)))
+		{
+			Saud->ApplyUpgrades();
+		}
+	}
+	if (Audio)
+	{
+		Audio->PlayUI(bBought ? FName(TEXT("Upgrade_Bought")) : FName(TEXT("UI_Denied")));
+	}
+	// the save is the truth: what the model bought on its copy is replaced
+	// by what was really bought (or not)
+	ReadStatus();
 }
 
 void USaudMenuSubsystem::WriteSettings()

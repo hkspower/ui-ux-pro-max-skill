@@ -245,16 +245,22 @@ namespace SaudMenu
 		}
 	}
 
-	/** What the game makes of his upgrades, as ASaudCharacter::
-	    ApplyUpgrades does it (Player.json's numbers; MP is SaudFire::
-	    MaxMana): the status window shows these. The level's own bonus
-	    (DT_Levels' BonusHealth / BonusMana) is NOT here because the game
-	    does not apply it. */
+	/** What the game makes of his upgrades and his level, as ASaudCharacter::
+	    ApplyUpgrades does it (Player.json's numbers; MP's base is SaudFire::
+	    MaxMana): the status window shows these. The level's own bonus is
+	    levels.js's perLevel (hp 6, mp 4 a level past the first), as the
+	    browser's makePlayer() adds it -- DT_Levels' BonusHealth / BonusMana,
+	    held to it by the harness -- so the System's "LEVEL UP ... HP +6.
+	    MP +4." is true (2026-10-07). */
 	namespace Stats
 	{
 		constexpr int BaseHealth = 100, HealthPerVitality = 18;
 		constexpr int BaseStamina = 100, StaminaPerLevel = 12;
 		constexpr int BaseMana = 40;
+		constexpr int HealthPerRung = 6, ManaPerRung = 4;
+		/** What the level adds, on top of the base and the training. */
+		inline int LevelHealth(int Level) { return HealthPerRung * (Level > 1 ? Level - 1 : 0); }
+		inline int LevelMana(int Level) { return ManaPerRung * (Level > 1 ? Level - 1 : 0); }
 	}
 
 	/** The five talents, in EAbility's order (Vault = 1 .. HawkFist = 5). */
@@ -301,9 +307,9 @@ namespace SaudMenu
 		S.Rank = Ladder::RankOf(S.Level);
 		S.LevelFloor = Ladder::Need(S.Level);
 		S.LevelNext = S.Level < Ladder::MaxLevel ? Ladder::Need(S.Level + 1) : 0;
-		S.MaxHealth = Stats::BaseHealth + Stats::HealthPerVitality * S.Track[2];
+		S.MaxHealth = Stats::BaseHealth + Stats::HealthPerVitality * S.Track[2] + Stats::LevelHealth(S.Level);
 		S.MaxStamina = Stats::BaseStamina + Stats::StaminaPerLevel * S.Track[4];
-		S.MaxMana = Stats::BaseMana;
+		S.MaxMana = Stats::BaseMana + Stats::LevelMana(S.Level);
 	}
 	inline FStatus MakeStatus(int Spendable, const int Track[Train::Tracks], const bool Skill[Skills], bool bWonTitle)
 	{
@@ -533,6 +539,14 @@ namespace SaudMenu
 	{
 		inline void OpenSub(FMenuModel& M, EScreen S)
 		{
+			// what this screen itself goes back to is kept under it (a
+			// Training opened from the Status still goes back to the Pause)
+			if (M.Screen != M.Root && M.Depth < FMenuModel::MaxDepth)
+			{
+				M.OuterTo[M.Depth] = M.ReturnTo;
+				M.OuterFocus[M.Depth] = M.ReturnFocus;
+				++M.Depth;
+			}
 			M.ReturnTo = M.Screen;
 			M.ReturnFocus = M.Focus;
 			M.Screen = S;
@@ -540,6 +554,7 @@ namespace SaudMenu
 			M.Since = 0.f;
 			M.FocusFrom = 0.f;
 			M.FocusT = 1.f;
+			M.DeniedLeft = 0.f;
 			if (S == EScreen::Controls && M.Pad != SaudControls::EPad::Keyboard)
 			{
 				M.Shown = M.Pad;   // the diagram opens on the pad in the hand
@@ -551,9 +566,16 @@ namespace SaudMenu
 			M.Focus = M.ReturnFocus;
 			M.ReturnTo = M.Screen;
 			M.ReturnFocus = 0;
+			if (M.Depth > 0)
+			{
+				--M.Depth;
+				M.ReturnTo = M.OuterTo[M.Depth];
+				M.ReturnFocus = M.OuterFocus[M.Depth];
+			}
 			M.Since = 0.f;
 			M.FocusFrom = static_cast<float>(M.Focus);
 			M.FocusT = 1.f;
+			M.DeniedLeft = 0.f;
 		}
 		/** The Confirm, asking A, opened from where the player is. */
 		inline void OpenAsk(FMenuModel& M, EAsk A)
@@ -566,6 +588,7 @@ namespace SaudMenu
 		    than sweep the whole column. */
 		inline void MoveFocus(FMenuModel& M, int F, bool bWrapped)
 		{
+			M.DeniedLeft = 0.f;   // a denial is about the item it was on
 			M.FocusFrom = bWrapped ? static_cast<float>(F) : ShownFocus(M);
 			M.Focus = F;
 			M.FocusT = bWrapped ? 1.f : 0.f;
@@ -611,10 +634,59 @@ namespace SaudMenu
 				return EMenuEffect::Denied;
 			}
 		}
+		/** A buy that cannot be: the plate's keyline crimson and the hint
+		    saying why, for DeniedSeconds. */
+		inline EMenuEffect Deny(FMenuModel& M, int Item, bool bMaxed)
+		{
+			M.DeniedItem = Item;
+			M.DeniedLeft = DeniedSeconds;
+			M.bDeniedMaxed = bMaxed;
+			return EMenuEffect::Denied;
+		}
+		/** Confirm on a Training track: asked first when it can be bought,
+		    Denied when it is at its top or the XP is short. */
+		inline EMenuEffect AskTrain(FMenuModel& M, int T)
+		{
+			const int L = M.Status.Track[T];
+			if (L >= Train::MaxLevel) return Deny(M, M.Focus, true);
+			if (M.Status.Spendable < Train::Cost(L)) return Deny(M, M.Focus, false);
+			M.TrainTrack = T;
+			OpenAsk(M, EAsk::Train);
+			return EMenuEffect::Tap;
+		}
+		/** YES on the Train Confirm: back on the Training, on the track,
+		    the level bought in the model (the cost off the spendable, the
+		    track up one, the status worked out again: the level, which
+		    the earned drives, does not move). The engine buys it in the
+		    save on Train and reads the save back. */
+		inline EMenuEffect Buy(FMenuModel& M)
+		{
+			const int T = M.TrainTrack;
+			Return(M);
+			if (T < 0 || T >= Train::Tracks) return EMenuEffect::Denied;
+			FStatus& S = M.Status;
+			const int L = S.Track[T];
+			if (L >= Train::MaxLevel) return Deny(M, M.Focus, true);
+			if (S.Spendable < Train::Cost(L)) return Deny(M, M.Focus, false);
+			S.Spendable -= Train::Cost(L);
+			++S.Track[T];
+			Restat(S);
+			return EMenuEffect::Train;
+		}
 		inline EMenuEffect Activate(FMenuModel& M, EItem I)
 		{
+			if (TrackOfItem(I) >= 0)
+			{
+				return AskTrain(M, TrackOfItem(I));
+			}
 			switch (I)
 			{
+			case EItem::Status:
+				OpenSub(M, EScreen::Status);
+				return EMenuEffect::Tap;
+			case EItem::Training:
+				OpenSub(M, EScreen::Training);
+				return EMenuEffect::Tap;
 			case EItem::Continue:
 			case EItem::Fight:
 				return EMenuEffect::StartGame;
@@ -634,6 +706,7 @@ namespace SaudMenu
 				Return(M);
 				return EMenuEffect::Back;
 			case EItem::ConfirmYes:
+				if (M.Ask == EAsk::Train) return Buy(M);
 				return M.Ask == EAsk::Quit ? EMenuEffect::QuitGame : EMenuEffect::NewGame;
 			case EItem::Resume:
 				return EMenuEffect::Resume;
@@ -700,6 +773,8 @@ namespace SaudMenu
 			case EScreen::Settings:
 			case EScreen::Controls:
 			case EScreen::Confirm:
+			case EScreen::Status:
+			case EScreen::Training:
 				Detail::Return(M);
 				return EMenuEffect::Back;
 			case EScreen::Pause:
@@ -727,7 +802,15 @@ namespace SaudMenu
 	/** What a triangle is part of: the harness finds each rule's shapes by
 	    it. Scrim is the one part allowed outside title-safe (it must cover
 	    the whole screen); Glyph and Diagram are SaudControls' shapes. */
-	enum class EMenuPart : unsigned char { Scrim, Wash, Slash, Keyline, Plate, Glyph, Diagram, Meter };
+	enum class EMenuPart : unsigned char
+	{
+		Scrim, Wash, Slash, Keyline, Plate, Glyph, Diagram, Meter,
+		// 2026-10-07: the status window -- its glow, panel, heading strip and
+		// edge, its corner marks -- and the marks in it (a skill's slot, a
+		// rule, the XP bar's trough and fill; a crimson rule under a cost
+		// the XP will not cover)
+		Glow, Window, Edge, Bracket, Mark, Bar
+	};
 
 	enum class EMenuText : unsigned char
 	{
@@ -738,7 +821,11 @@ namespace SaudMenu
 		KeySelect, KeyBack, KeyAdjust, KeyFlip,
 		ControlsText,
 		// 2026-10-02
-		NewGame, AskHead, ConfirmNo, ConfirmYes, StageTag, PromptQuit, KeyQuit, Hint
+		NewGame, AskHead, ConfirmNo, ConfirmYes, StageTag, PromptQuit, KeyQuit, Hint,
+		// 2026-10-07: the status and the training (they spell themselves)
+		Status, Training, StatusHead, TrainingHead, TrackName, CostTag, SpendXp,
+		WinName, LevelLine, RankTitle, XpLabel, XpLine, XpToNext, StatHp, StatMp, StatStamina,
+		Section, SkillName, QuestName, QuestState
 	};
 
 	/** What the hint line under the column says (EMenuText::Hint's value). */
@@ -746,6 +833,9 @@ namespace SaudMenu
 	{
 		Continue, Fight, NewGame, Controls, Settings, Quit, Resume, QuitToTitle,
 		Difficulty, Sound, Music, Vibration, BackTitle, BackPause, AskQuit, AskNewGame,
+		// 2026-10-07
+		Status, Training, BackStatus, TrainBox, TrainKick, TrainVit, TrainSpd, TrainStam, TrainIron,
+		Poor, Maxed, AskTrain,
 		Count
 	};
 	/** The hint's words, here rather than in the engine's string table: the
@@ -771,59 +861,139 @@ namespace SaudMenu
 		case EHint::BackPause: return "BACK TO THE PAUSE";
 		case EHint::AskQuit: return "CLOSE SAUD AND GO BACK TO THE DESKTOP";
 		case EHint::AskNewGame: return "YOUR SAVE IS REPLACED. THERE IS NO UNDO";
+		case EHint::Status: return "YOUR LEVEL, SKILLS AND QUEST";
+		case EHint::Training: return "SPEND XP ON THE SIX TRACKS";
+		case EHint::BackStatus: return "BACK TO THE STATUS";
+		// the tracks: DT_Upgrades' descriptions, in the game's own numbers
+		// (SPEED's "+9" is the browser's pixels, and the game gives more:
+		// IRON ARM's "Found on the way, not touched" -- so no number)
+		case EHint::TrainBox: return "+10% JAB, CROSS AND HOOK DAMAGE";
+		case EHint::TrainKick: return "+10% KICK, KNEE AND RAGE DAMAGE";
+		case EHint::TrainVit: return "+18 MAX HEALTH A LEVEL";
+		case EHint::TrainSpd: return "QUICKER ON YOUR FEET";
+		case EHint::TrainStam: return "+12 MAX STAMINA A LEVEL";
+		case EHint::TrainIron: return "-12% BLOCK STAMINA AND PUSH A LEVEL";
+		case EHint::Poor: return "NOT ENOUGH XP";
+		case EHint::Maxed: return "FULLY TRAINED";
+		case EHint::AskTrain: return "TRAIN";   // + the track and the level: Spell
 		default: return "";
 		}
 	}
-	inline int HintChars(EHint H)
-	{
-		const char* S = HintString(H);
-		int N = 0;
-		while (S[N]) ++N;
-		return N;
-	}
 	inline int Digits(int V) { int D = 1; while (V >= 10) { V /= 10; ++D; } return D; }
 
-	/** The length of the string a slot and value map to (the table above),
-	    for the layout's width estimate; 0 for ControlsText (theirs). */
-	inline int Chars(EMenuText Slot, int Value, int Aux = 0)
+	/** A string spelled into a fixed buffer: no allocation, no stdio, so
+	    the engine and the harness run the same code. */
+	struct FSpelled
 	{
+		char S[64] = {};
+		int N = 0;
+		FSpelled& Add(const char* T)
+		{
+			while (T && *T && N < 63) S[N++] = *T++;
+			S[N] = 0;
+			return *this;
+		}
+		FSpelled& Num(int V)
+		{
+			char D[12];
+			int K = 0;
+			unsigned U = V < 0 ? static_cast<unsigned>(-V) : static_cast<unsigned>(V);
+			do { D[K++] = static_cast<char>('0' + U % 10u); U /= 10u; } while (U && K < 12);
+			if (V < 0 && N < 63) S[N++] = '-';
+			while (K > 0 && N < 63) S[N++] = D[--K];
+			S[N] = 0;
+			return *this;
+		}
+	};
+
+	/** The string the engine draws for a slot, value and aux -- every slot
+	    but ControlsText (SaudControls' own table). The menu's one table:
+	    Chars() is its length, Tools/harness/menu_dump.cpp prints it, and
+	    SaudHUD.cpp draws it for the slots SpellsItself() names. ASCII. */
+	inline FSpelled Spell(EMenuText Slot, int Value, int Aux = 0)
+	{
+		FSpelled O;
 		switch (Slot)
 		{
-		case EMenuText::Saud: return 4;
-		case EMenuText::Subtitle: return 14;
-		case EMenuText::Paused: return 6;
-		case EMenuText::SettingsHead: return 8;
-		case EMenuText::Continue: return 8;
-		case EMenuText::Fight: return 5;
-		case EMenuText::Controls: return 8;
-		case EMenuText::Settings: return 8;
-		case EMenuText::Quit: return 4;
-		case EMenuText::Resume: return 6;
-		case EMenuText::QuitToTitle: return 13;
-		case EMenuText::Difficulty: return Value == 0 ? 18 : (Value == 1 ? 15 : 20);
-		case EMenuText::Sound:                          // "SOUND  OFF", "SOUND  7", "SOUND  10"
-		case EMenuText::Music: return Value <= 0 ? 10 : 7 + Digits(Value);
-		case EMenuText::Vibration: return Value ? 13 : 14;
-		case EMenuText::Back: return 4;
-		case EMenuText::PromptSelect: return 6;
-		case EMenuText::PromptBack: return 4;
-		case EMenuText::PromptAdjust: return 6;
-		case EMenuText::PromptFlip: return Value ? 8 : 9;
-		case EMenuText::KeySelect: return 13;
-		case EMenuText::KeyBack: return 9;
-		case EMenuText::KeyAdjust: return 14;
-		case EMenuText::KeyFlip: return Value ? 13 : 14;
-		case EMenuText::NewGame: return 8;
-		case EMenuText::AskHead: return Value ? 9 : 5;
-		case EMenuText::ConfirmNo: return Value ? 16 : 8;
-		case EMenuText::ConfirmYes: return Value ? 15 : 9;
-		case EMenuText::StageTag: return 7 + Digits(Value) + Digits(Aux);
-		case EMenuText::PromptQuit: return 4;
-		case EMenuText::KeyQuit: return 9;
-		case EMenuText::Hint: return HintChars(static_cast<EHint>(Value));
+		case EMenuText::Saud: return O.Add("SAUD");
+		case EMenuText::Subtitle: return O.Add("KUWAIT FIGHTER");
+		case EMenuText::Paused: return O.Add("PAUSED");
+		case EMenuText::SettingsHead: return O.Add("SETTINGS");
+		case EMenuText::Continue: return O.Add("CONTINUE");
+		case EMenuText::Fight: return O.Add("FIGHT");
+		case EMenuText::Controls: return O.Add("CONTROLS");
+		case EMenuText::Settings: return O.Add("SETTINGS");
+		case EMenuText::Quit: return O.Add("QUIT");
+		case EMenuText::Resume: return O.Add("RESUME");
+		case EMenuText::QuitToTitle: return O.Add("QUIT TO TITLE");
+		case EMenuText::Difficulty:
+			return O.Add(Value == 0 ? "DIFFICULTY  ROOKIE" : (Value == 1 ? "DIFFICULTY  PRO" : "DIFFICULTY  CHAMPION"));
+		case EMenuText::Sound: return Value <= 0 ? O.Add("SOUND  OFF") : O.Add("SOUND  ").Num(Value);
+		case EMenuText::Music: return Value <= 0 ? O.Add("MUSIC  OFF") : O.Add("MUSIC  ").Num(Value);
+		case EMenuText::Vibration: return O.Add(Value ? "VIBRATION  ON" : "VIBRATION  OFF");
+		case EMenuText::Back: return O.Add("BACK");
+		case EMenuText::PromptSelect: return O.Add("SELECT");
+		case EMenuText::PromptBack: return O.Add("BACK");
+		case EMenuText::PromptAdjust: return O.Add("ADJUST");
+		case EMenuText::PromptFlip: return O.Add(Value ? "SHOW PS5" : "SHOW XBOX");
+		case EMenuText::KeySelect: return O.Add("ENTER  SELECT");
+		case EMenuText::KeyBack: return O.Add("ESC  BACK");
+		case EMenuText::KeyAdjust: return O.Add("ARROWS  ADJUST");
+		case EMenuText::KeyFlip: return O.Add(Value ? "TAB  SHOW PS5" : "TAB  SHOW XBOX");
+		case EMenuText::NewGame: return O.Add("NEW GAME");
+		case EMenuText::AskHead: return O.Add(Value == 2 ? "TRAIN?" : (Value ? "NEW GAME?" : "QUIT?"));
+		case EMenuText::ConfirmNo: return O.Add(Value == 2 ? "NO, KEEP MY XP" : (Value ? "NO, KEEP MY SAVE" : "NO, STAY"));
+		case EMenuText::ConfirmYes: return O.Add(Value == 2 ? "YES, TRAIN" : (Value ? "YES, START OVER" : "YES, QUIT"));
+		case EMenuText::StageTag: return O.Add("STAGE ").Num(Value).Add("/").Num(Aux);
+		case EMenuText::PromptQuit: return O.Add("QUIT");
+		case EMenuText::KeyQuit: return O.Add("ESC  QUIT");
+		case EMenuText::Hint:
+			if (static_cast<EHint>(Value) == EHint::AskTrain)
+			{
+				return O.Add("TRAIN ").Add(Train::Name(Aux / 10)).Add(" TO LEVEL ").Num(Aux % 10);
+			}
+			return O.Add(HintString(static_cast<EHint>(Value)));
+		// 2026-10-07
+		case EMenuText::Status: return O.Add("STATUS");
+		case EMenuText::Training: return O.Add("TRAINING");
+		case EMenuText::StatusHead: return O.Add("STATUS");
+		case EMenuText::TrainingHead: return O.Add("TRAINING");
+		case EMenuText::TrackName: return O.Add(Train::Name(Value));
+		case EMenuText::CostTag: return Value < 0 ? O.Add("MAX") : O.Num(Value).Add(" XP");
+		case EMenuText::SpendXp: return O.Add("XP TO SPEND  ").Num(Value);
+		case EMenuText::WinName: return O.Add("SAUD");
+		case EMenuText::LevelLine: return O.Add("LEVEL ").Num(Value);
+		case EMenuText::RankTitle: return O.Add(Ladder::RankName(Value));
+		case EMenuText::XpLabel: return O.Add("XP");
+		case EMenuText::XpLine: return Aux > 0 ? O.Num(Value).Add(" / ").Num(Aux).Add(" XP") : O.Num(Value).Add(" XP");
+		case EMenuText::XpToNext: return Aux > 0 ? O.Num(Value).Add(" TO LEVEL ").Num(Aux) : O.Add("MAX LEVEL");
+		case EMenuText::StatHp: return O.Add("HP ").Num(Value);
+		case EMenuText::StatMp: return O.Add("MP ").Num(Value);
+		case EMenuText::StatStamina: return O.Add("STAMINA ").Num(Value);
+		case EMenuText::Section: return O.Add(Value == 0 ? "SKILLS" : (Value == 1 ? "TRAINING" : "QUEST"));
+		case EMenuText::SkillName: return O.Add(Aux ? SkillName(Value) : "?");
+		case EMenuText::QuestName: return O.Add(Value ? "--" : "FIND THE WAY UP");
+		case EMenuText::QuestState: return O.Add("IN PROGRESS");
 		case EMenuText::ControlsText:
-		default: return 0;
+		default: return O;
 		}
+	}
+	/** Whether the engine must draw Spell() for this text: the slots the
+	    HUD's own table (SaudHUD.cpp, MenuString) does not know -- every
+	    2026-10-07 slot, the Confirm's third question, the track hint. */
+	inline bool SpellsItself(EMenuText Slot, int Value)
+	{
+		if (static_cast<int>(Slot) >= static_cast<int>(EMenuText::Status)) return true;
+		if ((Slot == EMenuText::AskHead || Slot == EMenuText::ConfirmNo || Slot == EMenuText::ConfirmYes) && Value >= 2)
+			return true;
+		return Slot == EMenuText::Hint && Value == static_cast<int>(EHint::AskTrain);
+	}
+
+	/** The length of the string a slot and value map to, for the layout's
+	    width estimate; 0 for ControlsText (theirs). */
+	inline int Chars(EMenuText Slot, int Value, int Aux = 0)
+	{
+		return Slot == EMenuText::ControlsText ? 0 : Spell(Slot, Value, Aux).N;
 	}
 	/** A capital's advance as a share of the text height (the engine's
 	    large font, whose max char height is what Height scales). */
@@ -993,6 +1163,25 @@ namespace SaudMenu
 	constexpr float MeterW = 200.f, MeterH = 22.f, MeterGap = 4.f;   // a level's ten segments, right on its plate
 	constexpr float FocusNudge = 14.f;           // the focused plate stands this far out of the column
 	constexpr float SlideIn = 32.f;              // a plate comes in from this far left (inside the column's 40)
+	// 2026-10-07: the training's plates and the status window
+	constexpr float PipW = 22.f, PipH = 18.f, PipGap = 6.f;      // a track's five levels, on its plate
+	constexpr float PipGapToCost = 24.f;
+	constexpr float PoorRule = 3.f;              // the crimson rule under a cost the XP will not cover
+	constexpr float WinGap = 48.f;               // the column (plate and nudge) to the window
+	constexpr float WinMaxW = 780.f;             // the window, at most (it takes what the screen leaves, to this)
+	constexpr float WinPad = 24.f;
+	constexpr float WinText = 30.f;              // the window's lettering: 1080 / 36, the least the HUD allows
+	constexpr float WinBigText = 44.f;           // LEVEL n and the rank
+	constexpr float WinQuestText = 34.f;         // the quest's name
+	constexpr float XpBarH = 16.f;
+	constexpr float SlotH = 36.f, SlotPitch = 44.f;   // a skill's slot
+	constexpr float MarkPx = 12.f;               // the square in an acquired skill's slot
+	constexpr float TrackPitch = 40.f;           // a track's row in the window
+	constexpr float WinPipW = 14.f, WinPipH = 14.f, WinPipGap = 5.f;
+	constexpr float RulePx = 1.5f;               // the rules between the window's sections
+	/** The window wipes open (WinWipe from WinDelay) and its contents come
+	    in after it (WinShowDelay, over WinShow): settled by EnterSeconds. */
+	constexpr float WinDelay = 0.10f, WinWipe = 0.30f, WinShowDelay = 0.30f, WinShow = 0.20f;
 
 	/** A glyph's width in units of its Size: a shoulder is a tab, a trigger
 	    a narrower one (SaudControls' own shares), everything else a disc or
@@ -1018,7 +1207,82 @@ namespace SaudMenu
 		float StripH = 0.f;
 		FPoint Hint;           // the hint line's top left: under the column (on a Confirm, under the slash)
 		float HintH = 0.f;
+		// 2026-10-07: the status window (Status only; W 0 elsewhere), each
+		// line's top left, and its rows
+		FRect Window;
+		FPoint WinName, Level, Rank, XpLabel, XpLine, XpToNext, Stat[3], Section[3], Quest, QuestState;
+		FRect XpBar;
+		float Rule[3] = {};                // the rules' y: under the XP, under the stats, over the quest
+		FRect Slot[Skills];                // a skill's slot
+		FPoint TrackAt[Train::Tracks];     // a track's name
+		FRect Pips[Train::Tracks];         // ...and its five levels
+		float SubW = 0.f;                  // a sub-column's width (skills | training)
 	};
+
+	/** The status window: right of the column (its plates and their nudge,
+	    then WinGap), from the heading's top, as wide as the screen leaves
+	    up to WinMaxW, its glow on the right safe line at the most; and its
+	    contents, top down -- the heading strip with his name; LEVEL n and
+	    the rank; the XP bar and its numbers; HP, MP, STAMINA; the skills'
+	    five slots beside the six tracks; the quest. */
+	inline void LayStatus(const FPage& P, const FMenuModel& M, FMenuLayout& L)
+	{
+		const float X = P.Left() + P.Px(ColumnIn + PlateW + FocusNudge + WinGap);
+		const float Y = P.Top() + P.Px(HeadDown);
+		const float W = FMath::Min(P.Right() - P.Px(SaudHud::WindowInset) - X, P.Px(WinMaxW));
+		const float Pad = P.Px(WinPad), T = P.Px(WinText), Big = P.Px(WinBigText);
+		const float In = X + Pad, Out = X + W - Pad, CW = Out - In;
+		const FStatus& S = M.Status;
+		L.WinName = {In, Y + 0.5f * (P.Px(SaudHud::HeadH) - T)};
+		float At = Y + P.Px(SaudHud::HeadH) + P.Px(16.f);
+		L.Level = {In, At};
+		L.Rank = {Out - TextWidth(EMenuText::RankTitle, S.Rank, Big), At};
+		At += Big + P.Px(18.f);
+		L.XpLabel = {In, At};
+		const float BarX = In + TextWidth(EMenuText::XpLabel, 0, T) + P.Px(16.f);
+		L.XpBar = {BarX, At + 0.5f * (T - P.Px(XpBarH)), Out - BarX, P.Px(XpBarH)};
+		At += T + P.Px(10.f);
+		const bool bTop = S.LevelNext <= 0;
+		L.XpLine = {In, At};
+		L.XpToNext = {Out - TextWidth(EMenuText::XpToNext, S.LevelNext - S.Earned, T, bTop ? 0 : S.Level + 1), At};
+		At += T + P.Px(14.f);
+		L.Rule[0] = At;
+		At += P.Px(14.f);
+		L.Stat[0] = {In, At};
+		L.Stat[1] = {In + 0.30f * CW, At};
+		L.Stat[2] = {In + 0.58f * CW, At};
+		At += T + P.Px(14.f);
+		L.Rule[1] = At;
+		At += P.Px(14.f);
+		L.SubW = 0.5f * (CW - P.Px(24.f));
+		const float X2 = In + L.SubW + P.Px(24.f);
+		L.Section[0] = {In, At};
+		L.Section[1] = {X2, At};
+		At += T + P.Px(12.f);
+		for (int K = 0; K < Skills; ++K)
+		{
+			L.Slot[K] = {In, At + P.Px(SlotPitch) * static_cast<float>(K), L.SubW, P.Px(SlotH)};
+		}
+		const float PipsW = P.Px(5.f * WinPipW + 4.f * WinPipGap);
+		for (int Tk = 0; Tk < Train::Tracks; ++Tk)
+		{
+			const float Row = At + P.Px(TrackPitch) * static_cast<float>(Tk);
+			L.TrackAt[Tk] = {X2, Row + 0.5f * (P.Px(SlotH) - T)};
+			L.Pips[Tk] = {X2 + L.SubW - PipsW, Row + 0.5f * (P.Px(SlotH) - P.Px(WinPipH)), PipsW, P.Px(WinPipH)};
+		}
+		At += FMath::Max(P.Px(SlotPitch) * static_cast<float>(Skills - 1) + P.Px(SlotH),
+		                 P.Px(TrackPitch) * static_cast<float>(Train::Tracks - 1) + P.Px(SlotH));
+		At += P.Px(16.f);
+		L.Rule[2] = At;
+		At += P.Px(14.f);
+		L.Section[2] = {In, At};
+		At += T + P.Px(10.f);
+		const float Q = P.Px(WinQuestText);
+		L.Quest = {In, At};
+		L.QuestState = {Out - TextWidth(EMenuText::QuestState, 0, T), At + 0.5f * (Q - T)};
+		At += Q + Pad;
+		L.Window = {X, Y, W, At - Y};
+	}
 
 	inline FMenuLayout Lay(const FPage& P, const FMenuModel& M)
 	{
@@ -1049,6 +1313,10 @@ namespace SaudMenu
 			{
 				L.Plate[i] = {X, Top + P.Px(static_cast<float>(i) * (PlateH + PlateGap)), W, H};
 			}
+		}
+		if (M.Screen == EScreen::Status)
+		{
+			LayStatus(P, M, L);
 		}
 		L.HintH = P.Px(HintText);
 		if (M.Screen == EScreen::Confirm)
@@ -1100,6 +1368,14 @@ namespace SaudMenu
 		case EItem::NewGame: return EMenuText::NewGame;
 		case EItem::ConfirmNo: return EMenuText::ConfirmNo;
 		case EItem::ConfirmYes: return EMenuText::ConfirmYes;
+		case EItem::Status: return EMenuText::Status;
+		case EItem::Training: return EMenuText::Training;
+		case EItem::TrainBox:
+		case EItem::TrainKick:
+		case EItem::TrainVit:
+		case EItem::TrainSpd:
+		case EItem::TrainStam:
+		case EItem::TrainIron: return EMenuText::TrackName;
 		case EItem::Back:
 		default: return EMenuText::Back;
 		}
@@ -1114,8 +1390,8 @@ namespace SaudMenu
 		case EItem::Music: return M.MusicLevel;
 		case EItem::Vibration: return M.bVibration ? 1 : 0;
 		case EItem::ConfirmNo:
-		case EItem::ConfirmYes: return M.Ask == EAsk::NewGame ? 1 : 0;
-		default: return 0;
+		case EItem::ConfirmYes: return static_cast<int>(M.Ask);
+		default: return TrackOfItem(I) >= 0 ? TrackOfItem(I) : 0;
 		}
 	}
 
@@ -1124,10 +1400,22 @@ namespace SaudMenu
 	{
 		if (M.Screen == EScreen::Confirm)
 		{
-			return M.Ask == EAsk::NewGame ? EHint::AskNewGame : EHint::AskQuit;
+			return M.Ask == EAsk::Train ? EHint::AskTrain : (M.Ask == EAsk::NewGame ? EHint::AskNewGame : EHint::AskQuit);
+		}
+		// a denied buy says why, on the item it was denied on, until the
+		// focus moves or it times out
+		if (M.Screen == EScreen::Training && M.DeniedLeft > 0.f && M.DeniedItem == M.Focus)
+		{
+			return M.bDeniedMaxed ? EHint::Maxed : EHint::Poor;
+		}
+		if (TrackOfItem(I) >= 0)
+		{
+			return static_cast<EHint>(static_cast<int>(EHint::TrainBox) + TrackOfItem(I));
 		}
 		switch (I)
 		{
+		case EItem::Status: return EHint::Status;
+		case EItem::Training: return EHint::Training;
 		case EItem::Continue: return EHint::Continue;
 		case EItem::Fight: return EHint::Fight;
 		case EItem::NewGame: return EHint::NewGame;
@@ -1141,7 +1429,9 @@ namespace SaudMenu
 		case EItem::Music: return EHint::Music;
 		case EItem::Vibration: return EHint::Vibration;
 		case EItem::Back:
-		default: return M.ReturnTo == EScreen::Pause ? EHint::BackPause : EHint::BackTitle;
+		default:
+			return M.ReturnTo == EScreen::Status ? EHint::BackStatus
+			     : (M.ReturnTo == EScreen::Pause ? EHint::BackPause : EHint::BackTitle);
 		}
 	}
 
@@ -1232,6 +1522,195 @@ namespace SaudMenu
 		}
 	}
 
+	namespace Detail
+	{
+		/** A quad from a rectangle, wound as every other menu quad is. */
+		inline void Rect(FMenuList& Out, const FRect& R, const FRgba& C, EMenuPart Pt, int Item, int Tag)
+		{
+			FPoint Q[4];
+			SaudHud::LeanQuad(R, 1.f, 0.f, Q);
+			Out.Quad(Q, C, Pt, Item, Tag);
+		}
+
+		/** Five level pips in R, Lit of them in Lit's colour, the rest dim
+		    cyan; Tag 1 on a lit one (as a meter's segments). */
+		inline void Pips(FMenuList& Out, const FRect& R, float Gap, int Lit, const FRgba& On, float Alpha, int Item)
+		{
+			const float SW = (R.W - 4.f * Gap) / 5.f;
+			for (int k = 0; k < Train::MaxLevel; ++k)
+			{
+				const FRgba C = k < Lit ? On : SaudHud::WithAlpha(Colour::System, DimAlpha * 0.6f * Alpha);
+				Rect(Out, {R.X + static_cast<float>(k) * (SW + Gap), R.Y, SW, R.H}, C, EMenuPart::Meter, Item, k < Lit ? 1 : 0);
+			}
+		}
+
+		/** A Training plate's right side: the track's five levels and what
+		    its next one costs (MAX at the top), and a crimson rule under a
+		    cost the spendable will not cover. */
+		inline void TrackPlate(FMenuList& Out, const FPage& P, const FMenuModel& M, const FRect& R, int T, int Item,
+		                       const FRgba& Label, float In)
+		{
+			const int Lv = M.Status.Track[T];
+			const bool bTop = Lv >= Train::MaxLevel;
+			const int Cost = bTop ? -1 : Train::Cost(Lv);
+			const float TH = P.Px(TagText), Stroke = P.Px(SaudHud::TextStroke);
+			// the cost's slot is as wide as the widest cost, so the pips of
+			// every plate line up
+			const float SlotW = TextWidth(EMenuText::CostTag, Train::Cost(Train::MaxLevel - 1), TH);
+			const float TW = TextWidth(EMenuText::CostTag, Cost, TH);
+			const float Right = R.X + R.W - P.Px(LabelIn);
+			const FPoint At = {Right - TW, R.Y + 0.5f * (R.H - TH)};
+			Out.Text(EMenuText::CostTag, Cost, 0, At, TH, Label, Stroke, false, Item, EMenuPart::Plate);
+			if (!bTop && M.Status.Spendable < Cost)
+			{
+				Rect(Out, {At.X, At.Y + TH + P.Px(3.f), TW, FMath::Max(1.f, P.Px(PoorRule))},
+				     SaudHud::WithAlpha(Colour::Danger, In), EMenuPart::Mark, Item, 1);
+			}
+			const float PW = P.Px(5.f * PipW + 4.f * PipGap);
+			const FRect Pr = {Right - SlotW - P.Px(PipGapToCost) - PW, R.Y + 0.5f * (R.H - P.Px(PipH)), PW, P.Px(PipH)};
+			Pips(Out, Pr, P.Px(PipGap), Lv, Label, In, Item);
+		}
+
+		/** A System window in the menu's list, as the HUD draws its own
+		    (SaudHud::Window): the glow fading out from the edge, the navy
+		    panel cut at two corners, the heading strip and its hairline,
+		    the edge, the ice corner marks outside the uncut corners. A is
+		    the whole window's alpha (its entrance). */
+		inline void SysWindow(FMenuList& Out, const FPage& P, const FRect& R, float A)
+		{
+			using namespace SaudHud;
+			if (R.W <= 2.f * P.Px(CutPx) + 2.f || R.H <= P.Px(HeadH) + 2.f)
+			{
+				return;
+			}
+			FPoint Ring[6], EdgeOut[6], GlowOut[6];
+			WindowRing(R, P.Px(CutPx), Ring);
+			const float E = FMath::Max(1.f, P.Px(EdgePx));
+			GrowRing(Ring, 6, E, EdgeOut);
+			GrowRing(Ring, 6, E + P.Px(GlowPx), GlowOut);
+			const auto Band = [&Out](const FPoint* Inner, const FPoint* Outer, const FRgba& Ci, const FRgba& Co, EMenuPart Pt)
+			{
+				for (int i = 0; i < 6; ++i)
+				{
+					const int j = (i + 1) % 6;
+					const FPoint Q[4] = {Outer[i], Outer[j], Inner[j], Inner[i]};
+					const FRgba C[4] = {Co, Co, Ci, Ci};
+					Out.Quad(Q, C, Pt, -1, 0);
+				}
+			};
+			Band(EdgeOut, GlowOut, WithAlpha(Colour::System, GlowAlpha * A), WithAlpha(Colour::System, 0.f), EMenuPart::Glow);
+			const FPoint Centre = {R.X + 0.5f * R.W, R.Y + 0.5f * R.H};
+			const FRgba Panel = WithAlpha(Colour::Panel, PlateAlpha * A);
+			for (int i = 0; i < 6; ++i)
+			{
+				Out.Tri(Centre, Panel, Ring[i], Panel, Ring[(i + 1) % 6], Panel, EMenuPart::Window, -1, 0);
+			}
+			const float Head = P.Px(HeadH), C = FMath::Min(P.Px(CutPx), Head);
+			const FPoint Strip[5] = {{R.X + C, R.Y}, {R.X + R.W, R.Y}, {R.X + R.W, R.Y + Head}, {R.X, R.Y + Head}, {R.X, R.Y + C}};
+			const FRgba Tint = WithAlpha(Colour::System, HeadAlpha * A);
+			const FPoint Mid = {R.X + 0.5f * R.W, R.Y + 0.5f * Head};
+			for (int i = 0; i < 5; ++i)
+			{
+				Out.Tri(Mid, Tint, Strip[i], Tint, Strip[(i + 1) % 5], Tint, EMenuPart::Window, -1, 0);
+			}
+			Rect(Out, {R.X, R.Y + Head, R.W, FMath::Max(1.f, P.Px(1.5f))}, WithAlpha(Colour::System, 0.7f * A), EMenuPart::Edge, -1, 0);
+			Band(Ring, EdgeOut, WithAlpha(Colour::System, A), WithAlpha(Colour::System, A), EMenuPart::Edge);
+			const float B = P.Px(BracketPx), W = FMath::Max(1.f, P.Px(BracketW)), O = E + P.Px(3.f);
+			const FRgba Ice = WithAlpha(Colour::Ice, 0.9f * A);
+			const float Rx = R.X + R.W + O, Ty = R.Y - O, Lx = R.X - O, By = R.Y + R.H + O;
+			Rect(Out, {Rx - B, Ty - W, B + W, W}, Ice, EMenuPart::Bracket, -1, 0);
+			Rect(Out, {Rx, Ty, W, B}, Ice, EMenuPart::Bracket, -1, 0);
+			Rect(Out, {Lx - W, By, B + W, W}, Ice, EMenuPart::Bracket, -1, 0);
+			Rect(Out, {Lx - W, By - B, W, B}, Ice, EMenuPart::Bracket, -1, 0);
+		}
+
+		/** The System's status window: wiping open from its left over
+		    WinWipe, its contents coming in after it. */
+		inline void StatusWindow(FMenuList& Out, const FPage& P, const FMenuModel& M, const FMenuLayout& L)
+		{
+			const FStatus& S = M.Status;
+			FRect R = L.Window;
+			R.W *= Arrive(M, WinDelay, WinWipe);
+			SysWindow(Out, P, R, 1.f);
+			const float A = Arrive(M, WinShowDelay, WinShow);
+			if (A <= 0.f)
+			{
+				return;
+			}
+			const float T = P.Px(WinText), Big = P.Px(WinBigText), Stroke = P.Px(SaudHud::TextStroke);
+			const FRgba Ice = SaudHud::WithAlpha(Colour::Ice, A);
+			const FRgba Dim = SaudHud::WithAlpha(Colour::Ice, DimAlpha * A);
+			const FRgba Cyan = SaudHud::WithAlpha(Colour::System, A);
+			const auto Line = [&](EMenuText Slot, int V, int Aux, const FPoint& At, float H, const FRgba& C)
+			{
+				Out.Text(Slot, V, Aux, At, H, C, Stroke, false, -1, EMenuPart::Window);
+			};
+			const auto Rule = [&](float Y)
+			{
+				Rect(Out, {L.Window.X + P.Px(WinPad), Y, L.Window.W - 2.f * P.Px(WinPad), FMath::Max(1.f, P.Px(RulePx))},
+				     SaudHud::WithAlpha(Colour::System, DimAlpha * A), EMenuPart::Mark, -1, 0);
+			};
+			Line(EMenuText::WinName, 0, 0, L.WinName, T, Ice);
+			Line(EMenuText::LevelLine, S.Level, 0, L.Level, Big, Ice);
+			Line(EMenuText::RankTitle, S.Rank, 0, L.Rank, Big, Cyan);
+			// the XP bar: how far through this level the earned XP is (full at the top)
+			Line(EMenuText::XpLabel, 0, 0, L.XpLabel, T, Ice);
+			const bool bTop = S.LevelNext <= 0;
+			const float Through = bTop ? 1.f
+			    : FMath::Clamp(static_cast<float>(S.Earned - S.LevelFloor) / static_cast<float>(FMath::Max(1, S.LevelNext - S.LevelFloor)), 0.f, 1.f);
+			Rect(Out, SaudHud::Grow(L.XpBar, FMath::Max(1.f, P.Px(2.f))), SaudHud::WithAlpha(Colour::System, DimAlpha * A),
+			     EMenuPart::Bar, -1, 0);
+			Rect(Out, L.XpBar, SaudHud::WithAlpha(Colour::Trough, A), EMenuPart::Bar, -1, 1);
+			if (Through * L.XpBar.W >= 0.5f)
+			{
+				Rect(Out, {L.XpBar.X, L.XpBar.Y, L.XpBar.W * Through, L.XpBar.H}, Cyan, EMenuPart::Bar, -1, 2);
+			}
+			Line(EMenuText::XpLine, S.Earned, bTop ? 0 : S.LevelNext, L.XpLine, T, Dim);
+			Line(EMenuText::XpToNext, bTop ? 0 : S.LevelNext - S.Earned, bTop ? 0 : S.Level + 1, L.XpToNext, T, Dim);
+			Rule(L.Rule[0]);
+			Line(EMenuText::StatHp, S.MaxHealth, 0, L.Stat[0], T, Ice);
+			Line(EMenuText::StatMp, S.MaxMana, 0, L.Stat[1], T, Ice);
+			Line(EMenuText::StatStamina, S.MaxStamina, 0, L.Stat[2], T, Ice);
+			Rule(L.Rule[1]);
+			// the five skills: a slot each, the name when he has it and a
+			// "?" when he has not; HAWK FIST's slot violet either way
+			Line(EMenuText::Section, 0, 0, L.Section[0], T, Cyan);
+			for (int K = 0; K < Skills; ++K)
+			{
+				const FRect& Sl = L.Slot[K];
+				const bool bHas = S.Skill[K];
+				const FRgba Edge = K == HawkFistSkill ? SaudHud::WithAlpha(Colour::Shadow, (bHas ? 1.f : DimAlpha) * A)
+				                                      : SaudHud::WithAlpha(Colour::System, (bHas ? 1.f : DimAlpha) * A);
+				Detail::Plate(Out, Sl, SaudHud::WithAlpha(Colour::Panel, PlateAlpha * A), Edge,
+				              FMath::Max(1.f, P.Px(SaudHud::Ink)), -1);
+				const float MX = Sl.X + P.Px(12.f);
+				if (bHas)
+				{
+					Rect(Out, {MX, Sl.Y + 0.5f * (Sl.H - P.Px(MarkPx)), P.Px(MarkPx), P.Px(MarkPx)},
+					     K == HawkFistSkill ? SaudHud::WithAlpha(Colour::Shadow, A) : Ice, EMenuPart::Mark, -1, 2 + K);
+				}
+				Line(EMenuText::SkillName, K, bHas ? 1 : 0, {MX + P.Px(MarkPx + 12.f), Sl.Y + 0.5f * (Sl.H - T)}, T,
+				     bHas ? Ice : Dim);
+			}
+			// the six tracks, each its five levels
+			Line(EMenuText::Section, 1, 0, L.Section[1], T, Cyan);
+			for (int Tk = 0; Tk < Train::Tracks; ++Tk)
+			{
+				Line(EMenuText::TrackName, Tk, 0, L.TrackAt[Tk], T, S.Track[Tk] > 0 ? Ice : Dim);
+				Pips(Out, L.Pips[Tk], P.Px(WinPipGap), S.Track[Tk], Cyan, A, -1);
+			}
+			// the quest: FIND THE WAY UP, in progress, until the title is
+			// won; then nothing ("--": removed, no longer required)
+			Rule(L.Rule[2]);
+			Line(EMenuText::Section, 2, 0, L.Section[2], T, Cyan);
+			Line(EMenuText::QuestName, S.bQuestOpen ? 0 : 1, 0, L.Quest, P.Px(WinQuestText), S.bQuestOpen ? Ice : Dim);
+			if (S.bQuestOpen)
+			{
+				Line(EMenuText::QuestState, 0, 0, L.QuestState, T, Cyan);
+			}
+		}
+	}
+
 	/** The whole screen for one frame. Pure: the same page and model give
 	    the same list. */
 	inline void Build(const FPage& P, const FMenuModel& M, FMenuList& Out)
@@ -1246,7 +1725,7 @@ namespace SaudMenu
 
 		// The scrim: the pause and anything opened from it stand over a
 		// stopped fight; the controls diagram wants a dark ground always.
-		const bool bScrim = M.Screen == EScreen::Pause || M.ReturnTo == EScreen::Pause || M.Screen == EScreen::Controls;
+		const bool bScrim = M.Root == EScreen::Pause || M.Screen == EScreen::Controls;
 		if (bScrim)
 		{
 			const FPoint Q[4] = {{0.f, P.ScreenH}, {0.f, 0.f}, {P.ScreenW, 0.f}, {P.ScreenW, P.ScreenH}};
@@ -1275,7 +1754,9 @@ namespace SaudMenu
 			int HeadV = 0;
 			if (M.Screen == EScreen::Title) Head = EMenuText::Saud;
 			else if (M.Screen == EScreen::Pause) Head = EMenuText::Paused;
-			else if (M.Screen == EScreen::Confirm) { Head = EMenuText::AskHead; HeadV = M.Ask == EAsk::NewGame ? 1 : 0; }
+			else if (M.Screen == EScreen::Confirm) { Head = EMenuText::AskHead; HeadV = static_cast<int>(M.Ask); }
+			else if (M.Screen == EScreen::Status) Head = EMenuText::StatusHead;
+			else if (M.Screen == EScreen::Training) Head = EMenuText::TrainingHead;
 			Out.Text(Head, HeadV, 0, L.Heading, L.HeadingH, SaudHud::WithAlpha(Colour::Ice, HeadA), Stroke, false, -1,
 			         EMenuPart::Wash);
 			const float T = FMath::Clamp(M.Since / SlashRevealSeconds, 0.f, 1.f);
@@ -1290,6 +1771,13 @@ namespace SaudMenu
 			{
 				Out.Text(EMenuText::Subtitle, 0, 0, L.Subtitle, P.Px(SubText), SaudHud::WithAlpha(Colour::Ice, DimAlpha * HeadA),
 				         Stroke, false, -1, EMenuPart::Wash);
+			}
+			// the Training's spendable XP where the Title's sub-line sits:
+			// what every cost on the plates is measured against
+			if (M.Screen == EScreen::Training)
+			{
+				Out.Text(EMenuText::SpendXp, M.Status.Spendable, 0, L.Subtitle, P.Px(SubText),
+				         SaudHud::WithAlpha(Colour::Ice, HeadA), Stroke, false, -1, EMenuPart::Wash);
 			}
 		}
 
@@ -1312,8 +1800,10 @@ namespace SaudMenu
 				R.X += P.Px(FocusNudge) * W - P.Px(SlideIn) * (1.f - In);
 			}
 			const auto Fade = [In](FRgba C) { C.A *= In; return C; };
+			// a buy just denied on this plate: its keyline crimson
+			const bool bDenied = M.Screen == EScreen::Training && M.DeniedLeft > 0.f && M.DeniedItem == i;
 			Detail::Plate(Out, R, Fade(SaudHud::LerpColour(UnfocusedFill(), FocusFill(M.Clock), W)),
-			              Fade(SaudHud::LerpColour(DimKey, Colour::System, W)), Key, i);
+			              Fade(bDenied ? Colour::Danger : SaudHud::LerpColour(DimKey, Colour::System, W)), Key, i);
 			const FRgba Label = Fade(SaudHud::LerpColour(DimText(), Colour::Ice, W));
 			const FPoint At = {R.X + R.H * PlateLean + P.Px(LabelIn), R.Y + 0.5f * (R.H - H)};
 			Out.Text(SlotOf(List[i]), ValueOf(M, List[i]), 0, At, H, Label, Stroke, false, i, EMenuPart::Plate);
@@ -1325,6 +1815,22 @@ namespace SaudMenu
 				Out.Text(EMenuText::StageTag, M.StageReached, M.StageCount,
 				         {R.X + R.W - P.Px(LabelIn) - TW, R.Y + 0.5f * (R.H - TH)}, TH, Label, Stroke, false, i,
 				         EMenuPart::Plate);
+			}
+			// a track: its five levels and what the next costs, right on its
+			// plate (MAX at the top); a crimson rule under a cost the XP
+			// will not cover
+			if (TrackOfItem(List[i]) >= 0)
+			{
+				Detail::TrackPlate(Out, P, M, R, TrackOfItem(List[i]), i, Label, In);
+			}
+			// the Train question's YES carries the cost
+			if (List[i] == EItem::ConfirmYes && M.Ask == EAsk::Train && M.TrainTrack >= 0 && M.TrainTrack < Train::Tracks)
+			{
+				const float TH = P.Px(TagText);
+				const int C = Train::Cost(M.Status.Track[M.TrainTrack]);
+				const float TW = TextWidth(EMenuText::CostTag, C, TH);
+				Out.Text(EMenuText::CostTag, C, 0, {R.X + R.W - P.Px(LabelIn) - TW, R.Y + 0.5f * (R.H - TH)}, TH, Label, Stroke,
+				         false, i, EMenuPart::Plate);
 			}
 			// a level: ten segments, as many lit as the level, right on its plate
 			if (List[i] == EItem::Sound || List[i] == EItem::Music)
@@ -1349,8 +1855,17 @@ namespace SaudMenu
 		{
 			const EHint Hn = HintOf(M, List[M.Focus < 0 ? 0 : (M.Focus >= N ? N - 1 : M.Focus)]);
 			const float A = Arrive(M, 0.25f, 0.25f);
-			Out.Text(EMenuText::Hint, static_cast<int>(Hn), 0, L.Hint, L.HintH, SaudHud::WithAlpha(Colour::Ice, DimAlpha * A),
+			// (the Train question names the track and the level it buys)
+			const int HAux = Hn == EHint::AskTrain && M.TrainTrack >= 0 && M.TrainTrack < Train::Tracks
+			                     ? M.TrainTrack * 10 + M.Status.Track[M.TrainTrack] + 1 : 0;
+			Out.Text(EMenuText::Hint, static_cast<int>(Hn), HAux, L.Hint, L.HintH, SaudHud::WithAlpha(Colour::Ice, DimAlpha * A),
 			         Stroke, false, -1, EMenuPart::Wash);
+		}
+
+		// the status window, right of the column
+		if (M.Screen == EScreen::Status)
+		{
+			Detail::StatusWindow(Out, P, M, L);
 		}
 
 		// the prompt strip along the bottom safe line
@@ -1370,6 +1885,8 @@ namespace SaudMenu
 				break;
 			case EScreen::Pause:
 			case EScreen::Confirm:
+			case EScreen::Status:
+			case EScreen::Training:
 				X = Detail::Prompt(Out, P, M, X, Baseline, SH, EButton::FaceSouth, EMenuText::PromptSelect,
 				                   EMenuText::KeySelect, 0, A);
 				X = Detail::Prompt(Out, P, M, X, Baseline, SH, EButton::FaceEast, EMenuText::PromptBack,

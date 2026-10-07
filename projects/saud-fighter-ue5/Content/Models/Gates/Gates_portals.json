@@ -1,0 +1,51 @@
+{
+ "units": "centimetres, Z up; a gate portal's origin is its gate box's middle, the door's the floor under it; faces along +-Y; UV0 the oval, UV1 (-1 energy / 0..1 frame, the oval's aspect)",
+ "box": [
+  160.0,
+  60.0,
+  300.0
+ ],
+ "proud": {
+  "energy": 1.5,
+  "frame": 3.0
+ },
+ "frame": 6.0,
+ "portals": {
+  "SM_Portal_Wall": {
+   "w": 120.0,
+   "h": 230.0,
+   "material": "M_Portal_System",
+   "why": "a tall rift along the crack"
+  },
+  "SM_Portal_Shutter": {
+   "w": 150.0,
+   "h": 190.0,
+   "material": "M_Portal_System",
+   "why": "the shutter's opening, low and wide"
+  },
+  "SM_Portal_Ledge": {
+   "w": 130.0,
+   "h": 140.0,
+   "material": "M_Portal_System",
+   "why": "high in the wall, where he climbs to"
+  },
+  "SM_Portal_Gap": {
+   "w": 150.0,
+   "h": 110.0,
+   "material": "M_Portal_System",
+   "why": "low and wide, at the break"
+  },
+  "SM_Portal_Stash": {
+   "w": 90.0,
+   "h": 120.0,
+   "material": "M_Portal_System",
+   "why": "small, the locker's door"
+  },
+  "SM_Portal_ArenaDoor": {
+   "w": 420.0,
+   "h": 540.0,
+   "material": "M_Portal_Danger",
+   "why": "the arena's door"
+  }
+ }
+}

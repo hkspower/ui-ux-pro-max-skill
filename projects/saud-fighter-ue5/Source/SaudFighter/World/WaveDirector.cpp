@@ -11,6 +11,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
 #include "Game/SaudGameInstance.h"
+#include "Game/SaudSystemSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 
 AWaveDirector::AWaveDirector()
@@ -134,6 +135,7 @@ int32 AWaveDirector::CountLivingEnemies() const
 void AWaveDirector::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	USaudSystemSubsystem::DirectorTick(this);   // the System: the area he is in (its quest, the ring closing)
 
 	if (!Stage || bFinished)
 	{
@@ -267,6 +269,7 @@ void AWaveDirector::BeginWave(const FWaveDef& Wave)
 			{
 				continue;
 			}
+			USaudSystemSubsystem::BossWave(this, Row);   // the System: the HUD's WARNING, AL-SAQR's line
 			const char* Theme = SaudFeel::BossTheme(TCHAR_TO_ANSI(*Row.ToString()));
 			const FName Cue = (Theme && Audio->HasCue(FName(Theme))) ? FName(Theme) : FName(SaudFeel::BossMusic);
 			Audio->PlayMusic(Cue);

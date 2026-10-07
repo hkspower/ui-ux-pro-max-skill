@@ -4,6 +4,7 @@
 #include "GameFramework/HUD.h"
 #include "Combat/SaudAnime.h"
 #include "Combat/SaudMenu.h"
+#include "Combat/SaudSystem.h"
 #include "SaudHUD.generated.h"
 
 class AEnemyFighter;
@@ -41,6 +42,15 @@ class AEnemyFighter;
  * strings live here (MenuString), as the HUD's do: a text item is a slot
  * and a value, never a string. English only -- FCanvasTextItem does no
  * Arabic shaping, so the browser's Arabic sub-lines are not drawn.
+ *
+ * Since 2026-10-07 the System's windows too (Combat/SaudSystem.h): the
+ * Halqa talking to Saud -- QUEST, LEVEL UP, RANK, SKILL ACQUIRED, GATE
+ * CLEARED, YOU WENT DOWN -- and the open quest, FIND THE WAY UP, under
+ * STATUS. USaudSystemSubsystem holds the model; this advances it each
+ * frame in real time (not under a menu) and draws SaudSystem::Build's list
+ * over the fight HUD and under a menu, the same way. Its texts carry their
+ * words (the lines are data, DT_SystemLines.json), and a reward or a
+ * status is set flush right. A boss's WARNING is still this HUD's own.
  */
 UCLASS()
 class SAUDFIGHTER_API ASaudHUD : public AHUD
@@ -73,6 +83,8 @@ private:
 	SaudHud::FDrawList List;
 	/** SaudMenu::Build's: larger still (the controls diagram). */
 	SaudMenu::FMenuList MenuList;
+	/** SaudSystem::Build's: the System's windows. */
+	SaudSystem::FSysList SysList;
 
 	void GatherPlayer(SaudHud::FHudState& State, float Dt);
 	void GatherBoss(SaudHud::FHudState& State, float Dt);
@@ -86,9 +98,15 @@ private:
 	/** The menu's list, the same way. */
 	void EmitMenu();
 	void FlushMenu(int32 From, int32 To);
+	/** The System's list, the same way. */
+	void EmitSystem();
 	/** The eight-offset ink stroke and the fill, for either list's text. */
 	void DrawText(const SaudHud::FPoint& At, float Height, const SaudHud::FRgba& Colour, float Stroke, bool bCentre,
 	              const FString& S);
+	/** ...and set left, centred on At, or flush right to it (the System's
+	    rewards). */
+	void DrawTextAligned(const SaudHud::FPoint& At, float Height, const SaudHud::FRgba& Colour, float Stroke,
+	                     SaudSystem::EAlign Align, const FString& S);
 	/** The string a menu text slot and value stand for (the table in
 	    Combat/SaudMenu.h); a ControlsText slot through SaudControls'. */
 	static FString MenuString(const SaudMenu::FMenuText& Item);

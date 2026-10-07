@@ -5,9 +5,11 @@
  * test -- it lives beside tests/, not in it, so run.sh does not build it;
  * menu_preview.py does.
  *
- *   menu_dump W H screen=title|pause|settings|controls|confirm pad=xbox|ps|keyboard
- *             shown=xbox|ps focus=N save=0|1 clock=S since=S [from=title|pause]
- *             [ask=quit|new] [stage=N] [sound=N] [music=N] [focusfrom=N focust=T]
+ *   menu_dump W H screen=title|pause|settings|controls|confirm|status|training
+ *             pad=xbox|ps|keyboard shown=xbox|ps focus=N save=0|1 clock=S since=S
+ *             [from=title|pause|status] [ask=quit|new|train] [stage=N] [sound=N] [music=N]
+ *             [focusfrom=N focust=T] [xp=N tracks=a,b,c,d,e,f skills=VDPHF won=0|1]
+ *             [track=N] [deny=N]
  *
  * The model is built the way the engine builds it: SaudMenu::Open on the
  * Title or the Pause, and a Settings, Controls or Confirm page reached from
@@ -17,7 +19,14 @@
  * title); a Confirm is always the Title's, `ask` says which (quit, or new:
  * NEW GAME over a save, which needs save=1). `stage` is CONTINUE's tag,
  * `sound` and `music` the two levels (0..10), and `focusfrom`/`focust` a
- * focus glide caught part way (2026-10-02).
+ * focus glide caught part way (2026-10-02). Since 2026-10-07: the Status
+ * and the Training are the Pause's (from=status: a Training opened from the
+ * Status); `ask=train` asks about the Training's track `track` (default 0);
+ * the save is `xp` (spendable), `tracks` (the six levels), `skills` (the
+ * five talents found, by letter: Vault, Dash leap, Power kick, Haymaker,
+ * hawk Fist) and `won` (the title won: the quest removed); `deny=N`
+ * presses Confirm on the Training's item N once more, as a player whose
+ * buy is refused would.
  *
  * Prints {"scale", "overflow", "tris": [[x0,y0,r,g,b,a, x1,..., x2,...,
  * part, item, tag], ...], "texts": [{slot, value, aux, x, y, h, rgba,
@@ -38,60 +47,19 @@ using namespace SaudMenu;
 
 static FMenuList List;
 
-/** The slot -> string table from the head of SaudMenu.h, the one mapping
-    the engine will use. Value picks the variant where the table has one;
-    Aux is SaudControls' own value for a ControlsText slot. */
+/** The word the engine draws for a slot: SaudMenu::Spell, the header's
+    own table (since 2026-10-07; this file kept its own copy until then),
+    and SaudControls' ControlsText() for a ControlsText slot -- exactly as
+    the engine's sink will map them. */
 static const char* MenuString(EMenuText Slot, int Value, int Aux)
 {
-	static char Buf[32];   // the numbered strings; printed before the next call
-	switch (Slot)
+	static FSpelled Buf;   // printed before the next call
+	if (Slot == EMenuText::ControlsText)
 	{
-	case EMenuText::Saud: return "SAUD";
-	case EMenuText::Subtitle: return "KUWAIT FIGHTER";
-	case EMenuText::Paused: return "PAUSED";
-	case EMenuText::SettingsHead: return "SETTINGS";
-	case EMenuText::Continue: return "CONTINUE";
-	case EMenuText::Fight: return "FIGHT";
-	case EMenuText::Controls: return "CONTROLS";
-	case EMenuText::Settings: return "SETTINGS";
-	case EMenuText::Quit: return "QUIT";
-	case EMenuText::Resume: return "RESUME";
-	case EMenuText::QuitToTitle: return "QUIT TO TITLE";
-	case EMenuText::Difficulty:
-		return Value == 0 ? "DIFFICULTY  ROOKIE" : (Value == 1 ? "DIFFICULTY  PRO" : "DIFFICULTY  CHAMPION");
-	case EMenuText::Sound:
-		if (!Value) return "SOUND  OFF";
-		std::snprintf(Buf, sizeof Buf, "SOUND  %d", Value);
-		return Buf;
-	case EMenuText::Music:
-		if (!Value) return "MUSIC  OFF";
-		std::snprintf(Buf, sizeof Buf, "MUSIC  %d", Value);
-		return Buf;
-	case EMenuText::Vibration: return Value ? "VIBRATION  ON" : "VIBRATION  OFF";
-	case EMenuText::Back: return "BACK";
-	case EMenuText::PromptSelect: return "SELECT";
-	case EMenuText::PromptBack: return "BACK";
-	case EMenuText::PromptAdjust: return "ADJUST";
-	case EMenuText::PromptFlip: return Value ? "SHOW PS5" : "SHOW XBOX";
-	case EMenuText::KeySelect: return "ENTER  SELECT";
-	case EMenuText::KeyBack: return "ESC  BACK";
-	case EMenuText::KeyAdjust: return "ARROWS  ADJUST";
-	case EMenuText::KeyFlip: return Value ? "TAB  SHOW PS5" : "TAB  SHOW XBOX";
-	case EMenuText::NewGame: return "NEW GAME";
-	case EMenuText::AskHead: return Value ? "NEW GAME?" : "QUIT?";
-	case EMenuText::ConfirmNo: return Value ? "NO, KEEP MY SAVE" : "NO, STAY";
-	case EMenuText::ConfirmYes: return Value ? "YES, START OVER" : "YES, QUIT";
-	case EMenuText::StageTag:
-		std::snprintf(Buf, sizeof Buf, "STAGE %d/%d", Value, Aux);
-		return Buf;
-	case EMenuText::PromptQuit: return "QUIT";
-	case EMenuText::KeyQuit: return "ESC  QUIT";
-	case EMenuText::Hint: return HintString(static_cast<EHint>(Value));
-	case EMenuText::ControlsText:
 		return SaudControls::ControlsText(static_cast<SaudControls::EControlsText>(Value), Aux);
-	default:
-		return "?";
 	}
+	Buf = Spell(Slot, Value, Aux);
+	return Buf.S;
 }
 
 static void PrintEscaped(const char* S)
@@ -124,10 +92,10 @@ int main(int argc, char** argv)
 {
 	if (argc < 3)
 	{
-		std::fprintf(stderr, "usage: menu_dump W H screen=title|pause|settings|controls|confirm "
+		std::fprintf(stderr, "usage: menu_dump W H screen=title|pause|settings|controls|confirm|status|training "
 		                     "pad=xbox|ps|keyboard shown=xbox|ps focus=N save=0|1 clock=S since=S "
-		                     "[from=title|pause] [ask=quit|new] [stage=N] [sound=N] [music=N] "
-		                     "[focusfrom=N focust=T]\n");
+		                     "[from=title|pause|status] [ask=quit|new|train] [stage=N] [sound=N] [music=N] "
+		                     "[focusfrom=N focust=T] [xp=N tracks=a,b,c,d,e,f skills=VDPHF won=0|1] [track=N] [deny=N]\n");
 		return 2;
 	}
 	const float W = static_cast<float>(std::atof(argv[1])), H = static_cast<float>(std::atof(argv[2]));
@@ -139,6 +107,8 @@ int main(int argc, char** argv)
 	EAsk Ask = EAsk::Quit;
 	int Stage = 0, Sound = LevelMax, Music = LevelMax, FocusFrom = -1;
 	float FocusT = 1.f;
+	int Xp = 0, Tracks[Train::Tracks] = {}, TrainT = 0, Deny = -1;
+	bool Skills[SaudMenu::Skills] = {}, bWon = false;
 	for (int i = 3; i < argc; ++i)
 	{
 		const char* Eq = std::strchr(argv[i], '=');
@@ -159,9 +129,11 @@ int main(int argc, char** argv)
 			else if (!std::strcmp(V, "settings")) S = EScreen::Settings;
 			else if (!std::strcmp(V, "controls")) S = EScreen::Controls;
 			else if (!std::strcmp(V, "confirm")) S = EScreen::Confirm;
+			else if (!std::strcmp(V, "status")) S = EScreen::Status;
+			else if (!std::strcmp(V, "training")) S = EScreen::Training;
 			else { bOk = false; S = EScreen::Title; }
 			if (Is("screen")) Screen = S; else From = S;
-			if (Is("from") && S != EScreen::Title && S != EScreen::Pause) bOk = false;
+			if (Is("from") && S != EScreen::Title && S != EScreen::Pause && S != EScreen::Status) bOk = false;
 		}
 		else if (Is("pad")) bOk = ParsePad(V, Pad);
 		else if (Is("shown")) bOk = ParsePad(V, Shown) && Shown != SaudControls::EPad::Keyboard;
@@ -173,6 +145,7 @@ int main(int argc, char** argv)
 		{
 			if (!std::strcmp(V, "quit")) Ask = EAsk::Quit;
 			else if (!std::strcmp(V, "new")) Ask = EAsk::NewGame;
+			else if (!std::strcmp(V, "train")) Ask = EAsk::Train;
 			else bOk = false;
 		}
 		else if (Is("stage")) Stage = std::atoi(V);
@@ -180,6 +153,22 @@ int main(int argc, char** argv)
 		else if (Is("music")) { Music = std::atoi(V); bOk = Music >= 0 && Music <= LevelMax; }
 		else if (Is("focusfrom")) FocusFrom = std::atoi(V);
 		else if (Is("focust")) FocusT = static_cast<float>(std::atof(V));
+		else if (Is("xp")) Xp = std::atoi(V);
+		else if (Is("tracks"))
+		{
+			int K = 0;
+			for (const char* C = V; *C && K < Train::Tracks; ++C)
+				if (*C >= '0' && *C <= '9') Tracks[K++] = *C - '0';
+			bOk = K == Train::Tracks;
+		}
+		else if (Is("skills"))
+		{
+			const char* Letters = "VDPHF";
+			for (int K = 0; K < SaudMenu::Skills; ++K) Skills[K] = std::strchr(V, Letters[K]) != nullptr;
+		}
+		else if (Is("won")) bWon = std::atof(V) > 0.5;
+		else if (Is("track")) { TrainT = std::atoi(V); bOk = TrainT >= 0 && TrainT < Train::Tracks; }
+		else if (Is("deny")) Deny = std::atoi(V);
 		else
 		{
 			std::fprintf(stderr, "unknown key: %s\n", argv[i]);
@@ -200,23 +189,10 @@ int main(int argc, char** argv)
 	M.StageReached = Stage;
 	M.SoundLevel = Sound;
 	M.MusicLevel = Music;
-	if (Screen == EScreen::Title || Screen == EScreen::Pause)
+	M.Status = MakeStatus(Xp, Tracks, Skills, bWon);
+	// confirm on the item named, on the screen the model is on
+	const auto Press = [&](EItem Opener) -> bool
 	{
-		Open(M, Screen);
-	}
-	else
-	{
-		if (Screen == EScreen::Confirm)
-		{
-			From = EScreen::Title;   // only the Title asks
-		}
-		Open(M, From);
-		// the item that opens it, found by name: where it sits depends on
-		// the root and on whether there is a save
-		const EItem Opener = Screen == EScreen::Controls ? EItem::Controls
-		                   : Screen == EScreen::Settings ? EItem::Settings
-		                   : Ask == EAsk::NewGame        ? EItem::NewGame
-		                                                 : EItem::Quit;
 		EItem Its[MaxItems];
 		const int NI = Items(M, Its);
 		M.Focus = -1;
@@ -224,12 +200,41 @@ int main(int argc, char** argv)
 		{
 			if (Its[i] == Opener) M.Focus = i;
 		}
-		const EMenuEffect E = M.Focus < 0 ? EMenuEffect::None : Navigate(M, SaudControls::EAction::Confirm);
-		if (E != EMenuEffect::Tap || M.Screen != Screen)
+		return M.Focus >= 0 && Navigate(M, SaudControls::EAction::Confirm) == EMenuEffect::Tap;
+	};
+	bool bOpened = true;
+	if (Screen == EScreen::Title || Screen == EScreen::Pause)
+	{
+		Open(M, Screen);
+	}
+	else if (Screen == EScreen::Status || Screen == EScreen::Training || (Screen == EScreen::Confirm && Ask == EAsk::Train))
+	{
+		Open(M, EScreen::Pause);
+		if (Screen == EScreen::Status || From == EScreen::Status) bOpened = Press(EItem::Status);
+		if (Screen != EScreen::Status) bOpened = bOpened && Press(EItem::Training);
+		if (Screen == EScreen::Confirm)
+			bOpened = bOpened && Press(static_cast<EItem>(static_cast<int>(EItem::TrainBox) + TrainT));
+	}
+	else
+	{
+		if (Screen == EScreen::Confirm)
 		{
-			std::fprintf(stderr, "could not open the page from the root (NEW GAME needs save=1)\n");
-			return 1;
+			From = EScreen::Title;   // only the Title asks
 		}
+		if (From == EScreen::Status) From = EScreen::Pause;
+		Open(M, From);
+		// the item that opens it, found by name: where it sits depends on
+		// the root and on whether there is a save
+		bOpened = Press(Screen == EScreen::Controls ? EItem::Controls
+		              : Screen == EScreen::Settings ? EItem::Settings
+		              : Ask == EAsk::NewGame        ? EItem::NewGame
+		                                            : EItem::Quit);
+	}
+	if (!bOpened || M.Screen != Screen)
+	{
+		std::fprintf(stderr, "could not open the page from the root (NEW GAME needs save=1; a Train question "
+		                     "needs xp for the track)\n");
+		return 1;
 	}
 	M.Shown = Shown;   // after Navigate: OpenSub sets Shown from Pad
 	M.Since = Since;
@@ -242,6 +247,18 @@ int main(int argc, char** argv)
 	M.Focus = Focus;
 	M.FocusFrom = static_cast<float>(FocusFrom < 0 ? Focus : FocusFrom);
 	M.FocusT = FocusFrom < 0 ? 1.f : FocusT;
+	// a refused buy, just pressed: the plate crimson, the hint saying why
+	if (Deny >= 0 && Screen == EScreen::Training)
+	{
+		M.Focus = Deny < N ? Deny : N - 1;
+		M.FocusFrom = static_cast<float>(M.Focus);
+		if (Navigate(M, SaudControls::EAction::Confirm) != EMenuEffect::Denied)
+		{
+			std::fprintf(stderr, "deny=%d: that buy was not refused\n", Deny);
+			return 1;
+		}
+		M.Since = Since;
+	}
 
 	const FPage P = FPage::For(W, H);
 	Build(P, M, List);

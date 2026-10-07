@@ -287,10 +287,41 @@ def moon_open():
     return e
 
 
-def render_passes(blend, camera=None, height=1080, samples=48, fit=False, groups=None):
-    """Open the .blend, then render_scene."""
+def render_passes(blend, camera=None, height=1080, samples=48, fit=False, groups=None, cache=None):
+    """Open the .blend, then render_scene -- or, with `cache` (an .npz path,
+    2026-10-07) that exists, take the passes from it instead of rendering:
+    the scene is opened and its camera and resolution set as the render had
+    them, so everything projected through it (the fist, the aura, the
+    System's effects) lands where it did. A cache that does not exist is
+    written after the render."""
     bpy.ops.wm.open_mainfile(filepath=blend)
-    return render_scene(camera=camera, height=height, samples=samples, fit=fit, groups=groups)
+    if cache and os.path.exists(cache):
+        return load_passes(cache, camera)
+    got, exposure = render_scene(camera=camera, height=height, samples=samples, fit=fit, groups=groups)
+    if cache:
+        save_passes(cache, got, exposure)
+    return got, exposure
+
+
+def save_passes(path, got, exposure):
+    """A render's passes to an .npz (float32), the exposure and the camera's
+    name with them."""
+    arrays = {"p_" + k: np.asarray(v, np.float32) for k, v in got.items()}
+    np.savez_compressed(path, exposure=np.float64(exposure), camera=np.array(bpy.context.scene.camera.name), **arrays)
+
+
+def load_passes(path, camera=None):
+    """save_passes()'s file back, into the open scene: its camera made the
+    scene's and the resolution the passes' own."""
+    z = np.load(path, allow_pickle=False)
+    sc = bpy.context.scene
+    sc.camera = bpy.data.objects[camera or str(z["camera"])]
+    got = {k[2:]: z[k].astype(np.float64) for k in z.files if k.startswith("p_")}
+    if "MoonOpen" in got:
+        got["MoonOpen"] = float(got["MoonOpen"])
+    H, W = got["Image"].shape[:2]
+    sc.render.resolution_x, sc.render.resolution_y, sc.render.resolution_percentage = W, H, 100
+    return got, float(z["exposure"])
 
 
 def project(world, cam=None):
@@ -366,6 +397,78 @@ def aura_of(saud, level=0.55, time=0.4):
     return dict(level=level, x=x, y=y, depth=depth, scale=scale, time=time,
                 eyes=((e0[0], e0[1]), (e1[0], e1[1])), eye_depth=min(e0[2], e1[2]),
                 eye_scale=0.5 * (e0[3] + e1[3]))
+
+
+def system_of(saud, **ages):
+    """The System's events as USaudLookSubsystem::WriteSystem writes them,
+    from his rig (2026-10-07): his middle (the pelvis) and the ground under
+    it (the capsule's foot in the game; here the floor his balls stand on,
+    less the ball joint's 2.5 cm), projected; `ages` the effects' ages
+    (pillar, burst, hawk, rank, flash), the rest none."""
+    from mathutils import Vector
+    M = saud.matrix_world
+    pelvis = M @ saud.pose.bones["pelvis"].head
+    floor = min((M @ saud.pose.bones[b].head).z for b in ("ball_l", "ball_r")) - 0.025
+    x, y, depth, scale = project(pelvis)
+    fx_, fy_, _d, _s = project(Vector((pelvis.x, pelvis.y, floor)))
+    return dict(AL.SYS_IDLE, x=x, y=y, foot_x=fx_, foot_y=fy_, depth=depth, scale=scale, **ages)
+
+
+def gate_flash_of(age=0.12):
+    """A gate opened: the flash at the middle of the souq's gate wall's
+    bounds, as the subsystem projects the gate actor's; None when the camera
+    does not see it."""
+    from mathutils import Vector
+    gates = [o for o in bpy.data.objects if o.type == "MESH" and o.name.startswith("SM_Souq_GateWall")]
+    for g in gates:
+        c = sum((g.matrix_world @ Vector(b) for b in g.bound_box), Vector()) / 8.0
+        x, y, depth, scale = project(c)
+        if depth > 0.0 and 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0:
+            return dict(flash=age, flash_x=x, flash_y=y, flash_depth=depth, flash_scale=scale)
+    return None
+
+
+def cross_of(saud, victim):
+    """Saud's cross landed on `victim`, posed through his rig: the rear
+    (right) fist's control taken to the man's chin, the knuckles a few
+    centimetres short of it. Returns the knuckles' world position before
+    and after -- the guard and the contact -- for the trail."""
+    import rig_full_ik as CR
+    from mathutils import Vector
+    M = saud.matrix_world
+    start = (M @ saud.pose.bones["hand_end_r"].head).copy()
+    chin = victim.matrix_world @ victim.pose.bones["head"].head - Vector((0.0, 0.0, CHIN_UNDER_HEAD_M))
+    wrist = M @ saud.pose.bones["hand_r"].head
+    to_chin = chin - start
+    # the wrist's control, so the knuckles (hand_end, ~9 cm on) stop 4 cm short
+    knuckle_off = (start - wrist).length
+    CR.set_world_translation(saud, "CTRL_hand_r", chin - to_chin.normalized() * (knuckle_off + 0.04))
+    bpy.context.view_layer.update()
+    end = (M @ saud.pose.bones["hand_end_r"].head).copy()
+    return start, end
+
+
+def trail_of(start, end, age=1.0 / 24.0):
+    """The trail SystemFx::FTrail would take off a cross from `start` to
+    `end` (world): six points over the swing's last 0.12 s, the contact
+    first, the fist accelerating (a quarter of the way at half the time), a
+    1.5 cm rise and outward bow on the way (at 3 cm the trail hooked like a
+    blade's slash); projected as WriteTrail does
+    (the nearest point's depth and figure px)."""
+    import math as _m
+    from mathutils import Vector
+    pts, depth, scale = [], 1e9, 0.0
+    side = (end - start).cross(Vector((0.0, 0.0, 1.0)))
+    side = side.normalized() if side.length > 1e-6 else Vector((0.0, 0.0, 0.0))
+    n = AL.LOOK["TRAIL_POINTS"]
+    for i in range(n):
+        f = (1.0 - i / (n - 1.0)) ** 2
+        p = start.lerp(end, f) + Vector((0.0, 0.0, 0.015 * _m.sin(_m.pi * f))) - side * 0.015 * _m.sin(_m.pi * f)
+        x, y, d, sc_ = project(p)
+        pts.append((x, y))
+        if d < depth:
+            depth, scale = d, sc_
+    return dict(trail=age, trail_pts=tuple(pts), trail_depth=depth, trail_scale=scale)
 
 
 def saud_of(got):
@@ -891,20 +994,63 @@ def _chin_down():
     bpy.context.view_layer.update()
 
 
-def graded_render(blend, height, samples, out=None):
+def place_cameras():
+    """The place cameras the graded check reads (Cam_souq-street, -gate),
+    made in the open scene from build_souq's own camera table when the
+    scene lacks them -- the committed fight scene carries only its fight
+    camera. Never saved. Returns the names made."""
+    sys.path.insert(0, HERE)
+    import types
+    import build_souq as BS
+    from mathutils import Vector
+    made = []
+    table = BS.Souq.cameras(types.SimpleNamespace(P=BS.plan()))
+    for name in PLACE_CAMERAS:
+        cam_name = "Cam_" + name
+        if cam_name in bpy.data.objects or name + ".png" not in table:
+            continue
+        loc, at, lens = table[name + ".png"]
+        cd = bpy.data.cameras.new(cam_name)
+        cd.lens, cd.clip_end = lens, 2000.0
+        cam = bpy.data.objects.new(cam_name, cd)
+        cam.location = loc
+        cam.rotation_euler = (Vector(at) - Vector(loc)).to_track_quat("-Z", "Y").to_euler()
+        bpy.context.scene.collection.objects.link(cam)
+        made.append(cam_name)
+    return made
+
+
+def graded_render(blend, height, samples, out=None, cache=None):
     """Open the scene and render what the graded check reads: the fight
-    camera, every place camera present, the face camera."""
+    camera, every place camera (made from build_souq's table when the scene
+    has none), the face camera. `cache` a folder: each camera's passes are
+    kept there (2026-10-07) and read back instead of rendered again, so the
+    look can be re-measured on the same buffers."""
     bpy.ops.wm.open_mainfile(filepath=blend)
     assert "Cam_souq-fight" in bpy.data.objects, "no Cam_souq-fight in %s (build_souq.py --scene leaves its cameras)" % blend
     assert _night_lights(), "%s has no night_fire lights" % blend
-    fight = render_scene(camera="Cam_souq-fight", height=height, samples=samples, groups=True)
+    made = place_cameras()
+    if made:
+        print("  (made %s from build_souq's camera table, not saved)" % ", ".join(made))
+    if cache:
+        os.makedirs(cache, exist_ok=True)
+
+    def one(camera, **kw):
+        path = os.path.join(cache, "%s-%d-%d.npz" % (camera, height, samples)) if cache else None
+        if path and os.path.exists(path):
+            return load_passes(path, camera)
+        got = render_scene(camera=camera, samples=samples, groups=True, **kw)
+        if path:
+            save_passes(path, *got)
+        return got
+    fight = one("Cam_souq-fight", height=height)
     places = {}
     for name in PLACE_CAMERAS:
         if "Cam_" + name in bpy.data.objects:
-            places[name] = render_scene(camera="Cam_" + name, height=height, samples=samples, groups=True)
+            places[name] = one("Cam_" + name, height=height)
     assert places, "no place camera (%s) in %s" % (", ".join("Cam_" + n for n in PLACE_CAMERAS), blend)
     face_camera()
-    face = render_scene(camera="Cam_saud-face", samples=samples, size=(height, height), groups=True)
+    face = one("Cam_saud-face", size=(height, height))
     return fight, places, face
 
 
@@ -922,10 +1068,10 @@ def graded_measure(fight, places, face, over=None, out=None, tag=""):
     return r
 
 
-def graded_check(blend, height, samples, bite=False, out=None):
+def graded_check(blend, height, samples, bite=False, out=None, cache=None):
     if out:
         os.makedirs(out, exist_ok=True)
-    fight, places, face = graded_render(blend, height, samples)
+    fight, places, face = graded_render(blend, height, samples, cache=cache)
     r = graded_measure(fight, places, face, out=out)
     miss = graded_misses(r)
     print("graded check (at the engine's key): " + graded_report(r))
@@ -1008,10 +1154,11 @@ def main():
         sys.exit(0 if ok else 1)
     if "--graded-check" in sys.argv:
         ok = graded_check(blend, int(_arg("--height", 540)), int(_arg("--samples", 16)), bite="--bite" in sys.argv,
-                          out=_arg("--out"))
+                          out=_arg("--out"), cache=_arg("--passes"))
         sys.exit(0 if ok else 1)
 
-    got, exposure = render_passes(blend, _arg("--camera"), height, samples)
+    cache = _arg("--passes")
+    got, exposure = render_passes(blend, _arg("--camera"), height, samples, cache=cache)
     pic, m = look_from(got, exposure)
     stem = os.path.splitext(out)[0]
     saud, others = scene_rigs()
@@ -1072,6 +1219,49 @@ def main():
             Image.fromarray(img).save("%s-%s.png" % (stem, name))
         print("  and %s-{rage,finisher}.png: Saud's aura round %d px of him, his eyes at %.3f %.3f and %.3f %.3f"
               % (stem, int(mask.sum()), a["eyes"][0][0], a["eyes"][0][1], a["eyes"][1][0], a["eyes"][1][1]))
+    # --system (2026-10-07): the System's events as the picture shows them --
+    # a level's pillar, a skill's ring and rim (and HAWK FIST's), a rank's
+    # ring, a quest's edge, a gate's flash if the camera sees the gate -- and
+    # a heavy blow's trail: Saud's cross posed onto the nearest man's chin and
+    # rendered again, the trail 1/24 s after it landed, with its speed lines
+    # and mark, and the impact frame that cut it the frame before
+    if "--system" in sys.argv and saud is not None:
+        mask = saud_of(got)
+        shots = {"levelup": dict(pillar=0.6), "skill": dict(burst=0.18), "hawk-skill": dict(burst=0.18, hawk=1.0),
+                 "rankup": dict(rank=0.45)}
+        for name, ages in shots.items():
+            img, _ = look_from(got, exposure, saud=mask, sysfx=system_of(saud, **ages))
+            Image.fromarray(img).save("%s-%s.png" % (stem, name))
+        img, _ = look_from(got, exposure, quest=0.35)
+        Image.fromarray(img).save("%s-quest.png" % stem)
+        made = list(shots) + ["quest"]
+        gf = gate_flash_of()
+        if gf:
+            img, _ = look_from(got, exposure, sysfx=dict(AL.SYS_IDLE, **gf))
+            Image.fromarray(img).save("%s-gate.png" % stem)
+            made.append("gate")
+        nearest = others[0]
+        start, end = cross_of(saud, nearest)
+        got2, e2 = (load_passes(cache[:-4] + "-cross.npz") if cache and os.path.exists(cache[:-4] + "-cross.npz")
+                    else render_scene(height=height, samples=samples))
+        if cache and not os.path.exists(cache[:-4] + "-cross.npz"):
+            save_passes(cache[:-4] + "-cross.npz", got2, e2)
+        tr = trail_of(start, end)
+        # the mark where the knuckles landed (the posed arm reaches as far as
+        # the rig's IK lets it, short of the chin the clips land on)
+        mx, my, md, ms = project(end)
+        mk = dict(mark_of(nearest), x=mx, y=my, depth=md, scale=ms)
+        lines = dict(speed=1.0, centre=(mk["x"], mk["y"]), seed=3.0)
+        img, _ = look_from(got2, e2, saud=saud_of(got2), sysfx=dict(AL.SYS_IDLE, **tr), mark=mk, **lines)
+        Image.fromarray(img).save("%s-trail.png" % stem)
+        img, _ = look_from(got2, e2, saud=saud_of(got2), sysfx=dict(AL.SYS_IDLE, **tr), impact=1.0, tone=3.0, **lines)
+        Image.fromarray(img).save("%s-trail-impact.png" % stem)
+        made += ["trail", "trail-impact"]
+        at = system_of(saud)
+        print("  and %s-{%s}.png: the System's events about %s (%.3f %.3f, a figure px %.4f), the trail of his cross "
+              "on %s, %.0f cm of fist path%s" % (stem, ",".join(made), saud.name, at["x"], at["y"], at["scale"],
+                                                 nearest.name, 100.0 * (end - start).length,
+                                                 "" if gf else "; the gate is not in this camera"))
     if "--street" in sys.argv:
         street(os.path.dirname(out), height, samples)
     if "--sky" in sys.argv:

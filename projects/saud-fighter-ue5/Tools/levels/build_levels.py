@@ -86,6 +86,7 @@ how it was checked without an engine.
 import json
 import math
 import os
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -94,6 +95,20 @@ MAPS_DIR = "/Game/Maps"
 DATA_DIR = "/Game/Data"
 
 FLOOR_TOP_Z = 0.0
+
+
+# The System's portals (Tools/blender/build_gates.py, 2026-10-07): which
+# portal a gate and the arena's door wear. Plain Python at import.
+def _load_gates():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "build_gates", os.path.join(HERE, "..", "blender", "build_gates.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+GATES = _load_gates()
 
 # The same derivation as SaudArena::DistrictExtent and
 # Tools/fab/lay_out_world.py's extent_of() -- duplicated on purpose, see the
@@ -200,7 +215,7 @@ def plan_level(stage, world, stages):
         add("Gate", "Gate_%d_%s" % (gi + 1, g["Type"]), x=sx, y=sy, z=FLOOR_TOP_Z + 150,
             GateType=g["Type"], RewardAbility=g["RewardAbility"],
             RewardExperience=g["RewardExperience"],
-            GateId="%s_gate%d" % (stage["Name"], gi + 1))
+            GateId="%s_gate%d" % (stage["Name"], gi + 1), **GATES.gate_props(g["Type"]))
 
     # Doors, on the rim at each role's fixed bearing -- see the module
     # docstring for why a bearing is fixed here rather than aimed at anything.
@@ -224,7 +239,8 @@ def plan_level(stage, world, stages):
     for side, e in exits_by_side.items():
         add("Exit", e["name"], x=e["x"], y=e["y"], z=FLOOR_TOP_Z + 300,
             Side=e["Side"], DestinationLevel=e["DestinationLevel"], DestinationStage=e["DestinationStage"],
-            RequiredAbility=e["RequiredAbility"], AfterClearedStage=e["AfterClearedStage"], ArriveAt=e["ArriveAt"])
+            RequiredAbility=e["RequiredAbility"], AfterClearedStage=e["AfterClearedStage"], ArriveAt=e["ArriveAt"],
+            **GATES.exit_props(e["DestinationStage"], stages))
 
     # PlayerStart stands at the West door: the common case, coming from the
     # previous area, needs no repositioning at all on arrival -- see
@@ -283,8 +299,20 @@ def check(levels):
             r = math.hypot(*spiral(k / 100.0, extent, phase))
             assert 0.17 * extent < r < 0.87 * extent, \
                 "%s: the way through leaves the district at t=%.2f" % (name, k / 100.0)
+
+        # The System's portals (build_gates): every gate wears its kind's,
+        # the arena's door its own and no street exit one, the door's
+        # portal across its way clear of every fight.
+        stages = _STAGES()
+        waves = [(a["x"], a["y"], GATES.SITE_RADIUS) for a in actors if a["kind"] == "WaveMarker"]
+        miss = GATES.placement_misses(actors, stages, middle=lambda a: (0.0, 0.0), fights=lambda a: waves,
+                                      expect_doors=sum(1 for a in actors if a["kind"] == "Exit"
+                                                       and GATES.is_arena_door(a["props"]["DestinationStage"], stages)),
+                                      where="%s: " % name)
+        assert not miss, miss[0]
     print("checked: every actor stands on its ground, every door is on its rim at its own")
-    print("bearing, and the way through every district stays clear of the middle and the rim.")
+    print("bearing, and the way through every district stays clear of the middle and the rim;")
+    print("every gate wears its portal and the arena's door its own.")
 
 
 def describe(levels):
@@ -306,6 +334,7 @@ def build(levels):
     ELL = unreal.EditorLevelLibrary
     EAL = unreal.EditorAssetLibrary
     cube = unreal.load_asset("/Engine/BasicShapes/Cube")
+    portals = GATES.import_meshes()          # the System's portals and their material
 
     tables = {}
     for t in ("DT_Stages", "DT_Fighters", "DT_Attacks"):
@@ -359,6 +388,7 @@ def build(levels):
                 actor.set_editor_property("reward_ability", getattr(unreal.Ability, _enum_name(p["RewardAbility"])))
                 actor.set_editor_property("reward_experience", int(p["RewardExperience"]))
                 actor.set_editor_property("gate_id", unreal.Name(p["GateId"]))
+                GATES.attach_gate(actor, p["GateType"], portals)       # the cube's origin is the box's middle
                 actor.set_folder_path("Gates")
             elif k == "Exit":
                 actor = spawn(unreal.AreaExit, a)
@@ -368,6 +398,8 @@ def build(levels):
                 actor.set_editor_property("destination_stage", unreal.Name(p["DestinationStage"]))
                 actor.set_editor_property("required_ability", getattr(unreal.Ability, _enum_name(p["RequiredAbility"])))
                 actor.set_editor_property("after_cleared_stage", unreal.Name(p["AfterClearedStage"]))
+                if p.get("ArenaDoor"):
+                    GATES.attach_door(actor, portals)
                 actor.set_folder_path("Exits")
             elif k == "Sun":
                 actor = spawn(unreal.DirectionalLight, a)
@@ -434,7 +466,62 @@ def _enum_name(s):
     return out
 
 
+def _STAGES():
+    return load()[0]
+
+
+def bite():
+    """The portal rule, broken (build_gates.py breaks the rest of its
+    rules itself): a gate planned without its portal, the arena's door
+    without its own, a street exit wearing it -- each must fail check()
+    in its own words. `python3 build_levels.py --bite`."""
+    import io
+    import contextlib
+    stages, world = load()
+    cases = []
+
+    def case(label, mutate, expect):
+        L = plan(stages, world)
+        mutate(L)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                check(L)
+            cases.append((label, False, "did not bite"))
+        except AssertionError as e:
+            cases.append((label, expect in str(e), str(e)[:110]))
+
+    def actors_of(L, name):
+        return next(l[2] for l in L if l[0] == name)
+
+    def gate_bare(L):
+        next(a for a in actors_of(L, "L_BaytAlDarb") if a["kind"] == "Gate")["props"].pop("Portal")
+
+    def door_bare(L):
+        next(a for a in actors_of(L, "L_SouqAlDawar") if a["props"].get("ArenaDoor"))["props"]["ArenaDoor"] = False
+
+    def street_portal(L):
+        e = next(a for a in actors_of(L, "L_AlHalqa") if a["kind"] == "Exit")
+        e["props"].update(ArenaDoor=True, Portal=GATES.DOOR_MESH)
+
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            check(plan(stages, world))
+    except AssertionError as e:
+        print("the unbroken plan fails its own check, so no sabotage can be counted: %s" % e)
+        return False
+    print("  (unbroken) passes")
+    case("a gate without its portal", gate_bare, "has no portal")
+    case("the arena's door without its portal", door_bare, "the arena's door")
+    case("a street exit wearing the door's portal", street_portal, "street exit")
+    for label, ok, msg in cases:
+        print("  %-40s %s  %s" % (label, "BITES " if ok else "SILENT", msg))
+    print("  %d of %d bite" % (sum(1 for c in cases if c[1]), len(cases)))
+    return all(ok for _, ok, _ in cases)
+
+
 # ------------------------------------------------------------------- main
+if (__name__ == "__main__" or True) and "--bite" in sys.argv:
+    sys.exit(0 if bite() else 1)
 if __name__ == "__main__" or True:
     _stages, _world = load()
     _levels = plan(_stages, _world)

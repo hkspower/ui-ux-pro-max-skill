@@ -290,7 +290,10 @@ LOOK = {
     "RIM_SPEC": 0.06,
     # 2026-10-03, the System: the System's cyan, a manhwa's back-light
     # (0.70, 0.88, 1.18, a cold white, before)
-    "RIM_TINT": (0.48, 0.92, 1.32),
+    # 2026-10-07 ("the System, deeper"): a little deeper, toward the
+    # night's violet-navy -- hue 209 -> 220 degrees, a shade darker -- an
+    # accent only (0.48, 0.92, 1.32 before)
+    "RIM_TINT": (0.50, 0.80, 1.38),
     # Split toning: shadows lean to a cool slate, the lit side to dust-warm,
     # so light and shade differ in hue as well as value -- the depth a
     # painted cel has. Until 2026-09-25 one warm tint lay over everything
@@ -422,7 +425,12 @@ LOOK = {
     # 2026-10-04: x0.88 -- the world's level came down (0.75 -> 0.55, the
     # previews drawn as the game draws them) and the sky stays darker than
     # the street in front of it (0.82x the wall at the old sky, 0.76 now)
-    "SKY_HORIZON": (0.023, 0.032, 0.065),
+    # 2026-10-07 ("the System, deeper"): the horizon band a little deeper
+    # violet-navy -- hue 227 -> 238 degrees, its luminance 0.0325 -> 0.0302 --
+    # the zenith and every tone of the world as they were (0.023 0.032 0.065
+    # before). Its blue over its luminance kept near 2: (0.026, 0.028, 0.066)
+    # read 0.61 of its paint's colour, over "the sky is not an accent"'s 0.6
+    "SKY_HORIZON": (0.027, 0.028, 0.061),
     "SKY_ZENITH": (0.0035, 0.006, 0.019),
     "SKY_ZENITH_DEG": 45.0,
     # the moon is drawn on the world's moon (build_world.WORLD_RIG's yaw,
@@ -468,6 +476,12 @@ LOOK = {
     "VIGNETTE": 0.38,
     "VIGNETTE_FROM": 0.40,
     "VIGNETTE_TO": 1.05,
+    # 2026-10-07 ("the System, deeper"): the vignette's tint -- how much of
+    # its darkening each channel takes. The corners lean violet-navy (blue
+    # kept, red a touch over green) and no darker than before: the weights'
+    # luminance is 1 (checked), so the dark areas' rules and the graded
+    # check see the same corners. (1, 1, 1) before: a grey vignette.
+    "VIGNETTE_TINT": (0.98, 1.03, 0.76),
     # the levels (2026-10-02, "improve brightness levels" -- the picture too
     # dark -- and "improve white levels"), in M_Anime_Frame after the
     # vignette, on display values: LV_BLACK to black, LV_WHITE to white, a
@@ -592,6 +606,103 @@ LOOK = {
     "EYE_FLARE": 13.0,
     "EYE_FLARE_W": 0.8,
     "EYE_BEHIND_CM": 6.0,
+    # 8d. the System's events (2026-10-07, "the System, deeper"; SaudAnime::
+    # SystemFx, whose lengths are these, checked): flat, two tones -- the
+    # System's cyan and ice (HAWK FIST's skill violet and ember) -- and an
+    # ink edge SYS_INK_PX (1080 lines) round every shape, as the world's
+    # line; in figure px about Saud (MPC_Anime.SysX/Y, his middle; SysFootX/Y,
+    # the ground under him), scaled to his distance as the aura is. Never
+    # drawn on him (the stencil), never on a man BURST_BEHIND_CM nearer the
+    # camera; drawn before the cut, so an impact frame cuts them too.
+    "SYS_INK_PX": 2.2,
+    # (about him, the margin is the pillar's own: its ground ellipse lies
+    # 46 cm in front of his middle; a man nearer than this hides it all)
+    "SYS_BEHIND_CM": 90.0,
+    # A level: a pillar of light round him, rising from the ground --
+    # SYS_PILLAR_W figure px either side of him (his guard stands in it), up to SYS_PILLAR_H px over the ground (eased out over
+    # SYS_PILLAR_UP_S), over a ground ellipse SYS_PILLAR_BASE (its radius
+    # over the half-width, its squash); the cyan band at SYS_PILLAR_A, an ice
+    # core SYS_PILLAR_CORE of the width broken by bars SYS_PILLAR_BAND px
+    # apart (SYS_PILLAR_BAR of each a gap) rising SYS_PILLAR_RISE px a
+    # second; narrowing to nothing over its last SYS_PILLAR_OUT_S. All of it
+    # SYS_PILLAR_S.
+    "SYS_PILLAR_S": 1.20,
+    "SYS_PILLAR_UP_S": 0.30,
+    "SYS_PILLAR_OUT_S": 0.40,
+    # (Looked at on the souq fight: at 30 px across, 0.80 and a core of ice
+    # bars 9 px apart it was an opaque slab narrower than his guard with a
+    # ladder in it -- now as wide as his guard, the street showing through,
+    # and a few short dashes of ice rising in it.)
+    "SYS_PILLAR_W": 46.0,
+    "SYS_PILLAR_H": 230.0,
+    "SYS_PILLAR_BASE": (1.25, 0.28),
+    "SYS_PILLAR_A": 0.55,
+    "SYS_PILLAR_CORE": 0.30,
+    "SYS_PILLAR_BAND": 24.0,
+    "SYS_PILLAR_BAR": 0.75,
+    "SYS_PILLAR_RISE": 260.0,
+    # A skill: a ring off his middle, from SYS_BURST_R[0] to [1] figure px
+    # (eased out), its band SYS_BURST_W[0] thinning to [1] px, the inner
+    # SYS_BURST_CORE of it the second tone, over SYS_BURST_S; and a rim on
+    # him SYS_RIM_PX (1080 lines) wide just inside his heaviest line, for
+    # SYS_RIM_S, the cyan SYS_RIM_MIX of the way to ice (HAWK FIST's ember).
+    "SYS_BURST_S": 0.50,
+    "SYS_BURST_R": (14.0, 80.0),
+    "SYS_BURST_W": (7.0, 1.5),
+    "SYS_BURST_CORE": 0.40,
+    "SYS_RIM_S": 0.60,
+    "SYS_RIM_PX": 3.0,
+    "SYS_RIM_MIX": 0.5,
+    # A rank: the ring wider and slower, cyan and ice.
+    "SYS_RANK_S": 0.90,
+    "SYS_RANK_R": (20.0, 150.0),
+    "SYS_RANK_W": (10.0, 2.0),
+    # A quest done: a glow round the screen's edge in SYS_QUEST_STEPS flat
+    # steps of the cyan (SYS_QUEST_A at the edge, less inward), an ice
+    # hairline SYS_QUEST_LINE of the band at the very edge; SYS_QUEST_BAND of
+    # the height deep, in over SYS_QUEST_IN_S and out over the last
+    # SYS_QUEST_OUT_S of SYS_QUEST_S. After the speed lines, never on an
+    # impact frame (as the wound).
+    "SYS_QUEST_S": 0.80,
+    "SYS_QUEST_IN_S": 0.10,
+    "SYS_QUEST_OUT_S": 0.30,
+    "SYS_QUEST_BAND": 0.030,
+    "SYS_QUEST_STEPS": 3,
+    "SYS_QUEST_A": 0.75,
+    "SYS_QUEST_LINE": 0.12,
+    # A gate opened: a flash at its point -- an ice star of SYS_FLASH_SPIKES
+    # points (alternate ones SYS_FLASH_SHORT as long) to SYS_FLASH_PX figure
+    # px, its core SYS_FLASH_CORE, as sharp as SYS_FLASH_SHARP, in a cyan
+    # band SYS_FLASH_BAND of its radius; grown in SYS_FLASH_HOLD_S, held, and
+    # shrinking to nothing at SYS_FLASH_S; and a cyan ring from
+    # SYS_FLASH_RING[0] to [1] px, its band SYS_FLASH_RING_W px. Not on a man
+    # SYS_GATE_BEHIND_CM nearer than the gate's middle.
+    "SYS_FLASH_S": 0.45,
+    "SYS_FLASH_HOLD_S": 0.08,
+    "SYS_FLASH_PX": 60.0,
+    "SYS_FLASH_CORE": 0.22,
+    "SYS_FLASH_SHORT": 0.55,
+    "SYS_FLASH_SPIKES": 8,
+    "SYS_FLASH_SHARP": 4.0,
+    "SYS_FLASH_BAND": 0.18,
+    "SYS_FLASH_RING": (30.0, 170.0),
+    "SYS_FLASH_RING_W": 4.0,
+    "SYS_GATE_BEHIND_CM": 150.0,
+    # 8e. the System's energy on his strikes (2026-10-07): after a heavy
+    # blow of Saud's lands, a thin trail along the path his striking limb
+    # took (SaudAnime::SystemFx::FTrail, TRAIL_POINTS points, the contact
+    # first), SYS_TRAIL_W figure px either side at the contact tapering to a
+    # point, the cyan with an ice core SYS_TRAIL_CORE of it and an ink edge;
+    # its tail drawn back into the contact over SYS_TRAIL_S. Over him too --
+    # it is his limb's own path -- but never within SYS_TRAIL_CLEAR px of the
+    # contact, so his knuckles stay legible (the fire's own rule); not on a
+    # man BURST_BEHIND_CM nearer than it.
+    "SYS_TRAIL_S": 0.30,
+    "SYS_TRAIL_SPAN_S": 0.12,
+    "TRAIL_POINTS": 6,
+    "SYS_TRAIL_W": 2.6,
+    "SYS_TRAIL_CORE": 0.45,
+    "SYS_TRAIL_CLEAR": 4.0,
     # 7c. on an impact frame with the blow on screen, the cut is flipped
     # (tone for ink, ink for tone) along FOCUS lines -- FOCUS_COUNT cells
     # round the blow, FOCUS_KEEP of them drawn, each a needle from its
@@ -645,6 +756,11 @@ LOOK = {
     "FIRE_BEHIND_CM": 3.0,
     "BURST_BEHIND_CM": 40.0,
     "FIRE_INK_PX": 2.2,       # the ink line round the flame, at 1080 lines (the world's)
+    # 2026-10-07 ("the System, deeper"): HAWK FIST keeps its fire -- the
+    # canon's fire in his hands -- and a thin edge of the System's violet
+    # (HUD_SHADOW) runs round the flame inside its ink line, so it reads as
+    # the System's gift: FIRE_EDGE_PX (1080 lines) wide, the ink line outside it
+    "FIRE_EDGE_PX": 1.6,
     "GLOW_STEPS": 3,          # the glow's gradient cut to this many flat rings
     # a spark is drawn as a streak from where it is back to where it was
     # this long before (2026-09-28): an ember's trail, not the round
@@ -761,7 +877,18 @@ MPC_SCALARS = (
     ("EyeX0", 0.5), ("EyeY0", 0.5), ("EyeX1", 0.5), ("EyeY1", 0.5),   # his eyes
     ("EyeDepth", 0.0),      # scene depth at them, cm
     ("EyeScale", 0.0),      # one figure pixel there
-)
+    # the System's events in the picture (2026-10-07, SaudAnime::Param):
+    # each one's age in real seconds (< 0: none), HAWK FIST's skill, Saud's
+    # middle and the ground under him, the gate's flash
+    ("SysPillarAge", -1.0), ("SysBurstAge", -1.0), ("SysBurstHawk", 0.0), ("SysRankAge", -1.0),
+    ("SysQuestAge", -1.0), ("SysFlashAge", -1.0),
+    ("SysX", 0.5), ("SysY", 0.5), ("SysFootX", 0.5), ("SysFootY", 0.5),   # viewport, y down
+    ("SysDepth", 0.0), ("SysScale", 0.0),      # cm; one figure px, share of the height
+    ("SysFlashX", 0.5), ("SysFlashY", 0.5), ("SysFlashDepth", 0.0), ("SysFlashScale", 0.0),
+    # the trail on his heavy blows: its age (< 0: none), how deep and how big
+    # a figure px at its nearest point, and its six points, the contact first
+    ("TrailAge", -1.0), ("TrailDepth", 0.0), ("TrailScale", 0.0),
+) + tuple(("Trail%s%d" % (a, i), 0.5) for i in range(6) for a in "XY")
 # the palette's vectors (2026-10-03, SaudAnime::Param): linear, the live
 # palette's, written by USaudLookSubsystem; their defaults are LOOK's
 MPC_VECTORS = (("InkColour", "INK"), ("BoneColour", "BONE"), ("BloodColour", "BLOOD"), ("EmberColour", "EMBER"),
@@ -779,6 +906,10 @@ FIRE_PARAMS = ("FireHeat", "FireX", "FireY", "FireDirX", "FireDirY", "FireDepth"
 HIT_PARAMS = ("ImpactTone", "Wound", "MarkAge", "MarkX", "MarkY", "MarkDepth", "MarkScale", "MarkSeed")
 POWER_PARAMS = ("Aura", "AuraX", "AuraY", "AuraDepth", "AuraScale", "AuraTime",
                 "EyeX0", "EyeY0", "EyeX1", "EyeY1", "EyeDepth", "EyeScale")
+SYS_PARAMS = ("SysPillarAge", "SysBurstAge", "SysBurstHawk", "SysRankAge", "SysQuestAge", "SysFlashAge",
+              "SysX", "SysY", "SysFootX", "SysFootY", "SysDepth", "SysScale",
+              "SysFlashX", "SysFlashY", "SysFlashDepth", "SysFlashScale",
+              "TrailAge", "TrailDepth", "TrailScale") + tuple("Trail%s%d" % (a, i) for i in range(6) for a in "XY")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
@@ -861,6 +992,33 @@ def _sub(code):
         "AURA_BOX_X": _f(L["AURA_BOX"][0]), "AURA_BOX_Y": _f(L["AURA_BOX"][1]),
         "EYE_CORE": _f(L["EYE_CORE"]), "EYE_HALO": _f(L["EYE_HALO"]), "EYE_FLARE_W": _f(L["EYE_FLARE_W"]),
         "EYE_FLARE": _f(L["EYE_FLARE"]), "EYE_BEHIND": _f(L["EYE_BEHIND_CM"]),
+        "VIGNETTE_TINT": _f3(L["VIGNETTE_TINT"]), "FIRE_EDGE": _f(L["FIRE_EDGE_PX"]),
+        "SYS_INK": _f(L["SYS_INK_PX"]), "SYS_BEHIND": _f(L["SYS_BEHIND_CM"]),
+        "SYS_PILLAR_S": _f(L["SYS_PILLAR_S"]), "SYS_PILLAR_UP": _f(L["SYS_PILLAR_UP_S"]),
+        "SYS_PILLAR_OUT": _f(L["SYS_PILLAR_OUT_S"]), "SYS_PILLAR_W": _f(L["SYS_PILLAR_W"]),
+        "SYS_PILLAR_H": _f(L["SYS_PILLAR_H"]), "SYS_BASE_R": _f(L["SYS_PILLAR_BASE"][0]),
+        "SYS_BASE_SQ": _f(L["SYS_PILLAR_BASE"][1]), "SYS_PILLAR_A": _f(L["SYS_PILLAR_A"]),
+        "SYS_PILLAR_CORE": _f(L["SYS_PILLAR_CORE"]), "SYS_PILLAR_BAND": _f(L["SYS_PILLAR_BAND"]),
+        "SYS_PILLAR_BAR": _f(L["SYS_PILLAR_BAR"]), "SYS_PILLAR_RISE": _f(L["SYS_PILLAR_RISE"]),
+        "SYS_BURST_S": _f(L["SYS_BURST_S"]), "SYS_BURST_R0": _f(L["SYS_BURST_R"][0]),
+        "SYS_BURST_R1": _f(L["SYS_BURST_R"][1]), "SYS_BURST_W0": _f(L["SYS_BURST_W"][0]),
+        "SYS_BURST_W1": _f(L["SYS_BURST_W"][1]), "SYS_BURST_CORE": _f(L["SYS_BURST_CORE"]),
+        "SYS_RIM_S": _f(L["SYS_RIM_S"]), "SYS_RIM_PX": _f(L["SYS_RIM_PX"]), "SYS_RIM_MIX": _f(L["SYS_RIM_MIX"]),
+        "SYS_RANK_S": _f(L["SYS_RANK_S"]), "SYS_RANK_R0": _f(L["SYS_RANK_R"][0]),
+        "SYS_RANK_R1": _f(L["SYS_RANK_R"][1]), "SYS_RANK_W0": _f(L["SYS_RANK_W"][0]),
+        "SYS_RANK_W1": _f(L["SYS_RANK_W"][1]),
+        "SYS_QUEST_S": _f(L["SYS_QUEST_S"]), "SYS_QUEST_IN": _f(L["SYS_QUEST_IN_S"]),
+        "SYS_QUEST_OUT": _f(L["SYS_QUEST_OUT_S"]), "SYS_QUEST_BAND": _f(L["SYS_QUEST_BAND"]),
+        "SYS_QUEST_STEPS": _f(L["SYS_QUEST_STEPS"]), "SYS_QUEST_A": _f(L["SYS_QUEST_A"]),
+        "SYS_QUEST_LINE": _f(L["SYS_QUEST_LINE"]),
+        "SYS_FLASH_S": _f(L["SYS_FLASH_S"]), "SYS_FLASH_HOLD": _f(L["SYS_FLASH_HOLD_S"]),
+        "SYS_FLASH_PX": _f(L["SYS_FLASH_PX"]), "SYS_FLASH_CORE": _f(L["SYS_FLASH_CORE"]),
+        "SYS_FLASH_SHORT": _f(L["SYS_FLASH_SHORT"]), "SYS_FLASH_SPIKES": _f(L["SYS_FLASH_SPIKES"]),
+        "SYS_FLASH_SHARP": _f(L["SYS_FLASH_SHARP"]), "SYS_FLASH_BAND": _f(L["SYS_FLASH_BAND"]),
+        "SYS_FLASH_RING0": _f(L["SYS_FLASH_RING"][0]), "SYS_FLASH_RING1": _f(L["SYS_FLASH_RING"][1]),
+        "SYS_FLASH_RING_W": _f(L["SYS_FLASH_RING_W"]), "SYS_GATE_BEHIND": _f(L["SYS_GATE_BEHIND_CM"]),
+        "SYS_TRAIL_S": _f(L["SYS_TRAIL_S"]), "SYS_TRAIL_W": _f(L["SYS_TRAIL_W"]),
+        "SYS_TRAIL_CORE": _f(L["SYS_TRAIL_CORE"]), "SYS_TRAIL_CLEAR": _f(L["SYS_TRAIL_CLEAR"]),
         "SPEED_COUNT": _f(L["SPEED_COUNT"]), "SPEED_INNER": _f(L["SPEED_INNER"]),
         "SPEED_OUTER": _f(L["SPEED_OUTER"]), "SPEED_ON_FIGHTER": _f(L["SPEED_ON_FIGHTER"]),
         "SPEED_A": _f(L["SPEED_ALPHA"]), "IMPACT_CUT": _f(L["IMPACT_CUT"]),
@@ -1177,6 +1335,11 @@ def hlsl_frame():
        by VIGNETTE, before the fire (a flame is light) and the cut.
     8. HAWK FIST's fire (hlsl_fire()).
     8c. Saud's power-up (2026-10-03): the aura and the eyes (hlsl_power()).
+    8d/8e. The System's events and the trail on his heavy blows
+       (2026-10-07, hlsl_system()): a level's pillar, a skill's ring and
+       rim, a rank's ring, a gate's flash, the trail; before the mark and
+       the cut. A quest's edge glow is drawn after the wound, never on an
+       impact frame.
     7d. The mark where a heavy blow landed (2026-09-28): an ice needle
        star with an ink edge and the System's cyan drops, before the cut.
     7b. The impact frame cut to exactly two colours: whatever TSR's
@@ -1229,8 +1392,10 @@ float Vr = length((VUV - 0.5) * float2(Aspect, 1.0)) / (0.5 * sqrt(Aspect * Aspe
 // Before the vignette (2026-10-03): after it, the gamma lifted the dark
 // corners back up and the vignette all but went.
 float3 Out = lerp(pow(saturate((S - LV_BLACK) / (LV_WHITE - LV_BLACK)), 1.0 / LV_GAMMA), S, Imp);
-Out *= 1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr) * (1.0 - Imp);
-""") + hlsl_fire() + hlsl_power() + _sub(r"""
+// (2026-10-07) its darkening tinted per channel: the corners lean
+// violet-navy, the tint's luminance 1 so they are no darker than before
+Out *= 1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr) * (1.0 - Imp) * VIGNETTE_TINT;
+""") + hlsl_fire() + hlsl_power() + hlsl_system() + _sub(r"""
 // 7d. the mark where a heavy blow landed, in units of its radius (MARK_PX
 // figure px, scaled to the man's distance): an ice needle star with an ink
 // edge, full for MARK_HOLD s and shrinking to nothing at MARK_SPARK s, and
@@ -1335,6 +1500,21 @@ if (Wound > 0.0 && Imp < 0.5)
     Out = lerp(Out, BLOOD_D, WOUND_A * (1.0 - smoothstep(Band - WOUND_AA, Band + WOUND_AA, min(Ex, Ey))));
 }
 
+// 8d. a quest done (2026-10-07): a short glow round the screen's edge in
+// flat steps of the System's cyan, an ice hairline at the very edge; in
+// and out with its band's depth; not on an impact frame
+if (SysQuestAge >= 0.0 && SysQuestAge < SYS_QUEST_S && Imp < 0.5)
+{
+    float Qb = SYS_QUEST_BAND * min(saturate(SysQuestAge / SYS_QUEST_IN), saturate((SYS_QUEST_S - SysQuestAge) / SYS_QUEST_OUT));
+    float Qe = min(min(VUV.x, 1.0 - VUV.x) * Aspect, min(VUV.y, 1.0 - VUV.y));
+    if (Qe < Qb)
+    {
+        float Qs = floor(Qe / Qb * SYS_QUEST_STEPS);
+        float Ql = Qe < SYS_QUEST_LINE * Qb ? 1.0 : 0.0;
+        Out = lerp(Out, Ql > 0.5 ? ICE_D : SYSTEM_D, Ql > 0.5 ? 1.0 : SYS_QUEST_A * (1.0 - Qs / SYS_QUEST_STEPS));
+    }
+}
+
 // 8b. film grain, a hash per 1080-line pixel reseeded by Boil (on twos),
 // heaviest in the mid-tones; and the page's tooth, a still value noise.
 // Not on an impact frame, which is two colours exactly.
@@ -1427,6 +1607,132 @@ if (Aura > 0.0 && EyeScale > 0.0 && D > EyeDepth - EYE_BEHIND)
 """)
 
 
+def hlsl_system():
+    """Steps 8d and 8e of M_Anime_Frame (2026-10-07): the System's events in
+    the picture and the trail on Saud's heavy blows, in display values,
+    after the aura and before the mark and the cut. Inputs: the SYS_PARAMS;
+    D, UV, VUV, Aspect, Lines and Dir8 in scope; his outline from the custom
+    stencil (scene texture 25), as the aura's. system_step() line for line.
+    A quest's edge glow is drawn after the wound (hlsl_frame)."""
+    return _sub(r"""
+// 8d. the System's events. In figure px about Saud -- his middle (SysX/Y) and
+// the ground under him (SysFootX/Y) -- or a gate's point: flat, the System's
+// cyan and ice (a HAWK FIST skill violet and ember), an ink edge round each;
+// never on him (the stencil) and never on a man nearer the camera
+{
+    float2 Spx = View.BufferSizeAndInvSize.zw;                  // one buffer px, in buffer UV
+    float SysSelf = abs(SceneTextureLookup(UV, 25, false).r - AURA_STENCIL) < 0.5 ? 1.0 : 0.0;
+    float SysShow = (D > SysDepth - SYS_BEHIND ? 1.0 : 0.0) * (1.0 - SysSelf);
+    float SysFp = max(SysScale, 1e-6);
+    float SysRi = SYS_INK / 1080.0 / SysFp;                      // the ink edge, figure px
+    // a level: the pillar rising from the ground round him
+    if (SysPillarAge >= 0.0 && SysPillarAge < SYS_PILLAR_S && SysScale > 0.0)
+    {
+        float2 Pv = (VUV - float2(SysFootX, SysFootY)) * float2(Aspect, 1.0) / SysFp;
+        float Up = saturate(SysPillarAge / SYS_PILLAR_UP);
+        float Ph = SYS_PILLAR_H * (1.0 - (1.0 - Up) * (1.0 - Up));
+        float Pw = max(SYS_PILLAR_W * saturate((SYS_PILLAR_S - SysPillarAge) / SYS_PILLAR_OUT), 1e-3);
+        float PIn = 0.0, PNear = 0.0;
+        for (int k = 0; k < 9; k++)
+        {
+            float2 Q = k == 0 ? Pv : Pv + Dir8[k - 1] * SysRi;
+            float Col = (abs(Q.x) < Pw && Q.y > -Ph && Q.y < 0.0) ? 1.0 : 0.0;
+            float2 Bq = Q / (float2(SYS_BASE_R, SYS_BASE_R * SYS_BASE_SQ) * Pw);
+            float Pin = max(Col, dot(Bq, Bq) < 1.0 ? 1.0 : 0.0);
+            if (k == 0) PIn = Pin; else PNear = max(PNear, Pin);
+        }
+        float PCore = (abs(Pv.x) < SYS_PILLAR_CORE * Pw && Pv.y > -Ph && Pv.y < 0.0
+                       && frac((Pv.y + SysPillarAge * SYS_PILLAR_RISE) / SYS_PILLAR_BAND) >= SYS_PILLAR_BAR) ? 1.0 : 0.0;
+        Out = lerp(Out, lerp(Out, SYSTEM_D, SYS_PILLAR_A), PIn * (1.0 - PCore) * SysShow);
+        Out = lerp(Out, ICE_D, PCore * SysShow);
+        Out = lerp(Out, INK_D, PNear * (1.0 - PIn) * SysShow);
+    }
+    // a skill's ring off his middle, then a rank's, wider and slower
+    float2 Av2 = (VUV - float2(SysX, SysY)) * float2(Aspect, 1.0) / SysFp;
+    float Ar = length(Av2);
+    for (int r = 0; r < 2; r++)
+    {
+        float RAge = r == 0 ? SysBurstAge : SysRankAge;
+        float RLife = r == 0 ? SYS_BURST_S : SYS_RANK_S;
+        if (RAge < 0.0 || RAge >= RLife || SysScale <= 0.0) continue;
+        float Rt = RAge / RLife;
+        float Re3 = 1.0 - (1.0 - Rt) * (1.0 - Rt) * (1.0 - Rt);
+        float Rr = r == 0 ? lerp(SYS_BURST_R0, SYS_BURST_R1, Re3) : lerp(SYS_RANK_R0, SYS_RANK_R1, Re3);
+        float Rw = r == 0 ? lerp(SYS_BURST_W0, SYS_BURST_W1, Rt) : lerp(SYS_RANK_W0, SYS_RANK_W1, Rt);
+        bool RHawk = r == 0 && SysBurstHawk > 0.5;
+        float Rd = abs(Ar - Rr);
+        Out = lerp(Out, INK_D, (Rd < 0.5 * Rw + SysRi ? 1.0 : 0.0) * SysShow);
+        Out = lerp(Out, RHawk ? SHADOW_D : SYSTEM_D, (Rd < 0.5 * Rw ? 1.0 : 0.0) * SysShow);
+        Out = lerp(Out, RHawk ? EMBER_D : ICE_D, (Rd < 0.5 * Rw * SYS_BURST_CORE ? 1.0 : 0.0) * SysShow);
+    }
+    // a skill's rim on him: a band just inside his heaviest line, all round
+    if (SysBurstAge >= 0.0 && SysBurstAge < SYS_RIM_S && SysSelf > 0.5 && SysScale > 0.0
+        && abs(Av2.x) < AURA_BOX_X && abs(Av2.y) < AURA_BOX_Y)
+    {
+        float Rin = LINE_FIGHTER * (1.0 - OUTER_SHARE) * INK_SHADOW * (1.0 + BRUSH_VAR) * Lines;
+        float Rout = Rin + SYS_RIM_PX * Lines;
+        float Line = 0.0, Band = 0.0;
+        for (int k = 0; k < 8; k++)
+        {
+            Line = max(Line, abs(SceneTextureLookup(UV + Dir8[k] * Rin * Spx, 25, false).r - AURA_STENCIL) < 0.5 ? 0.0 : 1.0);
+            Band = max(Band, abs(SceneTextureLookup(UV + Dir8[k] * Rout * Spx, 25, false).r - AURA_STENCIL) < 0.5 ? 0.0 : 1.0);
+        }
+        Out = lerp(Out, SysBurstHawk > 0.5 ? EMBER_D : lerp(SYSTEM_D, ICE_D, SYS_RIM_MIX), Band * (1.0 - Line));
+    }
+    // a gate opened: an ice star in a cyan band and a cyan ring, at its point
+    if (SysFlashAge >= 0.0 && SysFlashAge < SYS_FLASH_S && SysFlashScale > 0.0)
+    {
+        float2 Gv = (VUV - float2(SysFlashX, SysFlashY)) * float2(Aspect, 1.0) / SysFlashScale;
+        float Gr = length(Gv);
+        float Gk = SysFlashAge < SYS_FLASH_HOLD ? SysFlashAge / SYS_FLASH_HOLD
+                                               : 1.0 - (SysFlashAge - SYS_FLASH_HOLD) / (SYS_FLASH_S - SYS_FLASH_HOLD);
+        float Gu = (atan2(Gv.y, Gv.x) / 6.2831853 + 0.5) * SYS_FLASH_SPIKES;
+        float Gtip = fmod(floor(Gu), 2.0) < 0.5 ? 1.0 : SYS_FLASH_SHORT;
+        float Gedge = (SYS_FLASH_CORE + (Gtip - SYS_FLASH_CORE) * pow(1.0 - abs(2.0 * frac(Gu) - 1.0), SYS_FLASH_SHARP))
+                      * SYS_FLASH_PX * Gk;
+        float Gink = SYS_INK / 1080.0 / SysFlashScale;
+        float Gb = D > SysFlashDepth - SYS_GATE_BEHIND ? 1.0 : 0.0;
+        float Gt = SysFlashAge / SYS_FLASH_S;
+        float Gring = lerp(SYS_FLASH_RING0, SYS_FLASH_RING1, 1.0 - (1.0 - Gt) * (1.0 - Gt));
+        float Gw = SYS_FLASH_RING_W * (1.0 - Gt) + 1.0;
+        float Gd = abs(Gr - Gring);
+        Out = lerp(Out, INK_D, (Gd < 0.5 * Gw + Gink ? 1.0 : 0.0) * Gb);
+        Out = lerp(Out, SYSTEM_D, (Gd < 0.5 * Gw ? 1.0 : 0.0) * Gb);
+        float Gband = Gedge * (1.0 + SYS_FLASH_BAND);
+        Out = lerp(Out, INK_D, (Gr < Gband + Gink ? 1.0 : 0.0) * Gb);
+        Out = lerp(Out, SYSTEM_D, (Gr < Gband ? 1.0 : 0.0) * Gb);
+        Out = lerp(Out, ICE_D, (Gr < Gedge ? 1.0 : 0.0) * Gb);
+    }
+    // 8e. the trail on his heavy blow: the path his striking limb took, the
+    // contact first, tapering to a point, its tail drawn back into the
+    // contact; cyan with an ice core, inked; over him too, but never on his
+    // fist, and never on a man nearer than it
+    if (TrailAge >= 0.0 && TrailAge < SYS_TRAIL_S && TrailScale > 0.0)
+    {
+        float2 Tk = float2(Aspect, 1.0) / TrailScale;
+        float2 Tq[6] = { float2(TrailX0, TrailY0) * Tk, float2(TrailX1, TrailY1) * Tk, float2(TrailX2, TrailY2) * Tk,
+                         float2(TrailX3, TrailY3) * Tk, float2(TrailX4, TrailY4) * Tk, float2(TrailX5, TrailY5) * Tk };
+        float2 Tp = VUV * Tk;
+        float Keep = 1.0 - TrailAge / SYS_TRAIL_S;
+        float Tbest = 1e9, Tdist = 1e9, Twid = 0.0;
+        for (int i = 0; i < 5; i++)
+        {
+            float2 Ts2 = Tq[i + 1] - Tq[i];
+            float Th = saturate(dot(Tp - Tq[i], Ts2) / max(dot(Ts2, Ts2), 1e-6));
+            float Tsh = (i + Th) / 5.0;
+            float Td = length(Tp - Tq[i] - Ts2 * Th);
+            float Tw = SYS_TRAIL_W * (1.0 - Tsh / max(Keep, 1e-6));
+            if (Tsh < Keep && Td - Tw < Tbest) { Tbest = Td - Tw; Tdist = Td; Twid = Tw; }
+        }
+        float Tshow = (length(Tp - Tq[0]) < SYS_TRAIL_CLEAR ? 0.0 : 1.0) * (D > TrailDepth - BURST_BEHIND ? 1.0 : 0.0);
+        Out = lerp(Out, INK_D, (Tbest < SYS_INK / 1080.0 / TrailScale ? 1.0 : 0.0) * Tshow);
+        Out = lerp(Out, SYSTEM_D, (Tbest < 0.0 ? 1.0 : 0.0) * Tshow);
+        Out = lerp(Out, ICE_D, (Tbest < 0.0 && Tdist < SYS_TRAIL_CORE * Twid ? 1.0 : 0.0) * Tshow);
+    }
+}
+""")
+
+
 def hlsl_fire():
     """Step 8 of M_Anime_Frame: the flame and the burst, in display values,
     before the impact frame's cut. Inputs: the FIRE_PARAMS, plus D (scene
@@ -1458,6 +1764,7 @@ def hlsl_fire():
         "SC_HOT": _f3(_rgb(sc[0])), "SC_PALE": _f3(_rgb(sc[1])), "SA": _f(sc[0][3]),
         "FIRE_BEHIND": _f(L["FIRE_BEHIND_CM"]), "BURST_BEHIND": _f(L["BURST_BEHIND_CM"]),
         "FIRE_INK": _f(L["FIRE_INK_PX"]), "GLOW_STEPS": _f(L["GLOW_STEPS"]), "INK_D": "InkD",
+        "FIRE_EDGE": _f(L["FIRE_EDGE_PX"]), "SHADOW_D": "ShadowD",
         "STREAK": _f(L["SPARK_STREAK_S"]),
     }
     return r"""
@@ -1490,12 +1797,15 @@ if (FireHeat > 0.0)
     const float TL[3] = { %(TL)s };
     const float3 TC[3] = { %(TC)s };
     const float TA[3] = { %(TA)s };
-    float Rf = %(FIRE_INK)s / 1080.0 / max(FireScale, 1e-6);
+    // (2026-10-07) the System's violet edge round the flame, the ink line
+    // outside it: neighbours at the edge's width, then at the ink's past it
+    float Re = %(FIRE_EDGE)s / 1080.0 / max(FireScale, 1e-6);
+    float Rf = Re + %(FIRE_INK)s / 1080.0 / max(FireScale, 1e-6);
     float3 Fc = Out;
-    float Inside = 0.0, Beside = 0.0;
-    for (int k = 0; k < 9; k++)
+    float Inside = 0.0, Beside = 0.0, Edged = 0.0;
+    for (int k = 0; k < 17; k++)
     {
-        float2 Pk = k == 0 ? P : P + Dir8[k - 1] * Rf;
+        float2 Pk = k == 0 ? P : (k < 9 ? P + Dir8[k - 1] * Re : P + Dir8[k - 9] * Rf);
         for (int i = 0; i < 3; i++)
         {
             float Len = TL[i] * FireHeat;
@@ -1505,11 +1815,13 @@ if (FireHeat > 0.0)
             float Bot = (1.0 - u) * (1.0 - u) * TW[i] + 2.0 * u * (1.0 - u) * (0.8 * TW[i] + Sw) + u * u * 0.5 * Sw;
             bool In = u >= 0.0 && u <= 1.0 && Pk.y >= Top && Pk.y <= Bot;
             if (k == 0 && In) { Fc = lerp(Fc, TC[i], TA[i]); Inside = 1.0; }
-            if (k > 0 && In) { Beside = 1.0; }
+            if (k > 0 && k < 9 && In) { Edged = 1.0; }
+            if (k >= 9 && In) { Beside = 1.0; }
         }
     }
     Out = lerp(Out, Fc, Behind);
-    Out = lerp(Out, %(INK_D)s, Beside * (1.0 - Inside) * Behind);
+    Out = lerp(Out, %(INK_D)s, Beside * (1.0 - Edged) * (1.0 - Inside) * Behind);
+    Out = lerp(Out, %(SHADOW_D)s, Edged * (1.0 - Inside) * Behind);
 }
 if (BurnAge >= 0.0)
 {
@@ -1933,11 +2245,17 @@ def fire(out, D, fire=None, burn=None):
         Ga = np.where(lo, lerp(ga0, ga1, t1), lerp(ga1, 0.0, t2))
         Gc = np.where(lo[..., None], lerp(gc[0], gc[1], t1[..., None]), lerp(gc[1], gc[2], t2[..., None]))
         out = lerp(out, Gc, (np.where(G < 1.0, Ga, 0.0) * behind)[..., None])
-        Rf = L["FIRE_INK_PX"] / 1080.0 / max(fire["scale"], 1e-6)
+        # (2026-10-07) the System's violet edge round the flame, the ink
+        # line outside it
+        Re = L["FIRE_EDGE_PX"] / 1080.0 / max(fire["scale"], 1e-6)
+        Rf = Re + L["FIRE_INK_PX"] / 1080.0 / max(fire["scale"], 1e-6)
+        if "violet_outside_ink" in _FLAGS:
+            Rf = L["FIRE_INK_PX"] / 1080.0 / max(fire["scale"], 1e-6)
+            Re = Rf + L["FIRE_EDGE_PX"] / 1080.0 / max(fire["scale"], 1e-6)
         fc = out.copy()
-        inside = np.zeros((H, W), bool); beside = np.zeros((H, W), bool)
-        for k in range(9):
-            Pk = P if k == 0 else P + np.array(dirs[k - 1]) * Rf
+        inside = np.zeros((H, W), bool); beside = np.zeros((H, W), bool); edged = np.zeros((H, W), bool)
+        for k in range(17):
+            Pk = P if k == 0 else (P + np.array(dirs[k - 1]) * Re if k < 9 else P + np.array(dirs[k - 9]) * Rf)
             for i in range(3):
                 w, ln = F["TONGUE_W"][i], F["TONGUE_LEN"][i] * heat
                 sw = math.sin(fire["time"] * F["SWAY_RATE"] + i * F["SWAY_PHASE"]) * F["SWAY_PX"]
@@ -1950,10 +2268,17 @@ def fire(out, D, fire=None, burn=None):
                     c = F["TONGUE_COL"][i]
                     fc = np.where(In[..., None], lerp(fc, np.array(_rgb(c)), c[3]), fc)
                     inside |= In
+                elif k < 9:
+                    edged |= In
                 else:
                     beside |= In
         out = lerp(out, fc, behind[..., None])
-        out = lerp(out, ink, (beside & ~inside)[..., None] * behind[..., None])
+        if "violet_outside_ink" in _FLAGS:      # the order swapped: ink, then the violet outside it
+            out = lerp(out, np.array(display(L["HUD_SHADOW"])), (edged & ~beside & ~inside)[..., None] * behind[..., None])
+            out = lerp(out, ink, (beside & ~inside)[..., None] * behind[..., None])
+        else:
+            out = lerp(out, ink, (beside & ~edged & ~inside)[..., None] * behind[..., None])
+            out = lerp(out, np.array(display(L["HUD_SHADOW"])), (edged & ~inside)[..., None] * behind[..., None])
     if burn is not None and burn["age"] >= 0.0:
         age = burn["age"]
         bv = (vuv - np.array([burn["x"], burn["y"]])) * np.array([aspect, 1.0]) / max(burn["scale"], 1e-6)
@@ -2096,6 +2421,171 @@ def power_step(out, D, saud, aura):
     return out
 
 
+SYS_IDLE = dict(pillar=-1.0, burst=-1.0, hawk=0.0, rank=-1.0, flash=-1.0, x=0.5, y=0.5, foot_x=0.5, foot_y=0.5,
+                depth=0.0, scale=0.0, flash_x=0.5, flash_y=0.5, flash_depth=0.0, flash_scale=0.0,
+                trail=-1.0, trail_pts=((0.5, 0.5),) * 6, trail_depth=0.0, trail_scale=0.0)
+
+
+def system_step(out, D, saud, fx):
+    """Steps 8d and 8e on a display-valued picture (2026-10-07): the
+    System's events and the trail on his heavy blow. `saud` his outline (the
+    custom stencil; None: nobody writes it), `fx` a dict of SYS_IDLE's keys
+    (the SYS_PARAMS, ages < 0 none). hlsl_system() line for line; a stencil
+    lookup is the texel the offset lands in (floor(centre + offset))."""
+    import numpy as np
+    L = LOOK
+    fx = dict(SYS_IDLE, **fx)
+    H, W = out.shape[:2]
+    lerp = lambda a, b, t: a + (b - a) * t
+    fr = lambda v: v - np.floor(v)
+    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    asp = W / H
+    vx, vy = (xx + 0.5) / W, (yy + 0.5) / H
+    lines = H / 1080.0
+    saud = np.zeros((H, W), bool) if saud is None else saud
+    cyan, ice = np.array(display(L["HUD_SYSTEM"])), np.array(display(L["HUD_ICE"]))
+    violet, ember = np.array(display(L["HUD_SHADOW"])), np.array(display(L["EMBER"]))
+    ink = np.array(display(L["INK"]))
+    dirs = ((1, 0), (-1, 0), (0, 1), (0, -1),
+            (.7071, .7071), (-.7071, .7071), (.7071, -.7071), (-.7071, -.7071))
+    put = lambda o, c, m: np.where(m[..., None], c, o) if np.ndim(c) == 1 else np.where(m[..., None], c, o)
+    fp = max(fx["scale"], 1e-6)
+    ri = L["SYS_INK_PX"] / 1080.0 / fp
+    near = np.ones((H, W), bool) if "pillar_through_men" in _FLAGS else D > fx["depth"] - L["SYS_BEHIND_CM"]
+    show = near & (np.ones((H, W), bool) if "pillar_on_saud" in _FLAGS else ~saud)
+    # a level: the pillar rising from the ground round him
+    age = fx["pillar"]
+    if 0.0 <= age < L["SYS_PILLAR_S"] and fx["scale"] > 0.0:
+        px, py = (vx - fx["foot_x"]) * asp / fp, (vy - fx["foot_y"]) / fp
+        if "sunk_pillar" in _FLAGS:
+            py = -py
+        up = min(max(age / L["SYS_PILLAR_UP_S"], 0.0), 1.0)
+        ph = L["SYS_PILLAR_H"] * (1.0 - (1.0 - up) ** 2)
+        pw = max(L["SYS_PILLAR_W"] * min(max((L["SYS_PILLAR_S"] - age) / L["SYS_PILLAR_OUT_S"], 0.0), 1.0), 1e-3)
+        br, bs = L["SYS_PILLAR_BASE"]
+        pin = lambda qx, qy: (((np.abs(qx) < pw) & (qy > -ph) & (qy < 0.0))
+                              | ((qx / (br * pw)) ** 2 + (qy / (br * bs * pw)) ** 2 < 1.0))
+        p_in = pin(px, py)
+        p_near = np.zeros((H, W), bool)
+        for dx, dy in dirs:
+            p_near |= pin(px + dx * ri, py + dy * ri)
+        core = ((np.abs(px) < L["SYS_PILLAR_CORE"] * pw) & (py > -ph) & (py < 0.0)
+                & (fr((py + age * L["SYS_PILLAR_RISE"]) / L["SYS_PILLAR_BAND"]) >= L["SYS_PILLAR_BAR"]))
+        a = L["SYS_PILLAR_A"]
+        if "soft_pillar" in _FLAGS:     # a gradient up the column, not a flat tone
+            a = a * np.clip(1.0 + py / max(ph, 1e-6), 0.0, 1.0)[..., None]
+        band = out + (cyan - out) * a
+        out = np.where((p_in & ~core & show)[..., None], band, out)
+        out = put(out, ice, core & show)
+        out = put(out, ink, p_near & ~p_in & show)
+    # a skill's ring off his middle, then a rank's, wider and slower
+    ax, ay = (vx - fx["x"]) * asp / fp, (vy - fx["y"]) / fp
+    ar = np.hypot(ax, ay)
+    for r in (0, 1):
+        rage = fx["burst"] if r == 0 else fx["rank"]
+        life = L["SYS_BURST_S"] if r == 0 else L["SYS_RANK_S"]
+        if rage < 0.0 or rage >= life or fx["scale"] <= 0.0:
+            continue
+        t = rage / life
+        e3 = 1.0 - (1.0 - t) ** 3
+        R0, R1 = L["SYS_BURST_R"] if r == 0 else L["SYS_RANK_R"]
+        W0, W1 = L["SYS_BURST_W"] if r == 0 else L["SYS_RANK_W"]
+        rr, rw = lerp(R0, R1, e3), lerp(W0, W1, t)
+        hawk = r == 0 and fx["hawk"] > 0.5 and "cyan_hawk" not in _FLAGS
+        rd = np.abs(ar - rr)
+        out = put(out, ink, (rd < 0.5 * rw + ri) & show)
+        out = put(out, violet if hawk else cyan, (rd < 0.5 * rw) & show)
+        out = put(out, ember if hawk else ice, (rd < 0.5 * rw * L["SYS_BURST_CORE"]) & show)
+    # a skill's rim on him, just inside his heaviest line, all round
+    age = fx["burst"]
+    if 0.0 <= age < L["SYS_RIM_S"] and fx["scale"] > 0.0:
+        rin = (L["LINE_FIGHTER_PX"] * (1.0 - L["OUTER_SHARE"]) * L["INK_SHADOW"] * (1.0 + L["BRUSH_VAR"])) * lines
+        rout = rin + L["SYS_RIM_PX"] * lines
+        line = np.zeros((H, W), bool); band = np.zeros((H, W), bool)
+        for dx, dy in dirs:
+            line |= ~_gather(saud, np.floor(0.5 + dx * rin).astype(int) + np.zeros((H, W), int),
+                             np.floor(0.5 + dy * rin).astype(int) + np.zeros((H, W), int), False)
+            band |= ~_gather(saud, np.floor(0.5 + dx * rout).astype(int) + np.zeros((H, W), int),
+                             np.floor(0.5 + dy * rout).astype(int) + np.zeros((H, W), int), False)
+        box = (np.abs(ax) < L["AURA_BOX"][0]) & (np.abs(ay) < L["AURA_BOX"][1])
+        rim = saud & box & band & (np.ones((H, W), bool) if "rim_deep" in _FLAGS else ~line)
+        if "rim_deep" in _FLAGS:
+            rim = saud & box
+        hawk = fx["hawk"] > 0.5 and "cyan_hawk" not in _FLAGS
+        out = put(out, ember if hawk else lerp(cyan, ice, L["SYS_RIM_MIX"]), rim)
+    # a gate opened: an ice star in a cyan band and a cyan ring, at its point
+    age = fx["flash"]
+    if 0.0 <= age < L["SYS_FLASH_S"] and fx["flash_scale"] > 0.0:
+        fs = fx["flash_scale"]
+        gx, gy = (vx - fx["flash_x"]) * asp / fs, (vy - fx["flash_y"]) / fs
+        gr = np.hypot(gx, gy)
+        hold = L["SYS_FLASH_HOLD_S"]
+        gk = age / hold if age < hold else 1.0 - (age - hold) / (L["SYS_FLASH_S"] - hold)
+        gu = (np.arctan2(gy, gx) / (2 * math.pi) + 0.5) * L["SYS_FLASH_SPIKES"]
+        tip = np.where(np.mod(np.floor(gu), 2.0) < 0.5, 1.0, L["SYS_FLASH_SHORT"])
+        edge = (L["SYS_FLASH_CORE"] + (tip - L["SYS_FLASH_CORE"])
+                * (1.0 - np.abs(2.0 * fr(gu) - 1.0)) ** L["SYS_FLASH_SHARP"]) * L["SYS_FLASH_PX"] * gk
+        gink = L["SYS_INK_PX"] / 1080.0 / fs
+        gb = np.ones((H, W), bool) if "flash_through_men" in _FLAGS else D > fx["flash_depth"] - L["SYS_GATE_BEHIND_CM"]
+        gt = age / L["SYS_FLASH_S"]
+        gring = lerp(L["SYS_FLASH_RING"][0], L["SYS_FLASH_RING"][1], 1.0 - (1.0 - gt) ** 2)
+        gw = L["SYS_FLASH_RING_W"] * (1.0 - gt) + 1.0
+        gd = np.abs(gr - gring)
+        out = put(out, ink, (gd < 0.5 * gw + gink) & gb)
+        out = put(out, cyan, (gd < 0.5 * gw) & gb)
+        gband = edge * (1.0 + L["SYS_FLASH_BAND"])
+        out = put(out, ink, (gr < gband + gink) & gb)
+        out = put(out, cyan, (gr < gband) & gb)
+        out = put(out, ice, (gr < edge) & gb)
+    # 8e. the trail on his heavy blow
+    age = fx["trail"]
+    if 0.0 <= age < L["SYS_TRAIL_S"] and fx["trail_scale"] > 0.0:
+        ts = fx["trail_scale"]
+        q = [np.array([x * asp, y]) / ts for x, y in fx["trail_pts"]]
+        tpx, tpy = vx * asp / ts, vy / ts
+        keep = 1.0 if "still_trail" in _FLAGS else 1.0 - age / L["SYS_TRAIL_S"]
+        best = np.full((H, W), 1e9); dist = np.full((H, W), 1e9); wid = np.zeros((H, W))
+        for i in range(5):
+            sx, sy = q[i + 1] - q[i]
+            ss = max(sx * sx + sy * sy, 1e-6)
+            th = np.clip(((tpx - q[i][0]) * sx + (tpy - q[i][1]) * sy) / ss, 0.0, 1.0)
+            tsh = (i + th) / 5.0
+            td = np.hypot(tpx - q[i][0] - sx * th, tpy - q[i][1] - sy * th)
+            tw = L["SYS_TRAIL_W"] * (np.ones_like(tsh) if "untapered_trail" in _FLAGS else 1.0 - tsh / max(keep, 1e-6))
+            better = (tsh < keep) & (td - tw < best)
+            best = np.where(better, td - tw, best)
+            dist = np.where(better, td, dist)
+            wid = np.where(better, tw, wid)
+        tb = np.ones((H, W), bool) if "trail_through_men" in _FLAGS else D > fx["trail_depth"] - L["BURST_BEHIND_CM"]
+        tshow = (np.hypot(tpx - q[0][0], tpy - q[0][1]) >= L["SYS_TRAIL_CLEAR"]) & tb
+        out = put(out, ink, (best < L["SYS_INK_PX"] / 1080.0 / ts) & tshow)
+        out = put(out, cyan, (best < 0.0) & tshow)
+        out = put(out, ice, (best < 0.0) & (dist < L["SYS_TRAIL_CORE"] * wid) & tshow)
+    return out
+
+
+def quest_step(out, age):
+    """Step 8d's quest glow on a display-valued picture: a glow round the
+    screen's edge in flat steps of the cyan, an ice hairline at the very
+    edge; `age` MPC_Anime.SysQuestAge. hlsl_frame() line for line."""
+    import numpy as np
+    L = LOOK
+    if age < 0.0 or age >= L["SYS_QUEST_S"]:
+        return out
+    H, W = out.shape[:2]
+    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    u, v = (xx + 0.5) / W, (yy + 0.5) / H
+    asp = W / H
+    qb = L["SYS_QUEST_BAND"] * min(min(max(age / L["SYS_QUEST_IN_S"], 0.0), 1.0),
+                                   min(max((L["SYS_QUEST_S"] - age) / L["SYS_QUEST_OUT_S"], 0.0), 1.0))
+    qe = np.minimum(np.minimum(u, 1.0 - u) * asp, np.minimum(v, 1.0 - v))
+    qs = np.floor(qe / max(qb, 1e-9) * L["SYS_QUEST_STEPS"])
+    hair = qe < L["SYS_QUEST_LINE"] * qb
+    a = np.where(qe < qb, np.where(hair, 1.0, L["SYS_QUEST_A"] * (1.0 - qs / L["SYS_QUEST_STEPS"])), 0.0)
+    col = np.where(hair[..., None], np.array(display(L["HUD_ICE"])), np.array(display(L["HUD_SYSTEM"])))
+    return out + (col - out) * a[..., None]
+
+
 def wound_step(out, wound):
     """Step 9 on a display-valued picture: the wound border, `wound`
     MPC_Anime.Wound (0..1). hlsl_frame() line for line."""
@@ -2119,7 +2609,7 @@ def wound_step(out, wound):
 
 
 def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None, fist=None, burn=None,
-          boil=0.0, tone=0.0, mark=None, wound=0.0, aura=None, saud=None):
+          boil=0.0, tone=0.0, mark=None, wound=0.0, aura=None, saud=None, sysfx=None, quest=-1.0):
     """M_Anime_Frame's steps on a display-valued picture S (H,W,3, 0..1),
     in its order: the levels, the vignette, the fire (needs D, the depth), the mark
     (needs D), the impact frame's cut and 7c, the speed lines, the wound,
@@ -2127,7 +2617,8 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
     1 a burning punch's EMBER, 2 a parry's BONE, 3 a heavy blow's System
     cyan (None is 0); `mark` a dict for mark_step(); `wound`
     MPC_Anime.Wound; `aura` a dict for power_step() with `saud`, his
-    outline (needs D)."""
+    outline (needs D); `sysfx` a dict for system_step() (the System's
+    events and the trail, needs D) and `quest` MPC_Anime.SysQuestAge."""
     import numpy as np
     L = LOOK
     H, W = S.shape[:2]
@@ -2146,7 +2637,7 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
     # the levels: the picture's whites to white; not on an impact frame,
     # whose cut reads the picture as it was. Before the vignette (since
     # 2026-10-03), so the gamma does not lift the corners back up.
-    shade = (1.0 - vig * _smooth(L["VIGNETTE_FROM"], L["VIGNETTE_TO"], vr))[..., None]
+    shade = 1.0 - vig * _smooth(L["VIGNETTE_FROM"], L["VIGNETTE_TO"], vr)[..., None] * np.array(L["VIGNETTE_TINT"])
     lv = not imp or "levels_on_impact" in _FLAGS
     if "vignette_before_levels" in _FLAGS:
         out = S * shade
@@ -2157,6 +2648,8 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
         out = fire(out, D, fist, burn)
     if aura is not None and saud is not None and D is not None:
         out = power_step(out, D, saud, aura)
+    if sysfx is not None and D is not None and "system_after_cut" not in _FLAGS:
+        out = system_step(out, D, saud, sysfx)
     if mark is not None and D is not None:
         out = mark_step(out, D, mark)
     ink_d = np.array(display(L["INK"]))
@@ -2218,9 +2711,14 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
         a = (streak * speed * np.where(dark, L["SPEED_ALPHA_LIGHT"], L["SPEED_ALPHA"])
              * np.where(fighter, L["SPEED_ON_FIGHTER"], 1.0))
         out = lerp(out, line, a[..., None])
+    if sysfx is not None and D is not None and "system_after_cut" in _FLAGS:
+        out = system_step(out, D, saud, sysfx)
     if not imp or "wound_on_impact" in _FLAGS:
         # 9. the wound: a flat, torn blood border, not on an impact frame
         out = wound_step(out, wound)
+    if not imp or "quest_on_impact" in _FLAGS:
+        # 8d. a quest done: the glow round the edge, not on an impact frame
+        out = quest_step(out, quest)
     if not imp:
         # 8b. film grain on twos, heaviest in the mid-tones, and the page's
         # tooth, still
@@ -2375,7 +2873,7 @@ def to_display(lin):
 
 def look(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, speed=0.0,
          centre=(0.5, 0.5), seed=0.0, fist=None, burn=None, boil=0.0, tone=0.0, mark=None, wound=0.0,
-         V=None, moon=None, sky_time=0.0, aura=None, saud=None):
+         V=None, moon=None, sky_time=0.0, aura=None, saud=None, sysfx=None, quest=-1.0):
     """Both materials, in the engine's order: M_Anime_Post, the
     tonemapper's stand-in, M_Anime_Frame. Returns display values (0..1)
     and M_Anime_Post's masks. `fist` and `burn` are HAWK FIST's (fire());
@@ -2385,7 +2883,7 @@ def look(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, speed=0.0,
                      V=V, moon=moon, sky_time=sky_time)
     return frame(to_display(out), fighter, impact=impact, speed=speed, centre=centre, seed=seed,
                  D=D, fist=fist, burn=burn, boil=boil, tone=tone, mark=mark, wound=wound,
-                 aura=aura, saud=saud), m
+                 aura=aura, saud=saud, sysfx=sysfx, quest=quest), m
 
 
 def to_8bit(disp):
@@ -2556,7 +3054,19 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          "crushed_blacks", "unlevelled_floor", "grey_floor", "lifted_mids", "ink_lifted", "no_lit_floor",
          # 2026-10-03, the colour levels
          "flat_pools", "pools_on_men", "flat_men", "kneeless_men", "grey_pools", "warm_moon_pools",
-         "clipped_pools", "neon_men", "sky_as_world")
+         "clipped_pools", "neon_men", "sky_as_world",
+         # 2026-10-07, the System, deeper: its events in the picture, the
+         # trail on his heavy blows, HAWK FIST's violet edge, the night's accents
+         "no_pillar", "pillar_on_saud", "sunk_pillar", "still_pillar", "soft_pillar", "no_sys_ink", "still_bars",
+         "lingering_pillar", "pillar_through_men",
+         "still_burst", "cyan_hawk", "no_sys_rim", "rim_deep", "rank_as_skill",
+         "no_quest", "soft_quest", "quest_centre", "quest_on_impact",
+         "no_flash", "round_flash", "flash_through_men",
+         "no_trail", "fat_trail", "untapered_trail", "trail_on_fist", "still_trail", "trail_through_men",
+         "system_after_cut",
+         "no_violet_edge", "violet_outside_ink",
+         "cyan_rim", "blue_horizon", "light_horizon", "grey_vignette", "dark_vignette",
+         "sys_timing", "enum_drift", "system_frozen", "trail_any_blow", "hawk_ignored")
 
 
 def power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c):
@@ -2650,6 +3160,228 @@ def _power_checks(Cw, Aw, Nw, Dw, onw, nh, is_c):
     assert not is_c(eh, ice)[hand].any(), "a hand in front of his eye hides its glow"
     e0 = on_wall(aura=dict(ea, level=0.0))
     assert np.abs(e0 - wall).max() < 1e-9, "no glow in his eyes without the aura"
+
+
+def _hue(c):
+    """A colour's hue in degrees (0 red, 120 green, 240 blue)."""
+    r, g, b = c
+    mx, mn = max(c), min(c)
+    if mx - mn <= 1e-12:
+        return 0.0
+    if mx == r:
+        h = 60.0 * (((g - b) / (mx - mn)) % 6.0)
+    elif mx == g:
+        h = 60.0 * ((b - r) / (mx - mn) + 2.0)
+    else:
+        h = 60.0 * ((r - g) / (mx - mn) + 4.0)
+    return h % 360.0
+
+
+def system_checks(Cw, Aw, Nw, Dw, onw, nh, is_c):
+    """The System's events in the picture and the trail on his heavy blows
+    (2026-10-07), on the flat wall with the vignette, grain and paper off:
+    each drawn where it belongs, flat in its two tones and inked, moving as
+    it should, gone at its own length, hidden by a man nearer the camera."""
+    L = LOOK
+    keep = L["VIGNETTE"], L["GRAIN"], L["PAPER"]
+    L["VIGNETTE"], L["GRAIN"], L["PAPER"] = 0.0, 0.0, 0.0
+    try:
+        _system_checks(Cw, Aw, Nw, Dw, onw, nh, is_c)
+    finally:
+        L["VIGNETTE"], L["GRAIN"], L["PAPER"] = keep
+
+
+def _system_checks(Cw, Aw, Nw, Dw, onw, nh, is_c):
+    import numpy as np
+    L = LOOK
+    lin, _m = preview(Cw, Aw, Nw, Dw, onw)
+    S = to_display(lin)
+    wall = frame(S, onw, D=Dw)
+    shot = lambda D=Dw, **kw: frame(S, onw, D=D, **kw)
+    changed = lambda img, ref=wall: np.abs(img - ref).sum(axis=2) > 1e-6
+    yh, xh = np.mgrid[0:nh, 0:nh]
+    cyan, ice = np.array(display(L["HUD_SYSTEM"])), np.array(display(L["HUD_ICE"]))
+    violet, ember = np.array(display(L["HUD_SHADOW"])), np.array(display(L["EMBER"]))
+    inkd = np.array(display(L["INK"]))
+
+    def man(fp):
+        """Saud as an upright capsule 26 figure px across and 120 tall about
+        the middle, at a figure px of fp; his figure-px grid and the ground
+        under him."""
+        ux, uy = ((xh + 0.5) / nh - 0.5) / fp, ((yh + 0.5) / nh - 0.5) / fp
+        saud = (np.abs(ux) < 13.0) & (np.abs(uy) < 47.0) | (np.hypot(ux, np.abs(uy) - 47.0) < 13.0)
+        return ux, uy, saud, dict(x=0.5, y=0.5, foot_x=0.5, foot_y=0.5 + 60.0 * fp, depth=900.0, scale=fp)
+
+    # nothing at rest
+    ux, uy, saud, base = man(1.0 / 170.0)
+    idle = shot(saud=saud, sysfx=dict(base), quest=-1.0)
+    assert np.abs(idle - wall).max() < 1e-9, "no System effect shows while none is asked for"
+
+    # ---- a level: the pillar, at a smaller figure (it stands 230 px)
+    px_, py_, saud2, b2 = man(1.0 / 420.0)
+    p6 = shot(saud=saud2, sysfx=dict(b2, pillar=0.6))
+    ch = changed(p6)
+    assert ch.sum() > 1500, "a level raises a pillar of light round him (%d px)" % ch.sum()
+    assert not ch[saud2].any(), "the pillar stands round him, never on him (%d px on him)" % ch[saud2].sum()
+    col = np.abs(px_) < 20.0
+    top, foot = py_[ch & col].min(), py_[ch & col].max()
+    reach_down = L["SYS_PILLAR_BASE"][0] * L["SYS_PILLAR_BASE"][1] * L["SYS_PILLAR_W"] + 3.0
+    assert top < -60.0 - 60.0 and 55.0 < foot < 60.0 + reach_down, \
+        "it rises from the ground under him to over his head (top %.0f px, foot %.0f; he is -60 to 60)" % (top, foot)
+    p1 = shot(saud=saud2, sysfx=dict(b2, pillar=0.12))
+    top1 = py_[changed(p1) & col].min()
+    assert top1 > top + 40.0, "the column rises from the ground (its top %.0f px at 0.12 s, %.0f at 0.6)" % (top1, top)
+    nk = (is_c(p6, inkd) & ch).sum()
+    assert nk > 40, "the pillar is inked round (%d px of ink)" % nk
+    band = wall + (cyan - wall) * L["SYS_PILLAR_A"]
+    cols = np.unique(np.round(p6[ch], 5), axis=0)
+    assert 3 <= len(cols) <= 4, "the pillar is flat: its cyan band, its ice and its ink (%d colours)" % len(cols)
+    nb, ni = (np.abs(p6 - band).max(axis=2) < 1e-6).sum(), is_c(p6, ice).sum()
+    assert nb > 200 and ni > 100, "two tones: the cyan band and its ice core (%d, %d px)" % (nb, ni)
+    p65 = shot(saud=saud2, sysfx=dict(b2, pillar=0.65))
+    core = is_c(p6, ice) | is_c(p65, ice)
+    rose = (is_c(p6, ice) != is_c(p65, ice))[core].mean()
+    assert rose > 0.1, "the light in it rises (%.2f of its core moved in 0.05 s)" % rose
+    late = changed(shot(saud=saud2, sysfx=dict(b2, pillar=1.05))).sum()
+    gone = np.abs(shot(saud=saud2, sysfx=dict(b2, pillar=1.2)) - wall).max()
+    assert late < 0.6 * ch.sum() and gone < 1e-9, \
+        "it narrows to nothing and is gone at 1.2 s (%d px at 1.05 s against %d)" % (late, ch.sum())
+    Dn = Dw.copy()
+    near_man = (px_ > 16.0) & (px_ < 40.0) & (np.abs(py_) < 30.0)
+    Dn[near_man] = 400.0
+    pn = shot(D=Dn, saud=saud2, sysfx=dict(b2, pillar=0.6))
+    base_n = shot(D=Dn)
+    assert ch[near_man].sum() > 20 and changed(pn, base_n)[near_man].sum() == 0, \
+        "a man in front of him hides the pillar (%d px of it there)" % changed(pn, base_n)[near_man].sum()
+
+    # ---- a skill: the ring off his middle and the rim on him
+    ring = lambda img: np.median(np.hypot(ux, uy)[changed(img) & ~saud])
+    s1, s3 = shot(saud=saud, sysfx=dict(base, burst=0.1)), shot(saud=saud, sysfx=dict(base, burst=0.3))
+    r_at = lambda age: L["SYS_BURST_R"][0] + (L["SYS_BURST_R"][1] - L["SYS_BURST_R"][0]) * (1.0 - (1.0 - age / L["SYS_BURST_S"]) ** 3)
+    r1, r3 = ring(s1), ring(s3)
+    assert abs(r1 - r_at(0.1)) < 3.0 and r3 > r1 + 15.0, \
+        "a skill's ring bursts out from his middle (%.0f px at 0.1 s, %.0f at 0.3)" % (r1, r3)
+    c1 = changed(s1) & ~saud
+    assert is_c(s1, cyan)[c1].sum() > 50 and is_c(s1, ice)[c1].sum() > 20 and not is_c(s1, violet).any(), \
+        "a skill's ring is the System's cyan and ice"
+    h1 = shot(saud=saud, sysfx=dict(base, burst=0.1, hawk=1.0))
+    ch1 = changed(h1) & ~saud
+    assert is_c(h1, violet)[ch1].sum() > 50 and is_c(h1, ember)[ch1].sum() > 20 and not is_c(h1, cyan).any(), \
+        "HAWK FIST's skill is drawn in violet and ember"
+    # the rim: on him, in a band just inside his heaviest line, all round
+    lines = nh / 1080.0
+    rin = L["LINE_FIGHTER_PX"] * (1.0 - L["OUTER_SHARE"]) * L["INK_SHADOW"] * (1.0 + L["BRUSH_VAR"]) * lines
+    rout = rin + L["SYS_RIM_PX"] * lines
+    on_him = changed(s1) & saud
+    edge = saud & ~(np.roll(saud, 1, 0) & np.roll(saud, -1, 0) & np.roll(saud, 1, 1) & np.roll(saud, -1, 1))
+    ey, ex = np.nonzero(edge)
+    deep_px = np.full(saud.shape, 1e9)
+    for y, x in zip(ey, ex):
+        deep_px = np.minimum(deep_px, np.hypot(xh - x, yh - y))
+    quads = [(ux < -5), (ux > 5), (uy < -40), (uy > 40)]
+    assert on_him.sum() > 30 and all((on_him & q).sum() > 3 for q in quads), \
+        "a skill puts a brief rim on him, all round (%d px)" % on_him.sum()
+    assert deep_px[on_him].max() <= rout + 1.5 and deep_px[on_him].min() >= rin - 1.5, \
+        "the rim lies just inside his line (%.1f-%.1f px in, wanted %.1f-%.1f)" % (
+            deep_px[on_him].min(), deep_px[on_him].max(), rin, rout)
+    rimc = cyan + (ice - cyan) * L["SYS_RIM_MIX"]
+    assert is_c(s1, rimc)[on_him].all() and is_c(h1, ember)[changed(h1) & saud].all(), \
+        "the rim is the System's cyan-ice, HAWK FIST's ember"
+    s55, s62 = shot(saud=saud, sysfx=dict(base, burst=0.55)), shot(saud=saud, sysfx=dict(base, burst=0.62))
+    assert not (changed(s55) & ~saud).any() and changed(s55)[saud].any() and not changed(s62).any(), \
+        "the ring is gone at 0.5 s and the rim at 0.6"
+
+    # ---- a rank: the ring wider and slower (at a smaller figure: it reaches far)
+    ux3, uy3, saud3, b3 = man(1.0 / 400.0)
+    rad3 = np.hypot(ux3, uy3)
+    sk_end = shot(saud=saud3, sysfx=dict(b3, burst=0.49))
+    rk_end = shot(saud=saud3, sysfx=dict(b3, rank=0.86))
+    rk_mid = shot(saud=saud3, sysfx=dict(b3, rank=0.55))
+    r_sk, r_rk = rad3[changed(sk_end) & ~saud3].max(), rad3[changed(rk_end) & ~saud3].max()
+    assert r_rk > 1.4 * r_sk and changed(rk_mid).sum() > 50, \
+        "a rank's ring is wider than a skill's and slower (%.0f px against %.0f; at 0.55 s %d px)" % (
+            r_rk, r_sk, changed(rk_mid).sum())
+    assert is_c(rk_end, cyan).sum() > 50 and not is_c(rk_end, violet).any(), "a rank's ring is the System's cyan"
+
+    # ---- a quest done: the glow round the screen's edge
+    q4 = shot(quest=0.4)
+    q0 = shot(quest=0.03)
+    chq = changed(q4)
+    u01, v01 = (xh + 0.5) / nh, (yh + 0.5) / nh
+    e01 = np.minimum(np.minimum(u01, 1 - u01), np.minimum(v01, 1 - v01))
+    assert chq.sum() > 200 and not chq[e01 > 0.1].any() and chq[e01 < 0.004].all(), \
+        "a quest done glows round the screen's edge, leaving its middle (%d px)" % chq.sum()
+    tq = len(np.unique(np.round(q4[chq], 5), axis=0))
+    assert tq <= L["SYS_QUEST_STEPS"] + 1 and is_c(q4, ice).sum() > 0 and is_c(q4, cyan).sum() == 0 \
+        and tq >= 3, "in flat steps of the System's cyan with an ice line at the edge (%d tones)" % tq
+    assert e01[changed(q0)].max() < 0.7 * e01[chq].max(), "the glow comes in from the edge"
+    assert np.abs(shot(quest=0.8) - wall).max() < 1e-9, "and is gone at 0.8 s"
+
+    # ---- a gate opened: a flash at its point
+    fl = dict(base, flash=0.1, flash_x=0.5, flash_y=0.5, flash_depth=900.0, flash_scale=1.0 / 170.0)
+    f1 = shot(sysfx=fl)
+    chf = changed(f1)
+    rr = np.hypot(ux, uy)
+    angle = np.arctan2(uy, ux)
+    iced = is_c(f1, ice)
+    bins = np.floor((angle + np.pi) / (2 * np.pi) * 64).astype(int) % 64
+    reach = np.array([rr[iced & (bins == k)].max() if (iced & (bins == k)).any() else 0.0 for k in range(64)])
+    assert chf.sum() > 300 and iced[nh // 2, nh // 2] and reach.max() > 1.6 * max(reach.min(), 1e-6), \
+        "a gate opened flashes a star of light at its point (%d px; its points %.0f-%.0f px)" % (
+            chf.sum(), reach.min(), reach.max())
+    assert is_c(f1, cyan).sum() > 50 and (is_c(f1, inkd) & chf).sum() > 20, "the flash is ice in the cyan, inked"
+    assert np.abs(shot(sysfx=dict(fl, flash=0.45)) - wall).max() < 1e-9, "and is gone at 0.45 s"
+    Df = Dw.copy()
+    Df[(np.abs(ux) < 12.0) & (np.abs(uy - 20.0) < 12.0)] = 600.0
+    fh = shot(D=Df, sysfx=fl)
+    hid = (np.abs(ux) < 12.0) & (np.abs(uy - 20.0) < 12.0)
+    assert chf[hid].sum() > 20 and changed(fh, shot(D=Df))[hid].sum() == 0, "a man in front of the gate hides its flash"
+
+    # ---- the trail on his heavy blow: the contact out at his right, the
+    #      path back across him
+    fp = 1.0 / 170.0
+    path = [(40.0 - 45.0 * k / 5.0, -30.0 + 15.0 * (k / 5.0) ** 2) for k in range(6)]
+    pts = [(0.5 + x * fp, 0.5 + y * fp) for x, y in path]
+    tr = dict(base, trail=0.02, trail_pts=pts, trail_depth=900.0, trail_scale=fp)
+    t1 = shot(saud=saud, sysfx=tr)
+    cht = changed(t1)
+    dense = np.array([np.interp(np.linspace(0, 5, 501), np.arange(6), [p[0] for p in path]),
+                      np.interp(np.linspace(0, 5, 501), np.arange(6), [p[1] for p in path])]).T
+    sidx = np.zeros(cht.shape); dmin = np.full(cht.shape, 1e9)
+    for j, (x, y) in enumerate(dense):
+        d = np.hypot(ux - x, uy - y)
+        better = d < dmin
+        dmin = np.where(better, d, dmin)
+        sidx = np.where(better, j / 500.0, sidx)
+    along = [(abs(ux - x) < 0.6) & (abs(uy - y) < 0.6) for x, y in dense[60:420:30]]
+    covered = np.mean([cht[a].any() for a in along])
+    assert cht.sum() > 80 and covered >= 0.9 and is_c(t1, cyan)[cht].sum() > 20, \
+        "a heavy blow leaves a trail along his striking limb's path (%d px, %.0f %% of it)" % (cht.sum(), 100 * covered)
+    assert dmin[cht].max() <= L["SYS_TRAIL_W"] + L["SYS_INK_PX"] / 1080.0 / fp + 1.5, \
+        "the trail is thin and on the path (%.1f px off it)" % dmin[cht].max()
+    w_near = dmin[cht & (sidx > 0.12) & (sidx < 0.3)].max()
+    w_far = dmin[cht & (sidx > 0.55) & (sidx < 0.75)].max()
+    assert w_near > 1.5 * w_far, "it tapers from the contact (%.1f px near it, %.1f far)" % (w_near, w_far)
+    clear = np.hypot(ux - path[0][0], uy - path[0][1]) < L["SYS_TRAIL_CLEAR"] - 0.5
+    assert not cht[clear].any(), "never on his fist: the knuckles stay legible"
+    assert is_c(t1, cyan)[cht].sum() > 20 and is_c(t1, ice)[cht].sum() > 5 and (is_c(t1, inkd) & cht).sum() > 5, \
+        "the trail is the System's cyan and ice, inked"
+    t2 = shot(saud=saud, sysfx=dict(tr, trail=0.2))
+    far1, far2 = sidx[cht].max(), sidx[changed(t2)].max() if changed(t2).any() else 0.0
+    assert far2 < far1 - 0.3, "its tail is drawn back into the contact (%.2f of the path at 0.02 s, %.2f at 0.2)" % (far1, far2)
+    assert np.abs(shot(saud=saud, sysfx=dict(tr, trail=0.3)) - wall).max() < 1e-9, "and it is gone at 0.3 s"
+    Dt = Dw.copy()
+    blk = (ux > 15.0) & (ux < 30.0) & (uy > -40.0) & (uy < -20.0)
+    Dt[blk] = 400.0
+    th = shot(D=Dt, saud=saud, sysfx=tr)
+    assert cht[blk].sum() > 10 and changed(th, shot(D=Dt))[blk].sum() == 0, "a man in front of it hides the trail"
+
+    # ---- an impact frame cuts all of it with the rest; a quest's glow is not on it
+    allfx = dict(base, pillar=0.6, burst=0.1, rank=0.3, trail=0.02, trail_pts=pts, trail_depth=900.0,
+                 trail_scale=fp, flash=0.1, flash_x=0.3, flash_y=0.3, flash_depth=900.0, flash_scale=fp)
+    fi = frame(S, onw, impact=1.0, tone=3.0, D=Dw, saud=saud, sysfx=allfx, quest=0.4)
+    nfi = len(np.unique(np.round(fi.reshape(-1, 3), 4), axis=0))
+    assert nfi <= 2, "an impact frame with the System's effects up is still two colours (%d)" % nfi
 
 
 def check(bite=None, rig=None):
@@ -2848,6 +3580,55 @@ def check(bite=None, rig=None):
         if bite in ("aura_on_saud", "soft_aura", "aura_through_men", "eyes_through_hands", "blood_blows",
                     "blood_mark"):
             _FLAGS.add(bite)
+        # 2026-10-07, the System, deeper
+        if bite in ("pillar_on_saud", "sunk_pillar", "soft_pillar", "pillar_through_men", "cyan_hawk", "rim_deep",
+                    "quest_on_impact", "flash_through_men", "untapered_trail", "still_trail", "trail_through_men",
+                    "system_after_cut", "violet_outside_ink"):
+            _FLAGS.add(bite)
+        if bite == "no_pillar":
+            LOOK["SYS_PILLAR_W"] = 0.0
+        if bite == "still_pillar":
+            LOOK["SYS_PILLAR_UP_S"] = 1e-4
+        if bite == "no_sys_ink":
+            LOOK["SYS_INK_PX"] = 0.0
+        if bite == "still_bars":
+            LOOK["SYS_PILLAR_RISE"] = 0.0
+        if bite == "lingering_pillar":
+            LOOK["SYS_PILLAR_OUT_S"] = 1e-3
+        if bite == "still_burst":
+            LOOK["SYS_BURST_R"] = (47.0, 47.0)
+        if bite == "no_sys_rim":
+            LOOK["SYS_RIM_PX"] = 0.0
+        if bite == "rank_as_skill":
+            LOOK["SYS_RANK_R"], LOOK["SYS_RANK_W"], LOOK["SYS_RANK_S"] = LOOK["SYS_BURST_R"], LOOK["SYS_BURST_W"], LOOK["SYS_BURST_S"]
+        if bite == "no_quest":
+            LOOK["SYS_QUEST_A"] = 0.0; LOOK["SYS_QUEST_LINE"] = 0.0
+        if bite == "soft_quest":
+            LOOK["SYS_QUEST_STEPS"] = 64
+        if bite == "quest_centre":
+            LOOK["SYS_QUEST_BAND"] = 0.6
+        if bite == "no_flash":
+            LOOK["SYS_FLASH_PX"] = 0.0; LOOK["SYS_FLASH_RING_W"] = -10.0
+        if bite == "round_flash":
+            LOOK["SYS_FLASH_SHARP"] = 0.0; LOOK["SYS_FLASH_SHORT"] = 1.0
+        if bite == "no_trail":
+            LOOK["SYS_TRAIL_W"] = 0.0
+        if bite == "fat_trail":
+            LOOK["SYS_TRAIL_W"] = 8.0
+        if bite == "trail_on_fist":
+            LOOK["SYS_TRAIL_CLEAR"] = 0.0
+        if bite == "no_violet_edge":
+            LOOK["FIRE_EDGE_PX"] = 0.0
+        if bite == "cyan_rim":
+            LOOK["RIM_TINT"] = (0.48, 0.92, 1.32)        # the cyan rim of 2026-10-03
+        if bite == "blue_horizon":
+            LOOK["SKY_HORIZON"] = (0.023, 0.032, 0.065)  # the horizon of 2026-10-04
+        if bite == "light_horizon":
+            LOOK["SKY_HORIZON"] = tuple(1.25 * v for v in LOOK["SKY_HORIZON"])
+        if bite == "grey_vignette":
+            LOOK["VIGNETTE_TINT"] = (1.0, 1.0, 1.0)
+        if bite == "dark_vignette":
+            LOOK["VIGNETTE_TINT"] = tuple(1.15 * v for v in LOOK["VIGNETTE_TINT"])
         if bite in ("blood_parry", "tone_in_post", "mark_through_men", "wound_on_impact", "soft_star",
                     "levels_on_impact", "stars_in_clouds", "vignette_before_levels",
                     "palette_drift", "constant_ink"):
@@ -3193,6 +3974,12 @@ def check(bite=None, rig=None):
         low = np.median(lum_s[away & (up < math.sin(math.radians(4.0)))])
         high = np.median(lum_s[away & (up > math.sin(math.radians(26.0)))])
         assert low > 1.5 * high, "the night darkens going up (%.4f at the horizon, %.4f high)" % (low, high)
+        # (2026-10-07) the horizon band a little deeper violet-navy, and no
+        # lighter than the navy it was (luminance 0.0325)
+        hh = _hue(LOOK["SKY_HORIZON"])
+        assert 232.0 <= hh <= 250.0, "the sky's horizon band leans violet-navy (hue %.0f)" % hh
+        yh_ = float(np.dot(LOOK["SKY_HORIZON"], LUMA))
+        assert yh_ <= 0.0325, "and is no lighter than it was (%.4f)" % yh_
         # the clouds: some of the sky, not all, in a few flat tones, lit
         # toward the moon, and they drift
         above = up > math.sin(math.radians(LOOK["CLOUD_FROM_DEG"]))
@@ -3309,6 +4096,17 @@ def check(bite=None, rig=None):
         assert np.abs(base_v[n // 2, n // 2] - plain[n // 2, n // 2]).max() < 1e-9, "the vignette leaves the middle"
         corner = (base_v[:c, :c] @ luma).mean() / max((plain[:c, :c] @ luma).mean(), 1e-6)
         assert corner < 0.65, "the vignette takes the corners into the dark (%.2f)" % corner
+        # (2026-10-07) its corners lean violet-navy -- blue kept, red a touch
+        # over green -- and no darker than a grey vignette's
+        cb = base_v[:c, :c].reshape(-1, 3).mean(0) / np.maximum(plain[:c, :c].reshape(-1, 3).mean(0), 1e-6)
+        assert cb[2] >= 1.06 * cb[1] and cb[0] >= cb[1], \
+            "the vignette's corners lean violet-navy (r %.3f, g %.3f, b %.3f of the picture)" % tuple(cb)
+        gp = LOOK["GRAIN"], LOOK["PAPER"], LOOK["VIGNETTE_TINT"]
+        LOOK["GRAIN"], LOOK["PAPER"], LOOK["VIGNETTE_TINT"] = 0.0, 0.0, (1.0, 1.0, 1.0)
+        grey_v = frame(to_display(out), on, D=D)
+        LOOK["GRAIN"], LOOK["PAPER"], LOOK["VIGNETTE_TINT"] = gp
+        dl_v = (base_v[:c, :c] @ luma).mean() / max((grey_v[:c, :c] @ luma).mean(), 1e-6)
+        assert abs(dl_v - 1.0) <= 0.015, "and no darker than a grey vignette (%.3f of its corners)" % dl_v
         # ------------------------------------------------ 2026-09-28, the dark seinen
         # (before the fire: the flame's flat-tones count is taken on a lit
         # wall, and screentone let onto the lit side would be caught there
@@ -3330,6 +4128,10 @@ def check(bite=None, rig=None):
         gain = np.median(la) / max(np.median(l0), 1e-9)
         assert away.sum() > 100 and gain > 2.0, "a hard rim of light on a man's shadow side (%.1fx)" % gain
         assert br(out[away]) > 1.15 * br(out[lit]), "and it is cold (%.2f against %.2f)" % (br(out[away]), br(out[lit]))
+        # (2026-10-07) the System's light, a little deeper toward the night's
+        # violet-navy: past the cyan (209 degrees) and short of violet
+        hr = _hue(LOOK["RIM_TINT"])
+        assert 214.0 <= hr <= 236.0, "the rim leans a little deeper toward violet-navy (hue %.0f)" % hr
         assert np.abs(out[toward] - out0[toward]).max() < 1e-9, "none on the side the key lights"
         assert np.abs(ow - ow0).max() < 1e-9, "and none on the world"
         # 1. tones. A man's shadow is dark but a face still reads in it: no
@@ -3436,6 +4238,24 @@ def check(bite=None, rig=None):
         inkd = np.array(display(LOOK["INK"]))
         inked = dw & (np.abs(wall1 - inkd).sum(axis=2) < 0.02)
         assert inked.sum() > 100, "and there is an ink line round it"
+        # (2026-10-07) and a thin edge of the System's violet round the flame,
+        # inside its ink line: leaving a tongue outward, the violet comes first
+        violetd = np.array(display(LOOK["HUD_SHADOW"]))
+        vio = dw & (np.abs(wall1 - violetd).max(axis=2) < 1e-6)
+        assert vio.sum() > 30, "HAWK FIST's flame has a thin edge of the System's violet (%d px)" % vio.sum()
+        first = []
+        for k in (5, 7, 9, 11):
+            cx = int((0.5 + k * scale) * n)
+            for step in (-1, 1):
+                for y in range(n // 2, 0 if step < 0 else n - 1, step):
+                    if np.abs(wall1[y, cx] - violetd).max() < 1e-6:
+                        first.append("violet")
+                        break
+                    if np.abs(wall1[y, cx] - inkd).max() < 1e-6:
+                        first.append("ink")
+                        break
+        assert len(first) >= 6 and first.count("violet") >= 0.75 * len(first), \
+            "the violet edge lies inside the flame's ink line (%s)" % ", ".join(first)
         # the burst on the man hit: a ring growing from the point, sparks
         # flying out of it and dying, nothing after the last one; a man
         # nearer the camera hides it
@@ -3547,6 +4367,9 @@ def check(bite=None, rig=None):
         # figure px FP in the middle (an upright capsule, his outline the
         # stencil), the aura round him and his eyes
         power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c)
+        # 8d/8e. the System's events and the trail on his heavy blows
+        # (2026-10-07), on the same wall
+        system_checks(Cw, Aw, Nw, Dw, onw, nh, is_c)
         # 9. the wound: the middle of the screen untouched; a border of blood
         #    all round it, flat (a few tones and a thin antialiased edge, not
         #    a vignette's gradient), its inner edge torn
@@ -3765,6 +4588,40 @@ def _check_names(bite=None):
         "USaudFeelSubsystem::OnBlow hands it to the look"
     assert "Look->OnBurn(" in body(src("Combat", "SaudCharacter.cpp"), "void ASaudCharacter::OnHitLanded("), \
         "ASaudCharacter::OnHitLanded is where a burning punch reaches the look"
+    # the System's events (2026-10-07): the lengths SaudAnime::SystemFx runs
+    # are the look's, its enum is the one the windows track calls with, and
+    # the subsystem runs them in real time, takes the trail only off the
+    # blows TrailFor names, and draws HAWK FIST's skill as his
+    hs = h.replace("PillarSeconds = 1.20f", "PillarSeconds = 1.50f") if bite == "sys_timing" else h
+    for var, key in (("PillarSeconds", "SYS_PILLAR_S"), ("BurstSeconds", "SYS_BURST_S"), ("RimSeconds", "SYS_RIM_S"),
+                     ("RankSeconds", "SYS_RANK_S"), ("QuestSeconds", "SYS_QUEST_S"), ("FlashSeconds", "SYS_FLASH_S"),
+                     ("TrailSeconds", "SYS_TRAIL_S"), ("TrailSpanSeconds", "SYS_TRAIL_SPAN_S")):
+        m = re.search(r"constexpr float %s = ([0-9.]+)f;" % var, hs)
+        assert m and abs(float(m.group(1)) - LOOK[key]) < 1e-6, \
+            "SaudAnime::SystemFx::%s is %s, the look's %s %s" % (var, m.group(1) if m else "missing", key, LOOK[key])
+    m = re.search(r"constexpr int TrailPoints = ([0-9]+);", h)
+    assert m and int(m.group(1)) == LOOK["TRAIL_POINTS"] == 6, "SaudAnime::SystemFx::TrailPoints is not the material's six"
+    he = h.replace("RankUp, QuestComplete", "QuestComplete, RankUp") if bite == "enum_drift" else h
+    assert re.search(r"enum class ESystemFx : unsigned char \{ None, LevelUp, SkillAcquired, RankUp, QuestComplete, "
+                     r"GateOpened \};", he), "SaudAnime::ESystemFx is not the spec's (None, LevelUp, SkillAcquired, " \
+                                             "RankUp, QuestComplete, GateOpened)"
+    look_cpp = src("Game", "SaudLookSubsystem.cpp")
+    look_h = src("Game", "SaudLookSubsystem.h")
+    if bite == "system_frozen":
+        look_cpp = look_cpp.replace("SysFx.Tick(RealSeconds);", "SysFx.Tick(DeltaTime);")
+    if bite == "trail_any_blow":
+        look_cpp = look_cpp.replace("SaudAnime::SystemFx::TrailFor(", "(")
+    if bite == "hawk_ignored":
+        look_cpp = look_cpp.replace("Skill == EAbility::HawkFist", "false")
+    tick = body(look_cpp, "void USaudLookSubsystem::Tick(")
+    assert "SysFx.Tick(RealSeconds);" in tick and "Trail.Tick(RealSeconds);" in tick, \
+        "USaudLookSubsystem runs the System's events and the trail in real time"
+    assert re.search(r"void OnSystemEvent\(SaudAnime::ESystemFx Fx, const AActor\* Where", look_h), \
+        "USaudLookSubsystem::OnSystemEvent(SaudAnime::ESystemFx, const AActor* Where) is the spec's"
+    assert "SaudAnime::SystemFx::TrailFor(" in body(look_cpp, "void USaudLookSubsystem::OnBlow("), \
+        "the trail is taken only off the blows SystemFx::TrailFor names"
+    assert "Skill == EAbility::HawkFist" in body(look_cpp, "void USaudLookSubsystem::OnSystemEvent("), \
+        "OnSystemEvent draws HAWK FIST's skill as his"
 
 
 # ------------------------------------------------------------ the palette
@@ -3790,7 +4647,7 @@ def palette_csv():
 MATERIALS = {
     MATERIAL_PATH: (hlsl, ("Impact", "ImpactInvert", "Key", "Boil", "InkColour", "EmberColour"), "BL_SCENE_COLOR_AFTER_DOF"),
     FRAME_PATH: (hlsl_frame, ("Impact", "Speed", "SpeedCentreX", "SpeedCentreY", "SpeedSeed", "Boil")
-                 + FIRE_PARAMS + HIT_PARAMS + POWER_PARAMS
+                 + FIRE_PARAMS + HIT_PARAMS + POWER_PARAMS + SYS_PARAMS
                  + ("InkColour", "BoneColour", "BloodColour", "EmberColour", "SystemColour", "IceColour", "ShadowColour"),
                  "BL_SCENE_COLOR_AFTER_TONEMAPPING"),
 }
@@ -3900,13 +4757,16 @@ if __name__ == "__main__":
             print("the unbroken look fails its own checks, so no sabotage can be counted: %s" % e)
             sys.exit(1)
         print("  %-19s passes" % "(unbroken)", flush=True)
+        # (--only a,b,c: just those sabotages, the unbroken look still first)
+        todo = tuple(sys.argv[sys.argv.index("--only") + 1].split(",")) if "--only" in sys.argv else BITES
+        assert all(b in BITES for b in todo), "no such sabotage among: %s" % ", ".join(b for b in todo if b not in BITES)
         caught = 0
         with multiprocessing.get_context("fork").Pool(jobs) as pool:
-            for b, (ok, why) in zip(BITES, pool.imap(_bite, BITES)):
+            for b, (ok, why) in zip(todo, pool.imap(_bite, todo)):
                 caught += ok
                 print("  %-19s %s" % (b, ("caught: " + why) if ok else "NOT caught"), flush=True)
-        print("%d of %d sabotages caught (%.0f s)" % (caught, len(BITES), time.time() - t0))
-        sys.exit(0 if caught == len(BITES) else 1)
+        print("%d of %d sabotages caught (%.0f s)" % (caught, len(todo), time.time() - t0))
+        sys.exit(0 if caught == len(todo) else 1)
     else:
         check()
         print("anime look: two materials generated (%d + %d lines), preview holds its checks, "

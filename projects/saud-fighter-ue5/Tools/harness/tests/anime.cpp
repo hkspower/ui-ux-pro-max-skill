@@ -282,6 +282,143 @@ static void PowerUp()
           "the power-up's parameter names (anime_look.py checks the other side)");
 }
 
+/** The System's events in the picture (2026-10-07): each its own slot, from
+    0 when it happens, in real time, gone at its own length (written here,
+    not read from the header: a level's pillar 1.2 s, a skill's ring 0.50 s
+    and its rim 0.60, a rank's ring 0.90, a quest's edge 0.80, a gate's flash
+    0.45), a second of one kind restarting it and leaving the others alone;
+    HAWK FIST's skill marked; the names the materials read. */
+static void SystemEvents()
+{
+    std::printf("SYSTEM\n");
+    using namespace SaudAnime::SystemFx;
+    using SaudAnime::ESystemFx;
+    const ESystemFx All[] = {ESystemFx::LevelUp, ESystemFx::SkillAcquired, ESystemFx::RankUp,
+                             ESystemFx::QuestComplete, ESystemFx::GateOpened};
+    const float Want[] = {1.20f, 0.60f, 0.90f, 0.80f, 0.45f};
+    FEvents Rest;
+    bool bNone = true;
+    for (ESystemFx Fx : All) bNone = bNone && Rest.AgeOf(Fx) < 0.f;
+    Rest.Add(ESystemFx::None);
+    for (ESystemFx Fx : All) bNone = bNone && Rest.AgeOf(Fx) < 0.f;
+    Check(bNone && !Rest.AnyOnSaud(), "nothing shows at rest, and None shows nothing");
+
+    bool bLengths = true, bRuns = true;
+    for (int k = 0; k < 5; ++k)
+    {
+        FEvents S;
+        S.Add(All[k]);
+        const bool bStart = S.AgeOf(All[k]) == 0.f;
+        float T = 0.f;
+        bool bAlive = true;
+        for (int i = 0; i < 360; ++i)                         // 1.5 s at 240 Hz
+        {
+            S.Tick(1.f / 240.f);
+            T += 1.f / 240.f;
+            const float A = S.AgeOf(All[k]);
+            if (A >= 0.f && !Near(A, T, 1e-4f)) bRuns = false;
+            if (A < 0.f && bAlive)
+            {
+                bAlive = false;
+                if (!Near(T, Want[k], 1.5f / 240.f)) bLengths = false;
+            }
+        }
+        bLengths = bLengths && bStart && !bAlive;
+    }
+    Check(bRuns, "each System effect's age runs in real seconds");
+    Check(bLengths, "each lasts its own length: the pillar 1.2 s, the skill 0.6, the rank 0.9, the quest 0.8, the flash 0.45");
+    Check(BurstSeconds < RimSeconds + 1e-6f && RankSeconds > BurstSeconds && Near(SecondsOf(ESystemFx::SkillAcquired), 0.60f),
+          "a skill's slot lasts its rim, and a rank's ring is slower than a skill's");
+
+    FEvents Both;
+    Both.Add(ESystemFx::LevelUp);
+    for (int i = 0; i < 48; ++i) Both.Tick(1.f / 240.f);      // 0.2 s
+    Both.Add(ESystemFx::QuestComplete);
+    const bool bKept = Near(Both.AgeOf(ESystemFx::LevelUp), 0.2f, 1e-4f) && Both.AgeOf(ESystemFx::QuestComplete) == 0.f;
+    Both.Add(ESystemFx::LevelUp);
+    Check(bKept && Both.AgeOf(ESystemFx::LevelUp) == 0.f && Both.AgeOf(ESystemFx::QuestComplete) == 0.f,
+          "each event its own slot; a second of one kind restarts it");
+
+    FEvents H;
+    H.Add(ESystemFx::SkillAcquired, true);
+    const bool bHawk = H.HawkValue() == 1.f;
+    H.Add(ESystemFx::LevelUp);
+    const bool bOnlySkill = H.HawkValue() == 1.f;
+    H.Add(ESystemFx::SkillAcquired);
+    Check(bHawk && bOnlySkill && H.HawkValue() == 0.f, "HAWK FIST's skill is marked, and the next skill is not");
+
+    Check(OnSaud(ESystemFx::LevelUp) && OnSaud(ESystemFx::SkillAcquired) && OnSaud(ESystemFx::RankUp)
+              && !OnSaud(ESystemFx::QuestComplete) && !OnSaud(ESystemFx::GateOpened),
+          "a level, a skill and a rank are drawn about Saud; a quest round the screen, a gate at the gate");
+    FEvents On;
+    On.Add(ESystemFx::QuestComplete);
+    On.Add(ESystemFx::GateOpened);
+    const bool bOff = !On.AnyOnSaud();
+    On.Add(ESystemFx::RankUp);
+    Check(bOff && On.AnyOnSaud(), "he is projected only while something is drawn about him");
+
+    Check(std::strcmp(SaudAnime::Param::SysPillarAge, "SysPillarAge") == 0
+              && std::strcmp(SaudAnime::Param::SysBurstHawk, "SysBurstHawk") == 0
+              && std::strcmp(SaudAnime::Param::SysFlashScale, "SysFlashScale") == 0
+              && std::strcmp(SaudAnime::Param::TrailX[5], "TrailX5") == 0
+              && std::strcmp(SaudAnime::Param::TrailY[0], "TrailY0") == 0,
+          "the System's parameter names (anime_look.py checks the other side)");
+}
+
+/** The System's energy on his strikes (2026-10-07): Saud's heavy blows only,
+    never a parried one or an enemy's; the trail is the last 0.12 s of the
+    striking limb's path at even times, the contact first, shown for 0.30 s
+    in real time. */
+static void Trail()
+{
+    std::printf("TRAIL\n");
+    using namespace SaudAnime::SystemFx;
+    Check(TrailFor(true, true, false) && !TrailFor(false, true, false) && !TrailFor(true, false, false)
+              && !TrailFor(true, true, true),
+          "the trail is on Saud's own heavy blows, never a light, a parried or an enemy's");
+    FTrail R;
+    R.Push(FVector(0.0, 0.0, 150.0), 0.f);
+    const bool bOne = !R.Capture() && R.Age < 0.f;
+    R.Push(FVector(0.0, 0.0, 150.0), 0.05f);
+    R.Push(FVector(0.2, 0.0, 150.0), 0.10f);
+    Check(bOne && !R.Capture() && R.Age < 0.f, "one sample, or a limb that has not moved, is no path: no trail");
+    // the fist travels 60 cm forward over 0.20 s at 60 Hz, faster as it goes
+    FTrail S;
+    for (int i = 0; i <= 12; ++i)
+    {
+        const float T = static_cast<float>(i) / 60.f;
+        const double K = static_cast<double>(T / 0.2f);
+        S.Push(FVector(60.0 * K * K, 0.0, 150.0), T);
+    }
+    const bool bTook = S.Capture();
+    bool Ordered = true, Even = true;
+    for (int i = 0; i + 1 < TrailPoints; ++i)
+    {
+        Ordered = Ordered && S.Points[i].X > S.Points[i + 1].X;
+        const double Ti = 0.2 - 0.12 * i / (TrailPoints - 1.0);
+        Even = Even && std::fabs(S.Points[i].X - 60.0 * (Ti / 0.2) * (Ti / 0.2)) < 0.8;
+    }
+    const double T5 = 0.2 - 0.12;
+    Check(bTook && Near(static_cast<float>(S.Points[0].X), 60.f, 1e-3f) && Ordered
+              && std::fabs(S.Points[TrailPoints - 1].X - 60.0 * (T5 / 0.2) * (T5 / 0.2)) < 0.8 && Even,
+          "the trail is the last 0.12 s of the limb's path at even times, the contact first");
+    bool Runs = true;
+    float T = 0.f;
+    while (S.Age >= 0.f && T < 1.f)
+    {
+        Runs = Runs && Near(S.Age, T, 1e-4f);
+        S.Tick(1.f / 240.f);
+        T += 1.f / 240.f;
+    }
+    Check(Runs && Near(T, 0.30f, 1.5f / 240.f), "it shows for 0.30 s in real time");
+    FTrail F;
+    F.Push(FVector(0.0, 0.0, 0.0), 0.f);
+    F.Push(FVector(10.0, 0.0, 0.0), 0.05f);
+    F.Forget();
+    F.Push(FVector(50.0, 0.0, 0.0), 0.06f);
+    Check(!F.Capture(), "a swing over forgets its path: the next one starts its own");
+}
+
 using namespace SaudHud;
 
 // ------------------------------------------------------------ HUD helpers
@@ -731,6 +868,8 @@ int main()
     Blows();
     State();
     PowerUp();
+    SystemEvents();
+    Trail();
     Hud();
     Palette();
     if (Fails) { std::printf("%d anime check(s) failed\n", Fails); return 1; }

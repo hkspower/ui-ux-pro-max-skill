@@ -10,6 +10,33 @@ class UStaticMeshComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGateOpened);
 
+class AAbilityGate;
+/** Any gate, opened: its id and the gate. Native and static, so a system
+    that wants every gate (the System's "GATE CLEARED" window) subscribes
+    once rather than to each actor. Fired from AAbilityGate::Open(). */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGateOpenedNative, FName, AAbilityGate*);
+
+/**
+ * The System's portal in a sealed way (Tools/look/portal.py draws it,
+ * Tools/blender/build_gates.py makes and places its mesh). Its state is one
+ * custom primitive data value, in slot DataIndex of the portal's own
+ * component: 0 sealed (he lacks the talent), 1 openable (he has it), 1..2
+ * opening (struck or used: the flare and the collapse), 2 gone. The
+ * material reads the slot; portal.py holds these numbers to its mirror.
+ */
+namespace SaudPortal
+{
+	/** Not the camera's fade slot (SaudCamera::FadeDataIndex, 0). */
+	constexpr int32 DataIndex = 1;
+	/** Sealed to openable (and back), when the talent is gained. */
+	constexpr float WakeSeconds = 0.6f;
+	/** Openable to gone, once opened: the flare, then the collapse. */
+	constexpr float OpenSeconds = 0.9f;
+	constexpr float Sealed = 0.f;
+	constexpr float Openable = 1.f;
+	constexpr float Gone = 2.f;
+}
+
 /**
  * A sealed route. Ledges and gaps open by reaching them with the right
  * traversal ability; shutters and cracked walls take three strikes of the
@@ -48,6 +75,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Gate")
 	FOnGateOpened OnGateOpened;
 
+	/** Every gate's opening, for systems that want them all. */
+	static FOnGateOpenedNative OnAnyGateOpened;
+
+	/** The portal's state as it is drawn (SaudPortal: 0 sealed .. 2 gone). */
+	UFUNCTION(BlueprintPure, Category = "Gate")
+	float GetPortalState() const { return PortalState; }
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gate")
 	EGateType GateType = EGateType::Wall;
 
@@ -84,7 +118,23 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gate")
 	TObjectPtr<UBoxComponent> Trigger = nullptr;
 
+	/** The System's rift in the gate (SM_Portal_<Type>, set by the level
+	    builders). Rides on the gate's mesh at its own size (absolute
+	    scale: the gate's cube is scaled, the portal is in centimetres),
+	    collides with nothing and casts no shadow. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gate")
+	TObjectPtr<UStaticMeshComponent> Portal = nullptr;
+
 private:
+	/** The state each tick: sealed or openable from the game instance
+	    (HasAbility, through CanBeOpened; IsGateOpen), the flare once
+	    opened; written to the portal's slot only when it changes. */
+	void TickPortal(float DeltaSeconds);
+	void WritePortal();
+
+	float PortalState = SaudPortal::Sealed;
+	float PortalWritten = -1.f;
+	bool bOpening = false;
 	bool bOpen = false;
 	int32 StrikesLanded = 0;
 	float ApproachHeld = 0.f;

@@ -267,6 +267,20 @@ def _load_park():
 
 
 PARK = _load_park()
+
+
+# ------------------------------------------------------------ the portals
+# The System's portals (Tools/blender/build_gates.py, 2026-10-07): every
+# gate wears its kind's, the arena's door its own. Plain Python at import.
+def _load_gates():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("build_gates", os.path.join(HERE, "..", "blender", "build_gates.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+GATES = _load_gates()
 # The level's street mesh has its spurs out to the level's doors; the world's
 # doors are elsewhere, so its street is its own mesh, made by
 #     blender -b -P Tools/blender/build_souq.py -- --world
@@ -804,12 +818,13 @@ def plan(stages, world):
                     ox + s["x"], oy + s["y"], GROUND_Z + 150.0,
                     GateType=g["Type"], RewardAbility=g["RewardAbility"],
                     RewardExperience=g["RewardExperience"],
-                    GateId="%s_gate%d" % (stage["Name"], s["i"] + 1))
+                    GateId="%s_gate%d" % (stage["Name"], s["i"] + 1), **GATES.gate_props(g["Type"]))
         for dx, dy, side, link, dest, after, bearing in doors:
             act("Exit", "Exit_%s_%s_to_%s" % (stage["Name"], side, dest["Name"]),
                 ox + dx, oy + dy, GROUND_Z + 300.0,
                 Side=side, From=idx, To=link["To"], DestinationStage=dest["Name"],
-                RequiredAbility=link["RequiredAbility"], AfterClearedStage=after)
+                RequiredAbility=link["RequiredAbility"], AfterClearedStage=after,
+                **GATES.exit_props(dest["Name"], stages))
 
     # --- the roads between districts: door to door, across the ring.
     #     With ground under them: a district's own ground is a disc of its own
@@ -1084,6 +1099,22 @@ def check(P):
                 assert math.hypot(p["x"] - d["ox"] - f["x"], p["y"] - d["oy"] - f["y"]) >= max(p["sx"], p["sy"]) * 0.5 + f["half"], \
                     "%s: a %s stands inside a %s" % (Q["name"], f["kind"], p["kind"])
 
+    # 35. the System's portals (build_gates): every gate wears its kind's,
+    #     the arena's door its own and no street exit one -- one arena door
+    #     in the whole world -- the door's portal across its way clear of its
+    #     district's fights and of the fires beside the door
+    def _fires_of(a):
+        d = D[a["props"]["From"]]
+        Q = d.get("night") or (SOUQ.night_of(d["souq"]) if "souq" in d else None)
+        return [(d["ox"] + f["x"], d["oy"] + f["y"], f["half"]) for f in (Q["door_fires"] if Q else [])]
+    miss = GATES.placement_misses(
+        P["actors"], P["stages"],
+        middle=lambda a: (D[a["props"]["From"]]["ox"], D[a["props"]["From"]]["oy"]),
+        fights=lambda a: [(D[a["props"]["From"]]["ox"] + s["x"], D[a["props"]["From"]]["oy"] + s["y"], s["r"])
+                          for s in D[a["props"]["From"]]["sites"] if s["kind"] == "wave"],
+        solids=_fires_of, expect_doors=1, where="the world: ")
+    assert not miss, miss[0]
+
     # 34. the parked cars (park_cars.py): at the kerb, out of every fight,
     #     fire, block, spur, rim and way out, the lane left, and cars.json
     #     the tables' own
@@ -1098,6 +1129,7 @@ def check(P):
     print("under a cold hard moon, and every district's fires light its fights and doors in pools,")
     print("within the light budget.")
     print("The cars: %d parked, every one at its kerb, clear of every fight, fire, block and way out." % n_cars)
+    print("The portals: every gate wears its kind's, the one arena door its own, clear of every fight and fire.")
 
 
 # ------------------------------------------------------------------ bite
@@ -1192,6 +1224,13 @@ def bite(verbose=True):
     def fires_x4(P):
         Q = district(P, "AlTariqAlMasdud")["night"]; Q["fires"] = [dict(f) for f in Q["fires"] for _ in range(4)]
     case("fires x4 (AlTariqAlMasdud)", "over the budget", mutate=fires_x4)
+    # --- 35: the portals
+    def gate_bare(P):
+        next(a for a in P["actors"] if a["kind"] == "Gate" and "Masdud" in a["name"])["props"].pop("Portal")
+    case("a gate without its portal", "has no portal", mutate=gate_bare)
+    def door_bare(P):
+        next(a for a in P["actors"] if a["props"].get("ArenaDoor"))["props"]["ArenaDoor"] = False
+    case("the arena's door without its portal", "the arena's door", mutate=door_bare)
     if verbose:
         print("\n%-38s %s" % ("check", "when the world is broken"))
         for label, ok, msg in cases:
@@ -1587,6 +1626,7 @@ def build(P):
 
     # --- the game in it. These must exist wherever the player is, so they
     #     are the one thing here World Partition may not stream out.
+    portals = GATES.import_meshes()          # the System's portals and their material
     made = {}
     for a in P["actors"]:
         k, pr = a["kind"], a["props"]
@@ -1618,6 +1658,8 @@ def build(P):
                 act.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=0.0, yaw=wall["yaw"]), False)
                 act.set_actor_scale3d(unreal.Vector(*wall["scale"]))
                 act.get_component_by_class(unreal.StaticMeshComponent).set_static_mesh(mesh[wall["mesh"]])
+            # its portal: the cube's origin is the box's middle, the wall's its foot
+            GATES.attach_gate(act, pr["GateType"], portals, foot=bool(wall))
         elif k == "Boat":
             boat = import_island([pr["Mesh"]])[pr["Mesh"]]
             act = spawn(unreal.StaticMeshActor, a["name"], a["x"], a["y"], a["z"], pr["Yaw"], folder="Boat")
@@ -1634,6 +1676,8 @@ def build(P):
             act.set_editor_property("destination_stage", unreal.Name(pr["DestinationStage"]))
             act.set_editor_property("required_ability", getattr(unreal.Ability, _enum_name(pr["RequiredAbility"])))
             act.set_editor_property("after_cleared_stage", unreal.Name(pr["AfterClearedStage"]))
+            if pr.get("ArenaDoor"):
+                GATES.attach_door(act, portals)
             made[a["name"]] = act
         else:
             continue

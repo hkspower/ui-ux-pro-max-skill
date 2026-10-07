@@ -1,0 +1,32 @@
+# The look track's sabotages (2026-10-07, "the System, deeper": its events in
+# the picture and the trail on Saud's heavy blows), in bites.txt's format,
+# for the lead to merge into it:
+#   test|file|sed expression|text of the FAIL line it must cause
+# Each breaks one rule tests/anime.cpp holds on SaudAnime::SystemFx and must
+# be caught by the check written for it. No sed expression may contain a bar.
+
+# ---- the System's events: their slots, their lengths, real time
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#float Age\[Slots\] = {-1.f, -1.f, -1.f, -1.f, -1.f, -1.f};#float Age[Slots] = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};#|nothing shows at rest, and None shows nothing
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Age\[i\] += RealSeconds;#Age[i] += 0.5f * RealSeconds;#|each System effect's age runs in real seconds
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float PillarSeconds = 1.20f;#constexpr float PillarSeconds = 2.00f;#|each lasts its own length
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float FlashSeconds = 0.45f;#constexpr float FlashSeconds = 1.00f;#|each lasts its own length
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#return BurstSeconds > RimSeconds ? BurstSeconds : RimSeconds;#return BurstSeconds;#|a skill's slot lasts its rim
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float RankSeconds = 0.90f;#constexpr float RankSeconds = 0.40f;#|a rank's ring is slower than a skill's
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Age\[static_cast<int>(Fx)\] = 0.f;#for (int j = 1; j < Slots; ++j) Age[j] = 0.f;#|each event its own slot; a second of one kind restarts it
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#bHawk = bHawkFist;#bHawk = bHawk ? true : bHawkFist;#|HAWK FIST's skill is marked, and the next skill is not
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#if (Fx == ESystemFx::SkillAcquired)$#if (Fx != ESystemFx::None)#|HAWK FIST's skill is marked, and the next skill is not
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#return Fx == ESystemFx::LevelUp .*;#return Fx != ESystemFx::None;#|a level, a skill and a rank are drawn about Saud
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#return Age\[static_cast<int>(ESystemFx::LevelUp)\] >= 0.f#return Age[static_cast<int>(ESystemFx::QuestComplete)] >= 0.f#|he is projected only while something is drawn about him
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#SysPillarAge = SAUD_TEXT("SysPillarAge")#SysPillarAge = SAUD_TEXT("SysPillar")#|the System's parameter names
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#SAUD_TEXT("TrailX5")#SAUD_TEXT("TrailX4")#|the System's parameter names
+
+# ---- the trail on Saud's heavy blows
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#return bAttackerIsPlayer && bHeavy#return (void)bAttackerIsPlayer, bHeavy#|never a light, a parried or an enemy's
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#&& !bParried;#\&\& ((void)bParried, true);#|never a light, a parried or an enemy's
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#if ((Points\[0\] - Points\[TrailPoints - 1\]).Size() < 1.0)#if (false)#|one sample, or a limb that has not moved, is no path
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float TrailSpanSeconds = 0.12f;#constexpr float TrailSpanSeconds = 0.20f;#|the last 0.12 s of the limb's path at even times
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Points\[i\] = At(Now - #Points[TrailPoints - 1 - i] = At(Now - #|the contact first
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#return A.P + (B.P - A.P) \* K;#return (void)K, B.P;#|at even times
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float TrailSeconds = 0.30f;#constexpr float TrailSeconds = 0.60f;#|it shows for 0.30 s in real time
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Age += RealSeconds;#Age += 0.5f * RealSeconds;#|it shows for 0.30 s in real time
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#^\t*Count = 0;#;#|a swing over forgets its path

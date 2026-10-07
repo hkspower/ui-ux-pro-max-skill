@@ -30,12 +30,15 @@ STAND-INS, not the engine's:
   - blending is in linear light, as hud_preview's is.
 
 RUN
-  python3 Tools/look/menu_preview.py [--out DIR] [--bg PNG]
+  python3 Tools/look/menu_preview.py [--out DIR] [--bg PNG] [--only status,training]
 writes menu-title.png, menu-pause.png, menu-settings.png,
 menu-controls-xbox.png, menu-controls-ps5.png (1920x1080),
 menu-title-21x9.png (2560x1080), and since 2026-10-02 menu-confirm-quit.png,
 menu-confirm-new.png and menu-title-enter.png (the Title 0.24 s into its
-entrance, mid-slide) into DIR (default Docs/renders/).
+entrance, mid-slide), and since 2026-10-07 menu-status.png (mid-game),
+menu-status-early.png, menu-status-late.png, menu-status-4x3.png (1600x1200),
+menu-training.png, menu-training-ask.png and menu-training-denied.png
+into DIR (default Docs/renders/).
 """
 
 import json
@@ -77,7 +80,9 @@ def plate(w, h):
 def draw(exe, bg, w, h, state, out):
     d = dump(exe, w, h, state)
     assert not d["overflow"], "the menu's draw list overflowed"
-    over_fight = state["screen"] == "pause"
+    # the pause and what it opens (since 2026-10-07 the status and the
+    # training, and the training's question) stand over the stopped fight
+    over_fight = state["screen"] in ("pause", "status", "training") or state.get("ask") == "train"
     r = hud_preview.Raster(hud_preview.background(bg, w, h) if over_fight else plate(w, h), 3 if w <= 2560 else 2)
     if not over_fight:
         r.lin[:] = np.array(TROUGH, np.float32)   # exact linear Trough, not a rounded sRGB byte
@@ -115,6 +120,34 @@ SHOTS = (
      dict(screen="confirm", ask="new", pad="keyboard", focus=0, save=1, clock=0.62, since=1.0)),
     ("menu-title-enter.png", 1920, 1080,
      dict(screen="title", pad="xbox", focus=0, save=1, clock=0.20, since=0.24, stage=4)),
+    # 2026-10-07: the status window and the training, from the pause. The
+    # status mid-game (the striking house behind him: VAULT, DASH LEAP,
+    # some training), early (just landed: nothing found, nothing bought),
+    # late (HAWK FIST found, the title won: the quest removed) and at 4:3,
+    # where the window has the least room (late in the ring, HAWK FIST not
+    # yet found); the training mid-game, its
+    # question, and a buy refused.
+    ("menu-status.png", 1920, 1080,
+     dict(screen="status", pad="xbox", focus=0, save=1, clock=0.62, since=1.0,
+          xp=120, tracks="1,1,0,0,0,0", skills="VD")),
+    ("menu-status-early.png", 1920, 1080,
+     dict(screen="status", pad="ps", focus=0, save=1, clock=0.62, since=1.0,
+          xp=35, tracks="0,0,0,0,0,0", skills="")),
+    ("menu-status-late.png", 1920, 1080,
+     dict(screen="status", pad="xbox", focus=1, save=1, clock=0.62, since=1.0,
+          xp=640, tracks="5,4,5,3,4,5", skills="VDPHF", won=1)),
+    ("menu-status-4x3.png", 1600, 1200,
+     dict(screen="status", pad="keyboard", focus=0, save=1, clock=0.62, since=1.0,
+          xp=200, tracks="2,2,1,1,0,0", skills="VDPH")),
+    ("menu-training.png", 1920, 1080,
+     dict(screen="training", pad="xbox", focus=2, save=1, clock=0.62, since=1.0,
+          xp=300, tracks="2,1,1,0,0,5", skills="VD")),
+    ("menu-training-ask.png", 1920, 1080,
+     dict(screen="confirm", ask="train", track=2, pad="xbox", focus=0, save=1, clock=0.62, since=1.0,
+          xp=300, tracks="2,1,1,0,0,5", skills="VD")),
+    ("menu-training-denied.png", 1920, 1080,
+     dict(screen="training", pad="xbox", focus=0, save=1, clock=0.62, since=1.0, deny=0,
+          xp=300, tracks="2,1,1,0,0,5", skills="VD")),
 )
 
 
@@ -125,7 +158,10 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         exe = build_dump(tmp)
+        only = sys.argv[sys.argv.index("--only") + 1].split(",") if "--only" in sys.argv else None
         for name, w, h, state in SHOTS:
+            if only and not any(o in name for o in only):
+                continue
             n, m = draw(exe, bg, w, h, state, os.path.join(out_dir, name))
             print("%s: %dx%d, %d triangles, %d texts" % (os.path.join(out_dir, name), w, h, n, m))
 
