@@ -782,3 +782,57 @@ menu|Source/SaudFighter/Combat/SaudCharacter.cpp|s#P.VitalityLevel \* 18.f + Sau
 menu|Source/SaudFighter/Combat/SaudCharacter.cpp|s#Mana = FMath::Min(MaxMana, Mana + SaudFire::ManaPerLandedHit);#Mana = FMath::Min(SaudFire::MaxMana, Mana + SaudFire::ManaPerLandedHit);#|his MP fills to the level's MP
 menu|Source/SaudFighter/Combat/SaudCharacter.cpp|s#GI->OnExperienceChanged.AddUniqueDynamic(this, .*##|his MP fills to the level's MP
 menu|Source/SaudFighter/Combat/SaudCharacter.h|s#return MaxMana > 0.f ? Mana / MaxMana : 0.f;#return Mana / SaudFire::MaxMana;#|his MP fills to the level's MP
+
+# The posture track's sabotages (2026-10-07, Riyadh: "make body Posture and
+# Body Alignment and Straightness" -- everyone, the in-game IK, keep stances,
+# fix faults), in bites.txt's format, for the lead to merge into it:
+#   test|file|sed expression|text of the FAIL line it must cause
+# Each breaks one rule tests/posture.cpp holds on SaudIK::StepPosture and its
+# table (SaudStances.h) and must be caught by the check written for it. No sed
+# expression may contain a bar.
+
+# ---- his stance is his own (SaudStances.h, measured off each guard)
+posture|Source/SaudFighter/Combat/SaudStances.h|s#^\t\treturn nullptr;$#\t\treturn \&Stances[0];#|the five men's sets have a stance and the Island's creatures none
+posture|Source/SaudFighter/Combat/SaudStances.h|s#{ "Saud", "mma", 0.000f,#{ "Saud", "mma", 0.030f,#|each guard measures as its stance
+posture|Source/SaudFighter/Combat/SaudIK.h|s#if (A <= K) return Deg;#if (A <= K) return A < 1e-2f ? 0.06f : Deg;#|a man in his own guard is left as he stands
+posture|Source/SaudFighter/Combat/SaudIK.h|s#R.ShoulderRoll = S.ShoulderRoll \* K;#R.ShoulderRoll = FMath::Min(S.ShoulderRoll, 2.f) * K;#|AL-WAHSH's peek-a-boo keeps its shoulder line
+
+# ---- each fault taken out, by the bone that owns it
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const float C = PostureLimit(T, PostureHipMaxDeg) \* Hips;#const float C = 0.f * T * Hips;#|the hips are levelled
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const float C = PostureLimit(T, PostureTrunkMaxDeg) \* W;#const float C = 0.f * T * W;#|the trunk is stood up sideways
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const FVector A = FVector::CrossProduct(Side, Up).GetSafeNormal();#const FVector A = FVector::CrossProduct(FVector(0.0, 1.0, 0.0), Up).GetSafeNormal();#|the trunk's forward lean is his own
+posture|Source/SaudFighter/Combat/SaudIK.h|s#Fix.Add(J, EPostureBone::Spine03, A, PostureLimit(T, PostureChestMaxDeg) \* W);#Fix.Add(J, EPostureBone::Spine03, A, PostureLimit(T, PostureChestMaxDeg) * W * 0.f);#|the shoulder line is levelled
+posture|Source/SaudFighter/Combat/SaudIK.h|s#Fix.Add(J, EPostureBone::Neck, A, PostureLimit(T, PostureNeckMaxDeg) \* W);#Fix.Add(J, EPostureBone::Neck, A, PostureLimit(T, PostureNeckMaxDeg) * W * 0.f);#|the head is put back over the spine
+posture|Source/SaudFighter/Combat/SaudIK.h|s#Fix.Add(J, EPostureBone::Head, A, PostureLimit(T, PostureEyesMaxDeg) \* W);#Fix.Add(J, EPostureBone::Head, A, PostureLimit(T, PostureEyesMaxDeg) * W * 0.f);#|the eyes are levelled
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const float C = -PostureLimit(Fix.Before.Twist, PostureTwistMaxDeg) \* TwistShare;#const float C = 0.f * Fix.Before.Twist * TwistShare;#|the hips are kept to the stance's angle to the feet
+posture|Source/SaudFighter/Combat/SaudIK.h|s#Fix.Add(J, EPostureBone::Spine01, Up, -C);#Fix.Add(J, EPostureBone::Spine01, Up, 0.f * C);#|the chest faces where it faced
+posture|Source/SaudFighter/Combat/SaudIK.h|s#St.Twist.Step(In.bOn && In.bTwist, Dt#St.Twist.Step(In.bOn, Dt#|the twist is only straightened standing
+posture|Source/SaudFighter/Combat/SaudIK.h|s#Turn\[Num\].Degrees = Degrees;#Turn[Num].Degrees = 0.5f * Degrees;#|the engine's turns, bone by bone, give the pose it measured
+posture|Source/SaudFighter/Combat/SaudIK.h|s#constexpr int MaxPostureTurns = 10;#constexpr int MaxPostureTurns = 8;#|every fault at once is taken out
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const float Hips = W \* FMath::Clamp(In.FeetShare, 0.f, 1.f);#const float Hips = W + 0.f * In.FeetShare;#|the hips are turned only with the feet on
+
+# ---- the limits
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const float Rest = Max - K;#const float Rest = 1.5f * (Max - K);#|no correction passes its limit
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const float Out = K + Rest \* Tanh;#const float Out = K + Rest * Tanh * (1.f - Tanh);#|a fault under the knee is corrected whole, and more never less
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const float Out = K + Rest \* Tanh;#const float Out = FMath::Min(A, 0.999f * Max) + 0.f * Rest * Tanh;#|the limit eases in with no kink
+posture|Source/SaudFighter/Combat/SaudIK.h|s#PostureLimit(T, PostureEyesMaxDeg) \* W#PostureLimit(T, PostureNeckMaxDeg) * W#|a fault past the limit is corrected by the limit's most
+
+# ---- the gate, the freeze, the frame rate, no drift
+posture|Source/SaudFighter/Combat/SaudIK.h|s#St.Share.Step(In.bOn, Dt, PostureOnSeconds, PostureOffSeconds);#St.Share.Step(true, Dt, PostureOnSeconds, PostureOffSeconds);#|a strike, a reel or a fall is left as it moves
+posture|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float PostureOnSeconds = 0.25f;#constexpr float PostureOnSeconds = 0.02f;#|the gate eases on, never in a frame
+posture|Source/SaudFighter/Combat/SaudIK.h|s#St.Share.Step(In.bOn, Dt, PostureOnSeconds#St.Share.Step(In.bOn, Dt > 0.f ? 1.f / 60.f : 0.f, PostureOnSeconds#|the same at 30, 60 and 120 Hz
+posture|Source/SaudFighter/Combat/SaudIK.h|s#St.Share.Step(In.bOn, Dt, PostureOnSeconds#St.Share.Step(In.bOn, Dt > 0.f ? Dt : 1.f / 60.f, PostureOnSeconds#|the freeze holds it
+posture|Source/SaudFighter/Combat/SaudIK.h|s#Fix.Add(J, EPostureBone::Head, A, PostureLimit(T, PostureEyesMaxDeg) \* W);#{ static float Kept = 0.f; Kept = 0.9f * Kept + PostureLimit(T, PostureEyesMaxDeg) * W; Fix.Add(J, EPostureBone::Head, A, Kept); }#|nothing is kept once the fault has gone
+
+# ---- the cases: standing, a kerb and a slope, turning, curves, a pivot, Saud's free gaits
+posture|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float MaxPelvisDrop = 40.f;#constexpr float MaxPelvisDrop = 5.f;#|(the kerb drops his hips)
+posture|Source/SaudFighter/Combat/SaudIK.h|/the shoulder line level: spine_03/,/EPostureBone::Spine03/s#PostureLimit(T, PostureChestMaxDeg) \* W#PostureLimit(T, PostureChestMaxDeg) * W * 0.5f#|standing and looking, he stands as his stance
+posture|Source/SaudFighter/Combat/SaudIK.h|/the shoulder line level: spine_03/,/EPostureBone::Spine03/s#FVector::CrossProduct(Up, L)#Up#|the look's turn is the look's
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const float T = TurnToShare(L, A, Up, FMath::Sin(FMath::DegreesToRadians(Ref.HipRoll)));#const float T = TurnToShare(L, A, Up, FMath::Sin(FMath::DegreesToRadians(Ref.HipRoll)) + FMath::Max(0.f, static_cast<float>(FVector::DotProduct((J.Ball[1] - J.Ball[0]).GetSafeNormal(), Up)) - 0.1f));#|a step or a slope under his feet leaves him level
+posture|Source/SaudFighter/Combat/SaudIK.h|s#St.Twist.Step(In.bOn && In.bTwist, Dt, TwistOnSeconds#St.Twist.Step(In.bOn \&\& In.bTwist, Dt, 8.f * TwistOnSeconds#|turning on the spot keeps his hips to his feet
+posture|Source/SaudFighter/Combat/SaudIK.h|/HeadSide/s#In\.Up#Up#g|running a curve, his eyes are level
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const FVector Up = In.BodyUp;#const FVector Up = In.Up;#|the lean is his, and kept
+posture|Source/SaudFighter/Combat/SaudIK.h|0,/const FVector Side = LevelOf(J.Shoulder\[1\] - J.Shoulder\[0\], Up);/s##const FVector Side = LevelOf(J.Shoulder[1] - J.Shoulder[0], In.Up);#|a pivot's or a stop's lean leaves him as his stance
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const float C = -PostureLimit(Fix.Before.Twist, PostureTwistMaxDeg) \* TwistShare;#const float C = -(FMath::Abs(Fix.Before.Twist) > 10.f ? PostureLimit(Fix.Before.Twist, PostureTwistMaxDeg) : 0.f) * TwistShare;#|turning, no wobble frame to frame
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const float K = 1.f - FMath::Clamp(Gait, 0.f, 1.f);#const float K = 1.f + 0.f * Gait;#|Saud walks and runs free straight
+posture|Source/SaudFighter/Combat/SaudIK.h|s#const float C = PostureLimit(T, PostureHipMaxDeg) \* Hips;#const float C = (FMath::Abs(T) > 4.f ? PostureLimit(T, PostureHipMaxDeg) : 0.f) * Hips;#|no wobble frame to frame

@@ -262,6 +262,57 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 		}
 	}
 
+	// ---- 2b. the posture (SaudIK::StepPosture, 2026-10-07): measured on the
+	// pose the clips, the hips' drop, the lean and the look made, against his
+	// own stance, and only his faults turned out -- his hips level and kept to
+	// his feet, his trunk upright sideways, his shoulder line, his head over
+	// his spine, his eyes level. Before the legs, which are solved below to the
+	// feet from wherever the hips end up; the gates run on the clips' clock
+	// (Dt), so a freeze holds them and the title's real time runs them.
+	if (Frame.Stance && bLegs)
+	{
+		const FCompactPoseBoneIndex Turned[6] = { Pelvis, Bone(Bones, ChainBone[0]), Bone(Bones, ChainBone[1]),
+			Bone(Bones, ChainBone[2]), Bone(Bones, ChainBone[3]), Bone(Bones, ChainBone[4]) };
+		const FCompactPoseBoneIndex Arm[2] = { Bone(Bones, UpperBone[0]), Bone(Bones, UpperBone[1]) };
+		bool bAll = Arm[0].IsValid() && Arm[1].IsValid();
+		for (int32 I = 0; I < 6; ++I) bAll = bAll && Turned[I].IsValid();
+		if (bAll)
+		{
+			SaudStances::FJoints J;
+			for (int32 S = 0; S < 2; ++S) { J.Knee[S] = FVector::ZeroVector; J.Ankle[S] = FVector::ZeroVector; }   // the posture does not read them
+			J.Pelvis = CS.GetComponentSpaceTransform(Turned[0]).GetLocation();
+			for (int32 I = 0; I < 3; ++I) J.Spine[I] = CS.GetComponentSpaceTransform(Turned[1 + I]).GetLocation();
+			J.Neck = CS.GetComponentSpaceTransform(Turned[4]).GetLocation();
+			const FTransform HeadT = CS.GetComponentSpaceTransform(Turned[5]);
+			J.Head = HeadT.GetLocation();
+			J.HeadSide = HeadT.GetRotation().RotateVector(Frame.HeadSideLocal);
+			for (int32 S = 0; S < 2; ++S)
+			{
+				J.Hip[S] = CS.GetComponentSpaceTransform(Legs[S].Thigh).GetLocation();
+				J.Shoulder[S] = CS.GetComponentSpaceTransform(Arm[S]).GetLocation();
+				// the feet as they will be drawn (held, or stepping after him); off, the clip's
+				J.Ball[S] = bFeet ? Plan.Foot[S].Ball : Raw.GetComponentSpaceTransform(Legs[S].Ball).GetLocation();
+			}
+			SaudIK::FPostureIn PIn;
+			PIn.Up = Frame.Up;
+			// level is the designed lean's: the pelvis was turned by it above
+			PIn.BodyUp = bFeet && Pelvis.IsValid() && Frame.LeanDegrees > 0.01f
+				? FQuat(Frame.LeanAxis, FMath::DegreesToRadians(Frame.LeanDegrees * Plan.Alpha)).RotateVector(Frame.Up)
+				: Frame.Up;
+			PIn.bOn = Frame.bPosture;
+			PIn.bTwist = Frame.bPostureTwist;
+			PIn.FeetShare = bFeet ? Plan.Alpha : 0.f;
+			PIn.Gait = Frame.PostureGait;
+			PIn.Size = Frame.BodyScale;
+			const SaudIK::FPostureFix Fix = SaudIK::StepPosture(Posture, PIn, J, *Frame.Stance, Dt);
+			// every bone read above, which would not follow its parent: the six, the thighs, the upper arms
+			const FCompactPoseBoneIndex Read[10] = { Turned[0], Turned[1], Turned[2], Turned[3], Turned[4], Turned[5],
+				Legs[0].Thigh, Legs[1].Thigh, Arm[0], Arm[1] };
+			TurnBones(CS, Turned, Read, 10, Fix);
+			if (bNeck) NeckPivot = CS.GetComponentSpaceTransform(Turned[4]).GetLocation();   // the guard's pivot, where the posture put it
+		}
+	}
+
 	// ---- 3. the legs, every one the feet have -- the strike's too, which
 	// the strike below takes from here, so it leaves the ground with no jump
 	if (bFeet)
@@ -457,6 +508,55 @@ void FSaudMotionProxy::Place(FCSPose<FCompactPose>& CS, const FLeg& L, const FVe
 	CS.SetComponentSpaceTransform(L.End, EndT);
 }
 
+void FSaudMotionProxy::TurnBones(FCSPose<FCompactPose>& CS, const FCompactPoseBoneIndex (&Turned)[6], const FCompactPoseBoneIndex* Read,
+                                 int32 NumRead, const SaudIK::FPostureFix& Fix) const
+{
+	if (Fix.Num <= 0) return;
+	const FBoneContainer& Bones = CS.GetPose().GetBoneContainer();
+	// whether bone B is bone Of (a compact index) or hangs under it
+	auto Carries = [&Bones](int32 Of, FCompactPoseBoneIndex B) -> bool
+	{
+		for (; B.IsValid(); B = Bones.GetParentBoneIndex(B)) { if (B.GetInt() == Of) return true; }
+		return false;
+	};
+	// each turn about its bone's joint where the turns before it left the joint, as SaudIK::TurnJoints does
+	FQuat Q[SaudIK::MaxPostureTurns];
+	FVector Pivot[SaudIK::MaxPostureTurns];
+	int32 Of[SaudIK::MaxPostureTurns];
+	for (int32 K = 0; K < Fix.Num; ++K)
+	{
+		Of[K] = Turned[static_cast<int32>(Fix.Turn[K].Bone)].GetInt();
+		Q[K] = FQuat(Fix.Turn[K].Axis, FMath::DegreesToRadians(Fix.Turn[K].Degrees));
+		FVector P = CS.GetComponentSpaceTransform(FCompactPoseBoneIndex(Of[K])).GetLocation();     // read above: as the measure saw it
+		for (int32 J = 0; J < K; ++J)
+		{
+			if (Of[J] != Of[K] && Carries(Of[J], FCompactPoseBoneIndex(Of[K]))) P = Pivot[J] + Q[J].RotateVector(P - Pivot[J]);
+		}
+		Pivot[K] = P;
+	}
+	// every bone read, as it was, before any is set
+	TArray<TPair<FCompactPoseBoneIndex, FTransform>, TInlineAllocator<16>> Set;
+	for (int32 I = 0; I < NumRead; ++I)
+	{
+		if (Read[I].IsValid()) Set.Emplace(Read[I], CS.GetComponentSpaceTransform(Read[I]));
+	}
+	// parents first: a parent set after its child would carry the child twice
+	Set.Sort([](const TPair<FCompactPoseBoneIndex, FTransform>& A, const TPair<FCompactPoseBoneIndex, FTransform>& B) { return A.Key.GetInt() < B.Key.GetInt(); });
+	for (TPair<FCompactPoseBoneIndex, FTransform>& E : Set)
+	{
+		bool bMoved = false;
+		FTransform& T = E.Value;
+		for (int32 K = 0; K < Fix.Num; ++K)
+		{
+			if (!Carries(Of[K], E.Key)) continue;
+			T.SetRotation((Q[K] * T.GetRotation()).GetNormalized());
+			T.SetLocation(Pivot[K] + Q[K].RotateVector(T.GetLocation() - Pivot[K]));
+			bMoved = true;
+		}
+		if (bMoved) CS.SetComponentSpaceTransform(E.Key, T);
+	}
+}
+
 /* ============================================================== instance */
 
 void USaudMotionAnimInstance::NativeInitializeAnimation()
@@ -466,6 +566,10 @@ void USaudMotionAnimInstance::NativeInitializeAnimation()
 	Clips.Reset();
 	ClipPlants.Reset();
 	ClipTurns.Reset();
+	ClipGaits.Reset();
+	StanceSet = NAME_None;
+	bStanceLooked = false;
+	StanceOf = nullptr;
 	Lean = SaudIK::FLean();
 	ShuffleSet = NAME_None;
 	ShuffleSeconds = 0.f;
@@ -502,6 +606,7 @@ void USaudMotionAnimInstance::Play(UAnimSequence* Sequence, bool bLoop, bool bRe
 		// its measured feet, by the asset's name (A_Saud_Walk_Fwd): the two arrays stay in step
 		ClipPlants.Add(SaudPlants::Find(TCHAR_TO_ANSI(*Sequence->GetName())));
 		ClipTurns.Add(bTurn);
+		ClipGaits.Add(Sequence->GetName().Contains(TEXT("_Mocap_")));
 	}
 	Fade.Play(Id, Sequence->GetPlayLength(), bLoop, bRestart, CutSeconds, bMatchPhase, ShareShift, StartShare);
 }
@@ -604,6 +709,8 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 	Frame.bChain = false;
 	Frame.LeanDegrees = 0.f;
 	Frame.bStopping = false;
+	Frame.bPosture = false;
+	Frame.bPostureTwist = false;
 	if (!Fighter || !Mesh || !Mesh->GetSkeletalMeshAsset())
 	{
 		return;
@@ -628,6 +735,7 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 	UpdateBlock(Fighter, DeltaSeconds);
 	UpdateTurn(Fighter, bTeleported, DeltaSeconds);
 	UpdateGuard(Fighter, DeltaSeconds);
+	UpdatePosture(Fighter);     // after the feet: it reads their standing
 }
 
 void USaudMotionAnimInstance::Measure(const USkeletalMeshComponent* Mesh)
@@ -655,6 +763,22 @@ void USaudMotionAnimInstance::Measure(const USkeletalMeshComponent* Mesh)
 		Frame.FootUpLocal[S] = F.GetRotation().UnrotateVector(FVector::UpVector);
 		Frame.AnkleRest[S] = static_cast<float>(F.GetLocation().Z);
 		Frame.BallRest[S] = static_cast<float>(B.GetLocation().Z);
+	}
+	// the head's left-to-right line in its own frame: the hips' line, level, at rest
+	{
+		const int32 Head = Ref.FindBoneIndex(HeadBone);
+		const int32 ThL = Ref.FindBoneIndex(ThighBone[0]);
+		const int32 ThR = Ref.FindBoneIndex(ThighBone[1]);
+		if (Head != INDEX_NONE && ThL != INDEX_NONE && ThR != INDEX_NONE)
+		{
+			FVector Side = FAnimationRuntime::GetComponentSpaceTransformRefPose(Ref, ThR).GetLocation()
+				- FAnimationRuntime::GetComponentSpaceTransformRefPose(Ref, ThL).GetLocation();
+			Side.Z = 0.f;
+			if (!Side.IsNearlyZero())
+			{
+				Frame.HeadSideLocal = FAnimationRuntime::GetComponentSpaceTransformRefPose(Ref, Head).GetRotation().UnrotateVector(Side.GetSafeNormal());
+			}
+		}
 	}
 	BodyScale = ScaleOf(Mesh);
 	bMeasured = true;
@@ -1039,4 +1163,35 @@ void USaudMotionAnimInstance::UpdateGuard(AFighterBase* Fighter, float DeltaSeco
 		                  SaudIK::ContactLeadOut, SaudIK::ContactLeadOut);
 		Frame.GuardAlpha[S] = GuardRamp[S].Value();
 	}
+}
+
+void USaudMotionAnimInstance::UpdatePosture(AFighterBase* Fighter)
+{
+	// His stance, once for his set (SaudStances.h: the men's five; the
+	// Island's creatures have none, and are left as their clips have them).
+	if (!bStanceLooked || Fighter->MotionSet != StanceSet)
+	{
+		StanceSet = Fighter->MotionSet;
+		StanceOf = SaudStances::Find(TCHAR_TO_ANSI(*SetOf(Fighter)));
+		bStanceLooked = true;
+	}
+	Frame.Stance = StanceOf;
+	// Straightened in his stance and moving in it -- standing, walking,
+	// running, a turn or a pivot clip -- and never in a strike, a reel, a
+	// fall, lying, a dash, a block, getting up or winning: their motion is
+	// theirs (the gate lets go in SaudIK::PostureOffSeconds).
+	const EFighterState St = Fighter->State;
+	const bool bStance = (St == EFighterState::Idle || St == EFighterState::Walk) && !Fighter->bBlocking
+		&& Fighter->GetUpRemaining <= 0.f && Fighter->VictoryRemaining <= 0.f;
+	Frame.bPosture = bPostureStraight && StanceOf != nullptr && bStance;
+	// his hips kept to his feet standing only (UpdateFeet's bSettleFeet), and
+	// not under a turn clip, which turns his hips itself
+	Frame.bPostureTwist = Frame.bPosture && Frame.bSettleFeet && !NewestTurns();
+	float Gait = 0.f;
+	for (int32 I = 0; I < Fade.Num; ++I)
+	{
+		const int32 C = Fade.Layers[I].Clip;
+		if (ClipGaits.IsValidIndex(C) && ClipGaits[C]) Gait += Fade.Layers[I].Weight;
+	}
+	Frame.PostureGait = FMath::Clamp(Gait, 0.f, 1.f);
 }

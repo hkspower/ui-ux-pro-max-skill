@@ -2239,4 +2239,353 @@ namespace SaudIK
 	{
 		return FMath::Min(StepSeconds, ShuffleShareOfSwing * SetSwingSeconds(Set));
 	}
+
+	// ------------------------------------------------- posture and alignment
+
+	/** (2026-10-07, Riyadh: "make body Posture and Body Alignment and
+	    Straightness", settled as everyone -- Saud, the bosses, the street men
+	    -- in the in-game IK, "keep stances, fix faults".) Once the hips have
+	    dropped to the feet, the lean has tipped him and the look has turned
+	    him, and before the legs are solved to the feet, his posture is
+	    measured (MeasurePosture) against his OWN designed stance -- his
+	    guard, measured off the clip (SaudStances.h) -- and only his
+	    departures from it are taken out (StepPosture), root first, each by
+	    the bone that owns it (Saud's motion-capture gaits, which no guard was
+	    built into, are held straight instead: StanceRef):
+
+	      twist     the hips turned back to the stance's own angle to the
+	                feet as they are drawn (held, or stepping after him), the
+	                trunk turning the other way by as much, so the chest
+	                faces where it faced: standing only and no turn clip (a
+	                walk's feet are no stance; a turn clip turns his hips
+	                itself);
+	      hips      the pelvis rolled level -- level as his stance has it --
+	                and spine_01 rolled back by as much, so the hips do not
+	                tip the trunk over;
+	      trunk     upright sideways: spine_01 turns half the correction,
+	                spine_02 brings the rest of the line (spine_01 to
+	                spine_03) where the whole would have put it;
+	      shoulders spine_03, the shoulder line level as his stance has it
+	                (AL-WAHSH's peek-a-boo carries the lead shoulder 4.9
+	                degrees high, and keeps it);
+	      head      neck_01, the head joint back over the spine's line;
+	      eyes      the head, its left-to-right line level.
+
+	    "Level" is the designed lean's (FLean): his hips, trunk and shoulders
+	    are measured against his up as the lean tips it, so a curve's lean
+	    and a start's or a stop's are kept whole; the eyes alone are levelled
+	    against the world, as a runner's head rights itself in a curve. The
+	    forward lean, the crouch and the chin tuck are never measured -- only
+	    the sideways faults and the twist -- so they are his as designed.
+
+	    Every correction is the whole fault up to PostureKnee of its limit and
+	    eases off smoothly toward the limit past it (PostureLimit), times the
+	    gate's share: never a jump, never more than the limit. It is worked
+	    out afresh each frame from the pose the clips and the IK made, never
+	    added to the last one, so nothing drifts and nothing is left once
+	    the fault has gone. The gate (bOn) is his stance and his moving in it
+	    -- not a strike, a reel, a fall, lying, a dash, a block, getting up or
+	    winning, whose motion is theirs -- and lets go in PostureOffSeconds,
+	    the time a reel's crossfade takes to move him. The hips' parts are
+	    the feet's share as well: they need the legs solved after them. A
+	    Dt of 0 (the freeze) holds the gate, and the pose is the frozen one. */
+	/** Turning on the spot, a held foot steps after him 12 cm off its spot
+	    (HoldDrift): his hips came 20-22 degrees round on his feet. */
+	constexpr float PostureTwistMaxDeg = 15.f;
+	/** Saud's motion-capture walk rolls his hips 8.3 degrees. */
+	constexpr float PostureHipMaxDeg = 10.f;
+	constexpr float PostureTrunkMaxDeg = 8.f;
+	/** Saud's motion-capture walks drop a shoulder 5-8 degrees from a trunk
+	    leaning the other way. */
+	constexpr float PostureChestMaxDeg = 10.f;
+	/** Saud's motion-capture walk carries its head 3.6 cm off his spine's
+	    line, and 16 degrees of the neck put it back once his shoulders are
+	    level. */
+	constexpr float PostureNeckMaxDeg = 20.f;
+	/** A run's whole lean (LeanRunMaxDeg) righted, and the 20 degrees the
+	    head takes back once a motion-capture neck has put it over his
+	    spine. */
+	constexpr float PostureEyesMaxDeg = 26.f;
+	/** Whole to this share of a limit; past it, easing toward the limit. */
+	constexpr float PostureKnee = 0.6f;
+	/** spine_01's share of the trunk's correction; spine_02 the rest. */
+	constexpr float TrunkLowShare = 0.5f;
+	constexpr float PostureOnSeconds = 0.25f;
+	constexpr float PostureOffSeconds = 0.05f;
+	constexpr float TwistOnSeconds = 0.25f;
+	constexpr float TwistOffSeconds = 0.10f;
+
+	/** The correction for a fault of Deg degrees, at most Max: the whole of
+	    it to PostureKnee x Max, then smoothly less of each further degree
+	    (a tanh, its slope 1 at the knee: no kink), never past Max. */
+	inline float PostureLimit(float Deg, float Max)
+	{
+		const float K = PostureKnee * Max;
+		const float A = FMath::Abs(Deg);
+		if (A <= K) return Deg;
+		const float Rest = Max - K;
+		const float X = 2.f * (A - K) / Rest;
+		const float Tanh = X > 40.f ? 1.f : 1.f - 2.f / (FMath::Exp(X) + 1.f);
+		const float Out = K + Rest * Tanh;
+		return Deg < 0.f ? -Out : Out;
+	}
+
+	/** asin, in degrees, of a sine held to [-1, 1]. */
+	inline float AsinDegrees(float S)
+	{
+		S = FMath::Clamp(S, -1.f, 1.f);
+		return FMath::RadiansToDegrees(FMath::Atan2(S, FMath::Sqrt(FMath::Max(0.f, 1.f - S * S))));
+	}
+
+	/** V with its part along Up taken out, as a unit vector. */
+	inline FVector LevelOf(const FVector& V, const FVector& Up)
+	{
+		return (V - Up * FVector::DotProduct(V, Up)).GetSafeNormal();
+	}
+
+	/** A pose's posture, or its departure from a stance (Departure): what
+	    SaudStances.h measured off each guard, measured the same way. */
+	struct FPostureFaults
+	{
+		float HipRoll = 0.f;        // thigh_l -> thigh_r against level, degrees, + right high
+		float ShoulderRoll = 0.f;   // upperarm_l -> upperarm_r against level
+		float TrunkTilt = 0.f;      // spine_01 -> spine_03 toward his right (the shoulders' level line)
+		float HeadOff = 0.f;        // the head joint off spine_01 -> neck_01 carried on, toward his right, cm
+		float EyeRoll = 0.f;        // the head's left-to-right line against the WORLD's level
+		float Twist = 0.f;          // the hips' yaw less the feet's (ball_l -> ball_r), about up
+	};
+
+	/** BodyUp: up as the designed lean tips him; Up: the world's. */
+	inline FPostureFaults MeasurePosture(const SaudStances::FJoints& J, const FVector& BodyUp, const FVector& Up)
+	{
+		FPostureFaults M;
+		const FVector HipLine = J.Hip[1] - J.Hip[0], ShLine = J.Shoulder[1] - J.Shoulder[0];
+		M.HipRoll = AsinDegrees(static_cast<float>(FVector::DotProduct(HipLine.GetSafeNormal(), BodyUp)));
+		M.ShoulderRoll = AsinDegrees(static_cast<float>(FVector::DotProduct(ShLine.GetSafeNormal(), BodyUp)));
+		const FVector Side = LevelOf(ShLine, BodyUp);
+		M.TrunkTilt = AsinDegrees(static_cast<float>(FVector::DotProduct((J.Spine[2] - J.Spine[0]).GetSafeNormal(), Side)));
+		const FVector Sp = (J.Neck - J.Spine[0]).GetSafeNormal();
+		const FVector Lat = (Side - Sp * FVector::DotProduct(Side, Sp)).GetSafeNormal();
+		M.HeadOff = static_cast<float>(FVector::DotProduct(J.Head - J.Neck, Lat));
+		M.EyeRoll = AsinDegrees(static_cast<float>(FVector::DotProduct(J.HeadSide.GetSafeNormal(), Up)));
+		const FVector F = LevelOf(J.Ball[1] - J.Ball[0], BodyUp), H = LevelOf(HipLine, BodyUp);
+		M.Twist = FMath::RadiansToDegrees(FMath::Atan2(static_cast<float>(FVector::DotProduct(BodyUp, FVector::CrossProduct(F, H))),
+		                                               static_cast<float>(FVector::DotProduct(F, H))));
+		return M;
+	}
+
+	/** What his posture should be: his stance's -- or, for the share of the
+	    mix that is motion capture (Saud's free walk and run, which no guard
+	    was built into: Gait), straight: the stance's sideways leans are a
+	    fighting crouch's, not a walk's. The twist is the stance's always (it
+	    is only corrected standing). Size: his against the clips' man. */
+	inline FPostureFaults StanceRef(const SaudStances::FStance& S, float Gait, float Size = 1.f)
+	{
+		const float K = 1.f - FMath::Clamp(Gait, 0.f, 1.f);
+		FPostureFaults R;
+		R.HipRoll = S.HipRoll * K;
+		R.ShoulderRoll = S.ShoulderRoll * K;
+		R.TrunkTilt = S.TrunkTilt * K;
+		R.HeadOff = S.HeadOff * K * Size;
+		R.EyeRoll = S.EyeRoll * K;
+		R.Twist = S.Twist;
+		return R;
+	}
+
+	/** A posture less its reference: the faults. */
+	inline FPostureFaults Departure(const FPostureFaults& M, const FPostureFaults& Ref)
+	{
+		FPostureFaults D;
+		D.HipRoll = M.HipRoll - Ref.HipRoll;
+		D.ShoulderRoll = M.ShoulderRoll - Ref.ShoulderRoll;
+		D.TrunkTilt = M.TrunkTilt - Ref.TrunkTilt;
+		D.HeadOff = M.HeadOff - Ref.HeadOff;
+		D.EyeRoll = M.EyeRoll - Ref.EyeRoll;
+		D.Twist = WrapDegrees(M.Twist - Ref.Twist);
+		return D;
+	}
+
+	/** The turn, degrees about the unit Axis, that brings V's part along the
+	    unit Dir (square to Axis) to Want x |V| -- the smaller of the two
+	    that do; V's part along Axis is kept. Exact, so a corrected line
+	    lands on its reference and not near it. */
+	inline float TurnToShare(const FVector& V, const FVector& Axis, const FVector& Dir, float Want)
+	{
+		const FVector E = FVector::CrossProduct(Axis, Dir);
+		const float VD = static_cast<float>(FVector::DotProduct(V, Dir)), VE = static_cast<float>(FVector::DotProduct(V, E));
+		const float R = FMath::Sqrt(VD * VD + VE * VE);
+		if (R < 1e-4f) return 0.f;
+		const float Phi = FMath::Atan2(VD, VE);
+		const float S = FMath::Clamp(Want * static_cast<float>(V.Size()) / R, -1.f, 1.f);
+		const float T = FMath::Atan2(S, FMath::Sqrt(FMath::Max(0.f, 1.f - S * S)));
+		const float A = WrapDegrees(FMath::RadiansToDegrees(Phi - T));
+		const float B = WrapDegrees(FMath::RadiansToDegrees(Phi - (3.14159265f - T)));
+		return FMath::Abs(A) <= FMath::Abs(B) ? A : B;
+	}
+
+	/** The bones the posture turns, root first: each carries the ones after
+	    it (pelvis > spine_01 > spine_02 > spine_03 > neck_01 > head). */
+	enum class EPostureBone : unsigned char { Pelvis, Spine01, Spine02, Spine03, Neck, Head };
+
+	/** J's joints turned the way the engine turns a bone: about its own joint
+	    by Degrees about the unit Axis, every joint it carries with it --
+	    the thighs with the pelvis, the shoulders with spine_03, the head's
+	    line with all. The legs below the hips and the feet are left: they
+	    are solved to the feet afterwards. */
+	inline void TurnJoints(SaudStances::FJoints& J, EPostureBone Bone, const FVector& Axis, float Degrees)
+	{
+		const float R = FMath::DegreesToRadians(Degrees);
+		const int B = static_cast<int>(Bone);
+		const FVector Pivot = B == 0 ? J.Pelvis : B == 1 ? J.Spine[0] : B == 2 ? J.Spine[1] : B == 3 ? J.Spine[2] : B == 4 ? J.Neck : J.Head;
+		auto Turn = [&](FVector& P) { P = Pivot + RotateAbout(P - Pivot, Axis, R); };
+		if (B == 0) { Turn(J.Hip[0]); Turn(J.Hip[1]); Turn(J.Spine[0]); }
+		if (B <= 1) Turn(J.Spine[1]);
+		if (B <= 2) Turn(J.Spine[2]);
+		if (B <= 3) { Turn(J.Neck); Turn(J.Shoulder[0]); Turn(J.Shoulder[1]); }
+		if (B <= 4) Turn(J.Head);
+		J.HeadSide = RotateAbout(J.HeadSide, Axis, R);
+	}
+
+	/** One bone's turn: about its own joint, mesh space, degrees. */
+	struct FPostureTurn
+	{
+		EPostureBone Bone = EPostureBone::Pelvis;
+		FVector Axis = FVector(1.f, 0.f, 0.f);
+		float Degrees = 0.f;
+	};
+
+	/** Two for the twist, two for the hips, two for the trunk, one each for
+	    the chest, the neck and the head: nine at most, room for ten. */
+	constexpr int MaxPostureTurns = 10;
+
+	/** A frame's corrections, in the order the engine turns them, and the
+	    faults before and after (departures from the stance). */
+	struct FPostureFix
+	{
+		FPostureTurn Turn[MaxPostureTurns];
+		int Num = 0;
+		float Share = 0.f;              // the gate's
+		FPostureFaults Before, After;
+		void Add(SaudStances::FJoints& J, EPostureBone Bone, const FVector& Axis, float Degrees)
+		{
+			if (FMath::Abs(Degrees) < 1e-5f || Axis.IsNearlyZero(1e-4f) || Num >= MaxPostureTurns) return;
+			const FVector A = Axis.GetSafeNormal();
+			Turn[Num].Bone = Bone; Turn[Num].Axis = A; Turn[Num].Degrees = Degrees; ++Num;
+			TurnJoints(J, Bone, A, Degrees);
+		}
+	};
+
+	struct FPostureState
+	{
+		FRamp Share;
+		FRamp Twist;
+	};
+
+	struct FPostureIn
+	{
+		FVector Up = FVector::UpVector;       // the world's up, mesh space
+		FVector BodyUp = FVector::UpVector;   // up as the designed lean tips him
+		bool bOn = false;                     // in his stance or moving in it: no strike, reel, fall, dash, block, rise or win
+		bool bTwist = false;                  // standing, no turn clip
+		float FeetShare = 0.f;                // the feet's share (the legs are solved after the hips)
+		float Gait = 0.f;                     // the mix's share of motion capture
+		float Size = 1.f;                     // his size against the clips' man (SaudIK::BodyScale)
+	};
+
+	/** One frame: J is the pose as the clips, the hips' drop, the lean and
+	    the look left it (mesh space; Ball the feet as they will be drawn).
+	    Returns the turns, root first, that take his faults out. */
+	inline FPostureFix StepPosture(FPostureState& St, const FPostureIn& In, SaudStances::FJoints J,
+	                               const SaudStances::FStance& Stance, float Dt)
+	{
+		FPostureFix Fix;
+		St.Share.Step(In.bOn, Dt, PostureOnSeconds, PostureOffSeconds);
+		St.Twist.Step(In.bOn && In.bTwist, Dt, TwistOnSeconds, TwistOffSeconds);
+		const float W = St.Share.Value();
+		Fix.Share = W;
+		const FPostureFaults Ref = StanceRef(Stance, In.Gait, In.Size);
+		Fix.Before = Departure(MeasurePosture(J, In.BodyUp, In.Up), Ref);
+		if (W <= 0.f)
+		{
+			Fix.After = Fix.Before;
+			return Fix;
+		}
+		const FVector Up = In.BodyUp;
+		const float Hips = W * FMath::Clamp(In.FeetShare, 0.f, 1.f);
+
+		// the twist: the hips back to the stance's angle to the feet, the trunk the other way
+		const float TwistShare = Hips * St.Twist.Value();
+		if (TwistShare > 0.f)
+		{
+			const float C = -PostureLimit(Fix.Before.Twist, PostureTwistMaxDeg) * TwistShare;
+			Fix.Add(J, EPostureBone::Pelvis, Up, C);
+			Fix.Add(J, EPostureBone::Spine01, Up, -C);
+		}
+		// the hips level, the small of the back rolling back by as much: the
+		// trunk is the trunk's to stand up, not carried over by the hips
+		if (Hips > 0.f)
+		{
+			const FVector L = J.Hip[1] - J.Hip[0];
+			const FVector A = FVector::CrossProduct(Up, L).GetSafeNormal();
+			if (!A.IsNearlyZero())
+			{
+				const float T = TurnToShare(L, A, Up, FMath::Sin(FMath::DegreesToRadians(Ref.HipRoll)));
+				const float C = PostureLimit(T, PostureHipMaxDeg) * Hips;
+				Fix.Add(J, EPostureBone::Pelvis, A, C);
+				Fix.Add(J, EPostureBone::Spine01, A, -C);
+			}
+		}
+		// the trunk upright sideways: half at spine_01, the rest at spine_02
+		{
+			const FVector Side = LevelOf(J.Shoulder[1] - J.Shoulder[0], Up);
+			const FVector A = FVector::CrossProduct(Side, Up).GetSafeNormal();
+			const FVector Line = J.Spine[2] - J.Spine[0];
+			if (!A.IsNearlyZero())
+			{
+				const float T = TurnToShare(Line, A, Side, FMath::Sin(FMath::DegreesToRadians(Ref.TrunkTilt)));
+				const float C = PostureLimit(T, PostureTrunkMaxDeg) * W;
+				const float Goal = static_cast<float>(FVector::DotProduct(RotateAbout(Line, A, FMath::DegreesToRadians(C)), Side));
+				Fix.Add(J, EPostureBone::Spine01, A, C * TrunkLowShare);
+				const FVector U = J.Spine[2] - J.Spine[1];
+				const float Below = static_cast<float>(FVector::DotProduct(J.Spine[1] - J.Spine[0], Side));
+				const float Len = static_cast<float>(U.Size());
+				if (Len > 1e-3f) Fix.Add(J, EPostureBone::Spine02, A, TurnToShare(U, A, Side, (Goal - Below) / Len));
+			}
+		}
+		// the shoulder line level: spine_03
+		{
+			const FVector L = J.Shoulder[1] - J.Shoulder[0];
+			const FVector A = FVector::CrossProduct(Up, L).GetSafeNormal();
+			if (!A.IsNearlyZero())
+			{
+				const float T = TurnToShare(L, A, Up, FMath::Sin(FMath::DegreesToRadians(Ref.ShoulderRoll)));
+				Fix.Add(J, EPostureBone::Spine03, A, PostureLimit(T, PostureChestMaxDeg) * W);
+			}
+		}
+		// the head over the spine: neck_01
+		{
+			const FVector Side = LevelOf(J.Shoulder[1] - J.Shoulder[0], Up);
+			const FVector Sp = (J.Neck - J.Spine[0]).GetSafeNormal();
+			const FVector Lat = (Side - Sp * FVector::DotProduct(Side, Sp)).GetSafeNormal();
+			const FVector A = FVector::CrossProduct(Lat, Sp).GetSafeNormal();
+			const FVector H = J.Head - J.Neck;
+			const float Len = static_cast<float>(H.Size());
+			if (!A.IsNearlyZero() && Len > 1e-3f)
+			{
+				const float T = TurnToShare(H, A, Lat, Ref.HeadOff / Len);
+				Fix.Add(J, EPostureBone::Neck, A, PostureLimit(T, PostureNeckMaxDeg) * W);
+			}
+		}
+		// the eyes level, against the world: the head
+		{
+			const FVector A = FVector::CrossProduct(In.Up, J.HeadSide).GetSafeNormal();
+			if (!A.IsNearlyZero())
+			{
+				const float T = TurnToShare(J.HeadSide.GetSafeNormal(), A, In.Up, FMath::Sin(FMath::DegreesToRadians(Ref.EyeRoll)));
+				Fix.Add(J, EPostureBone::Head, A, PostureLimit(T, PostureEyesMaxDeg) * W);
+			}
+		}
+		Fix.After = Departure(MeasurePosture(J, In.BodyUp, In.Up), Ref);
+		return Fix;
+	}
 }

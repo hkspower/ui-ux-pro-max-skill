@@ -3340,8 +3340,9 @@ def _system_checks(Cw, Aw, Nw, Dw, onw, nh, is_c):
     assert chq.sum() > 200 and not chq[e01 > 0.1].any() and chq[e01 < 0.004].all(), \
         "a quest done glows round the screen's edge, leaving its middle (%d px)" % chq.sum()
     tq = len(np.unique(np.round(q4[chq], 5), axis=0))
-    assert tq <= L["SYS_QUEST_STEPS"] + 1 and is_c(q4, ice).sum() > 0 and is_c(q4, cyan).sum() == 0 \
-        and tq >= 3, "in flat steps of the System's cyan with an ice line at the edge (%d tones)" % tq
+    # (written here, not read from LOOK: three steps and the hairline)
+    assert 3 <= tq <= 4 and is_c(q4, ice).sum() > 0 and is_c(q4, cyan).sum() == 0, \
+        "in flat steps of the System's cyan with an ice line at the edge (%d tones)" % tq
     assert e01[changed(q0)].max() < 0.7 * e01[chq].max(), "the glow comes in from the edge"
     assert np.abs(shot(quest=0.8) - wall).max() < 1e-9, "and is gone at 0.8 s"
 
@@ -3385,12 +3386,14 @@ def _system_checks(Cw, Aw, Nw, Dw, onw, nh, is_c):
     covered = np.mean([cht[a].any() for a in along])
     assert cht.sum() > 80 and covered >= 0.9 and is_c(t1, cyan)[cht].sum() > 20, \
         "a heavy blow leaves a trail along his striking limb's path (%d px, %.0f %% of it)" % (cht.sum(), 100 * covered)
-    assert dmin[cht].max() <= L["SYS_TRAIL_W"] + L["SYS_INK_PX"] / 1080.0 / fp + 1.5, \
+    # (written here, not read from LOOK: 3 figure px -- under 4 cm -- either
+    # side, with its ink and a texel)
+    assert dmin[cht].max() <= 3.0 + L["SYS_INK_PX"] / 1080.0 / fp + 1.5, \
         "the trail is thin and on the path (%.1f px off it)" % dmin[cht].max()
     w_near = dmin[cht & (sidx > 0.12) & (sidx < 0.3)].max()
     w_far = dmin[cht & (sidx > 0.55) & (sidx < 0.75)].max()
     assert w_near > 1.5 * w_far, "it tapers from the contact (%.1f px near it, %.1f far)" % (w_near, w_far)
-    clear = np.hypot(ux - path[0][0], uy - path[0][1]) < L["SYS_TRAIL_CLEAR"] - 0.5
+    clear = np.hypot(ux - path[0][0], uy - path[0][1]) < 3.5      # (a fist's half, written here)
     assert not cht[clear].any(), "never on his fist: the knuckles stay legible"
     assert is_c(t1, cyan)[cht].sum() > 20 and is_c(t1, ice)[cht].sum() > 5 and (is_c(t1, inkd) & cht).sum() > 5, \
         "the trail is the System's cyan and ice, inked"
@@ -3658,7 +3661,7 @@ def check(bite=None, rig=None):
         if bite == "blue_horizon":
             LOOK["SKY_HORIZON"] = (0.023, 0.032, 0.065)  # the horizon of 2026-10-04
         if bite == "light_horizon":
-            LOOK["SKY_HORIZON"] = tuple(1.25 * v for v in LOOK["SKY_HORIZON"])
+            LOOK["SKY_HORIZON"] = tuple(1.10 * v for v in LOOK["SKY_HORIZON"])   # (1.25 broke the older night rule first)
         if bite == "grey_vignette":
             LOOK["VIGNETTE_TINT"] = (1.0, 1.0, 1.0)
         if bite == "dark_vignette":

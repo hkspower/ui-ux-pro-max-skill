@@ -28,7 +28,7 @@ these numbers):
     TrunkTilt     spine_01 -> spine_03 tipped toward his right (the shoulder
                   line's level direction), degrees -- the trunk under the
                   chest, so the chest's own roll is the shoulders' alone
-    HeadOff       the head joint off the line spine_03 -> neck_01 carried on,
+    HeadOff       the head joint off the line spine_01 -> neck_01 carried on,
                   toward his right, cm
     EyeRoll       the head's own left-to-right axis against level, degrees
     Twist         the hip line's yaw less the feet's (ball_l -> ball_r), degrees
@@ -109,7 +109,7 @@ def yaw(a):
 
 def measures(fr, up=(0.0, 0.0, 1.0)):
     side = norm(flat(sub(fr["upperarm_r"], fr["upperarm_l"]), up))
-    spine = norm(sub(fr["neck_01"], fr["spine_03"]))
+    spine = norm(sub(fr["neck_01"], fr["spine_01"]))
     lat = norm(flat(side, spine))
     head = sub(fr["head"], fr["neck_01"])
     tw = yaw(sub(fr["thigh_r"], fr["thigh_l"])) - yaw(sub(fr["ball_r"], fr["ball_l"]))
@@ -255,6 +255,8 @@ def main():
     for st, _folder, guard in SETS:
         r = R["A_%s_Guard" % st]
         fr = sample(r["path"], 1)[0]
+        # measured as written: the header's joints to the thousandth of a cm
+        fr = {k: tuple(round(c, 3) for c in v) for k, v in fr.items()}
         m = measures(fr)
         stances.append(dict(set=st, guard=guard, fr=fr, m=m))
         print("  %-7s %-10s hips %+5.1f  shoulders %+5.1f  trunk %+5.1f  head %+5.2f cm  eyes %+5.1f  twist %+6.1f" % (

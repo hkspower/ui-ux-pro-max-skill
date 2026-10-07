@@ -95,6 +95,18 @@ struct FSaudIKFrame
 	// LeanDegrees, the feet's share taken by the proxy.
 	FVector LeanAxis = FVector(1.f, 0.f, 0.f);
 	float LeanDegrees = 0.f;
+
+	// The posture (SaudIK::StepPosture, 2026-10-07): his own stance (static
+	// data, SaudStances.h; null for a set with none, the Island's creatures),
+	// whether it straightens him this frame (his stance or his moving in it),
+	// whether the twist against his feet is straightened too (standing, no
+	// turn clip), the mix's share of motion capture (straight, not his
+	// crouch), and the head's left-to-right axis in the head bone's own frame.
+	const SaudStances::FStance* Stance = nullptr;
+	bool bPosture = false;
+	bool bPostureTwist = false;
+	float PostureGait = 0.f;
+	FVector HeadSideLocal = FVector(0.f, 1.f, 0.f);
 };
 
 /** What the proxy drew last frame, for the game thread: where to trace the
@@ -132,6 +144,8 @@ private:
 	double LastClock = -1.0;
 	/** The strike's swing gate as drawn, moved at most its whole way in SaudIK::GateSeconds. */
 	SaudIK::FGate StrikeGate;
+	/** The posture's gates (SaudIK::StepPosture), on the clips' clock. */
+	SaudIK::FPostureState Posture;
 
 	struct FLeg { FCompactPoseBoneIndex Root, Mid, End; FLeg() : Root(INDEX_NONE), Mid(INDEX_NONE), End(INDEX_NONE) {} };
 	struct FLegBones
@@ -144,6 +158,12 @@ private:
 	void SolveLimb(FCSPose<FCompactPose>& CS, const FLeg& L, const FVector& Target, const FVector& Pole,
 	               float Alpha, const FQuat* EndRotation, float Whole) const;
 	void Place(FCSPose<FCompactPose>& CS, const FLeg& L, const FVector& Tip, const SaudIK::FTwoBone& To, bool bEndRigid) const;
+	/** The posture's turns put on the bones (SaudIK::FPostureFix: each about its
+	    own joint, carrying every bone under it). Only the bones in Read --
+	    each already read in component space, so it would not follow its
+	    parent -- are set, parents first; every other bone follows by itself. */
+	void TurnBones(FCSPose<FCompactPose>& CS, const FCompactPoseBoneIndex (&Turned)[6], const FCompactPoseBoneIndex* Read, int32 NumRead,
+	               const SaudIK::FPostureFix& Fix) const;
 	FCompactPoseBoneIndex Bone(const FBoneContainer& Bones, const FName& Name) const;
 };
 
@@ -194,6 +214,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")
 	bool bHeadLooks = true;
 
+	/** His posture straightened to his own stance (SaudIK::StepPosture). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")
+	bool bPostureStraight = true;
+
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
@@ -216,6 +240,14 @@ private:
 
 	/** Each of Clips: a turn or pivot clip, which carries its own turn. */
 	TArray<bool> ClipTurns;
+
+	/** Each of Clips: motion capture (A_Saud_Mocap_*), which no guard was built into. */
+	TArray<bool> ClipGaits;
+
+	/** His stance (SaudStances::Find), looked up once for the set it was found for. */
+	FName StanceSet = NAME_None;
+	bool bStanceLooked = false;
+	const SaudStances::FStance* StanceOf = nullptr;
 
 	/** Whether the newest clip is a turn or pivot clip. */
 	bool NewestTurns() const;
@@ -277,4 +309,5 @@ private:
 	void UpdateBlock(AFighterBase* Fighter, float DeltaSeconds);
 	void UpdateTurn(AFighterBase* Fighter, bool bTeleported, float DeltaSeconds);
 	void UpdateGuard(AFighterBase* Fighter, float DeltaSeconds);
+	void UpdatePosture(AFighterBase* Fighter);
 };

@@ -206,6 +206,23 @@ about missing once he has fallen; the game he falls into is unchanged.
 Do not read this as the canon changing. The browser build and the Unity
 build still show nothing before the fall, and still should not.
 
+## The Halqa's voice -- Unreal only
+
+Recorded 2026-10-07. In the Unreal build the Halqa speaks to Saud in
+plain windows, in the style of a game's "system" -- asked for on purpose,
+the style only, none of any other work's names or terms. It is the Halqa
+itself. It never explains itself, never says what it is, who runs it or
+whether anyone does, and never names above, home or Kuwait. It gives him
+one quest the moment he lands -- FIND THE WAY UP -- keeps it open the
+whole game, and rewards him for everything but that; when the ring closes
+it says "You are where you began", and when he takes the title it removes
+the quest: "No longer required." Al-Saqr's one line ("I fell too. A year,
+and you stop asking. Fight.") shows as a window before his fight.
+
+This adds no lore: every area's line comes from its own story above. The
+browser build and the Unity build have no such voice, and should not
+grow one. See `saud-fighter-ue5/CLAUDE.md` for what was built.
+
 ## What this does not cover yet
 
 Written down honestly rather than smoothed over:

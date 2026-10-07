@@ -5550,6 +5550,116 @@ props and creatures were each built by their current generators (the git
 history says so); rebuilding them would change nothing but file ids.
 No engine version change was asked for; the project is still UE 5.4.
 
+## The System, deeper: its voice, the status screen, the gates as portals -- 2026-10-07
+
+Asked as "improve solo leveling theme all game", settled as: the Unreal
+build only; all four of -- System windows & events, gates as portals,
+status & skills screens, effects & look; and the System has a voice: it is
+the Halqa itself talking to Saud. Solo Leveling's STYLE only -- none of its
+names, characters, logos, catch-phrases or terms (tests/system.cpp refuses
+them in every drawn line, with "system", "above", "home" and "Kuwait").
+
+**The voice** (`Content/Data/DT_SystemLines.json`, Unreal-only and
+hand-authored like `DT_Prologue.json`, 32 rows; `Combat/SaudSystem.h`,
+engine-free; `Game/SaudSystemSubsystem`). The Halqa never explains itself.
+It hands him one quest on the first landing -- QUEST / FIND THE WAY UP. /
+Reward: --. -- which stays open all game as a line under STATUS, and
+rewards him for everything but that: LEVEL UP / Level n. / HP +6. MP +4.;
+RANK (five lines, AMATEUR .. CHAMPION); SKILL ACQUIRED for each talent
+(HAWK FIST's, violet: "This was not yours. It is now."); a quest for each
+area from its own story; QUEST COMPLETE with the XP and the open quest
+beneath, still IN PROGRESS; GATE CLEARED toasts; when the ring closes
+(the souq after the desert, with HAWK FIST) QUEST UPDATED ... "You are
+where you began."; after AL-WAHSH, QUEST REMOVED ... "No longer
+required."; going down, a plain YOU WENT DOWN; and AL-SAQR's one line
+before his fight, titled with his name: "I fell too. A year, and you stop
+asking. Fight." One window and one toast at once, by priority, on real
+time (a blow's freeze does not hold a window), reading time 1.2 s + 0.05
+s a character (2.4-4.5 s); level-ups not yet shown merge. Hooks: the
+GameMode's CompleteStage / FailStage, the WaveDirector's tick and boss
+wave, `AAbilityGate::OnAnyGateOpened`, the game instance's delegates.
+"Once" is per session; nothing new is saved.
+
+**The level's own HP and MP.** The window says HP +6. MP +4. and the
+browser's `makePlayer()` gives them (levels.js `perLevel`), but the Unreal
+game never did. `ASaudCharacter::ApplyUpgrades` now adds the level's
+(`SaudMenu::Stats::LevelHealth / LevelMana`, held to DT_Levels'
+BonusHealth / BonusMana at every rung), MP's maximum is his own
+(`GetMaxMana`, the bar reads it), he starts a stage full, and a level
+earned mid-stage (a kill's XP) raises the maxima at once.
+
+**STATUS and TRAINING** (`SaudMenu.h` EScreen::Status / Training,
+`SaudMenuSubsystem`). STATUS: LEVEL and rank, the XP bar to the next
+level, HP / MP / STAMINA as the game gives them, the five skills (HAWK
+FIST violet), the six tracks, the open quest. TRAINING: the six tracks
+with their cost, buying through `TryPurchaseUpgrade` -- which now takes
+the table's ids (Box/Kick/Vit/Spd/Stam/Iron), the mismatch recorded
+before. The level is driven by EARNED XP (the spendable plus what
+training cost: `GetEarnedExperience`), as levels.js says spending never
+costs a level. Renders: `Docs/renders/menu-status*.png`,
+`menu-training*.png`.
+
+**The gates as portals** (`Tools/look/portal.py`, `Tools/blender/
+build_gates.py`, `Content/Models/Gates/SM_Portal_*.fbx`). Every ability
+gate wears a stepped oval of cyan light through it (the HUD's
+HUD_SYSTEM), sized to its kind; the arena door wears a crimson one
+(HUD_DANGER). SEALED (the talent not yet his): a half-lamp, thinner,
+slower, a lock glyph; OPENABLE: full and fast; opening: a flare toward ice
+over 0.9 s, then the oval collapses and the component hides. State is one
+custom-primitive-data value (slot 1; 0 is the camera fade); the swirl runs
+on game time, so a hit freeze holds it. The level builders place the
+portals from the data and mark the arena door; their checks and bites
+hold it. Render: `Docs/renders/gate-portals.png`.
+
+**Checked:** `Tools/harness/run.sh` (system, menu and the rest), the
+sabotages merged into `bites.txt` (bite.sh now copies all of
+`Source/SaudFighter` and `Content/Data` and runs the test from the copy's
+root, so data and the game instance can be sabotaged too); `portal.py`
+(23/23), `build_gates.py --bite` (19/19), `build_souq.py --bite`,
+`build_world.py --bite`, `build_levels.py --bite`. **Not verified:** no
+engine has compiled any of it, imported the portal meshes or built the
+material; `DT_SystemLines.json` is read as JSON from `Content/Data` until
+it is imported as a DataTable, which a packaged build will not include
+unless that directory is staged.
+
+## Posture and alignment -- 2026-10-07
+
+Asked as "make body Posture and Body Alignment and Straightness", settled
+as: everyone, in the in-game IK and in the bodies' rest pose, keeping each
+man's designed stance and fixing only faults.
+
+**The rest pose** (`Tools/blender/hero/posture.py`, run by
+`build_fighters.py --check`; `--posture-bite`, `--posture-sheet`). All
+six men were measured and none had a fault, so no man was rebuilt: spine
+over the ankles 0.0 cm, ear lobe 2.2-3.0 cm behind (limit 3.0 -- the
+thinnest margin), no sideways tilt, shoulder and hip lines level, the
+mirrored joints within 0.002 mm, head roll -0.05 degrees, pelvis twist 0,
+feet and A-pose arms matched. Nine rules, ten sabotages, all caught.
+Render: `Docs/renders/posture-rest.png`.
+
+**In the game** (`SaudIK.h` posture stage, `SaudStances.h` generated by
+`Tools/blender/measure_stances.py` from each man's guard clip,
+`SaudMotionAnimInstance`, `bPostureStraight`). Each man's stance is his
+guard's own shoulders, trunk, head and twist; only the sideways faults and
+the twist against it are taken out -- the forward lean, the crouch and the
+chin tuck are never touched (AL-WAHSH keeps his 4.9-degree shoulder).
+Each fault by the bone that owns it: pelvis (twist, hips), spine_01/02
+(trunk), spine_03 (shoulder line), neck_01 (head over the spine), head
+(eyes level). Corrections are the whole fault to 60 % of a limit, then
+ease (twist 15, hips 10, trunk 8, chest 10, neck 20, eyes 26 degrees),
+worked out fresh each frame. On in Idle and Walk (walk, run, turns,
+pivots); off for strikes, reels, falls, dashes, blocks (on over 0.25 s,
+off in 0.05 s). Measured: looking 60 degrees aside, shoulders up to 1.6
+-> 0.0 degrees and the head 1.5 -> 0.0 cm; turning on the spot, the hips
+against the feet 19.5-21.7 -> 4.9-6.9 degrees (the 15-degree limit) and
+the wobble halved; on a curve the eyes 20.0 -> 0.2 with the lean kept;
+Saud's motion-capture walks and runs, hips 4.6-8.3 -> 0.0-0.2 degrees.
+Steps and slopes made no fault to begin with (the IK only lowers the
+pelvis). `tests/posture.cpp`, 36 sabotages caught. Render:
+`Docs/renders/posture-ik.png` (stick figures). **Not verified:** never
+compiled or played; the neck and head corrections on the motion-capture
+walk (to about 16 and 20 degrees) have not been seen on a mesh.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
