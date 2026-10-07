@@ -98,9 +98,35 @@
  *                    AskQuit      "CLOSE SAUD AND GO BACK TO THE DESKTOP"
  *                    AskNewGame   "YOUR SAVE IS REPLACED. THERE IS NO UNDO"
  *
+ *   -- since 2026-10-07 (the System, deeper: the status and training
+ *      screens). These spell themselves: Spell() below is the string for
+ *      EVERY slot but ControlsText, and the engine draws what it returns
+ *      for any slot SpellsItself() names (the new ones, the Confirm's
+ *      third question, and the hint that names a track):
+ *   Status / Training -   "STATUS" / "TRAINING"   (Pause items; Status's TRAINING)
+ *   StatusHead       -    "STATUS"                (the heading)
+ *   TrainingHead     -    "TRAINING"
+ *   TrackName        t    "BOXING" "KICKING" "VITALITY" "SPEED" "STAMINA" "IRON ARM"
+ *   CostTag          c    "c XP"; -1 "MAX"        (a track's next level, right on its plate)
+ *   SpendXp          x    "XP TO SPEND  x"        (under the Training's bar)
+ *   WinName          -    "SAUD"                  (the status window's heading strip)
+ *   LevelLine        n    "LEVEL n"
+ *   RankTitle        r    "ROOKIE" .. "CHAMPION"  (the Halqa's ladder, Ladder::RankOf)
+ *   XpLabel          -    "XP"
+ *   XpLine           e/n  "e / n XP"; n 0: "e XP" (earned, and where the next level is)
+ *   XpToNext         d/n  "d TO LEVEL n"; n 0: "MAX LEVEL"
+ *   StatHp/Mp/Stamina v   "HP v" / "MP v" / "STAMINA v"
+ *   Section          s    "SKILLS" / "TRAINING" / "QUEST"
+ *   SkillName        k/a  aux 1: "VAULT" "DASH LEAP" "POWER KICK" "HAYMAKER" "HAWK FIST"; aux 0: "?"
+ *   QuestName        0/1  "FIND THE WAY UP" / "--"  (removed after the title fight)
+ *   QuestState       -    "IN PROGRESS"
+ *   AskHead          2    "TRAIN?"; ConfirmNo 2 "NO, KEEP MY XP"; ConfirmYes 2 "YES, TRAIN"
+ *   Hint AskTrain    aux  "TRAIN <TRACK> TO LEVEL n" (aux = track * 10 + n)
+ *
  * Chars() below carries each string's length so the layout can estimate a
  * label's width (CharAdvance of its height per character) and the harness
- * can hold that no label runs off its plate and no two prompts touch.
+ * can hold that no label runs off its plate and no two prompts touch. It is
+ * Spell()'s own length (2026-10-07; a table of counts until then).
  *
  * SaudControls.h is another track's header, coded to the contract in the
  * design note (EPad, EAction, EButton, FGlyphSink, Glyph, BuildControlsPage).
@@ -121,25 +147,204 @@ namespace SaudMenu
 	using SaudHud::FPage;
 	namespace Colour = SaudHud::Colour;
 
+	// ------------------------------------------- the game's numbers (2026-10-07)
+	/** The six upgrade tracks, as the game buys them: the browser's
+	    assets/upgrades.js (cost(lvl) = 120 + 130 lvl, maxLevel 5), exported
+	    to Content/Data/DT_Upgrades.csv -- whose Track column is the id
+	    (Box, Kick, Vit, Spd, Stam, Iron). USaudGameInstance::
+	    TryPurchaseUpgrade and GetUpgradeCost go through this table, and the
+	    harness holds it to the CSV row by row. */
+	namespace Train
+	{
+		constexpr int Tracks = 6;
+		constexpr int MaxLevel = 5;
+		/** XP for the level after Level. */
+		inline int Cost(int Level) { return 120 + 130 * Level; }
+		/** Everything spent on a track to stand at Level. */
+		inline int Spent(int Level)
+		{
+			int S = 0;
+			for (int l = 0; l < Level; ++l) S += Cost(l);
+			return S;
+		}
+		/** DT_Upgrades' own Track ids, in the order the shop shows them. */
+		inline const char* Id(int T)
+		{
+			static const char* const Ids[Tracks] = {"Box", "Kick", "Vit", "Spd", "Stam", "Iron"};
+			return T >= 0 && T < Tracks ? Ids[T] : "";
+		}
+		/** The long spellings TryPurchaseUpgrade expected before 2026-10-07,
+		    still taken from anything that already sends them. */
+		inline const char* LongId(int T)
+		{
+			static const char* const Ids[Tracks] = {"Boxing", "Kicking", "Vitality", "Speed", "Stamina", "IronArm"};
+			return T >= 0 && T < Tracks ? Ids[T] : "";
+		}
+		inline bool Same(const char* A, const char* B)
+		{
+			if (!A || !B) return false;
+			while (*A && *A == *B) { ++A; ++B; }
+			return *A == 0 && *B == 0;
+		}
+		/** A track id (the table's, or the old long one) to its track, or -1. */
+		inline int TrackOf(const char* Name)
+		{
+			for (int T = 0; T < Tracks; ++T)
+			{
+				if (Same(Name, Id(T)) || Same(Name, LongId(T))) return T;
+			}
+			return -1;
+		}
+		inline const char* Name(int T)
+		{
+			static const char* const Names[Tracks] = {"BOXING", "KICKING", "VITALITY", "SPEED", "STAMINA", "IRON ARM"};
+			return T >= 0 && T < Tracks ? Names[T] : "";
+		}
+	}
+
+	/** The Halqa's ladder: the browser's assets/levels.js (need(n) =
+	    round(18 (n-1) + 3.1 (n-1)^2), max 20, the titles at 3, 6, 10, 14,
+	    18), exported to DT_Levels.csv and held to it by the harness. The
+	    level is driven by EARNED experience -- what training draws down is
+	    the spendable (levels.js: "spending on upgrades never costs you a
+	    level") -- and the Unreal save keeps only the spendable, so the
+	    earned is the spendable plus what the six tracks have cost
+	    (USaudGameInstance::GetEarnedExperience): training is the one thing
+	    XP is spent on. */
+	namespace Ladder
+	{
+		constexpr int MaxLevel = 20;
+		constexpr int Ranks = 6;
+		/** Earned XP to stand at Level (integer: 18n + 3.1n^2 rounded half up). */
+		inline int Need(int Level)
+		{
+			if (Level <= 1) return 0;
+			const int N = Level - 1;
+			return (180 * N + 31 * N * N + 5) / 10;
+		}
+		inline int LevelOf(int Earned)
+		{
+			int L = 1;
+			while (L < MaxLevel && Earned >= Need(L + 1)) ++L;
+			return L;
+		}
+		/** 0 ROOKIE, 1 AMATEUR, 2 PROSPECT, 3 RANKED, 4 CONTENDER, 5 CHAMPION. */
+		inline int RankOf(int Level)
+		{
+			if (Level >= 18) return 5;
+			if (Level >= 14) return 4;
+			if (Level >= 10) return 3;
+			if (Level >= 6) return 2;
+			if (Level >= 3) return 1;
+			return 0;
+		}
+		inline const char* RankName(int R)
+		{
+			static const char* const Names[Ranks] = {"ROOKIE", "AMATEUR", "PROSPECT", "RANKED", "CONTENDER", "CHAMPION"};
+			return R >= 0 && R < Ranks ? Names[R] : "";
+		}
+	}
+
+	/** What the game makes of his upgrades, as ASaudCharacter::
+	    ApplyUpgrades does it (Player.json's numbers; MP is SaudFire::
+	    MaxMana): the status window shows these. The level's own bonus
+	    (DT_Levels' BonusHealth / BonusMana) is NOT here because the game
+	    does not apply it. */
+	namespace Stats
+	{
+		constexpr int BaseHealth = 100, HealthPerVitality = 18;
+		constexpr int BaseStamina = 100, StaminaPerLevel = 12;
+		constexpr int BaseMana = 40;
+	}
+
+	/** The five talents, in EAbility's order (Vault = 1 .. HawkFist = 5). */
+	constexpr int Skills = 5;
+	inline const char* SkillName(int K)
+	{
+		static const char* const Names[Skills] = {"VAULT", "DASH LEAP", "POWER KICK", "HAYMAKER", "HAWK FIST"};
+		return K >= 0 && K < Skills ? Names[K] : "";
+	}
+	constexpr int HawkFistSkill = 4;   // the one that was not his: violet
+
+	/** Everything the status window and the training show, from the save
+	    (USaudMenuSubsystem::ReadStatus fills it; MakeStatus works out the
+	    rest). */
+	struct FStatus
+	{
+		int Spendable = 0;              // FSaudProgress::Experience: what training draws down
+		int Earned = 0;                 // spendable + what training has cost: drives the level
+		int Level = 1;
+		int Rank = 0;
+		int LevelFloor = 0;             // Ladder::Need(Level)
+		int LevelNext = 0;              // Ladder::Need(Level + 1); 0 at the top
+		int MaxHealth = Stats::BaseHealth;
+		int MaxMana = Stats::BaseMana;
+		int MaxStamina = Stats::BaseStamina;
+		int Track[Train::Tracks] = {};
+		bool Skill[Skills] = {};
+		/** FIND THE WAY UP: open from the first landing until AL-WAHSH is
+		    beaten (the System: QUEST REMOVED, no longer required). */
+		bool bQuestOpen = true;
+	};
+	/** The derived half of a status from its spendable XP and track levels. */
+	inline void Restat(FStatus& S)
+	{
+		int Spent = 0;
+		for (int T = 0; T < Train::Tracks; ++T)
+		{
+			S.Track[T] = S.Track[T] < 0 ? 0 : (S.Track[T] > Train::MaxLevel ? Train::MaxLevel : S.Track[T]);
+			Spent += Train::Spent(S.Track[T]);
+		}
+		S.Spendable = S.Spendable < 0 ? 0 : S.Spendable;
+		S.Earned = S.Spendable + Spent;
+		S.Level = Ladder::LevelOf(S.Earned);
+		S.Rank = Ladder::RankOf(S.Level);
+		S.LevelFloor = Ladder::Need(S.Level);
+		S.LevelNext = S.Level < Ladder::MaxLevel ? Ladder::Need(S.Level + 1) : 0;
+		S.MaxHealth = Stats::BaseHealth + Stats::HealthPerVitality * S.Track[2];
+		S.MaxStamina = Stats::BaseStamina + Stats::StaminaPerLevel * S.Track[4];
+		S.MaxMana = Stats::BaseMana;
+	}
+	inline FStatus MakeStatus(int Spendable, const int Track[Train::Tracks], const bool Skill[Skills], bool bWonTitle)
+	{
+		FStatus S;
+		S.Spendable = Spendable;
+		for (int T = 0; T < Train::Tracks; ++T) S.Track[T] = Track[T];
+		for (int K = 0; K < Skills; ++K) S.Skill[K] = Skill[K];
+		S.bQuestOpen = !bWonTitle;
+		Restat(S);
+		return S;
+	}
+
 	// ------------------------------------------------------------- the model
 	/** Confirm (2026-10-02): "are you sure?" before QUIT and before a NEW
-	    GAME over a save, opened from the Title like Settings is. */
-	enum class EScreen : unsigned char { Title, Pause, Settings, Controls, Confirm };
+	    GAME over a save, opened from the Title like Settings is. Status and
+	    Training (2026-10-07): the System's status window and its store,
+	    opened from the Pause (Training also from the Status). */
+	enum class EScreen : unsigned char { Title, Pause, Settings, Controls, Confirm, Status, Training };
 
-	/** What a Confirm asks. */
-	enum class EAsk : unsigned char { Quit, NewGame };
+	/** What a Confirm asks. Train: a level of the track M.TrainTrack. */
+	enum class EAsk : unsigned char { Quit, NewGame, Train };
 
 	/** Every item any screen can show. */
 	enum class EItem : unsigned char
 	{
 		Continue, Fight, Controls, Settings, Quit,     // Title: CONTINUE|FIGHT, CONTROLS, SETTINGS, QUIT
-		Resume, QuitToTitle,                           // Pause: RESUME, CONTROLS, SETTINGS, QUIT TO TITLE
+		Resume, QuitToTitle,                           // Pause: RESUME, STATUS, TRAINING, CONTROLS, SETTINGS, QUIT TO TITLE
 		Difficulty, Sound, Music, Vibration, Back,     // Settings: the four, BACK; Controls: BACK
 		NewGame,                                       // Title, under CONTINUE, when a save exists
 		ConfirmNo, ConfirmYes,                         // Confirm: NO first, so a stray press is safe
+		Status, Training,                              // 2026-10-07: the Pause's; Status: TRAINING, BACK
+		TrainBox, TrainKick, TrainVit, TrainSpd, TrainStam, TrainIron,   // Training: the six, BACK
 		Count
 	};
-	constexpr int MaxItems = 5;
+	constexpr int MaxItems = 7;
+	/** A Training item's track (0..5), or -1. */
+	inline int TrackOfItem(EItem I)
+	{
+		const int K = static_cast<int>(I) - static_cast<int>(EItem::TrainBox);
+		return K >= 0 && K < Train::Tracks ? K : -1;
+	}
 
 	/** What the engine must do after Navigate. Tap, Back and Denied are the
 	    UI sounds (UI_Tap, UI_Back, UI_Denied); the toggles and the cycle say
@@ -150,7 +355,8 @@ namespace SaudMenu
 		None, StartGame, Resume, QuitToTitle, QuitGame,
 		SetSound, SetMusic, ToggleVibration, CycleDifficulty,
 		Tap, Back, Denied,
-		NewGame          // the save is replaced and the first fight starts (confirmed)
+		NewGame,         // the save is replaced and the first fight starts (confirmed)
+		Train            // a level of M.TrainTrack bought (confirmed): the engine's TryPurchaseUpgrade
 	};
 
 	/** The sound and music levels run 0 (off) to this, saved per profile. */
@@ -164,8 +370,13 @@ namespace SaudMenu
 	    something still moving far. */
 	constexpr float FocusGlideSeconds = 0.18f;
 	constexpr float WashWipeSeconds = 0.35f;
-	constexpr float PlateDelay = 0.08f, PlateStagger = 0.05f, PlateArrive = 0.30f;
+	/** (2026-10-07: 0.08 and 0.30 until the Training's seven plates, which
+	    at those would still be sliding at 0.68 s.) */
+	constexpr float PlateDelay = 0.05f, PlateStagger = 0.05f, PlateArrive = 0.24f;
 	constexpr float EnterSeconds = 0.60f;
+	/** A denied buy: the plate's keyline crimson and the hint saying why,
+	    this long (real seconds), or until the focus moves. */
+	constexpr float DeniedSeconds = 1.2f;
 
 	/** Plain data: the engine's USaudMenuSubsystem holds it, ticks Clock and
 	    Since in REAL seconds (the pause stops the game's clock, not the
@@ -196,6 +407,23 @@ namespace SaudMenu
 		// that opened it
 		EScreen ReturnTo = EScreen::Title;
 		int ReturnFocus = 0;
+		// -- 2026-10-07: the status and the training
+		/** The screen Open was called with (Title or Pause): the scrim. */
+		EScreen Root = EScreen::Title;
+		/** The returns under ReturnTo, deepest last: Pause > Status >
+		    Training > Confirm is three deep. */
+		static constexpr int MaxDepth = 4;
+		EScreen OuterTo[MaxDepth] = {};
+		int OuterFocus[MaxDepth] = {};
+		int Depth = 0;
+		/** The save, as the status window and the training show it. */
+		FStatus Status;
+		/** The track a Train Confirm asks about, and that Train bought. */
+		int TrainTrack = -1;
+		/** A denied buy: on which item, for how long more, and why. */
+		int DeniedItem = -1;
+		float DeniedLeft = 0.f;
+		bool bDeniedMaxed = false;
 	};
 
 	/** The screen's items in order. Title shows CONTINUE first when a save
@@ -228,10 +456,23 @@ namespace SaudMenu
 			return 2;
 		case EScreen::Pause:
 			Out[0] = EItem::Resume;
-			Out[1] = EItem::Controls;
-			Out[2] = EItem::Settings;
-			Out[3] = EItem::QuitToTitle;
-			return 4;
+			Out[1] = EItem::Status;       // 2026-10-07
+			Out[2] = EItem::Training;     // 2026-10-07
+			Out[3] = EItem::Controls;
+			Out[4] = EItem::Settings;
+			Out[5] = EItem::QuitToTitle;
+			return 6;
+		case EScreen::Status:
+			Out[0] = EItem::Training;
+			Out[1] = EItem::Back;
+			return 2;
+		case EScreen::Training:
+			for (int T = 0; T < Train::Tracks; ++T)
+			{
+				Out[T] = static_cast<EItem>(static_cast<int>(EItem::TrainBox) + T);
+			}
+			Out[Train::Tracks] = EItem::Back;
+			return Train::Tracks + 1;
 		case EScreen::Settings:
 			Out[0] = EItem::Difficulty;
 			Out[1] = EItem::Sound;
@@ -262,6 +503,10 @@ namespace SaudMenu
 		M.Since = 0.f;
 		M.FocusFrom = 0.f;
 		M.FocusT = 1.f;
+		M.Root = S;
+		M.Depth = 0;
+		M.DeniedItem = -1;
+		M.DeniedLeft = 0.f;
 	}
 
 	/** The real-time clock: the engine calls it every frame with the frame's
@@ -273,6 +518,7 @@ namespace SaudMenu
 		M.Clock += Dt;
 		M.Since += Dt;
 		M.FocusT = FMath::Min(1.f, M.FocusT + Dt / FocusGlideSeconds);
+		M.DeniedLeft = FMath::Max(0.f, M.DeniedLeft - Dt);
 	}
 
 	/** Where the focus is drawn now: FocusFrom eased (smoothstep) to Focus. */
