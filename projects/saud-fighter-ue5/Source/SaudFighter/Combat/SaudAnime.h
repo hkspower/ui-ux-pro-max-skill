@@ -496,7 +496,7 @@ namespace SaudAnime
 		constexpr float RankSeconds = 0.90f;
 		constexpr float QuestSeconds = 0.80f;
 		constexpr float FlashSeconds = 0.45f;
-		constexpr float TrailSeconds = 0.30f;
+		constexpr float TrailSeconds = 0.36f;
 		constexpr float TrailSpanSeconds = 0.12f;
 		constexpr int TrailPoints = 6;
 

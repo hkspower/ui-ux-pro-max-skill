@@ -367,8 +367,9 @@ static void SystemEvents()
 
 /** The System's energy on his strikes (2026-10-07): Saud's heavy blows only,
     never a parried one or an enemy's; the trail is the last 0.12 s of the
-    striking limb's path at even times, the contact first, shown for 0.30 s
-    in real time. */
+    striking limb's path at even times, the contact first, shown for 0.36 s
+    in real time. (0.36 s written here: the look holds it whole past the
+    mark's star and then draws it back.) */
 static void Trail()
 {
     std::printf("TRAIL\n");
@@ -410,7 +411,7 @@ static void Trail()
         S.Tick(1.f / 240.f);
         T += 1.f / 240.f;
     }
-    Check(Runs && Near(T, 0.30f, 1.5f / 240.f), "it shows for 0.30 s in real time");
+    Check(Runs && Near(T, 0.36f, 1.5f / 240.f), "it shows for 0.36 s in real time");
     FTrail F;
     F.Push(FVector(0.0, 0.0, 0.0), 0.f);
     F.Push(FVector(10.0, 0.0, 0.0), 0.05f);

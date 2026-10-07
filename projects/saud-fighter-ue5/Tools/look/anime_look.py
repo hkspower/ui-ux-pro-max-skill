@@ -618,6 +618,10 @@ LOOK = {
     # (about him, the margin is the pillar's own: its ground ellipse lies
     # 46 cm in front of his middle; a man nearer than this hides it all)
     "SYS_BEHIND_CM": 90.0,
+    # ... and the pillar and the rings are never drawn on another man unless
+    # he stands this far behind Saud (on the souq fight the column tinted the
+    # two men squared up beside him)
+    "SYS_FIGHTER_BEHIND_CM": 30.0,
     # A level: a pillar of light round him, rising from the ground --
     # SYS_PILLAR_W figure px either side of him (his guard stands in it), up to SYS_PILLAR_H px over the ground (eased out over
     # SYS_PILLAR_UP_S), over a ground ellipse SYS_PILLAR_BASE (its radius
@@ -693,11 +697,16 @@ LOOK = {
     # took (SaudAnime::SystemFx::FTrail, TRAIL_POINTS points, the contact
     # first), SYS_TRAIL_W figure px either side at the contact tapering to a
     # point, the cyan with an ice core SYS_TRAIL_CORE of it and an ink edge;
-    # its tail drawn back into the contact over SYS_TRAIL_S. Over him too --
+    # held whole SYS_TRAIL_HOLD_S, its tail then drawn back into the contact
+    # by SYS_TRAIL_S. Over him too --
     # it is his limb's own path -- but never within SYS_TRAIL_CLEAR px of the
     # contact, so his knuckles stay legible (the fire's own rule); not on a
     # man BURST_BEHIND_CM nearer than it.
-    "SYS_TRAIL_S": 0.30,
+    # (held whole SYS_TRAIL_HOLD_S -- past the mark's star, MARK_SPARK_F 4/24
+    # s, which covered its head at 1/24 s on the souq fight -- then drawn back
+    # into the contact by SYS_TRAIL_S)
+    "SYS_TRAIL_S": 0.36,
+    "SYS_TRAIL_HOLD_S": 0.17,
     "SYS_TRAIL_SPAN_S": 0.12,
     "TRAIL_POINTS": 6,
     "SYS_TRAIL_W": 2.6,
@@ -994,6 +1003,7 @@ def _sub(code):
         "EYE_FLARE": _f(L["EYE_FLARE"]), "EYE_BEHIND": _f(L["EYE_BEHIND_CM"]),
         "VIGNETTE_TINT": _f3(L["VIGNETTE_TINT"]), "FIRE_EDGE": _f(L["FIRE_EDGE_PX"]),
         "SYS_INK": _f(L["SYS_INK_PX"]), "SYS_BEHIND": _f(L["SYS_BEHIND_CM"]),
+        "SYS_FIGHTER_BEHIND": _f(L["SYS_FIGHTER_BEHIND_CM"]),
         "SYS_PILLAR_S": _f(L["SYS_PILLAR_S"]), "SYS_PILLAR_UP": _f(L["SYS_PILLAR_UP_S"]),
         "SYS_PILLAR_OUT": _f(L["SYS_PILLAR_OUT_S"]), "SYS_PILLAR_W": _f(L["SYS_PILLAR_W"]),
         "SYS_PILLAR_H": _f(L["SYS_PILLAR_H"]), "SYS_BASE_R": _f(L["SYS_PILLAR_BASE"][0]),
@@ -1018,6 +1028,7 @@ def _sub(code):
         "SYS_FLASH_RING0": _f(L["SYS_FLASH_RING"][0]), "SYS_FLASH_RING1": _f(L["SYS_FLASH_RING"][1]),
         "SYS_FLASH_RING_W": _f(L["SYS_FLASH_RING_W"]), "SYS_GATE_BEHIND": _f(L["SYS_GATE_BEHIND_CM"]),
         "SYS_TRAIL_S": _f(L["SYS_TRAIL_S"]), "SYS_TRAIL_W": _f(L["SYS_TRAIL_W"]),
+        "SYS_TRAIL_HOLD": _f(L["SYS_TRAIL_HOLD_S"]),
         "SYS_TRAIL_CORE": _f(L["SYS_TRAIL_CORE"]), "SYS_TRAIL_CLEAR": _f(L["SYS_TRAIL_CLEAR"]),
         "SPEED_COUNT": _f(L["SPEED_COUNT"]), "SPEED_INNER": _f(L["SPEED_INNER"]),
         "SPEED_OUTER": _f(L["SPEED_OUTER"]), "SPEED_ON_FIGHTER": _f(L["SPEED_ON_FIGHTER"]),
@@ -1622,7 +1633,10 @@ def hlsl_system():
 {
     float2 Spx = View.BufferSizeAndInvSize.zw;                  // one buffer px, in buffer UV
     float SysSelf = abs(SceneTextureLookup(UV, 25, false).r - AURA_STENCIL) < 0.5 ? 1.0 : 0.0;
-    float SysShow = (D > SysDepth - SYS_BEHIND ? 1.0 : 0.0) * (1.0 - SysSelf);
+    // (not on another man unless he stands behind Saud: the light is round
+    // Saud, and a man beside him tinted cyan read as standing in it)
+    float SysShow = (D > SysDepth - SYS_BEHIND ? 1.0 : 0.0) * (1.0 - SysSelf)
+                  * ((Fighter && D < SysDepth + SYS_FIGHTER_BEHIND) ? 0.0 : 1.0);
     float SysFp = max(SysScale, 1e-6);
     float SysRi = SYS_INK / 1080.0 / SysFp;                      // the ink edge, figure px
     // a level: the pillar rising from the ground round him
@@ -1704,8 +1718,8 @@ def hlsl_system():
         Out = lerp(Out, ICE_D, (Gr < Gedge ? 1.0 : 0.0) * Gb);
     }
     // 8e. the trail on his heavy blow: the path his striking limb took, the
-    // contact first, tapering to a point, its tail drawn back into the
-    // contact; cyan with an ice core, inked; over him too, but never on his
+    // contact first, tapering to a point, held whole past the mark's star
+    // and then its tail drawn back into the contact; cyan with an ice core, inked; over him too, but never on his
     // fist, and never on a man nearer than it
     if (TrailAge >= 0.0 && TrailAge < SYS_TRAIL_S && TrailScale > 0.0)
     {
@@ -1713,7 +1727,7 @@ def hlsl_system():
         float2 Tq[6] = { float2(TrailX0, TrailY0) * Tk, float2(TrailX1, TrailY1) * Tk, float2(TrailX2, TrailY2) * Tk,
                          float2(TrailX3, TrailY3) * Tk, float2(TrailX4, TrailY4) * Tk, float2(TrailX5, TrailY5) * Tk };
         float2 Tp = VUV * Tk;
-        float Keep = 1.0 - TrailAge / SYS_TRAIL_S;
+        float Keep = 1.0 - max(TrailAge - SYS_TRAIL_HOLD, 0.0) / (SYS_TRAIL_S - SYS_TRAIL_HOLD);
         float Tbest = 1e9, Tdist = 1e9, Twid = 0.0;
         for (int i = 0; i < 5; i++)
         {
@@ -2426,7 +2440,7 @@ SYS_IDLE = dict(pillar=-1.0, burst=-1.0, hawk=0.0, rank=-1.0, flash=-1.0, x=0.5,
                 trail=-1.0, trail_pts=((0.5, 0.5),) * 6, trail_depth=0.0, trail_scale=0.0)
 
 
-def system_step(out, D, saud, fx):
+def system_step(out, D, saud, fx, fighter=None):
     """Steps 8d and 8e on a display-valued picture (2026-10-07): the
     System's events and the trail on his heavy blow. `saud` his outline (the
     custom stencil; None: nobody writes it), `fx` a dict of SYS_IDLE's keys
@@ -2453,6 +2467,8 @@ def system_step(out, D, saud, fx):
     ri = L["SYS_INK_PX"] / 1080.0 / fp
     near = np.ones((H, W), bool) if "pillar_through_men" in _FLAGS else D > fx["depth"] - L["SYS_BEHIND_CM"]
     show = near & (np.ones((H, W), bool) if "pillar_on_saud" in _FLAGS else ~saud)
+    if fighter is not None and "sys_on_men" not in _FLAGS:
+        show = show & ~(fighter & (D < fx["depth"] + L["SYS_FIGHTER_BEHIND_CM"]))
     # a level: the pillar rising from the ground round him
     age = fx["pillar"]
     if 0.0 <= age < L["SYS_PILLAR_S"] and fx["scale"] > 0.0:
@@ -2543,7 +2559,8 @@ def system_step(out, D, saud, fx):
         ts = fx["trail_scale"]
         q = [np.array([x * asp, y]) / ts for x, y in fx["trail_pts"]]
         tpx, tpy = vx * asp / ts, vy / ts
-        keep = 1.0 if "still_trail" in _FLAGS else 1.0 - age / L["SYS_TRAIL_S"]
+        keep = 1.0 if "still_trail" in _FLAGS else \
+            1.0 - max(age - L["SYS_TRAIL_HOLD_S"], 0.0) / (L["SYS_TRAIL_S"] - L["SYS_TRAIL_HOLD_S"])
         best = np.full((H, W), 1e9); dist = np.full((H, W), 1e9); wid = np.zeros((H, W))
         for i in range(5):
             sx, sy = q[i + 1] - q[i]
@@ -2649,7 +2666,7 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
     if aura is not None and saud is not None and D is not None:
         out = power_step(out, D, saud, aura)
     if sysfx is not None and D is not None and "system_after_cut" not in _FLAGS:
-        out = system_step(out, D, saud, sysfx)
+        out = system_step(out, D, saud, sysfx, fighter)
     if mark is not None and D is not None:
         out = mark_step(out, D, mark)
     ink_d = np.array(display(L["INK"]))
@@ -2712,7 +2729,7 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
              * np.where(fighter, L["SPEED_ON_FIGHTER"], 1.0))
         out = lerp(out, line, a[..., None])
     if sysfx is not None and D is not None and "system_after_cut" in _FLAGS:
-        out = system_step(out, D, saud, sysfx)
+        out = system_step(out, D, saud, sysfx, fighter)
     if not imp or "wound_on_impact" in _FLAGS:
         # 9. the wound: a flat, torn blood border, not on an impact frame
         out = wound_step(out, wound)
@@ -3058,11 +3075,12 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          # 2026-10-07, the System, deeper: its events in the picture, the
          # trail on his heavy blows, HAWK FIST's violet edge, the night's accents
          "no_pillar", "pillar_on_saud", "sunk_pillar", "still_pillar", "soft_pillar", "no_sys_ink", "still_bars",
-         "lingering_pillar", "pillar_through_men",
+         "lingering_pillar", "pillar_through_men", "sys_on_men",
          "still_burst", "cyan_hawk", "no_sys_rim", "rim_deep", "rank_as_skill",
          "no_quest", "soft_quest", "quest_centre", "quest_on_impact",
          "no_flash", "round_flash", "flash_through_men",
-         "no_trail", "fat_trail", "untapered_trail", "trail_on_fist", "still_trail", "trail_through_men",
+         "no_trail", "fat_trail", "untapered_trail", "trail_on_fist", "still_trail", "short_trail_hold",
+         "trail_through_men",
          "system_after_cut",
          "no_violet_edge", "violet_outside_ink",
          "cyan_rim", "blue_horizon", "light_horizon", "grey_vignette", "dark_vignette",
@@ -3253,6 +3271,15 @@ def _system_checks(Cw, Aw, Nw, Dw, onw, nh, is_c):
     base_n = shot(D=Dn)
     assert ch[near_man].sum() > 20 and changed(pn, base_n)[near_man].sum() == 0, \
         "a man in front of him hides the pillar (%d px of it there)" % changed(pn, base_n)[near_man].sum()
+    # another man beside him is not lit by it; one standing behind him is
+    beside = (px_ > 30.0) & (px_ < 44.0) & (np.abs(py_) < 30.0)
+    fm = onw | beside
+    pb_ = frame(S, fm, D=Dw, saud=saud2, sysfx=dict(b2, pillar=0.6))
+    Db = np.where(beside, 1000.0, Dw)
+    pbb = frame(S, fm, D=Db, saud=saud2, sysfx=dict(b2, pillar=0.6))
+    on_b, on_bb = changed(pb_, frame(S, fm, D=Dw))[beside].sum(), changed(pbb, frame(S, fm, D=Db))[beside].sum()
+    assert on_b == 0 and on_bb > 20, \
+        "the System's light is not on a man beside him, only on one behind him (%d px, %d px)" % (on_b, on_bb)
 
     # ---- a skill: the ring off his middle and the rim on him
     ring = lambda img: np.median(np.hypot(ux, uy)[changed(img) & ~saud])
@@ -3366,10 +3393,14 @@ def _system_checks(Cw, Aw, Nw, Dw, onw, nh, is_c):
     assert not cht[clear].any(), "never on his fist: the knuckles stay legible"
     assert is_c(t1, cyan)[cht].sum() > 20 and is_c(t1, ice)[cht].sum() > 5 and (is_c(t1, inkd) & cht).sum() > 5, \
         "the trail is the System's cyan and ice, inked"
-    t2 = shot(saud=saud, sysfx=dict(tr, trail=0.2))
+    th_ = shot(saud=saud, sysfx=dict(tr, trail=4.0 / 24.0))
+    hold = sidx[changed(th_)].max()
+    assert hold >= sidx[cht].max() - 0.02, \
+        "it holds whole while the mark's star stands, to 4/24 s (%.2f of the path, %.2f at first)" % (hold, sidx[cht].max())
+    t2 = shot(saud=saud, sysfx=dict(tr, trail=0.30))
     far1, far2 = sidx[cht].max(), sidx[changed(t2)].max() if changed(t2).any() else 0.0
-    assert far2 < far1 - 0.3, "its tail is drawn back into the contact (%.2f of the path at 0.02 s, %.2f at 0.2)" % (far1, far2)
-    assert np.abs(shot(saud=saud, sysfx=dict(tr, trail=0.3)) - wall).max() < 1e-9, "and it is gone at 0.3 s"
+    assert far2 < far1 - 0.3, "then its tail is drawn back into the contact (%.2f of the path at 0.02 s, %.2f at 0.3)" % (far1, far2)
+    assert np.abs(shot(saud=saud, sysfx=dict(tr, trail=0.36)) - wall).max() < 1e-9, "and it is gone at 0.36 s"
     Dt = Dw.copy()
     blk = (ux > 15.0) & (ux < 30.0) & (uy > -40.0) & (uy < -20.0)
     Dt[blk] = 400.0
@@ -3581,7 +3612,7 @@ def check(bite=None, rig=None):
                     "blood_mark"):
             _FLAGS.add(bite)
         # 2026-10-07, the System, deeper
-        if bite in ("pillar_on_saud", "sunk_pillar", "soft_pillar", "pillar_through_men", "cyan_hawk", "rim_deep",
+        if bite in ("sys_on_men", "pillar_on_saud", "sunk_pillar", "soft_pillar", "pillar_through_men", "cyan_hawk", "rim_deep",
                     "quest_on_impact", "flash_through_men", "untapered_trail", "still_trail", "trail_through_men",
                     "system_after_cut", "violet_outside_ink"):
             _FLAGS.add(bite)
@@ -3615,6 +3646,8 @@ def check(bite=None, rig=None):
             LOOK["SYS_TRAIL_W"] = 0.0
         if bite == "fat_trail":
             LOOK["SYS_TRAIL_W"] = 8.0
+        if bite == "short_trail_hold":
+            LOOK["SYS_TRAIL_HOLD_S"] = 0.0
         if bite == "trail_on_fist":
             LOOK["SYS_TRAIL_CLEAR"] = 0.0
         if bite == "no_violet_edge":

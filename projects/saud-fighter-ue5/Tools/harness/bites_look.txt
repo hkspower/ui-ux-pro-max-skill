@@ -27,6 +27,6 @@ anime|Source/SaudFighter/Combat/SaudAnime.h|s#if ((Points\[0\] - Points\[TrailPo
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float TrailSpanSeconds = 0.12f;#constexpr float TrailSpanSeconds = 0.20f;#|the last 0.12 s of the limb's path at even times
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#Points\[i\] = At(Now - #Points[TrailPoints - 1 - i] = At(Now - #|the contact first
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#return A.P + (B.P - A.P) \* K;#return (void)K, B.P;#|at even times
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float TrailSeconds = 0.30f;#constexpr float TrailSeconds = 0.60f;#|it shows for 0.30 s in real time
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#Age += RealSeconds;#Age += 0.5f * RealSeconds;#|it shows for 0.30 s in real time
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float TrailSeconds = 0.36f;#constexpr float TrailSeconds = 0.60f;#|it shows for 0.36 s in real time
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Age += RealSeconds;#Age += 0.5f * RealSeconds;#|it shows for 0.36 s in real time
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#^\t*Count = 0;#;#|a swing over forgets its path

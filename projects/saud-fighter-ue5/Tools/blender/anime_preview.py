@@ -419,7 +419,8 @@ def gate_flash_of(age=0.12):
     bounds, as the subsystem projects the gate actor's; None when the camera
     does not see it."""
     from mathutils import Vector
-    gates = [o for o in bpy.data.objects if o.type == "MESH" and o.name.startswith("SM_Souq_GateWall")]
+    gates = [o for o in bpy.data.objects if o.type == "MESH" and o.name.startswith("SM_Souq_GateWall")
+             and not o.hide_render]           # (the kind's own mesh stands hidden at the origin)
     for g in gates:
         c = sum((g.matrix_world @ Vector(b) for b in g.bound_box), Vector()) / 8.0
         x, y, depth, scale = project(c)
@@ -1017,6 +1018,7 @@ def place_cameras():
         cam.rotation_euler = (Vector(at) - Vector(loc)).to_track_quat("-Z", "Y").to_euler()
         bpy.context.scene.collection.objects.link(cam)
         made.append(cam_name)
+    bpy.context.view_layer.update()      # their matrices, for anything projected through them
     return made
 
 
@@ -1246,15 +1248,22 @@ def main():
                     else render_scene(height=height, samples=samples))
         if cache and not os.path.exists(cache[:-4] + "-cross.npz"):
             save_passes(cache[:-4] + "-cross.npz", got2, e2)
-        tr = trail_of(start, end)
+        # 4.5/24 s after the blow: the mark's star gone (4/24), its drops still
+        # flying, the speed lines thinning (SaudAnime::FState: full for 0.105
+        # s of 0.30, 0.56 by now), the trail still whole (held to 0.17 s)
+        age = 4.5 / 24.0
+        tr = trail_of(start, end, age=age)
         # the mark where the knuckles landed (the posed arm reaches as far as
         # the rig's IK lets it, short of the chin the clips land on)
         mx, my, md, ms = project(end)
-        mk = dict(mark_of(nearest), x=mx, y=my, depth=md, scale=ms)
-        lines = dict(speed=1.0, centre=(mk["x"], mk["y"]), seed=3.0)
+        mk = dict(mark_of(nearest, age=age), x=mx, y=my, depth=md, scale=ms)
+        lines = dict(speed=1.0 - (age / 0.30 - 0.35) / 0.65, centre=(mk["x"], mk["y"]), seed=3.0)
         img, _ = look_from(got2, e2, saud=saud_of(got2), sysfx=dict(AL.SYS_IDLE, **tr), mark=mk, **lines)
         Image.fromarray(img).save("%s-trail.png" % stem)
-        img, _ = look_from(got2, e2, saud=saud_of(got2), sysfx=dict(AL.SYS_IDLE, **tr), impact=1.0, tone=3.0, **lines)
+        # ... and the impact frame the blow landed on: the trail (at 0 s) cut
+        # into its two colours with everything else
+        img, _ = look_from(got2, e2, saud=saud_of(got2), sysfx=dict(AL.SYS_IDLE, **dict(tr, trail=0.0)), impact=1.0,
+                           tone=3.0, speed=1.0, centre=lines["centre"], seed=3.0)
         Image.fromarray(img).save("%s-trail-impact.png" % stem)
         made += ["trail", "trail-impact"]
         at = system_of(saud)
