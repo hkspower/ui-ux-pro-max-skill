@@ -150,11 +150,14 @@ paving (POOL_BRIGHT 3.6); the lit ground's middle sits at L* 26-34
 (anime_preview.py --graded-check, "range" and "middle"): the fight
 camera's brightest and darkest 0.1 % at 245 and 8 of 255 or past them
 and Auto Contrast moving it under 2 L* on average; a place camera's
-brightest 0.1 % at 200 or past (its hearts) and under 4.5 L*; the
-fight's median L* in 24-36. What no grade can give: a view from high
-above whose fires are under 0.1 % of the frame (the island's overview:
-its brightest 0.1 % is the painted sky's horizon) and a day scene of one
-flat lit tone (the prologue's gym); they are the night and the look.
+brightest 0.1 % at 200 or past (its hearts) and under 4.5 L* (both
+place thresholds a judgement, not measured from a rule); the fight's
+median L* in 24-36. Not reached by this grade (measured on 2026-10-14,
+not proven out of any grade's reach): a view from high above whose fires
+are under 0.1 % of the frame (the island's overview: its brightest 0.1 %
+is the painted sky's horizon), a day scene of one flat lit tone (the
+prologue's gym), and the JaziratAlHajar map view (its brightest 0.5 % at
+L* 52, Auto Tone 14.6), left as found.
 
 WHAT THE CHECKS PROVE. The boil of the brush, the grain and the splatter
 are hashes, frac(sin(x) * 43758.5453), with x up to about 3e4 radians; a
