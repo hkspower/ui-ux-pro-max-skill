@@ -392,7 +392,7 @@ def paint(name, P, N):
 # green. NORMAL_GAIN scales the slope the height gives per metre of body; it is
 # the one knob, set once from the measured height of the fur (mean tilt 0.35 on
 # the monkey's chart, z 0.94), so the fur reads as bumped, not as spikes.
-NORMAL_GAIN = 1.0
+NORMAL_GAIN = 0.338   # calibrated 2026-10-14 on the monkey's 4K height: mean tilt 0.35, z 0.92
 # unit length on the charts: 8-bit quantisation alone is 0.004 a channel
 NORMAL_UNIT_MEAN, NORMAL_UNIT_P99 = 0.02, 0.05
 
