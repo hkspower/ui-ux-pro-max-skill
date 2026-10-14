@@ -1,6 +1,8 @@
 SAUD - RENDER KIT
 =================
 
+On a Mac? Use README_MAC.txt and RENDER_SAUD_MAC.command instead.
+
 What this does
 --------------
 It renders the game's places in Unreal Engine 5 on your own PC and leaves

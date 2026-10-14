@@ -153,7 +153,7 @@ except Exception:
 OUT = os.path.join(SAVED, "RenderKit")
 REPORT = os.path.join(OUT, "setup_report.txt")
 DONE = os.path.join(OUT, "setup_done.txt")
-PY_EXTRA = os.path.join(SAVED, "RenderKitPython")      # numpy, pillow: RENDER_SAUD.bat installs them here
+PY_EXTRA = os.path.join(SAVED, "RenderKitPython")      # numpy, pillow: RENDER_SAUD.bat / RENDER_SAUD_MAC.command install them here
 TOOLS = os.path.join(PROJECT, "Tools")
 DATA = os.path.join(PROJECT, "Content", "Data")
 MODELS = os.path.join(PROJECT, "Content", "Models")
@@ -217,18 +217,25 @@ def _as_script(path):
 def _guard_executable():
     """Inside Unreal sys.executable is the editor, so a tool that starts
     `sys.executable -c ...` would start a second editor. Point it at the
-    engine's own python.exe when that exists."""
+    engine's own Python when that exists (Win64/python.exe on Windows,
+    Mac/bin/python3 on a Mac, Linux/bin/python3 on Linux)."""
     exe = sys.executable or ""
     if not os.path.basename(exe).lower().startswith("unreal"):
         return "sys.executable is %s" % exe
+    if sys.platform.startswith("win"):
+        rel = ("Win64", "python.exe")
+    elif sys.platform == "darwin":
+        rel = ("Mac", "bin", "python3")
+    else:
+        rel = ("Linux", "bin", "python3")
     try:
-        py = os.path.join(_full(unreal.Paths.engine_dir()), "Binaries", "ThirdParty", "Python3", "Win64", "python.exe")
+        py = os.path.join(_full(unreal.Paths.engine_dir()), "Binaries", "ThirdParty", "Python3", *rel)
     except Exception:
         py = ""
     if py and os.path.exists(py):
         sys.executable = py
         return "sys.executable was the editor; now %s" % py
-    return "sys.executable is the editor (%s) and no python.exe was found beside the engine" % exe
+    return "sys.executable is the editor (%s) and no Python was found beside the engine" % exe
 
 
 def _in_commandlet():
