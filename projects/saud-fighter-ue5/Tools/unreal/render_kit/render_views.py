@@ -656,6 +656,9 @@ class Kit:
                 unreal.unregister_slate_post_tick_callback(self.handle)
         except Exception:
             pass
+        if globals().get("SAUD_KEEP_EDITOR", False):
+            say("done (%s); the SAUD menu keeps the editor open" % why)
+            return
         say("done (%s); quitting the editor" % why)
         unreal.SystemLibrary.quit_editor()
 

@@ -238,6 +238,12 @@ def _guard_executable():
     return "sys.executable is the editor (%s) and no Python was found beside the engine" % exe
 
 
+def _keep_editor():
+    """The SAUD menu runs this inside an open editor and sets SAUD_KEEP_EDITOR
+    in the globals it runs us with; the commandlet never does."""
+    return bool(globals().get("SAUD_KEEP_EDITOR", False))
+
+
 def _in_commandlet():
     try:
         return "-run=pythonscript" in str(unreal.SystemLibrary.get_command_line()).lower()
@@ -509,7 +515,7 @@ def main():
         f.write("setup ran to its end %s Riyadh; %d of %d steps failed%s\n" % (
             riyadh(), len(failed), len(RESULTS), (": " + ", ".join(failed)) if failed else ""))
     say("setup done: %d of %d steps ok; report %s" % (len(RESULTS) - len(failed), len(RESULTS), REPORT))
-    if not _in_commandlet():
+    if not _in_commandlet() and not _keep_editor():
         unreal.SystemLibrary.quit_editor()
 
 
