@@ -50,8 +50,32 @@ mannequin's hierarchy, and the tail on the monkey; the creature's height,
 feet on the floor, arms reaching the knee; one piece of mesh under its
 budget; every vertex weighted, four influences at most, and an arm raised
 moves nothing of the other leg; the maps 4K, the atlas covered, no hole
-inside a chart, the fur at its colours and over the character floor, the
-normal map not flat and facing out; the FBX read back, bone for bone.
+inside a chart, the fur at its colours and over the character floor, its
+strands keeping their range (COAT_RANGE), the normal map not flat and
+facing out; the FBX read back, bone for bone; and the SHIPPED maps -- the
+files under Content/Textures -- the build's: 4K and at the fur's colours
+(check_shipped, which `--check` runs with no bpy).
+
+THE COAT'S LEVELS (2026-10-14, Riyadh; asked as "make colors levels
+optimisation", settled as the Unreal build's colour textures through their
+generators). What was shipped: the monkey's three maps were a --bite run's
+leftovers -- 512 px and the "under_floor" sabotage (x0.2) -- because every
+build, --bite's included, wrote into Content/Textures (median L* 15.7
+where his fur #6a5a40 is 39). And the gorilla's coat baked to one 8-bit
+code (83 % of the atlas exactly (48,45,45); inside the charts linear
+p99/p1 1.04) because the character floor was laid on each TEXEL after the
+strands: y + F e^(-y/F) has a slope of 0.39 where his coat sits (y/F
+0.5), and the strands' +-15 % became +-2 %, under one code at that
+darkness. Now: --bite builds in a scratch folder; the floor is laid on the
+coat's TONES before the strands -- the same curve the men's black kits take
+(hero/finish.fabric: under L* FABRIC_KNEE the lightness is drawn up toward
+the kit floor keeping its order and hue, read from finish.py here, never
+copied), so the strands keep the whole of their designed range over it
+(fur #1e1c1c L* 10.5 -> 22.0, his gaps #141212 6.4 -> 19.7; the monkey's
+tones, all over the knee but the gaps between his clumps, are untouched);
+and the chart mask is the baked normal's length (the position bake's
+alpha is 1 everywhere, so the whole atlas counted as chart and the unused
+space was painted with the origin's colour).
 
 NOT VERIFIED: no engine has imported either creature. The fur is a
 texture on a solid body; no fur cards or shells are built.
@@ -141,6 +165,63 @@ CREATURES = {
         fur=dict(strand=0.0016, clump=0.009, amp=0.0022, clamp=0.004)),
 }
 CHAR_FLOOR = 0.025          # the darkest albedo a creature's fur may bake to (the men's kit floor is 0.03)
+COVER = 0.30                # of the atlas, how much the charts cover: the monkey's layout 35 %, the gorilla's
+                            # 50 % (2026-10-14, with the chart mask; it read 100 % on the position bake's alpha)
+COAT_RANGE = 1.3            # the coat's strands, linear luma p99 / p1 over the darkest three quarters of the
+                            # chart: the designed modulation gives the monkey 1.50 and the gorilla 1.44
+                            # (2026-10-14, on 300k body points); the gorilla's crushed coat was 1.03-1.07
+MAP_TOL = 0.08              # how far, per channel in linear light, the median of a map may sit from its fur's tone
+
+
+def _fabric_numbers():
+    """FABRIC_KNEE, FABRIC_KEEP, FABRIC_CHROMA as hero/finish.py has them,
+    read with ast (finish imports bpy; the --check path has none)."""
+    import ast
+    tree = ast.parse(open(os.path.join(HERE, "hero", "finish.py"), encoding="utf-8").read())
+    out = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if getattr(t, "id", None) in ("FABRIC_KNEE", "FABRIC_KEEP", "FABRIC_CHROMA"):
+                    out[t.id] = float(ast.literal_eval(node.value))
+    assert len(out) == 3, "hero/finish.py no longer holds the fabric floor's three numbers (%s)" % sorted(out)
+    return out
+
+
+_M_LAB = np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722], [0.0193, 0.1192, 0.9505]])
+_W_LAB = np.array([0.95047, 1.0, 1.08883])
+
+
+def _lab(c):
+    f = lambda t: np.where(t > 216 / 24389, np.cbrt(t), (24389 / 27 * t + 16) / 116)
+    x, y, z = f((_M_LAB @ np.asarray(c, float)) / _W_LAB)
+    return np.array([116 * y - 16, 500 * (x - y), 200 * (y - z)])
+
+
+def _unlab(lab):
+    L, a, b = lab
+    fy = (L + 16) / 116; fx = fy + a / 500; fz = fy - b / 200
+    g = lambda t: np.where(t ** 3 > 216 / 24389, t ** 3, (116 * t - 16) / (24389 / 27))
+    return np.clip(np.linalg.solve(_M_LAB, np.array([g(fx), g(fy), g(fz)]) * _W_LAB), 0.0, 1.0)
+
+
+def floored(c):
+    """A creature's tone (linear) drawn up to the men's kit floor, as
+    hero/finish.fabric draws a dyed fabric: under L* FABRIC_KNEE the
+    lightness goes to KNEE - (KNEE - L) x KEEP, its order and hue kept and
+    a*b* given FABRIC_CHROMA; over the knee the colour is untouched. Laid on
+    the coat's TONES, before the strands, so they keep their range."""
+    n = _fabric_numbers()
+    L, a, b = _lab(c)
+    if L >= n["FABRIC_KNEE"]:
+        return np.asarray(c, np.float32)
+    return _unlab((n["FABRIC_KNEE"] - (n["FABRIC_KNEE"] - L) * n["FABRIC_KEEP"], a * n["FABRIC_CHROMA"], b * n["FABRIC_CHROMA"])).astype(np.float32)
+
+
+def coat_tone(name):
+    """The fur's tone as it is painted: the creature's fur colour through
+    the floor. What check_colour holds a map's median to."""
+    return floored(_srgb_lin(CREATURES[name]["colours"]["fur"]))
 # arms that would reach the knee standing: shoulder to hand's end at least
 # the shoulder's height over the knee (the rest pose is an A-pose, so this is
 # a length, not where the hand hangs)
@@ -246,7 +327,11 @@ def paint(name, P, N):
     """Per texel, from where it sits on the body (P, N object space): the
     linear colour (n, 3), roughness (n,) and height in metres (n,)."""
     C = CREATURES[name]
-    col = {k: _srgb_lin(v) for k, v in C["colours"].items()}
+    # every tone through the floor first (floored), so the strands, the
+    # clumps and the gaps laid on them below keep their whole range; the
+    # flat_coat sabotage is the floor as it was until 2026-10-14, laid on
+    # each texel after them
+    col = {k: (_srgb_lin(v) if "flat_coat" in SABOTAGE else floored(_srgb_lin(v))) for k, v in C["colours"].items()}
     fp = C["fur"]
     # the comb: down and back, laid into the surface
     comb = np.array([0.0, 0.35, -1.0], np.float32)
@@ -288,14 +373,16 @@ def paint(name, P, N):
         eye = np.maximum(eye, e)
     h = h * (1 - eye)
     rough = 0.82 - 0.10 * (strand - 0.5) - 0.25 * skin * 0.5 - 0.70 * eye
-    # the character floor, soft: each tone lifted by floor x exp(-y / floor),
-    # so nothing is under the floor and the darkest fur keeps its strands (a
-    # hard clamp put the gorilla's whole coat on one tone); its hue kept
-    y = 0.2126 * c[:, 0] + 0.7152 * c[:, 1] + 0.0722 * c[:, 2]
-    if "under_floor" not in SABOTAGE:
+    # the floor was laid HERE until 2026-10-14, per texel, soft: y + F e^(-y/F).
+    # Its slope is 1 - e^(-y/F): 0.39 where the gorilla's coat sits, and the
+    # strands' +-15 % came out +-2 %, under one 8-bit code -- his coat
+    # baked to one tone, which is what the soft form was meant to avoid.
+    # The floor is on the tones now (floored, at the top); the sabotages:
+    if "flat_coat" in SABOTAGE:
+        y = 0.2126 * c[:, 0] + 0.7152 * c[:, 1] + 0.0722 * c[:, 2]
         y2 = y + CHAR_FLOOR * np.exp(-y / CHAR_FLOOR)
         c = c * (y2 / np.maximum(y, 1e-6))[:, None]
-    else:
+    if "under_floor" in SABOTAGE:
         c = c * 0.2
     return np.clip(c, 0, 1), np.clip(rough, 0.05, 1), h.astype(np.float32)
 
@@ -324,7 +411,10 @@ def dilate(img, mask, steps=12):
 # ======================================================================= Blender
 
 class Primate:
-    def __init__(self, name, tex=None):
+    def __init__(self, name, tex=None, out=None):
+        """`out`: where the maps go instead of Content/Textures -- --bite's
+        scratch folder. Until 2026-10-14 every build wrote into the
+        project, and the monkey shipped with the bite's last case."""
         import bpy
         self.bpy = bpy
         self.name = name
@@ -335,7 +425,7 @@ class Primate:
         sc.unit_settings.system = "METRIC"
         sc.unit_settings.length_unit = "METERS"
         self.J = joints(name)
-        self.out_tex = os.path.join(TEXTURES, name)
+        self.out_tex = os.path.join(out or TEXTURES, name)
 
     # ---------------------------------------------------------------- skeleton
     def armature(self):
@@ -575,7 +665,12 @@ class Primate:
         n = self.tex
         pos = self._bake_emit("Object", "pos")
         nrm = self._bake_emit("Normal", "nrm")
-        mask = pos[..., 3] > 0.5
+        # where a chart is: the baked normal has unit length there and is
+        # exactly zero where the bake's clear left the texel. The position
+        # bake's alpha is 1 everywhere (measured on bpy 5.0: an alpha image
+        # is cleared to opaque black), so on it alone the whole atlas was
+        # chart, and the unused space was painted with the origin's colour.
+        mask = (pos[..., 3] > 0.5) & (np.linalg.norm(nrm[..., :3], axis=2) > 0.5)
         P = pos[..., :3][mask]
         Nn = nrm[..., :3][mask]
         Nn = Nn / np.maximum(np.linalg.norm(Nn, axis=1, keepdims=True), 1e-6)
@@ -642,7 +737,10 @@ class Primate:
             Image.fromarray(np.flipud(a)).save(p, optimize=True)
             self.paths[role] = p
         self.maps = maps
-        self.mask = np.flipud(mask)
+        # the arrays check() reads, both unflipped (the files are flipped on
+        # the way out, above); the mask was stored flipped until 2026-10-14,
+        # which an all-true mask never showed
+        self.mask = mask
         # the creature's own material, on its maps
         mat = bpy.data.materials.new(self.name + "_Fur")
         mat.use_nodes = True
@@ -673,6 +771,55 @@ class Primate:
 
 
 # ======================================================================= checks
+
+def check_colour(name, base, mask, tex, what):
+    """The colour map's rules, on the 8-bit sRGB array `base` over the chart
+    `mask`: `tex` square; no hole inside a chart; the darkest percent over
+    the character floor; the median at the fur's tone (coat_tone: his fur
+    through the floor; MAP_TOL per channel); and the coat -- the darkest
+    three quarters of the chart, under the belly, the saddle and the skin
+    -- spanning COAT_RANGE at least between its 1st and 99th percentile, so
+    the strands are there. `what` names the map in the message: "baked"
+    (the build's own arrays) or "shipped" (the files under Content)."""
+    miss = []
+    if base.shape[:2] != (tex, tex):
+        miss.append("%s's %s maps are %s, want %d square" % (name, what, base.shape[:2], tex))
+    lin = np.where(base / 255.0 <= 0.04045, base / 255.0 / 12.92, ((base / 255.0 + 0.055) / 1.055) ** 2.4)
+    y = 0.2126 * lin[..., 0] + 0.7152 * lin[..., 1] + 0.0722 * lin[..., 2]
+    inside = y[mask]
+    if (inside < 0.004).mean() > 0.0005:
+        miss.append("%s has holes inside its %s charts: %.2f %% black" % (name, what, (inside < 0.004).mean() * 100))
+    if np.percentile(inside, 1) < CHAR_FLOOR * 0.85:
+        miss.append("%s's %s fur goes under the character floor: %.4f" % (name, what, np.percentile(inside, 1)))
+    want = coat_tone(name)
+    got = np.median(lin[mask], axis=0)
+    if np.abs(got - want).max() > MAP_TOL:
+        miss.append("%s's %s fur is %s, want about %s (his %s through the floor)" % (
+            name, what, np.round(got, 3), np.round(want, 3), CREATURES[name]["colours"]["fur"]))
+    coat = inside[inside <= np.percentile(inside, 75)]
+    span = float(np.percentile(coat, 99) / max(np.percentile(coat, 1), 1e-6))
+    if span < COAT_RANGE:
+        miss.append("%s's %s coat is one tone: its strands span p99/p1 %.2f in linear light, want %.1f (a floor laid after them crushes them)" % (
+            name, what, span, COAT_RANGE))
+    return miss
+
+
+def check_shipped(name, folder=None, tex=None):
+    """The maps on disk are the build's: T_<Name>_Fur_BaseColor.png under
+    `folder` (Content/Textures) read back and held to check_colour at the
+    creature's size. The chart is every texel that is not exact black (the
+    unused space is cleared to black and dilated 16 texels). No bpy."""
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = None
+    path = os.path.join(folder or TEXTURES, name, "T_%s_Fur_BaseColor.png" % name)
+    if not os.path.exists(path):
+        return ["%s has no shipped colour map: %s" % (name, os.path.relpath(path, ROOT))]
+    base = np.asarray(Image.open(path).convert("RGB"))
+    mask = base.max(2) > 0
+    if mask.mean() < COVER:
+        return ["%s's shipped atlas is %.0f %% covered, want %.0f" % (name, mask.mean() * 100, COVER * 100)]
+    return check_colour(name, base, mask, tex or CREATURES[name]["tex"], "shipped")
+
 
 def check(pr):
     miss = []
@@ -738,22 +885,10 @@ def check(pr):
         miss.append("%s's arms do not reach the knee" % name)
     # textures
     m = pr.maps
-    if m["BaseColor"].shape[:2] != (pr.tex, pr.tex):
-        miss.append("%s's maps are %s, want %d" % (name, m["BaseColor"].shape[:2], pr.tex))
     cover = pr.mask.mean()
-    if cover < 0.45:
-        miss.append("%s's atlas is %.0f %% covered, want 45" % (name, cover * 100))
-    lin = np.where(m["BaseColor"] / 255.0 <= 0.04045, m["BaseColor"] / 255.0 / 12.92, ((m["BaseColor"] / 255.0 + 0.055) / 1.055) ** 2.4)
-    y = 0.2126 * lin[..., 0] + 0.7152 * lin[..., 1] + 0.0722 * lin[..., 2]
-    inside = y[pr.mask]
-    if (inside < 0.004).mean() > 0.0005:
-        miss.append("%s has holes inside its charts: %.2f %% black" % (name, (inside < 0.004).mean() * 100))
-    if np.percentile(inside, 1) < CHAR_FLOOR * 0.85:
-        miss.append("%s's fur goes under the character floor: %.4f" % (name, np.percentile(inside, 1)))
-    want = _srgb_lin(C["colours"]["fur"])
-    got = np.median(lin[pr.mask], axis=0)
-    if np.abs(got - np.maximum(want, CHAR_FLOOR)).max() > 0.08:
-        miss.append("%s's fur is %s, want about %s" % (name, np.round(got, 3), np.round(want, 3)))
+    if cover < COVER:
+        miss.append("%s's atlas is %.0f %% covered, want %.0f" % (name, cover * 100, COVER * 100))
+    miss += check_colour(name, m["BaseColor"], pr.mask, pr.tex, "baked")
     nn = m["Normal"].astype(np.float32)[pr.mask] / 255 * 2 - 1
     if nn[:, 2].mean() < 0.8:
         miss.append("%s's normal map faces in: mean z %.2f" % (name, nn[:, 2].mean()))
@@ -892,13 +1027,17 @@ def render_one(pr, out, samples=32):
 # ======================================================================= main
 
 BITES = [
-    ("every bone there", "missing_bone", "has no bone"),
-    ("his height", "short", "stands"),
-    ("every vertex weighted", "unweighted", "not weighted"),
-    ("an arm moves no leg", "leak", "moves the right leg"),
-    ("no holes in the fur", "holes", "holes inside"),
-    ("fur not flat", "flat_fur", "fur is flat"),
-    ("the floor", "under_floor", "under the character floor"),
+    ("every bone there", "missing_bone", "has no bone", "Monkey"),
+    ("his height", "short", "stands", "Monkey"),
+    ("every vertex weighted", "unweighted", "not weighted", "Monkey"),
+    ("an arm moves no leg", "leak", "moves the right leg", "Monkey"),
+    ("no holes in the fur", "holes", "holes inside", "Monkey"),
+    ("fur not flat", "flat_fur", "fur is flat", "Monkey"),
+    ("the floor", "under_floor", "under the character floor", "Monkey"),
+    # the floor laid per texel after the strands, as it was: on the
+    # gorilla, whose coat it crushed to one code (the monkey's fur sits
+    # three times over the floor and barely felt it)
+    ("the strands keep their range", "flat_coat", "one tone", "Gorilla"),
 ]
 
 
@@ -906,7 +1045,9 @@ def main():
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
     if not ({"--build", "--bite", "--fast"} & set(args)):
         f = table_check()
-        print("\n".join("MISS " + m for m in f) or "primates' tables: checks pass")
+        for name in CREATURES:
+            f += check_shipped(name)
+        print("\n".join("MISS " + m for m in f) or "primates' tables and shipped maps: checks pass")
         sys.exit(1 if f else 0)
     try:
         import bpy  # noqa: F401
@@ -914,25 +1055,59 @@ def main():
         print("--build runs with bpy (pip install bpy)")
         sys.exit(2)
     if "--bite" in args:
+        # every case built at 512 px into a scratch folder: nothing a bite
+        # bakes reaches Content/Textures (the monkey shipped a bite's maps
+        # until 2026-10-14)
+        import tempfile, shutil
+        scratch = tempfile.mkdtemp(prefix="primates_bite_")
         caught = 0
-        for what, sab, want in BITES:
+        try:
+            for name in ("Monkey", "Gorilla"):
+                SABOTAGE.clear()
+                pr = Primate(name, tex=512, out=scratch).build()
+                f = check(pr) + check_shipped(name, folder=scratch, tex=512)
+                if f:
+                    print("the unbroken %s fails its own checks, so no sabotage can be counted:\n  %s" % (name, "\n  ".join(f)))
+                    sys.exit(1)
+                print("  %-30s %-8s passes" % ("unbroken", name))
+            for what, sab, want, name in BITES:
+                SABOTAGE.clear()
+                SABOTAGE.add(sab)
+                pr = Primate(name, tex=512, out=scratch).build()
+                f = check(pr)
+                hit = [x for x in f if want in x]
+                caught += bool(hit)
+                print("  %-30s %-8s %s  %s" % (what, name, "caught" if hit else "MISSED", (hit or f or ["(passed)"])[0]), flush=True)
             SABOTAGE.clear()
-            SABOTAGE.add(sab)
-            pr = Primate("Monkey", tex=512).build()
-            f = check(pr)
-            hit = [x for x in f if want in x]
-            caught += bool(hit)
-            print("  %-22s %s  %s" % (what, "caught" if hit else "MISSED", (hit or f or ["(passed)"])[0]))
-        SABOTAGE.clear()
-        print("%d of %d caught" % (caught, len(BITES)))
-        sys.exit(0 if caught == len(BITES) else 1)
+            # the shipped maps' rules, on what the last two cases left in the
+            # scratch folder: the Gorilla's under flat_coat (one tone), the
+            # Monkey's under under_floor (x0.2, as shipped until 2026-10-14),
+            # and either at 512 against the creature's 4096
+            shipped = [
+                ("shipped maps the creature's size", "Monkey", 4096, "want 4096 square"),
+                ("shipped fur at its tone", "Monkey", 512, "fur is"),
+                ("shipped strands keep their range", "Gorilla", 512, "one tone"),
+            ]
+            SABOTAGE.add("under_floor")
+            Primate("Monkey", tex=512, out=scratch).build()
+            SABOTAGE.clear()
+            for what, name, tex, want in shipped:
+                f = check_shipped(name, folder=scratch, tex=tex)
+                hit = [x for x in f if want in x]
+                caught += bool(hit)
+                print("  %-30s %-8s %s  %s" % (what, name, "caught" if hit else "MISSED", (hit or f or ["(passed)"])[0]), flush=True)
+        finally:
+            shutil.rmtree(scratch, ignore_errors=True)
+        total = len(BITES) + len(shipped)
+        print("%d of %d caught" % (caught, total))
+        sys.exit(0 if caught == total else 1)
     fast = "--fast" in args
     only = [a for a in args if a in CREATURES] or list(CREATURES)
     shots = {}
     stats = {}
     for name in only:
         pr = Primate(name, tex=1024 if fast else None).build()
-        f = check(pr) + table_check()
+        f = check(pr) + table_check() + check_shipped(name, tex=pr.tex)
         tris = sum(len(p.vertices) - 2 for p in pr.obj.data.polygons)
         print("  %-8s %d tris, %d bones, %d left bare by heat" % (name, tris, len(pr.arm.data.bones), pr.bare))
         if f:
@@ -944,7 +1119,7 @@ def main():
             sys.exit(1)
         stats[name] = dict(tris=tris, bones=len(pr.arm.data.bones), height=pr.C["height"], fbx=os.path.relpath(path, ROOT))
         shots[name] = render_one(pr, os.path.join(ROOT, "Docs", "renders", "%s-3d.png" % name.lower()), samples=16 if fast else 48)
-    print("checks pass: the bones, his size, one piece under budget, the weights, an arm moving no leg, the fur maps; FBX read back")
+    print("checks pass: the bones, his size, one piece under budget, the weights, an arm moving no leg, the fur maps (baked and shipped: at the fur's tone, over the floor, the strands keeping their range); FBX read back")
     if len(shots) == len(CREATURES):
         render_sheet(shots)
 
