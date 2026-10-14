@@ -387,6 +387,31 @@ def paint(name, P, N):
     return np.clip(c, 0, 1), np.clip(rough, 0.05, 1), h.astype(np.float32)
 
 
+# The fur's normal from its height, tangent space, OpenGL (x right, y up, z out)
+# as the lighting reads it; the file is DirectX (green down), so the caller flips
+# green. NORMAL_GAIN scales the slope the height gives per metre of body; it is
+# the one knob, set once from the measured height of the fur (mean tilt 0.35 on
+# the monkey's chart, z 0.94), so the fur reads as bumped, not as spikes.
+NORMAL_GAIN = 1.0
+# unit length on the charts: 8-bit quantisation alone is 0.004 a channel
+NORMAL_UNIT_MEAN, NORMAL_UNIT_P99 = 0.02, 0.05
+
+
+def normal_from_height(h, texel_m, gain=None):
+    """The unit normal of a height field h (metres, atlas order, rows = v) on
+    texels texel_m metres apart, encoded 0..1 as the normal map stores it
+    (before the green flip). Every vector is unit length by construction."""
+    g = NORMAL_GAIN if gain is None else gain
+    gy, gx = np.gradient(h.astype(np.float64), texel_m)
+    n = np.stack([-g * gx, -g * gy, np.ones_like(gx)], axis=-1)
+    n /= np.linalg.norm(n, axis=-1, keepdims=True)
+    if "unnormal" in SABOTAGE:
+        n[..., 2] *= 0.8                      # the vector left as the bump left it: not unit length
+    out = np.empty(h.shape + (3,), np.float32)
+    out[..., :] = n * 0.5 + 0.5
+    return out
+
+
 def dilate(img, mask, steps=12):
     """Push each chart's edge texels out into the gutter, steps times."""
     img = img.copy()
@@ -693,37 +718,17 @@ class Primate:
             ys, xs = np.nonzero(mask)
             cy, cx = ys[len(ys) // 2], xs[len(xs) // 2]
             colour[max(0, cy - 20):cy + 20, max(0, cx - 20):cx + 20] = 0
-        # the normal: the height through a bump, baked in tangent space
-        himg = bpy.data.images.new("height", n, n, alpha=False, float_buffer=True)
-        himg.colorspace_settings.name = "Non-Color"
-        hp = np.zeros((n, n, 4), np.float32)
-        hp[..., 0] = hp[..., 1] = hp[..., 2] = height
-        hp[..., 3] = 1
-        himg.pixels.foreach_set(hp.ravel())
-        nimg = bpy.data.images.new("normal", n, n, alpha=False, float_buffer=True)
-        nimg.colorspace_settings.name = "Non-Color"
-        mat = bpy.data.materials.new("bumpbake")
-        mat.use_nodes = True
-        nt = mat.node_tree
-        bsdf = nt.nodes["Principled BSDF"]
-        ht = nt.nodes.new("ShaderNodeTexImage")
-        ht.image = himg
-        ht.interpolation = "Linear"
-        bump = nt.nodes.new("ShaderNodeBump")
-        bump.inputs["Strength"].default_value = 1.0
-        bump.inputs["Distance"].default_value = 1.0
-        nt.links.new(ht.outputs["Color"], bump.inputs["Height"])
-        nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
-        tgt = nt.nodes.new("ShaderNodeTexImage")
-        tgt.image = nimg
-        nt.nodes.active = tgt
-        self.obj.data.materials.clear()
-        self.obj.data.materials.append(mat)
-        bpy.ops.object.bake(type="NORMAL", normal_space="TANGENT", margin=16, use_clear=True)
-        nb = np.empty(n * n * 4, np.float32)
-        nimg.pixels.foreach_get(nb)
-        nb = nb.reshape(n, n, 4)[..., :3]
-        nb[..., 1] = 1.0 - nb[..., 1]                 # OpenGL (Blender) to DirectX (Unreal): green down
+        # the normal: from the height itself, in code (normal_from_height).
+        # The bump node was used until 2026-10-14: it works from the screen's
+        # derivatives at bake time, and its vectors were not unit length
+        # (length mean 0.94, 1 % under 0.59 on the shipped monkey map), so the
+        # lighting it gave was not the height's. The texel size is the mean
+        # over the atlas: the mesh's area over the texels the charts take.
+        area = sum(p.area for p in self.obj.data.polygons) * float(np.prod(self.obj.matrix_world.to_scale()) ** (2 / 3))
+        self.texel_m = math.sqrt(area / max(n * n * float(mask.mean()), 1.0))
+        self.height = height
+        nb = normal_from_height(height, self.texel_m)
+        nb[..., 1] = 1.0 - nb[..., 1]                 # OpenGL to DirectX (Unreal): green down
         os.makedirs(self.out_tex, exist_ok=True)
 
         def srgb(c):
@@ -890,6 +895,10 @@ def check(pr):
         miss.append("%s's atlas is %.0f %% covered, want %.0f" % (name, cover * 100, COVER * 100))
     miss += check_colour(name, m["BaseColor"], pr.mask, pr.tex, "baked")
     nn = m["Normal"].astype(np.float32)[pr.mask] / 255 * 2 - 1
+    ln = np.linalg.norm(nn, axis=1)
+    if np.abs(ln - 1).mean() > NORMAL_UNIT_MEAN or np.percentile(np.abs(ln - 1), 99) > NORMAL_UNIT_P99:
+        miss.append("%s's normal map is not unit length: mean |len-1| %.3f, p99 %.3f" % (
+            name, np.abs(ln - 1).mean(), np.percentile(np.abs(ln - 1), 99)))
     if nn[:, 2].mean() < 0.8:
         miss.append("%s's normal map faces in: mean z %.2f" % (name, nn[:, 2].mean()))
     tilt = np.sqrt(nn[:, 0] ** 2 + nn[:, 1] ** 2).mean()
@@ -1038,6 +1047,7 @@ BITES = [
     # gorilla, whose coat it crushed to one code (the monkey's fur sits
     # three times over the floor and barely felt it)
     ("the strands keep their range", "flat_coat", "one tone", "Gorilla"),
+    ("the normal map is unit length", "unnormal", "not unit length", "Monkey"),
 ]
 
 

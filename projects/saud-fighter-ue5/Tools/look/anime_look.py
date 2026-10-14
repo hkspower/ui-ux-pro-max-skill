@@ -136,6 +136,26 @@ at MOON_ELEV_DEG -- in an ink ring under a stepped halo, stars on a dome
 over the city, and clouds in two flat tones and a rim, lit toward the moon
 and drifting on View.GameTime. sky_paint() and levels() are the mirror.
 
+THE RANGE, 2026-10-14 ("make colors levels optimisation", settled as: use
+the full range, keep the look -- every frame reaching a true white and a
+true black with a well-placed middle, Photoshop's Auto Tone and Auto
+Contrast the measure of how far a frame is from using its range). One
+grade for the whole game, so the rule is on the look's own chart of
+tones (check()): the darkest is the ink within the black clip (10 of
+255) and the brightest -- bone, the moon, a lamp -- within the white clip
+(250); a fire's pool heart, the only white a frame lit by fires alone
+has, reads L* 85 or more on the souq's dark ground and white on pale
+paving (POOL_BRIGHT 3.6); the lit ground's middle sits at L* 26-34
+(WORLD_LEVEL 0.60, LV_WHITE 0.75). On the real frames
+(anime_preview.py --graded-check, "range" and "middle"): the fight
+camera's brightest and darkest 0.1 % at 245 and 8 of 255 or past them
+and Auto Contrast moving it under 2 L* on average; a place camera's
+brightest 0.1 % at 200 or past (its hearts) and under 4.5 L*; the
+fight's median L* in 24-36. What no grade can give: a view from high
+above whose fires are under 0.1 % of the frame (the island's overview:
+its brightest 0.1 % is the painted sky's horizon) and a day scene of one
+flat lit tone (the prologue's gym); they are the night and the look.
+
 WHAT THE CHECKS PROVE. The boil of the brush, the grain and the splatter
 are hashes, frac(sin(x) * 43758.5453), with x up to about 3e4 radians; a
 GPU's fp32 sin does not reproduce numpy's float64 bit for bit. The checks
@@ -231,10 +251,20 @@ LOOK = {
     # the highlight split the body in two), the rim 0.34 (0.40) and the
     # heart 2.4 (2.0) for the gate's pools (2.43); the men's lift 1.8 (2.2:
     # on the game's picture their black kit read mid-grey).
+    # 2026-10-14 ("make colors levels optimisation": use the full range,
+    # keep the look): the heart 2.4 -> 3.6. On a frame lit by fires alone
+    # -- the gate, every map view -- nothing is bone or the moon, and the
+    # pool's heart is the picture's white; at 2.4 it read L* 74 on the
+    # souq's ground (albedo 0.11) and the gate's brightest 0.1 % stood at
+    # 194 of 255, Photoshop's Auto Contrast would have stretched it 1.4x.
+    # At 3.6 the heart is L* 87 on that ground (white, 100, on pale
+    # paving) and the gate's top 216 (1.2x); at 4.0 the gate's fire R/B
+    # fell to 1.46 against the graded 1.4 (the film's shoulder greys a
+    # bright warm tone) -- 3.6 keeps 1.50.
     "T_POOL1": 1.6,
     "T_POOL2": 1.85,
     "POOL_DIM": 0.34,
-    "POOL_BRIGHT": 2.4,
+    "POOL_BRIGHT": 3.6,
     "FIGHTER_LEVEL": 1.8,
     "FIGHTER_KNEE": 0.03,
     # ... and what a fire lights keeps the fire's colour: the world's
@@ -392,8 +422,15 @@ LOOK = {
     # draws its steps closer). 2026-10-04: back to 0.55 -- that was judged
     # on previews drawn 0.8-1.7 EV under the game; on the game's picture
     # 0.75 made the fight a dusk (its median L* 42).
+    # 2026-10-14 (the range): 0.55 -> 0.60. The moonlit world is on the
+    # black ladder's shadow floor whatever the level (L* 21.0 -> 21.4), so
+    # this lifts only its lit tones -- the lit ground L* 28.3 -> 29.0, a
+    # grey 33.6 -> 35.8, pale paving 47.9 -> 50.7 -- the fight's median
+    # 28.5 -> 29.2, its men still 1.73x the world; the night sky 0.70x
+    # the street before it (0.73). A little more of the world's own
+    # middle without the dusk 0.75 made.
     "SKY_SATURATION": 0.42,
-    "WORLD_LEVEL": 0.55,
+    "WORLD_LEVEL": 0.60,
     "ACCENT_FROM": 0.80,     # a red this pure -- (r - max(g, b)) / r -- starts to count
     "ACCENT_FULL": 0.92,     # ...and is all accent here: #c8102e is 0.95, a rust tee 0.74
     "ACCENT_SAT": 1.06,
@@ -505,8 +542,14 @@ LOOK = {
     # previews' level fixed): a lit face read 0.91 at its 95th percentile,
     # near white; 0.85 now. 0.77 is the highest that keeps bone white
     # (0.98; 0.80 gave 0.96).
+    # 2026-10-14 (the range): 0.77 -> 0.75. Bone stood exactly at the
+    # rule's 0.98; at 0.75 it is 1.00 and the moon 1.00, the check
+    # sphere's lit skin 0.86 (0.85), still a tone, and the fight's
+    # brightest 0.1 % per channel 255 / 248 / 244 (255 / 244 / 241):
+    # Photoshop's Auto Tone would move it 0.3 L* (0.6). Lower blows a
+    # lit face: a flat man at 1.2 reads L* 95.3 here, 98.7 at 0.70.
     "LV_BLACK": 0.0,
-    "LV_WHITE": 0.77,
+    "LV_WHITE": 0.75,
     "LV_GAMMA": 1.75,
     # 6. speed lines. 2026-09-28, needles: a streak's angular share is
     # (SPEED_W0 + SPEED_W1 * its hash) * reach ** SPEED_TAPER -- a point at
@@ -3084,7 +3127,9 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          "system_after_cut",
          "no_violet_edge", "violet_outside_ink",
          "cyan_rim", "blue_horizon", "light_horizon", "grey_vignette", "dark_vignette",
-         "sys_timing", "enum_drift", "system_frozen", "trail_any_blow", "hawk_ignored")
+         "sys_timing", "enum_drift", "system_frozen", "trail_any_blow", "hawk_ignored",
+         # 2026-10-14, the range: the fires' white and the lit middle
+         "dim_hearts", "sunk_middle", "lifted_middle")
 
 
 def power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c):
@@ -3544,6 +3589,12 @@ def check(bite=None, rig=None):
             LOOK["LV_WHITE"] = 0.40
         if bite == "grey_blacks":
             LOOK["LV_BLACK"] = -0.10
+        if bite == "dim_hearts":
+            LOOK["POOL_BRIGHT"] = 1.6       # the heart a step over the body, no white in it
+        if bite == "sunk_middle":
+            LOOK["LV_GAMMA"] = 1.45         # the middle down (the whites still reach up)
+        if bite == "lifted_middle":
+            LOOK["WORLD_LEVEL"] = 1.0       # the world at a man's level: the middle lifted to a dusk
         if bite == "no_moon":
             LOOK["MOON_R_DEG"] = 0.0
         if bite == "no_moon_ink":
@@ -3973,6 +4024,53 @@ def check(bite=None, rig=None):
                 "a firelit man keeps his own colour (saturation %.2f, the ground's %.2f)" % (cl_man, cl_wld)
         finally:
             LOOK["GRAIN"], LOOK["PAPER"] = cl_gp
+        # ------------------------------------------------ 2026-10-14, the range
+        # the look uses the full range, as Photoshop reads a frame (its
+        # autos clip 0.1 % each end of the 8-bit picture; luminosity
+        # 0.299 0.587 0.114): on the look's chart of designed tones -- the
+        # ink; the world's deep, shadow and lit tones near black (0.004)
+        # and on the souq's ground (0.11, the flagstone and sand as the
+        # scan reads them); a grey (0.18) and pale paving (0.35); a fire's
+        # pool heart (0.6 over T_POOL2) on each; a man's skin (0.45) in
+        # shadow and lit; bone; the moon -- the darkest tone is the ink
+        # within the black clip (10 of 255, the levels' own 0.04) and the
+        # brightest reaches the white clip (250 of 255); the fires' own
+        # white, the heart, reads L* 85 or more on the dark ground and
+        # white on pale paving; and the middle is placed: the lit ground
+        # L* 26-34 (the game's night at the engine's key; 28.3 before,
+        # 29.0 now; the world at a man's level reads 37, a dusk; the
+        # levels' gamma at 1.45, 22, where the whites still reach up)
+        rg_gp = LOOK["GRAIN"], LOOK["PAPER"]
+        LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0
+        try:
+            rg_mid = (slice(24, 72), slice(24, 72))
+
+            def rg_tile(rg_alb, rg_t, rg_man=False):
+                rg_d, rg_m = look(*_flat(96, rg_alb, lit=rg_t, depth=600.0, fighter=rg_man))
+                rg_fill = ((rg_m["hatch"][rg_mid] < 0.02) & (rg_m["screentone"][rg_mid] < 0.02)
+                           & (rg_m["ink"][rg_mid] < 0.02))
+                return np.median(rg_d[rg_mid][rg_fill], axis=0)
+            rg_heart = LOOK["T_POOL2"] + 0.6
+            rg_tiles = {"the ink": levels(to_display(np.array(LOOK["INK"]))),
+                        "soot deep": rg_tile(0.004, 0.10), "soot shadow": rg_tile(0.004, 0.40), "soot lit": rg_tile(0.004, 1.2),
+                        "ground shadow": rg_tile(0.11, 0.40), "ground lit": rg_tile(0.11, 1.2), "ground heart": rg_tile(0.11, rg_heart),
+                        "grey lit": rg_tile(0.18, 1.2), "pale lit": rg_tile(0.35, 1.2), "pale heart": rg_tile(0.35, rg_heart),
+                        "skin shadow": rg_tile(0.45, 0.40, True), "skin lit": rg_tile(0.45, 1.2, True),
+                        "bone": levels(np.array(display(LOOK["BONE"]))), "the moon": levels(to_display(np.array(LOOK["MOON_COL"])))}
+            rg_8 = {k: float(np.round(np.clip(v, 0.0, 1.0) @ np.array([0.299, 0.587, 0.114]) * 255.0)) for k, v in rg_tiles.items()}
+            rg_L = {k: float(bl_lstar(np.asarray(v))) for k, v in rg_tiles.items()}
+            rg_lo = min(rg_8.items(), key=lambda kv: kv[1])
+            rg_hi = max(rg_8.items(), key=lambda kv: kv[1])
+            assert rg_lo[0] == "the ink" and rg_lo[1] <= 10.0, \
+                "the range: the chart's darkest tone is the ink, within the black clip (%s at %.0f of 255)" % rg_lo
+            assert rg_hi[1] >= 250.0, "the range: the chart's brightest tone reaches the white clip (%s at %.0f of 255)" % rg_hi
+            assert 26.0 <= rg_L["ground lit"] <= 34.0, \
+                "the range: the lit ground's middle is placed (L* %.1f, wanted 26-34)" % rg_L["ground lit"]
+            assert rg_L["ground heart"] >= 85.0 and rg_L["pale heart"] >= 98.0, \
+                "the range: a fire's heart is the fires' white (L* %.1f on the souq's ground, wanted 85; %.1f on pale paving, wanted 98)" \
+                % (rg_L["ground heart"], rg_L["pale heart"])
+        finally:
+            LOOK["GRAIN"], LOOK["PAPER"] = rg_gp
         # ------------------------------------------------ 2026-10-02, the painted sky
         # a view of the sky alone, up toward the moon (60 degrees across,
         # 0.05 a pixel: a star is a few pixels), at a time it is clear

@@ -49,7 +49,11 @@ what is left is the light's level and hue); --graded-check (MERGE,
 2026-09-28: men, world and look together) the graded picture at the
 engine's key -- the fight camera for the men over the world and the
 world's shadow fill over the ink, every place camera for the pools and the
-fire's hue, and a camera at the opposing man's eyes for Saud's. Each prints
+fire's hue, and a camera at the opposing man's eyes for Saud's -- and,
+since 2026-10-14 (the range), the fight camera's 8-bit range as
+Photoshop's Auto Contrast reads it (range_of: the 0.1 % clip points, the
+L* the stretch would move) and its median, and each place camera's top
+(its pools' hearts). Each prints
 its numbers and, with --bite, proves every rule by a sabotage; a rule the
 unbroken scene itself fails is reported and its sabotage left uncounted,
 since a miss already there proves nothing. Read on the fast scene of
@@ -130,13 +134,35 @@ NIGHT = dict(pools=2.5, warm_rb=2.0, moon_br=1.4, fire_share=0.5)
 # --graded-check, on the graded picture (MERGE, 2026-09-28)
 GRADED = dict(contrast=1.5, shadow_over_ink=2.0, pools=2.0, fire_rb=1.4,
               eye_share=0.5,          # of Saud's iris px drawn lit or shadow (not deep, ink, a dot)
-              eye_min=0.0005)         # iris px seen, as a share of the face camera's frame (0.148 % facing his man; 0.005 % looking at the floor)
+              eye_min=0.0005,         # iris px seen, as a share of the face camera's frame (0.148 % facing his man; 0.005 % looking at the floor)
+              # 2026-10-14, the range ("make colors levels optimisation"): the
+              # frame uses the full 8-bit range as Photoshop reads it -- its
+              # Auto Contrast clips 0.1 % each end of the luminosity (0.299
+              # 0.587 0.114) and stretches the rest to 0..255. On the fight
+              # camera (bone, the moon or a lamp core in frame) the darkest
+              # 0.1 % at range_lo or under, the brightest at range_hi or over
+              # (a true black and a true white), and the stretch would move
+              # the frame under range_dL L* on average; on a place camera lit
+              # by fires alone the brightest 0.1 % is the pools' hearts, at
+              # place_hi or over, and under place_dL. Measured 2026-10-14 at
+              # 540 lines, 16 samples: the fight 4-246 and 0.55 before the
+              # retune, 4-248 and 0.59 after; the gate 16-194 and 5.2 before,
+              # 17-216 and 3.5 after (the street 4-238, 1.4).
+              range_lo=8, range_hi=245, range_dL=2.0, place_hi=200, place_dL=4.5,
+              # ... and the middle placed: the fight's median L* in this band
+              # (28.5 before, 29.2 after; a world level of 0.75 read 42, a dusk;
+              # the previews drawn at the stand-in key read 18.5, a hole)
+              middle=(24.0, 36.0))
 
 # --bite only: each breaks the one mechanism a check guards
 SABOTAGE = set()
 NIGHT_BITES = {"no_fires": "pools", "warm_moon": "moon"}
 GRADED_BITES = {"flat_world": "contrast", "sooted_world": "shadow tone", "flat_pools": "pools",
                 "grey_fire": "fire", "chin_down": "eyes", "deep_eyes": "eyes",
+                # 2026-10-14, the range: the picture before the levels (no white
+                # point, no gamma), the pools' hearts a step over the body, and
+                # the levels' gamma sinking the middle or lifting it to a dusk
+                "short_range": "range", "dim_hearts": "range", "sunk_middle": "middle", "lifted_middle": "middle",
                 # 2026-10-04: the previews drawn at their stand-in key's level
                 # (0.8-1.7 EV under the game), and a night keyed on the men
                 "stand_in_level": "previews", "fighter_key": "night's key",
@@ -834,9 +860,34 @@ def graded_picture(got, exposure, over=None):
     return lin, m, disp
 
 
+def lstar_of(pic8):
+    """CIE L* (display sRGB, D65) of an 8-bit picture."""
+    d = pic8.astype(float) / 255.0
+    lin = np.where(d <= 0.04045, d / 12.92, ((d + 0.055) / 1.055) ** 2.4)
+    y = lin @ np.array(AL.LUMA)
+    return np.where(y > 216 / 24389, 116 * np.cbrt(y) - 16, y * 24389 / 27)
+
+
+def range_of(pic8):
+    """The frame's range as Photoshop's Auto Contrast reads it (2026-10-14):
+    the 8-bit luminosity (0.299 0.587 0.114) clipped 0.1 % each end gives
+    (lo, hi); the levels that stretch lo..hi to 0..255 are applied and the
+    mean |delta L*| they would make is returned with them, and the frame's
+    median L*."""
+    lum = np.clip(np.round(pic8.astype(float) @ np.array([0.299, 0.587, 0.114])), 0, 255).astype(np.uint8)
+    h = np.bincount(lum.ravel(), minlength=256).astype(np.int64)
+    n = lum.size
+    lo = int(np.searchsorted(np.cumsum(h), 0.001 * n, side="right"))
+    hi = 255 - int(np.searchsorted(np.cumsum(h[::-1]), 0.001 * n, side="right"))
+    lo = min(lo, 254); hi = max(hi, lo + 1)
+    lut = np.clip(np.round(np.clip((np.arange(256) - lo) / float(hi - lo), 0.0, 1.0) * 255.0), 0, 255).astype(np.uint8)
+    L0 = lstar_of(pic8)
+    return dict(lo=lo, hi=hi, dL=float(np.abs(lstar_of(lut[pic8]) - L0).mean()), median=float(np.median(L0)))
+
+
 def graded_fight(got, exposure, over=None):
     """The fight camera: the men over the world, the world's shadow fill
-    over the ink."""
+    over the ink; since 2026-10-14 its range and its middle (range_of)."""
     luma = np.array(AL.LUMA)
     lin, m, disp = graded_picture(got, exposure, over)
     fighter, D = m["fighter"], m["D"]
@@ -860,6 +911,7 @@ def graded_fight(got, exposure, over=None):
         pic, _m = look_from(got, exposure)
     r["preview_gap"] = int(np.abs(pic.astype(int) - AL.to_8bit(disp).astype(int)).max())
     r["key"], r["key_rule"], r["night"] = m["key"], m["key_rule"], "Combined_moon" in got
+    r["range"] = range_of(AL.to_8bit(disp))
     return r, disp
 
 
@@ -880,7 +932,8 @@ def graded_place(got, exposure, over=None):
     r = dict(key=m["key"], key_rule=m["key_rule"], fighters=int(m["fighter"].sum()),
              pools=float(np.percentile(gl, 95) / max(np.percentile(gl, 50), 1e-6)),
              shadow_share=float(((m["shadow"] > 0.5) & g).sum() / max(1, g.sum())),
-             core_share=float(((m["emit"] > 0.5) & g).sum() / max(1, g.sum())))
+             core_share=float(((m["emit"] > 0.5) & g).sum() / max(1, g.sum())),
+             range=range_of(AL.to_8bit(disp)))
     body = g & (m["shadow"] < 0.5) & (m["emit"] < 0.5)
     if "Combined_fire" in got:
         body = body & (got["Combined_fire"][..., :3] @ luma > got["Combined_moon"][..., :3] @ luma)
@@ -924,6 +977,14 @@ def graded_misses(r):
     if r["contrast"] < GRADED["contrast"]:
         miss.append("the men do not stand off the world: fighter/world contrast %.2f (display medians %.3f / %.3f), wanted %.1f"
                     % (r["contrast"], r["fighter_y"], r["world_y"], GRADED["contrast"]))
+    g = r["range"]
+    if g["lo"] > GRADED["range_lo"] or g["hi"] < GRADED["range_hi"] or g["dL"] > GRADED["range_dL"]:
+        miss.append("the fight does not use its range: its darkest and brightest 0.1 %% at %d and %d of 255 (wanted %d and %d), "
+                    "Auto Contrast would move it %.2f L* (wanted under %.1f)"
+                    % (g["lo"], g["hi"], GRADED["range_lo"], GRADED["range_hi"], g["dL"], GRADED["range_dL"]))
+    if not GRADED["middle"][0] <= g["median"] <= GRADED["middle"][1]:
+        miss.append("the fight's middle is not placed: its median L* %.1f, wanted %.0f-%.0f"
+                    % (g["median"], GRADED["middle"][0], GRADED["middle"][1]))
     if r["shadow_tone"] < GRADED["shadow_over_ink"] * r["ink"]:
         miss.append("the world's shadow tone sinks into the ink: fill p5 %.4f = %.2fx lum(INK), wanted %.0fx"
                     % (r["shadow_tone"], r["shadow_tone"] / r["ink"], GRADED["shadow_over_ink"]))
@@ -932,6 +993,10 @@ def graded_misses(r):
             miss.append("the grade flattens the pools at %s: graded ground p95/p50 %.2f, wanted %.1f" % (name, p["pools"], GRADED["pools"]))
         if p["fire_rb"] < GRADED["fire_rb"]:
             miss.append("the grade greys the fire at %s: pool body top-5 %% R/B %.2f, wanted %.1f" % (name, p["fire_rb"], GRADED["fire_rb"]))
+        if p["range"]["hi"] < GRADED["place_hi"] or p["range"]["dL"] > GRADED["place_dL"]:
+            miss.append("%s does not use its range: its brightest 0.1 %% (the pools' hearts) at %d of 255 (wanted %d), "
+                        "Auto Contrast would move it %.2f L* (wanted under %.1f)"
+                        % (name, p["range"]["hi"], GRADED["place_hi"], p["range"]["dL"], GRADED["place_dL"]))
     e = r["eyes"]
     if e["seen_share"] < GRADED["eye_min"]:
         miss.append("Saud's eyes are lost: %d iris px seen, %.3f %% of the face frame, wanted %.2f %% (are they turned to the man in front?)"
@@ -943,12 +1008,15 @@ def graded_misses(r):
 
 
 def graded_report(r):
-    places = "; ".join("%s key %.3f (%s) pools %.2f, %.0f %% shadow tone, %.1f %% cores, fire R/B %.2f"
-                       % (n, p["key"], p["key_rule"], p["pools"], 100 * p["shadow_share"], 100 * p["core_share"], p["fire_rb"])
+    places = "; ".join("%s key %.3f (%s) pools %.2f, %.0f %% shadow tone, %.1f %% cores, fire R/B %.2f, range %d-%d (%.2f L*)"
+                       % (n, p["key"], p["key_rule"], p["pools"], 100 * p["shadow_share"], 100 * p["core_share"], p["fire_rb"],
+                          p["range"]["lo"], p["range"]["hi"], p["range"]["dL"])
                        for n, p in r["places"].items())
-    return ("fighter/world contrast %.2f; world shadow fill p5 %.4f = %.2fx lum(INK) (%d px); %s; Saud's iris %d of %d px seen (%d eye px)"
-            % (r["contrast"], r["shadow_tone"], r["shadow_tone"] / r["ink"], r["fill_px"], places,
-               r["eyes"]["iris_seen"], r["eyes"]["iris_px"], r["eyes"]["eye_px"]))
+    g = r["range"]
+    return ("fighter/world contrast %.2f; world shadow fill p5 %.4f = %.2fx lum(INK) (%d px); the fight's range %d-%d of 255 "
+            "(Auto Contrast %.2f L*), median L* %.1f; %s; Saud's iris %d of %d px seen (%d eye px)"
+            % (r["contrast"], r["shadow_tone"], r["shadow_tone"] / r["ink"], r["fill_px"], g["lo"], g["hi"], g["dL"], g["median"],
+               places, r["eyes"]["iris_seen"], r["eyes"]["iris_px"], r["eyes"]["eye_px"]))
 
 
 class _look_over:
@@ -1096,9 +1164,18 @@ def graded_check(blend, height, samples, bite=False, out=None, cache=None):
         # whatever the paint; flat_pools takes the pool's steps, which make
         # the pools -- with the lamps put out instead, the street's pools
         # still read 2.02.)
+        # (2026-10-14: short_range is the picture before the levels of
+        # 2026-10-02 -- its whites never reached white; dim_hearts leaves
+        # the pools' steps but takes the heart's white; the gamma at 1.45
+        # puts the fight's median at L* 22, at 2.4 at 41 -- the world's
+        # level alone no longer makes a dusk: at 0.75 the median is 30.4
+        # now the pool's rim holds the fight's ground, where it read 42
+        # on 2026-10-04)
         over = {"flat_world": dict(WORLD_LEVEL=1.0, FIGHTER_LEVEL=1.0), "grey_fire": dict(WORLD_SATURATION=0.10, POOL_SAT=0.10),
                 "sooted_world": dict(BLACK_DEEP=0.0, BLACK_SHADOW=0.0, BLACK_LIT=0.0),
-                "flat_pools": dict(POOL_DIM=1.0, POOL_BRIGHT=1.0), "deep_eyes": dict(T_DEEP=2.0)}.get(which, {})
+                "flat_pools": dict(POOL_DIM=1.0, POOL_BRIGHT=1.0), "deep_eyes": dict(T_DEEP=2.0),
+                "short_range": dict(LV_WHITE=1.0, LV_GAMMA=1.0), "dim_hearts": dict(POOL_BRIGHT=1.6),
+                "sunk_middle": dict(LV_GAMMA=1.45), "lifted_middle": dict(LV_GAMMA=2.4)}.get(which, {})
         face2 = face
         if which == "chin_down":
             _chin_down()
