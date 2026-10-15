@@ -756,7 +756,7 @@ system|Content/Data/DT_SystemLines.json|s#You are where you began.#You are back 
 system|Content/Data/DT_SystemLines.json|s#"Title": "YOU WENT DOWN"#"Title": "YOU WENT DOWN", "Head": "GET UP."#|fixed: a plain YOU WENT DOWN
 system|Content/Data/DT_SystemLines.json|s#"Beneath": "FIND THE WAY UP", "Status": "IN PROGRESS"#"Beneath": "", "Status": ""#|fixed: QUEST COMPLETE + XP
 system|Content/Data/DT_SystemLines.json|s#It sits behind a fight.#It sits behind a fight, Hunter.#|no forbidden term
-system|Content/Data/DT_SystemLines.json|s#The house knows your name.#The house knows your name, up above.#|no forbidden term
+system|Content/Data/DT_SystemLines.json|s#The beast waits in the corner.#The beast waits in the corner, up above.#|no forbidden term
 system|Content/Data/DT_SystemLines.json|s#Just the next wave.#Just the next S-rank wave.#|no forbidden term
 system|Content/Data/DT_SystemLines.json|s#Broken ground is yours.#Broken ground is yours, Player.#|no forbidden term
 system|Content/Data/DT_SystemLines.json|/"StageEntered_AlHilal"/d|every stage in DT_Stages.json has its entered line
