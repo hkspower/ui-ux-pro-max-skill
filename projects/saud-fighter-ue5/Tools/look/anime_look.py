@@ -551,8 +551,13 @@ LOOK = {
     # brightest 0.1 % per channel 255 / 248 / 244 (255 / 244 / 241):
     # Photoshop's Auto Tone would move it 0.3 L* (0.6). Lower blows a
     # lit face: a flat man at 1.2 reads L* 95.3 here, 98.7 at 0.70.
+    # 2026-10-31 ("improve white level", settled as whiter highlights): 0.75
+    # -> 0.72. Moon, bone and a fire's heart reach full white; the check
+    # sphere's lit skin stays a tone (the rule holds at 0.70 too). Lower
+    # again would bring lit skin toward white, which the 2026-10-14 note
+    # above rules out.
     "LV_BLACK": 0.0,
-    "LV_WHITE": 0.75,
+    "LV_WHITE": 0.72,
     "LV_GAMMA": 1.75,
     # 6. speed lines. 2026-09-28, needles: a streak's angular share is
     # (SPEED_W0 + SPEED_W1 * its hash) * reach ** SPEED_TAPER -- a point at
