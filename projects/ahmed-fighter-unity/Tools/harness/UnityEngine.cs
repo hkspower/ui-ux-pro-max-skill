@@ -342,6 +342,9 @@ namespace UnityEngine
     public static class Debug {
         public static void Log(object m) { } public static void LogWarning(object m) { }
         public static void LogError(object m) { }
+        // the debug view's lines, counted so a test can see that something was drawn
+        public static int Lines;
+        public static void DrawLine(Vector3 a, Vector3 b, Color c) { Lines++; }
     }
     public static class Random {
         public static float value { get { return 0f; } }
@@ -356,7 +359,7 @@ namespace UnityEngine
         public static float GetAxisRaw(string n) { return 0f; }
         public static float GetAxis(string n) { return 0f; }
     }
-    public enum KeyCode { None, Space, LeftShift, Q, E, R, Alpha1, Alpha2, Alpha3, Alpha4, Alpha5 }
+    public enum KeyCode { None, Space, LeftShift, Q, E, R, Alpha1, Alpha2, Alpha3, Alpha4, Alpha5, F8 }
     // Real implementations. A stub whose maths lies turns every behavioural
     // test into a test of the stub.
     public static class Mathf {

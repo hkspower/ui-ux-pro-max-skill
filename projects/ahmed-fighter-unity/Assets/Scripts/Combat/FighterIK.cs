@@ -63,6 +63,10 @@ namespace Ahmed.Combat
         private bool _southpaw;
         private string _stanceFrom;
 
+        /// <summary>This frame's rays and targets, for the debug view (IKDebug).</summary>
+        private IKDebug.View _view;
+        private readonly System.Collections.Generic.List<IKDebug.Prim> _prims = new System.Collections.Generic.List<IKDebug.Prim>();
+
         private void Start()
         {
             _fighter = GetComponent<Fighter>();
@@ -117,9 +121,10 @@ namespace Ahmed.Combat
         {
             Reset(ref _legL); Reset(ref _legR); Reset(ref _armL); Reset(ref _armR);
             RefreshStance();
+            _view = new IKDebug.View();
 
-            PlantFoot(ref _legL);
-            PlantFoot(ref _legR);
+            PlantFoot(ref _legL, ref _view.FootL);
+            PlantFoot(ref _legR, ref _view.FootR);
 
             // Guard first, strike over the top. A strike re-solves from
             // wherever the guard left the arm, so the two compose rather than
@@ -133,6 +138,15 @@ namespace Ahmed.Combat
             }
             Guard();
             Strike();
+
+            // The debug view: F8 cycles it, read once a frame on Ahmed's own IK.
+            bool isPlayer = _fighter is PlayerFighter;
+            if (isPlayer && Input.GetKeyDown(KeyCode.F8)) { IKDebug.Show = IKDebug.Next(IKDebug.Show); }
+            if (IKDebug.Draws(IKDebug.Show, isPlayer))
+            {
+                IKDebug.Build(_view, _prims);
+                IKDebug.Draw(_prims);
+            }
         }
 
         /// <summary>
@@ -181,15 +195,21 @@ namespace Ahmed.Combat
         /// The ray starts inside the fighter's own controller and so never
         /// hits it: a ray that begins inside a collider does not see it.
         /// </summary>
-        private void PlantFoot(ref Limb leg)
+        private void PlantFoot(ref Limb leg, ref IKDebug.FootView view)
         {
             if (!leg.Ok) { return; }
             Vector3 ankleRest = transform.TransformPoint(leg.EndRestLocal);
             Vector3 origin = ankleRest + Vector3.up * RayStart;
             Vector3 point;
+            view.Cast = true;
+            view.From = origin;
+            view.To = origin + Vector3.down * (RayStart + 1.0f);
             if (!GroundUnder(origin, RayStart + 1.0f, out point)) { return; }
 
             Vector3 target = point + Vector3.up * AnkleHeight;
+            view.Hit = true;
+            view.Point = point;
+            view.Ankle = target;
             Vector3 pole = leg.Mid.position + _fighter.Facing * 0.6f;
             TwoBoneIK.Apply(leg.Root, leg.Mid, leg.End, target, pole);
         }
@@ -242,11 +262,12 @@ namespace Ahmed.Combat
             if (_guard <= 0.001f && _fighter.State != FighterState.Hit) { return; }
             Vector3 facing = _fighter.Facing;
             Vector3 side = Vector3.Cross(Vector3.up, facing);
-            GuardHand(ref _armL, facing, -side);
-            GuardHand(ref _armR, facing, side);
+            _view.GuardOn = _guard > 0.001f;
+            GuardHand(ref _armL, facing, -side, ref _view.GuardL);
+            GuardHand(ref _armR, facing, side, ref _view.GuardR);
         }
 
-        private void GuardHand(ref Limb arm, Vector3 facing, Vector3 side)
+        private void GuardHand(ref Limb arm, Vector3 facing, Vector3 side, ref Vector3 shown)
         {
             if (!arm.Ok) { return; }
             Vector3 rest = transform.TransformPoint(arm.EndRestLocal);
@@ -260,6 +281,7 @@ namespace Ahmed.Combat
             {
                 target += FlinchOffset(_fighter.Recoil);
             }
+            shown = target;
             Vector3 pole = (arm.Root.position + target) * 0.5f - Vector3.up * 0.6f;
             TwoBoneIK.Apply(arm.Root, arm.Mid, arm.End, target, pole);
         }
@@ -410,6 +432,9 @@ namespace Ahmed.Combat
             Vector3 target = Vector3.Lerp(rest, full, weight);
             // Cocked before it is thrown. This is the tell.
             target -= facing * (WindUp(_fighter.AttackTime, row.startup) * WindUpDraw);
+            _view.StrikeOn = true;
+            _view.StrikeTarget = target;
+            _view.StrikeWeight = weight;
 
             // Elbows hang under the punch; the kicking knee leads the foot.
             Vector3 pole = arm

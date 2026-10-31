@@ -32,6 +32,16 @@
 > needs the FBX Exporter package, added to `Packages/manifest.json`. The
 > story, the numbers and the rules are the Unreal build's:
 > `../saud-fighter-ue5/CLAUDE.md`, "The street cars, built in Unity".
+>
+> **One addition, asked 2026-10-31 as "add to unity": the IK debug view.**
+> After the Unreal build's `saud.ik.Show`: F8 cycles off / every fighter /
+> Ahmed only, and `FighterIK` draws its foot rays (blue hit, red missed, the
+> hit and the ankle's target), the guard's fist targets and the strike's
+> target with `Debug.DrawLine` -- shown in the editor only (Scene view, or
+> Game view with Gizmos on), never in a player build. What to draw is
+> `Assets/Scripts/Combat/IKDebug.cs`, pure, checked by
+> `Tools/harness/tests/IKDebug.cs` (six sabotages caught by hand). The port
+> around it stays frozen; nothing has been pressed play on.
 
 Guidance for anyone — person or assistant — working in this directory.
 
