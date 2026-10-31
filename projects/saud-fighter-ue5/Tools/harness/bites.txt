@@ -869,3 +869,21 @@ anime|Source/SaudFighter/Combat/SaudAnime.h|s#return A.P + (B.P - A.P) \* K;#ret
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float TrailSeconds = 0.36f;#constexpr float TrailSeconds = 0.60f;#|it shows for 0.36 s in real time
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#Age += RealSeconds;#Age += 0.5f * RealSeconds;#|it shows for 0.36 s in real time
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#^\t*Count = 0;#;#|a swing over forgets its path
+
+# ---- the IK, drawn (Combat/SaudIKDebug.h, 2026-10-31)
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#T.bHit ? EColour::Hit : EColour::Missed#EColour::Hit#|a trace that missed is drawn red
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#if (!T.bHit) continue;#{}#|a trace that missed is drawn red
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#FVector(F.Anchor.X, F.Anchor.Y, F.Ball.Z)#F.Anchor#|a held foot's anchor is drawn where it is held, at the ball's height
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#F.bHeld ? EColour::Held : EColour::Free#EColour::Free#|a held foot is drawn green, heel to ball
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#if (F.bHeld)#if (true)#|a free foot is drawn yellow, with no anchor
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#V.bStrike \&\& V.StrikeAlpha > 0.f#V.bStrike#|the strike's mark is not drawn while its share is nothing
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#(ThickLine - ThinLine) \* A)#(ThickLine - ThinLine) * 0.f * A)#|the strike's mark is drawn thicker as its share comes on
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#V.StrikeSkin > MarkMinCm \* S ? V.StrikeSkin : MarkMinCm \* S#V.StrikeSkin#|the strike's mark is never drawn smaller than MarkMinCm
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#Out.Add(Line(V.StrikeMark, V.StrikeLow, EColour::Strike, ThinLine));#{}#|the strike's mark shows the line down to his belt
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#V.bBlock \&\& V.BlockAlpha > 0.f#V.bBlock#|the block and the look are not drawn while off
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#if (V.bLook)#if (true)#|the block and the look are not drawn while off
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#(NormalCm \* S)#NormalCm#|every size grows with the man
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#AnchorCm \* S#AnchorCm#|every size grows with the man
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#case EColour::Free:   return { 250, 200, 40 };#case EColour::Free:   return { 70, 220, 90 };#|every colour is far from every other
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#constexpr int MaxPrims = 32;#constexpr int MaxPrims = 12;#|everything at once fits the list
+ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#Out.Num = 0;#{}#|a fresh build clears what the last one drew

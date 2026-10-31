@@ -12,8 +12,19 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
 #include "Misc/ScopeExit.h"
+#if ENABLE_DRAW_DEBUG
+	#include "DrawDebugHelpers.h"
+#endif
+
+/** The IK debug view (SaudIKDebug.h): 0 off, 1 every fighter, 2 the player's man only. */
+static TAutoConsoleVariable<int32> CVarSaudIKShow(
+	TEXT("saud.ik.Show"), 0,
+	TEXT("Draw the in-game IK: the feet's ground traces, held and free feet, the strike's mark, a block's meet, the look.\n")
+	TEXT("0: off, 1: every fighter, 2: the player's man only."),
+	ECVF_Cheat);
 
 namespace
 {
@@ -106,6 +117,7 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 	{
 		Output.ResetToRefPose();
 		Back.bValid = false;
+		Back.Alpha = 0.f;
 		return true;
 	}
 	if (N == 1)
@@ -446,6 +458,13 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 	}
 	Back.bValid = bLegs;
 	Back.Stride = Feet.Stride;
+	// for the debug view: which feet the IK held, where, and its share
+	for (int32 S = 0; S < 2; ++S)
+	{
+		Back.bHeld[S] = bFeet && Feet.Hold[S].bHeld;
+		Back.Anchor[S] = Feet.Hold[S].Anchor;
+	}
+	Back.Alpha = bFeet ? Plan.Alpha : 0.f;
 
 	FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(MoveTemp(CS), Output.Pose);
 	return true;
@@ -736,6 +755,81 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 	UpdateTurn(Fighter, bTeleported, DeltaSeconds);
 	UpdateGuard(Fighter, DeltaSeconds);
 	UpdatePosture(Fighter);     // after the feet: it reads their standing
+	DrawDebugIK(Fighter, Back); // saud.ik.Show: last frame's feet under this frame's traces
+}
+
+void USaudMotionAnimInstance::DrawDebugIK(AFighterBase* Fighter, const FSaudFeetBack& Back) const
+{
+#if ENABLE_DRAW_DEBUG
+	const int32 Show = CVarSaudIKShow.GetValueOnGameThread();
+	if (Show <= 0 || !Fighter) return;
+	if (Show == 2 && !Fighter->IsPlayerControlled()) return;
+	UWorld* World = GetWorld();
+	USkeletalMeshComponent* Mesh = GetSkelMeshComponent();
+	if (!World || !Mesh) return;
+
+	// everything into the world: the strike's and the block's points are in
+	// the mesh's space, its skin in the mesh's units
+	const FTransform& C2W = Frame.ComponentToWorld;
+	const float MeshScale = static_cast<float>(C2W.GetScale3D().X);    // uniform
+	SaudIKDebug::FView V;
+	V.Size = BodyScale;
+	for (int32 S = 0; S < 2; ++S)
+	{
+		for (int32 K = 0; K < 2; ++K) V.Trace[S][K] = DebugTrace[S][K];
+		if (Back.bValid)
+		{
+			SaudIKDebug::FFootView& F = V.Foot[S];
+			F.bDrawn = true;
+			F.Heel = Back.Heel[S];
+			F.Ball = Back.Ball[S];
+			F.bHeld = Back.bHeld[S];
+			F.Anchor = Back.Anchor[S];
+		}
+	}
+	V.bStrike = Frame.StrikeTip != SaudIK::ETip::None;
+	V.StrikeMark = C2W.TransformPosition(Frame.StrikeMark);
+	V.StrikeLow = C2W.TransformPosition(Frame.StrikeLow);
+	V.StrikeSkin = Frame.StrikeSkin * MeshScale;
+	V.StrikeAlpha = Frame.StrikeAlpha;
+	V.bBlock = Frame.BlockSide != INDEX_NONE;
+	V.BlockMeet = C2W.TransformPosition(Frame.BlockMeet);
+	V.BlockAlpha = Frame.BlockAlpha;
+	if (bHeadLooks && Frame.bChain)
+	{
+		const AFighterBase* Target = LookTarget.Get();
+		if (Target && Target->GetMesh())
+		{
+			V.bLook = true;
+			V.LookFrom = Mesh->GetSocketLocation(HeadBone);
+			V.LookTo = Target->GetMesh()->GetSocketLocation(HeadBone);
+		}
+	}
+
+	SaudIKDebug::FList L;
+	SaudIKDebug::Build(V, L);
+	for (int32 I = 0; I < L.Num; ++I)
+	{
+		const SaudIKDebug::FPrim& P = L.Prim[I];
+		const SaudIKDebug::FRgb C = SaudIKDebug::Rgb(P.Colour);
+		const FColor Colour(C.R, C.G, C.B);
+		if (P.Shape == SaudIKDebug::EShape::Line)
+		{
+			DrawDebugLine(World, P.A, P.B, Colour, false, -1.f, SDPG_Foreground, P.Thickness);
+		}
+		else
+		{
+			DrawDebugSphere(World, P.A, P.Radius, 12, Colour, false, -1.f, SDPG_Foreground, P.Thickness);
+		}
+	}
+
+	// the numbers over him, for one frame (a duration of 0 is one frame; -1 would stay)
+	const UCapsuleComponent* Capsule = Fighter->GetCapsuleComponent();
+	const float Over = (Capsule ? Capsule->GetScaledCapsuleHalfHeight() : 90.f) + 25.f;
+	const FString Text = FString::Printf(TEXT("feet %.2f  hips %.0f  lean %.1f  strike %.2f"),
+	                                     Back.Alpha, Frame.HipsYaw, Frame.LeanDegrees, Frame.StrikeAlpha);
+	DrawDebugString(World, Fighter->GetActorLocation() + FVector(0.f, 0.f, Over), Text, nullptr, FColor::White, 0.f, true);
+#endif
 }
 
 void USaudMotionAnimInstance::Measure(const USkeletalMeshComponent* Mesh)
@@ -857,20 +951,29 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 		{
 			SaudIK::FGroundPoint& G = Frame.Ground[S][K];
 			G = SaudIK::FGroundPoint();
+			SaudIKDebug::FTraceView& D = DebugTrace[S][K];
+			D = SaudIKDebug::FTraceView();
 			if (!Frame.bFeetWanted) continue;
 			// where the foot will be this frame: where it was drawn plus its own
 			// velocity (SaudIK::FFootTrack) -- a swing at a run is a frame ahead
 			const FVector At = Back.bValid ? (K ? Back.BallTrack[S].Ahead(DeltaSeconds) : Back.HeelTrack[S].Ahead(DeltaSeconds))
 			                               : Mesh->GetSocketLocation(K ? BallBone[S] : FootBone[S]);   // the first frame only
+			const FVector From(At.X, At.Y, FloorZ + TraceUp);
+			const FVector To(At.X, At.Y, FloorZ - TraceDown);
 			FHitResult Hit;
-			G.bHit = World->LineTraceSingleByObjectType(Hit, FVector(At.X, At.Y, FloorZ + TraceUp),
-			                                            FVector(At.X, At.Y, FloorZ - TraceDown), GroundTypes, Params)
+			G.bHit = World->LineTraceSingleByObjectType(Hit, From, To, GroundTypes, Params)
 			      && !Hit.bStartPenetrating;
 			if (G.bHit)
 			{
 				G.Point = FVector(Hit.ImpactPoint);
 				G.Normal = FVector(Hit.ImpactNormal);
 			}
+			D.bTraced = true;
+			D.bHit = G.bHit;
+			D.From = From;
+			D.To = To;
+			D.Point = G.Point;
+			D.Normal = G.Normal;
 		}
 	}
 }

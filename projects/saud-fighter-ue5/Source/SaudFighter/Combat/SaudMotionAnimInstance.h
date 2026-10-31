@@ -4,6 +4,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Combat/SaudIK.h"
+#include "Combat/SaudIKDebug.h"
 #include "SaudMotionAnimInstance.generated.h"
 
 class AFighterBase;
@@ -121,6 +122,11 @@ struct FSaudFeetBack
 	SaudIK::FFootTrack HeelTrack[2];
 	SaudIK::FFootTrack BallTrack[2];
 	SaudIK::FStrideMeter Stride;
+	// for the debug view (saud.ik.Show, SaudIKDebug.h): which feet were held,
+	// where (world; Z not kept), and the feet's share
+	bool bHeld[2] = { false, false };
+	FVector Anchor[2] = { FVector::ZeroVector, FVector::ZeroVector };
+	float Alpha = 0.f;
 };
 
 /** The worker-thread half: lays the clips down and bends them. */
@@ -310,4 +316,11 @@ private:
 	void UpdateTurn(AFighterBase* Fighter, bool bTeleported, float DeltaSeconds);
 	void UpdateGuard(AFighterBase* Fighter, float DeltaSeconds);
 	void UpdatePosture(AFighterBase* Fighter);
+
+	/** This frame's ground traces, as UpdateFeet took them, for the debug view. */
+	SaudIKDebug::FTraceView DebugTrace[2][2];
+
+	/** The IK drawn in the world while saud.ik.Show is on (SaudIKDebug.h);
+	    nothing where the engine compiles debug drawing out. */
+	void DrawDebugIK(AFighterBase* Fighter, const FSaudFeetBack& Back) const;
 };

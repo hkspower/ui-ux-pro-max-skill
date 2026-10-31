@@ -5676,6 +5676,25 @@ pelvis). `tests/posture.cpp`, 36 sabotages caught. Render:
 compiled or played; the neck and head corrections on the motion-capture
 walk (to about 16 and 20 degrees) have not been seen on a mesh.
 
+## The IK, drawn in the game -- 2026-10-31
+
+Asked as "improve visual ik", settled as an IK debug view in the game.
+Nothing drew the runtime IK before. The console command `saud.ik.Show`
+(a cheat: 0 off, 1 every fighter, 2 the player's man only) draws, each
+frame: every foot's heel and ball ground traces (blue hit, red missed,
+the hit point and the ground's normal), each foot as drawn (green while
+held where it was planted, with its anchor; yellow while free), the
+strike's mark (as big as its skin, thicker as it comes on, and the line
+to his belt), where a block meets the blow, the look (head to head), and
+a line of numbers over him (the feet's share, the hips' lag, the lean,
+the strike's share). What to draw is `Combat/SaudIKDebug.h`, engine-free,
+checked by `tests/ikdebug.cpp` (16 sabotages caught);
+`USaudMotionAnimInstance::DrawDebugIK` draws it, compiled out where the
+engine compiles debug drawing out. The proxy now reports which feet it
+held (`FSaudFeetBack`). **Not verified:** never compiled or played; that
+`DrawDebugString` with a duration of 0 shows for one frame, and that the
+HUD draws debug text at all, are as remembered.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
