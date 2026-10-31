@@ -14,7 +14,9 @@ namespace Ahmed.Combat
     /// F8 cycles <see cref="Show"/>: off, every fighter, Ahmed only. Drawn
     /// each frame:
     ///  - each foot's ground ray, blue where it found ground and red where it
-    ///    found nothing, a cross where it hit and one where the ankle goes;
+    ///    found nothing, a cross where it hit and one where the ankle goes --
+    ///    green while the foot is held where it was planted, yellow while it
+    ///    steps after him (FighterIK.HoldFoot, 2026-10-31);
     ///  - the guard's two fist targets while the guard is up;
     ///  - the strike's target, its cross growing as the strike comes on.
     ///
@@ -35,7 +37,7 @@ namespace Ahmed.Combat
             return show == 1 || (show == 2 && isPlayer);
         }
 
-        public enum Colour { Hit, Missed, Ankle, Guard, Strike }
+        public enum Colour { Hit, Missed, Ankle, Free, Guard, Strike }
 
         public static Color ColourOf(Colour c)
         {
@@ -43,8 +45,9 @@ namespace Ahmed.Combat
             {
                 case Colour.Hit: return new Color(0.35f, 0.67f, 1f, 1f);      // blue: the ray found ground
                 case Colour.Missed: return new Color(1f, 0.2f, 0.2f, 1f);     // red: it found nothing
-                case Colour.Ankle: return new Color(0.24f, 0.86f, 0.35f, 1f); // green: where the ankle goes
-                case Colour.Guard: return new Color(0.98f, 0.78f, 0.16f, 1f); // yellow: a guard fist's target
+                case Colour.Ankle: return new Color(0.24f, 0.86f, 0.35f, 1f); // green: a held foot's ankle
+                case Colour.Free: return new Color(0.98f, 0.78f, 0.16f, 1f);  // yellow: a foot stepping after him
+                case Colour.Guard: return new Color(0.67f, 0.35f, 1f, 1f);    // violet: a guard fist's target
                 case Colour.Strike: return new Color(1f, 0.47f, 0.12f, 1f);   // orange: the strike's target
             }
             return new Color(1f, 1f, 1f, 1f);
@@ -64,7 +67,7 @@ namespace Ahmed.Combat
         /// <summary>One foot's ray as FighterIK cast it, and where it sent the ankle.</summary>
         public struct FootView
         {
-            public bool Cast, Hit;
+            public bool Cast, Hit, Held;
             public Vector3 From, To, Point, Ankle;
         }
 
@@ -107,7 +110,7 @@ namespace Ahmed.Combat
             into.Add(Line(f.From, f.To, f.Hit ? Colour.Hit : Colour.Missed));
             if (!f.Hit) { return; }
             into.Add(Cross(f.Point, PointSize, Colour.Hit));
-            into.Add(Cross(f.Ankle, PointSize, Colour.Ankle));
+            into.Add(Cross(f.Ankle, PointSize, f.Held ? Colour.Ankle : Colour.Free));
         }
 
         public static Prim Line(Vector3 a, Vector3 b, Colour c)

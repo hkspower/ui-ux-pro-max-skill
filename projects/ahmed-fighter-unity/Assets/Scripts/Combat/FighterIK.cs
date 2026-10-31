@@ -123,8 +123,10 @@ namespace Ahmed.Combat
             RefreshStance();
             _view = new IKDebug.View();
 
-            PlantFoot(ref _legL, ref _view.FootL);
-            PlantFoot(ref _legR, ref _view.FootR);
+            bool strikeRight;
+            bool strikeLeg = StrikingLeg(out strikeRight);
+            PlantFoot(ref _legL, ref _holdL, _holdR.Stepping, strikeLeg && !strikeRight, ref _view.FootL);
+            PlantFoot(ref _legR, ref _holdR, _holdL.Stepping, strikeLeg && strikeRight, ref _view.FootR);
 
             // Guard first, strike over the top. A strike re-solves from
             // wherever the guard left the arm, so the two compose rather than
@@ -188,6 +190,98 @@ namespace Ahmed.Combat
         // -------------------------------------------------------------- feet
 
         /// <summary>
+        /// One foot's hold on the ground (2026-10-31, after the Unreal build's
+        /// SaudIK feet: "a planted ball is held at its spot in the world and
+        /// steps after the man"). There is no animation here, so the foot's
+        /// own place is its rest point under the root, which slides with him;
+        /// held, the foot stays where it was planted, and once he has carried
+        /// its rest point StepDrift away it steps there over StepSeconds,
+        /// lifting StepLift at the middle. One foot at a time, unless the
+        /// standing one is carried ForceDrift. Put somewhere new (SnapDrift),
+        /// the hold starts again where he is. The striking leg and a foot over
+        /// no ground are not held.
+        /// </summary>
+        public struct FootHold
+        {
+            public bool Held, Stepping;
+            public Vector3 Anchor, From;   // world; Y not used
+            public float T;                // 0..1 through a step
+        }
+
+        public const float StepDrift = 0.12f;
+        public const float ForceDrift = 0.30f;
+        public const float SnapDrift = 1.0f;
+        public const float StepSeconds = 0.14f;
+        public const float StepLift = 0.06f;
+
+        private FootHold _holdL, _holdR;
+
+        private static float Flat(Vector3 a, Vector3 b)
+        {
+            float x = a.x - b.x, z = a.z - b.z;
+            return Mathf.Sqrt(x * x + z * z);
+        }
+
+        /// <summary>
+        /// Where the foot goes this frame, on the ground plane, and how high
+        /// it is lifted. Rest is its place under the root; Size scales every
+        /// distance with the man (1 at Ahmed's). Frozen (hit stop) holds a step
+        /// where it is. Pure: executed in the harness (tests/Hold.cs).
+        /// </summary>
+        public static Vector3 HoldFoot(ref FootHold h, bool otherSteps, Vector3 rest, bool striking,
+                                       bool frozen, float dt, float size, out float lift)
+        {
+            lift = 0f;
+            float s = size > 0f ? size : 1f;
+            if (striking)
+            {
+                h.Held = false; h.Stepping = false;
+                return rest;
+            }
+            float drift = Flat(h.Anchor, rest);
+            if (h.Held)
+            {
+                if (drift > SnapDrift * s)
+                {
+                    h.Anchor = rest;
+                    return rest;
+                }
+                bool may = !otherSteps || drift > ForceDrift * s;
+                if (frozen || drift <= StepDrift * s || !may)
+                {
+                    return new Vector3(h.Anchor.x, rest.y, h.Anchor.z);
+                }
+                h.Held = false; h.Stepping = true; h.From = h.Anchor; h.T = 0f;
+            }
+            if (h.Stepping)
+            {
+                if (!frozen) { h.T += dt / StepSeconds; }
+                if (h.T >= 1f)
+                {
+                    h.Stepping = false; h.Held = true; h.Anchor = rest;
+                    return rest;
+                }
+                float k = Smooth(h.T);
+                lift = Mathf.Sin(h.T * Mathf.PI) * StepLift * s;
+                return new Vector3(h.From.x + (rest.x - h.From.x) * k, rest.y, h.From.z + (rest.z - h.From.z) * k);
+            }
+            h.Held = true; h.Anchor = rest;
+            return rest;
+        }
+
+        /// <summary>Which leg the attack in progress is thrown with, if a leg.</summary>
+        private bool StrikingLeg(out bool right)
+        {
+            right = false;
+            AttackRow row = _fighter.ActiveAttack;
+            if (_fighter.State != FighterState.Attack || row == null) { return false; }
+            bool arm, rear;
+            if (!StrikeLimb(row.name, out arm, out rear) || arm) { return false; }
+            right = IsRightSide(rear, _southpaw);
+            return true;
+        }
+
+        /// <summary>
         /// Keep the sole on whatever is under it. A ray from above the
         /// ankle's rest position, straight down, finds the ground; the ankle
         /// goes to that height, the knee bends forward. On a flat slab this
@@ -195,21 +289,32 @@ namespace Ahmed.Combat
         /// The ray starts inside the fighter's own controller and so never
         /// hits it: a ray that begins inside a collider does not see it.
         /// </summary>
-        private void PlantFoot(ref Limb leg, ref IKDebug.FootView view)
+        private void PlantFoot(ref Limb leg, ref FootHold hold, bool otherSteps, bool striking, ref IKDebug.FootView view)
         {
             if (!leg.Ok) { return; }
             Vector3 ankleRest = transform.TransformPoint(leg.EndRestLocal);
-            Vector3 origin = ankleRest + Vector3.up * RayStart;
+            // held where it was planted, or stepping after him (HoldFoot); the
+            // ground is looked for under where the foot is, not where it rests
+            float size = Mathf.Abs(transform.localScale.y);
+            float lift;
+            Vector3 place = HoldFoot(ref hold, otherSteps, ankleRest, striking, _fighter.Frozen, Time.deltaTime, size, out lift);
+            Vector3 origin = place + Vector3.up * RayStart;
             Vector3 point;
             view.Cast = true;
             view.From = origin;
             view.To = origin + Vector3.down * (RayStart + 1.0f);
-            if (!GroundUnder(origin, RayStart + 1.0f, out point)) { return; }
+            if (!GroundUnder(origin, RayStart + 1.0f, out point))
+            {
+                // over nothing: not held; it is planted again where it rests once there is ground
+                hold.Held = false; hold.Stepping = false;
+                return;
+            }
 
-            Vector3 target = point + Vector3.up * AnkleHeight;
+            Vector3 target = point + Vector3.up * (AnkleHeight + lift);
             view.Hit = true;
             view.Point = point;
             view.Ankle = target;
+            view.Held = hold.Held;
             Vector3 pole = leg.Mid.position + _fighter.Facing * 0.6f;
             TwoBoneIK.Apply(leg.Root, leg.Mid, leg.End, target, pole);
         }

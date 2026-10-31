@@ -42,6 +42,18 @@
 > `Assets/Scripts/Combat/IKDebug.cs`, pure, checked by
 > `Tools/harness/tests/IKDebug.cs` (six sabotages caught by hand). The port
 > around it stays frozen; nothing has been pressed play on.
+>
+> **And, asked the same day, the Unreal IK's feet holding.**
+> `FighterIK.HoldFoot`: a foot stays where it was planted while the root
+> carries its rest point less than `StepDrift` (12 cm), then steps there
+> over `StepSeconds` (0.14 s), lifting `StepLift` (6 cm); one foot at a
+> time unless the standing one is carried `ForceDrift` (30 cm); a jump of
+> `SnapDrift` (1 m) re-plants at once; hit stop holds a step; the striking
+> leg is not held; distances grow with the root's scale. The debug view
+> draws a held ankle green and a stepping one yellow (the guard moved to
+> violet). Checked by `Tools/harness/tests/Hold.cs` -- walking at 1-2.5
+> m/s a held foot slides 0.000 cm and trails at most 32 cm -- nine
+> sabotages caught by hand; the Pose suite still passes.
 
 Guidance for anyone — person or assistant — working in this directory.
 

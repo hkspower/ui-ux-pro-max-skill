@@ -15,7 +15,7 @@ public static class IKDebugTest {
     static IKDebug.FootView Ray(bool hit, Vector3 at) {
         var f = new IKDebug.FootView();
         f.Cast = true; f.Hit = hit; f.From = at + Vector3.up * 0.6f; f.To = at - Vector3.up * 1.0f;
-        f.Point = at; f.Ankle = at + Vector3.up * FighterIK.AnkleHeight;
+        f.Point = at; f.Ankle = at + Vector3.up * FighterIK.AnkleHeight; f.Held = hit;
         return f;
     }
     public static int Main() {
@@ -31,6 +31,9 @@ public static class IKDebugTest {
               "a ray that found ground shows where it hit and where the ankle goes");
         bool ankleAt = false; foreach (var p in l) if (p.Colour == IKDebug.Colour.Ankle) ankleAt = Same(p.A, v.FootL.Ankle);
         Check(ankleAt, "the ankle's cross is on the ankle's target");
+        v.FootL.Held = false; IKDebug.Build(v, l);
+        Check(Count(l, IKDebug.Colour.Free, IKDebug.Shape.Cross) == 1 && Count(l, IKDebug.Colour.Ankle, IKDebug.Shape.Cross) == 0,
+              "a foot stepping after him is drawn yellow, a held one green");
 
         v = new IKDebug.View(); v.FootR = Ray(false, new Vector3(-0.1f, 0f, 0f));
         IKDebug.Build(v, l);
@@ -53,7 +56,7 @@ public static class IKDebugTest {
         Check(small > 0f && big > small && Math.Abs(big - IKDebug.StrikeMax) < 1e-5f && l.Count == 1 && Same(l[0].A, v.StrikeTarget),
               "the strike's cross is on its target and grows as it comes on");
 
-        var all = new[] { IKDebug.Colour.Hit, IKDebug.Colour.Missed, IKDebug.Colour.Ankle, IKDebug.Colour.Guard, IKDebug.Colour.Strike };
+        var all = new[] { IKDebug.Colour.Hit, IKDebug.Colour.Missed, IKDebug.Colour.Ankle, IKDebug.Colour.Free, IKDebug.Colour.Guard, IKDebug.Colour.Strike };
         bool apart = true;
         foreach (var a in all) foreach (var b in all) {
             if (a == b) continue;
