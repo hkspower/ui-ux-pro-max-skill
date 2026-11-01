@@ -5695,6 +5695,30 @@ held (`FSaudFeetBack`). **Not verified:** never compiled or played; that
 `DrawDebugString` with a duration of 0 shows for one frame, and that the
 HUD draws debug text at all, are as remembered.
 
+## The repair kit -- 2026-11-01
+
+Asked as "full repair kit", settled as the Unreal one, beside the render
+kit: `Tools/unreal/repair_kit/REPAIR_SAUD.bat` (Windows) and
+`REPAIR_SAUD_MAC.command` (Mac), with a README each. Eight steps: find UE
+5.4 and the game; check the machine (Unreal closed, VS 2022 C++ and the
+SDK / Xcode, disk); check the game's files (`repair_check.py`, plain
+Python run with the engine's own: the .uproject, the Build.cs and
+Target.cs, the Config inis, every Content/Data JSON and CSV, empty files
+and Git LFS pointers under Content, long paths); move Binaries,
+Intermediate, DerivedDataCache, .vs / the .sln or Xcode workspace aside
+into `Saved/RepairKit/old_<date>` (nothing deleted; the next repair
+removes the previous old_ folder); make the project files again; rebuild
+SaudFighterEditor from nothing; redo the render kit's `setup_all.py`
+(skippable); zip the logs to the Desktop. `repair_check.py --selftest`
+breaks each of its rules on a scratch fixture: 11 of 11 caught. The Mac
+script was run here against stand-ins (a fake engine, fake Xcode tools, a
+small copy of the project): a clean repair, a failed build, and a full
+run with a damaged table each end as written. **Not verified:** the
+Windows script has never run (no Windows here), nor either against a real
+Unreal. **Found by its first run on this project, not fixed:**
+`Content/Data/DT_Sounds.csv` row 43 (`Music_Boss`) has an unquoted comma
+in its Description, so the row reads as 11 columns against 10.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
