@@ -210,8 +210,15 @@ LOOK = {
     # on the man, where the dark alone had 81 % of a souq fighter lit. The
     # world keeps 0.56: the souq floor sits at T 0.70-0.90 and one 0.70
     # threshold cut it into speckle.
+    # 2026-11-04 ("fix shadow", the shadow on the men): 0.68 -> 0.80. On the
+    # souq fight at 1080 (the cached passes of that render) the shadow was
+    # 10.8 % of the fighters' skin and kit, scattered specks round a pale
+    # one-tone body; at 0.80 it is 17.1 %, the dark side of each arm, torso
+    # and face one shape with the dot screen on it. 0.85 and over put the
+    # key-lit side's grazing edges into shadow too, and the rim rule ("none
+    # on the side the key lights") fails; 0.90 reads best but is that.
     "T_SHADOW": 0.56,
-    "T_SHADOW_FIGHTER": 0.68,
+    "T_SHADOW_FIGHTER": 0.80,
     "T_DEEP": 0.14,
     "T_HIGHLIGHT": 1.90,     # only real glare: lower, it spotted every face
     "SOFT": 0.020,          # half-width of each terminator, for antialiasing

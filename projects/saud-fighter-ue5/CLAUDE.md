@@ -5719,6 +5719,27 @@ Unreal. **Found by its first run on this project, not fixed:**
 `Content/Data/DT_Sounds.csv` row 43 (`Music_Boss`) has an unquoted comma
 in its Description, so the row reads as 11 columns against 10.
 
+## The shadow on the men -- 2026-11-04
+
+Asked as "fix shadow", settled as the shadow on the fighters. Measured on
+the souq fight at 1080 through the look (`Tools/blender/anime_preview.py`):
+the men's shadow was 10.8 % of their skin and kit -- scattered specks and
+broken dashes round one pale tone, the shadow side only 10 L* darker than
+the lit. `T_SHADOW_FIGHTER` (the terminator a fighter's tones are cut at,
+`Tools/look/anime_look.py`) 0.68 -> 0.80: 17.1 %, the dark side of each
+arm, torso and face one shape with the dot screen on it, still a hard edge
+(1.8 % of the men's pixels in the antialiasing band). Tried on the cached
+render passes: `SMOOTH_PX` 6 and `SOFT` 0.010 changed nothing that shows;
+0.90 reads best (23.4 %) but 0.85 and over put the key-lit side's grazing
+edges into shadow, and the rim rule "none on the side the key lights"
+fails. The men's lift (`FIGHTER_LEVEL`) is untouched. Checked: the look's
+checks pass; `--bite --only lit_men,no_rim,grey_shadows,world_as_fighter,
+flat_men,kneeless_men` 6 of 6 caught. Re-rendered: `Docs/renders/
+souq-fight-anime.png` only; the hit, fire, street, gate and men's frames
+are still at the old threshold. **Not verified:** no engine has built the
+material (the HLSL takes the same number); a judgement from one scene's
+crops -- the other districts and the title have not been looked at.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
