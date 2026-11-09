@@ -54,6 +54,19 @@
 > violet). Checked by `Tools/harness/tests/Hold.cs` -- walking at 1-2.5
 > m/s a held foot slides 0.000 cm and trails at most 32 cm -- nine
 > sabotages caught by hand; the Pose suite still passes.
+>
+> **And, asked 2026-11-09 as "improve ik": the hips drop.** On uneven
+> ground the low foot dangled at full extension (the Pose suite printed
+> it). `FighterIK.HipDrop`: the hips -- the `Mesh` child, reset to its rest
+> each frame -- come down to the lower planted foot's ground, never up, no
+> further than `MaxHipDrop` (0.40 m), eased at `HipDropRate` (12 a second,
+> the same at 30 and 60 Hz; at once on the first frame; held through hit
+> stop); a foot over nothing and the striking leg do not count. The feet
+> find their ground first, then the hips drop, then the legs are solved.
+> On the suite's 0.20 m step the hips come down 0.20 m, the low foot
+> stands on the floor and the leg on the step bends. The debug view draws
+> the drop as a white line. Checked in `tests/Pose.cs`, `Hold.cs` and
+> `IKDebug.cs`; ten sabotages caught by hand.
 
 Guidance for anyone — person or assistant — working in this directory.
 

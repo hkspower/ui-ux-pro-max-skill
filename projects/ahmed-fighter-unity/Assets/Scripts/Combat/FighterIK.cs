@@ -67,6 +67,13 @@ namespace Ahmed.Combat
         private IKDebug.View _view;
         private readonly System.Collections.Generic.List<IKDebug.Prim> _prims = new System.Collections.Generic.List<IKDebug.Prim>();
 
+        /// <summary>The skeleton's parent and where it rests under the root: the
+        /// hips' drop lowers it, and every frame starts from its rest.</summary>
+        private Transform _mesh;
+        private Vector3 _meshRest;
+        private float _hipDrop;
+        private bool _hipKnown;
+
         private void Start()
         {
             _fighter = GetComponent<Fighter>();
@@ -77,6 +84,8 @@ namespace Ahmed.Combat
                 enabled = false;
                 return;
             }
+            _mesh = mesh;
+            _meshRest = mesh.localPosition;
             _legL = Bind(mesh, "thigh_l", "calf_l", "foot_l");
             _legR = Bind(mesh, "thigh_r", "calf_r", "foot_r");
             _armL = Bind(mesh, "upperarm_l", "lowerarm_l", "hand_l");
@@ -125,8 +134,26 @@ namespace Ahmed.Combat
 
             bool strikeRight;
             bool strikeLeg = StrikingLeg(out strikeRight);
-            PlantFoot(ref _legL, ref _holdL, _holdR.Stepping, strikeLeg && !strikeRight, ref _view.FootL);
-            PlantFoot(ref _legR, ref _holdR, _holdL.Stepping, strikeLeg && strikeRight, ref _view.FootR);
+            bool strikeL = strikeLeg && !strikeRight, strikeR = strikeLeg && strikeRight;
+            // The ground under each foot first; then the hips come down to
+            // the lower one; then the legs are solved from where the hips are.
+            _mesh.localPosition = _meshRest;
+            Vector3 targetL, targetR;
+            bool onL = FindFoot(ref _legL, ref _holdL, _holdR.Stepping, strikeL, ref _view.FootL, out targetL);
+            bool onR = FindFoot(ref _legR, ref _holdR, _holdL.Stepping, strikeR, ref _view.FootR, out targetR);
+            float rootY = transform.position.y;
+            float want = HipDrop(onL && !strikeL, _view.FootL.Point.y - rootY, onR && !strikeR, _view.FootR.Point.y - rootY);
+            if (!_hipKnown) { _hipDrop = want; _hipKnown = true; }
+            else if (!_fighter.Frozen) { _hipDrop = EaseDrop(_hipDrop, want, Time.deltaTime); }
+            if (_hipDrop > 0f)
+            {
+                _mesh.position = _mesh.position + Vector3.down * _hipDrop;
+                _view.HipsOn = _hipDrop > 0.001f;
+                _view.HipsFrom = transform.position + Vector3.up * HipHeight;
+                _view.HipsTo = _view.HipsFrom + Vector3.down * _hipDrop;
+            }
+            if (onL) { SolveFoot(ref _legL, targetL); }
+            if (onR) { SolveFoot(ref _legR, targetR); }
 
             // Guard first, strike over the top. A strike re-solves from
             // wherever the guard left the arm, so the two compose rather than
@@ -289,9 +316,11 @@ namespace Ahmed.Combat
         /// The ray starts inside the fighter's own controller and so never
         /// hits it: a ray that begins inside a collider does not see it.
         /// </summary>
-        private void PlantFoot(ref Limb leg, ref FootHold hold, bool otherSteps, bool striking, ref IKDebug.FootView view)
+        private bool FindFoot(ref Limb leg, ref FootHold hold, bool otherSteps, bool striking, ref IKDebug.FootView view,
+                              out Vector3 target)
         {
-            if (!leg.Ok) { return; }
+            target = Vector3.zero;
+            if (!leg.Ok) { return false; }
             Vector3 ankleRest = transform.TransformPoint(leg.EndRestLocal);
             // held where it was planted, or stepping after him (HoldFoot); the
             // ground is looked for under where the foot is, not where it rests
@@ -307,17 +336,50 @@ namespace Ahmed.Combat
             {
                 // over nothing: not held; it is planted again where it rests once there is ground
                 hold.Held = false; hold.Stepping = false;
-                return;
+                return false;
             }
 
-            Vector3 target = point + Vector3.up * (AnkleHeight + lift);
+            target = point + Vector3.up * (AnkleHeight + lift);
             view.Hit = true;
             view.Point = point;
             view.Ankle = target;
             view.Held = hold.Held;
+            return true;
+        }
+
+        /// <summary>The leg to its foot's place, from wherever the hips are now.</summary>
+        private void SolveFoot(ref Limb leg, Vector3 target)
+        {
             Vector3 pole = leg.Mid.position + _fighter.Facing * 0.6f;
             TwoBoneIK.Apply(leg.Root, leg.Mid, leg.End, target, pole);
         }
+
+        /// <summary>
+        /// How far the hips come down so the lower planted foot reaches its
+        /// ground (2026-11-09, after the Unreal build's SaudIK: "the hips drop
+        /// to the lower foot ... never rises: a step up under one foot bends
+        /// that leg ... no further than 40 cm"). The legs rest straight, so
+        /// ground lower than the root under a foot is out of reach by exactly
+        /// that much: on a step the low foot dangled at full extension.
+        /// Ground heights are against the root's, negative below it; a foot
+        /// over nothing, or the striking leg, does not count. Pure.
+        /// </summary>
+        public static float HipDrop(bool onL, float groundL, bool onR, float groundR)
+        {
+            float low = 0f;
+            if (onL) { low = Mathf.Min(low, groundL); }
+            if (onR) { low = Mathf.Min(low, groundR); }
+            return Mathf.Min(-low, MaxHipDrop);
+        }
+
+        /// <summary>The drop eased toward what is wanted, the same at 30 and 60 Hz. Pure.</summary>
+        public static float EaseDrop(float current, float want, float dt)
+        {
+            return current + (want - current) * (1f - Mathf.Exp(-HipDropRate * Mathf.Max(0f, dt)));
+        }
+
+        public const float MaxHipDrop = 0.40f;
+        public const float HipDropRate = 12f;
 
         /// <summary>
         /// The nearest thing under a point that is not a fighter.

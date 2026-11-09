@@ -46,6 +46,13 @@ public static class IKDebugTest {
         v.GuardOn = true; IKDebug.Build(v, l);
         Check(Count(l, IKDebug.Colour.Guard, IKDebug.Shape.Cross) == 2, "the guard's two fist targets are drawn while it is up");
 
+        v = new IKDebug.View(); v.HipsFrom = new Vector3(0f, 0.952f, 0f); v.HipsTo = new Vector3(0f, 0.752f, 0f);
+        IKDebug.Build(v, l);
+        Check(l.Count == 0, "the hips' drop is not drawn while there is none");
+        v.HipsOn = true; IKDebug.Build(v, l);
+        Check(l.Count == 1 && l[0].Colour == IKDebug.Colour.Hips && l[0].Shape == IKDebug.Shape.Line && Same(l[0].A, v.HipsFrom) && Same(l[0].B, v.HipsTo),
+              "the hips' drop is drawn from where they rest to where they are");
+
         v = new IKDebug.View(); v.StrikeOn = true; v.StrikeTarget = new Vector3(0f, 1.44f, 0.8f); v.StrikeWeight = 0f;
         IKDebug.Build(v, l);
         Check(l.Count == 0, "the strike is not drawn at no weight");
@@ -56,7 +63,7 @@ public static class IKDebugTest {
         Check(small > 0f && big > small && Math.Abs(big - IKDebug.StrikeMax) < 1e-5f && l.Count == 1 && Same(l[0].A, v.StrikeTarget),
               "the strike's cross is on its target and grows as it comes on");
 
-        var all = new[] { IKDebug.Colour.Hit, IKDebug.Colour.Missed, IKDebug.Colour.Ankle, IKDebug.Colour.Free, IKDebug.Colour.Guard, IKDebug.Colour.Strike };
+        var all = new[] { IKDebug.Colour.Hit, IKDebug.Colour.Missed, IKDebug.Colour.Ankle, IKDebug.Colour.Free, IKDebug.Colour.Guard, IKDebug.Colour.Strike, IKDebug.Colour.Hips };
         bool apart = true;
         foreach (var a in all) foreach (var b in all) {
             if (a == b) continue;

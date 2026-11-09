@@ -95,16 +95,23 @@ public static class Pose {
         Check(Math.Abs(AnkleY(b,"l") - (0.20f + FighterIK.AnkleHeight)) < 5e-3f,
               "the foot on the step rises to it (" + AnkleY(b,"l").ToString("0.0000") + ")");
         Check(Math.Abs(Len(b,"thigh_l","calf_l") - bThigh) < 1e-3f, "and the thigh keeps its length doing it");
-        // The other leg cannot reach: the controller rode up onto the step, so
-        // the floor is further below the hip than the leg is long. It must
-        // straighten toward it rather than break.
-        float lowReach = hipY - AnkleY(b, "r");
-        Check(Math.Abs(lowReach - legSpan) < 5e-3f,
-              "the leg that cannot reach the floor straightens instead of breaking ("
-              + lowReach.ToString("0.000") + " m of a " + legSpan.ToString("0.000") + " m leg)");
+        // The other foot's ground is 0.20 m under the root: the controller rode
+        // up onto the step, and the legs rest straight, so that floor is out
+        // of reach by exactly the step. Until 2026-11-09 the low leg hung at
+        // full extension over it; now the hips come down to the lower foot
+        // (FighterIK.HipDrop) and the leg on the step bends.
+        Check(Math.Abs(AnkleY(b,"r") - FighterIK.AnkleHeight) < 5e-3f,
+              "the hips come down and the low foot stands on the floor (" + AnkleY(b,"r").ToString("0.0000") + ")");
+        Check(Math.Abs(hipY - (rootY + 0.952f - 0.20f)) < 5e-3f,
+              "the hips are lower by the step (" + hipY.ToString("0.000") + " m)");
+        float highReach = (b.Bones["thigh_l"].position - b.Bones["foot_l"].position).magnitude;
+        Check(highReach < legSpan - 0.05f,
+              "and the leg on the step bends its knee (" + highReach.ToString("0.000") + " m of a " + legSpan.ToString("0.000") + " m leg)");
+        Check(Math.Abs(Len(b,"thigh_r","calf_r") - bThigh) < 1e-3f && Math.Abs(Len(b,"calf_r","foot_r") - bCalf) < 1e-3f,
+              "the low leg keeps its lengths");
         Console.WriteLine("  standing on a 0.20 m step: root rides to " + rootY.ToString("0.00")
-            + " m, the low leg hangs at full extension. There is no pelvis drop,");
-        Console.WriteLine("  so on uneven ground the low foot dangles rather than the hips lowering to meet it.");
+            + " m, the hips come down " + (rootY + 0.952f - hipY).ToString("0.00") + " m,");
+        Console.WriteLine("  the low foot stands on the floor and the leg on the step bends.");
 
         // --------------------------------------------- the crowd, the real one
         Console.WriteLine("\nCROWD");

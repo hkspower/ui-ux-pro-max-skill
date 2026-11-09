@@ -101,6 +101,22 @@ public static class HoldTest {
             Console.WriteLine("  " + speed.ToString("0.0") + " m/s: held feet slide " + (slide * 100).ToString("0.000") + " cm, the furthest a foot trails " + (lag * 100).ToString("0.0") + " cm");
         }
 
+        // the hips' drop (FighterIK.HipDrop, 2026-11-09): down to the lower
+        // planted foot, never up, no further than MaxHipDrop; a foot over
+        // nothing or a striking leg does not count; eased the same at 30 and 60 Hz
+        Check(FighterIK.HipDrop(true, 0f, true, 0f) == 0f, "on flat ground the hips do not drop");
+        Check(Math.Abs(FighterIK.HipDrop(true, 0f, true, -0.20f) - 0.20f) < 1e-6f, "the hips drop to the lower foot's ground");
+        Check(FighterIK.HipDrop(true, 0.15f, true, 0f) == 0f && FighterIK.HipDrop(true, 0.15f, true, 0.10f) == 0f, "a step up under a foot, or both, does not raise the hips");
+        Check(Math.Abs(FighterIK.HipDrop(true, -0.90f, true, 0f) - FighterIK.MaxHipDrop) < 1e-6f, "the hips drop no further than MaxHipDrop");
+        Check(FighterIK.HipDrop(false, -0.30f, true, 0f) == 0f, "a foot over nothing, or the striking leg, does not pull the hips down");
+        float d60 = 0f, d30 = 0f;
+        for (int i = 0; i < 12; i++) d60 = FighterIK.EaseDrop(d60, 0.20f, 1f / 60f);
+        for (int i = 0; i < 6; i++) d30 = FighterIK.EaseDrop(d30, 0.20f, 1f / 30f);
+        Check(Math.Abs(d60 - d30) < 1e-5f && d60 > 0.15f && d60 < 0.20f, "the drop eases in, the same at 30 and 60 Hz (" + (d60 * 100).ToString("0.0") + " cm after 0.2 s)");
+        float prev = 0f, biggest = 0f, dd = 0f;
+        for (int i = 0; i < 120; i++) { dd = FighterIK.EaseDrop(dd, 0.20f, Dt); biggest = Math.Max(biggest, dd - prev); prev = dd; }
+        Check(Math.Abs(dd - 0.20f) < 1e-4f && biggest < 0.045f, "it arrives, and never by more than 4.5 cm in a frame (" + (biggest * 100).ToString("0.0") + " cm)");
+
         Console.WriteLine(fails == 0 ? "HOLD  all checks passed" : "HOLD  " + fails + " failed");
         return fails == 0 ? 0 : 1;
     }

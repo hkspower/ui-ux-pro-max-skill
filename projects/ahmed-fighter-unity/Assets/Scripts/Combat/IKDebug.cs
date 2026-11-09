@@ -17,6 +17,8 @@ namespace Ahmed.Combat
     ///    found nothing, a cross where it hit and one where the ankle goes --
     ///    green while the foot is held where it was planted, yellow while it
     ///    steps after him (FighterIK.HoldFoot, 2026-10-31);
+    ///  - the hips' drop, a white line from where they rest to where they are
+    ///    (FighterIK.HipDrop, 2026-11-09);
     ///  - the guard's two fist targets while the guard is up;
     ///  - the strike's target, its cross growing as the strike comes on.
     ///
@@ -37,7 +39,7 @@ namespace Ahmed.Combat
             return show == 1 || (show == 2 && isPlayer);
         }
 
-        public enum Colour { Hit, Missed, Ankle, Free, Guard, Strike }
+        public enum Colour { Hit, Missed, Ankle, Free, Guard, Strike, Hips }
 
         public static Color ColourOf(Colour c)
         {
@@ -49,6 +51,7 @@ namespace Ahmed.Combat
                 case Colour.Free: return new Color(0.98f, 0.78f, 0.16f, 1f);  // yellow: a foot stepping after him
                 case Colour.Guard: return new Color(0.67f, 0.35f, 1f, 1f);    // violet: a guard fist's target
                 case Colour.Strike: return new Color(1f, 0.47f, 0.12f, 1f);   // orange: the strike's target
+                case Colour.Hips: return new Color(1f, 1f, 1f, 1f);           // white: the hips' drop
             }
             return new Color(1f, 1f, 1f, 1f);
         }
@@ -74,6 +77,8 @@ namespace Ahmed.Combat
         public struct View
         {
             public FootView FootL, FootR;
+            public bool HipsOn;
+            public Vector3 HipsFrom, HipsTo;
             public bool GuardOn;
             public Vector3 GuardL, GuardR;
             public bool StrikeOn;
@@ -92,6 +97,7 @@ namespace Ahmed.Combat
             into.Clear();
             Foot(v.FootL, into);
             Foot(v.FootR, into);
+            if (v.HipsOn) { into.Add(Line(v.HipsFrom, v.HipsTo, Colour.Hips)); }
             if (v.GuardOn)
             {
                 into.Add(Cross(v.GuardL, GuardSize, Colour.Guard));
