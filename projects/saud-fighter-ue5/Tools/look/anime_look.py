@@ -421,8 +421,16 @@ LOOK = {
     # 2026-09-28, the dark seinen: a fighter 0.66 -> 0.60, the world held
     # lower still (0.62 -> 0.55). WORLD_SATURATION stays 0.42: at 0.32 it
     # greys the souq's fire, the one warm light the world is lit by.
-    "SATURATION": 0.72,
-    "WORLD_SATURATION": 0.55,
+    # 2026-11-09 ("add colors to all game", settled as a richer picture in
+    # the Unreal build): the men 0.72 -> 0.82 and the world 0.55 -> 0.66.
+    # The men's edge is check 5: a rust tee keeps 0.951 of its colour here
+    # against the red's 1.018, a margin of 0.067 where 0.05 is wanted
+    # (0.84 leaves 0.057, 0.86 fails at 0.047). The world rises with them,
+    # still greyer than a man of the same colour (0.76 of his, under 0.9).
+    # The sky keeps 0.42: at 0.44 and at 0.46 "the sky is not an accent"
+    # fails.
+    "SATURATION": 0.82,
+    "WORLD_SATURATION": 0.66,
     # 2026-10-03 ("improve color levels at game"): the men 0.60 -> 0.72 and
     # the world 0.42 -> 0.55, richer; the painted sky keeps 0.42, held under
     # as it was (check 5a: at 0.55 it kept 0.71 of its paint's colour). The
