@@ -5740,6 +5740,45 @@ are still at the old threshold. **Not verified:** no engine has built the
 material (the HLSL takes the same number); a judgement from one scene's
 crops -- the other districts and the title have not been looked at.
 
+## Richer colour -- 2026-11-10
+
+Asked as "add colors to all game", settled as a richer picture, in this
+build only. The look's grade (`Tools/look/anime_look.py`, `LOOK`) holds a
+fighter's colour at `SATURATION` and the world's at `WORLD_SATURATION`:
+the men 0.72 -> 0.82, the world 0.55 -> 0.66. The sky keeps
+`SKY_SATURATION` 0.42. "Grounded, muted colour" in the art direction still
+stands -- the picture is held under what the surfaces are -- a step less
+under than it was.
+
+**How far it could go, measured on the look's own checks.** The men stop
+at check 5, "Kuwait's red keeps its colour where a rust tee is held
+under": the red keeps 1.018 of its colour whatever the number, and a rust
+tee 0.897 at 0.72, 0.951 at 0.82, 0.962 at 0.84 and 0.971 at 0.86, where
+the rule wants the red 0.05 clear -- 0.86 fails, 0.84 passes by 0.007, 0.82
+by 0.017. The sky cannot rise at all: 0.44 and 0.46 both fail "the sky is
+not an accent". The world's own rule ("greyer than a man of the same
+colour", under 0.9 of his) is not the limit -- at 0.66 the world keeps
+0.80 of a man's colour, where it kept 0.77 -- so the world rose by the
+men's own step and no further, to stay about as far under them as it
+was. Going further than this means changing one of those rules, which
+was not asked.
+
+**Measured on the souq fight** (1080 lines, 48 samples, the same render
+before and after): mean chroma C* 13.9 -> 15.3, its 90th percentile 23.6
+-> 27.2, the reddest 1 % unchanged (50.8, Kuwait's red, which was never
+held under); median L* 29.8 -> 29.7. By eye: the firelit ground and the
+skin warmer, the grey kit as grey as it is painted -- the grade gives a
+surface more of its own colour and a grey has none to give.
+`--graded-check` passes: fighter/world contrast 1.72, the fight's range
+4-250 of 255, median L* 29.8.
+
+Checked: the look's checks pass; `--bite --only accent_muted,
+world_as_fighter,grey_pools,neon_men,sky_as_world,one_tint,clipped_pools,
+warm_moon_pools,bright_sky,palette_drift,flat_pools,pools_on_men,
+grey_world_shadows,old_sky,overcast,lit_men` 16 of 16 caught. **Not
+verified:** no engine has built the material (the HLSL takes the same two
+numbers); the pictures are Blender's through the numpy mirror.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
