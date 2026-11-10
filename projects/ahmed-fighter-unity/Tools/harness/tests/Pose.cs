@@ -48,11 +48,15 @@ public static class Pose {
                 public Dictionary<string,Transform> Bones = new Dictionary<string,Transform>(); }
 
     static Rig BuildFighter(string name, Vector3 at) { return BuildFighter(name, at, 1f); }
+    static Rig BuildFighter(string name, Vector3 at, float size) { return BuildFighter(name, at, size, 1f); }
 
     // size: the man against Ahmed. The bones stand at their scaled places and the root
     // is left unscaled, as EnemyFighter.SetStature leaves it (it scales the Mesh child
     // and the controller); the harness's Transform does not compose a parent's scale.
-    static Rig BuildFighter(string name, Vector3 at, float size) {
+    // leftX: which side of the root the _l bones stand on. +1 is this suite's fixture as it
+    // always was; -1 is the other. Which the real mesh imports as cannot be settled without
+    // the engine (the generator's left is Blender's +X, and the axes change hand on the way).
+    static Rig BuildFighter(string name, Vector3 at, float size, float leftX) {
         GameObject go = new GameObject(name);
         go.transform.position = at;
         CharacterController body = go.AddComponent<CharacterController>();
@@ -63,7 +67,7 @@ public static class Pose {
 
         Rig r = new Rig(); r.Root = go;
         for (int side = 0; side < 2; side++) {
-            float sign = side == 0 ? 1f : -1f; string suffix = side == 0 ? "_l" : "_r";
+            float sign = side == 0 ? leftX : -leftX; string suffix = side == 0 ? "_l" : "_r";
             Transform parent = mesh.transform;
             for (int i = 0; i < Chain.GetLength(0); i++) {
                 if (i == 3) parent = mesh.transform;              // the arm starts again at the mesh
@@ -113,15 +117,18 @@ public static class Pose {
         }
     }
 
-    // A man on a flat slab facing -Z (the side the fixture's _l bones are his left for), with a pad.
-    static Rig Fighter(float hz, out StrikePad pad) {
+    // A man on a flat slab facing +Z, with a pad. leftX as BuildFighter's: with +1 (the
+    // fixture as written) the guard sends each fist across to the other side; with -1 it
+    // does not. Both are run where the layout could matter.
+    static Rig Fighter(float hz, out StrikePad pad) { return Fighter(hz, out pad, 1f); }
+    static Rig Fighter(float hz, out StrikePad pad, float leftX) {
         Scene.Reset(); Scene.DeltaTime = 1f / hz;
         Slab("Ground", new Vector3(0f, -0.5f, 0f), new Vector3(2000f, 1f, 2000f));
-        Rig r = BuildFighter("Ahmed", Vector3.zero);
-        pad = r.Root.AddComponent<StrikePad>(); pad.F = r.Fighter; pad.Way = new Vector3(0f, 0f, -1f);
+        Rig r = BuildFighter("Ahmed", Vector3.zero, 1f, leftX);
+        pad = r.Root.AddComponent<StrikePad>(); pad.F = r.Fighter; pad.Way = new Vector3(0f, 0f, 1f);
         typeof(Fighter).GetMethod("InitialiseVitals", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
             .Invoke(r.Fighter, new object[] { 100f, 9999f });
-        r.Fighter.FaceTowards(new Vector3(0f, 0f, -10f));
+        r.Fighter.FaceTowards(new Vector3(0f, 0f, 10f));
         Scene.Step(4);
         return r;
     }
@@ -132,7 +139,10 @@ public static class Pose {
 
     // the largest move of the striking limb's end in one frame over a strike; first: on the frame it starts
     static float Throw(float hz, string row, bool fromGuard, float hitAt, out float first, out float frozenMove, out float whole) {
-        StrikePad pad; Rig r = Fighter(hz, out pad);
+        return Throw(hz, row, fromGuard, hitAt, out first, out frozenMove, out whole, 1f);
+    }
+    static float Throw(float hz, string row, bool fromGuard, float hitAt, out float first, out float frozenMove, out float whole, float leftX) {
+        StrikePad pad; Rig r = Fighter(hz, out pad, leftX);
         string bone = StrikeBone(row);
         if (fromGuard) { pad.HoldBlock = true; Scene.Step((int)Math.Round(hz * 0.5f)); }
         else Scene.Step((int)Math.Round(hz * 0.1f));
@@ -171,17 +181,18 @@ public static class Pose {
         // against 22.0 for the same jab from hands down).
         float f0, fz, wh;
         bool leaves = true; float worstRatio = 0f;
-        foreach (string row in new[] { "Jab", "Cross", "Hook" })
-            foreach (float hz in new[] { 30f, 60f, 120f }) {
-                float fromRest = Throw(hz, row, false, -1f, out f0, out fz, out wh);
-                float fromGuard = Throw(hz, row, true, -1f, out f0, out fz, out wh);
-                worstRatio = Math.Max(worstRatio, fromGuard / fromRest);
-                if (fromGuard > 1.1f * fromRest) leaves = false;
-                if (hz == 120f) Console.WriteLine("  " + row + " at 120 Hz: the fist's largest frame is " + (fromGuard * 100).ToString("0.0")
-                    + " cm out of the guard, " + (fromRest * 100).ToString("0.0") + " cm from hands down");
-            }
+        foreach (float leftX in new[] { 1f, -1f })
+            foreach (string row in new[] { "Jab", "Cross", "Hook" })
+                foreach (float hz in new[] { 30f, 60f, 120f }) {
+                    float fromRest = Throw(hz, row, false, -1f, out f0, out fz, out wh, leftX);
+                    float fromGuard = Throw(hz, row, true, -1f, out f0, out fz, out wh, leftX);
+                    worstRatio = Math.Max(worstRatio, fromGuard / fromRest);
+                    if (fromGuard > 1.1f * fromRest) leaves = false;
+                    if (hz == 120f) Console.WriteLine("  " + row + " at 120 Hz" + (leftX > 0f ? "" : " (the other layout)") + ": the fist's largest frame is "
+                        + (fromGuard * 100).ToString("0.0") + " cm out of the guard, " + (fromRest * 100).ToString("0.0") + " cm from hands down");
+                }
         Check(leaves, "a punch pressed with the guard up leaves from the guard: no frame of it faster than 1.1 x the same punch from hands down ("
-              + worstRatio.ToString("0.00") + " x at worst; jab, cross and hook at 30, 60 and 120 Hz)");
+              + worstRatio.ToString("0.00") + " x at worst; jab, cross and hook at 30, 60 and 120 Hz, either layout of the arms)");
         {
             // ...and it lands where it always did
             Vector3[] at = new Vector3[2];
@@ -191,7 +202,7 @@ public static class Pose {
                 pad.Press = "Jab"; Scene.Step(1 + (int)Math.Round(60f * (jab.startup + 0.5f * jab.active)));
                 at[g] = r.Bones["hand_l"].position;
             }
-            Check((at[0] - at[1]).magnitude < 1e-3f && at[0].z < -0.5f, "...and at its contact frame the fist is where the punch from hands down has it");
+            Check((at[0] - at[1]).magnitude < 1e-3f && at[0].z > 0.5f, "...and at its contact frame the fist is where the punch from hands down has it");
         }
 
         // (2) hit in the middle of his own swing. Until 2026-11-10 the limb was back at the
@@ -235,6 +246,111 @@ public static class Pose {
                 + (worstFirst * 100).ToString("0.0") + " cm at most on the kick's first frame, " + (sum / 24f * 100).ToString("0.0") + " on average");
         }
         Check(stays, "a kick pressed out of a walk leaves from where the foot stands: under 8 cm on the kick's first frame, at 30, 60 and 120 Hz");
+        Scene.DeltaTime = 1f / 60f;
+
+        // ------------------------------------------------- 2026-11-10: the turn
+        Console.WriteLine("\nTURN");
+        {
+            // pure: a half turn is never more than TurnMaxDegrees a second, lands the same at any rate, arrives
+            float[] at02 = new float[3]; bool capped = true; int n = 0;
+            foreach (float hz in new[] { 30f, 60f, 120f }) {
+                float y = 0f, t = 0f;
+                while (t < 0.2f - 1e-4f) {
+                    float was = y; y = FighterIK.TurnLag(y, 180f, 1f / hz, false); t += 1f / hz;
+                    if (Math.Abs(y - was) > FighterIK.TurnMaxDegrees / hz + 1e-3f) capped = false;
+                }
+                at02[n++] = y;
+            }
+            Console.WriteLine("  a half turn, 0.2 s on: " + at02[0].ToString("0.0") + " / " + at02[1].ToString("0.0") + " / " + at02[2].ToString("0.0") + " degrees at 30 / 60 / 120 Hz");
+            Check(capped, "a half turn is drawn no faster than TurnMaxDegrees a second: 36, 18 and 9 degrees a frame at 30, 60 and 120 Hz");
+            Check(Math.Abs(at02[0] - at02[1]) < 6f && Math.Abs(at02[2] - at02[1]) < 3f && at02[1] > 150f, "...and is in about the same place 0.2 s on at any frame rate");
+            float end = 0f; for (int i = 0; i < 60; i++) end = FighterIK.TurnLag(end, 180f, 1f / 60f, false);
+            float quick = FighterIK.TurnLag(0f, 180f, 1f / 60f, true), slow = FighterIK.TurnLag(0f, 180f, 1f / 60f, false);
+            Check(Math.Abs(end - 180f) < 1e-3f && FighterIK.TurnLag(40f, 180f, 0f, false) == 40f, "...it arrives, and a frame of no time turns nothing");
+            Check(Math.Abs(quick - 3f * slow) < 1e-3f, "...three times quicker inside an attack");
+            float round = FighterIK.TurnLag(170f, -170f, 1f / 60f, false), back = FighterIK.TurnLag(-170f, 170f, 1f / 60f, false);
+            Check(round > 170f && round < 190f && back < -170f && back > -190f
+                  && Math.Abs(FighterIK.WrapDegrees(370f) - 10f) < 1e-4f && Math.Abs(FighterIK.WrapDegrees(-190f) - 170f) < 1e-4f,
+                  "...and it goes the shorter way round, either way");
+        }
+        foreach (float leftX in new[] { 1f, -1f }) {
+            // through the rig: he stands, and is turned on the spot as FaceTowards turns him
+            string lay = leftX > 0f ? "" : " (the other layout)";
+            foreach (float deg in new[] { 180f, 90f, 45f }) {
+                bool crossed = false; float firstTurn = 0f, offL = 0f, offR = 0f, worstRate = 0f, closest = 1f;
+                foreach (float hz in new[] { 30f, 60f, 120f }) {
+                    StrikePad pad; Rig r = Fighter(hz, out pad, leftX);
+                    Scene.Step((int)Math.Round(hz * 0.3f));
+                    Transform mesh = r.Root.transform.Find("Mesh");
+                    Vector3 was = r.Bones["upperarm_l"].position - r.Bones["upperarm_r"].position;
+                    float rad = deg * Mathf.Deg2Rad;
+                    r.Fighter.FaceTowards(new Vector3(10f * Mathf.Sin(rad), 0f, 10f * Mathf.Cos(rad)));
+                    int frames = (int)Math.Round(hz);
+                    for (int i = 1; i <= frames; i++) {
+                        Scene.Step();
+                        Vector3 sh = r.Bones["upperarm_l"].position - r.Bones["upperarm_r"].position;
+                        float turned = Vector3.Angle(new Vector3(was.x, 0f, was.z), new Vector3(sh.x, 0f, sh.z));
+                        worstRate = Math.Max(worstRate, turned * hz);
+                        if (i == 1 && hz == 60f) firstTurn = turned;
+                        was = sh;
+                        // crossed: the left foot on the right of the right foot, across the body as it is drawn
+                        Vector3 across = new Vector3(sh.x, 0f, sh.z).normalized;
+                        Vector3 apart = r.Bones["foot_l"].position - r.Bones["foot_r"].position; apart.y = 0f;
+                        if (Vector3.Dot(apart, across) < -0.02f) crossed = true;
+                        closest = Math.Min(closest, apart.magnitude);
+                    }
+                    if (hz == 60f) {
+                        offL = Math.Abs(Vector3.Dot(r.Bones["foot_l"].position - r.Bones["thigh_l"].position, new Vector3(1f, 0f, 0f)))
+                             + Math.Abs(Vector3.Dot(r.Bones["foot_l"].position - r.Bones["thigh_l"].position, new Vector3(0f, 0f, 1f)));
+                        offR = Math.Abs(Vector3.Dot(r.Bones["foot_r"].position - r.Bones["thigh_r"].position, new Vector3(1f, 0f, 0f)))
+                             + Math.Abs(Vector3.Dot(r.Bones["foot_r"].position - r.Bones["thigh_r"].position, new Vector3(0f, 0f, 1f)));
+                    }
+                }
+                Console.WriteLine("  turned " + deg.ToString("0") + " degrees on the spot" + lay + ": the shoulders turn " + firstTurn.ToString("0.0")
+                    + " degrees in the first frame at 60 Hz, " + worstRate.ToString("0") + " degrees a second at most; a second on the ankles are "
+                    + (offL * 100).ToString("0.0") + " and " + (offR * 100).ToString("0.0") + " cm from under their hips");
+                Check(worstRate <= FighterIK.TurnMaxDegrees * 1.02f && firstTurn < 20f,
+                      "turned " + deg.ToString("0") + " degrees" + lay + ", the body is drawn round at no more than TurnMaxDegrees a second, under 20 degrees in the first frame at 60 Hz");
+                Check(!crossed, "...and his legs never cross" + lay + " (" + deg.ToString("0") + ")");
+                Check(closest > 0.06f, "...his feet go round with the body, never through each other" + lay + " (" + deg.ToString("0") + ": "
+                      + (closest * 100).ToString("0.0") + " cm apart at the nearest, 16.4 at rest)");
+                Check(offL < 0.035f && offR < 0.035f, "...and a second on both feet have stepped back under him" + lay + " (" + deg.ToString("0") + ")");
+            }
+            {
+                // a guard held through a half turn stays in front of the chest as it is drawn
+                StrikePad pad; Rig r = Fighter(60f, out pad, leftX);
+                pad.HoldBlock = true; Scene.Step(40);
+                r.Fighter.FaceTowards(new Vector3(0f, 0f, -10f));
+                float least = 1f;
+                for (int i = 0; i < 30; i++) {
+                    Scene.Step();
+                    Vector3 sh = r.Bones["upperarm_l"].position - r.Bones["upperarm_r"].position;
+                    // the chest's forward: across the shoulders, turned a quarter; its sign from the first frame (he faced +Z)
+                    Vector3 fwd = new Vector3(-sh.z, 0f, sh.x).normalized * (leftX > 0f ? 1f : -1f);
+                    Vector3 mid = (r.Bones["upperarm_l"].position + r.Bones["upperarm_r"].position) * 0.5f;
+                    foreach (string h in new[] { "hand_l", "hand_r" })
+                        least = Math.Min(least, Vector3.Dot(r.Bones[h].position - mid, fwd));
+                }
+                Check(least > 0.10f, "a guard held through a half turn stays in front of the chest as it is drawn" + lay + " (" + (least * 100).ToString("0.0") + " cm at least)");
+            }
+            {
+                // hit stop holds the turn; put somewhere new, he faces the new way at once
+                StrikePad pad; Rig r = Fighter(60f, out pad, leftX);
+                Scene.Step(10);
+                Vector3 was = r.Bones["upperarm_l"].position - r.Bones["upperarm_r"].position;
+                r.Fighter.Freeze(0.1f);
+                r.Fighter.FaceTowards(new Vector3(0f, 0f, -10f));
+                Scene.Step(4);
+                Vector3 now = r.Bones["upperarm_l"].position - r.Bones["upperarm_r"].position;
+                Check(Vector3.Angle(was, now) < 0.5f, "through hit stop the body is not drawn round" + lay);
+                Scene.Step(60);
+                r.Root.transform.position = new Vector3(8f, 0f, 3f);
+                r.Fighter.FaceTowards(new Vector3(8f, 0f, 13f));
+                Scene.Step();
+                now = r.Bones["upperarm_l"].position - r.Bones["upperarm_r"].position;
+                Check(Vector3.Angle(was, now) < 0.5f, "put somewhere new and turned, he faces the new way on that frame" + lay);
+            }
+        }
         Scene.DeltaTime = 1f / 60f;
     }
 

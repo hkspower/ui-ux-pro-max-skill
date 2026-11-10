@@ -116,6 +116,7 @@ namespace Ahmed.Combat
             }
             _mesh = mesh;
             _meshRest = mesh.localPosition;
+            _meshRestRot = mesh.localRotation;
             _legL = Bind(mesh, "thigh_l", "calf_l", "foot_l");
             _legR = Bind(mesh, "thigh_r", "calf_r", "foot_r");
             _armL = Bind(mesh, "upperarm_l", "lowerarm_l", "hand_l");
@@ -158,28 +159,104 @@ namespace Ahmed.Combat
             return null;
         }
 
+        // ------------------------------------------------------------- the turn
+
+        /// <summary>
+        /// The drawn body comes round after a facing that snapped (2026-11-10,
+        /// after the Unreal build's SaudIK::TurnStep: HipsRate 16, HipsMaxTurn
+        /// 1080 degrees a second, StrikeQuicken 3). Fighter.FaceTowards sets
+        /// the root's rotation at once and the Mesh child followed rigidly: a
+        /// reversed stick, or a punch at a man behind, was 45 to 180 degrees
+        /// for the whole body in one frame, the feet spun on their spots. The
+        /// fight's own facing stays instant -- Fighter.Facing, InHitbox, every
+        /// strike's target; only what is drawn lags.
+        /// </summary>
+        public const float TurnRate = 16f;
+        public const float TurnMaxDegrees = 1080f;
+        public const float TurnStrikeQuicken = 3f;
+        /// <summary>With more than this still to turn, the feet pivot with the
+        /// body (HoldFoot's turning). Steering a walk never lags this far: at
+        /// TurnRate a steady 720 degrees a second trails 45.</summary>
+        public const float TurnStepDegrees = 45f;
+
+        /// <summary>An angle in degrees, in (-180, 180].</summary>
+        public static float WrapDegrees(float a)
+        {
+            a %= 360f;
+            if (a > 180f) { a -= 360f; }
+            if (a <= -180f) { a += 360f; }
+            return a;
+        }
+
+        /// <summary>The drawn yaw a frame on, toward the target's: an
+        /// exponential approach, never faster than TurnMaxDegrees a second,
+        /// three times quicker inside an attack; the shorter way round;
+        /// nothing in a frame of no time. Pure.</summary>
+        public static float TurnLag(float current, float target, float dt, bool striking)
+        {
+            if (dt <= 0f) { return current; }
+            float q = striking ? TurnStrikeQuicken : 1f;
+            float left = WrapDegrees(target - current);
+            if (Mathf.Abs(left) < 0.05f) { return current + left; }
+            float most = TurnMaxDegrees * q * dt;
+            return current + Mathf.Clamp(left * (1f - Mathf.Exp(-TurnRate * q * dt)), -most, most);
+        }
+
+        // The drawn yaw (world, degrees), where the root stood when it was taken, and
+        // the drawn yaw less the root's -- what the Mesh is turned by this frame.
+        private float _yaw;
+        private bool _yawKnown;
+        private Vector3 _yawAt;
+        private float _lag;
+        private Quaternion _meshRestRot = Quaternion.identity;
+
+        /// <summary>A point of the rest pose (the fighter's frame) where the drawn body has it.</summary>
+        private Vector3 RestPoint(Vector3 local)
+        {
+            return transform.TransformPoint(Quaternion.AngleAxis(_lag, Vector3.up) * local);
+        }
+
+        /// <summary>The way the drawn body faces: the fight's facing, less what is still to turn.</summary>
+        private Vector3 DrawnFacing()
+        {
+            return Quaternion.AngleAxis(_lag, Vector3.up) * _fighter.Facing;
+        }
+
         private void LateUpdate()
         {
             Reset(ref _legL); Reset(ref _legR); Reset(ref _armL); Reset(ref _armR);
             RefreshStance();
             _view = new IKDebug.View();
 
+            // The drawn body's yaw, behind the root's: at once on the first frame and
+            // when he is put somewhere new, held through hit stop. Keyed on the root's
+            // own rotation, which is what FaceTowards turns.
+            Vector3 ahead = transform.forward;
+            float rootYaw = Mathf.Atan2(ahead.x, ahead.z) * Mathf.Rad2Deg;
+            if (!_yawKnown || Flat(_yawAt, transform.position) > SnapDrift * _size) { _yaw = rootYaw; _yawKnown = true; }
+            else if (!_fighter.Frozen) { _yaw = TurnLag(_yaw, rootYaw, Time.deltaTime, _fighter.State == FighterState.Attack); }
+            _yawAt = transform.position;
+            _lag = WrapDegrees(_yaw - rootYaw);
+            Quaternion turned = Quaternion.AngleAxis(_lag, Vector3.up);
+            _mesh.localRotation = turned * _meshRestRot;
+
             bool strikeRight;
             bool strikeLeg = StrikingLeg(out strikeRight);
             bool strikeL = strikeLeg && !strikeRight, strikeR = strikeLeg && strikeRight;
             // The ground under each foot first; then the hips come down to
             // the lower one; then the legs are solved from where the hips are.
-            _mesh.localPosition = _meshRest;
+            _mesh.localPosition = turned * _meshRest;
             // his size, off his own hips while they are at rest (SizeOf)
             _size = SizeOf(_legL.Ok ? transform.InverseTransformPoint(_legL.Root.position).y : 0f, _legL.Ok,
                            _legR.Ok ? transform.InverseTransformPoint(_legR.Root.position).y : 0f, _legR.Ok);
             Vector3 targetL, targetR;
             // (each foot is told how far the other has been carried, for the settle)
-            float driftL = _holdL.Held ? Flat(_holdL.Anchor, transform.TransformPoint(_legL.EndRestLocal)) : 0f;
-            float driftR = _holdR.Held ? Flat(_holdR.Anchor, transform.TransformPoint(_legR.EndRestLocal)) : 0f;
+            float driftL = _holdL.Held ? Flat(_holdL.Anchor, RestPoint(_legL.EndRestLocal)) : 0f;
+            float driftR = _holdR.Held ? Flat(_holdR.Anchor, RestPoint(_legR.EndRestLocal)) : 0f;
             bool maySettle = _fighter.State != FighterState.Attack;
-            bool onL = FindFoot(ref _legL, ref _holdL, _holdR.Stepping, strikeL, maySettle, driftR, ref _view.FootL, out targetL);
-            bool onR = FindFoot(ref _legR, ref _holdR, _holdL.Stepping, strikeR, maySettle, driftL, ref _view.FootR, out targetR);
+            bool turning = Mathf.Abs(_lag) > TurnStepDegrees;
+            bool onL = FindFoot(ref _legL, ref _holdL, _holdR.Stepping, strikeL, maySettle, driftR, turning, ref _view.FootL, out targetL);
+            bool onR = FindFoot(ref _legR, ref _holdR, _holdL.Stepping, strikeR, maySettle, driftL, turning, ref _view.FootR, out targetR);
             float rootY = transform.position.y;
             float want = HipDrop(onL && !strikeL, _view.FootL.Point.y - rootY, onR && !strikeR, _view.FootR.Point.y - rootY);
             // ... and far enough that each standing leg reaches its foot where the hold has it (ReachDrop)
@@ -326,7 +403,7 @@ namespace Ahmed.Combat
         /// </summary>
         public static Vector3 HoldFoot(ref FootHold h, bool otherSteps, Vector3 rest, bool striking,
                                        bool frozen, float dt, float size, out float lift,
-                                       bool maySettle = false, float otherDrift = 0f)
+                                       bool maySettle = false, float otherDrift = 0f, bool turning = false)
         {
             lift = 0f;
             float s = size > 0f ? size : 1f;
@@ -374,8 +451,12 @@ namespace Ahmed.Combat
                 }
                 bool settle = !frozen && !otherSteps && h.Still >= SettleSeconds && drift > SettleDrift * s
                               && otherDrift <= drift;
+                // a big turn still to come (TurnStepDegrees): the feet go round with the body,
+                // both at once, as soon as it has carried them SettleDrift -- one at a time
+                // and only past StepDrift, a half turn left the legs crossed under him
+                bool pivot = turning && !frozen && drift > SettleDrift * s;
                 bool may = !otherSteps || drift > ForceDrift * s;
-                if (!settle && (frozen || drift <= StepDrift * s || !may))
+                if (!settle && !pivot && (frozen || drift <= StepDrift * s || !may))
                 {
                     return new Vector3(h.Anchor.x, rest.y, h.Anchor.z);
                 }
@@ -418,17 +499,17 @@ namespace Ahmed.Combat
         /// hits it: a ray that begins inside a collider does not see it.
         /// </summary>
         private bool FindFoot(ref Limb leg, ref FootHold hold, bool otherSteps, bool striking, bool maySettle, float otherDrift,
-                              ref IKDebug.FootView view, out Vector3 target)
+                              bool turning, ref IKDebug.FootView view, out Vector3 target)
         {
             target = Vector3.zero;
             if (!leg.Ok) { return false; }
-            Vector3 ankleRest = transform.TransformPoint(leg.EndRestLocal);
+            Vector3 ankleRest = RestPoint(leg.EndRestLocal);     // under the body as it is drawn (TurnLag)
             // held where it was planted, or stepping after him (HoldFoot); the
             // ground is looked for under where the foot is, not where it rests
             // (his own size, off his skeleton: the root this reads was never scaled, 2026-11-10)
             float lift;
             Vector3 place = HoldFoot(ref hold, otherSteps, ankleRest, striking, _fighter.Frozen, Time.deltaTime, _size, out lift,
-                                     maySettle, otherDrift);
+                                     maySettle, otherDrift, turning);
             Vector3 origin = place + Vector3.up * RayStart;
             Vector3 point;
             view.Cast = true;
@@ -454,7 +535,7 @@ namespace Ahmed.Combat
         /// <summary>The leg to its foot's place, from wherever the hips are now.</summary>
         private void SolveFoot(ref Limb leg, Vector3 target)
         {
-            Vector3 pole = leg.Mid.position + _fighter.Facing * 0.6f;
+            Vector3 pole = leg.Mid.position + DrawnFacing() * 0.6f;
             TwoBoneIK.Apply(leg.Root, leg.Mid, leg.End, target, pole);
         }
 
@@ -584,7 +665,9 @@ namespace Ahmed.Combat
             // when the hands are thrown, and a fighter who wears a hook
             // without moving read as one who did not feel it.
             if (_guard <= 0.001f && _fighter.State != FighterState.Hit) { return; }
-            Vector3 facing = _fighter.Facing;
+            // on the drawn body: left on the fight's facing, a guard held through a
+            // half turn stood 26 cm behind the chest until the body had come round
+            Vector3 facing = DrawnFacing();
             Vector3 side = Vector3.Cross(Vector3.up, facing);
             _view.GuardOn = _guard > 0.001f;
             GuardHand(ref _armL, facing, -side, ref _view.GuardL);
@@ -594,7 +677,7 @@ namespace Ahmed.Combat
         private void GuardHand(ref Limb arm, Vector3 facing, Vector3 side, ref Vector3 shown)
         {
             if (!arm.Ok) { return; }
-            Vector3 rest = transform.TransformPoint(arm.EndRestLocal);
+            Vector3 rest = RestPoint(arm.EndRestLocal);
             Vector3 up = GuardTarget(transform.position, facing, side, _size);
             // Tired and hurt: the hands come down as the health does. A
             // fighter with no vitals set is not a dying one -- it is one

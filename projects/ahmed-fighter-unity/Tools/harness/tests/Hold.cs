@@ -84,6 +84,20 @@ public static class HoldTest {
         bool stepsHome = d.Stepping;
         for (int i = 0; i < 20; i++) p = FighterIK.HoldFoot(ref d, false, far, false, false, Dt, 1f, out lift);
         Check(stepsHome && d.Held && Flat(p, far) < 1e-6f, "...and after the kick it steps home");
+        // a big turn still to come: both feet go round with the body as soon as it has carried them
+        // SettleDrift, though the other is stepping; with no turn they wait for StepDrift, one at a time
+        var tn = new FighterIK.FootHold(); FighterIK.HoldFoot(ref tn, false, rest, false, false, Dt, 1f, out lift);
+        Vector3 turnedTo = rest + new Vector3(0.05f, 0f, 0f);       // carried 5 cm: under StepDrift, over SettleDrift
+        FighterIK.HoldFoot(ref tn, true, turnedTo, false, false, Dt, 1f, out lift, false, 0f, false);
+        bool waits = tn.Held && !tn.Stepping;
+        FighterIK.HoldFoot(ref tn, true, turnedTo, false, true, Dt, 1f, out lift, false, 0f, true);
+        bool frozenWaits = tn.Held && !tn.Stepping;
+        FighterIK.HoldFoot(ref tn, true, turnedTo, false, false, Dt, 1f, out lift, false, 0f, true);
+        Check(waits && frozenWaits && tn.Stepping, "in a big turn a foot carried past SettleDrift steps at once, though the other is stepping; not through hit stop, and not without the turn");
+        var tn2 = new FighterIK.FootHold(); FighterIK.HoldFoot(ref tn2, false, rest, false, false, Dt, 1f, out lift);
+        FighterIK.HoldFoot(ref tn2, false, rest + new Vector3(0.02f, 0f, 0f), false, false, Dt, 1f, out lift, false, 0f, true);
+        Check(tn2.Held && !tn2.Stepping, "...and one carried less than SettleDrift stays");
+
         // caught mid-step by the kick, it stops where the step had got to
         var d2 = new FighterIK.FootHold(); FighterIK.HoldFoot(ref d2, false, rest, false, false, Dt, 1f, out lift);
         Vector3 mids = rest;
