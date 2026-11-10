@@ -447,6 +447,48 @@ static void Held()
         Check(Handing.Roll * 180.f / Pi > 10.f, "a foot handed back keeps its heel up until it is the clip's");
     }
 
+    // ---- a guard that stands on a straight leg keeps it (2026-11-10, review F21): the
+    // real guards, each at its man's size, standing still on flat ground for 2 s
+    {
+        const float Sizes[SaudStances::NumStances] = { 1.f, 0.95f, 1.2f, 1.1f, 1.48f };
+        bool bKept = true, bDown = true, bReach = true, bAny = false; float MostRoll = 0.f, Straightest = 0.f;
+        for (int N = 0; N < SaudStances::NumStances; ++N)
+            for (float K : { Sizes[N], 1.f })
+                for (float Hz : { 30.f, 60.f, 120.f })
+                {
+                    const SaudStances::FJoints& J = SaudStances::Stances[N].Joints;
+                    Man M;
+                    for (int S = 0; S < 2; ++S)
+                    {
+                        FFootIn& F = M.In.Foot[S];
+                        F.Hip = J.Hip[S] * K; F.Ankle = J.Ankle[S] * K; F.Ball = J.Ball[S] * K;
+                        F.LegLength = (float)(FVector::Dist(J.Hip[S], J.Knee[S]) + FVector::Dist(J.Knee[S], J.Ankle[S])) * K;
+                        F.AnkleRest = (float)J.Ankle[S].Z * K; F.BallRest = (float)J.Ball[S].Z * K;
+                        FVector Fwd = F.Ball - F.Ankle; F.FootFwd = Fwd.GetSafeNormal(); Fwd.Z = 0.f; F.ToeDir = Fwd.GetSafeNormal();
+                    }
+                    M.In.Down[0] = M.In.Down[1] = 1.f; M.In.bSettle = true;
+                    M.Run(2.f, Hz);
+                    for (int S = 0; S < 2; ++S)
+                    {
+                        const FFootIn& F = M.In.Foot[S];
+                        const float Clip = (float)FVector::Dist(F.Hip, F.Ankle) / F.LegLength;
+                        const float Drawn = (float)FVector::Dist(F.Hip + M.Plan.Pelvis, M.Pose[S].Ankle) / F.LegLength;
+                        Straightest = std::fmax(Straightest, Clip);
+                        if (Clip > HoldReach) bAny = true;
+                        MostRoll = std::fmax(MostRoll, M.Pose[S].Roll * 180.f / Pi);
+                        // drawn as straight as the clip has it, up to the limit; a leg the clip bends is not touched at all
+                        if (Drawn < std::fmin(Clip, HoldReachClip) - 5e-4f) bKept = false;
+                        if (Clip <= HoldReachClip && M.Pose[S].Roll > 1e-4f) bDown = false;
+                        if (Drawn > MaxStretch + 1e-4f) bReach = false;      // past this TwoBone drags the foot off its hold
+                    }
+                }
+        std::printf("  the five guards standing still: the straightest leg is %.2f %% of its length; the most a heel rolls is %.2f degrees\n",
+                    100.f * Straightest, MostRoll);
+        Check(bAny && bKept, "a guard that stands on a straight leg keeps it: drawn as straight as its clip, up to the limit");
+        Check(bDown && bReach && MostRoll < 2.5f,
+              "...its heel stays down where the clip is inside the limit, rolls under 2.5 degrees where it is past it, and no leg is asked for more than the solve gives");
+    }
+
     // ---- a man standing still brings a foot left off its spot back under
     // the clip, one foot at a time; in a swing nothing settles
     {

@@ -947,3 +947,6 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float ShoveSeconds = 0.20f;#co
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float ShoveSeconds = 0.20f;#constexpr float ShoveSeconds = 2.0f;#|the shove outlasts the heaviest blocked blow's braking
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!bGuardUp) Left = 0.f;#if (!bGuardUp \&\& false) Left = 0.f;#|no shove without a guard
 ik|Source/SaudFighter/Combat/SaudIK.h|s#else Left = FMath::Max(0.f, Left - FMath::Max(0.f, Dt));#else Left = FMath::Max(0.f, Left - FMath::Max(1.f / 60.f, Dt));#|the shove lasts ShoveSeconds after the push, whatever the frame rate
+# 2026-11-10, the IK reviewed (F21): a guard that stands on a straight leg keeps it
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Reach = F.LegLength \* FMath::Max(HoldReach, FMath::Min(ClipShare, HoldReachClip));#const float Reach = F.LegLength * FMath::Max(HoldReach, FMath::Min(ClipShare, HoldReach));#|a guard that stands on a straight leg keeps it
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float HoldReachClip = 0.994f;#constexpr float HoldReachClip = 1.2f;#|rolls under 2.5 degrees where it is past it

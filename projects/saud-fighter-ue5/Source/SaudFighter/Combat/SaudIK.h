@@ -402,6 +402,15 @@ namespace SaudIK
 	    its ball: under MaxStretch, so the heel comes up before TwoBone would
 	    drag the foot. */
 	constexpr float HoldReach = 0.985f;
+	/** ...unless the clip itself stands on a leg straighter than that: then
+	    the clip's own share is the limit, up to this -- a hair under
+	    MaxStretch, so the heel still comes up before TwoBone would drag the
+	    foot (2026-11-10, review F21: the street men's, AL-SAQR's and ZAYOS's
+	    guards stand on a lead leg at 99.2 to 99.9 % of its length, and
+	    standing still on flat ground the rule rolled that heel 2.4 to 5.2
+	    degrees and bent the knee to 160 degrees from the guard's 166 to
+	    176). */
+	constexpr float HoldReachClip = 0.994f;
 	/** Seconds to hand a foot back to the clip when the clip lifts it: inside
 	    the first third of the shortest swing the clips have -- the side
 	    walks' 0.27 s, measured (SaudPlants.h); it was 0.10 s, against a
@@ -1095,14 +1104,17 @@ namespace SaudIK
 
 	/** The ankle, its sole's tilt, its roll onto the ball and its toes. A
 	    held leg too short for its foot rolls the heel up, the ball fixed,
-	    as far as the leg needs and no further than MaxHeelRollDegrees; the
+	    as far as the leg needs (HoldReach of its length, or the clip's own
+	    share where the clip is straighter: HoldReachClip) and no further
+	    than MaxHeelRollDegrees; the
 	    roll eases in and out, so a foot that steps never drops its heel. */
 	inline FFootPose FinishFoot(FFootHold& Hold, const FFootPlan& Plan, const FFootIn& F, const FVector& Hip, float Dt)
 	{
 		FFootPose P;
 		P.Tilt = Plan.Tilt;
 		const FVector Back = TurnUpTo(Plan.Tilt, F.Ankle - F.Ball);
-		const float Reach = F.LegLength * HoldReach;
+		const float ClipShare = (float)FVector::Dist(F.Hip, F.Ankle) / FMath::Max(F.LegLength, 1.f);
+		const float Reach = F.LegLength * FMath::Max(HoldReach, FMath::Min(ClipShare, HoldReachClip));
 		float Need = 0.f;
 		if (Hold.Weight > 0.f && FVector::Dist(Plan.Ball + Back, Hip) > Reach)   // held, or handing back
 		{
