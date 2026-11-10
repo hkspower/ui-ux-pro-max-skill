@@ -206,6 +206,47 @@ namespace SaudIK
 		return R;
 	}
 
+	/** A leg whose knee stands this far (cm) or more off its own hip-to-ankle
+	    line keeps that bend's direction exactly; under PoleStraightNone it has
+	    no bend to speak of and takes the sole's forward; between, the two are
+	    blended, so the direction never jumps. The straightest leg in any clip
+	    is Saud's motion-capture walk at the end of its swing, 1.07 cm. */
+	constexpr float PoleStraightFull = 0.5f;
+	constexpr float PoleStraightNone = 0.1f;
+
+	/** The pole a leg is solved toward (2026-11-10, the IK reviewed: "the
+	    leg's pole is the clip's own knee"). TwoBone bends a limb toward
+	    whatever of the pole is left off the NEW root-to-target line. The
+	    pole was the clip's knee itself, a point: with a leg nearly straight,
+	    the feet's pass lifting the foot 3 cm and dropping the hips 3.5 swung
+	    that line past the knee, and what was left pointed backwards -- Saud
+	    walking up the island's 10 degree trail bent a knee 13.7 cm behind
+	    its line, a 31.5 cm jump in a frame, nine times in ten seconds; with
+	    the posture's pelvis roll the knee bowed 14.9 cm sideways instead;
+	    a street man's lead knee went 23 cm to the side with its foot on a
+	    kerb. This is a direction that cannot change side: the leg's OWN
+	    bend -- the knee's offset from its own hip-to-ankle line, as the
+	    pelvis and the posture left the leg -- carried round with the line
+	    onto the hip-to-target line, a leg's length out. Hip, Knee, Ankle:
+	    the leg as it is before the solve; Target: where the ankle goes;
+	    FootFwd: the sole's forward, for a leg with no bend of its own. A
+	    foot the feet did not move gets its own knee back exactly. */
+	inline FVector LegPole(const FVector& Hip, const FVector& Knee, const FVector& Ankle, const FVector& Target,
+	                       const FVector& FootFwd, float LegLength)
+	{
+		const FVector Line = (Ankle - Hip).GetSafeNormal();
+		if (Line.IsNearlyZero()) return Knee;
+		const FVector Own = (Knee - Hip) - Line * FVector::DotProduct(Knee - Hip, Line);
+		const FVector Fwd = FootFwd - Line * FVector::DotProduct(FootFwd, Line);
+		const float Share = FMath::Clamp((static_cast<float>(Own.Size()) - PoleStraightNone) / (PoleStraightFull - PoleStraightNone), 0.f, 1.f);
+		FVector Bend = Own.GetSafeNormal() * Share + Fwd.GetSafeNormal() * (1.f - Share);
+		if (Bend.IsNearlyZero(1e-3f)) Bend = Own.IsNearlyZero(1e-3f) ? Fwd : Own;
+		if (Bend.IsNearlyZero(1e-3f)) return Knee;
+		const FVector NewLine = (Target - Hip).GetSafeNormal();
+		const FVector Swung = NewLine.IsNearlyZero() ? Bend.GetSafeNormal() : Swing(Bend.GetSafeNormal(), Line, NewLine);
+		return Hip + Swung * FMath::Max(LegLength, 1.f);
+	}
+
 	/** Where the end joint goes when the lower segment and the end are one
 	    piece from the middle joint to a tip it carries (a fist square on its
 	    forearm, a foot set on its shin): turned with the lower segment from

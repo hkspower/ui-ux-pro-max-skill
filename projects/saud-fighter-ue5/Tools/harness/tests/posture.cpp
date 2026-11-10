@@ -723,9 +723,209 @@ static void Carried()
     Check(Gap < 1e-3f && Left > 1.f, "posture: the clavicle stays on the upper arm when the chest is turned");
 }
 
+// ---------------------------------------------- the knee keeps its side
+
+/** LegPole (2026-11-10): Saud's motion-capture walk, as the game plays it at
+    his walk tier (153 cm/s), up a slope -- through the feet's pass (StepFeet,
+    FinishFoot), the posture's pelvis turn where it is on, and TwoBone with
+    the pole the proxy now hands it -- and each man's guard with a foot the
+    feet's pass has lifted. The straightest the walk's leg gets is 1.07 cm of
+    bend, at the end of its swing; that is the frame the old pole flipped. */
+static const SaudPlants::FClip* KPlants(const char* Name)
+{
+    for (int I = 0; I < SaudPlants::NumClips; ++I) if (!std::strcmp(SaudPlants::Clips[I].Name, Name)) return &SaudPlants::Clips[I];
+    return nullptr;
+}
+static const StanceClips::FClip* KClip(const char* Name)
+{
+    for (int C = 0; C < StanceClips::NumClips; ++C) if (!std::strcmp(StanceClips::Clips[C].Name, Name)) return &StanceClips::Clips[C];
+    return nullptr;
+}
+static FVector KMix(const FVector& A, const FVector& B, double U) { return A + (B - A) * U; }
+static FJoints KSample(const StanceClips::FClip& C, float Time)
+{
+    const double F = Time * 30.0;
+    int A = (int)std::floor(F); const double U = F - A;
+    A = ((A % C.Frames) + C.Frames) % C.Frames; const int B = (A + 1) % C.Frames;
+    const FJoints& J = C.Frame[A]; const FJoints& K = C.Frame[B];
+    FJoints O;
+    O.Pelvis = KMix(J.Pelvis, K.Pelvis, U);
+    for (int S = 0; S < 2; ++S)
+    {
+        O.Hip[S] = KMix(J.Hip[S], K.Hip[S], U); O.Knee[S] = KMix(J.Knee[S], K.Knee[S], U); O.Ankle[S] = KMix(J.Ankle[S], K.Ankle[S], U);
+        O.Ball[S] = KMix(J.Ball[S], K.Ball[S], U); O.Shoulder[S] = KMix(J.Shoulder[S], K.Shoulder[S], U);
+    }
+    for (int I = 0; I < 3; ++I) O.Spine[I] = KMix(J.Spine[I], K.Spine[I], U);
+    O.Neck = KMix(J.Neck, K.Neck, U); O.Head = KMix(J.Head, K.Head, U); O.HeadSide = KMix(J.HeadSide, K.HeadSide, U).GetSafeNormal();
+    return O;
+}
+/** The knee's offset from its leg's own hip-to-ankle line. */
+static FVector KOff(const FVector& Hip, const FVector& Knee, const FVector& Ankle)
+{
+    const FVector D = (Ankle - Hip).GetSafeNormal();
+    return (Knee - Hip) - D * FVector::DotProduct(Knee - Hip, D);
+}
+static float KAngle(const FVector& A, const FVector& B)
+{
+    return std::acos(std::fmax(-1.0, std::fmin(1.0, FVector::DotProduct(A.GetSafeNormal(), B.GetSafeNormal())))) * 180.f / Pi;
+}
+
+struct FKnees { float Behind = 0.f; float OffBend = 0.f; float Jump = 0.f; float FromClip = 0.f; float OldBehind = 0.f; float OldOffBend = 0.f; };
+
+static FKnees KWalk(float SlopeDeg, float Hz, bool bPosture)
+{
+    const StanceClips::FClip& Clip = *KClip("A_Saud_Mocap_Walk");
+    const SaudPlants::FClip* Plants = KPlants("A_Saud_Mocap_Walk");
+    const FStance& St0 = Stance("Saud");
+    const float Speed = 153.f, Gr = std::tan(SlopeDeg * Pi / 180.f);
+    const FVector Nn = FVector(-Gr, 0.0, 1.0).GetSafeNormal();
+    FFeetState St; FFeetIn In; FPostureState PSt;
+    FFootTrack HT[2], BT[2]; bool bHas = false;
+    In.bWanted = true; In.bSettle = false; In.ReleaseSeconds = ReleaseFor(Plants); In.StepSeconds = ShuffleFor("Saud");
+    FKnees O; const float Dt = 1.f / Hz;
+    float ClipTime = 0.f, X = 0.f, T = 0.f;
+    FVector PrevK[2], PrevC[2]; bool bPrev = false;
+    while (T < 11.f)
+    {
+        X += Speed * Dt; T += Dt;
+        ClipTime += Dt * StrideRateMeasured(Speed, Plants->Stride, 1.f);
+        const FJoints J = KSample(Clip, ClipTime);
+        for (int S = 0; S < 2; ++S)
+        {
+            FFootIn& F = In.Foot[S];
+            F.Hip = J.Hip[S]; F.Ankle = J.Ankle[S]; F.Ball = J.Ball[S];
+            F.LegLength = (float)(FVector::Dist(J.Hip[S], J.Knee[S]) + FVector::Dist(J.Knee[S], J.Ankle[S]));
+            F.AnkleRest = 7.0f; F.BallRest = 2.43f;
+            FVector Fw = F.Ball - F.Ankle; F.FootFwd = Fw.GetSafeNormal(); Fw.Z = 0.0; F.ToeDir = Fw.GetSafeNormal(); F.FootUp = FVector::UpVector;
+        }
+        FBasis Mesh; Mesh.Origin = FVector(X, 0.0, Gr * X);
+        In.Mesh = Mesh;
+        In.Velocity = FVector(Speed, 0.0, 0.0);
+        In.bHold = HoldsFeetMeasured(false, false, Plants->Stride, false, Speed, 1.f);
+        const float LoopT = std::fmod(ClipTime, Clip.Seconds);
+        for (int S = 0; S < 2; ++S) In.Down[S] = ClipFootDown(*Plants, S, LoopT, true) ? 1.f : 0.f;
+        In.ClipSerial = 1; In.ClipTime = LoopT;
+        // the game thread's traces, under where the proxy drew the feet last
+        for (int S = 0; S < 2; ++S)
+        {
+            const FVector Hw = bHas ? HT[S].Ahead(Dt) : ToWorld(In.Mesh, In.Foot[S].Ankle);
+            const FVector Bw = bHas ? BT[S].Ahead(Dt) : ToWorld(In.Mesh, In.Foot[S].Ball);
+            auto Pt = [&](const FVector& W, FGroundPoint& G) { G.bHit = true; G.Point = ToMesh(In.Mesh, FVector(W.X, W.Y, Gr * W.X)); G.Normal = DirToMesh(In.Mesh, Nn); };
+            Pt(Hw, In.Foot[S].HeelGround); Pt(Bw, In.Foot[S].BallGround);
+        }
+        const FFeetPlan Plan = StepFeet(St, In, Dt);
+        // 1. the pelvis: everything rides it
+        FVector Hip[2], Knee[2], Ank[2];
+        for (int S = 0; S < 2; ++S) { Hip[S] = J.Hip[S] + Plan.Pelvis; Knee[S] = J.Knee[S] + Plan.Pelvis; Ank[S] = J.Ankle[S] + Plan.Pelvis; }
+        // 2b. the posture, as the proxy feeds it: its pelvis turn carries the legs
+        if (bPosture)
+        {
+            FJoints P = J;
+            P.Pelvis = J.Pelvis + Plan.Pelvis;
+            for (int I = 0; I < 3; ++I) P.Spine[I] = J.Spine[I] + Plan.Pelvis;
+            P.Neck = J.Neck + Plan.Pelvis; P.Head = J.Head + Plan.Pelvis;
+            for (int S = 0; S < 2; ++S) { P.Hip[S] = Hip[S]; P.Shoulder[S] = J.Shoulder[S] + Plan.Pelvis; P.Ball[S] = Plan.Foot[S].Ball; P.Knee[S] = FVector::ZeroVector; P.Ankle[S] = FVector::ZeroVector; }
+            FPostureIn PIn; PIn.bOn = true; PIn.bTwist = false; PIn.FeetShare = Plan.Alpha; PIn.Gait = 1.f; PIn.Size = 1.f;
+            const FPostureFix Fix = StepPosture(PSt, PIn, P, St0, Dt);
+            for (int K = 0; K < Fix.Num; ++K)
+            {
+                if (Fix.Turn[K].Bone != EPostureBone::Pelvis) continue;
+                const float R = Fix.Turn[K].Degrees * Pi / 180.f;
+                for (int S = 0; S < 2; ++S)
+                {
+                    Hip[S] = P.Pelvis + RotateAbout(Hip[S] - P.Pelvis, Fix.Turn[K].Axis, R);
+                    Knee[S] = P.Pelvis + RotateAbout(Knee[S] - P.Pelvis, Fix.Turn[K].Axis, R);
+                    Ank[S] = P.Pelvis + RotateAbout(Ank[S] - P.Pelvis, Fix.Turn[K].Axis, R);
+                }
+            }
+        }
+        // 3. the legs, as the proxy solves them: the pole LegPole's
+        FTwoBone Leg[2], Old[2]; FFootPose Pose[2];
+        for (int S = 0; S < 2; ++S)
+        {
+            Pose[S] = FinishFoot(St.Hold[S], Plan.Foot[S], In.Foot[S], Hip[S], Dt);
+            const FVector Pole = LegPole(Hip[S], Knee[S], Ank[S], Pose[S].Ankle, In.Foot[S].FootFwd, In.Foot[S].LegLength);
+            Leg[S] = TwoBone(Hip[S], Knee[S], Ank[S], Pose[S].Ankle, Pole, Plan.Alpha);
+            Old[S] = TwoBone(Hip[S], Knee[S], Ank[S], Pose[S].Ankle, Knee[S], Plan.Alpha);       // the pole it had: the clip's knee
+            const FVector BallDrawn = Plan.Foot[S].Ball + (Leg[S].End - Pose[S].Ankle);
+            HT[S].Push(ToWorld(In.Mesh, Leg[S].End), Dt); BT[S].Push(ToWorld(In.Mesh, BallDrawn), Dt);
+        }
+        bHas = true;
+        if (T < 1.f) { bPrev = false; continue; }
+        for (int S = 0; S < 2; ++S)
+        {
+            // where a knee belongs: the leg's own bend, carried round with its line
+            const FVector Own = KOff(Hip[S], Knee[S], Ank[S]);
+            const FVector Want = Swing(Own.GetSafeNormal(), (Ank[S] - Hip[S]).GetSafeNormal(), (Leg[S].End - Hip[S]).GetSafeNormal());
+            const FVector Now = KOff(Hip[S], Leg[S].Mid, Leg[S].End), Was = KOff(Hip[S], Old[S].Mid, Old[S].End);
+            O.Behind = std::fmax(O.Behind, -(float)Now.X);
+            O.OldBehind = std::fmax(O.OldBehind, -(float)Was.X);
+            if (Now.Size() > 3.0) O.OffBend = std::fmax(O.OffBend, KAngle(Now, Want));
+            if (Was.Size() > 3.0) O.OldOffBend = std::fmax(O.OldOffBend, KAngle(Was, Want));
+            if (bPrev) O.Jump = std::fmax(O.Jump, (float)((Leg[S].Mid - PrevK[S]) - (Knee[S] - PrevC[S])).Size());
+            // a foot the feet did not move: the knee the clip's own knee gave as the pole (the
+            // clip's, but for TwoBone's own hold on a leg straighter than MaxStretch)
+            if (FVector::Dist(Pose[S].Ankle, Ank[S]) < 1e-3) O.FromClip = std::fmax(O.FromClip, (float)FVector::Dist(Leg[S].Mid, Old[S].Mid));
+            PrevK[S] = Leg[S].Mid; PrevC[S] = Knee[S];
+        }
+        bPrev = true;
+    }
+    return O;
+}
+
+static void Knees()
+{
+    std::printf("KNEES  (the leg's pole: its own bend, carried round with its line)\n");
+    // ---- the pole itself
+    const FVector Hip(0.0, 0.0, 90.0), Knee(4.0, 1.0, 46.0), Ankle(0.0, 0.0, 6.0), Fwd(1.0, 0.0, 0.0);
+    const FVector Own = KOff(Hip, Knee, Ankle).GetSafeNormal();
+    const FVector P0 = LegPole(Hip, Knee, Ankle, Ankle, Fwd, 88.f) - Hip;
+    Check(KAngle(P0, Own) < 0.01f && Abs((float)P0.Size() - 88.f) < 1e-3f, "the knee: a foot that is not moved has its own bend for a pole, a leg's length out");
+    const FVector Lifted(25.0, 0.0, 20.0);
+    const FVector P1 = LegPole(Hip, Knee, Ankle, Lifted, Fwd, 88.f) - Hip;
+    Check(Abs((float)FVector::DotProduct(P1.GetSafeNormal(), (Lifted - Hip).GetSafeNormal())) < 1e-3f && FVector::DotProduct(P1, Own) > 0.0,
+          "the knee: the bend is carried round with the leg's line, square to the new one, on its own side");
+    {
+        // the old pole on the same leg: the foot lifted in front, the line swings past the knee and the bend flips
+        const FVector Knee1(1.0, 0.0, 46.0);                                    // a leg all but straight, bent 1 cm forward
+        const FTwoBone Was = TwoBone(Hip, Knee1, Ankle, Lifted, Knee1), Now = TwoBone(Hip, Knee1, Ankle, Lifted, LegPole(Hip, Knee1, Ankle, Lifted, Fwd, 88.f));
+        const FVector Side = Swing(FVector(1.0, 0.0, 0.0), (Ankle - Hip).GetSafeNormal(), (Lifted - Hip).GetSafeNormal());
+        const float WasFwd = (float)FVector::DotProduct(KOff(Hip, Was.Mid, Was.End), Side), NowFwd = (float)FVector::DotProduct(KOff(Hip, Now.Mid, Now.End), Side);
+        std::printf("  a leg bent 1 cm forward, its foot lifted in front: the knee %.1f cm forward of its line (%.1f with the clip's knee as the pole)\n", NowFwd, WasFwd);
+        Check(NowFwd > 5.f && WasFwd < -5.f, "the knee: a nearly straight leg whose foot is lifted in front still bends forward");
+    }
+    {
+        // a ruler-straight leg has no bend to keep: the sole's forward; from half a centimetre its own, exactly
+        const FVector Straight(0.02, 0.03, 48.0), Half(0.0, 0.5, 48.0), Mid(0.0, 0.3, 48.0);
+        const FVector A = LegPole(Hip, Straight, Ankle, Ankle, Fwd, 88.f) - Hip, B = LegPole(Hip, Half, Ankle, Ankle, Fwd, 88.f) - Hip, C = LegPole(Hip, Mid, Ankle, Ankle, Fwd, 88.f) - Hip;
+        Check(KAngle(A, Fwd) < 0.5f, "the knee: a ruler-straight leg takes the sole's forward");
+        Check(KAngle(B, FVector(0.0, 1.0, 0.0)) < 0.01f, "the knee: a leg bent half a centimetre keeps its own bend exactly");
+        Check(KAngle(C, Fwd) > 20.f && KAngle(C, FVector(0.0, 1.0, 0.0)) > 20.f, "the knee: between, the two are blended, so the direction never jumps");
+    }
+    // ---- Saud's motion-capture walk up a slope, with and without the posture's pelvis turn
+    FKnees W, F;
+    for (float Hz : { 30.f, 60.f, 120.f })
+        for (float Deg : { 10.2f, 15.f })
+            for (int bPosture = 0; bPosture < 2; ++bPosture)
+            {
+                const FKnees R = KWalk(Deg, Hz, bPosture != 0);
+                W.Behind = std::fmax(W.Behind, R.Behind); W.OffBend = std::fmax(W.OffBend, R.OffBend); W.Jump = std::fmax(W.Jump, R.Jump);
+                W.OldBehind = std::fmax(W.OldBehind, R.OldBehind); W.OldOffBend = std::fmax(W.OldOffBend, R.OldOffBend);
+            }
+    for (float Hz : { 30.f, 60.f, 120.f }) { const FKnees R = KWalk(0.f, Hz, false); F.FromClip = std::fmax(F.FromClip, R.FromClip); F.Behind = std::fmax(F.Behind, R.Behind); }
+    std::printf("  Saud's walk up 10.2 and 15 degrees at 30, 60 and 120 Hz: the knee %.1f cm behind its line at worst, %.1f degrees off its own bend, %.1f cm most in a frame beyond the clip's\n",
+                W.Behind, W.OffBend, W.Jump);
+    std::printf("  (with the clip's knee as the pole, as it was: %.1f cm behind, %.1f degrees off its own bend)\n", W.OldBehind, W.OldOffBend);
+    Check(W.Behind < 1.f, "the knee: walking up a slope it never bends backwards");
+    Check(W.OffBend < 30.f, "the knee: walking up a slope it keeps to its own bend's side, with the posture's pelvis turn and without");
+    Check(W.Jump < 15.f, "the knee: it does not jump from one frame to the next");
+    std::printf("  on the flat: a foot the feet do not move has its knee %.4f cm from where the clip's own knee put it\n", F.FromClip);
+    Check(F.FromClip < 0.01f && F.Behind < 1.f, "the knee: on the flat, a foot the feet do not move keeps the knee the clip's own gave it");
+}
+
 int main()
 {
-    Stances(); Faults(); Limits(); Gate(); Cases(); Gaits(); Carried();
+    Stances(); Faults(); Limits(); Gate(); Cases(); Gaits(); Carried(); Knees();
     std::printf(Fails ? "\n%d FAILED\n" : "\nall posture checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

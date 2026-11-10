@@ -357,7 +357,12 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 			const FQuat FootQ = (FQuat(P.RollAxis, P.Roll) * FQuat::FindBetweenNormals(FVector::UpVector, P.Tilt)
 			                    * Raw.GetComponentSpaceTransform(Legs[S].Foot).GetRotation()).GetNormalized();
 			FLeg L; L.Root = Legs[S].Thigh; L.Mid = Legs[S].Calf; L.End = Legs[S].Foot;
-			SolveLimb(CS, L, P.Ankle, Knee, 1.f, &FootQ, Plan.Alpha);
+			// the pole: the leg's own bend carried round with its line, not the clip's
+			// knee itself, which a nearly straight leg's line could swing past
+			// (SaudIK::LegPole, 2026-11-10: up a slope the knee bent backwards)
+			const FVector AnkleNow = CS.GetComponentSpaceTransform(Legs[S].Foot).GetLocation();
+			const FVector Pole = SaudIK::LegPole(Hip, Knee, AnkleNow, P.Ankle, In.Foot[S].FootFwd, In.Foot[S].LegLength);
+			SolveLimb(CS, L, P.Ankle, Pole, 1.f, &FootQ, Plan.Alpha);
 			FTransform BT = CS.GetComponentSpaceTransform(Legs[S].Ball);   // first read: follows the new foot
 			const FVector ToeNow = BT.GetRotation().RotateVector(Frame.ToeLocal[S]);
 			BT.SetRotation((FQuat::FindBetweenNormals(ToeNow.GetSafeNormal(), P.Toe.GetSafeNormal()) * BT.GetRotation()).GetNormalized());
