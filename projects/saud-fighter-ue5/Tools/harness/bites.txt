@@ -423,6 +423,11 @@ feel|Source/SaudFighter/Combat/SaudFeel.h|s#case EClip::GaitJog: case EClip::Gai
 # 2026-10-03, the guard's shuffle: a block edged along slowly holds and steps its feet
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockShuffleMax = 60.f;#constexpr float BlockShuffleMax = 0.f;#|a block edged along at a guard's pace holds its feet
 ik|Source/SaudFighter/Combat/SaudIK.h|s#GroundSpeed <= BlockShuffleMax \* FMath::Max(Size, 0.1f)#GroundSpeed <= 1e9f * FMath::Max(Size, 0.1f)#|pushed faster it glides
+# 2026-11-10, the IK reviewed: the guard is the blocking flag on a man standing or walking, not a Block state
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return (bBlockingFlag #return ((bBlockingFlag \&\& false) #|a guard is up on the blocking flag while he stands or walks
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return (bBlockingFlag #return ((bBlockingFlag \&\& false) #|a block edged along at 50 cm/s shuffles its feet after it
+ik|Source/SaudFighter/Combat/SaudIK.h|s# \&\& (bStandOrWalk # \&\& (!bStandOrWalk #|none on a man reeling, down or dashing with the flag still set
+ik|Source/SaudFighter/Combat/SaudIK.h|s#\&\& GetUp <= 0.f;#\&\& GetUp <= 1.f;#|none while he gets up
 ik|Source/SaudFighter/Combat/SaudPlants.h|s#\("A_Saud_Mocap_Jog".*", "\)[^"]*\(" } },\)#\1.......................\2#|every motion-capture gait puts each foot down in its loop
 ik|Source/SaudFighter/Combat/SaudIK.h|s#(FootHeightAboveFloor - PlantHeight \* K)#(FootHeightAboveFloor - PlantHeight)#|his foot is planted under his own 14.8 cm
 ik|Source/SaudFighter/Combat/SaudIK.h|s#(Lift - BallUpHeight \* K)#(Lift - BallUpHeight)#|his ball's share of the ground fades over his own heights

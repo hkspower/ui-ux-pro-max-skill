@@ -709,6 +709,23 @@ namespace SaudIK
 		    || (bBlocking && GroundSpeed <= BlockShuffleMax * FMath::Max(Size, 0.1f));
 	}
 
+	/** Whether his guard is up, as the game means it (2026-11-10, the IK
+	    reviewed: "the guard's shuffle never runs in the game"). A guard is
+	    the fighter's blocking flag while he stands or walks; no code ever
+	    puts a fighter in a Block state, and the feet asked for that state
+	    alone, so HoldsFeetMeasured's bBlocking was false for every man in
+	    every frame and a guard edged along at 50 cm/s skated where its own
+	    test has it shuffle. The feet and the block's cover both ask this
+	    now, so the two cannot part again. bStandOrWalk: his state is Idle
+	    or Walk -- a man reeling, down or dashing with the flag still set
+	    (an enemy's brain returns early while he is busy) has no guard up;
+	    bBlockState: a Block state, should one ever be set; GetUp: seconds
+	    of getting up left, the clip that shows before the Block does. */
+	inline bool GuardUp(bool bBlockingFlag, bool bStandOrWalk, bool bBlockState, float GetUp)
+	{
+		return (bBlockingFlag || bBlockState) && (bStandOrWalk || bBlockState) && GetUp <= 0.f;
+	}
+
 	/** One trace's answer, in the mesh's space. */
 	struct FGroundPoint
 	{

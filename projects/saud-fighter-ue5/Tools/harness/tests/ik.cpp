@@ -2115,10 +2115,18 @@ static void Plants()
     Check(HoldsFeetMeasured(false, false, 0.f, true, 55.f) && !HoldsFeetMeasured(false, false, 0.f, true, 130.f)
               && !HoldsFeetMeasured(false, false, 0.f, false, 55.f),
           "a block edged along at a guard's pace holds its feet; pushed faster it glides; nothing else does");
+    // whose guard is up (GuardUp, 2026-11-10): the blocking flag on a man standing or
+    // walking -- the only way the game raises a guard; until today the feet asked for
+    // a Block state nothing sets, and no guard in the game ever shuffled
+    Check(GuardUp(true, true, false, 0.f) && GuardUp(false, false, true, 0.f),
+          "a guard is up on the blocking flag while he stands or walks, or in a Block state");
+    Check(!GuardUp(false, true, false, 0.f) && !GuardUp(true, false, false, 0.f) && !GuardUp(true, true, false, 0.3f),
+          "no guard without the flag, none on a man reeling, down or dashing with the flag still set, none while he gets up");
     {
         // the Block clip walked at 50 cm/s: held, the feet shuffle after it, and a
-        // held ball never slides while it is held
-        Man M; M.In.bHold = HoldsFeetMeasured(false, false, 0.f, true, 50.f);
+        // held ball never slides while it is held -- asked as the engine asks it,
+        // a walking man with the flag set and no Block state
+        Man M; M.In.bHold = HoldsFeetMeasured(false, false, 0.f, GuardUp(true, true, false, 0.f), 50.f);
         int Steps = 0; float Slide = 0.f;
         FVector Was[2] = {M.St.Hold[0].Anchor, M.St.Hold[1].Anchor};
         bool WasHeld[2] = {false, false};

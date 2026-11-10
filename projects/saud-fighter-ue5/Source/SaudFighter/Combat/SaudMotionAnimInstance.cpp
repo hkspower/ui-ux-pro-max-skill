@@ -901,8 +901,13 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 	const bool bStanding = Frame.Velocity.Size() < SaudFeel::WalkThreshold;
 	Frame.bSettleFeet = bStanding && !bAttacking;
 	const SaudPlants::FClip* Newest = NewestPlants();
+	// his guard, as the block's cover asks it (SaudIK::GuardUp, 2026-11-10: this
+	// asked `St == EFighterState::Block`, a state nothing sets, so no guard ever
+	// shuffled); not under a turn clip, which shows before the Block does
+	const bool bGuardUp = SaudIK::GuardUp(Fighter->bBlocking, St == EFighterState::Idle || St == EFighterState::Walk,
+	                                      St == EFighterState::Block, Fighter->GetUpRemaining) && !NewestTurns();
 	Frame.bHoldFeet = Newest ? SaudIK::HoldsFeetMeasured(bAttacking, bStanding, Newest->Stride,
-	                                                     St == EFighterState::Block, Frame.Velocity.Size(), BodyScale)
+	                                                     bGuardUp, Frame.Velocity.Size(), BodyScale)
 	                         : SaudIK::HoldsFeet(bAttacking, bStanding, Back.Stride, Fade.Serial);
 	// a walk crossfading to his guard: the standing foot holds until the last swing lands
 	Frame.bStopping = SaudIK::Stopping(Fade, ClipPlants.GetData(), ClipPlants.Num());
@@ -1089,9 +1094,9 @@ void USaudMotionAnimInstance::UpdateBlock(AFighterBase* Fighter, float DeltaSeco
 {
 	USkeletalMeshComponent* Mesh = GetSkelMeshComponent();
 	const EFighterState St = Fighter->State;
-	const bool bGuarding = bHandsOnContact && Mesh && (Fighter->bBlocking || St == EFighterState::Block)
-		&& (St == EFighterState::Idle || St == EFighterState::Walk || St == EFighterState::Block)
-		&& Fighter->GetUpRemaining <= 0.f;
+	const bool bGuarding = bHandsOnContact && Mesh
+		&& SaudIK::GuardUp(Fighter->bBlocking, St == EFighterState::Idle || St == EFighterState::Walk,
+		                   St == EFighterState::Block, Fighter->GetUpRemaining);
 	const FVector Me = Fighter->GetActorLocation(), MyFacing = Fighter->GetFacing();
 
 	// A blow coming at me: a swing with a striking limb, its box (BoxSlack
