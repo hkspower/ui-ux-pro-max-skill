@@ -122,6 +122,14 @@ public static class IKTest {
         Check(Math.Abs(gR.y - FighterIK.GuardHeight) < 1e-6f && gR.y > FighterIK.ShoulderHeight, "guard sits above the shoulder");
         Check(gR.z > 0.1f, "guard is in front of the fighter");
         Check(Math.Abs(gR.x + gL.x) < 1e-6f && Math.Abs(gR.x) > 0.05f, "hands are either side and symmetric");
+        // a bigger man's guard is bigger (2026-11-10): up, forward and apart by his size from his own root
+        Vector3 at = new Vector3(3f, 1f, -2f);
+        Vector3 gBig = FighterIK.GuardTarget(at, fwd, sideR, 1.55f) - at;
+        Check(Math.Abs(gBig.y - FighterIK.GuardHeight * 1.55f) < 1e-5f && Math.Abs(gBig.z - FighterIK.GuardForward * 1.55f) < 1e-5f
+              && Math.Abs(gBig.x - FighterIK.GuardSpread * 1.55f) < 1e-5f,
+              "a man half again and more Ahmed's size guards that much higher, further forward and wider");
+        Vector3 gNone = FighterIK.GuardTarget(at, fwd, sideR, 0f) - at;
+        Check(Math.Abs(gNone.y - FighterIK.GuardHeight) < 1e-6f && Math.Abs(gNone.z - gR.z) < 1e-6f, "a size of nothing is taken as Ahmed's guard");
         // the arm has to be able to get there: shoulder and wrist from the joint table
         Vector3 shoulderR = new Vector3(0.178f, 1.442f, 0f);
         Vector3 elbowR = new Vector3(0.415f, 1.205f, 0f), wristR = new Vector3(0.601f, 1.019f, 0f);

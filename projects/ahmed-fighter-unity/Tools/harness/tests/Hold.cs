@@ -117,6 +117,123 @@ public static class HoldTest {
         for (int i = 0; i < 120; i++) { dd = FighterIK.EaseDrop(dd, 0.20f, Dt); biggest = Math.Max(biggest, dd - prev); prev = dd; }
         Check(Math.Abs(dd - 0.20f) < 1e-4f && biggest < 0.045f, "it arrives, and never by more than 4.5 cm in a frame (" + (biggest * 100).ToString("0.0") + " cm)");
 
+        // ---- 2026-11-10, the IK reviewed
+        // his size, off his own hips (SizeOf)
+        Check(Math.Abs(FighterIK.SizeOf(0.952f, true, 0.952f, true) - 1f) < 1e-6f, "Ahmed's hips make a size of one");
+        Check(Math.Abs(FighterIK.SizeOf(0.952f * 1.55f, true, 0.952f * 1.55f, true) - 1.55f) < 1e-5f
+              && Math.Abs(FighterIK.SizeOf(0.952f * 0.94f, true, 0f, false) - 0.94f) < 1e-5f,
+              "a man's size is his hips' height against Ahmed's, from whichever legs he has");
+        Check(FighterIK.SizeOf(0f, false, 0f, false) == 1f && FighterIK.SizeOf(0f, true, 0f, true) == 1f
+              && FighterIK.SizeOf(-2f, true, -2f, true) == 1f && FighterIK.SizeOf(float.NaN, true, 1f, true) == 1f,
+              "no legs, or a height that is not one, is taken as Ahmed's size");
+
+        // the reach's drop (ReachDrop): the leg rests straight, so a foot held away from under the hip needs the hips lower
+        const float Span = 0.882f;
+        Check(FighterIK.ReachDrop(Span, Span, 0f, 0f) == 0f, "a standing leg needs no drop");
+        Check(Math.Abs(FighterIK.ReachDrop(Span, Span, 0.12f, 0f) - (Span - (float)Math.Sqrt(Span * Span - 0.12f * 0.12f))) < 1e-6f
+              && FighterIK.ReachDrop(Span, Span, 0.12f, 0f) > 0.008f,
+              "a foot held 12 cm from under the hip brings the hips down by what the leg is short");
+        Check(Math.Abs(FighterIK.ReachDrop(Span, Span, 0f, 0.20f) - 0.20f) < 1e-6f, "ground 20 cm lower under a foot needs 20 cm, as the ground's own drop has it");
+        Check(FighterIK.ReachDrop(Span, Span, 0.95f, 0f) == FighterIK.MaxHipDrop && FighterIK.ReachDrop(Span, Span, 0.5f, 0.3f) == FighterIK.MaxHipDrop,
+              "a foot further than the leg is long, or more than the most, asks the most and no more");
+        Check(FighterIK.ReachDrop(Span, Span, 0f, -0.30f) == 0f && FighterIK.ReachDrop(0f, 0f, 0.1f, 0f) == 0f,
+              "a foot on higher ground never raises the hips, and a leg of no length asks nothing");
+
+        // the hips' step (StepDrop): down at the ground's rate, never less than the reach needs, up slower
+        float s60 = 0f, s30 = 0f, s120 = 0f;
+        for (int i = 0; i < 12; i++) s60 = FighterIK.StepDrop(s60, 0.20f, 0f, 1f / 60f);
+        for (int i = 0; i < 6; i++) s30 = FighterIK.StepDrop(s30, 0.20f, 0f, 1f / 30f);
+        for (int i = 0; i < 24; i++) s120 = FighterIK.StepDrop(s120, 0.20f, 0f, 1f / 120f);
+        Check(Math.Abs(s60 - d60) < 1e-6f && Math.Abs(s60 - s30) < 1e-5f && Math.Abs(s60 - s120) < 1e-5f,
+              "the hips come down to the ground's drop as they did, the same at 30, 60 and 120 Hz");
+        Check(FighterIK.StepDrop(0f, 0.05f, 0.05f, Dt) == 0.05f && FighterIK.StepDrop(0.01f, 0.30f, 0.04f, Dt) >= 0.04f
+              && FighterIK.StepDrop(0f, 0.9f, 0.9f, Dt) == FighterIK.MaxHipDrop,
+              "what a held foot's reach needs is taken at once, and never more than the most");
+        float up60 = 0.05f, up30 = 0.05f, down60 = 0f;
+        for (int i = 0; i < 6; i++) { up60 = FighterIK.StepDrop(up60, 0f, 0f, 1f / 60f); down60 = FighterIK.StepDrop(down60, 0.05f, 0f, 1f / 60f); }
+        for (int i = 0; i < 3; i++) up30 = FighterIK.StepDrop(up30, 0f, 0f, 1f / 30f);
+        Check(Math.Abs(up60 - up30) < 1e-6f && (0.05f - up60) < 0.5f * down60 && up60 < 0.05f,
+              "the hips rise slower than they drop, the same at 30 and 60 Hz (" + ((0.05f - up60) * 100).ToString("0.00") + " cm up in 0.1 s against " + (down60 * 100).ToString("0.00") + " down)");
+        Check(FighterIK.StepDrop(0.07f, 0.02f, 0f, 0f) == 0.07f, "a frame of no time moves nothing");
+
+        // the settle: standing still, a foot left off its place steps back after SettleSeconds
+        {
+            var f = new FighterIK.FootHold(); FighterIK.HoldFoot(ref f, false, rest, false, false, Dt, 1f, out lift, true, 0f);
+            Vector3 off = rest + new Vector3(0f, 0f, 0.08f);          // carried 8 cm: under StepDrift, so no step
+            int stepAt = -1; bool early = false;
+            for (int i = 0; i < 60; i++)
+            {
+                p = FighterIK.HoldFoot(ref f, false, off, false, false, Dt, 1f, out lift, true, 0f);
+                if (f.Stepping && stepAt < 0) { stepAt = i; }
+                if (f.Stepping && (i + 1) * Dt < FighterIK.SettleSeconds - 1e-4f) { early = true; }
+            }
+            Check(stepAt >= 0 && !early && Math.Abs(stepAt * Dt - FighterIK.SettleSeconds) <= 2f * Dt,
+                  "standing still with a foot 8 cm off its place, it steps back after SettleSeconds and not before (" + (stepAt * Dt).ToString("0.000") + " s)");
+            Check(f.Held && Flat(p, off) < 1e-6f, "the settle's step lands on its place");
+
+            var n = new FighterIK.FootHold(); FighterIK.HoldFoot(ref n, false, rest, false, false, Dt, 1f, out lift, false, 0f);
+            for (int i = 0; i < 60; i++) FighterIK.HoldFoot(ref n, false, off, false, false, Dt, 1f, out lift, false, 0f);
+            Check(n.Held && !n.Stepping && Flat(n.Anchor, rest) < 1e-6f, "a man who may not settle (he is attacking) keeps the foot where it is");
+
+            var near = new FighterIK.FootHold(); FighterIK.HoldFoot(ref near, false, rest, false, false, Dt, 1f, out lift, true, 0f);
+            for (int i = 0; i < 60; i++) FighterIK.HoldFoot(ref near, false, rest + new Vector3(0f, 0f, 0.02f), false, false, Dt, 1f, out lift, true, 0f);
+            Check(near.Held && Flat(near.Anchor, rest) < 1e-6f, "a foot 2 cm off, under SettleDrift, is left where it is");
+
+            var fr = new FighterIK.FootHold(); FighterIK.HoldFoot(ref fr, false, rest, false, false, Dt, 1f, out lift, true, 0f);
+            for (int i = 0; i < 60; i++) FighterIK.HoldFoot(ref fr, false, off, false, true, Dt, 1f, out lift, true, 0f);
+            Check(fr.Held && !fr.Stepping && fr.Still == 0f, "hit stop is not standing still: the settle does not count through it");
+            // ... and a foot already due (it was waiting for the other to land) does not start its step in one
+            var due = new FighterIK.FootHold(); FighterIK.HoldFoot(ref due, false, rest, false, false, Dt, 1f, out lift, true, 0f);
+            for (int i = 0; i < 30; i++) FighterIK.HoldFoot(ref due, true, off, false, false, Dt, 1f, out lift, true, 0f);
+            FighterIK.HoldFoot(ref due, false, off, false, true, Dt, 1f, out lift, true, 0f);
+            Check(due.Still >= FighterIK.SettleSeconds && due.Held && !due.Stepping, "frozen, a foot due to settle does not start its step");
+            FighterIK.HoldFoot(ref due, false, off, false, false, Dt, 1f, out lift, true, 0f);
+            Check(due.Stepping, "...and starts it the frame the hit stop ends");
+
+            // creeping: the rest point never stops, so the settle never fires (the ordinary step does, at StepDrift)
+            var cr = new FighterIK.FootHold(); FighterIK.HoldFoot(ref cr, false, rest, false, false, Dt, 1f, out lift, true, 0f);
+            bool crept = false;
+            for (int i = 1; i <= 50; i++)
+            {
+                FighterIK.HoldFoot(ref cr, false, rest + new Vector3(0f, 0f, 0.002f * i), false, false, Dt, 1f, out lift, true, 0f);   // 12 cm/s: 10 cm in all
+                crept |= cr.Stepping;
+            }
+            Check(!crept, "a foot still being carried is not standing still: no settle while he moves");
+
+            // two feet off: the further one first, the other when it has landed
+            var a2 = new FighterIK.FootHold(); var b2 = new FighterIK.FootHold();
+            Vector3 restB = rest + new Vector3(-0.2f, 0f, 0f);
+            FighterIK.HoldFoot(ref a2, false, rest, false, false, Dt, 1f, out lift, true, 0f);
+            FighterIK.HoldFoot(ref b2, false, restB, false, false, Dt, 1f, out lift, true, 0f);
+            Vector3 offA = rest + new Vector3(0f, 0f, 0.05f), offB = restB + new Vector3(0f, 0f, 0.09f);
+            int firstA = -1, firstB = -1; bool together = false;
+            for (int i = 0; i < 90; i++)
+            {
+                float dA = a2.Held ? Flat(a2.Anchor, offA) : 0f, dB = b2.Held ? Flat(b2.Anchor, offB) : 0f;
+                FighterIK.HoldFoot(ref a2, b2.Stepping, offA, false, false, Dt, 1f, out lift, true, dB);
+                FighterIK.HoldFoot(ref b2, a2.Stepping, offB, false, false, Dt, 1f, out lift, true, dA);
+                if (a2.Stepping && firstA < 0) firstA = i;
+                if (b2.Stepping && firstB < 0) firstB = i;
+                together |= a2.Stepping && b2.Stepping;
+            }
+            Check(firstB >= 0 && firstA > firstB && !together && a2.Held && b2.Held && Flat(a2.Anchor, offA) < 1e-6f && Flat(b2.Anchor, offB) < 1e-6f,
+                  "two feet off their places settle one at a time, the further foot first");
+        }
+
+        // put somewhere new while a foot is mid-step: planted there at once, not stepped to from where he was
+        {
+            var m = new FighterIK.FootHold(); FighterIK.HoldFoot(ref m, false, rest, false, false, Dt, 1f, out lift);
+            FighterIK.HoldFoot(ref m, false, far, false, false, Dt, 1f, out lift);
+            FighterIK.HoldFoot(ref m, false, far, false, false, Dt, 1f, out lift);
+            Check(m.Stepping, "(a step is under way)");
+            Vector3 gone = new Vector3(6f, 0.07f, -4f);
+            p = FighterIK.HoldFoot(ref m, false, gone, false, false, Dt, 1f, out lift);
+            Check(m.Held && !m.Stepping && Flat(p, gone) < 1e-6f && lift == 0f, "put somewhere new mid-step, the foot is planted there at once");
+            var big = new FighterIK.FootHold(); FighterIK.HoldFoot(ref big, false, rest, false, false, Dt, 1.5f, out lift);
+            p = FighterIK.HoldFoot(ref big, false, rest + new Vector3(0f, 0f, 1.2f), false, false, Dt, 1.5f, out lift);
+            Check(big.Stepping || Flat(p, rest) < 1e-6f, "a man half again Ahmed's size carried 1.2 m is not put somewhere new (his is 1.5 m)");
+        }
+
         Console.WriteLine(fails == 0 ? "HOLD  all checks passed" : "HOLD  " + fails + " failed");
         return fails == 0 ? 0 : 1;
     }

@@ -54,6 +54,9 @@ namespace Ahmed.Combat
             public Quaternion RootRest, MidRest;
             /// <summary>The end's rest position in the fighter's frame.</summary>
             public Vector3 EndRestLocal;
+            /// <summary>Root to end at rest, and how far the root stands over the
+            /// end: what the hips' drop needs to know of a leg (ReachDrop).</summary>
+            public float Span, Stand;
             public bool Ok;
         }
 
@@ -73,6 +76,33 @@ namespace Ahmed.Combat
         private Vector3 _meshRest;
         private float _hipDrop;
         private bool _hipKnown;
+
+        /// <summary>The man's size against Ahmed's, measured off his own
+        /// skeleton each frame (SizeOf).</summary>
+        private float _size = 1f;
+
+        /// <summary>
+        /// A man's size against Ahmed's: how high his hip joints stand over
+        /// his root, against Ahmed's HipHeight (2026-11-10, the IK reviewed:
+        /// "nothing in the pose grows with the man"). The size was read off
+        /// the root's scale, and the root is never scaled -- SetStature scales
+        /// the Mesh child and the controller -- so it was 1 for every man:
+        /// the bosses raised their guard to their belly, ZAYOS to his hips
+        /// (1.50 m up on a man whose chin is at 2.3), and a giant's feet were
+        /// held by Ahmed's 12 cm. Taken from the bones, not from a scale:
+        /// it holds whatever the imported model's own scale is, and whenever
+        /// SetStature runs. A leg that did not bind does not count; with none,
+        /// or a height that is not a height, the size is Ahmed's. Pure.
+        /// </summary>
+        public static float SizeOf(float hipL, bool okL, float hipR, bool okR)
+        {
+            float sum = 0f; int n = 0;
+            if (okL) { sum += hipL; n++; }
+            if (okR) { sum += hipR; n++; }
+            if (n == 0) { return 1f; }
+            float size = sum / n / HipHeight;
+            return size > 0.01f && size < 100f ? size : 1f;
+        }
 
         private void Start()
         {
@@ -110,6 +140,8 @@ namespace Ahmed.Combat
             limb.RootRest = limb.Root.localRotation;
             limb.MidRest = limb.Mid.localRotation;
             limb.EndRestLocal = transform.InverseTransformPoint(limb.End.position);
+            limb.Span = (limb.End.position - limb.Root.position).magnitude;
+            limb.Stand = limb.Root.position.y - limb.End.position.y;
             return limb;
         }
 
@@ -138,18 +170,30 @@ namespace Ahmed.Combat
             // The ground under each foot first; then the hips come down to
             // the lower one; then the legs are solved from where the hips are.
             _mesh.localPosition = _meshRest;
+            // his size, off his own hips while they are at rest (SizeOf)
+            _size = SizeOf(_legL.Ok ? transform.InverseTransformPoint(_legL.Root.position).y : 0f, _legL.Ok,
+                           _legR.Ok ? transform.InverseTransformPoint(_legR.Root.position).y : 0f, _legR.Ok);
             Vector3 targetL, targetR;
-            bool onL = FindFoot(ref _legL, ref _holdL, _holdR.Stepping, strikeL, ref _view.FootL, out targetL);
-            bool onR = FindFoot(ref _legR, ref _holdR, _holdL.Stepping, strikeR, ref _view.FootR, out targetR);
+            // (each foot is told how far the other has been carried, for the settle)
+            float driftL = _holdL.Held ? Flat(_holdL.Anchor, transform.TransformPoint(_legL.EndRestLocal)) : 0f;
+            float driftR = _holdR.Held ? Flat(_holdR.Anchor, transform.TransformPoint(_legR.EndRestLocal)) : 0f;
+            bool maySettle = _fighter.State != FighterState.Attack;
+            bool onL = FindFoot(ref _legL, ref _holdL, _holdR.Stepping, strikeL, maySettle, driftR, ref _view.FootL, out targetL);
+            bool onR = FindFoot(ref _legR, ref _holdR, _holdL.Stepping, strikeR, maySettle, driftL, ref _view.FootR, out targetR);
             float rootY = transform.position.y;
             float want = HipDrop(onL && !strikeL, _view.FootL.Point.y - rootY, onR && !strikeR, _view.FootR.Point.y - rootY);
+            // ... and far enough that each standing leg reaches its foot where the hold has it (ReachDrop)
+            float atOnce = 0f;
+            if (onL && !strikeL) { Reach(ref _legL, targetL, rootY - _view.FootL.Point.y, rootY, ref want, ref atOnce); }
+            if (onR && !strikeR) { Reach(ref _legR, targetR, rootY - _view.FootR.Point.y, rootY, ref want, ref atOnce); }
+            want = Mathf.Min(want, MaxHipDrop);
             if (!_hipKnown) { _hipDrop = want; _hipKnown = true; }
-            else if (!_fighter.Frozen) { _hipDrop = EaseDrop(_hipDrop, want, Time.deltaTime); }
+            else if (!_fighter.Frozen) { _hipDrop = StepDrop(_hipDrop, want, atOnce, Time.deltaTime); }
             if (_hipDrop > 0f)
             {
                 _mesh.position = _mesh.position + Vector3.down * _hipDrop;
                 _view.HipsOn = _hipDrop > 0.001f;
-                _view.HipsFrom = transform.position + Vector3.up * HipHeight;
+                _view.HipsFrom = transform.position + Vector3.up * (HipHeight * _size);
                 _view.HipsTo = _view.HipsFrom + Vector3.down * _hipDrop;
             }
             if (onL) { SolveFoot(ref _legL, targetL); }
@@ -233,6 +277,12 @@ namespace Ahmed.Combat
             public bool Held, Stepping;
             public Vector3 Anchor, From;   // world; Y not used
             public float T;                // 0..1 through a step
+            /// <summary>The settle (2026-11-10): how long the foot has stood off
+            /// its place without the man moving, and how far off it was last frame.</summary>
+            public float Still, LastDrift;
+            /// <summary>Where its rest point was last frame, once there has been one.</summary>
+            public Vector3 LastRest;
+            public bool Known;
         }
 
         public const float StepDrift = 0.12f;
@@ -240,6 +290,13 @@ namespace Ahmed.Combat
         public const float SnapDrift = 1.0f;
         public const float StepSeconds = 0.14f;
         public const float StepLift = 0.06f;
+        /// <summary>The settle, after the Unreal build's (SaudIK: SettleDrift 3 cm,
+        /// SettleSeconds 0.25 s): standing still, a foot left more than SettleDrift
+        /// off its place steps back under him after SettleSeconds. Still means its
+        /// drift changed less than SettleStill in the frame.</summary>
+        public const float SettleDrift = 0.03f;
+        public const float SettleSeconds = 0.25f;
+        public const float SettleStill = 0.0005f;
 
         private FootHold _holdL, _holdR;
 
@@ -255,14 +312,35 @@ namespace Ahmed.Combat
         /// distance with the man (1 at Ahmed's). Frozen (hit stop) holds a step
         /// where it is. Pure: executed in the harness (tests/Hold.cs).
         /// </summary>
+        /// <summary>
+        /// (2026-11-10, the IK reviewed.) maySettle, otherDrift: the settle --
+        /// a foot a turn or a stop has left off its place (under StepDrift, so
+        /// it never stepped) stood there for as long as he did, 6.7-12.2 cm
+        /// out; now, while he may settle (he is not attacking) and has stood
+        /// still SettleSeconds, a foot more than SettleDrift off steps back,
+        /// the further foot first (otherDrift: how far the other foot is off).
+        /// And a man put somewhere new is re-planted whatever the foot was
+        /// doing: the test was only made of a held foot, so one caught
+        /// mid-step kept stepping from where he had been, the leg flung flat
+        /// toward it for the rest of the step.
+        /// </summary>
         public static Vector3 HoldFoot(ref FootHold h, bool otherSteps, Vector3 rest, bool striking,
-                                       bool frozen, float dt, float size, out float lift)
+                                       bool frozen, float dt, float size, out float lift,
+                                       bool maySettle = false, float otherDrift = 0f)
         {
             lift = 0f;
             float s = size > 0f ? size : 1f;
+            // put somewhere new: the rest point itself jumped
+            bool put = h.Known && Flat(h.LastRest, rest) > SnapDrift * s;
+            h.LastRest = rest; h.Known = true;
             if (striking)
             {
-                h.Held = false; h.Stepping = false;
+                h.Held = false; h.Stepping = false; h.Still = 0f;
+                return rest;
+            }
+            if (put)
+            {
+                h.Held = true; h.Stepping = false; h.Anchor = rest; h.Still = 0f; h.LastDrift = 0f;
                 return rest;
             }
             float drift = Flat(h.Anchor, rest);
@@ -270,29 +348,37 @@ namespace Ahmed.Combat
             {
                 if (drift > SnapDrift * s)
                 {
-                    h.Anchor = rest;
+                    h.Anchor = rest; h.Still = 0f; h.LastDrift = 0f;
                     return rest;
                 }
+                // how long he has stood still with this foot off its place
+                if (!frozen)
+                {
+                    h.Still = maySettle && Mathf.Abs(drift - h.LastDrift) < SettleStill * s ? h.Still + dt : 0f;
+                    h.LastDrift = drift;
+                }
+                bool settle = !frozen && !otherSteps && h.Still >= SettleSeconds && drift > SettleDrift * s
+                              && otherDrift <= drift;
                 bool may = !otherSteps || drift > ForceDrift * s;
-                if (frozen || drift <= StepDrift * s || !may)
+                if (!settle && (frozen || drift <= StepDrift * s || !may))
                 {
                     return new Vector3(h.Anchor.x, rest.y, h.Anchor.z);
                 }
-                h.Held = false; h.Stepping = true; h.From = h.Anchor; h.T = 0f;
+                h.Held = false; h.Stepping = true; h.From = h.Anchor; h.T = 0f; h.Still = 0f;
             }
             if (h.Stepping)
             {
                 if (!frozen) { h.T += dt / StepSeconds; }
                 if (h.T >= 1f)
                 {
-                    h.Stepping = false; h.Held = true; h.Anchor = rest;
+                    h.Stepping = false; h.Held = true; h.Anchor = rest; h.Still = 0f; h.LastDrift = 0f;
                     return rest;
                 }
                 float k = Smooth(h.T);
                 lift = Mathf.Sin(h.T * Mathf.PI) * StepLift * s;
                 return new Vector3(h.From.x + (rest.x - h.From.x) * k, rest.y, h.From.z + (rest.z - h.From.z) * k);
             }
-            h.Held = true; h.Anchor = rest;
+            h.Held = true; h.Anchor = rest; h.Still = 0f; h.LastDrift = 0f;
             return rest;
         }
 
@@ -316,17 +402,18 @@ namespace Ahmed.Combat
         /// The ray starts inside the fighter's own controller and so never
         /// hits it: a ray that begins inside a collider does not see it.
         /// </summary>
-        private bool FindFoot(ref Limb leg, ref FootHold hold, bool otherSteps, bool striking, ref IKDebug.FootView view,
-                              out Vector3 target)
+        private bool FindFoot(ref Limb leg, ref FootHold hold, bool otherSteps, bool striking, bool maySettle, float otherDrift,
+                              ref IKDebug.FootView view, out Vector3 target)
         {
             target = Vector3.zero;
             if (!leg.Ok) { return false; }
             Vector3 ankleRest = transform.TransformPoint(leg.EndRestLocal);
             // held where it was planted, or stepping after him (HoldFoot); the
             // ground is looked for under where the foot is, not where it rests
-            float size = Mathf.Abs(transform.localScale.y);
+            // (his own size, off his skeleton: the root this reads was never scaled, 2026-11-10)
             float lift;
-            Vector3 place = HoldFoot(ref hold, otherSteps, ankleRest, striking, _fighter.Frozen, Time.deltaTime, size, out lift);
+            Vector3 place = HoldFoot(ref hold, otherSteps, ankleRest, striking, _fighter.Frozen, Time.deltaTime, _size, out lift,
+                                     maySettle, otherDrift);
             Vector3 origin = place + Vector3.up * RayStart;
             Vector3 point;
             view.Cast = true;
@@ -339,7 +426,9 @@ namespace Ahmed.Combat
                 return false;
             }
 
-            target = point + Vector3.up * (AnkleHeight + lift);
+            // his own ankle's height over the ground, not Ahmed's 7 cm: flat ground is a
+            // no-op for a man of any size (2026-11-10)
+            target = point + Vector3.up * (leg.EndRestLocal.y + lift);
             view.Hit = true;
             view.Point = point;
             view.Ankle = target;
@@ -380,6 +469,59 @@ namespace Ahmed.Combat
 
         public const float MaxHipDrop = 0.40f;
         public const float HipDropRate = 12f;
+
+        /// <summary>
+        /// How far the hips must come down for a leg to reach a foot that is
+        /// not under its hip (2026-11-10, the IK reviewed: "a held foot is not
+        /// on the floor and does not stay put"). The legs rest straight, so a
+        /// foot the hold keeps Flat metres away along the ground is out of
+        /// reach by the difference, and HipDrop looked at the ground's height
+        /// only: on flat ground the hips never moved, the solver straightened
+        /// the leg toward a target it could not reach, and a held ankle hung
+        /// up to 4.2 cm over the floor and 1.4 off its place at a run. Stand:
+        /// how far the hip stands over the ankle at rest; Span: hip to ankle
+        /// at rest; Below: how much lower than its rest the ankle is wanted.
+        /// A standing leg (Flat 0, Below 0, Stand = Span) needs none. Pure.
+        /// </summary>
+        public static float ReachDrop(float stand, float span, float flat, float below)
+        {
+            if (span <= 0f) { return 0f; }
+            if (flat >= span) { return MaxHipDrop; }
+            return Mathf.Clamp(below + stand - Mathf.Sqrt(span * span - flat * flat), 0f, MaxHipDrop);
+        }
+
+        /// <summary>The hips rise slower than they drop: coming down is what
+        /// puts a foot on the floor; going up can wait. Measured on the suite's
+        /// rig walking at 2.5 and 3.4 m/s, 60 Hz (2026-11-10): rising at the
+        /// drop's own 12 a second the hips bobbed 2.6 cm with every shuffled
+        /// step, 1.7 cm most in a frame; at 6, 1.7 cm; at 3, 1.0 cm and 1.0 in
+        /// a frame -- he runs 4 to 5 cm lower, knees bent, and comes back up
+        /// inside a second of stopping.</summary>
+        public const float HipRiseRate = 3f;
+
+        /// <summary>
+        /// The hips' drop this frame. Down toward Want at HipDropRate, as the
+        /// ground's part always was (a kerb eases); never less than AtOnce,
+        /// the part a held foot's reach needs, which cannot wait a frame or
+        /// the foot is off the floor for it; up at HipRiseRate. Pure.
+        /// </summary>
+        public static float StepDrop(float current, float want, float atOnce, float dt)
+        {
+            float t = Mathf.Max(0f, dt);
+            float rate = want < current ? HipRiseRate : HipDropRate;
+            float eased = current + (want - current) * (1f - Mathf.Exp(-rate * t));
+            return Mathf.Max(eased, Mathf.Min(atOnce, MaxHipDrop));
+        }
+
+        /// <summary>One standing leg's say in the hips' drop: what its foot's
+        /// place needs (ReachDrop), and the part of that the ground's own depth
+        /// does not account for, which is taken at once.</summary>
+        private static void Reach(ref Limb leg, Vector3 target, float groundDeep, float rootY, ref float want, ref float atOnce)
+        {
+            float need = ReachDrop(leg.Stand, leg.Span, Flat(leg.Root.position, target), rootY + leg.EndRestLocal.y - target.y);
+            want = Mathf.Max(want, need);
+            atOnce = Mathf.Max(atOnce, need - Mathf.Max(0f, groundDeep));
+        }
 
         /// <summary>
         /// The nearest thing under a point that is not a fighter.
@@ -438,7 +580,7 @@ namespace Ahmed.Combat
         {
             if (!arm.Ok) { return; }
             Vector3 rest = transform.TransformPoint(arm.EndRestLocal);
-            Vector3 up = GuardTarget(transform.position, facing, side);
+            Vector3 up = GuardTarget(transform.position, facing, side, _size);
             // Tired and hurt: the hands come down as the health does. A
             // fighter with no vitals set is not a dying one -- it is one
             // nobody has told yet -- so it guards fully.
@@ -454,11 +596,15 @@ namespace Ahmed.Combat
         }
 
         /// <summary>Where a raised fist sits. Pure, so the guard's geometry
-        /// can be checked without an engine like everything else here.</summary>
-        public static Vector3 GuardTarget(Vector3 origin, Vector3 facing, Vector3 side)
+        /// can be checked without an engine like everything else here. Size:
+        /// the man's against Ahmed's (SizeOf, 2026-11-10) -- the chin of a man
+        /// half again as tall is half again as high, forward and apart too;
+        /// nothing or less is taken as Ahmed's.</summary>
+        public static Vector3 GuardTarget(Vector3 origin, Vector3 facing, Vector3 side, float size = 1f)
         {
-            return origin + facing * GuardForward + side * GuardSpread
-                 + Vector3.up * GuardHeight;
+            float s = size > 0f ? size : 1f;
+            return origin + (facing * GuardForward + side * GuardSpread
+                 + Vector3.up * GuardHeight) * s;
         }
 
         // ----------------------------------------------------------- strikes

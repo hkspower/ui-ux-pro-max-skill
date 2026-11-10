@@ -49,7 +49,8 @@
 > over `StepSeconds` (0.14 s), lifting `StepLift` (6 cm); one foot at a
 > time unless the standing one is carried `ForceDrift` (30 cm); a jump of
 > `SnapDrift` (1 m) re-plants at once; hit stop holds a step; the striking
-> leg is not held; distances grow with the root's scale. The debug view
+> leg is not held; distances grow with the man's size (the root's scale
+> until 2026-11-10, which is never anything but 1). The debug view
 > draws a held ankle green and a stepping one yellow (the guard moved to
 > violet). Checked by `Tools/harness/tests/Hold.cs` -- walking at 1-2.5
 > m/s a held foot slides 0.000 cm and trails at most 32 cm -- nine
@@ -67,6 +68,40 @@
 > stands on the floor and the leg on the step bends. The debug view draws
 > the drop as a white line. Checked in `tests/Pose.cs`, `Hold.cs` and
 > `IKDebug.cs`; ten sabotages caught by hand.
+>
+> **And, asked 2026-11-10 as "full improve ik" (settled as: all of it, both
+> builds): the review's faults in this port's IK.** The review is
+> `../saud-fighter-ue5/Docs/reviews/2026-11-10-ik/` (F13-F19 and F24 are
+> this port's). Built so far, all in `FighterIK.cs`:
+> - **His size (F15, F19).** The pose read the root's scale, which is
+>   always 1 (`SetStature` scales the Mesh child): the bosses guarded at
+>   their belly, ZAYOS at his hips. `SizeOf` measures the man off his own
+>   hip joints; the guard (`GuardTarget`'s size), the ankle's height (his
+>   own rest height, not Ahmed's 7 cm) and the hold's distances use it.
+>   Strike reach and landing heights stay the row's, as `SetStature`
+>   records. On rigs of 0.94, 1.26 and 1.55: ankles at 6.6 / 8.8 / 10.8
+>   cm, the guard at 1.41 / 1.89 / 2.33 m.
+> - **A held foot on the floor (F13).** The legs rest straight, so a foot
+>   held away from under the hip was out of reach: it hung up to 4.2 cm
+>   over the floor and slid. `ReachDrop` brings the hips down by what the
+>   leg is short, at once (`StepDrop`); the ground's part still eases at
+>   12 a second, and the hips rise at `HipRiseRate` 3 (at 12 they bobbed
+>   2.6 cm with every step at a run; at 3, 1.0 cm). Walking and running
+>   1.0-3.4 m/s at 30/60/120 Hz, three sizes: a held foot 0.00 cm off the
+>   floor, 0.00 cm of slide.
+> - **The settle (F18, first half).** Standing still, a foot left more
+>   than `SettleDrift` (3 cm) off its place steps back after
+>   `SettleSeconds` (0.25 s), the further foot first; not in an attack,
+>   not through hit stop, not while he is still being carried.
+> - **Put somewhere new mid-step (F24).** The re-plant was only made of a
+>   held foot; one caught mid-step kept stepping from where he had been.
+>   It is made of the rest point's own jump now.
+>
+> Checked in `tests/Hold.cs`, `Pose.cs` and `IK.cs`; 23 sabotages caught
+> (on a scratch copy; the list was not kept). The nine and ten older
+> sabotages "caught by hand" were not run again -- their lists were not
+> kept either; the checks they belong to still pass. Nothing has been
+> pressed play on.
 
 Guidance for anyone — person or assistant — working in this directory.
 
