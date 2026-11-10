@@ -673,9 +673,59 @@ static void Gaits()
     Check(Wob < 0.25f * WobBefore, "posture: no wobble frame to frame");
 }
 
+// ------------------------------- the bones a turn of the chain has to set
+
+/** WithBonesBetween (2026-11-10): the stage reads each upper arm, which leaves
+    the arm AND its clavicle in component space, where neither follows the
+    chest any more. A model of exactly that: a bone that is not set stays
+    where it is; a bone that is set moves with the turn. */
+static void Carried()
+{
+    std::printf("CARRIED  (the bones set with a turn of the chain)\n");
+    enum { Root, Pelvis, Sp1, Sp2, Sp3, ClavL, ArmL, ClavR, ArmR, Neck, Head, ThighL, ThighR, Num };
+    const int Parent[Num] = { -1, Root, Pelvis, Sp1, Sp2, Sp3, ClavL, Sp3, ClavR, Sp3, Neck, Pelvis, Pelvis };
+    const int Chain[6] = { Pelvis, Sp1, Sp2, Sp3, Neck, Head };
+    auto ParentOf = [&](int B) { return Parent[B]; };
+    auto IsChain = [&](int B) { for (int C : Chain) { if (C == B) return true; } return false; };
+    std::vector<int> Got;
+    auto Add = [&](int B) { Got.push_back(B); };
+    WithBonesBetween(ArmL, ParentOf, IsChain, Add);
+    Check(Got == std::vector<int>({ ArmL, ClavL }), "posture: an upper arm is set with the clavicle between it and the chest");
+    Got.clear(); WithBonesBetween(ThighR, ParentOf, IsChain, Add);
+    Check(Got == std::vector<int>({ ThighR }), "posture: a thigh, straight under the pelvis, is set alone");
+    Got.clear(); WithBonesBetween(Sp2, ParentOf, IsChain, Add); WithBonesBetween(-1, ParentOf, IsChain, Add);
+    Check(Got.empty(), "posture: a bone of the chain, or no bone, adds nothing");
+    Got.clear(); WithBonesBetween(Root, ParentOf, IsChain, Add);
+    Check(Got == std::vector<int>({ Root }), "posture: the walk up ends at the root");
+
+    // the Street guard's chest turned 8 degrees about up, as the posture turns it. The
+    // clavicle's own end is where it holds the shoulder: set with the arm, it goes with
+    // it; left in component space and not set, it stays, and the arm is off it
+    const FStance& S = Stance("Street");
+    float Gap = 0.f, Left = 0.f;
+    for (int Side = 0; Side < 2; ++Side)
+    {
+        const FVector Pivot = S.Joints.Spine[2], Arm = S.Joints.Shoulder[Side];
+        const float R = 8.f * Pi / 180.f;
+        auto Turn = [&](const FVector& P) { return Pivot + RotateAbout(P - Pivot, Up, R); };
+        std::vector<int> Set;
+        auto Take = [&](int B) { Set.push_back(B); };
+        WithBonesBetween(Side == 0 ? ArmL : ArmR, ParentOf, IsChain, Take);
+        const int ClavBone = Side == 0 ? ClavL : ClavR;
+        bool bClavSet = false;
+        for (int B : Set) bClavSet |= B == ClavBone;
+        const FVector ArmAfter = Turn(Arm);                    // the arm is always set
+        const FVector Tip = bClavSet ? Turn(Arm) : Arm;        // the clavicle's end
+        Gap = std::fmax(Gap, static_cast<float>(FVector::Dist(ArmAfter, Tip)));
+        Left = std::fmax(Left, static_cast<float>(FVector::Dist(ArmAfter, Arm)));
+    }
+    std::printf("  the chest turned 8 degrees: the arm is %.4f cm off its clavicle (set with it), %.2f cm were the clavicle left behind\n", Gap, Left);
+    Check(Gap < 1e-3f && Left > 1.f, "posture: the clavicle stays on the upper arm when the chest is turned");
+}
+
 int main()
 {
-    Stances(); Faults(); Limits(); Gate(); Cases(); Gaits();
+    Stances(); Faults(); Limits(); Gate(); Cases(); Gaits(); Carried();
     std::printf(Fails ? "\n%d FAILED\n" : "\nall posture checks passed\n", Fails);
     return Fails ? 1 : 0;
 }

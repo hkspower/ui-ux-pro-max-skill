@@ -166,8 +166,10 @@ private:
 	void Place(FCSPose<FCompactPose>& CS, const FLeg& L, const FVector& Tip, const SaudIK::FTwoBone& To, bool bEndRigid) const;
 	/** The posture's turns put on the bones (SaudIK::FPostureFix: each about its
 	    own joint, carrying every bone under it). Only the bones in Read --
-	    each already read in component space, so it would not follow its
-	    parent -- are set, parents first; every other bone follows by itself. */
+	    each already in component space, so it would not follow its parent:
+	    the bones the stage read and every bone between one of them and the
+	    chain, which the read converted too (SaudIK::WithBonesBetween) -- are
+	    set, parents first; every other bone follows by itself. */
 	void TurnBones(FCSPose<FCompactPose>& CS, const FCompactPoseBoneIndex (&Turned)[6], const FCompactPoseBoneIndex* Read, int32 NumRead,
 	               const SaudIK::FPostureFix& Fix) const;
 	FCompactPoseBoneIndex Bone(const FBoneContainer& Bones, const FName& Name) const;

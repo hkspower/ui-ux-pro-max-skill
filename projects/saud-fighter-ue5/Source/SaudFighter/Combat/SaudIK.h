@@ -2391,6 +2391,25 @@ namespace SaudIK
 		return M;
 	}
 
+	/** The bones that have to be set with a bone a stage has read (2026-11-10,
+	    the IK reviewed: "the posture stage leaves both clavicles behind").
+	    The engine's pose keeps a bone in component space once it has been
+	    read -- the bone and every bone above it -- and such a bone no longer
+	    follows its parent: whoever turns the parent has to set it. The
+	    posture stage reads the upper arms for the shoulder line, which
+	    converts each clavicle on the way up, and it set the upper arms and
+	    not the clavicles: turning the chest moved each arm off a clavicle
+	    left where it was, up to 4.1 cm on the brisk walk. This walks from
+	    Bone up to the turned chain -- Bone itself, then each bone between,
+	    stopping at the first one IsChain owns (those are set anyway) or at
+	    the root -- and hands each to Add. ParentOf(B): B's parent, under 0
+	    for none. Bones are whatever integers the caller keeps them as. */
+	template <typename FParentOf, typename FIsChain, typename FAdd>
+	inline void WithBonesBetween(int Bone, FParentOf&& ParentOf, FIsChain&& IsChain, FAdd&& Add)
+	{
+		for (int B = Bone, Guard = 0; B >= 0 && Guard < 64 && !IsChain(B); B = ParentOf(B), ++Guard) Add(B);
+	}
+
 	/** The stance a motion set is held to (2026-11-10, the IK reviewed: "the
 	    eight street men get no posture at all"). A fighter's set is his
 	    DT_Fighters row -- Thug, Brawler, Kicker, Grappler, Champ, Runner,

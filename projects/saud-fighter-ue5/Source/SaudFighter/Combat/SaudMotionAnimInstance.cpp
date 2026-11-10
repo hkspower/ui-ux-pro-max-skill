@@ -317,10 +317,29 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 			PIn.Gait = Frame.PostureGait;
 			PIn.Size = Frame.BodyScale;
 			const SaudIK::FPostureFix Fix = SaudIK::StepPosture(Posture, PIn, J, *Frame.Stance, Dt);
-			// every bone read above, which would not follow its parent: the six, the thighs, the upper arms
-			const FCompactPoseBoneIndex Read[10] = { Turned[0], Turned[1], Turned[2], Turned[3], Turned[4], Turned[5],
-				Legs[0].Thigh, Legs[1].Thigh, Arm[0], Arm[1] };
-			TurnBones(CS, Turned, Read, 10, Fix);
+			// every bone the reads above left in component space, which would not follow
+			// its parent: the six, the thighs, the upper arms -- and what lies between an
+			// upper arm and the chain, the clavicles, which reading the arm converted too
+			// (SaudIK::WithBonesBetween, 2026-11-10: they were left behind, the arm set off them)
+			TArray<FCompactPoseBoneIndex, TInlineAllocator<16>> Read;
+			for (int32 I = 0; I < 6; ++I) Read.Add(Turned[I]);
+			auto ParentOf = [&Bones](int B) -> int
+			{
+				const FCompactPoseBoneIndex P = Bones.GetParentBoneIndex(FCompactPoseBoneIndex(B));
+				return P.IsValid() ? P.GetInt() : -1;
+			};
+			auto IsChain = [&Turned](int B) -> bool
+			{
+				for (int32 I = 0; I < 6; ++I) { if (Turned[I].IsValid() && Turned[I].GetInt() == B) return true; }
+				return false;
+			};
+			auto Add = [&Read](int B) { Read.AddUnique(FCompactPoseBoneIndex(B)); };
+			for (int32 S = 0; S < 2; ++S)
+			{
+				if (Legs[S].Thigh.IsValid()) SaudIK::WithBonesBetween(Legs[S].Thigh.GetInt(), ParentOf, IsChain, Add);
+				if (Arm[S].IsValid()) SaudIK::WithBonesBetween(Arm[S].GetInt(), ParentOf, IsChain, Add);
+			}
+			TurnBones(CS, Turned, Read.GetData(), Read.Num(), Fix);
 			if (bNeck) NeckPivot = CS.GetComponentSpaceTransform(Turned[4]).GetLocation();   // the guard's pivot, where the posture put it
 		}
 	}
