@@ -2462,6 +2462,22 @@ namespace SaudIK
 		FVector Ahead(float Dt) const { return Last + Velocity * FMath::Max(0.f, Dt); }
 	};
 
+	/** Whether this frame's ground traces are taken under the mesh's own
+	    feet -- its sockets, which ride the component wherever it is now --
+	    and not where the feet were last drawn and how fast they went
+	    (FFootTrack): on the first frame, on a teleport, and whenever what
+	    was last drawn is not the last update's. A man not rendered is
+	    updated and not evaluated, so his last drawn feet are wherever he was
+	    when he was last seen (2026-11-10, review F23: back in view across a
+	    15 cm kerb his first frame read the ground he had left, hips 16 cm
+	    out, and took 0.2 s to come right; a door's first frame the same).
+	    DrawnClock: the update clock the last drawn feet were evaluated at;
+	    LastUpdateClock: the last update's. */
+	inline bool TraceUnderHim(bool bDrawn, bool bTeleported, double DrawnClock, double LastUpdateClock)
+	{
+		return !bDrawn || bTeleported || DrawnClock != LastUpdateClock;
+	}
+
 	/** A stop: the newest clip stands (measured, striding under
 	    StrideMinSpeed) over a walk still fading out (measured, striding
 	    over it). Unmeasured clips cannot tell, and are not stops. */

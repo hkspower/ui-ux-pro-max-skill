@@ -496,6 +496,7 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 		}
 	}
 	Back.bValid = bLegs;
+	Back.Clock = Frame.Clock;
 	Back.Stride = Feet.Stride;
 	// for the debug view: which feet the IK held, where, and its share
 	for (int32 S = 0; S < 2; ++S)
@@ -703,6 +704,7 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 	FSaudMotionProxy& Proxy = GetProxyOnGameThread<FSaudMotionProxy>();
 	ON_SCOPE_EXIT { Proxy.SetFrame(Frame); };
 	const FSaudFeetBack Back = Proxy.GetBack();     // what last frame's evaluation drew
+	const double LastUpdateClock = Clock;           // ...if it was last frame's: Back.Clock says (SaudIK::TraceUnderHim)
 
 	// The clips' clock. DeltaSeconds is the world's, so a freeze holds it --
 	// except under the title (SetRealTime), where the world is paused.
@@ -793,7 +795,7 @@ void USaudMotionAnimInstance::NativeUpdateAnimation(float InDeltaSeconds)
 	// Put somewhere new -- a door, a respawn -- rather than walked there.
 	const bool bTeleported = bTurnKnown && SaudIK::Teleported(LastLocation, Fighter->GetActorLocation());
 
-	UpdateFeet(Fighter, Back, bTeleported, DeltaSeconds);
+	UpdateFeet(Fighter, Back, bTeleported, SaudIK::TraceUnderHim(Back.bValid, bTeleported, Back.Clock, LastUpdateClock), DeltaSeconds);
 	UpdateStrike(Fighter, DeltaSeconds);       // before the turn: the look's first choice is the strike's man
 	UpdateBlock(Fighter, DeltaSeconds);
 	UpdateTurn(Fighter, bTeleported, DeltaSeconds);
@@ -922,7 +924,7 @@ void USaudMotionAnimInstance::Measure(const USkeletalMeshComponent* Mesh)
 	bMeasured = true;
 }
 
-void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetBack& Back, bool bTeleported, float DeltaSeconds)
+void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetBack& Back, bool bTeleported, bool bTraceUnderHim, float DeltaSeconds)
 {
 	USkeletalMeshComponent* Mesh = GetSkelMeshComponent();
 	UWorld* World = GetWorld();
@@ -1009,9 +1011,12 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 			D = SaudIKDebug::FTraceView();
 			if (!Frame.bFeetWanted) continue;
 			// where the foot will be this frame: where it was drawn plus its own
-			// velocity (SaudIK::FFootTrack) -- a swing at a run is a frame ahead
-			const FVector At = Back.bValid ? (K ? Back.BallTrack[S].Ahead(DeltaSeconds) : Back.HeelTrack[S].Ahead(DeltaSeconds))
-			                               : Mesh->GetSocketLocation(K ? BallBone[S] : FootBone[S]);   // the first frame only
+			// velocity (SaudIK::FFootTrack) -- a swing at a run is a frame ahead.
+			// Under the mesh's own feet instead on the first frame, on a teleport
+			// and when what was drawn is older than the last update (a man not
+			// rendered): the sockets ride the component, so they are under him
+			const FVector At = bTraceUnderHim ? Mesh->GetSocketLocation(K ? BallBone[S] : FootBone[S])
+			                                  : (K ? Back.BallTrack[S].Ahead(DeltaSeconds) : Back.HeelTrack[S].Ahead(DeltaSeconds));
 			const FVector From(At.X, At.Y, FloorZ + TraceUp);
 			const FVector To(At.X, At.Y, FloorZ - TraceDown);
 			FHitResult Hit;

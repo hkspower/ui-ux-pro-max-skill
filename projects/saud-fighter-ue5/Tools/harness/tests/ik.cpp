@@ -161,6 +161,10 @@ struct Man
     FFootTrack HeelTrack[2], BallTrack[2];
     FVector TracedBall[2];       // where this frame's ball trace was taken, world
     FFeetPlan Plan; FFootPose Pose[2];
+    // the update's clock, and the one the feet were last drawn at: a frame updated and
+    // not evaluated (Unseen: a man not rendered) leaves the drawn feet behind
+    double Clock = 0.0, DrawnClock = -1.0;
+    bool bOldTraces = false;     // as the engine traced until 2026-11-10: at the last drawn feet whenever there are any
     Man()
     {
         In.bWanted = true; In.bHold = true;
@@ -173,12 +177,12 @@ struct Man
             In.Foot[S].ToeDir = FVector(1.f, 0.f, 0.f); In.Foot[S].FootFwd = FVector(1.f, 0.f, 0.f); In.Foot[S].FootUp = FVector::UpVector;
         }
     }
-    void Trace(float Dt)
+    void Trace(float Dt, bool bUnderHim)
     {
         for (int S = 0; S < 2; ++S)
         {
-            const FVector H = bHasLast ? HeelTrack[S].Ahead(Dt) : ToWorld(In.Mesh, In.Foot[S].Ankle);
-            const FVector B = bHasLast ? BallTrack[S].Ahead(Dt) : ToWorld(In.Mesh, In.Foot[S].Ball);
+            const FVector H = bUnderHim ? ToWorld(In.Mesh, In.Foot[S].Ankle) : HeelTrack[S].Ahead(Dt);
+            const FVector B = bUnderHim ? ToWorld(In.Mesh, In.Foot[S].Ball) : BallTrack[S].Ahead(Dt);
             TracedBall[S] = B;
             auto Pt = [&](const FVector& Wd, FGroundPoint& G)
             {
@@ -189,10 +193,25 @@ struct Man
             Pt(H, In.Foot[S].HeelGround); Pt(B, In.Foot[S].BallGround);
         }
     }
-    void Step(float Dt)
+    bool UnderHim(double LastUpdateClock) const
     {
+        return bOldTraces ? !bHasLast : TraceUnderHim(bHasLast, In.bTeleported, DrawnClock, LastUpdateClock);
+    }
+    void Step(float FrameDt)
+    {
+        // the game thread: the clock, then the traces
+        const double Last = Clock; Clock += FrameDt;
+        Trace(FrameDt, UnderHim(Last));
+        // the proxy: frames it was not run for are a gap -- its step is the gap, to 0.25 s, and past
+        // MissedSeconds (0.5) the feet start afresh (SaudMotionAnimInstance.cpp)
+        float Dt = FrameDt;
+        if (bHasLast && DrawnClock != Last)
+        {
+            const double Gap = Clock - DrawnClock;
+            if (Gap > 0.5) In.bTeleported = true;
+            Dt = (float)std::fmin(Gap, 0.25);
+        }
         if (In.bTeleported) for (int S = 0; S < 2; ++S) { HeelTrack[S] = FFootTrack(); BallTrack[S] = FFootTrack(); }
-        Trace(Dt);
         Plan = StepFeet(St, In, Dt);
         for (int S = 0; S < 2; ++S)
         {
@@ -206,7 +225,14 @@ struct Man
             BallTrack[S].Push(LastBall[S], Dt);
         }
         bHasLast = true;
+        DrawnClock = Clock;
         In.bTeleported = false;
+    }
+    /** A frame updated and not evaluated: he is not rendered. The traces run; nothing is drawn. */
+    void Unseen(float FrameDt)
+    {
+        const double Last = Clock; Clock += FrameDt;
+        Trace(FrameDt, UnderHim(Last));
     }
     void Run(float Seconds, float Hz = 60.f) { const int N = (int)std::lround(Seconds * Hz); for (int I = 0; I < N; ++I) Step(1.f / Hz); }
     FVector BallW(int S) const { return ToWorld(In.Mesh, Plan.Foot[S].Ball); }
@@ -2672,6 +2698,62 @@ static void Edges()
         FVector Gap = To.End - Other; Gap.Z = 0.f;
         Check((float)Gap.Size() >= 17.9f && (float)Gap.Size() < 18.6f, "a big man's covering glove keeps a big fist's width from the other");
     }
+
+    // ---- a man put somewhere, or back in view, is traced under himself (2026-11-10, review F23)
+    {
+        Check(!TraceUnderHim(true, false, 2.5, 2.5) && TraceUnderHim(false, false, -1.0, 0.0)
+                  && TraceUnderHim(true, true, 2.5, 2.5) && TraceUnderHim(true, false, 2.0, 2.5),
+              "the traces go under the mesh's own feet on the first frame, on a teleport and when what was drawn is older than the last update; else where the feet will be");
+        struct FBack { float Hips = 0.f, Ball = 0.f; int Out = 0; };
+        // he stands on the road, walks 3 m over a kerb while not rendered, and comes back into view standing
+        auto Seen = [](float K, float Hz, float Kerb, bool bOld) -> FBack
+        {
+            Man M; if (K != 1.f) Grow(M, K);
+            M.bOldTraces = bOld;
+            M.Height = [=](float X, float) { return X > 0.f ? Kerb : 0.f; };
+            M.In.bSettle = true;
+            M.In.Mesh = At(FVector(-150.f, 0.f, 0.f), 0.f);
+            M.Run(1.f, Hz);
+            const int N = (int)std::lround(2.f * Hz);
+            for (int I = 1; I <= N; ++I)
+            {
+                const float X = -150.f + 300.f * I / N;
+                M.In.Mesh = At(FVector(X, 0.f, X > 0.f ? Kerb : 0.f), 0.f);
+                M.Unseen(1.f / Hz);
+            }
+            FBack O;
+            for (int I = 0; I < (int)std::lround(Hz); ++I)
+            {
+                M.Step(1.f / Hz);
+                float Ball = 0.f;
+                for (int S = 0; S < 2; ++S) Ball = std::fmax(Ball, (float)std::fabs(M.Plan.Foot[S].Ball.Z - M.In.Foot[S].Ball.Z));
+                if (I == 0) { O.Hips = (float)M.Plan.Pelvis.Z; O.Ball = Ball; }
+                if (std::fabs(M.Plan.Pelvis.Z) > 1.f || Ball > 1.f) ++O.Out;
+            }
+            return O;
+        };
+        bool bRight = true, bWasWrong = true; float WorstHips = 0.f, WorstBall = 0.f, OldHips = 0.f, OldBall = 0.f; int OldOut = 0;
+        for (float K : { 0.95f, 1.f, 1.48f })
+            for (float Hz : { 30.f, 60.f, 120.f })
+                for (float Kerb : { 15.f, -15.f })
+                {
+                    const FBack Now = Seen(K, Hz, Kerb, false), Old = Seen(K, Hz, Kerb, true);
+                    WorstHips = std::fmax(WorstHips, std::fabs(Now.Hips)); WorstBall = std::fmax(WorstBall, Now.Ball);
+                    if (std::fabs(Now.Hips) > 1.f || Now.Ball > 1.f || Now.Out > 0) bRight = false;
+                    if (Old.Out == 0) bWasWrong = false;
+                    if (K == 1.f && Hz == 60.f && Kerb > 0.f) { OldHips = Old.Hips; OldBall = Old.Ball; OldOut = Old.Out; }
+                }
+        std::printf("  back in view over a 15 cm kerb: hips %.2f cm and a ball %.2f cm out at most on the first frame (as it was, up a kerb at 60 Hz: hips %.1f, a ball %.1f, %d frames more than 1 cm out)\n",
+                    WorstHips, WorstBall, OldHips, OldBall, OldOut);
+        Check(bRight && bWasWrong, "a man back in view across a kerb stands right on his first frame: hips and feet within 1 cm, at 30, 60 and 120 Hz, 0.95 to 1.48 of Saud's size");
+        // a door: put 50 m away onto ground 15 cm higher
+        Man D; D.Height = [](float X, float) { return X > 1000.f ? 15.f : 0.f; };
+        D.In.bSettle = true; D.Run(1.f);
+        D.In.Mesh = At(FVector(5000.f, 0.f, 15.f), 0.f); D.In.bTeleported = true;
+        D.Step(1.f / 60.f);
+        float DoorBall = 0.f; for (int S = 0; S < 2; ++S) DoorBall = std::fmax(DoorBall, (float)std::fabs(D.Plan.Foot[S].Ball.Z - D.In.Foot[S].Ball.Z));
+        Check(std::fabs(D.Plan.Pelvis.Z) < 1.f && DoorBall < 1.f, "...and so does a man put through a door, on the frame he arrives");
+    }
 }
 
 // ---- a man of another size (2026-10-03, the bosses: ZAYOS is 1.48 times
@@ -3053,10 +3135,10 @@ static void Loco()
         Man M;
         const FVector N(-std::sin(20.f * Pi / 180.f), 0.f, std::cos(20.f * Pi / 180.f));
         M.Normal = [=](float, float) { return N; };
-        M.Trace(1.f / 60.f);
+        M.Trace(1.f / 60.f, true);
         float Gr = 0.f, Gb = 0.f, Gn = 0.f;
         const bool A = GroundGrade(M.In, FVector(10.f, 0.f, 0.f), Gr), B = GroundGrade(M.In, FVector(-10.f, 0.f, 0.f), Gb);
-        M.Hit = [](float, float) { return false; }; M.Trace(1.f / 60.f);
+        M.Hit = [](float, float) { return false; }; M.Trace(1.f / 60.f, true);
         const bool C = GroundGrade(M.In, FVector(10.f, 0.f, 0.f), Gn);
         Check(A && B && !C && Near(Gr, T20, 1e-3f) && Near(Gb, -T20, 1e-3f), "the ground's grade along the move, from the feet's traces: up a 20 degree ramp 0.36, down it -0.36, none with no ground");
     }

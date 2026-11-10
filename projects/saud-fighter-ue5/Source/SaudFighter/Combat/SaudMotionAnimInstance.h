@@ -115,6 +115,7 @@ struct FSaudIKFrame
 struct FSaudFeetBack
 {
 	bool bValid = false;
+	double Clock = -1.0;        // the update clock this was evaluated at (SaudIK::TraceUnderHim)
 	FVector Heel[2] = { FVector::ZeroVector, FVector::ZeroVector };   // world: foot_l/r as drawn
 	FVector Ball[2] = { FVector::ZeroVector, FVector::ZeroVector };   // world: ball_l/r as drawn
 	// each as drawn and how fast it went: the next traces are taken where it
@@ -325,7 +326,7 @@ private:
 	bool bLookAtThreat = false;
 
 	void Measure(const USkeletalMeshComponent* Mesh);
-	void UpdateFeet(AFighterBase* Fighter, const FSaudFeetBack& Back, bool bTeleported, float DeltaSeconds);
+	void UpdateFeet(AFighterBase* Fighter, const FSaudFeetBack& Back, bool bTeleported, bool bTraceUnderHim, float DeltaSeconds);
 	void UpdateStrike(AFighterBase* Fighter, float DeltaSeconds);
 	void UpdateBlock(AFighterBase* Fighter, float DeltaSeconds);
 	void UpdateTurn(AFighterBase* Fighter, bool bTeleported, float DeltaSeconds);

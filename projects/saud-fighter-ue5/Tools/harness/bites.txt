@@ -955,3 +955,9 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bHave \&\& BlowShows(Blows\[Held\]))
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!bHave \&\& !bFree) return -1;#if (!bHave \&\& !bFree \&\& Num < 0) return -1;#|a held blow that vanishes is let go of before the next is taken
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (S > BestS) { BestS = S; Best = I; }#if (S < BestS) { BestS = S; Best = I; } else if (Best < 0) { BestS = S; Best = I; }#|of two blows coming the one furthest into its swing is taken
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bHave \&\& BlowShows(Blows\[Held\])) return Held;#if (bHave \&\& BlowSchedule(Blows[Held]) >= 1.f) return Held;#|a blow still showing is never cut for another
+# 2026-11-10, the IK reviewed (F23): a man put somewhere, or back in view, is traced under himself (TraceUnderHim)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return !bDrawn .. bTeleported .. DrawnClock != LastUpdateClock;#return !bDrawn \&\& !bTeleported \&\& DrawnClock != LastUpdateClock;#|the traces go under the mesh's own feet on the first frame
+ik|Source/SaudFighter/Combat/SaudIK.h|s#bTeleported .. DrawnClock != LastUpdateClock;#(bTeleported \&\& DrawnClock != LastUpdateClock);#|a man back in view across a kerb stands right on his first frame
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return !bDrawn .. bTeleported .. DrawnClock#return !bDrawn \&\& bTeleported \&\& DrawnClock#|and so does a man put through a door
+ik|Source/SaudFighter/Combat/SaudIK.h|s#DrawnClock != LastUpdateClock;#DrawnClock != LastUpdateClock + 1.0;#|else where the feet will be
+
