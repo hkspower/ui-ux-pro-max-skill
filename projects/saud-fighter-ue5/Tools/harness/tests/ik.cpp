@@ -977,6 +977,63 @@ static void Contact()
         Check(GateAt(45.f, false) > 0.9999f && GateAt(59.9f, false) > 0.9999f && GateAt(90.5f, false) == 0.f
               && GateAt(179.f, false) == 0.f && GateAt(75.f, false) > 0.45f && GateAt(75.f, false) < 0.55f,
               "a leg takes its whole pull within 60 degrees and none past 90: never through the body");
+        // an arm's gate split against his up (2026-11-10): sideways on the 30/55 band, up and
+        // down on a wider one -- a blow brought down onto a shorter man is not a swipe
+        {
+            // the real jabs at their contact frames, read off the clips (the review's reader, the
+            // clips sampled 120 a second), at the clip's own scale: the shoulder and the knuckles
+            struct FJab { const char* Who; FVector Shoulder; FVector Knuckles; float Size; };
+            const FJab Jabs[] = {
+                { "ZAYOS", FVector(16.6f, -16.4f, 136.3f), FVector(78.0f, 0.f, 148.7f), 1.476f },    // his mesh's arm bones over Saud's
+                { "AL-WAHSH", FVector(22.8f, -12.9f, 131.6f), FVector(85.1f, 0.f, 148.8f), 1.20f },
+            };
+            const float Chin = 148.71f;                       // Saud's chin in his guard
+            float Least = 1.f, WholeAt90 = 1.f;
+            for (const FJab& J : Jabs)
+            {
+                for (float D : { 68.f, 90.f, 110.f })         // Saud straight ahead, capsules touching at 68
+                {
+                    const FVector Root = J.Shoulder * J.Size, Tip = J.Knuckles * J.Size, Aim(D - 9.f, 0.f, Chin);
+                    Least = std::fmin(Least, SwingGate(Root, Tip, Aim, true));
+                    // the whole angle on the arm's own band, as the gate was
+                    if (D == 90.f && J.Size > 1.4f)
+                    {
+                        const float Deg = (float)(std::acos(FVector::DotProduct((Tip - Root).GetSafeNormal(), (Aim - Root).GetSafeNormal())) * 180.f / Pi);
+                        WholeAt90 = 1.f - SmoothStep((Deg - SwingFullDegreesArm) / (SwingNoneDegreesArm - SwingFullDegreesArm));
+                    }
+                }
+            }
+            std::printf("  ZAYOS's and AL-WAHSH's jabs at Saud straight ahead at 68, 90 and 110 cm: the gate %.2f at the least (the whole angle gave ZAYOS's %.2f at 90)\n", Least, WholeAt90);
+            Check(Least > 0.9f && WholeAt90 < 0.05f, "a big man's punch at a smaller man straight ahead keeps its pull: coming down is not a swipe");
+            // level with the clip's line it is the gate it always was
+            auto Rise = [](float Deg) { const float R = Deg * Pi / 180.f; return SwingGate(FVector(0.f, 0.f, 0.f), FVector(100.f, 0.f, 0.f), FVector(100.f * std::cos(R), 0.f, -100.f * std::sin(R)), true); };
+            Check(Rise(59.f) > 0.9999f && Rise(86.f) == 0.f && Rise(72.5f) > 0.45f && Rise(72.5f) < 0.55f && Rise(-72.5f) > 0.45f && Rise(-72.5f) < 0.55f,
+                  "up or down an arm takes its whole pull within 60 degrees of its line and none past 85");
+            // a man to the side is still shut out, whatever his height: 60 degrees round, 40 under
+            const float R60 = 60.f * Pi / 180.f, D40 = 40.f * Pi / 180.f;
+            const float SideLow = SwingGate(FVector(0.f, 0.f, 0.f), FVector(100.f, 0.f, 0.f),
+                                            FVector(100.f * std::cos(R60) * std::cos(D40), 100.f * std::sin(R60) * std::cos(D40), -100.f * std::sin(D40)), true);
+            Check(SideLow < 0.6f && GateAt(60.f, true) == 0.f, "a man well to the side is not pulled to, level or lower");
+            // a leg takes the whole angle, as it did; so does an arm whose clip line is all but straight up
+            const FVector Down40(100.f * std::cos(D40), 0.f, -100.f * std::sin(D40));
+            const float U10 = 10.f * Pi / 180.f;
+            const FVector Ahead10(100.f * std::cos(U10), 0.f, 100.f * std::sin(U10));      // a little over level, straight ahead
+            Check(SwingGate(FVector(0.f, 0.f, 0.f), FVector(100.f, 0.f, 0.f), FVector(0.f, 0.f, -100.f), false) == 0.f
+                  && SwingGate(FVector(0.f, 0.f, 0.f), FVector(100.f, 0.f, 0.f), Down40, false) > 0.9999f,
+                  "a leg takes the whole angle as it did");
+            Check(SwingGate(FVector(0.f, 0.f, 0.f), FVector(0.1f, 0.f, 100.f), Ahead10, true) == 0.f
+                  && SwingGate(FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 100.f), Ahead10, true) == 0.f,
+                  "an arm thrown all but straight up has no side: it takes the whole angle");
+            float Jump = 0.f, Last = -1.f;
+            for (float E = 40.f; E <= 90.f; E += 0.25f)           // the clip's line raised from 40 degrees to straight up, the aim the same
+            {
+                const float R = E * Pi / 180.f;
+                const float Gt = SwingGate(FVector(0.f, 0.f, 0.f), FVector(100.f * std::cos(R), 0.f, 100.f * std::sin(R)), Ahead10, true);
+                if (Last >= 0.f) Jump = std::fmax(Jump, std::fabs(Gt - Last));
+                Last = Gt;
+            }
+            Check(Jump < 0.05f, "raising an arm toward straight up, the gate never jumps");
+        }
         float G = 1.f; G = StepGate(G, 0.f, 1.f / 60.f);
         const float One = G;
         for (int I = 0; I < 3; ++I) G = StepGate(G, 0.f, 1.f / 60.f);

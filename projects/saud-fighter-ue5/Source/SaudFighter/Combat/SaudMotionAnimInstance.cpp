@@ -450,7 +450,8 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 				const float Reach = static_cast<float>(FVector::Dist(Root, Mid) + FVector::Dist(Mid, Tip)) * SaudIK::MaxStretch;
 				const FVector Mark = SaudIK::ReachableMark(Root, Reach, Frame.StrikeMark, Frame.StrikeLow, static_cast<float>(Tip.Z));
 				const FVector Aim = SaudIK::MeetPoint(Mark, Root, Frame.StrikeSkin);
-				const float Gate = StrikeGate.Step(SaudIK::SwingGate(Root, Tip, Aim, bArm), Dt);
+				// (an arm's gate split against his up: a blow brought down onto a shorter man is not a swipe, 2026-11-10)
+				const float Gate = StrikeGate.Step(SaudIK::SwingGate(Root, Tip, Aim, bArm, Up), Dt);
 				Place(CS, L, Tip, SaudIK::SolveStrike(Root, Mid, Tip, Aim, Frame.StrikeAlpha * Gate), /*bEndRigid*/ true);
 				if (!bArm)
 				{

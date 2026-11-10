@@ -919,3 +919,11 @@ posture|Source/SaudFighter/Combat/SaudIK.h|s#const FVector Own = (Knee - Hip) - 
 posture|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float PoleStraightFull = 0.5f;#constexpr float PoleStraightFull = 5.f;#|the knee: a leg bent half a centimetre keeps its own bend exactly
 posture|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float PoleStraightNone = 0.1f;#constexpr float PoleStraightNone = 0.499f;#|the knee: between, the two are blended
 posture|Source/SaudFighter/Combat/SaudIK.h|s#FVector Bend = Own.GetSafeNormal() \* Share + Fwd.GetSafeNormal() \* (1.f - Share);#FVector Bend = Own.GetSafeNormal() * (Share + 1.f);#|the knee: a ruler-straight leg takes the sole's forward
+# 2026-11-10, the IK reviewed: an arm's gate split against his up (SwingGate): sideways 30/55, up and down 60/85
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!bArm) return Whole;#return Whole + 0.f * static_cast<float>(Up.Size());#|a big man's punch at a smaller man straight ahead keeps its pull
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float SwingNoneDegreesUp = 85.f;#constexpr float SwingNoneDegreesUp = 1e9f;#|up or down an arm takes its whole pull within 60 degrees of its line and none past 85
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float SwingFullDegreesUp = 60.f;#constexpr float SwingFullDegreesUp = 30.f;#|a big man's punch at a smaller man straight ahead keeps its pull
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return FMath::Lerp(Whole, FMath::Min(GateSide, GateRise), Sided);#return FMath::Lerp(Whole, GateRise + 0.f * GateSide, Sided);#|a man well to the side is not pulled to, level or lower
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Sided = SmoothStep((static_cast<float>(LevelA.Size()) - 0.1f) / 0.2f);#const float Sided = LevelA.Size() > 0.0 ? 1.f : 0.f;#|an arm thrown all but straight up has no side
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Sided = SmoothStep((static_cast<float>(LevelA.Size()) - 0.1f) / 0.2f);#const float Sided = LevelA.Size() > 0.2 ? 1.f : 0.f;#|raising an arm toward straight up, the gate never jumps
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const FVector Raised = LevelA.GetSafeNormal() \* FMath::Sqrt(FMath::Max(0.f, 1.f - UpB \* UpB)) + U \* UpB;#const FVector Raised = A;#|a big man's punch at a smaller man straight ahead keeps its pull

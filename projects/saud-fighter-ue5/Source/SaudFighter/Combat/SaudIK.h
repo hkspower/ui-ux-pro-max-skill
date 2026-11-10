@@ -1300,7 +1300,28 @@ namespace SaudIK
 	constexpr float SwingFullDegreesLeg = 60.f;
 	constexpr float SwingNoneDegreesLeg = 90.f;
 
-	inline float SwingGate(const FVector& Root, const FVector& ClipTip, const FVector& Target, bool bArm)
+	/** An arm's gate, up and down (2026-11-10, the IK reviewed: "a big man's
+	    punch gets no pull toward a smaller man inside his reach"). A swipe
+	    is an arm swung round the shoulder, sideways; a punch thrown level
+	    that has to come down onto a shorter man's chin is not one. ZAYOS's
+	    jab is authored to land at Saud's chin height at the clip's scale; on
+	    his body, 1.476 of Saud's, the fist is 219 cm up and Saud's chin 149,
+	    so straight ahead at 90 cm the aim is 54 degrees under the clip's
+	    line and the whole angle gave the blow no pull at all (0.01). Up or
+	    down an arm takes its whole pull within 60 degrees of its line and
+	    none past 85 (the review's probe: full to 60, none past 85). */
+	constexpr float SwingFullDegreesUp = 60.f;
+	constexpr float SwingNoneDegreesUp = 85.f;
+
+	/** Up: the fighter's up, in the space the points are in. For an arm the
+	    angle is split against it (2026-11-10): the sideways part -- the
+	    clip's line taken to the aim's own elevation, against the aim -- on
+	    the 30/55 band, the difference in elevation on the 60/85 band, and
+	    the gate is the lesser of the two. A clip line that is all but
+	    straight up or down has no side to speak of and takes the whole
+	    angle, as a leg always does; the two are blended between. */
+	inline float SwingGate(const FVector& Root, const FVector& ClipTip, const FVector& Target, bool bArm,
+	                       const FVector& Up = FVector::UpVector)
 	{
 		const FVector A = (ClipTip - Root).GetSafeNormal(), B = (Target - Root).GetSafeNormal();
 		if (A.IsNearlyZero() || B.IsNearlyZero()) return 0.f;
@@ -1308,7 +1329,24 @@ namespace SaudIK
 		const float Deg = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(Dot, -1.f, 1.f)));
 		const float Full = bArm ? SwingFullDegreesArm : SwingFullDegreesLeg;
 		const float None = bArm ? SwingNoneDegreesArm : SwingNoneDegreesLeg;
-		return 1.f - SmoothStep((Deg - Full) / (None - Full));
+		const float Whole = 1.f - SmoothStep((Deg - Full) / (None - Full));
+		if (!bArm) return Whole;
+		const FVector U = Up.GetSafeNormal();
+		const float UpA = FMath::Clamp(static_cast<float>(FVector::DotProduct(A, U)), -1.f, 1.f);
+		const float UpB = FMath::Clamp(static_cast<float>(FVector::DotProduct(B, U)), -1.f, 1.f);
+		const FVector LevelA = A - U * UpA;
+		// how much of a side the clip's line has: none within about 6 degrees of straight up
+		// or down (its bearing is noise there), all of it from about 17; between, the split
+		// gate comes in over the whole angle's, so nothing jumps as an arm is raised
+		const float Sided = SmoothStep((static_cast<float>(LevelA.Size()) - 0.1f) / 0.2f);
+		if (U.IsNearlyZero() || Sided <= 0.f) return Whole;
+		// the clip's line, raised or lowered to the aim's own elevation
+		const FVector Raised = LevelA.GetSafeNormal() * FMath::Sqrt(FMath::Max(0.f, 1.f - UpB * UpB)) + U * UpB;
+		const float Side = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(static_cast<float>(FVector::DotProduct(Raised, B)), -1.f, 1.f)));
+		const float Rise = FMath::Abs(FMath::RadiansToDegrees(FMath::Acos(UpB) - FMath::Acos(UpA)));     // the two elevations apart
+		const float GateSide = 1.f - SmoothStep((Side - Full) / (None - Full));
+		const float GateRise = 1.f - SmoothStep((Rise - SwingFullDegreesUp) / (SwingNoneDegreesUp - SwingFullDegreesUp));
+		return FMath::Lerp(Whole, FMath::Min(GateSide, GateRise), Sided);
 	}
 
 	/** The gate moves at most its whole way in this long: a round kick's
