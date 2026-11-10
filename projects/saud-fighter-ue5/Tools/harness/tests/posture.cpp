@@ -170,6 +170,44 @@ static void Stances()
     }
     Check(SaudStances::NumStances == 5 && SaudStances::Find("Monkey") == nullptr && SaudStances::Find("Gorilla") == nullptr,
           "posture: the five men's sets have a stance and the Island's creatures none");
+    // every fighter in the tables is held to a stance (StanceFor, 2026-11-10): his own
+    // where his set has one, the street men's where he borrows their guard, none for
+    // the Island's creatures -- looked up by his row alone, eight men had none
+    {
+        int Own = 0, Street = 0, None = 0, Rows = 0;
+        bool bBossOwn = true;
+        for (const char* Table : { "Content/Data/DT_Fighters.csv", "Content/Data/DT_IslandFighters.csv" })
+        {
+            FILE* F = std::fopen(Table, "rb");
+            Check(F != nullptr, "posture: the fighters' tables are found");
+            if (!F) continue;
+            char Line[4096];
+            bool bHead = true;
+            while (std::fgets(Line, sizeof(Line), F))
+            {
+                if (bHead) { bHead = false; continue; }
+                char Row[64]; int N = 0;
+                while (Line[N] && Line[N] != ',' && N < 63) { Row[N] = Line[N]; ++N; }
+                Row[N] = 0;
+                if (N == 0) continue;
+                ++Rows;
+                const FStance* S = StanceFor(Row);
+                if (!S) { ++None; continue; }
+                if (std::strcmp(S->Set, Row) == 0) ++Own;
+                else if (std::strcmp(S->Set, "Street") == 0) ++Street;
+                if ((!std::strcmp(Row, "Boss") || !std::strcmp(Row, "Saqr") || !std::strcmp(Row, "Zayos") || !std::strcmp(Row, "Saud"))
+                    && std::strcmp(S->Set, Row) != 0) bBossOwn = false;
+            }
+            std::fclose(F);
+        }
+        std::printf("  the tables' %d fighters: %d held to their own stance, %d to the street men's, %d to none\n", Rows, Own, Street, None);
+        Check(Rows == 14 && Own == 4 && bBossOwn, "posture: Saud and the three bosses are held to their own stance");
+        Check(Street == 8, "posture: the eight street men are held to the street men's stance");
+        Check(None == 2 && StanceFor("Monkey") == nullptr && StanceFor("Gorilla") == nullptr,
+              "posture: the Island's creatures are held to none");
+        Check(StanceFor(nullptr) == SaudStances::Find("Saud") && StanceFor("") == SaudStances::Find("Saud"),
+              "posture: a fighter with no set is Saud's");
+    }
     Check(Worst < 0.01f, "posture: each guard measures as its stance");
     std::printf("  the guard measured against its own table: %.4f at worst; the stage on a guard turns %.5f degrees at most\n", Worst, Moved);
     Check(Moved < 0.05f, "posture: a man in his own guard is left as he stands");

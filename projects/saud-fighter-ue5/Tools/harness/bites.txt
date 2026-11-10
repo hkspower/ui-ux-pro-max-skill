@@ -892,3 +892,7 @@ ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#AnchorCm \* S#AnchorCm#|every 
 ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#case EColour::Free:   return { 250, 200, 40 };#case EColour::Free:   return { 70, 220, 90 };#|every colour is far from every other
 ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#constexpr int MaxPrims = 32;#constexpr int MaxPrims = 12;#|everything at once fits the list
 ikdebug|Source/SaudFighter/Combat/SaudIKDebug.h|s#Out.Num = 0;#{}#|a fresh build clears what the last one drew
+# 2026-11-10, the IK reviewed: a street man is held to the street men's stance, not to none
+posture|Source/SaudFighter/Combat/SaudIK.h|s#return SaudStances::Find("Street");#return nullptr;#|the eight street men are held to the street men's stance
+posture|Source/SaudFighter/Combat/SaudIK.h|s#if (Is(S, "Monkey") .. Is(S, "Gorilla")) return nullptr;#if (Is(S, "Monkey")) return nullptr;#|the Island's creatures are held to none
+posture|Source/SaudFighter/Combat/SaudIK.h|s#if (const SaudStances::FStance\* Own = SaudStances::Find(S)) return Own;#if (const SaudStances::FStance* Own = SaudStances::Find(S)) return Own == SaudStances::Find("Boss") ? SaudStances::Find("Street") : Own;#|Saud and the three bosses are held to their own stance

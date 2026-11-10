@@ -1280,7 +1280,9 @@ void USaudMotionAnimInstance::UpdatePosture(AFighterBase* Fighter)
 	if (!bStanceLooked || Fighter->MotionSet != StanceSet)
 	{
 		StanceSet = Fighter->MotionSet;
-		StanceOf = SaudStances::Find(TCHAR_TO_ANSI(*SetOf(Fighter)));
+		// his own stance, else the street men's whose guard he stands in (SaudIK::StanceFor,
+		// 2026-11-10: by the row alone the eight street men had none and no posture)
+		StanceOf = SaudIK::StanceFor(TCHAR_TO_ANSI(*SetOf(Fighter)));
 		bStanceLooked = true;
 	}
 	Frame.Stance = StanceOf;

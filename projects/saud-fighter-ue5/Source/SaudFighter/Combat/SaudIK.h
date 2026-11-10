@@ -2391,6 +2391,25 @@ namespace SaudIK
 		return M;
 	}
 
+	/** The stance a motion set is held to (2026-11-10, the IK reviewed: "the
+	    eight street men get no posture at all"). A fighter's set is his
+	    DT_Fighters row -- Thug, Brawler, Kicker, Grappler, Champ, Runner,
+	    Bouncer, Capo -- and none of those has a stance of its own: they
+	    stand in the street men's guard, whose clips they borrow. Looked up
+	    by the row alone they came back with none, and the posture stage was
+	    off for every one of them. The same borrowing as the clips and the
+	    shuffle (SetSwingSeconds, USaudMotionComponent::Find): his own, else
+	    the street men's; the Island's creatures, another skeleton, borrow
+	    nothing and keep none. */
+	inline const SaudStances::FStance* StanceFor(const char* Set)
+	{
+		const char* S = Set && *Set ? Set : "Saud";
+		if (const SaudStances::FStance* Own = SaudStances::Find(S)) return Own;
+		auto Is = [](const char* A, const char* B) { while (*A && *B && *A == *B) { ++A; ++B; } return *A == 0 && *B == 0; };
+		if (Is(S, "Monkey") || Is(S, "Gorilla")) return nullptr;
+		return SaudStances::Find("Street");
+	}
+
 	/** What his posture should be: his stance's -- or, for the share of the
 	    mix that is motion capture (Saud's free walk and run, which no guard
 	    was built into: Gait), straight: the stance's sideways leans are a
