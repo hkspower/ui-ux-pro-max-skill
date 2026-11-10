@@ -712,8 +712,10 @@ namespace SaudIK
 
 	/** Whether a hold can keep what the clip does: in an attack, standing,
 	    or in a clip whose own feet step (its meter says it walks). A clip
-	    that does not step while the capsule moves -- the Block walked, a
-	    blow's push -- glides as it did, rather than tap-dance. */
+	    that does not step while the capsule moves -- the Block walked --
+	    glides as it did, rather than tap-dance. (A blow's push on a guard
+	    is held and stepped after since 2026-11-10: HoldsFeetMeasured's
+	    bShoved; this unmeasured-clip fallback has no guard to ask.) */
 	inline bool HoldsFeet(bool bAttacking, bool bStanding, const FStrideMeter& M, int ClipSerial)
 	{
 		if (bAttacking) return true;
@@ -735,19 +737,54 @@ namespace SaudIK
 	    StepSeconds step each) -- a guard's shuffle, about two and a half
 	    steps a foot a second at the most; faster, the Block glides as it
 	    did, rather than tap-dance (2026-10-03, "improve gloss ik": the
-	    Block walked at any pace glided). */
+	    Block walked at any pace glided). Walked: a guard a blow has shoved
+	    holds its feet at any pace (ShoveSeconds, 2026-11-10). */
 	constexpr float BlockShuffleMax = 60.f;
+
+	/** A guard shoved by a blow keeps its feet for this long after the push
+	    (2026-11-10, asked as "a blocking fighter who is shoved takes
+	    recovery steps instead of sliding"). A blocked blow pushes him back a
+	    third of its knockback -- 50 cm/s for a jab, 194 for a kick, 310 for
+	    the finisher -- over about a tenth of a second, and the Block clip
+	    does not step: over the guard's shuffle pace the hold was dropped on
+	    the first pushed frame, both feet slid nearly the whole way with the
+	    body (in the harness's model of the push, 9.7 cm of a kick's 10.6)
+	    and came back to the floor where they had slid to, with nothing left
+	    to step from. Until this day that was the recorded rule ("a block does not
+	    step"); it still is for a guard WALKED faster than its shuffle, which
+	    glides. A shove is told from a walk by the push itself: the blow's
+	    launch puts the capsule in the air for a moment. The push is over
+	    inside 0.11 s; 0.20 covers it at 30 Hz. */
+	constexpr float ShoveSeconds = 0.20f;
+
+	/** Whether a guard is being shoved, kept frame to frame. bGuardUp:
+	    GuardUp(); bLaunched: the capsule is in the air inside the push's
+	    grace, which is how a blow's push shows (the engine launches him). */
+	struct FShove
+	{
+		float Left = 0.f;
+		bool Step(bool bGuardUp, bool bLaunched, float Dt)
+		{
+			if (!bGuardUp) Left = 0.f;
+			else if (bLaunched) Left = ShoveSeconds;
+			else Left = FMath::Max(0.f, Left - FMath::Max(0.f, Dt));
+			return Left > 0.f;
+		}
+	};
 
 	/** HoldsFeet from a clip's measured stride: a clip that walks holds its
 	    feet as the man moves; one that does not (the Block walked) glides --
-	    unless it is a guard edging along slowly enough to shuffle. */
+	    unless it is a guard edging along slowly enough to shuffle, or one a
+	    blow has shoved (bShoved, FShove: his feet hold the ground and step
+	    after him -- StepHolds' own rules, one foot at a time past HoldDrift,
+	    both past HoldDriftHard). */
 	inline bool HoldsFeetMeasured(bool bAttacking, bool bStanding, float ClipStride, bool bBlocking = false,
-	                              float GroundSpeed = 0.f, float Size = 1.f)
+	                              float GroundSpeed = 0.f, float Size = 1.f, bool bShoved = false)
 	{
 		// (Size: his size against Saud's, the world's: a bigger man's guard
 		// pace is a longer shuffle, 2026-10-03)
 		return bAttacking || bStanding || ClipStride >= StrideMinSpeed
-		    || (bBlocking && GroundSpeed <= BlockShuffleMax * FMath::Max(Size, 0.1f));
+		    || (bBlocking && (bShoved || GroundSpeed <= BlockShuffleMax * FMath::Max(Size, 0.1f)));
 	}
 
 	/** Whether his guard is up, as the game means it (2026-11-10, the IK

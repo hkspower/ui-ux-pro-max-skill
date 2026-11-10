@@ -422,7 +422,7 @@ feel|Source/SaudFighter/Combat/SaudFeel.h|s# IsGait(C);# false;#|every gait loop
 feel|Source/SaudFighter/Combat/SaudFeel.h|s#case EClip::GaitJog: case EClip::GaitRun: return EClip::WalkFwd;#case EClip::GaitJog: case EClip::GaitRun: return C;#|falls back to the guard's step forward
 # 2026-10-03, the guard's shuffle: a block edged along slowly holds and steps its feet
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockShuffleMax = 60.f;#constexpr float BlockShuffleMax = 0.f;#|a block edged along at a guard's pace holds its feet
-ik|Source/SaudFighter/Combat/SaudIK.h|s#GroundSpeed <= BlockShuffleMax \* FMath::Max(Size, 0.1f)#GroundSpeed <= 1e9f * FMath::Max(Size, 0.1f)#|pushed faster it glides
+ik|Source/SaudFighter/Combat/SaudIK.h|s#GroundSpeed <= BlockShuffleMax \* FMath::Max(Size, 0.1f)#GroundSpeed <= 1e9f * FMath::Max(Size, 0.1f)#|walked faster it glides
 # 2026-11-10, the IK reviewed: the guard is the blocking flag on a man standing or walking, not a Block state
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return (bBlockingFlag #return ((bBlockingFlag \&\& false) #|a guard is up on the blocking flag while he stands or walks
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return (bBlockingFlag #return ((bBlockingFlag \&\& false) #|a block edged along at 50 cm/s shuffles its feet after it
@@ -940,3 +940,10 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#Out.Mid = Shoulder + Swing(U, U, W, Shar
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Out.End = Shoulder + Swing(Hand - Shoulder, U, W, Share \* Alpha);#Out.End = Hand;#|the arm swung as one piece, a hand's breadth at most
 ik|Source/SaudFighter/Combat/SaudIK.h|s#float Share = FMath::Min(1.f, Most / Turn);#float Share = 1.f + 0.f * Most;#|the arm swung as one piece, a hand's breadth at most
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!Clear(Share))#if (false)#|a body blow across him never drives one glove into the other
+# 2026-11-10, asked: a guard shoved by a blow keeps its feet and steps after him (FShove, HoldsFeetMeasured's bShoved)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#(bBlocking \&\& (bShoved \(..\) GroundSpeed#(bBlocking \&\& ((bShoved \&\& false) \1 GroundSpeed#|a guard shoved by a blocked kick keeps his feet on the floor and steps after him
+ik|Source/SaudFighter/Combat/SaudIK.h|s#else if (bLaunched) Left = ShoveSeconds;#else if (bLaunched) Left = 0.f;#|a guard is shoved from the frame a blow launches him
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float ShoveSeconds = 0.20f;#constexpr float ShoveSeconds = 0.02f;#|the shove outlasts the heaviest blocked blow's braking
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float ShoveSeconds = 0.20f;#constexpr float ShoveSeconds = 2.0f;#|the shove outlasts the heaviest blocked blow's braking
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!bGuardUp) Left = 0.f;#if (!bGuardUp \&\& false) Left = 0.f;#|no shove without a guard
+ik|Source/SaudFighter/Combat/SaudIK.h|s#else Left = FMath::Max(0.f, Left - FMath::Max(0.f, Dt));#else Left = FMath::Max(0.f, Left - FMath::Max(1.f / 60.f, Dt));#|the shove lasts ShoveSeconds after the push, whatever the frame rate

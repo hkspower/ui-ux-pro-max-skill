@@ -638,6 +638,7 @@ void USaudMotionAnimInstance::NativeInitializeAnimation()
 	bMeasured = false;
 	BodyScale = 1.f;
 	AirTime = 0.f;
+	Shove = SaudIK::FShove();
 	StrikeTrack = SaudIK::FStrikeTrack();
 	Strike = SaudIK::FStrike();
 	StrikeVictim.Reset();
@@ -949,8 +950,13 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 	// shuffled); not under a turn clip, which shows before the Block does
 	const bool bGuardUp = SaudIK::GuardUp(Fighter->bBlocking, St == EFighterState::Idle || St == EFighterState::Walk,
 	                                      St == EFighterState::Block, Fighter->GetUpRemaining) && !NewestTurns();
+	// a guard a blow has shoved keeps its feet and steps after him (SaudIK::FShove,
+	// 2026-11-10): the blow's launch is the push -- in the air, inside AirGrace.
+	// (A guard stepping off a kerb reads the same for that moment; his feet were
+	// kept through the grace already.)
+	const bool bShoved = Shove.Step(bGuardUp, bFalling && AirTime <= AirGrace, DeltaSeconds);
 	Frame.bHoldFeet = Newest ? SaudIK::HoldsFeetMeasured(bAttacking, bStanding, Newest->Stride,
-	                                                     bGuardUp, Frame.Velocity.Size(), BodyScale)
+	                                                     bGuardUp, Frame.Velocity.Size(), BodyScale, bShoved)
 	                         : SaudIK::HoldsFeet(bAttacking, bStanding, Back.Stride, Fade.Serial);
 	// a walk crossfading to his guard: the standing foot holds until the last swing lands
 	Frame.bStopping = SaudIK::Stopping(Fade, ClipPlants.GetData(), ClipPlants.Num());

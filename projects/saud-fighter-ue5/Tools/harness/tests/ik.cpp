@@ -1963,6 +1963,8 @@ static bool EndsWith(const std::string& S, const char* Tail)
     return S.size() >= T && S.compare(S.size() - T, T, Tail) == 0;
 }
 
+static void Grow(Man& M, float K);   // a man of another size, below
+
 static void Plants()
 {
     std::printf("PLANTS  (every clip's feet on the floor, measured from the clips: SaudPlants.h)\n");
@@ -2274,7 +2276,7 @@ static void Plants()
     // a guard edging along: held (and so shuffled) at 60 cm/s or under, glides faster
     Check(HoldsFeetMeasured(false, false, 0.f, true, 55.f) && !HoldsFeetMeasured(false, false, 0.f, true, 130.f)
               && !HoldsFeetMeasured(false, false, 0.f, false, 55.f),
-          "a block edged along at a guard's pace holds its feet; pushed faster it glides; nothing else does");
+          "a block edged along at a guard's pace holds its feet; walked faster it glides; nothing else does");
     // whose guard is up (GuardUp, 2026-11-10): the blocking flag on a man standing or
     // walking -- the only way the game raises a guard; until today the feet asked for
     // a Block state nothing sets, and no guard in the game ever shuffled
@@ -2309,6 +2311,130 @@ static void Plants()
     Check(HoldsFeetMeasured(false, false, Walk->Stride) && !HoldsFeetMeasured(false, false, 0.f)
           && HoldsFeetMeasured(true, false, 0.f) && HoldsFeetMeasured(false, true, 0.f),
           "a walk holds its feet as the man moves; a block walked glides; a swing or a stand holds");
+
+    // ---- a guard shoved by a blow keeps its feet and steps after him (2026-11-10; until
+    // this day "a block does not step": the feet slid the whole way with the body)
+    {
+        FShove Sh;
+        Check(!Sh.Step(true, false, 1.f / 60.f) && Sh.Step(true, true, 1.f / 60.f) && Sh.Step(true, false, 1.f / 60.f),
+              "a guard is shoved from the frame a blow launches him, and for a moment after");
+        float Held60 = 0.f, Held30 = 0.f, Held120 = 0.f;
+        { FShove A; A.Step(true, true, 1.f / 60.f); while (A.Step(true, false, 1.f / 60.f)) Held60 += 1.f / 60.f; }
+        { FShove A; A.Step(true, true, 1.f / 30.f); while (A.Step(true, false, 1.f / 30.f)) Held30 += 1.f / 30.f; }
+        { FShove A; A.Step(true, true, 1.f / 120.f); while (A.Step(true, false, 1.f / 120.f)) Held120 += 1.f / 120.f; }
+        Check(Near(Held60, ShoveSeconds, 1.f / 60.f) && Near(Held30, ShoveSeconds, 1.f / 30.f) && Near(Held120, ShoveSeconds, 1.f / 120.f),
+              "the shove lasts ShoveSeconds after the push, whatever the frame rate");
+        FShove Dropped; Dropped.Step(true, true, 1.f / 60.f);
+        FShove Frozen; Frozen.Step(true, true, 1.f / 60.f);
+        Check(!Dropped.Step(false, false, 1.f / 60.f) && !Dropped.Step(true, false, 1.f / 60.f) && !FShove().Step(false, true, 1.f / 60.f)
+                  && Frozen.Step(true, false, 0.f) && Frozen.Left == ShoveSeconds,
+              "no shove without a guard, none left once the guard drops, and a frame of no time takes nothing off it");
+        Check(HoldsFeetMeasured(false, false, 0.f, true, 194.f, 1.f, true) && !HoldsFeetMeasured(false, false, 0.f, true, 194.f, 1.f, false)
+                  && !HoldsFeetMeasured(false, false, 0.f, false, 194.f, 1.f, true),
+              "a shoved guard holds its feet at any pace; a guard walked that fast glides; only a guard is shoved");
+
+        // the numbers the push below is made of are the game's own, read where the game keeps them
+        {
+            float Heaviest = 0.f, Share = 0.f, Brake = 0.f, Friction = 0.f, JabKb = 0.f, KickKb = 0.f;
+            const std::string Rows = Slurp("Content/Data/DT_Attacks.csv");
+            size_t At0 = Rows.find('\n');
+            while (At0 != std::string::npos && At0 + 1 < Rows.size())
+            {
+                const size_t End = Rows.find('\n', At0 + 1);
+                const std::string Row = Rows.substr(At0 + 1, End == std::string::npos ? std::string::npos : End - At0 - 1);
+                size_t C = 0; for (int F = 0; F < 8 && C != std::string::npos; ++F) C = Row.find(',', C + (F ? 1 : 0));
+                float Kb = 0.f;
+                if (C != std::string::npos && std::sscanf(Row.c_str() + C + 1, "%f", &Kb) == 1)
+                {
+                    Heaviest = std::fmax(Heaviest, Kb);
+                    if (Row.rfind("Jab,", 0) == 0) JabKb = Kb;
+                    if (Row.rfind("Kick,", 0) == 0) KickKb = Kb;
+                }
+                At0 = End;
+            }
+            const std::string Types = Slurp("Source/SaudFighter/Combat/SaudTypes.h"), Base = Slurp("Source/SaudFighter/Combat/FighterBase.cpp");
+            auto After = [](const std::string& Src, const char* Key, float& Out)
+            {
+                const size_t A = Src.find(Key);
+                return A != std::string::npos && std::sscanf(Src.c_str() + A + std::strlen(Key), " = %f", &Out) == 1;
+            };
+            const bool bRead = After(Types, "constexpr float BlockPushShare", Share) && After(Base, "BrakingDecelerationWalking", Brake)
+                               && After(Base, "GroundFriction", Friction);
+            Check(bRead && Near(Share, 0.30f) && Near(Brake, 4000.f) && Near(Friction, 12.f) && Near(JabKb, 168.f) && Near(KickKb, 648.f) && Near(Heaviest, 1032.f),
+                  "the push tested here is the game's: the attack table's knockbacks, the block's share of them, the character's braking");
+            // how long the heaviest blocked blow takes to brake back under a guard's shuffling pace (the smallest man's)
+            float V = Heaviest * Share, T = 0.f;
+            while (V > BlockShuffleMax * 0.95f && T < 5.f) { V -= (2.f * Friction * V + Brake) * 0.001f; T += 0.001f; }
+            std::printf("  (the heaviest blocked blow, %.0f cm/s, is back under a guard's pace %.3f s after it lands; the shove lasts %.2f)\n",
+                        Heaviest * Share, T, ShoveSeconds);
+            Check(ShoveSeconds >= T + 2.f / 30.f && ShoveSeconds <= 0.25f,
+                  "the shove outlasts the heaviest blocked blow's braking by two slow frames, and is over inside a quarter second");
+        }
+
+        // a blocked blow's push as the game makes it: a third of the row's knockback (DT_Attacks:
+        // Jab 168, Kick 648, Special 1032), 0.064 s in the air with nothing braking it, then the
+        // character's braking (ground friction 12 x 2 a second and 4000 cm/s2)
+        struct FPush { int Steps = 0; float Slide = 0.f; float Pushed = 0.f; float LastLanded = 0.f; float Short = 0.f; };
+        auto Push = [&](float Knockback, float Hz, float K, bool bShoveRule) -> FPush
+        {
+            FPush O;
+            Man M; if (K != 1.f) Grow(M, K);
+            M.In.bSettle = true; M.Run(0.5f, Hz);
+            FShove S;
+            const float Dt = 1.f / Hz;
+            float V = Knockback * 0.30f, X = 0.f, T = 0.f;
+            FVector Was[2] = { M.St.Hold[0].Anchor, M.St.Hold[1].Anchor };
+            bool WasStill[2] = { false, false }, WasStep[2] = { false, false };
+            while (T < 1.2f)
+            {
+                T += Dt;
+                const bool bAir = T <= 0.064f + 1e-6f;
+                if (!bAir) V = std::fmax(0.f, V - (24.f * V + 4000.f) * Dt);
+                X -= V * Dt;                                                     // pushed straight back
+                const bool bStanding = V < 40.f;                                  // SaudFeel::WalkThreshold
+                const bool bShoved = bShoveRule && S.Step(true, bAir, Dt);
+                M.In.bHold = HoldsFeetMeasured(false, bStanding, 0.f, true, V, K, bShoved);
+                M.In.bSettle = bStanding;
+                M.In.Velocity = FVector(-V, 0.f, 0.f);
+                M.In.Mesh = At(FVector(X, 0.f, 0.f), 0.f);
+                M.Step(Dt);
+                for (int F = 0; F < 2; ++F)
+                {
+                    const bool bStep = M.St.Hold[F].bStep && M.St.Hold[F].Progress < 1.f;
+                    const bool bStill = M.St.Hold[F].bHeld && !bStep;
+                    if (bStep && !WasStep[F]) ++O.Steps;
+                    if (!bStep && WasStep[F]) O.LastLanded = T;
+                    // how far a ball on the floor is carried along it: held, its anchor; let go, the body's own move
+                    if (bStill && WasStill[F]) O.Slide = std::fmax(O.Slide, Flat(M.St.Hold[F].Anchor - Was[F]));
+                    if (!M.St.Hold[F].bHeld && !bStep) O.Slide += V * Dt * 0.5f;      // a foot gliding with the body (each of two feet half)
+                    Was[F] = M.St.Hold[F].Anchor; WasStill[F] = bStill; WasStep[F] = bStep;
+                    // the leg never short of its foot
+                    const float Reach = (float)FVector::Dist(M.In.Foot[F].Hip + M.Plan.Pelvis, M.Pose[F].Ankle);
+                    O.Short = std::fmax(O.Short, Reach - M.In.Foot[F].LegLength);
+                }
+            }
+            O.Pushed = -X;
+            return O;
+        };
+        const FPush Kick = Push(648.f, 60.f, 1.f, true), KickOld = Push(648.f, 60.f, 1.f, false), Jab = Push(168.f, 60.f, 1.f, true);
+        std::printf("  a guard shoved by a blocked kick: pushed %.1f cm, his feet slide %.2f cm and take %d steps, the last landed %.2f s after the blow (as it was: %.1f cm slid, %d steps)\n",
+                    Kick.Pushed, Kick.Slide, Kick.Steps, Kick.LastLanded, KickOld.Slide, KickOld.Steps);
+        Check(Kick.Slide < 0.5f && Kick.Steps >= 2 && Kick.LastLanded < 0.8f && KickOld.Slide > 0.8f * KickOld.Pushed && KickOld.Steps == 0,
+              "a guard shoved by a blocked kick keeps his feet on the floor and steps after him, both feet inside 0.8 s");
+        Check(Kick.Short < 0.5f, "...and the leg is never short of its foot");
+        bool bAll = true; int Least = 99;
+        for (float Hz : { 30.f, 60.f, 120.f })
+            for (float K : { 0.95f, 1.f, 1.48f })
+                for (float Kb : { 648.f, 1032.f })
+                {
+                    const FPush P = Push(Kb, Hz, K, true);
+                    Least = std::min(Least, P.Steps);
+                    if (P.Slide > 0.5f || P.Steps < 2 || P.LastLanded > 0.9f) bAll = false;
+                }
+        Check(bAll, "...at 30, 60 and 120 Hz, for a man 0.95 to 1.48 of Saud's size, a kick's push and the finisher's");
+        std::printf("  (a jab's push, %.1f cm: %.2f cm of slide, %d steps)\n", Jab.Pushed, Jab.Slide, Jab.Steps);
+        Check(Jab.Slide < 0.5f, "a jab's push, under a step's worth, is held too");
+    }
 }
 
 // ------------------------------------------------------------------- edges

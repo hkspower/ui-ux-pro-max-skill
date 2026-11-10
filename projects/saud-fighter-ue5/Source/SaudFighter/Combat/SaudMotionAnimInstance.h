@@ -284,6 +284,9 @@ private:
 	/** Feet: how long the capsule has been falling (a blow's push falls it a few frames). */
 	float AirTime = 0.f;
 
+	/** A guard a blow has shoved: his feet hold and step after him (SaudIK::FShove). */
+	SaudIK::FShove Shove;
+
 	/** The lean into curves, starts and stops (SaudIK::StepLean). */
 	SaudIK::FLean Lean;
 
