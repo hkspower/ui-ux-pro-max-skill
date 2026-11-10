@@ -245,7 +245,7 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float SwingFullDegreesArm = 30
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float SwingNoneDegreesLeg = 90.f;#constexpr float SwingNoneDegreesLeg = 180.f;#|a leg takes its whole pull within 60 degrees and none past 90
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float SwingFullDegreesLeg = 60.f;#constexpr float SwingFullDegreesLeg = 30.f;#|a leg takes its whole pull within 60 degrees and none past 90
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float GateSeconds = 0.06f;#constexpr float GateSeconds = 0.001f;#|the gate moves at most its whole way in 0.06 s
-ik|Source/SaudFighter/Combat/SaudIK.h|s#const FVector Pole = Root + Swing(Mid - Root, From, To, Alpha);#const FVector Pole = Mid;#|a strike swung to a target at its own reach turns as one piece
+ik|Source/SaudFighter/Combat/SaudIK.h|s#FVector Pole = Root + Swing(Mid - Root, From, To, Alpha);#FVector Pole = Mid;#|a strike swung to a target at its own reach turns as one piece
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Len = FMath::Lerp(From.Size(), To.Size(), Alpha);#const float Len = (From + (To - From) * Alpha).Size();#|the tip swings on the arc about the root
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return TwoBone(Root, Mid, Tip, Wanted, Pole, Alpha);#return TwoBone(Root, Mid, Tip, Wanted, Pole);#|a straight clip arm is left alone at no share
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return Hip + Swing(Knee - Hip, Knee - Hip, Target - Hip, FMath::Clamp(Alpha, 0.f, 1.f));#return Knee + (Target - Knee) * FMath::Clamp(Alpha, 0.f, 1.f) + Hip * 0.f;#|the knee swings on the thigh
