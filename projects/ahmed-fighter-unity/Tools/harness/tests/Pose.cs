@@ -28,6 +28,14 @@ public class StrikePad : MonoBehaviour {
     }
 }
 
+// A fighter whose opponents are handed to it: the harness has no player for
+// EnemyFighter.GatherTargets to find. Everything else is the real EnemyFighter,
+// so the real Fighter.ResolveHits sweeps the same list the IK reads.
+public class AimFighter : EnemyFighter {
+    public List<Fighter> Them = new List<Fighter>();
+    public override void GatherTargets(List<Fighter> into) { for (int i = 0; i < Them.Count; i++) into.Add(Them[i]); }
+}
+
 public static class Pose {
     static int fails = 0;
     static void Check(bool ok, string w) { if (!ok) { fails++; Console.WriteLine("  FAIL " + w); } }
@@ -56,7 +64,7 @@ public static class Pose {
     // leftX: which side of the root the _l bones stand on. +1 is this suite's fixture as it
     // always was; -1 is the other. Which the real mesh imports as cannot be settled without
     // the engine (the generator's left is Blender's +X, and the axes change hand on the way).
-    static Rig BuildFighter(string name, Vector3 at, float size, float leftX) {
+    static Rig BuildFighter(string name, Vector3 at, float size, float leftX, bool aims = false) {
         GameObject go = new GameObject(name);
         go.transform.position = at;
         CharacterController body = go.AddComponent<CharacterController>();
@@ -81,7 +89,7 @@ public static class Pose {
                 parent = b.transform;
             }
         }
-        r.Fighter = go.AddComponent<EnemyFighter>();
+        r.Fighter = aims ? go.AddComponent<AimFighter>() : go.AddComponent<EnemyFighter>();
         r.IK = go.AddComponent<FighterIK>();
         return r;
     }
@@ -166,6 +174,165 @@ public static class Pose {
         }
         if (hitAt >= 0f) whole = (home - atHit).magnitude;
         return worst;
+    }
+
+    static void Vitals(Rig r) {
+        typeof(Fighter).GetMethod("InitialiseVitals", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            .Invoke(r.Fighter, new object[] { 1000f, 9999f });
+    }
+
+    // A striker of his own size at the origin facing +Z, and (hisSize > 0) a man standing at `at`.
+    // The row is thrown and the scene stepped to its first active frame: the frame the blow lands.
+    static Rig Land(string row, float mySize, Vector3 at, float hisSize, out Rig him) {
+        Scene.Reset(); Scene.DeltaTime = 1f / 60f;
+        Slab("Ground", new Vector3(0f, -0.5f, 0f), new Vector3(2000f, 1f, 2000f));
+        Rig r = BuildFighter("Striker", Vector3.zero, mySize, 1f, true);
+        StrikePad pad = r.Root.AddComponent<StrikePad>(); pad.F = r.Fighter;
+        Vitals(r);
+        r.Fighter.FaceTowards(new Vector3(0f, 0f, 10f));
+        him = null;
+        if (hisSize > 0f) {
+            him = BuildFighter("Him", at, hisSize);
+            Vitals(him);
+            ((AimFighter)r.Fighter).Them.Add(him.Fighter);
+        }
+        Scene.Step(6);
+        pad.Press = row;
+        AttackRow a = GameData.Attack(row);
+        for (int i = 0; i < 200 && !(r.Fighter.State == FighterState.Attack && r.Fighter.AttackTime >= a.startup); i++) Scene.Step();
+        return r;
+    }
+
+    static float FlatAngle(Vector3 a, Vector3 b) { return Vector3.Angle(new Vector3(a.x, 0f, a.z), new Vector3(b.x, 0f, b.z)); }
+
+    static void Aim() {
+        Console.WriteLine("\nAIM");
+        // ---- pure: the mark, the gate, the aim, the knee
+        bool marks = true, knees = true;
+        foreach (float size in new[] { 0.94f, 1f, 1.24f, 1.55f }) {
+            Vector3 man = new Vector3(0.3f, 0.2f, 1.1f);
+            Vector3 m = FighterIK.StrikeMark(Vector3.zero, man, size, FighterIK.ShoulderHeight, FighterIK.KnuckleSkin);
+            Vector3 flat = new Vector3(man.x - m.x, 0f, man.z - m.z);
+            if (Math.Abs(flat.magnitude - (FighterIK.FrontDepth * size + FighterIK.KnuckleSkin)) > 1e-4f) marks = false;      // on his front, a skin short
+            if (FlatAngle(flat, man) > 0.1f) marks = false;                                                                // on the striker's side of him
+            if (Math.Abs(m.y - (man.y + FighterIK.ShoulderHeight * size)) > 1e-4f) marks = false;                          // at the height on HIS body
+            // the knee: a thigh from the hip; up his front when he is nearer than a thigh, never past it
+            float thigh = 0.439f * size; Vector3 hip = new Vector3(0.09f, 0.952f * size, 0f);
+            foreach (float dist in new[] { 0.25f, 0.40f, 0.70f, 0.90f }) {
+                Vector3 mark = FighterIK.StrikeMark(Vector3.zero, new Vector3(0f, 0f, dist * size), size, FighterIK.KneeMarkHeight, FighterIK.KneeSkin * size);
+                Vector3 k = FighterIK.KneeTarget(hip, mark, thigh);
+                if (Math.Abs((k - hip).magnitude - thigh) > 1e-4f) knees = false;
+                if (k.z > mark.z + 1e-4f) knees = false;
+                Vector3 toMark = mark - hip;
+                if (toMark.magnitude < thigh && (Math.Abs(k.z - mark.z) > 1e-4f || k.y < mark.y)) knees = false;
+            }
+        }
+        Check(marks, "a blow's mark is on the man's front, on the striker's side of him, at the height on his own body, a skin short (sizes 0.94 to 1.55)");
+        Check(knees, "a knee's joint goes a thigh from the hip toward the mark, and up his front over it when he is nearer than a thigh: never past his front");
+        {
+            Vector3 root = new Vector3(0.18f, 1.44f, 0f), line = new Vector3(0f, 1.44f, 1.3f);
+            Func<float, Vector3> at = deg => root + new Vector3(Mathf.Sin(deg * Mathf.Deg2Rad), 0f, Mathf.Cos(deg * Mathf.Deg2Rad));
+            float off = FlatAngle(line - root, Vector3.forward);     // the row's own line is not quite the facing: it starts at the shoulder
+            Func<float, bool, float> gate = (deg, arm) => FighterIK.AimGate(root, line, at(deg - off), arm);
+            Check(gate(0f, true) == 1f && gate(29f, true) == 1f && gate(56f, true) == 0f && gate(42f, true) > 0.2f && gate(42f, true) < 0.8f
+                  && gate(59f, false) == 1f && gate(91f, false) == 0f && gate(75f, false) > 0.2f && gate(75f, false) < 0.8f,
+                  "a limb is swung to the man wholly inside 30 degrees of its own line and not at all past 55 (an arm), 60 and 90 (a leg)");
+            Vector3 mark = root + new Vector3(0.3f, 0.1f, 0.7f);
+            Vector3 aimed = FighterIK.StrikeAim(root, line, mark, 1f);
+            Check((FighterIK.StrikeAim(root, line, mark, 0f) - line).magnitude < 1e-6f && (aimed - mark).magnitude < 1e-4f
+                  && (FighterIK.StrikeAim(root, line, root + (mark - root) * 5f, 1f) - root).magnitude <= (line - root).magnitude + 1e-4f,
+                  "the aimed limb goes to the mark and no further; a mark past the row's reach is aimed at, not stretched to; no gate, the row's own line");
+        }
+
+        // ---- the knee, through the rig
+        Rig him; Rig r;
+        foreach (float dist in new[] { 0.70f, 0.90f }) {
+            r = Land("Knee", 1f, new Vector3(0f, 0f, dist), 1f, out him);
+            Vector3 hipJ = r.Bones["thigh_r"].position, kneeJ = r.Bones["calf_r"].position, ank = r.Bones["foot_r"].position;
+            float bend = Vector3.Angle(hipJ - kneeJ, ank - kneeJ);
+            float front = dist - FighterIK.FrontDepth;
+            Console.WriteLine("  a knee at a man " + dist.ToString("0.00") + " m ahead: the knee joint is bent " + bend.ToString("0") + " degrees, "
+                + ((front - kneeJ.z) * 100).ToString("0.0") + " cm short of his front, " + ((kneeJ.z - ank.z) * 100).ToString("0.0") + " cm ahead of the ankle at "
+                + (kneeJ.y * 100).ToString("0") + " cm up");
+            Check(bend < 120f && kneeJ.z > ank.z + 0.02f, "a knee lands the knee, bent, ahead of the foot (" + dist.ToString("0.00") + " m)");
+            Check(kneeJ.z < front + 1e-3f && ank.z < front + 1e-3f, "...and nothing of the leg passes his front (" + dist.ToString("0.00") + " m)");
+            Check(Math.Abs((hipJ - kneeJ).magnitude - 0.439f) < 2e-3f && Math.Abs((kneeJ - ank).magnitude - 0.443f) < 2e-3f, "...the thigh and the shin keep their lengths (" + dist.ToString("0.00") + " m)");
+        }
+        r = Land("Knee", 1f, Vector3.zero, 0f, out him);
+        {
+            Vector3 hipJ = r.Bones["thigh_r"].position, kneeJ = r.Bones["calf_r"].position, ank = r.Bones["foot_r"].position;
+            float rise = Mathf.Atan2(kneeJ.y - hipJ.y, kneeJ.z - hipJ.z) * Mathf.Rad2Deg;
+            Check(Vector3.Angle(hipJ - kneeJ, ank - kneeJ) < 120f && Math.Abs(rise - FighterIK.KneeRaiseDegrees) < 1f && Math.Abs(kneeJ.x - hipJ.x) < 1e-3f,
+                  "with nobody there the knee is thrown up the facing line, bent (" + rise.ToString("0.0") + " degrees above level)");
+        }
+
+        // ---- a kick stops on him; with room, it still locks out
+        r = Land("Kick", 1f, new Vector3(0f, 0f, 0.90f), 1f, out him);
+        {
+            float front = 0.90f - FighterIK.FrontDepth, ankZ = r.Bones["foot_r"].position.z;
+            Console.WriteLine("  a kick at a man 0.90 m ahead: the ankle is " + ((front - ankZ) * 100).ToString("0.0") + " cm short of his front");
+            Check(ankZ < front + 1e-3f && ankZ > front - 0.05f, "a kick at a man inside its reach stops on his front, not through him");
+        }
+        r = Land("Kick", 1f, new Vector3(0f, 0f, 1.40f), 1f, out him);
+        Check(Vector3.Angle(r.Bones["thigh_r"].position - r.Bones["calf_r"].position, r.Bones["foot_r"].position - r.Bones["calf_r"].position) > 170f,
+              "...and a kick at a man further than the leg still locks out");
+
+        // ---- a punch goes to the man it lands on
+        r = Land("Hook", 1f, new Vector3(0.48f, 0f, 1.11f), 1f, out him);
+        {
+            Vector3 sh = r.Bones["upperarm_l"].position, wr = r.Bones["hand_l"].position;
+            Vector3 mark = FighterIK.StrikeMark(Vector3.zero, him.Root.transform.position, 1f, FighterIK.ShoulderHeight, FighterIK.KnuckleSkin);
+            float off = FlatAngle(wr - sh, mark - sh);
+            Console.WriteLine("  a hook at a man 0.48 m off the line at 1.11 m: the arm is " + off.ToString("0.0") + " degrees off the line to him (it was "
+                + FlatAngle(new Vector3(0f, 0f, 1.344f) - new Vector3(sh.x, 0f, sh.z), mark - sh).ToString("0.0") + " down the facing line)");
+            Check(off < 3f, "a punch at a man off the facing line goes to him: the arm within 3 degrees of the line to his front");
+        }
+        {
+            // nobody in the box, a man outside it, and a man past the gate: the row's own line, to a tenth of a millimetre
+            // (against his own shoulder: the blow that lands stops the striker's lunge for the hit stop,
+            // so his root stands 2.75 cm short of where a miss carries it)
+            Func<Rig, Vector3> arm = g => g.Bones["hand_l"].position - g.Bones["upperarm_l"].position;
+            Vector3 none = arm(Land("Hook", 1f, Vector3.zero, 0f, out him));
+            Vector3 far = arm(Land("Hook", 1f, new Vector3(0f, 0f, 5f), 1f, out him));
+            Vector3 wide = arm(Land("Hook", 1f, new Vector3(0.75f, 0f, 0.45f), 1f, out him));
+            Vector3 near = arm(Land("Hook", 1f, new Vector3(0.48f, 0f, 1.11f), 1f, out him));
+            Check((none - far).magnitude < 1e-4f, "with nobody in the row's box the arm is where the row alone has it");
+            Check(FlatAngle(none, wide) < 0.5f && FlatAngle(none, near) > 15f, "a man in the box but more than 55 degrees off the arm's line is not struck round the body ("
+                  + FlatAngle(none, wide).ToString("0.00") + " degrees off the row's line; " + FlatAngle(none, near).ToString("0.0") + " for the man it does go to)");
+        }
+        {
+            // the man is kept for the swing that lands on him, and forgotten by the next
+            Rig g = Land("Hook", 1f, new Vector3(0.48f, 0f, 1.11f), 1f, out him);
+            Vector3 struck = g.Bones["hand_l"].position - g.Bones["upperarm_l"].position;
+            him.Root.transform.position = new Vector3(0f, 0f, 30f);            // the blow has sent him away
+            Scene.Step(3);
+            Vector3 after = g.Bones["hand_l"].position - g.Bones["upperarm_l"].position;
+            Check(FlatAngle(struck, after) < 3f, "the limb stays on where it struck him for the rest of the swing, though the blow has sent him away");
+            // the next hook is pressed during this one, so it starts on the frame this one ends:
+            // the IK never sees him out of a swing between the two
+            StrikePad again = g.Root.GetComponent<StrikePad>(); again.Press = "Hook";
+            AttackRow hook = GameData.Attack("Hook");
+            float clock = g.Fighter.AttackTime; bool second = false;
+            for (int i = 0; i < 300; i++) {
+                Scene.Step();
+                if (g.Fighter.State == FighterState.Attack && g.Fighter.AttackTime < clock) second = true;
+                clock = g.Fighter.AttackTime;
+                if (second && g.Fighter.AttackTime >= hook.startup) break;
+            }
+            Vector3 next = g.Bones["hand_l"].position - g.Bones["upperarm_l"].position;
+            Check(second && FlatAngle(next, struck) > 15f, "...and a new swing forgets him: with nobody there it goes down the row's own line");
+        }
+        {
+            // sizes: each man throws at his own shoulder height; a punch at a bigger man goes up, at a smaller man down
+            float big = Land("Jab", 1.55f, Vector3.zero, 0f, out him).Bones["hand_l"].position.y;
+            float small = Land("Jab", 1f, Vector3.zero, 0f, out him).Bones["hand_l"].position.y;
+            Check(Math.Abs(big - 1.442f * 1.55f) < 0.02f && Math.Abs(small - 1.442f) < 0.02f, "a man throws at his own shoulder height, whatever his size ("
+                  + (big * 100).ToString("0") + " cm for a man of 1.55, " + (small * 100).ToString("0") + " for Ahmed)");
+            Rig up = Land("Jab", 0.94f, new Vector3(0f, 0f, 1.2f), 1.55f, out him);
+            Rig down = Land("Jab", 1.55f, new Vector3(0f, 0f, 1.2f), 0.94f, out him);
+            Check(up.Bones["hand_l"].position.y > up.Bones["upperarm_l"].position.y + 0.15f && down.Bones["hand_l"].position.y < down.Bones["upperarm_l"].position.y - 0.15f,
+                  "...a punch at a bigger man goes up to him, at a smaller man down");
+        }
     }
 
     static void Strikes() {
@@ -583,6 +750,7 @@ public static class Pose {
               "and a second later both have stepped back under him (" + (offL * 100).ToString("0.0") + " and " + (offR * 100).ToString("0.0") + " cm off)");
 
         Strikes();
+        Aim();
 
         Console.WriteLine(fails == 0 ? "\nall pose checks passed" : "\n" + fails + " FAILURES");
         return fails == 0 ? 0 : 1;

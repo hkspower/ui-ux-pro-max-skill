@@ -822,6 +822,145 @@ namespace Ahmed.Combat
             return origin + facing * reach + Vector3.up * height;
         }
 
+        // ------------------------------------------- the man a blow lands on (2026-11-10)
+        //
+        // Until this day a strike had no tip and no mark: every row drove the END of
+        // its limb down the facing line. The Knee row drove the ankle on a
+        // locked-straight leg, through a man standing inside a metre; and every blow
+        // went down the facing line while the man it landed on (Fighter.InHitbox
+        // tolerates 0.8 m across it) stood 22 to 34 degrees off it. After the Unreal
+        // build's SaudIK: StrikeOf's tips and marks, SwingGate, KneeAim.
+
+        /// <summary>A man's front, this far before his middle, at Ahmed's size.</summary>
+        public const float FrontDepth = 0.12f;
+        /// <summary>How far under its skin each striking point's joint sits: the
+        /// wrist behind the knuckles, the ankle behind the ball, the knee behind its cap.</summary>
+        public const float KnuckleSkin = 0.02f, BallSkin = 0.025f, KneeSkin = 0.05f;
+        /// <summary>Where a knee lands on a man of Ahmed's size: the pit of the stomach.</summary>
+        public const float KneeMarkHeight = 1.10f;
+        /// <summary>With nobody there a knee is thrown up the facing line, this far above level.</summary>
+        public const float KneeRaiseDegrees = 25f;
+        /// <summary>A limb is swung off its own line to the man wholly inside the
+        /// first angle and not at all past the second: nobody is struck round the body.</summary>
+        public const float ArmGateFull = 30f, ArmGateNone = 55f, LegGateFull = 60f, LegGateNone = 90f;
+
+        /// <summary>Whether the row lands its knee and not the end of its limb.</summary>
+        public static bool StrikesWithKnee(string row)
+        {
+            return row == "Knee";
+        }
+
+        /// <summary>The point of a man a blow lands on: on his front, toward the
+        /// striker, at the given height on HIS body (metres at Ahmed's size, grown
+        /// with his), the striking point's skin short of it. Pure.</summary>
+        public static Vector3 StrikeMark(Vector3 striker, Vector3 him, float hisSize, float height, float skin)
+        {
+            float s = hisSize > 0f ? hisSize : 1f;
+            Vector3 to = new Vector3(him.x - striker.x, 0f, him.z - striker.z);
+            float d = to.magnitude;
+            Vector3 toward = d > 1e-4f ? to / d : Vector3.zero;
+            return him - toward * (FrontDepth * s + skin) + Vector3.up * (height * s);
+        }
+
+        /// <summary>How much of the way a limb is swung off its own line to the
+        /// mark: the angle between the two on the ground, whole inside the gate and
+        /// nothing past it. Pure.</summary>
+        public static float AimGate(Vector3 root, Vector3 lineTarget, Vector3 mark, bool arm)
+        {
+            Vector3 a = new Vector3(lineTarget.x - root.x, 0f, lineTarget.z - root.z);
+            Vector3 b = new Vector3(mark.x - root.x, 0f, mark.z - root.z);
+            if (a.sqrMagnitude < 1e-8f || b.sqrMagnitude < 1e-8f) { return 0f; }
+            float full = arm ? ArmGateFull : LegGateFull, none = arm ? ArmGateNone : LegGateNone;
+            return 1f - Smooth((Vector3.Angle(a, b) - full) / (none - full));
+        }
+
+        /// <summary>A direction part of the way from one to another, and its length.</summary>
+        private static Vector3 Swing(Vector3 from, Vector3 to, float t)
+        {
+            float lf = from.magnitude, lt = to.magnitude;
+            if (lf < 1e-6f || lt < 1e-6f) { return Vector3.Lerp(from, to, t); }
+            Vector3 dir = Vector3.Lerp(from / lf, to / lt, t);
+            if (dir.sqrMagnitude < 1e-8f) { return Vector3.Lerp(from, to, t); }
+            return dir.normalized * Mathf.Lerp(lf, lt, t);
+        }
+
+        /// <summary>Where the end of the limb goes at full extension with a man in
+        /// its box: swung from the row's own line toward his mark by the gate, and
+        /// no further than the mark -- the fist stops on him, not behind him. Pure.</summary>
+        public static Vector3 StrikeAim(Vector3 root, Vector3 lineTarget, Vector3 mark, float gate)
+        {
+            if (gate <= 0f) { return lineTarget; }
+            Vector3 a = lineTarget - root, b = mark - root;
+            if (b.magnitude > a.magnitude) { b = b.normalized * a.magnitude; }
+            return root + Swing(a, b, gate);
+        }
+
+        /// <summary>Where the knee joint goes on a knee strike: a thigh's length
+        /// from the hip toward the mark; with the mark nearer than a thigh, up his
+        /// front over it, so nothing of the leg passes his front. Pure.</summary>
+        public static Vector3 KneeTarget(Vector3 hip, Vector3 mark, float thigh)
+        {
+            Vector3 to = mark - hip;
+            Vector3 flat = new Vector3(to.x, 0f, to.z);
+            float d = flat.magnitude;
+            if (to.magnitude >= thigh || d >= thigh || d < 1e-4f)
+            {
+                return to.sqrMagnitude > 1e-8f ? hip + to.normalized * thigh : hip + Vector3.down * thigh;
+            }
+            return hip + flat + Vector3.up * Mathf.Sqrt(thigh * thigh - d * d);
+        }
+
+        /// <summary>The knee with nobody there: up the facing line.</summary>
+        public static Vector3 KneeLine(Vector3 hip, Vector3 facing, float thigh)
+        {
+            float r = KneeRaiseDegrees * Mathf.Deg2Rad;
+            return hip + (facing * Mathf.Cos(r) + Vector3.up * Mathf.Sin(r)) * thigh;
+        }
+
+        /// <summary>The way the shin hangs under a knee that has landed: down, the heel a little back.</summary>
+        public static Vector3 KneeShin(Vector3 facing)
+        {
+            return (Vector3.down * 0.98f - facing * 0.2f).normalized;
+        }
+
+        private readonly System.Collections.Generic.List<Fighter> _targets = new System.Collections.Generic.List<Fighter>();
+
+        // Where the man this swing lands on stood, and his size, kept for the swing: the
+        // blow itself knocks him down or away on its contact frame, and the limb stays on
+        // where it struck him rather than dropping back to the row's own line.
+        private bool _aimed;
+        private Vector3 _aimAt;
+        private float _aimSize = 1f;
+        private float _aimClock = -1f;
+
+        /// <summary>Where the man the swing in progress lands on stands: the first
+        /// the fight's own sweep takes (Fighter.ResolveHits' order: alive, not
+        /// down, inside the row's box), so the limb is drawn to the man the blow
+        /// lands on and not merely the nearest. His size off his controller. Once
+        /// found he is kept for the swing, where he last stood. False with nobody.</summary>
+        private bool StruckMan(AttackRow row, out Vector3 at, out float hisSize)
+        {
+            // a new swing forgets the last one's man
+            if (_fighter.AttackTime < _aimClock) { _aimed = false; }
+            _aimClock = _fighter.AttackTime;
+            _targets.Clear();
+            _fighter.GatherTargets(_targets);
+            Vector3 origin = transform.position;
+            for (int i = 0; i < _targets.Count; i++)
+            {
+                Fighter t = _targets[i];
+                if (t == null || t == _fighter || !t.IsAlive || t.State == FighterState.Down) { continue; }
+                if (!Fighter.InHitbox(origin, _fighter.Facing, t.transform.position, row.reach, row.depthTolerance)) { continue; }
+                CharacterController body = t.GetComponent<CharacterController>();
+                _aimSize = body != null && body.height > 0.1f ? body.height / 1.8f : 1f;
+                _aimAt = t.transform.position;
+                _aimed = true;
+                break;
+            }
+            at = _aimAt; hisSize = _aimSize;
+            return _aimed;
+        }
+
         // The strike solved last frame: which limb (0 left arm, 1 right arm, 2 left
         // leg, 3 right leg; -1 none) and where its end was, in the fighter's frame.
         private int _struck = -1;
@@ -880,6 +1019,8 @@ namespace Ahmed.Combat
                 }
             }
 
+            if (_fighter.State != FighterState.Attack) { _aimed = false; _aimClock = -1f; }
+
             // a swing taken away: its limb is let go from where it was struck
             if (_struck >= 0 && _struck != cur) { _goLimb = _struck; _goFrom = _struckEnd; _letGo = 1f; }
             _struck = -1;
@@ -904,21 +1045,54 @@ namespace Ahmed.Combat
             if (!limb.Ok) { return; }
 
             Vector3 facing = _fighter.Facing;
-            Vector3 full = StrikeTarget(transform.position, facing, row.reach,
-                                        arm ? ShoulderHeight : HipHeight);
-            // From where the limb IS this frame -- the feet, the guard and a let-go have
-            // been solved -- not from its A-pose rest point (2026-11-10): a punch pressed
-            // with the guard up sent the fist 49 to 66 cm down and back to that rest point
-            // in the first frame it had any weight, before it went forward.
-            Vector3 from = limb.End.position;
-            Vector3 target = Vector3.Lerp(from, full, weight);
-            // Cocked before it is thrown. This is the tell.
-            target -= facing * (WindUp(_fighter.AttackTime, row.startup) * WindUpDraw);
+            float hisSize; Vector3 hisPlace;
+            bool man = StruckMan(row, out hisPlace, out hisSize);
+            float cock = WindUp(_fighter.AttackTime, row.startup) * WindUpDraw;
             _view.StrikeOn = true;
-            _view.StrikeTarget = target;
             _view.StrikeWeight = weight;
 
-            SolveStrike(limb, arm, target);
+            if (!arm && StrikesWithKnee(row.name))
+            {
+                // The knee lands, not the foot: the knee joint goes a thigh's length
+                // toward the pit of his stomach (up his front when he is nearer than
+                // that), the shin hangs under it, and the leg keeps its bend.
+                Vector3 hip = limb.Root.position;
+                float thigh = (limb.Mid.position - hip).magnitude, shin = (limb.End.position - limb.Mid.position).magnitude;
+                Vector3 knee = KneeLine(hip, facing, thigh);
+                if (man)
+                {
+                    Vector3 mark = StrikeMark(transform.position, hisPlace, hisSize, KneeMarkHeight, KneeSkin * _size);
+                    knee = hip + Swing(knee - hip, KneeTarget(hip, mark, thigh) - hip, AimGate(hip, knee, mark, false));
+                }
+                // from where the leg is this frame, on the arc; cocked back first
+                Vector3 at = hip + Swing(limb.Mid.position - hip, knee - hip, weight) - facing * cock;
+                at = hip + (at - hip).normalized * thigh;
+                Vector3 hang = Swing(limb.End.position - limb.Mid.position, KneeShin(facing) * shin, weight);
+                _view.StrikeTarget = at;
+                TwoBoneIK.Apply(limb.Root, limb.Mid, limb.End, at + hang, at);
+            }
+            else
+            {
+                // the row's own line: at its reach, at his own shoulder or hip height
+                Vector3 full = StrikeTarget(transform.position, facing, row.reach,
+                                            (arm ? ShoulderHeight : HipHeight) * _size);
+                if (man)
+                {
+                    Vector3 mark = StrikeMark(transform.position, hisPlace, hisSize,
+                                              arm ? ShoulderHeight : HipHeight, (arm ? KnuckleSkin : BallSkin) * _size);
+                    full = StrikeAim(limb.Root.position, full, mark, AimGate(limb.Root.position, full, mark, arm));
+                }
+                // From where the limb IS this frame -- the feet, the guard and a let-go have
+                // been solved -- not from its A-pose rest point (2026-11-10): a punch pressed
+                // with the guard up sent the fist 49 to 66 cm down and back to that rest point
+                // in the first frame it had any weight, before it went forward.
+                Vector3 from = limb.End.position;
+                Vector3 target = Vector3.Lerp(from, full, weight);
+                // Cocked before it is thrown. This is the tell.
+                target -= facing * cock;
+                _view.StrikeTarget = target;
+                SolveStrike(limb, arm, target);
+            }
             _struck = cur;
             _struckEnd = transform.InverseTransformPoint(limb.End.position);
         }
