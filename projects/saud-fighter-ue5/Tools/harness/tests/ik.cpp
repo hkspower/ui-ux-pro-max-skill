@@ -1150,13 +1150,41 @@ static void Contact()
         Cv = Cover(Sh, El, Lg, FVector(25.f, 7.f, 152.f), true, 1.f, Up, Rg, 1.f);
         Check(Flat(Cv.End - Rg) >= 8.99f && Flat(Cv.End - Lg) > 5.f, "a blow down the middle never drives one glove into the other");
         const FVector MeetLow(6.f, -40.f, 118.f);           // a kick's, low in front of his left ribs
+        // (2026-11-10: the whole arm swings about the shoulder -- with the fist held up the
+        // elbow could only go round the shoulder-to-fist line, sideways and away from the blow)
         Cv = Cover(Sh, El, Ha, MeetLow, false, 1.f, Up, Other, 1.f);
-        Check(FVector::Dist(Cv.End, Ha) < 1e-2f && FVector::Dist(Cv.Mid, MeetLow) < FVector::Dist(El, MeetLow) - 1.f
-              && FVector::Dist(Cv.Mid, El) <= 15.01f && Near(FVector::Dist(Sh, Cv.Mid), A, 1e-2f),
-              "a body blow is met by the elbow on its circle, the fist kept up");
+        Check(FVector::Dist(Cv.Mid, MeetLow) < FVector::Dist(El, MeetLow) - 1.f
+              && FVector::Dist(Cv.Mid, El) <= 15.01f && Near(FVector::Dist(Sh, Cv.Mid), A, 1e-2f) && Near(FVector::Dist(Cv.Mid, Cv.End), B, 1e-2f),
+              "a body blow is met by the arm swung about the shoulder, at most a hand's breadth at the elbow, each segment its own length");
         Cv = Cover(Sh, El, Ha, MeetLow, false, 0.f, Up, Other, 1.f);
         const FTwoBone Cv2 = Cover(Sh, El, Ha, MeetHigh, true, 0.f, Up, Other, 1.f);
-        Check(FVector::Dist(Cv.Mid, El) < 1e-3f && FVector::Dist(Cv2.End, Ha) < 1e-3f, "at no share, the clip's guard");
+        Check(FVector::Dist(Cv.Mid, El) < 1e-3f && FVector::Dist(Cv.End, Ha) < 1e-3f && FVector::Dist(Cv2.End, Ha) < 1e-3f, "at no share, the clip's guard");
+        {
+            // Saud's own Block (A_Saud_Block's first key, read off the clip by the review) against
+            // a kick at his ribs: the elbow comes DOWN onto it
+            const FVector S(17.2f, -18.0f, 129.5f), E(49.7f, -9.5f, 130.7f), H(33.3f, -7.6f, 151.3f), O(33.3f, 7.4f, 151.3f), Kick(18.0f, -12.2f, 119.4f);
+            const FTwoBone K = Cover(S, E, H, Kick, false, 1.f, Up, O, 1.f);
+            std::printf("  Saud's Block against a kick at the ribs: the elbow %.1f cm lower and %.1f cm nearer the blow, the glove %.1f cm lower, %.1f cm from the other\n",
+                        (float)(E.Z - K.Mid.Z), (float)(FVector::Dist(E, Kick) - FVector::Dist(K.Mid, Kick)), (float)(H.Z - K.End.Z), Flat(K.End - O));
+            Check(E.Z - K.Mid.Z >= 8.0 && FVector::Dist(K.Mid, Kick) < FVector::Dist(E, Kick) - 5.0,
+                  "a kick at the ribs brings the Block's elbow down onto it");
+            Check(FVector::Dist(K.Mid, E) <= 15.01 && Near((float)FVector::Dist(S, K.Mid), (float)FVector::Dist(S, E), 1e-2f)
+                      && Near((float)FVector::Dist(K.Mid, K.End), (float)FVector::Dist(E, H), 1e-2f) && Flat(K.End - O) >= 8.99f,
+                  "...the arm swung as one piece, a hand's breadth at most, the gloves a fist apart");
+            // a man 1.48 of his size in the same guard
+            const float Z = 1.48f;
+            const FTwoBone Kz = Cover(S * Z, E * Z, H * Z, Kick * Z, false, 1.f, Up, O * Z, Z);
+            Check(E.Z * Z - Kz.Mid.Z >= 8.0 && FVector::Dist(Kz.Mid, E * Z) <= 15.01 && Flat(Kz.End - O * Z) >= 8.99f * Z,
+                  "...and a giant's too, by the same hand's breadth");
+            // a blow that would swing the glove into the other one stops a fist's width short
+            const FTwoBone In = Cover(S, E, H, FVector(30.f, 20.f, 120.f), false, 1.f, Up, O, 1.f);
+            Check(Flat(In.End - O) >= 8.99f, "a body blow across him never drives one glove into the other");
+            // nothing to turn to: the clip's own arm, and never a NaN (no sabotage for this one:
+            // the swing toward nothing is no swing, so neither guard's removal breaks it)
+            const FTwoBone None = Cover(S, E, H, S, false, 1.f, Up, O, 1.f), Along = Cover(S, E, H, S + (E - S) * 2.f, false, 1.f, Up, O, 1.f);
+            Check(FVector::Dist(None.Mid, E) < 1e-3f && FVector::Dist(None.End, H) < 1e-3f && FVector::Dist(Along.Mid, E) < 1e-2f && FVector::Dist(Along.End, H) < 1e-2f,
+                  "a blow at the shoulder itself, or along the upper arm, leaves the clip's guard");
+        }
         const FVector Chin(10.f, 0.f, 150.f), Root(95.f, 15.f, 145.f);
         const FVector G = MeetPoint(Chin, Root, BlockStandOff), Stop = MeetPoint(Chin, Root, BlockStandOff + BlockFaceGap);
         Check(Near(FVector::Dist(G, Chin), 9.f, 0.01f), "the guard meets a blow 9 cm in front of its mark, on its line");

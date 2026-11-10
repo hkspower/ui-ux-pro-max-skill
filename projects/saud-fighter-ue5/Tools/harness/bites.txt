@@ -252,8 +252,8 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#return Hip + Swing(Knee - Hip, Knee - Hi
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockMaxShift = 15.f;#constexpr float BlockMaxShift = 40.f;#|a guard moves at most a hand's breadth (15 cm)
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Move = Move - Up \* Rise;#Move = Move - Up * Rise * 0.f;#|a head blow is met by the glove at the height the clip holds it
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockFistGap = 9.f;#constexpr float BlockFistGap = 0.f;#|a blow down the middle never drives one glove into the other
-ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Half = FMath::Min(1.f, BlockMaxShift / (2.f \* R));#const float Half = FMath::Min(1.f, 4.f * BlockMaxShift / (2.f * R));#|a body blow is met by the elbow on its circle, the fist kept up
-ik|Source/SaudFighter/Combat/SaudIK.h|s#Out.End = Hand;#Out.End = Hand + (Meet - Hand) * Alpha;#|a body blow is met by the elbow on its circle, the fist kept up
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Half = FMath::Min(1.f, BlockMaxShift / (2.f \* R));#const float Half = FMath::Min(1.f, 4.f * BlockMaxShift / (2.f * R));#|a body blow is met by the arm swung about the shoulder, at most a hand's breadth at the elbow
+ik|Source/SaudFighter/Combat/SaudIK.h|s#Out.End = Shoulder + Swing(Hand - Shoulder, U, W, Share \* Alpha);#Out.End = Hand + (Meet - Hand) * Alpha;#|a body blow is met by the arm swung about the shoulder, at most a hand's breadth at the elbow
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Out.Mid = C + RotateAbout(U, N, Took \* Alpha);#Out.Mid = Elbow + (Full.Mid - Elbow) * Alpha + N * 0.f * Took;#|a body blow is met by the elbow on its circle, the fist kept up
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockStandOff = 9.f;#constexpr float BlockStandOff = 3.f;#|the guard meets a blow 9 cm in front of its mark
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockFaceGap = 8.f;#constexpr float BlockFaceGap = -8.f;#|a blocked blow stops in front of the guard, never through it
@@ -935,3 +935,8 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#const float W = (1.f - Trust) \* Fold;#c
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Outward.GetSafeNormal() \* NaturalOutShare);#Outward.GetSafeNormal() * -NaturalOutShare);#|folded down and to the arm's own side
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float NaturalOutShare = 0.5f;#constexpr float NaturalOutShare = 5.f;#|folded down and to the arm's own side
 ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!Down.IsNearlyZero())#if (Down.Size() >= 0.0)#|a limb given no down -- a leg -- keeps the clip's bend alone
+# 2026-11-10, the IK reviewed: a body blow's cover swings the whole arm about the shoulder (Cover's low branch)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#Out.Mid = Shoulder + Swing(U, U, W, Share \* Alpha);#Out.Mid = Shoulder + Swing(U, U, W, -Share * Alpha);#|a kick at the ribs brings the Block's elbow down onto it
+ik|Source/SaudFighter/Combat/SaudIK.h|s#Out.End = Shoulder + Swing(Hand - Shoulder, U, W, Share \* Alpha);#Out.End = Hand;#|the arm swung as one piece, a hand's breadth at most
+ik|Source/SaudFighter/Combat/SaudIK.h|s#float Share = FMath::Min(1.f, Most / Turn);#float Share = 1.f + 0.f * Most;#|the arm swung as one piece, a hand's breadth at most
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!Clear(Share))#if (false)#|a body blow across him never drives one glove into the other

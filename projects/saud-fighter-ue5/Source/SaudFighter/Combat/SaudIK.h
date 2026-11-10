@@ -1498,9 +1498,11 @@ namespace SaudIK
 	    height the clip holds it -- the Block's forearm already stands in
 	    front of the face -- at most BlockMaxShift and never within
 	    BlockFistGap of the other glove, the elbow bending where it bent. A
-	    body blow: the fist stays where the clip has it and the elbow swings
-	    on its circle about the shoulder-to-fist line toward the meeting
-	    point, at most a BlockMaxShift chord. Up is the world's up in the
+	    body blow: the whole arm swings about the shoulder, the upper arm
+	    toward the meeting point by at most a BlockMaxShift chord at the
+	    elbow, the forearm and glove with it as one piece -- the elbow comes
+	    down onto the blow and the glove a little down and forward, never
+	    within BlockFistGap of the other glove. Up is the world's up in the
 	    pose's space. Returns where the elbow and the hand go. */
 	inline FTwoBone Cover(const FVector& Shoulder, const FVector& Elbow, const FVector& Hand, const FVector& Meet,
 	                      bool bHigh, float Alpha, const FVector& Up, const FVector& OtherHand, float Scale)
@@ -1530,28 +1532,43 @@ namespace SaudIK
 			}
 			return TwoBone(Shoulder, Elbow, Hand, Hand + Move * Alpha, Elbow, Alpha);
 		}
-		// the elbow turns on its circle about the shoulder-to-fist line, toward
-		// where the meeting point would have it, by at most a BlockMaxShift chord
+		// The whole covering arm swings about the shoulder: the upper arm turned
+		// toward the meeting point by at most a BlockMaxShift chord at the elbow,
+		// the forearm and the glove carried with it as one piece (2026-11-10, the
+		// IK reviewed: "a body blow's cover swings the elbow sideways away from
+		// the blow"). With the fist held where the clip has it the elbow could
+		// only turn on its circle about the shoulder-to-fist line, and on the
+		// Block's own arm that circle runs sideways: against a kick at the ribs
+		// the elbow went out and away from it, not down onto it.
 		FTwoBone Out;
 		Out.Mid = Elbow;
 		Out.End = Hand;
-		const FVector N = (Hand - Shoulder).GetSafeNormal();
-		const float ElbowAlong = FVector::DotProduct(Elbow - Shoulder, N);
-		const FVector C = Shoulder + N * ElbowAlong;
-		const FVector U = Elbow - C;
+		const FVector U = Elbow - Shoulder, W = Meet - Shoulder;
 		const float R = U.Size();
-		const FTwoBone Full = TwoBone(Shoulder, Elbow, Hand, Hand, Meet);
-		const float FullAlong = FVector::DotProduct(Full.Mid - C, N);
-		const FVector W = (Full.Mid - C) - N * FullAlong;
 		if (R < 1e-3f || W.IsNearlyZero(1e-3f)) return Out;
 		const float Cos = FVector::DotProduct(U, W) / (R * W.Size());
-		const float Side = FVector::DotProduct(FVector::CrossProduct(U, W), N);
-		const float Turn = FMath::Acos(FMath::Clamp(Cos, -1.f, 1.f)) * (Side < 0.f ? -1.f : 1.f);
-		if (FMath::Abs(Turn) < 1e-4f) return Out;
+		const float Turn = FMath::Acos(FMath::Clamp(Cos, -1.f, 1.f));
+		if (Turn < 1e-4f) return Out;
 		const float Half = FMath::Min(1.f, BlockMaxShift / (2.f * R));      // sin of half the most it may turn
 		const float Most = 2.f * FMath::Atan2(Half, FMath::Sqrt(1.f - Half * Half));
-		const float Took = FMath::Clamp(Turn, -Most, Most);
-		Out.Mid = C + RotateAbout(U, N, Took * Alpha);
+		float Share = FMath::Min(1.f, Most / Turn);
+		// never onto the other glove: the most of the swing that keeps a fist's width, as the head's
+		auto Clear = [&](float S) -> bool
+		{
+			FVector Gap = Shoulder + Swing(Hand - Shoulder, U, W, S) - OtherHand;
+			const float GapUp = FVector::DotProduct(Gap, Up);
+			Gap = Gap - Up * GapUp;
+			return Gap.Size() >= BlockFistGap * Scale;
+		};
+		if (!Clear(Share))
+		{
+			float Lo = 0.f, Hi = Share;
+			if (!Clear(0.f)) Hi = 0.f;
+			else for (int I = 0; I < 16; ++I) { const float Mid = 0.5f * (Lo + Hi); if (Clear(Mid)) Lo = Mid; else Hi = Mid; }
+			Share = Hi > 0.f ? Lo : 0.f;
+		}
+		Out.Mid = Shoulder + Swing(U, U, W, Share * Alpha);
+		Out.End = Shoulder + Swing(Hand - Shoulder, U, W, Share * Alpha);
 		return Out;
 	}
 
