@@ -452,7 +452,21 @@ bool FSaudMotionProxy::Evaluate(FPoseContext& Output)
 				const FVector Aim = SaudIK::MeetPoint(Mark, Root, Frame.StrikeSkin);
 				// (an arm's gate split against his up: a blow brought down onto a shorter man is not a swipe, 2026-11-10)
 				const float Gate = StrikeGate.Step(SaudIK::SwingGate(Root, Tip, Aim, bArm, Up), Dt);
-				Place(CS, L, Tip, SaudIK::SolveStrike(Root, Mid, Tip, Aim, Frame.StrikeAlpha * Gate), /*bEndRigid*/ true);
+				// an arm folded onto a close man takes a natural fold -- the elbow down and to
+				// its own side, this shoulder away from the other -- where the clip's arm is
+				// too straight to say which way it bends (SaudIK::SolveStrike, 2026-11-10)
+				FVector Down = FVector::ZeroVector, Outward = FVector::ZeroVector;
+				if (bArm)
+				{
+					const FCompactPoseBoneIndex Other = Bone(Bones, UpperBone[1 - S]);
+					Down = -Up;
+					if (Other.IsValid())
+					{
+						const FVector Across = Root - CS.GetComponentSpaceTransform(Other).GetLocation();
+						Outward = (Across - Up * FVector::DotProduct(Across, Up)).GetSafeNormal();
+					}
+				}
+				Place(CS, L, Tip, SaudIK::SolveStrike(Root, Mid, Tip, Aim, Frame.StrikeAlpha * Gate, Down, Outward), /*bEndRigid*/ true);
 				if (!bArm)
 				{
 					// the ball the feet set rides the foot the strike moved

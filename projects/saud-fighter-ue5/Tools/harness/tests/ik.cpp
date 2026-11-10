@@ -1079,6 +1079,50 @@ static void Contact()
         Check(FVector::Dist(Z.Mid, E1) < 0.01f && FVector::Dist(Z.End, T1) < 0.05f, "a straight clip arm is left alone at no share");
     }
 
+    // ---- an arm folded onto a close man: a natural fold where the clip's arm is too straight
+    // to say which way it bends (2026-11-10)
+    {
+        // Saud's cross, read off A_Saud_Cross by the review (keys 30 a second): half way from
+        // key 2 to its contact key, and the contact key, where the arm is all but straight --
+        // the elbow 1.6 cm off the shoulder-to-knuckle line, pointing up and out
+        const FVector S25(22.3f, 14.8f, 141.0f), E25(55.8f, 13.2f, 140.6f), K25(84.4f, -2.1f, 147.2f);
+        const FVector S3(24.3f, 13.2f, 139.9f), E3(56.5f, 7.8f, 147.9f), K3(88.4f, 0.0f, 153.7f);
+        const FVector Aim(63.6f, 0.6f, 153.9f);                  // the chin of a man 80 cm away: 43.6 cm from the shoulder
+        const FVector Down(0.f, 0.f, -1.f), Out(0.f, 1.f, 0.f);  // his right arm: its side is +Y
+        const FTwoBone A = SolveStrike(S25, E25, K25, Aim, 0.75f, Down, Out), B = SolveStrike(S3, E3, K3, Aim, 1.f, Down, Out);
+        const FTwoBone A0 = SolveStrike(S25, E25, K25, Aim, 0.75f), B0 = SolveStrike(S3, E3, K3, Aim, 1.f);       // the clip's bend alone, as it was
+        const float ClipTravel = (float)FVector::Dist(E25, E3), Travel = (float)FVector::Dist(A.Mid, B.Mid), Travel0 = (float)FVector::Dist(A0.Mid, B0.Mid);
+        std::printf("  Saud's cross folded onto a chin 80 cm away: the elbow %.1f cm under the fist, moving %.1f cm into the contact frame (the clip's own %.1f); with the clip's bend alone %.1f cm OVER the fist and %.1f cm\n",
+                    (float)(B.End.Z - B.Mid.Z), Travel, ClipTravel, (float)(B0.Mid.Z - B0.End.Z), Travel0);
+        Check(FVector::Dist(B.End, Aim) < 0.01f && Near((float)FVector::Dist(S3, B.Mid), (float)FVector::Dist(S3, E3), 1e-2f)
+                  && Near((float)FVector::Dist(B.Mid, B.End), (float)FVector::Dist(E3, K3), 1e-2f),
+              "a folded punch still puts its knuckles on the aim, each segment its own length");
+        Check(B.Mid.Z < B.End.Z && B0.Mid.Z > B0.End.Z, "a straight punch folded onto a close man keeps its elbow under the fist");
+        Check(Travel < 1.5f * ClipTravel && Travel0 > 2.f * ClipTravel, "...and the elbow moves no more than half again what the clip's own does into the contact frame");
+        {
+            // down, and to his own side: the elbow's offset from the shoulder-to-knuckle line
+            const FVector Ln = (B.End - S3).GetSafeNormal();
+            const FVector Off = (B.Mid - S3) - Ln * FVector::DotProduct(B.Mid - S3, Ln);
+            Check(FVector::DotProduct(Off, Out) > 5.0 && FVector::DotProduct(Off, Down) > 2.0 * FVector::DotProduct(Off, Out) * 0.5,
+                  "...folded down and to the arm's own side");
+        }
+        // his left arm, the jab's: the same fold on the other side
+        auto Mirror = [](const FVector& V) { return FVector(V.X, -V.Y, V.Z); };
+        const FTwoBone L = SolveStrike(Mirror(S3), Mirror(E3), Mirror(K3), Mirror(Aim), 1.f, Down, Mirror(Out));
+        Check(FVector::Dist(Mirror(L.Mid), B.Mid) < 1e-2f, "the left arm folds as the right does, to its own side");
+        // nothing changes where nothing folds, or where the clip's own bend is plain to see
+        const FTwoBone AtReach = SolveStrike(S3, E3, K3, S3 + RotateAbout(K3 - S3, FVector(0.f, 0.f, 1.f), 0.4f), 1.f, Down, Out);
+        const FTwoBone AtReach0 = SolveStrike(S3, E3, K3, S3 + RotateAbout(K3 - S3, FVector(0.f, 0.f, 1.f), 0.4f), 1.f);
+        const FTwoBone NoShare = SolveStrike(S3, E3, K3, Aim, 0.f, Down, Out);
+        const FVector R0(0.f, 0.f, 140.f), M0(30.f, 0.f, 128.f), T0(65.f, 0.f, 140.f), Tg(40.f, 10.f, 150.f);     // an elbow 12 cm off its line
+        const FTwoBone Bent = SolveStrike(R0, M0, T0, Tg, 1.f, Down, Out), Bent0 = SolveStrike(R0, M0, T0, Tg, 1.f);
+        Check(FVector::Dist(AtReach.Mid, AtReach0.Mid) == 0.f && FVector::Dist(NoShare.Mid, E3) < 1e-3f && FVector::Dist(Bent.Mid, Bent0.Mid) == 0.f,
+              "a punch at its own reach, a strike at no share and an arm with a bend of its own are solved as they always were");
+        // a leg is given no natural fold: the clip's bend alone
+        const FTwoBone Leg = SolveStrike(S3, E3, K3, Aim, 1.f, FVector::ZeroVector, Out);
+        Check(FVector::Dist(Leg.Mid, B0.Mid) == 0.f, "a limb given no down -- a leg -- keeps the clip's bend alone");
+    }
+
     // ---- the knee strike lands the knee
     {
         const FVector Hip(0.f, 0.f, 90.f), Knee(30.f, 0.f, 115.f), Plexus(60.f, 10.f, 128.f);

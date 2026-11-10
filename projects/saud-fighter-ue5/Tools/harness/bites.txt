@@ -927,3 +927,11 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#return FMath::Lerp(Whole, FMath::Min(Gat
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Sided = SmoothStep((static_cast<float>(LevelA.Size()) - 0.1f) / 0.2f);#const float Sided = LevelA.Size() > 0.0 ? 1.f : 0.f;#|an arm thrown all but straight up has no side
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Sided = SmoothStep((static_cast<float>(LevelA.Size()) - 0.1f) / 0.2f);#const float Sided = LevelA.Size() > 0.2 ? 1.f : 0.f;#|raising an arm toward straight up, the gate never jumps
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const FVector Raised = LevelA.GetSafeNormal() \* FMath::Sqrt(FMath::Max(0.f, 1.f - UpB \* UpB)) + U \* UpB;#const FVector Raised = A;#|a big man's punch at a smaller man straight ahead keeps its pull
+# 2026-11-10, the IK reviewed: a punch folded onto a close man takes a natural fold where the clip's arm is too straight to say (SolveStrike)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float W = (1.f - Trust) \* Fold;#const float W = 0.f * (1.f - Trust) * Fold;#|a straight punch folded onto a close man keeps its elbow under the fist
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float W = (1.f - Trust) \* Fold;#const float W = 0.f * (1.f - Trust) * Fold;#|the elbow moves no more than half again what the clip's own does
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float W = (1.f - Trust) \* Fold;#const float W = Fold + 0.f * Trust;#|an arm with a bend of its own are solved as they always were
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float W = (1.f - Trust) \* Fold;#const float W = (1.f - Trust) + 0.f * Fold;#|an arm with a bend of its own are solved as they always were
+ik|Source/SaudFighter/Combat/SaudIK.h|s#Outward.GetSafeNormal() \* NaturalOutShare);#Outward.GetSafeNormal() * -NaturalOutShare);#|folded down and to the arm's own side
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float NaturalOutShare = 0.5f;#constexpr float NaturalOutShare = 5.f;#|folded down and to the arm's own side
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!Down.IsNearlyZero())#if (Down.Size() >= 0.0)#|a limb given no down -- a leg -- keeps the clip's bend alone

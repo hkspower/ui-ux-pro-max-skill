@@ -1382,15 +1382,57 @@ namespace SaudIK
 	    root toward the target by Alpha, on the arc and not the chord, and the
 	    bend goes where the clip's bend goes, turned with the swing. Returns
 	    where the middle joint and the tip go. */
+	/** An arm folded onto a close man: how far the clip's own bend is trusted
+	    (2026-11-10, the IK reviewed: "a straight punch at a close man folds
+	    with the elbow whipped up over the fist"). At its contact key a
+	    straight punch's arm is all but straight -- Saud's cross has its elbow
+	    1.6 cm off the shoulder-to-knuckle line, pointing up and out -- and
+	    that is the direction the fold was given: drawn back onto a chin 80
+	    cm away the elbow went 25 cm off the line along it, 9.2 cm ABOVE the
+	    fist, 27.1 cm in one frame where the clip's most is 12. The clip's
+	    bend is trusted by how far its elbow stands off the line (all of it
+	    from StrikeTrustShare of the upper arm's length) and replaced only as
+	    far as the solve folds the limb (all the way once the reach is
+	    StrikeFoldShare of the limb shorter than the clip's): by a natural
+	    fold, the elbow down and NaturalOutShare outward. */
+	constexpr float StrikeTrustShare = 0.25f;
+	constexpr float StrikeFoldShare = 0.15f;
+	constexpr float NaturalOutShare = 0.5f;
+
+	/** Down, Outward: for an ARM, the fighter's down and the arm's own side
+	    (this shoulder away from the other), in the space the points are in;
+	    left at nothing for a leg -- a knee's natural bend is not down -- and
+	    the pole is the clip's bend alone, as it always was. A pure function
+	    of the frame's pose: nothing is remembered, so every frame rate
+	    draws the same arm. */
 	inline FTwoBone SolveStrike(const FVector& Root, const FVector& Mid, const FVector& Tip,
-	                            const FVector& Target, float Alpha)
+	                            const FVector& Target, float Alpha,
+	                            const FVector& Down = FVector::ZeroVector, const FVector& Outward = FVector::ZeroVector)
 	{
 		Alpha = FMath::Clamp(Alpha, 0.f, 1.f);
 		const FVector From = Tip - Root, To = Target - Root;
 		const float Len = FMath::Lerp(From.Size(), To.Size(), Alpha);
 		const FVector Dir = Swing(From, From, To, Alpha).GetSafeNormal();
 		const FVector Wanted = Root + Dir * Len;
-		const FVector Pole = Root + Swing(Mid - Root, From, To, Alpha);
+		FVector Pole = Root + Swing(Mid - Root, From, To, Alpha);
+		if (!Down.IsNearlyZero())
+		{
+			const float Upper = static_cast<float>(FVector::Dist(Root, Mid)), Limb = Upper + static_cast<float>(FVector::Dist(Mid, Tip));
+			const FVector Line = From.GetSafeNormal();
+			const float ClipOff = static_cast<float>(((Mid - Root) - Line * FVector::DotProduct(Mid - Root, Line)).Size());
+			const float Trust = Upper > 1e-3f ? FMath::Clamp(ClipOff / (StrikeTrustShare * Upper), 0.f, 1.f) : 1.f;
+			const float Fold = Limb > 1e-3f ? FMath::Clamp((static_cast<float>(From.Size()) - Len) / (StrikeFoldShare * Limb), 0.f, 1.f) : 0.f;
+			const float W = (1.f - Trust) * Fold;
+			if (W > 0.f)
+			{
+				// each with the along-limb part taken out: what TwoBone bends toward
+				auto Square = [&Dir](const FVector& V) { return (V - Dir * FVector::DotProduct(V, Dir)).GetSafeNormal(); };
+				const FVector Clip = Square(Pole - Root);
+				const FVector Natural = Square(Down.GetSafeNormal() + Outward.GetSafeNormal() * NaturalOutShare);
+				const FVector Bend = (Clip * (1.f - W) + Natural * W).GetSafeNormal();
+				if (!Bend.IsNearlyZero()) Pole = Root + Bend * Upper;
+			}
+		}
 		return TwoBone(Root, Mid, Tip, Wanted, Pole, Alpha);
 	}
 
