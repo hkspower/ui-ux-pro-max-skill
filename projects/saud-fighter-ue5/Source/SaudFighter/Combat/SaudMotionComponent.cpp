@@ -167,7 +167,11 @@ void USaudMotionComponent::PlayPicked(float DeltaSeconds)
 		// (a pivot hands over into his run at his set's own share of its cycle)
 		const FString SetName = Fighter->MotionSet.IsNone() ? FString(TEXT("Saud")) : Fighter->MotionSet.ToString();
 		const SaudFeel::FCut Cut = bShown ? SaudFeel::CutBetween(ShownClip, Clip, bRestart, TCHAR_TO_ANSI(*SetName)) : SaudFeel::FCut();
-		Inst->Play(Seq, SaudFeel::Loops(Clip), bRestart, Cut.Seconds, Cut.bMatchPhase, bOwnTurn, Cut.ShareShift, Cut.StartShare);
+		// a man's own turn clip says what its body does (SaudIK::TurnStep); the Island's
+		// creatures' turns are authored on their own schedule, and are left not known
+		const bool bKnownTurn = bOwnTurn && SetName != TEXT("Monkey") && SetName != TEXT("Gorilla");
+		Inst->Play(Seq, SaudFeel::Loops(Clip), bRestart, Cut.Seconds, Cut.bMatchPhase, bOwnTurn, Cut.ShareShift, Cut.StartShare,
+		           bKnownTurn ? SaudFeel::TurnStartYaw(Clip) : 0.f, bKnownTurn ? SaudFeel::TurnDoneBefore(Clip) : 0);
 		ShownClip = Clip;
 		bShown = true;
 	}

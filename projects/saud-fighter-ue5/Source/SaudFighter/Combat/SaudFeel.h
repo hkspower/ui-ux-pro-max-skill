@@ -274,6 +274,32 @@ namespace SaudFeel
 		return C == EClip::TurnL90 || C == EClip::TurnR90 || C == EClip::Turn180 || C == EClip::Pivot180;
 	}
 
+	/** A turn clip's own body at its first frame, degrees of yaw off the
+	    root: the body stands where it stood, so it starts turned back by
+	    the clip's own turn (build_motion.py's TURN_DEG, the other way
+	    round: Turn_L90 turns +90 and starts at -90; the two half turns go
+	    round to his right, -180, and start at +180). 0 for any other clip.
+	    (2026-11-10, for SaudIK::TurnStep's ClipStartYaw.) */
+	inline float TurnStartYaw(EClip C)
+	{
+		switch (C)
+		{
+		case EClip::TurnL90:  return -90.f;
+		case EClip::TurnR90:  return 90.f;
+		case EClip::Turn180:  return 180.f;
+		case EClip::Pivot180: return 180.f;
+		default:              return 0.f;
+		}
+	}
+
+	/** How many frames before its end a turn clip's body has come round
+	    (build_motion.py: `done = N - 4` in turn_schedule, `done = N - 2` in
+	    the pivot). 0 for any other clip. (For SaudIK::TurnClipLeft.) */
+	inline int TurnDoneBefore(EClip C)
+	{
+		return C == EClip::Pivot180 ? 2 : IsTurnClip(C) ? 4 : 0;
+	}
+
 	/** The clip that carries a turn the steer started. */
 	inline EClip TurnClip(SaudSteer::ETurn T)
 	{

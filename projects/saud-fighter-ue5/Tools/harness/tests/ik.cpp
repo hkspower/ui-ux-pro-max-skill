@@ -1457,6 +1457,37 @@ static void Body()
         Check(Near(Held, 100.f) && Near(Then, -99.f) && Side < 0.f, "...and changes it when he comes within the limit on the other side");
     }
     {
+        // a look taken up afresh takes its shoulder from the man himself (2026-11-10). He is
+        // settled on a man dead ahead -- a fraction of a degree to either side, as FaceTowards'
+        // dead band leaves him, or exactly ahead -- and then a man on the flank, past what the
+        // face can turn to, is looked at: over his own shoulder, not the one kept from before
+        float Worst = 0.f, WorstAfterReel = 0.f;
+        for (float Hz : { 30.f, 60.f, 120.f })
+        {
+            for (float Ahead : { 0.7f, -0.7f, 0.f })
+            {
+                for (float Flank : { -110.f, 110.f })
+                {
+                    for (int Way = 0; Way < 2; ++Way)
+                    {
+                        FTurn S = Whole();
+                        const float Dt = 1.f / Hz;
+                        for (int I = 0; I < (int)Hz; ++I) TurnStep(S, 0.f, Ahead, 0.f, true, false, false, false, Dt, -1.f, 0.f, -1.f, I == 0);
+                        // Way 0: a new man; Way 1: the same look let go for a reel, then taken up again
+                        if (Way == 1) for (int I = 0; I < 5; ++I) TurnStep(S, 0.f, 0.f, 0.f, false, false, false, false, Dt);
+                        for (int I = 0; I < (int)Hz; ++I) TurnStep(S, 0.f, Flank, 0.f, true, false, false, false, Dt, -1.f, 0.f, -1.f, Way == 0 && I == 0);
+                        FVector C, F; Apply(ShareTurn(S), FVector(1.f, 0.f, 0.f), FVector::UpVector, C, F);
+                        const float Off = std::fabs(WrapDegrees(YawOf(F) - Flank));
+                        (Way == 0 ? Worst : WorstAfterReel) = std::fmax(Way == 0 ? Worst : WorstAfterReel, Off);
+                    }
+                }
+            }
+        }
+        std::printf("  a man on the flank at 110, after one dead ahead: the face ends %.1f degrees off him (%.1f taken up again after a reel)\n", Worst, WorstAfterReel);
+        Check(Worst < 15.f, "a new man on the flank is looked at over his own shoulder, whoever was looked at before");
+        Check(WorstAfterReel < 15.f, "...and so is a look taken up again after a reel");
+    }
+    {
         int Bad = 0;
         for (int I = 0; I < 72; ++I)
         {
@@ -2433,6 +2464,107 @@ static void Loco()
         TurnStep(S, 90.f, 0.f, 0.f, true, false, false, false, 1.f / 60.f, 1.f);
         TurnStep(S, 0.f, 0.f, 0.f, true, false, false, false, 1.f / 60.f, -1.f);
         Check(S.Hips == 0.f && !S.bClip, "the clip over, nothing is left to settle");
+    }
+    // ---- a turn clip whose own turn is known (2026-11-10): the lag met on the clip's side
+    // of the circle, what the clip's turn does not carry let out with it, and the chest and
+    // face kept over the hips the clip draws
+    {
+        // the clip's own body as build_motion.py authors it, written out here apart from the
+        // header: its first frame's yaw off the root, round on the browser's ease by its done frame
+        struct FClipModel { const char* Name; float Start; int Frames; int DoneBefore; };
+        auto EaseQ = [](float T) { T = std::fmin(std::fmax(T, 0.f), 1.f); return T < 0.5f ? 2.f * T * T : 1.f - 0.5f * (2.f - 2.f * T) * (2.f - 2.f * T); };
+        auto Come = [&](const FClipModel& M, float T) { return EaseQ(T * 30.f / (float)(M.Frames - M.DoneBefore)); };
+        const FClipModel L90{"Turn_L90", -90.f, 15, 4}, R90{"Turn_R90", 90.f, 15, 4}, T180{"Turn_180", 180.f, 21, 4}, P180{"Pivot_180", 180.f, 14, 2};
+        Check(Near(TurnClipLeft(0.f, 15, 4), 1.f) && TurnClipLeft(11.f / 30.f, 15, 4) == 0.f && TurnClipLeft(0.5f, 15, 4) == 0.f
+                  && Near(TurnClipLeft(5.5f / 30.f, 15, 4), 0.5f, 1e-4f) && Near(TurnClipLeft(3.f / 30.f, 14, 2), 1.f - 2.f * 0.25f * 0.25f, 1e-4f)
+                  && TurnClipLeft(0.2f, 3, 4) == 0.f,
+              "a turn clip's turn is all to come at its first frame, half at half way to its done frame, none from there on");
+
+        struct FRun { float Off = 0.f; float Cut = 0.f; float Against = 0.f; float End = 0.f; float HipsEnd = 0.f; float Trunk = 0.f; float Face = 0.f; };
+        // Late: the clip is taken a frame after the facing snapped (the component ticks after the fighter)
+        auto Run = [&](const FClipModel& M, float Snap, float Hz, bool bKnown, int Late) -> FRun
+        {
+            FRun R;
+            FTurn S = Whole();
+            const float Dt = 1.f / Hz;
+            float Actor = 0.f, Last = 0.f, Sum = 0.f, Base = 0.f, Whole_ = 0.f;
+            const int Frames = (int)std::lround((float)M.Frames / 30.f * Hz) + Late;
+            for (int I = 0; I < Frames; ++I)
+            {
+                const float Turned = I == 0 ? Snap : 0.f;
+                Actor += Turned;
+                const bool bOn = I >= Late;
+                const float U = bOn ? (I - Late + 1) * Dt : 0.f;                  // the clip's own time
+                const float W = bOn ? SmoothStep(U / 0.06f) : -1.f;                // its crossfade, or no clip yet
+                if (bOn && bKnown) TurnStep(S, Turned, 0.f, 0.f, true, false, false, false, Dt, W, M.Start, TurnClipLeft(U, M.Frames, M.DoneBefore));
+                else TurnStep(S, Turned, 0.f, 0.f, true, false, false, false, Dt, W);
+                // the pelvis as the fold draws it: the root behind by the lag, the guard's pose
+                // mixed with the clip's the short way round
+                const float Clip = bOn ? W * WrapDegrees(M.Start * (1.f - Come(M, U))) : 0.f;
+                const float Move = WrapDegrees(Actor + S.Hips + Clip - Last);
+                Last = Actor + S.Hips + Clip;
+                // where the body was drawn before the clip's first frame, and what is left of the snap from there
+                if (I == Late) { Base = Sum; Whole_ = WrapDegrees(Snap - Base); if (M.Start > 90.f && Whole_ > 0.f) Whole_ -= 360.f; }
+                Sum += Move;                                                       // how far the drawn body has turned, the way it went
+                if (bOn)
+                {
+                    // from where it stood when the clip was taken, it turns what is left of the
+                    // snap once, on the clip's own curve (a half turn: round to his right)
+                    R.Off = std::fmax(R.Off, std::fabs((Sum - Base) - Whole_ * W * Come(M, U)));
+                    if (U <= 0.06f + 1e-4f) R.Cut = std::fmax(R.Cut, std::fabs(Sum - Base));
+                    if (Whole_ != 0.f) R.Against = std::fmax(R.Against, -(Sum - Base) * (Whole_ > 0.f ? 1.f : -1.f));
+                    // the chest's and the face's turn over the hips, against the way he turns (a
+                    // lead the way he turns is the lag's own, from the frame before the clip)
+                    const FChainTurn T = ShareTurn(S);
+                    const float Way = Whole_ >= 0.f ? 1.f : -1.f;
+                    R.Trunk = std::fmax(R.Trunk, -Way * (T.Yaw[0] + T.Yaw[1] + T.Yaw[2]));
+                    R.Face = std::fmax(R.Face, -Way * (T.Yaw[0] + T.Yaw[1] + T.Yaw[2] + T.Yaw[3] + T.Yaw[4]));
+                }
+            }
+            R.End = WrapDegrees(Actor + S.Hips - Snap);
+            R.HipsEnd = S.Hips;
+            return R;
+        };
+        FRun Q;       // the quarter turns, at every snap the steer hands them
+        for (float Hz : { 30.f, 60.f, 120.f })
+            for (float Snap : { 46.f, 50.f, 60.f, 75.f, 90.f, 105.f, 120.f, 135.f })
+                for (int Mirror = 0; Mirror < 2; ++Mirror)
+                    for (int Late = 0; Late < 2; ++Late)
+                    {
+                        const FRun R = Run(Mirror ? R90 : L90, Mirror ? -Snap : Snap, Hz, true, Late);
+                        Q.Off = std::fmax(Q.Off, R.Off); Q.Cut = std::fmax(Q.Cut, R.Cut); Q.Against = std::fmax(Q.Against, R.Against);
+                        Q.End = std::fmax(Q.End, std::fabs(R.End)); Q.HipsEnd = std::fmax(Q.HipsEnd, std::fabs(R.HipsEnd));
+                        // (the chain, where the clip is taken on the snap's own frame: a frame late, the
+                        // lag has already led the chest the short way, which a half turn does not go)
+                        if (Late == 0) { Q.Trunk = std::fmax(Q.Trunk, R.Trunk); Q.Face = std::fmax(Q.Face, R.Face); }
+                    }
+        std::printf("  quarter turns snapped 46-135 either way: the body %.3f off the clip's curve at worst, %.2f through the cut, %.3f against the turn; chest %.2f and face %.2f against it\n",
+                    Q.Off, Q.Cut, Q.Against, Q.Trunk, Q.Face);
+        Check(Q.Off < 0.05f && Q.Against < 0.05f,
+              "a quarter turn snapped anywhere from 46 to 135: the body turns once, by the snap's own angle, never the wrong way first");
+        Check(Q.Cut < 9.f, "...and stands where it stood through the cut");
+        Check(Q.End < 1e-3f && Q.HipsEnd < 1e-3f, "...ending on the facing with nothing left to settle");
+        FRun H;       // the half turns: the about-turn and the pivot, the stick either side of straight back
+        for (float Hz : { 30.f, 60.f, 120.f })
+            for (float Snap : { 136.f, 150.f, 179.f, 180.f, -179.f, -150.f, -136.f })
+                for (int Pivot = 0; Pivot < 2; ++Pivot)
+                    for (int Late = 0; Late < 2; ++Late)
+                    {
+                        const FRun R = Run(Pivot ? P180 : T180, Snap, Hz, true, Late);
+                        H.Off = std::fmax(H.Off, R.Off); H.Cut = std::fmax(H.Cut, R.Cut); H.Against = std::fmax(H.Against, R.Against);
+                        H.End = std::fmax(H.End, std::fabs(R.End)); H.HipsEnd = std::fmax(H.HipsEnd, std::fabs(R.HipsEnd));
+                        if (Late == 0) { H.Trunk = std::fmax(H.Trunk, R.Trunk); H.Face = std::fmax(H.Face, R.Face); }
+                    }
+        std::printf("  half turns snapped 136-180 either way: the body %.3f off the clip's curve at worst, %.2f through the cut, %.3f against the clip's way; chest %.2f and face %.2f against it\n",
+                    H.Off, H.Cut, H.Against, H.Trunk, H.Face);
+        Check(H.Off < 0.05f && H.Against < 0.05f,
+              "a half turn, the stick either side of straight back: the body goes round once, the clip's own way, never the long way through the cut");
+        Check(H.Cut < 30.f && H.End < 1e-3f && H.HipsEnd < 1e-3f, "...standing where it stood through the cut, and ending on the facing");
+        Check(Q.Trunk < 2.f && Q.Face < 2.f && H.Trunk < 2.f && H.Face < 2.f,
+              "under a turn clip the chest and the face are never swung back against the turn");
+        // a clip whose turn is not known is handled as it always was: the whole lag out through the cut
+        const FRun Old = Run(L90, 90.f, 60.f, false, 0);
+        Check(Old.End < 1e-3f && Old.HipsEnd == 0.f, "a turn clip whose own turn is not known still clears the whole lag");
     }
     {
         // the feet keep their world anchors as the facing snaps under a turn clip

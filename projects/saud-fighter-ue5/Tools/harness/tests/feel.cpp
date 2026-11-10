@@ -432,6 +432,49 @@ static void Loco360()
     for (const FName_& N : Names) if (std::strcmp(ClipSuffix(N.C), N.Name) != 0) { ++BadName; std::printf("  %s named %s\n", N.Name, ClipSuffix(N.C)); }
     Check(BadName == 0, "every 360 clip is named as the spec's file: Walk_<Dir>, Run_<Dir>, Turn_L90, Turn_R90, Turn_180, Pivot_180");
     {
+        // what a turn clip's own body does (TurnStartYaw, TurnDoneBefore, 2026-11-10), held to the
+        // tool that authors the clips: build_motion.py's TURN_DEG and its two `done = N - k`
+        std::string Py;
+        if (FILE* F = std::fopen("Tools/blender/build_motion.py", "rb"))
+        {
+            char Buf[65536]; size_t N;
+            while ((N = std::fread(Buf, 1, sizeof(Buf), F)) > 0) Py.append(Buf, N);
+            std::fclose(F);
+        }
+        Check(!Py.empty(), "build_motion.py is there to read the turns from");
+        const size_t Table = Py.find("TURN_DEG = {");
+        int Bad = 0;
+        const FName_ Turns[] = { {EClip::TurnL90, "Turn_L90"}, {EClip::TurnR90, "Turn_R90"}, {EClip::Turn180, "Turn_180"}, {EClip::Pivot180, "Pivot_180"} };
+        for (const FName_& T : Turns)
+        {
+            const std::string Key = std::string("\"") + T.Name + "\": ";
+            const size_t At = Table == std::string::npos ? std::string::npos : Py.find(Key, Table);
+            const float Deg = At == std::string::npos ? 0.f : std::strtof(Py.c_str() + At + Key.size(), nullptr);
+            // the clip turns Deg; its first frame is the body where it stood, turned back by it
+            if (At == std::string::npos || Deg == 0.f || TurnStartYaw(T.C) != -Deg) { ++Bad; std::printf("  %s turns %.0f; the game starts it at %.0f\n", T.Name, Deg, TurnStartYaw(T.C)); }
+        }
+        Check(Bad == 0 && TurnStartYaw(EClip::Guard) == 0.f && TurnStartYaw(EClip::WalkFwd) == 0.f,
+              "a turn clip's first frame is the body turned back by the clip's own turn, as build_motion.py's TURN_DEG has it; no other clip has one");
+        auto DoneIn = [&](const char* Def, const char* Until) -> int
+        {
+            const size_t A = Py.find(Def), B = A == std::string::npos ? A : Py.find(Until, A);
+            if (A == std::string::npos || B == std::string::npos) return -1;
+            int Found = -1;
+            for (size_t At = Py.find("done = N - ", A); At != std::string::npos && At < B; At = Py.find("done = N - ", At + 1))
+            {
+                const int K = std::atoi(Py.c_str() + At + 11);
+                if (Found >= 0 && K != Found) return -2;     // two answers in one function
+                Found = K;
+            }
+            return Found;
+        };
+        const int TurnDone = DoneIn("def turn_schedule(", "def author_turn("), PivotDone = DoneIn("def author_pivot(", "\ndef ");
+        std::printf("  the turns' bodies are round %d frames before the end, the pivot's %d (build_motion.py)\n", TurnDone, PivotDone);
+        Check(TurnDone == TurnDoneBefore(EClip::TurnL90) && TurnDone == TurnDoneBefore(EClip::TurnR90) && TurnDone == TurnDoneBefore(EClip::Turn180)
+              && PivotDone == TurnDoneBefore(EClip::Pivot180) && TurnDoneBefore(EClip::Guard) == 0,
+              "a turn clip's body has come round the frames before its end that build_motion.py authors: four for the turns, two for the pivot");
+    }
+    {
         bool Ok = true;
         for (int D = 0; D < 8; ++D)
         {

@@ -195,9 +195,14 @@ public:
 	    its cycle the clip it replaces had reached (SaudFeel::CutBetween).
 	    bTurn: a turn or pivot clip (Turn_L90 ... Pivot_180) that carries the
 	    turn itself, so the hips' lag is cleared under it (SaudIK::TurnStep).
-	    ShareShift, StartShare: SaudFeel::FCut's, for SaudIK::FCrossfade::Play. */
+	    ShareShift, StartShare: SaudFeel::FCut's, for SaudIK::FCrossfade::Play.
+	    TurnStartYaw, TurnDoneBefore: what a turn clip's own body does, for the
+	    men's clips (SaudFeel::TurnStartYaw, TurnDoneBefore); DoneBefore 0 for a
+	    clip whose turn is not known -- the Island's creatures', authored on
+	    their own schedule -- which TurnStep then handles as it always did. */
 	void Play(UAnimSequence* Sequence, bool bLoop, bool bRestart, float CutSeconds = 0.f, bool bMatchPhase = false,
-	          bool bTurn = false, float ShareShift = 0.f, float StartShare = -1.f);
+	          bool bTurn = false, float ShareShift = 0.f, float StartShare = -1.f,
+	          float TurnStartYaw = 0.f, int32 TurnDoneBefore = 0);
 
 	/** On real time rather than the world's: under the title, which holds
 	    the world paused, he still breathes in his guard. A freeze (hit
@@ -248,6 +253,11 @@ private:
 
 	/** Each of Clips: a turn or pivot clip, which carries its own turn. */
 	TArray<bool> ClipTurns;
+
+	/** Each of Clips: a turn clip's first-frame yaw off the root and how many
+	    frames before its end its turn is done (0: not known). */
+	TArray<float> ClipTurnYaw;
+	TArray<int32> ClipTurnDone;
 
 	/** Each of Clips: motion capture (A_Saud_Mocap_*), which no guard was built into. */
 	TArray<bool> ClipGaits;

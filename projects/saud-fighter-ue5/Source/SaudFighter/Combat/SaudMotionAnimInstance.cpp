@@ -604,6 +604,8 @@ void USaudMotionAnimInstance::NativeInitializeAnimation()
 	Clips.Reset();
 	ClipPlants.Reset();
 	ClipTurns.Reset();
+	ClipTurnYaw.Reset();
+	ClipTurnDone.Reset();
 	ClipGaits.Reset();
 	StanceSet = NAME_None;
 	bStanceLooked = false;
@@ -631,7 +633,7 @@ void USaudMotionAnimInstance::NativeInitializeAnimation()
 }
 
 void USaudMotionAnimInstance::Play(UAnimSequence* Sequence, bool bLoop, bool bRestart, float CutSeconds, bool bMatchPhase,
-                                   bool bTurn, float ShareShift, float StartShare)
+                                   bool bTurn, float ShareShift, float StartShare, float TurnStartYaw, int32 TurnDoneBefore)
 {
 	if (!Sequence)
 	{
@@ -644,6 +646,8 @@ void USaudMotionAnimInstance::Play(UAnimSequence* Sequence, bool bLoop, bool bRe
 		// its measured feet, by the asset's name (A_Saud_Walk_Fwd): the two arrays stay in step
 		ClipPlants.Add(SaudPlants::Find(TCHAR_TO_ANSI(*Sequence->GetName())));
 		ClipTurns.Add(bTurn);
+		ClipTurnYaw.Add(bTurn ? TurnStartYaw : 0.f);
+		ClipTurnDone.Add(bTurn ? TurnDoneBefore : 0);
 		ClipGaits.Add(Sequence->GetName().Contains(TEXT("_Mocap_")));
 	}
 	Fade.Play(Id, Sequence->GetPlayLength(), bLoop, bRestart, CutSeconds, bMatchPhase, ShareShift, StartShare);
@@ -1234,6 +1238,8 @@ void USaudMotionAnimInstance::UpdateTurn(AFighterBase* Fighter, bool bTeleported
 	}
 	const int32 Pick = SaudIK::ChooseLook(Candidates.GetData(), Candidates.Num(), Location, Forward);
 	AFighterBase* Target = Pick >= 0 ? Who[Pick] : nullptr;
+	// a look taken up afresh takes its side from the man himself (SaudIK::TurnStep's bNewLook)
+	const bool bNewLook = Target != LookTarget.Get();
 	LookTarget = Target;
 	bLookAtThreat = Pick >= 0 && (Candidates[Pick].bThreat || Candidates[Pick].bWasThreat);
 
@@ -1251,9 +1257,22 @@ void USaudMotionAnimInstance::UpdateTurn(AFighterBase* Fighter, bool bTeleported
 	}
 	// a turn or pivot clip carries the turn itself: the lag goes out as it
 	// comes in and is held at none under it, so the body is not turned twice
-	const float TurnClip = NewestTurns() ? Fade.Layers[0].Weight : -1.f;
+	const bool bTurnClip = NewestTurns();
+	const float TurnClip = bTurnClip ? Fade.Layers[0].Weight : -1.f;
+	// what the clip's own body does, where it is known (the men's turn clips,
+	// 2026-11-10): its first frame's yaw off the root and how much of its turn
+	// is still to come -- so the lag meets it the short way round and only the
+	// part the clip does not carry is kept, and let out with it
+	float ClipStartYaw = 0.f, ClipLeft = -1.f;
+	if (bTurnClip && ClipTurnDone.IsValidIndex(Fade.Layers[0].Clip) && ClipTurnDone[Fade.Layers[0].Clip] > 0)
+	{
+		const SaudPlants::FClip* Plants = NewestPlants();
+		const int32 Frames = Plants ? Plants->Frames : FMath::RoundToInt(Fade.Layers[0].Length * SaudPlants::Fps);
+		ClipStartYaw = ClipTurnYaw[Fade.Layers[0].Clip];
+		ClipLeft = SaudIK::TurnClipLeft(Fade.Layers[0].Time, Frames, ClipTurnDone[Fade.Layers[0].Clip]);
+	}
 	SaudIK::TurnStep(Turn, Turned, RawYaw, Pitch, bMayLook && Target != nullptr, bLying,
-	                 St == EFighterState::Attack, bTeleported, DeltaSeconds, TurnClip);
+	                 St == EFighterState::Attack, bTeleported, DeltaSeconds, TurnClip, ClipStartYaw, ClipLeft, bNewLook);
 
 	// Handed over in the mesh's own space.
 	const FTransform& C2W = Mesh->GetComponentTransform();

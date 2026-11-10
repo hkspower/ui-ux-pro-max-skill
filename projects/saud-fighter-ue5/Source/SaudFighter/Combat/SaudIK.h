@@ -1657,6 +1657,7 @@ namespace SaudIK
 		float Head = 0.f;      // the face's turn over the hips, before the neck's limit
 		float Pitch = 0.f;     // the face's pitch, + up
 		float Side = 1.f;      // the shoulder a man past the limit is held over
+		bool bLooked = false;  // he was looking at a man last frame (TurnStep: a look taken up afresh takes its side from the man)
 		FRamp Weight;          // how much of the chest's and face's turn shows: 0 the clip's own
 		// a turn clip carrying the turn (TurnStep's TurnClip): the lag it found
 		// and how far the clip has come in, never back
@@ -1664,6 +1665,23 @@ namespace SaudIK
 		float ClipHips = 0.f;
 		float ClipShare = 0.f;
 	};
+
+	/** How much of a turn clip's own turn is still to come at Time seconds
+	    into it: 1 at its first frame, 0 once its body has come round
+	    (2026-11-10). The clips are authored so (build_motion.py's
+	    author_turn and the pivot): the body's yaw off the root is its
+	    first frame's times 1 - ease(frame / done), on the browser's ease
+	    (quadratic in and out), where done is the clip's frame count less
+	    DoneBefore -- four for the turns on the spot, two for the pivot.
+	    Frames: the clip's frame count, at SaudPlants::Fps. */
+	inline float TurnClipLeft(float Time, int Frames, int DoneBefore)
+	{
+		const float Done = static_cast<float>(Frames - DoneBefore) / SaudPlants::Fps;
+		if (Done <= 0.f) return 0.f;
+		const float T = FMath::Clamp(Time / Done, 0.f, 1.f);
+		const float E = T < 0.5f ? 2.f * T * T : 1.f - (-2.f * T + 2.f) * (-2.f * T + 2.f) * 0.5f;
+		return 1.f - E;
+	}
 
 	/** One frame. Turned: how far the actor's yaw moved since the last frame.
 	    RawYaw, LookPitch: where the face should go, off the facing
@@ -1679,8 +1697,33 @@ namespace SaudIK
 	    time: as the clip comes in the lag goes out with it (the drawn body
 	    stays where it stood through the cut), and it is held at zero for as
 	    long as the clip is the newest. (2026-10-04) */
+	/** ClipStartYaw, ClipLeft (2026-11-10, the IK reviewed): what the turn
+	    clip's own body does -- its first frame's yaw off the root (Turn_L90
+	    -90, Turn_R90 +90, Turn_180 and Pivot_180 +180: the half turns go
+	    round to his right) and the share of its turn still to come
+	    (TurnClipLeft); ClipLeft under 0 for a clip whose turn is not known
+	    (the Island's creatures), which is handled as before. With them:
+	    - the lag is taken on the clip's own side of the circle. A facing
+	      snapped +150 leaves a lag of -150, and a half-turn clip starts
+	      +180 off the root: fading -150 out against +180 coming in swung
+	      the drawn body 325 degrees through the 0.06 s cut where 35 was
+	      needed. As +210 the two meet the short way.
+	    - the part of the lag the clip's own turn does not carry stays, and
+	      goes out with the clip's turn. A quarter-turn clip turns 90: a
+	      facing snapped 50 had its whole lag faded through the cut, which
+	      jerked the body 40 degrees the wrong way first and let the clip
+	      bring it back. The 40 over is held and let out as the clip comes
+	      round, so the body stands where it stood through the cut and
+	      turns once, by the snap's own angle.
+	    bNewLook: the man looked at is not last frame's. A look taken up
+	    afresh -- a new man, or the first frame of looking -- past what the
+	    face can turn to takes the shoulder from the man himself, not from
+	    whoever was looked at before: the side kept from a man dead ahead
+	    was the sign of a fraction of a degree, and a man swinging on the
+	    flank at -110 was met with the face turned 100 the other way. */
 	inline void TurnStep(FTurn& S, float Turned, float RawYaw, float LookPitch,
-	                     bool bMayLook, bool bLying, bool bStriking, bool bTeleported, float Dt, float TurnClip = -1.f)
+	                     bool bMayLook, bool bLying, bool bStriking, bool bTeleported, float Dt, float TurnClip = -1.f,
+	                     float ClipStartYaw = 0.f, float ClipLeft = -1.f, bool bNewLook = false)
 	{
 		if (bTeleported)
 		{
@@ -1697,25 +1740,47 @@ namespace SaudIK
 			S.Hips = H;
 		}
 		const float Q = bStriking ? StrikeQuicken : 1.f;
+		const bool bClipKnown = ClipLeft >= 0.f;
 		if (TurnClip >= 0.f && !bTeleported)
 		{
-			if (!S.bClip) { S.bClip = true; S.ClipHips = S.Hips; S.ClipShare = 0.f; }
+			if (!S.bClip)
+			{
+				// the lag within a half turn of the clip's own start, so the two meet the short way
+				if (bClipKnown) S.Hips = ClipStartYaw + WrapDegrees(S.Hips - ClipStartYaw);
+				S.bClip = true; S.ClipHips = S.Hips; S.ClipShare = 0.f;
+			}
 			else S.ClipHips -= WrapDegrees(Turned);
 			S.ClipShare = FMath::Max(S.ClipShare, FMath::Min(TurnClip, 1.f));
 		}
 		else S.bClip = false;
 		const float Hips = S.Hips;
-		// a turn clip: the lag out as the clip comes in, then held at none
-		if (S.bClip) S.Hips = S.ClipHips * (1.f - S.ClipShare);
+		// a turn clip: the lag out as the clip comes in -- all of it for a clip
+		// whose turn is not known, then held at none; for one that is, what its
+		// own turn does not carry is held and goes out as the clip comes round
+		if (S.bClip)
+		{
+			const float Over = bClipKnown ? (S.ClipHips - ClipStartYaw) * FMath::Min(ClipLeft, 1.f) : 0.f;
+			S.Hips = S.ClipHips * (1.f - S.ClipShare) + S.ClipShare * Over;
+		}
 		// on the floor the body lies where it fell; it comes round as he gets up
 		else if (!bLying) S.Hips = SettleCapped(Hips, 0.f, HipsRate * Q, HipsMaxTurn * Q, Dt);
+		// a look taken up afresh, past the limit: the shoulder is the man's own side
+		if (bMayLook && (bNewLook || !S.bLooked) && FMath::Abs(RawYaw) > LookMaxYawDegrees) S.Side = RawYaw >= 0.f ? 1.f : -1.f;
+		S.bLooked = bMayLook;
 		// reeling, the face is the blow's: no look, but the body still comes round to its facing
 		const float Yaw = bMayLook ? HoldSide(RawYaw, S.Side) : 0.f;
 		const float Pitch = bMayLook ? LookPitch : 0.f;
 		const float ChestR = bStriking ? HipsRate : ChestRate;
 		const float ChestCap = bStriking ? HipsMaxTurn : ChestMaxTurn;
-		S.Chest = SettleCapped(Hips + S.Chest, ChestLookShare * Yaw, ChestR * Q, ChestCap * Q, Dt) - S.Hips;
-		S.Head = SettleCapped(Hips + S.Head, Yaw, HeadRate * Q, HeadMaxTurn * Q, Dt) - S.Hips;
+		// Under a turn clip the chest and the face keep their place over the hips
+		// the clip draws, and ease to their aim over them (2026-11-10): settled
+		// through the lag as it faded, the fade read as the hips coming round 90
+		// degrees in three frames, and chest and face were swung back against the
+		// turn (25 and 15 degrees at a quarter turn, 35 and 77 at a half) while
+		// the drawn body had not moved.
+		const float Was = S.bClip ? 0.f : Hips, Now = S.bClip ? 0.f : S.Hips;
+		S.Chest = SettleCapped(Was + S.Chest, ChestLookShare * Yaw, ChestR * Q, ChestCap * Q, Dt) - Now;
+		S.Head = SettleCapped(Was + S.Head, Yaw, HeadRate * Q, HeadMaxTurn * Q, Dt) - Now;
 		S.Pitch = Settle(S.Pitch, Pitch, HeadRate * Q, Dt);
 		S.Weight.Step(!bLying, Dt, LookOnSeconds, LookOffSeconds);
 	}

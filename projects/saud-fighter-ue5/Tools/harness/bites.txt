@@ -307,7 +307,7 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float SpineShare\[3\] = {0.20f
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Out\[I\] = FVector::CrossProduct(Dir, Up).GetSafeNormal();#Out[I] = FVector::CrossProduct(Up, Dir).GetSafeNormal();#|...the face ends up 30
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float PitchShare\[ChainBones\] = {0.f, 0.05f, 0.10f, 0.35f, 0.50f};#constexpr float PitchShare[ChainBones] = {0.f, 0.f, 0.f, 0.35f, 0.65f};#|...the chest a little, the neck and head the rest
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Cum += T.Yaw\[I\];#Cum += 0.f * T.Yaw[I];#|the chain turns with the facing, 72 angles
-ik|Source/SaudFighter/Combat/SaudIK.h|s#S.Head = SettleCapped(Hips + S.Head, Yaw, HeadRate \* Q, HeadMaxTurn \* Q, Dt) - S.Hips;#S.Head = WrapDegrees(Hips + S.Head + WrapDegrees(Yaw - Hips - S.Head) * (1.f - FMath::Exp(-HeadRate * Q * Dt))) - S.Hips;#|a look swung from one side to the other goes round the front, never behind
+ik|Source/SaudFighter/Combat/SaudIK.h|s#S.Head = SettleCapped(Was + S.Head, Yaw, HeadRate \* Q, HeadMaxTurn \* Q, Dt) - Now;#S.Head = WrapDegrees(Was + S.Head + WrapDegrees(Yaw - Was - S.Head) * (1.f - FMath::Exp(-HeadRate * Q * Dt))) - Now;#|a look swung from one side to the other goes round the front, never behind
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return Side \* LookMaxYawDegrees;#return -Side * LookMaxYawDegrees;#|a man straight behind: the face keeps one shoulder
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Side = Raw >= 0.f ? 1.f : -1.f;#Side = Side + 0.f * Raw;#|...and changes it when he comes within the limit on the other side
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return Elapsed >= 0.f && Elapsed < Startup + Active;#return Elapsed >= 0.f \&\& Elapsed < Startup + Active + 1.f;#|a man in his recovery is no threat
@@ -568,7 +568,7 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#const FVector Want = bOn \&\& S.bKnown ?
 ik|Source/SaudFighter/Combat/SaudIK.h|s#AlongPath(In.Velocity, St.LastVelocity)#(In.Velocity - St.LastVelocity)#|on a curve the hips are not thrown outward
 
 # ---- a turn clip carries the turn
-ik|Source/SaudFighter/Combat/SaudIK.h|s#if (S.bClip) S.Hips = S.ClipHips \* (1.f - S.ClipShare);#if (false) S.Hips = 0.f;#|the hips' lag is held at none under the clip
+ik|Source/SaudFighter/Combat/SaudIK.h|s#S.Hips = S.ClipHips \* (1.f - S.ClipShare) + S.ClipShare \* Over;#(void)Over;#|the hips' lag is held at none under the clip
 ik|Source/SaudFighter/Combat/SaudIK.h|s#S.ClipShare = FMath::Max(S.ClipShare, FMath::Min(TurnClip, 1.f));#S.ClipShare = 1.f + 0.f * TurnClip;#|the body is drawn where it stood through the cut
 
 # ---- feet through a stop
@@ -900,3 +900,14 @@ posture|Source/SaudFighter/Combat/SaudIK.h|s#if (const SaudStances::FStance\* Ow
 posture|Source/SaudFighter/Combat/SaudIK.h|s#for (int B = Bone, Guard = 0; B >= 0 \&\& Guard < 64 \&\& !IsChain(B); B = ParentOf(B), ++Guard) Add(B);#(void)ParentOf; if (Bone >= 0 \&\& !IsChain(Bone)) Add(Bone);#|an upper arm is set with the clavicle between it and the chest
 posture|Source/SaudFighter/Combat/SaudIK.h|s#for (int B = Bone, Guard = 0; B >= 0 \&\& Guard < 64 \&\& !IsChain(B); B = ParentOf(B), ++Guard) Add(B);#(void)ParentOf; if (Bone >= 0 \&\& !IsChain(Bone)) Add(Bone);#|the clavicle stays on the upper arm when the chest is turned
 posture|Source/SaudFighter/Combat/SaudIK.h|s#B >= 0 \&\& Guard < 64 \&\& !IsChain(B); B = ParentOf(B), ++Guard) Add(B);#B >= 0 \&\& Guard < 64; B = ParentOf(B), ++Guard) { Add(B); (void)IsChain; }#|a thigh, straight under the pelvis, is set alone
+# 2026-11-10, the IK reviewed: the turn clips' own turn (TurnStep's ClipStartYaw, ClipLeft), the chain under them, a look taken up afresh
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bClipKnown) S.Hips = ClipStartYaw + WrapDegrees(S.Hips - ClipStartYaw);#if (bClipKnown) S.Hips = S.Hips + 0.f * ClipStartYaw;#|a half turn, the stick either side of straight back
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Over = bClipKnown ? (S.ClipHips - ClipStartYaw) \* FMath::Min(ClipLeft, 1.f) : 0.f;#const float Over = bClipKnown ? 0.f * (S.ClipHips - ClipStartYaw) * FMath::Min(ClipLeft, 1.f) : 0.f;#|a quarter turn snapped anywhere from 46 to 135
+ik|Source/SaudFighter/Combat/SaudIK.h|s#S.Hips = S.ClipHips \* (1.f - S.ClipShare) + S.ClipShare \* Over;#S.Hips = S.ClipHips * (1.f - S.ClipShare) + Over;#|...and stands where it stood through the cut
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Was = S.bClip ? 0.f : Hips, Now = S.bClip ? 0.f : S.Hips;#const float Was = Hips, Now = S.Hips;#|under a turn clip the chest and the face are never swung back against the turn
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Done = static_cast<float>(Frames - DoneBefore) / SaudPlants::Fps;#const float Done = static_cast<float>(Frames + 0 * DoneBefore) / SaudPlants::Fps;#|a turn clip's turn is all to come at its first frame
+ik|Source/SaudFighter/Combat/SaudIK.h|s#const float E = T < 0.5f ? 2.f \* T \* T : 1.f - (-2.f \* T + 2.f) \* (-2.f \* T + 2.f) \* 0.5f;#const float E = T * T * (3.f - 2.f * T);#|a turn clip's turn is all to come at its first frame
+ik|Source/SaudFighter/Combat/SaudIK.h|s#FMath::Abs(RawYaw) > LookMaxYawDegrees) S.Side = RawYaw >= 0.f ? 1.f : -1.f;#FMath::Abs(RawYaw) > 1e9f) S.Side = RawYaw >= 0.f ? 1.f : -1.f;#|a new man on the flank is looked at over his own shoulder
+ik|Source/SaudFighter/Combat/SaudIK.h|s#S.bLooked = bMayLook;#S.bLooked = true;#|...and so is a look taken up again after a reel
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#case EClip::TurnL90:  return -90.f;#case EClip::TurnL90:  return 90.f;#|a turn clip's first frame is the body turned back by the clip's own turn
+feel|Source/SaudFighter/Combat/SaudFeel.h|s#return C == EClip::Pivot180 ? 2 : IsTurnClip(C) ? 4 : 0;#return IsTurnClip(C) ? 4 : 0;#|a turn clip's body has come round the frames before its end that build_motion.py authors
