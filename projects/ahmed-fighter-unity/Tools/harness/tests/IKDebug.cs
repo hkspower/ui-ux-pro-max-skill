@@ -63,7 +63,24 @@ public static class IKDebugTest {
         Check(small > 0f && big > small && Math.Abs(big - IKDebug.StrikeMax) < 1e-5f && l.Count == 1 && Same(l[0].A, v.StrikeTarget),
               "the strike's cross is on its target and grows as it comes on");
 
-        var all = new[] { IKDebug.Colour.Hit, IKDebug.Colour.Missed, IKDebug.Colour.Ankle, IKDebug.Colour.Free, IKDebug.Colour.Guard, IKDebug.Colour.Strike, IKDebug.Colour.Hips };
+        // 2026-11-10: where the guard meets a blow, and the look
+        v = new IKDebug.View(); v.BlockOn = true; v.BlockMeet = new Vector3(0f, 1.44f, 0.22f); v.BlockWeight = 0f;
+        IKDebug.Build(v, l);
+        Check(l.Count == 0, "the meeting point is not drawn while nothing is met");
+        v.BlockWeight = 0.3f; IKDebug.Build(v, l);
+        float bSmall = l.Count == 1 ? l[0].Size : 0f;
+        v.BlockWeight = 1f; IKDebug.Build(v, l);
+        Check(bSmall > 0f && l.Count == 1 && l[0].Size > bSmall && l[0].Colour == IKDebug.Colour.Block && l[0].Shape == IKDebug.Shape.Cross && Same(l[0].A, v.BlockMeet),
+              "where the guard meets a blow is a cross on the meeting point that grows as the hand comes onto it");
+        v = new IKDebug.View(); v.LookFrom = new Vector3(0f, 1.67f, 0f); v.LookTo = new Vector3(1f, 1.67f, 1f);
+        IKDebug.Build(v, l);
+        Check(l.Count == 0, "the look is not drawn while he looks at nobody");
+        v.LookOn = true; IKDebug.Build(v, l);
+        Check(l.Count == 1 && l[0].Colour == IKDebug.Colour.Look && l[0].Shape == IKDebug.Shape.Line && Same(l[0].A, v.LookFrom) && Same(l[0].B, v.LookTo),
+              "the look is a line from the head to the eyes it is turned to");
+
+        var all = new[] { IKDebug.Colour.Hit, IKDebug.Colour.Missed, IKDebug.Colour.Ankle, IKDebug.Colour.Free, IKDebug.Colour.Guard, IKDebug.Colour.Strike, IKDebug.Colour.Hips,
+                          IKDebug.Colour.Block, IKDebug.Colour.Look };
         bool apart = true;
         foreach (var a in all) foreach (var b in all) {
             if (a == b) continue;

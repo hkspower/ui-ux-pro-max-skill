@@ -96,12 +96,88 @@
 > - **Put somewhere new mid-step (F24).** The re-plant was only made of a
 >   held foot; one caught mid-step kept stepping from where he had been.
 >   It is made of the rest point's own jump now.
+> - **A strike takes its limb from where it is, and lets it go (F14,
+>   F16).** A punch pressed with the guard up blended from the hand's
+>   A-pose rest point: the fist went down and back to it in the first
+>   frame it had any weight (a jab at 120 Hz: 64.3 cm in a frame, against
+>   22.0 from hands down). `Strike()` blends from where the feet, the
+>   guard and a let-go left the limb that frame: 13.3 cm. A swing taken
+>   away (he is hit in it) returned at once -- 94 cm for a punch, 125 for
+>   a kick, on the frame of the blow, and hit stop held that pose; the
+>   limb is let go over `LetGoSeconds` (0.10 s) and not at all through
+>   hit stop. A kick's first frame let the foot go to its rest point
+>   (33.7 cm out of a walk); `HoldFoot` keeps a striking leg's foot where
+>   it stands (5.7 cm), and the ordinary step takes it home after. **So
+>   "the striking leg is not held", above, is no longer true.**
+> - **The turn (F18, second half).** `FaceTowards` turned the whole body
+>   45 to 180 degrees in one frame. A drawn yaw (`TurnLag`: 16 a second,
+>   never over 1080 degrees a second, three times quicker in an attack,
+>   held through hit stop, at once when he is put somewhere new) turns
+>   the `Mesh` child by what is still to come; the feet's rest points,
+>   the knee poles and the guard ride the drawn body; `Fighter.Facing`,
+>   the hitbox and every strike's target stay instant. With more than 45
+>   degrees still to turn both feet pivot at once (`HoldFoot`'s
+>   `turning`): a half turn is 18 degrees in its first frame at 60 Hz,
+>   the legs never cross, the feet never come nearer than 6 cm.
+> - **A knee lands the knee, and a blow goes to the man it lands on
+>   (F17).** Every row drove the END of its limb down the facing line:
+>   the Knee row drove the ankle on a locked-straight leg through a man
+>   inside a metre. The man is the first the fight's own sweep takes
+>   (`Fighter.ResolveHits`' order), kept where he stood for the swing.
+>   `StrikeMark` is on his front at the row's height on HIS body, a
+>   skin short; `AimGate` / `StrikeAim` swing the limb to it wholly
+>   inside 30 degrees of its own line and not at all past 55 (60 / 90 a
+>   leg), and no further than the mark: a kick at a man 0.90 m ahead
+>   stops 2.5 cm short of his front (it went 10 cm through him), a hook
+>   at a man 0.48 m off the line is 0.0 degrees off the line to him
+>   (21.8). `KneeTarget` puts the knee joint a thigh from the hip toward
+>   the pit of his stomach, up his front when he is nearer: bent 63-67
+>   degrees, nothing past his front. Each man throws at his own shoulder
+>   or hip height (it was Ahmed's 1.44 m at every size).
+> - **The block meets the blow (asked).** The hand on the blow's side
+>   goes to meet it: `BlockWeight` (in over the striker's whole wind-up,
+>   whole through his live frames, out over 0.08 s), `ChooseBlow` (the
+>   one held while anything of it shows, then the furthest in),
+>   `BlockMeet` (10 cm before the guard's own front, on the blow's
+>   line), `CoverHand` (never more than `BlockMaxShift`, 25 cm, from the
+>   guard: a kick at the hip brings the forearm down). Only what the
+>   fight itself would block -- from in front, inside the swing's box.
+>   A jab is met 0.3 cm from the meeting point as it lands; the other
+>   hand keeps the guard.
+> - **The head looks (asked).** `neck_01` and `head` turn to the nearest
+>   opponent's eyes: `LookAngles` (70 degrees of yaw against the drawn
+>   body, past it the head holds the limit; 30 of pitch; nothing beyond
+>   9 m), the neck 35 % and the head the rest, eased at `LookRate` 10 a
+>   second in the WORLD (`LookTurn`: eased against the body, a head on a
+>   man swung 47 degrees past him while the body was drawn round to face
+>   him); off while he reels, is down or dead; held through hit stop. A
+>   mesh without those two bones does not look.
+> - **The debug view** draws the meeting point (a cyan cross that grows
+>   as the hand comes on) and the look (a pink line, head to eyes).
+> - The opponents are asked for at most every `OpponentRefresh` (0.25 s)
+>   and at the start of a swing or a guard -- the player's
+>   `GatherTargets` searches the scene; what each of them is doing is
+>   read every frame.
 >
-> Checked in `tests/Hold.cs`, `Pose.cs` and `IK.cs`; 23 sabotages caught
-> (on a scratch copy; the list was not kept). The nine and ten older
-> sabotages "caught by hand" were not run again -- their lists were not
-> kept either; the checks they belong to still pass. Nothing has been
-> pressed play on.
+> Checked in `tests/Hold.cs`, `Pose.cs` (STRIKES, TURN, AIM, BLOCK, LOOK:
+> real strikes through the rig with `attacks.json`'s own rows, a pad
+> component at `PlayerFighter.ReadInput`'s place in the frame, two
+> fighters with the real `ResolveHits`), `IK.cs` and `IKDebug.cs`. The
+> first four items: 23 sabotages caught (on a scratch copy; the list was
+> not kept). The rest: 63 of 63 caught by hand on 2026-11-10 (strikes 8,
+> turn 13, knee and aim 14, block and look 28), re-run together against
+> the final file; the lists are not in the repository -- this frozen
+> build has no sabotage file. The nine and ten older sabotages "caught by
+> hand" were not run again -- their lists were not kept either; the
+> checks they belong to still pass.
+>
+> **Not verified**, beyond "nothing has been pressed play on": which side
+> the mesh's `_l` bones import on (the generator's left is Blender's +X
+> and the axes change hand on the way) -- the strike, turn, block and
+> look checks are run on both layouts or do not depend on it, but the
+> guard's fists cross on one of them and that is not settled here; that
+> the imported mesh names its bones `neck_01` and `head`; and the cost of
+> the player's `GatherTargets` every quarter second.
 
 Guidance for anyone — person or assistant — working in this directory.
 

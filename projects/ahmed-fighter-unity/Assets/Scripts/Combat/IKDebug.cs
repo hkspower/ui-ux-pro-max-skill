@@ -8,8 +8,8 @@ namespace Ahmed.Combat
     /// after the Unreal build's IK debug view (saud.ik.Show, its
     /// Combat/SaudIKDebug.h): the same idea over this port's own IK, which is
     /// smaller -- FighterIK plants the feet on a ray, raises the guard and
-    /// drives the striking limb; it holds no feet, meets no blow and turns no
-    /// head, so none of that is drawn.
+    /// drives the striking limb; since 2026-11-10 it also meets a blow with
+    /// the guard and turns the head, and both are drawn.
     ///
     /// F8 cycles <see cref="Show"/>: off, every fighter, Ahmed only. Drawn
     /// each frame:
@@ -20,7 +20,11 @@ namespace Ahmed.Combat
     ///  - the hips' drop, a white line from where they rest to where they are
     ///    (FighterIK.HipDrop, 2026-11-09);
     ///  - the guard's two fist targets while the guard is up;
-    ///  - the strike's target, its cross growing as the strike comes on.
+    ///  - the strike's target, its cross growing as the strike comes on;
+    ///  - where the guard meets a blow, a cyan cross growing as the covering
+    ///    hand comes onto it (FighterIK.FindBlow, 2026-11-10);
+    ///  - the look, a pink line from the head to the eyes it is turned to
+    ///    (FighterIK.Look, 2026-11-10).
     ///
     /// Build is pure (a view in, a list out) and executed in the harness
     /// (Tools/harness/tests/IKDebug.cs). Draw uses Debug.DrawLine, which Unity
@@ -39,7 +43,7 @@ namespace Ahmed.Combat
             return show == 1 || (show == 2 && isPlayer);
         }
 
-        public enum Colour { Hit, Missed, Ankle, Free, Guard, Strike, Hips }
+        public enum Colour { Hit, Missed, Ankle, Free, Guard, Strike, Hips, Block, Look }
 
         public static Color ColourOf(Colour c)
         {
@@ -52,6 +56,8 @@ namespace Ahmed.Combat
                 case Colour.Guard: return new Color(0.67f, 0.35f, 1f, 1f);    // violet: a guard fist's target
                 case Colour.Strike: return new Color(1f, 0.47f, 0.12f, 1f);   // orange: the strike's target
                 case Colour.Hips: return new Color(1f, 1f, 1f, 1f);           // white: the hips' drop
+                case Colour.Block: return new Color(0.1f, 0.9f, 0.9f, 1f);    // cyan: where the guard meets a blow
+                case Colour.Look: return new Color(1f, 0.4f, 0.75f, 1f);      // pink: the look
             }
             return new Color(1f, 1f, 1f, 1f);
         }
@@ -84,6 +90,11 @@ namespace Ahmed.Combat
             public bool StrikeOn;
             public Vector3 StrikeTarget;
             public float StrikeWeight;
+            public bool BlockOn;
+            public Vector3 BlockMeet;
+            public float BlockWeight;
+            public bool LookOn;
+            public Vector3 LookFrom, LookTo;
         }
 
         public const float PointSize = 0.03f;    // a ray's hit, an ankle's target
@@ -108,6 +119,12 @@ namespace Ahmed.Combat
                 float w = Mathf.Clamp01(v.StrikeWeight);
                 into.Add(Cross(v.StrikeTarget, StrikeMin + (StrikeMax - StrikeMin) * w, Colour.Strike));
             }
+            if (v.BlockOn && v.BlockWeight > 0f)
+            {
+                float w = Mathf.Clamp01(v.BlockWeight);
+                into.Add(Cross(v.BlockMeet, StrikeMin + (StrikeMax - StrikeMin) * w, Colour.Block));
+            }
+            if (v.LookOn) { into.Add(Line(v.LookFrom, v.LookTo, Colour.Look)); }
         }
 
         private static void Foot(FootView f, List<Prim> into)

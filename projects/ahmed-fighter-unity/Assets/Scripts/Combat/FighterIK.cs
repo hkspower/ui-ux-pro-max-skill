@@ -121,6 +121,11 @@ namespace Ahmed.Combat
             _legR = Bind(mesh, "thigh_r", "calf_r", "foot_r");
             _armL = Bind(mesh, "upperarm_l", "lowerarm_l", "hand_l");
             _armR = Bind(mesh, "upperarm_r", "lowerarm_r", "hand_r");
+            // the look's two bones; a mesh without them simply does not look
+            _head = FindDeep(mesh, "head");
+            _neck = FindDeep(mesh, "neck_01");
+            if (_head != null) { _headRest = _head.localRotation; }
+            if (_neck != null) { _neckRest = _neck.localRotation; }
         }
 
         private Limb Bind(Transform mesh, string root, string mid, string end)
@@ -225,8 +230,11 @@ namespace Ahmed.Combat
         private void LateUpdate()
         {
             Reset(ref _legL); Reset(ref _legR); Reset(ref _armL); Reset(ref _armR);
+            if (_head != null) { _head.localRotation = _headRest; }
+            if (_neck != null) { _neck.localRotation = _neckRest; }
             RefreshStance();
             _view = new IKDebug.View();
+            _targetsAge += Time.deltaTime;
 
             // The drawn body's yaw, behind the root's: at once on the first frame and
             // when he is put somewhere new, held through hit stop. Keyed on the root's
@@ -286,8 +294,10 @@ namespace Ahmed.Combat
                 _guard = Mathf.Clamp01(_guard + (_fighter.Blocking ? 1f : -1f)
                                                 * GuardBlend * Time.deltaTime);
             }
+            FindBlow();
             Guard();
             Strike();
+            Look();
 
             // The debug view: F8 cycles it, read once a frame on Ahmed's own IK.
             bool isPlayer = _fighter is PlayerFighter;
@@ -670,11 +680,12 @@ namespace Ahmed.Combat
             Vector3 facing = DrawnFacing();
             Vector3 side = Vector3.Cross(Vector3.up, facing);
             _view.GuardOn = _guard > 0.001f;
-            GuardHand(ref _armL, facing, -side, ref _view.GuardL);
-            GuardHand(ref _armR, facing, side, ref _view.GuardR);
+            bool covers = _blockShare > 0f;
+            GuardHand(ref _armL, facing, -side, ref _view.GuardL, covers && !_blockRight);
+            GuardHand(ref _armR, facing, side, ref _view.GuardR, covers && _blockRight);
         }
 
-        private void GuardHand(ref Limb arm, Vector3 facing, Vector3 side, ref Vector3 shown)
+        private void GuardHand(ref Limb arm, Vector3 facing, Vector3 side, ref Vector3 shown, bool covers)
         {
             if (!arm.Ok) { return; }
             Vector3 rest = RestPoint(arm.EndRestLocal);
@@ -688,6 +699,8 @@ namespace Ahmed.Combat
             {
                 target += FlinchOffset(_fighter.Recoil);
             }
+            // the hand on the blow's side goes to meet it (FindBlow)
+            if (covers) { target = CoverHand(target, transform.TransformPoint(_blockMeet), _blockShare * _guard, _size); }
             shown = target;
             Vector3 pole = (arm.Root.position + target) * 0.5f - Vector3.up * 0.6f;
             TwoBoneIK.Apply(arm.Root, arm.Mid, arm.End, target, pole);
@@ -924,6 +937,286 @@ namespace Ahmed.Combat
         }
 
         private readonly System.Collections.Generic.List<Fighter> _targets = new System.Collections.Generic.List<Fighter>();
+        private float _targetsAge = 999f;
+
+        /// <summary>How often the list of opponents is asked for again. Who is in
+        /// the fight changes slowly and the player's GatherTargets searches the
+        /// scene; what each of them is doing is read off them every frame.</summary>
+        public const float OpponentRefresh = 0.25f;
+
+        /// <summary>The fighter's opponents, as the fight gathers them: asked for
+        /// again every OpponentRefresh, or at once when fresh.</summary>
+        private System.Collections.Generic.List<Fighter> Opponents(bool fresh)
+        {
+            if (fresh || _targetsAge >= OpponentRefresh)
+            {
+                _targets.Clear();
+                _fighter.GatherTargets(_targets);
+                _targetsAge = 0f;
+            }
+            return _targets;
+        }
+
+        private static float SizeOfMan(Fighter man)
+        {
+            CharacterController body = man.GetComponent<CharacterController>();
+            return body != null && body.height > 0.1f ? body.height / 1.8f : 1f;
+        }
+
+        // ------------------------------------------- the block meets the blow (2026-11-10)
+        //
+        // Asked as "Unity: block meets the blow". Until this day a guard was two fists
+        // held at the chin whatever came at them. Now the hand on the blow's side goes
+        // to meet it as it comes, after the Unreal build's guard (SaudIK: ContactAlpha
+        // over the striker's whole wind-up, MeetPoint, BlockStandOff, BlockMaxShift,
+        // ChooseBlow): in as the blow winds up, there when it lands, let go after.
+
+        /// <summary>The glove stops this far before the guard's own front, on the blow's line.</summary>
+        public const float BlockStandOff = 0.10f;
+        /// <summary>How far a covering hand leaves its place in the guard.</summary>
+        public const float BlockMaxShift = 0.25f;
+        /// <summary>Seconds to come onto a blow caught part way through its swing, and to let go of one.</summary>
+        public const float BlockLeadIn = 0.06f, BlockLeadOut = 0.08f;
+
+        /// <summary>How much of a guard a blow asks for: in over the striker's
+        /// whole wind-up, whole through every live frame, out over BlockLeadOut. Pure.</summary>
+        public static float BlockWeight(float elapsed, float startup, float active)
+        {
+            if (elapsed <= 0f) { return 0f; }
+            if (elapsed < startup) { return Smooth(elapsed / Mathf.Max(1e-3f, startup)); }
+            if (elapsed <= startup + active) { return 1f; }
+            return 1f - Smooth((elapsed - startup - active) / BlockLeadOut);
+        }
+
+        /// <summary>Which of the blows coming the guard holds: the one it holds
+        /// while anything of it shows; then the one furthest into its swing. -1
+        /// with nothing showing. Pure.</summary>
+        public static int ChooseBlow(float[] weights, int count, int held)
+        {
+            if (held >= 0 && held < count && weights[held] > 0f) { return held; }
+            int best = -1;
+            float most = 0f;
+            for (int i = 0; i < count; i++)
+            {
+                if (weights[i] > most) { most = weights[i]; best = i; }
+            }
+            return best;
+        }
+
+        /// <summary>Where the covering glove meets a blow: BlockStandOff before the
+        /// mark on the guard's own front, on the line the blow comes down from
+        /// the striker's shoulder or hip. Pure.</summary>
+        public static Vector3 BlockMeet(Vector3 mark, Vector3 hisRoot, float size)
+        {
+            Vector3 to = hisRoot - mark;
+            float d = to.magnitude;
+            if (d < 1e-4f) { return mark; }
+            return mark + to / d * Mathf.Min(BlockStandOff * (size > 0f ? size : 1f), d);
+        }
+
+        /// <summary>The covering hand's place: from its place in the guard toward
+        /// the meeting point by the share, and never more than BlockMaxShift from
+        /// the guard -- a kick at the hip brings the forearm down, not the fist to
+        /// the hip. Pure.</summary>
+        public static Vector3 CoverHand(Vector3 guard, Vector3 meet, float share, float size)
+        {
+            // the whole move held to BlockMaxShift first, then its share taken: taking the
+            // share first, a low blow's hand did its 25 cm in the first and last two frames
+            Vector3 move = meet - guard;
+            float most = BlockMaxShift * (size > 0f ? size : 1f);
+            if (move.magnitude > most) { move = move.normalized * most; }
+            return guard + move * Mathf.Clamp01(share);
+        }
+
+        /// <summary>Which hand covers: the one on the side the blow comes from.
+        /// Two men facing each other, his right is before the guard's left.</summary>
+        public static bool CoverRight(bool hisRight)
+        {
+            return !hisRight;
+        }
+
+        private readonly Fighter[] _blows = new Fighter[8];
+        private readonly float[] _blowWeights = new float[8];
+        private Fighter _blockFrom;
+        private float _blockShare;
+        private Vector3 _blockMeet;        // in the fighter's frame
+        private bool _blockRight;
+        private bool _wasBlocking;
+
+        /// <summary>The blow the guard meets this frame: among his opponents'
+        /// swings that have a striking limb, hold him in their box and come from
+        /// in front (the fight's own rule: only that is blocked).</summary>
+        private void FindBlow()
+        {
+            float wanted = 0f;
+            bool blocking = _fighter.Blocking;
+            if (blocking)
+            {
+                System.Collections.Generic.List<Fighter> them = Opponents(!_wasBlocking);
+                Vector3 me = transform.position;
+                int n = 0, held = -1;
+                for (int i = 0; i < them.Count && n < _blows.Length; i++)
+                {
+                    Fighter t = them[i];
+                    if (t == null || t == _fighter || !t.IsAlive || t.State != FighterState.Attack) { continue; }
+                    AttackRow row = t.ActiveAttack;
+                    bool arm, rear;
+                    if (row == null || !StrikeLimb(row.name, out arm, out rear)) { continue; }
+                    if (!Fighter.InHitbox(t.transform.position, t.Facing, me, row.reach, row.depthTolerance)) { continue; }
+                    Vector3 from = t.transform.position - me; from.y = 0f;
+                    if (Vector3.Dot(from.normalized, _fighter.Facing) <= 0f) { continue; }
+                    if (t == _blockFrom) { held = n; }
+                    _blows[n] = t;
+                    _blowWeights[n] = BlockWeight(t.AttackTime, row.startup, row.active);
+                    n++;
+                }
+                int pick = ChooseBlow(_blowWeights, n, held);
+                _blockFrom = pick >= 0 ? _blows[pick] : null;
+                if (pick >= 0)
+                {
+                    Fighter t = _blockFrom;
+                    AttackRow row = t.ActiveAttack;
+                    bool arm, rear;
+                    StrikeLimb(row.name, out arm, out rear);
+                    float hisSize = SizeOfMan(t);
+                    float height = arm ? ShoulderHeight : StrikesWithKnee(row.name) ? KneeMarkHeight : HipHeight;
+                    Vector3 mark = StrikeMark(t.transform.position, me, _size, height, 0f);
+                    Vector3 hisRoot = t.transform.position + Vector3.up * ((arm ? ShoulderHeight : HipHeight) * hisSize);
+                    _blockMeet = transform.InverseTransformPoint(BlockMeet(mark, hisRoot, _size));
+                    EnemyFighter enemy = t as EnemyFighter;
+                    _blockRight = CoverRight(IsRightSide(rear, Southpaw(enemy != null ? enemy.Archetype : null)));
+                    wanted = _blowWeights[pick];
+                }
+                for (int i = 0; i < n; i++) { _blows[i] = null; }
+            }
+            else
+            {
+                _blockFrom = null;
+            }
+            _wasBlocking = blocking;
+            // on over BlockLeadIn at the fastest, off over BlockLeadOut; hit stop holds it
+            if (!_fighter.Frozen)
+            {
+                float dt = Time.deltaTime;
+                _blockShare = wanted >= _blockShare ? Mathf.Min(wanted, _blockShare + dt / BlockLeadIn)
+                                                    : Mathf.Max(wanted, _blockShare - dt / BlockLeadOut);
+            }
+            if (_blockShare > 0f)
+            {
+                _view.BlockOn = true;
+                _view.BlockMeet = transform.TransformPoint(_blockMeet);
+                _view.BlockWeight = _blockShare * _guard;
+            }
+        }
+
+        // ------------------------------------------------------ the look (2026-11-10)
+        //
+        // Asked as "Unity: head look-at". The head and neck turn to the nearest
+        // opponent's eyes, after the Unreal build's first look (SaudIK: 70 degrees of
+        // yaw and 30 of pitch against the body's facing, nothing beyond 9 m, the neck
+        // 35 % of the turn and the head the rest; off while he reels, is down or dead).
+
+        public const float LookMaxYaw = 70f, LookMaxPitch = 30f;
+        /// <summary>Further than this is not a fight: he looks where he faces. Metres.</summary>
+        public const float LookReach = 9f;
+        public const float LookNeckShare = 0.35f;
+        /// <summary>A second: the head is most of the way round in a fifth of one.</summary>
+        public const float LookRate = 10f;
+        /// <summary>The head joint: at the eye line on this skeleton, at Ahmed's size.</summary>
+        public const float EyeHeight = 1.672f;
+
+        /// <summary>The yaw (to his right) and pitch (up), in degrees, that turn a
+        /// face looking along `facing` from `eye` onto `target`: the yaw held to
+        /// LookMaxYaw -- past it the head holds the limit rather than turn away --
+        /// and the pitch to LookMaxPitch. False, and nothing, with the target
+        /// beyond LookReach or on top of him. Pure.</summary>
+        public static bool LookAngles(Vector3 eye, Vector3 facing, Vector3 target, out float yaw, out float pitch)
+        {
+            yaw = 0f; pitch = 0f;
+            Vector3 to = target - eye;
+            float flat = Mathf.Sqrt(to.x * to.x + to.z * to.z);
+            if (flat < 0.05f || flat > LookReach) { return false; }
+            float turn = (Mathf.Atan2(to.x, to.z) - Mathf.Atan2(facing.x, facing.z)) * Mathf.Rad2Deg;
+            yaw = Mathf.Clamp(WrapDegrees(turn), -LookMaxYaw, LookMaxYaw);
+            pitch = Mathf.Clamp(Mathf.Atan2(to.y, flat) * Mathf.Rad2Deg, -LookMaxPitch, LookMaxPitch);
+            return true;
+        }
+
+        /// <summary>An angle eased toward another: the same place at any frame rate. Pure.</summary>
+        public static float LookEase(float current, float want, float dt)
+        {
+            if (dt <= 0f) { return current; }
+            return want + (current - want) * Mathf.Exp(-LookRate * dt);
+        }
+
+        /// <summary>The head's own yaw in the world a frame on: eased toward the
+        /// yaw it wants, the shorter way, then held within LookMaxYaw of the body's.
+        /// In the world, not against the body: eased against the body, a head on a
+        /// man swung up to 47 degrees past him while the body was drawn round to
+        /// face him. Pure.</summary>
+        public static float LookTurn(float lookWorld, float wantWorld, float bodyYaw, float dt)
+        {
+            float to = lookWorld + WrapDegrees(wantWorld - lookWorld);
+            float eased = LookEase(lookWorld, to, dt);
+            return bodyYaw + Mathf.Clamp(WrapDegrees(eased - bodyYaw), -LookMaxYaw, LookMaxYaw);
+        }
+
+        private Transform _head, _neck;
+        private Quaternion _headRest = Quaternion.identity, _neckRest = Quaternion.identity;
+        private float _lookWorld, _lookYaw, _lookPitch;
+        private bool _lookKnown;
+
+        private void Look()
+        {
+            if (_head == null) { return; }
+            float yaw = 0f, pitch = 0f;
+            FighterState st = _fighter.State;
+            bool may = st != FighterState.Hit && st != FighterState.Down && st != FighterState.Dead;
+            Vector3 eye = _head.position, facing = DrawnFacing();
+            if (may)
+            {
+                // the nearest opponent standing or fighting; his eyes at his own height
+                System.Collections.Generic.List<Fighter> them = Opponents(false);
+                Fighter nearest = null; float best = float.MaxValue;
+                for (int i = 0; i < them.Count; i++)
+                {
+                    Fighter t = them[i];
+                    if (t == null || t == _fighter || !t.IsAlive) { continue; }
+                    float d = Flat(t.transform.position, transform.position);
+                    if (d < best) { best = d; nearest = t; }
+                }
+                if (nearest != null)
+                {
+                    Vector3 eyes = nearest.transform.position + Vector3.up * (EyeHeight * SizeOfMan(nearest));
+                    if (LookAngles(eye, facing, eyes, out yaw, out pitch))
+                    {
+                        _view.LookOn = true;
+                        _view.LookFrom = eye;
+                        _view.LookTo = eyes;
+                    }
+                }
+            }
+            // the head's yaw is kept in the world, so it stays on the man while the body
+            // is drawn round under it (LookTurn); hit stop holds it
+            if (!_lookKnown) { _lookWorld = _yaw; _lookKnown = true; }
+            if (!_fighter.Frozen)
+            {
+                _lookWorld = LookTurn(_lookWorld, _yaw + yaw, _yaw, Time.deltaTime);
+                _lookPitch = LookEase(_lookPitch, pitch, Time.deltaTime);
+            }
+            _lookYaw = Mathf.Clamp(WrapDegrees(_lookWorld - _yaw), -LookMaxYaw, LookMaxYaw);
+            if (Mathf.Abs(_lookYaw) < 0.01f && Mathf.Abs(_lookPitch) < 0.01f) { return; }
+            // about the joints themselves, in the world: up for the turn, his right for the nod
+            Vector3 right = Vector3.Cross(Vector3.up, facing);
+            float neck = _neck != null ? LookNeckShare : 0f;
+            if (_neck != null)
+            {
+                _neck.rotation = Quaternion.AngleAxis(_lookYaw * neck, Vector3.up)
+                               * Quaternion.AngleAxis(-_lookPitch * neck, right) * _neck.rotation;
+            }
+            _head.rotation = Quaternion.AngleAxis(_lookYaw * (1f - neck), Vector3.up)
+                           * Quaternion.AngleAxis(-_lookPitch * (1f - neck), right) * _head.rotation;
+        }
 
         // Where the man this swing lands on stood, and his size, kept for the swing: the
         // blow itself knocks him down or away on its contact frame, and the limb stays on
@@ -941,10 +1234,10 @@ namespace Ahmed.Combat
         private bool StruckMan(AttackRow row, out Vector3 at, out float hisSize)
         {
             // a new swing forgets the last one's man
+            bool fresh = _aimClock < 0f || _fighter.AttackTime < _aimClock;
             if (_fighter.AttackTime < _aimClock) { _aimed = false; }
             _aimClock = _fighter.AttackTime;
-            _targets.Clear();
-            _fighter.GatherTargets(_targets);
+            Opponents(fresh);
             Vector3 origin = transform.position;
             for (int i = 0; i < _targets.Count; i++)
             {
