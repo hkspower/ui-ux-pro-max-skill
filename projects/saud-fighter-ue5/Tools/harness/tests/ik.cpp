@@ -1341,6 +1341,90 @@ static void Contact()
         M.Take(0.6f);
         Check(M.Alpha() == 0.f, "a guard caught mid-swing eases in from nothing");
     }
+
+    // ---- which blow a guard holds when more than one comes (ChooseBlow, 2026-11-10, review F22):
+    // run as UpdateBlock runs it -- every swing in its Attack state is seen, the held one by identity
+    {
+        struct FSwing { float Start, Startup, Active, Recovery; float Gone; };   // Gone: when the swing is taken away (1e9 never)
+        struct FOut { float Most = 0.f, AtLive = -1.f, LeastWhileShown = 1.f; int HeldAtLive = -2; bool bCut = false; };
+        auto Guard = [](const std::vector<FSwing>& Sw, int Watch, float Hz, std::vector<float>* Trace = nullptr) -> FOut
+        {
+            FOut O; FBlockTrack B; int Held = -1;
+            const float Dt = 1.f / Hz;
+            for (int N = 0; N <= (int)std::lround(1.2f * Hz); ++N)
+            {
+                const float T = N * Dt;
+                std::vector<FBlowSeen> Seen; std::vector<int> Which; int HeldAt = -1;
+                for (int I = 0; I < (int)Sw.size(); ++I)
+                {
+                    const float E = T - Sw[I].Start;
+                    if (E < 0.f || E >= Sw[I].Startup + Sw[I].Active + Sw[I].Recovery || T >= Sw[I].Gone) continue;
+                    if (I == Held) HeldAt = (int)Seen.size();
+                    FBlowSeen S; S.Elapsed = E; S.Startup = Sw[I].Startup; S.Active = Sw[I].Active;
+                    Seen.push_back(S); Which.push_back(I);
+                }
+                const int Pick = ChooseBlow(Seen.data(), (int)Seen.size(), HeldAt, B.Free());
+                if (HeldAt >= 0 && Pick != HeldAt && BlowSchedule(Seen[HeldAt]) > 0.f) O.bCut = true;   // left while it still showed
+                if (Pick >= 0)
+                {
+                    if (Pick != HeldAt) { Held = Which[Pick]; B.Take(BlowSchedule(Seen[Pick])); }
+                    B.Step(true, BlowSchedule(Seen[Pick]), Dt);
+                }
+                else { Held = -1; B.Step(false, 0.f, Dt); }
+                if (Trace) Trace->push_back(B.Alpha());
+                const float E = T - Sw[Watch].Start;
+                if (E >= Sw[Watch].Startup - 1e-5f && E <= Sw[Watch].Startup + Sw[Watch].Active + 1e-5f)
+                {
+                    const float A = Held == Watch ? B.Alpha() : 0.f;
+                    if (O.AtLive < 0.f) { O.AtLive = A; O.HeldAtLive = Held; }
+                    O.Most = std::fmax(O.Most, A);
+                    O.LeastWhileShown = std::fmin(O.LeastWhileShown, A);
+                }
+            }
+            return O;
+        };
+        const float Never = 1e9f;
+        // DT_Attacks' rows: Jab .07/.06/.13, Cross .10/.07/.19, Hook .14/.08/.26, Kick .16/.09/.28
+        const FSwing Firsts[4] = { {0.f, 0.07f, 0.06f, 0.13f, Never}, {0.f, 0.10f, 0.07f, 0.19f, Never}, {0.f, 0.14f, 0.08f, 0.26f, Never}, {0.f, 0.16f, 0.09f, 0.28f, Never} };
+        bool bMet = true; float Least = 1.f, LeastAtLive = 1.f;
+        for (const FSwing& First : Firsts)
+            for (float Hz : { 30.f, 60.f, 120.f })
+            {
+                // a second man's jab going live 0.10 s after the first blow's live frames end: into the first man's recovery
+                const FSwing Jab = { First.Startup + First.Active + 0.10f - 0.07f, 0.07f, 0.06f, 0.13f, Never };
+                const FOut O = Guard({ First, Jab }, 1, Hz);
+                Least = std::fmin(Least, O.Most); LeastAtLive = std::fmin(LeastAtLive, O.AtLive);
+                if (O.Most < 0.9f) bMet = false;
+            }
+        std::printf("  a second man's jab into the first man's recovery: the guard reaches %.2f at least inside its live frames (%.2f at its first)\n", Least, LeastAtLive);
+        Check(bMet, "a second man's blow thrown into the first man's recovery is met inside its live frames");
+        {
+            // two blows coming at once: the first is kept while anything of it shows, though the second is further in
+            const FOut O = Guard({ {0.f, 0.16f, 0.09f, 0.28f, Never}, {0.10f, 0.07f, 0.06f, 0.13f, Never} }, 0, 60.f);
+            // ...and a jab thrown so that it is further in while the kick lets go: the kick is still kept to its end
+            const FOut Q = Guard({ {0.f, 0.16f, 0.09f, 0.28f, Never}, {0.20f, 0.07f, 0.06f, 0.13f, Never} }, 0, 60.f);
+            Check(O.LeastWhileShown >= 0.99f && O.HeldAtLive == 0 && !O.bCut && !Q.bCut,
+                  "a blow still showing is never cut for another: the kick is held through its live frames and while it lets go");
+            // a jab held, two kicks winding up behind it: when nothing of the jab shows, the kick furthest into
+            // its swing is the one taken, whichever order they are seen in
+            const FOut P = Guard({ {0.f, 0.07f, 0.06f, 0.13f, Never}, {0.12f, 0.16f, 0.09f, 0.28f, Never}, {0.06f, 0.16f, 0.09f, 0.28f, Never} }, 2, 60.f);
+            const FOut R = Guard({ {0.f, 0.07f, 0.06f, 0.13f, Never}, {0.06f, 0.16f, 0.09f, 0.28f, Never}, {0.12f, 0.16f, 0.09f, 0.28f, Never} }, 1, 60.f);
+            Check(P.Most >= 0.9f && R.Most >= 0.9f, "of two blows coming the one furthest into its swing is taken");
+        }
+        {
+            // the held swing is taken away mid-blow (its man was hit) while another winds up: let go of, then the next
+            std::vector<float> Tr;
+            Guard({ {0.f, 0.16f, 0.09f, 0.28f, 0.20f}, {0.14f, 0.16f, 0.09f, 0.28f, Never} }, 1, 60.f, &Tr);
+            float Jump = 0.f; for (size_t I = 1; I < Tr.size(); ++I) Jump = std::fmax(Jump, std::fabs(Tr[I] - Tr[I - 1]));
+            std::printf("  the held swing taken away mid-blow: the guard's largest step in a frame %.2f\n", Jump);
+            Check(Tr[12] > 0.5f && Jump < 0.45f, "a held blow that vanishes is let go of before the next is taken: the guard never jumps");
+        }
+        {
+            // one man's combo through the same chooser: a jab 0 to 0.26, a cross from 0.28
+            const FOut O = Guard({ {0.f, 0.07f, 0.06f, 0.13f, Never}, {0.28f, 0.10f, 0.07f, 0.19f, Never} }, 1, 60.f);
+            Check(O.AtLive >= 0.99f, "...and a combo's second blow is still met as it lands");
+        }
+    }
 }
 
 // -------------------------------------------------------------------- head

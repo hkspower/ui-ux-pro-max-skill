@@ -950,3 +950,8 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#else Left = FMath::Max(0.f, Left - FMath
 # 2026-11-10, the IK reviewed (F21): a guard that stands on a straight leg keeps it
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Reach = F.LegLength \* FMath::Max(HoldReach, FMath::Min(ClipShare, HoldReachClip));#const float Reach = F.LegLength * FMath::Max(HoldReach, FMath::Min(ClipShare, HoldReach));#|a guard that stands on a straight leg keeps it
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float HoldReachClip = 0.994f;#constexpr float HoldReachClip = 1.2f;#|rolls under 2.5 degrees where it is past it
+# 2026-11-10, the IK reviewed (F22): the guard takes a second man's blow once nothing of the first shows (ChooseBlow)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bHave \&\& BlowShows(Blows\[Held\])) return Held;#if (bHave) return Held;#|a second man's blow thrown into the first man's recovery is met
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!bHave \&\& !bFree) return -1;#if (!bHave \&\& !bFree \&\& Num < 0) return -1;#|a held blow that vanishes is let go of before the next is taken
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (S > BestS) { BestS = S; Best = I; }#if (S < BestS) { BestS = S; Best = I; } else if (Best < 0) { BestS = S; Best = I; }#|of two blows coming the one furthest into its swing is taken
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bHave \&\& BlowShows(Blows\[Held\])) return Held;#if (bHave \&\& BlowSchedule(Blows[Held]) >= 1.f) return Held;#|a blow still showing is never cut for another

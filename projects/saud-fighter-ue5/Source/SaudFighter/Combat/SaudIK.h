@@ -1736,6 +1736,54 @@ namespace SaudIK
 		float Alpha() const { return Schedule * Hold.Value(); }
 	};
 
+	/** A blow coming at a guard, as the guard sees it: the striker's own
+	    clock into his swing, and the row's wind-up and live frames. */
+	struct FBlowSeen
+	{
+		float Elapsed = 0.f, Startup = 0.f, Active = 0.f;
+	};
+
+	/** How much of a guard a blow asks for: the striker's whole wind-up in,
+	    whole through every live frame, out over ContactLeadOut. */
+	inline float BlowSchedule(const FBlowSeen& B)
+	{
+		return ContactAlpha(B.Elapsed, B.Startup, B.Active, B.Startup, true);
+	}
+
+	/** Something of the blow shows: its schedule is above nothing, from just
+	    into its wind-up to ContactLeadOut past its last live frame. Through
+	    the rest of its recovery nothing of it shows. */
+	inline bool BlowShows(const FBlowSeen& B)
+	{
+		return BlowSchedule(B) > 0.f;
+	}
+
+	/** Which blow the guard holds this frame, as an index into Blows, or -1.
+	    Held: the one it took, if that swing is still among them. It is kept
+	    while anything of it shows. Once nothing does -- the striker is in
+	    the rest of his recovery -- the blow furthest into its swing among
+	    the others still showing is taken at once (2026-11-10, review F22:
+	    the held blow was kept until its man's whole swing ended, so a second
+	    man's jab thrown into the first man's recovery was met at 0.00 to
+	    0.58 and only after it had landed). With the held swing gone from
+	    the list the next is taken when the guard is free (bFree,
+	    FBlockTrack::Free): a blow still showing is never cut. */
+	inline int ChooseBlow(const FBlowSeen* Blows, int Num, int Held, bool bFree)
+	{
+		const bool bHave = Held >= 0 && Held < Num;
+		if (bHave && BlowShows(Blows[Held])) return Held;
+		if (!bHave && !bFree) return -1;
+		int Best = -1;
+		float BestS = -1.f;
+		for (int I = 0; I < Num; ++I)
+		{
+			if (!BlowShows(Blows[I])) continue;
+			const float S = BlowSchedule(Blows[I]);
+			if (S > BestS) { BestS = S; Best = I; }
+		}
+		return Best;
+	}
+
 	// ------------------------------------------------------- body and look
 
 	/** What a trunk and a neck do. Past the yaw limit the face holds the

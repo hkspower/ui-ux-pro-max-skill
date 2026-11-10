@@ -1164,32 +1164,37 @@ void USaudMotionAnimInstance::UpdateBlock(AFighterBase* Fighter, float DeltaSeco
 	const FAttackDef* Att = nullptr;
 	if (bGuarding)
 	{
-		// the blow held, while its swing lasts
+		// every blow coming at me, and which of them is the one held (the same
+		// man, the same row, the same swing: his clock has not gone back)
+		TArray<AFighterBase*> Them;
+		Fighter->GatherOpponents(Them);
+		TArray<AFighterBase*, TInlineAllocator<8>> Whose;
+		TArray<const FAttackDef*, TInlineAllocator<8>> Defs;
+		TArray<SaudIK::FBlowSeen, TInlineAllocator<8>> Seen;
 		AFighterBase* Held = BlockFrom.Get();
-		if (Held && Held->State == EFighterState::Attack && Held->GetCurrentAttackRow() == BlockRow && Held->GetAttackElapsed() >= BlockClock)
+		int32 HeldAt = INDEX_NONE;
+		for (AFighterBase* A : Them)
 		{
-			Att = Incoming(Held);
-			From = Att ? Held : nullptr;
-		}
-		// another as soon as nothing of the last shows: the one furthest into his swing
-		if (!From && BlockTrack.Free())
-		{
-			TArray<AFighterBase*> Them;
-			Fighter->GatherOpponents(Them);
-			float Best = -1.f;
-			for (AFighterBase* A : Them)
+			if (const FAttackDef* AA = Incoming(A))
 			{
-				if (const FAttackDef* AA = Incoming(A))
-				{
-					const float S = SaudIK::ContactAlpha(A->GetAttackElapsed(), AA->Startup, AA->Active, AA->Startup, true);
-					if (S > Best) { Best = S; From = A; Att = AA; }
-				}
+				if (A == Held && A->GetCurrentAttackRow() == BlockRow && A->GetAttackElapsed() >= BlockClock) HeldAt = Seen.Num();
+				SaudIK::FBlowSeen B;
+				B.Elapsed = A->GetAttackElapsed(); B.Startup = AA->Startup; B.Active = AA->Active;
+				Seen.Add(B); Whose.Add(A); Defs.Add(AA);
 			}
-			if (From)
+		}
+		// the one held while anything of it shows; then the one furthest into
+		// its swing, at once (SaudIK::ChooseBlow)
+		const int32 Pick = SaudIK::ChooseBlow(Seen.GetData(), Seen.Num(), HeldAt, BlockTrack.Free());
+		if (Pick != INDEX_NONE)
+		{
+			From = Whose[Pick];
+			Att = Defs[Pick];
+			if (Pick != HeldAt)
 			{
 				BlockFrom = From;
 				BlockRow = From->GetCurrentAttackRow();
-				BlockTrack.Take(Best);
+				BlockTrack.Take(SaudIK::BlowSchedule(Seen[Pick]));
 			}
 		}
 	}
@@ -1198,7 +1203,9 @@ void USaudMotionAnimInstance::UpdateBlock(AFighterBase* Fighter, float DeltaSeco
 		BlockClock = From->GetAttackElapsed();
 		const SaudIK::FStrike K = SaudIK::StrikeOf(TCHAR_TO_ANSI(*BlockRow.ToString()), TCHAR_TO_ANSI(*SetOf(From)));
 		// the striker's own clock, his whole wind-up: the guard arrives as the blow does
-		const float S = SaudIK::ContactAlpha(BlockClock, Att->Startup, Att->Active, Att->Startup, true);
+		SaudIK::FBlowSeen Blow;
+		Blow.Elapsed = BlockClock; Blow.Startup = Att->Startup; Blow.Active = Att->Active;
+		const float S = SaudIK::BlowSchedule(Blow);
 		const FVector Mark = SaudIK::MarkPoint(Mesh->GetSocketLocation(MarkBoneOf(K.Bone)), Me, From->GetActorLocation(), K.Mark, BodyScale, MyFacing);
 		const int32 HisSide = K.Side == 'r' ? 1 : 0;
 		const FVector HisRoot = From->GetMesh()->GetSocketLocation(K.Limb == SaudIK::ELimb::Arm ? UpperBone[HisSide] : ThighBone[HisSide]);
