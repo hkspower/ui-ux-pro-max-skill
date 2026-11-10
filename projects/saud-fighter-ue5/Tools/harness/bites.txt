@@ -254,7 +254,7 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#Move = Move - Up \* Rise;#Move = Move - 
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockFistGap = 9.f;#constexpr float BlockFistGap = 0.f;#|a blow down the middle never drives one glove into the other
 ik|Source/SaudFighter/Combat/SaudIK.h|s#const float Half = FMath::Min(1.f, BlockMaxShift / (2.f \* R));#const float Half = FMath::Min(1.f, 4.f * BlockMaxShift / (2.f * R));#|a body blow is met by the arm swung about the shoulder, at most a hand's breadth at the elbow
 ik|Source/SaudFighter/Combat/SaudIK.h|s#Out.End = Shoulder + Swing(Hand - Shoulder, U, W, Share \* Alpha);#Out.End = Hand + (Meet - Hand) * Alpha;#|a body blow is met by the arm swung about the shoulder, at most a hand's breadth at the elbow
-ik|Source/SaudFighter/Combat/SaudIK.h|s#Out.Mid = C + RotateAbout(U, N, Took \* Alpha);#Out.Mid = Elbow + (Full.Mid - Elbow) * Alpha + N * 0.f * Took;#|a body blow is met by the elbow on its circle, the fist kept up
+ik|Source/SaudFighter/Combat/SaudIK.h|s#Out.Mid = Shoulder + Swing(U, U, W, Share \* Alpha);#Out.Mid = Elbow + (W - U) * 0.f;#|a body blow is met by the arm swung about the shoulder, at most a hand's breadth at the elbow
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockStandOff = 9.f;#constexpr float BlockStandOff = 3.f;#|the guard meets a blow 9 cm in front of its mark
 ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float BlockFaceGap = 8.f;#constexpr float BlockFaceGap = -8.f;#|a blocked blow stops in front of the guard, never through it
 ik|Source/SaudFighter/Combat/SaudIK.h|s#float Value() const { return SmoothStep(Lin); }#float Value() const { return Lin; }#|a ramp starts and stops at rest

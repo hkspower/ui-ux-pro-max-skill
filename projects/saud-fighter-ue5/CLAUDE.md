@@ -5779,6 +5779,111 @@ grey_world_shadows,old_sky,overcast,lit_men` 16 of 16 caught. **Not
 verified:** no engine has built the material (the HLSL takes the same two
 numbers); the pictures are Blender's through the numpy mirror.
 
+## The IK, reviewed -- 2026-11-10
+
+Asked as "full improve ik", settled as: all of it, both builds -- three open
+items (here: a guard that is shoved takes recovery steps; in the Unity
+port: the head look and the block meeting the blow) and a full review of
+the IK in both builds, every fault the harness can measure fixed and tested.
+
+**The review** is `Docs/reviews/2026-11-10-ik/` (`INDEX.md`, one file a
+finding): six readers, one part of the IK each, and every finding of medium
+or high severity tried by a second reader with a probe of their own. F01-F12
+are this build's, confirmed; F13-F19 and F24 the Unity port's (its own
+CLAUDE.md records them, with the two asked items); F20 was a recorded
+decision the ask changed; F21-F23 low and unchecked when filed -- each was
+reproduced here before anything was touched. **The fixes were all built
+alone** -- the helpers' weekly limit ran out before the build began -- and
+none of them has had a second reader: that review is still owed.
+
+**What was wrong, and what is there now** (all in `Combat/SaudIK.h`,
+engine-free, unless said; each with checks in `Tools/harness/tests/` and
+sabotages in `bites.txt`):
+
+- **F02, F10 -- no guard in the game ever shuffled.** The feet and the
+  block asked for `EFighterState::Block`, which nothing sets: a guard is
+  the blocking flag on a man standing or walking. `GuardUp`.
+- **F12 -- the eight street men had no stance to be held to.**
+  `StanceFor`: a set's own, else Street's; the Island's creatures none.
+- **F11 -- a turned chest left the clavicles behind** (up to 4.1 cm on the
+  brisk walk: the engine keeps a bone it has read in component space).
+  `WithBonesBetween` names every bone from an arm up to the turned chain.
+- **F06-F09 -- the turn clips.** A half-turn clip spun the body the long
+  way through its cut (325 degrees where 35 was needed); a quarter turn at
+  any angle but 90 jerked to the clip's 90; the chest and face were swung
+  back against a clip's turn; a man on the flank was met with the face
+  over the far shoulder. `TurnStep` takes what the clip's own body does
+  (`SaudFeel::TurnStartYaw`, `TurnDoneBefore`, `TurnClipLeft`, held to
+  `build_motion.py`'s text): 0.000 degrees off the clip's curve for
+  quarter turns snapped 46-135 and half turns 136-180, either way, at
+  30/60/120 Hz.
+- **F01 -- the knee flipped.** A leg all but straight (the mocap walk ends
+  its swing 1.07 cm off its line) solved with the clip's knee as a point
+  pole: 13.7 cm behind its line up the island's trail, nine times in ten
+  seconds. `LegPole` carries the leg's own bend round onto the new line.
+- **F03 -- a big man's punch lost its pull on a smaller man.** ZAYOS's jab
+  at Saud straight ahead got 0.04 (the aim is 54 degrees DOWN, and the
+  gate took the whole angle as a swipe). `SwingGate` splits it against
+  his up: sideways on 30/55, elevation on 60/85. 0.98 at the least.
+- **F04 -- a close punch folded with its elbow over the fist** (9.2 cm
+  above it, 27 cm in a frame). `SolveStrike` trusts the clip's bend by how
+  far the elbow stands off the line and folds the rest down and out:
+  24.9 cm under the fist.
+- **F05 -- a body blow's cover turned the elbow out, away from the kick.**
+  `Cover`'s low branch swings the whole arm about the shoulder: the elbow
+  13 cm lower and 5 nearer the blow, never within a fist of the other
+  glove. ("The fist kept up" is no longer so: it comes down 8.5 cm.)
+- **F20 / the ask -- a shoved guard holds its feet and steps.** A blocked
+  blow launches the guard back a third of its knockback; over the shuffle
+  pace both feet were let go and slid with him ("a block does not step").
+  `FShove`, `HoldsFeetMeasured`'s `bShoved`: for `ShoveSeconds` (0.20)
+  after the launch his feet hold at any pace and the hold's own rules step
+  them after him. A blocked kick's 10.6 cm: 0.00 cm of slide, 2 steps,
+  the last down 0.63 s after the blow (9.7 cm slid, no step). A guard
+  WALKED faster than its shuffle still glides. The push in the test is
+  read from `DT_Attacks.csv`, `SaudTypes.h` and `FighterBase.cpp`.
+- **F21 -- standing still, three guards' lead heels rolled up.** The
+  Street, AL-SAQR and ZAYOS guards stand on a lead leg at 99.2-99.9 % of
+  its length; the roll rule (past 98.5 %) lifted that heel 2.4-5.2 degrees
+  and bent the knee to 160 from 166-176. `HoldReachClip`: the clip's own
+  share is the limit where the clip is straighter. 1.89 degrees at most.
+- **F22 -- the guard ignored a second man until the first man's whole
+  swing was over** (his jab met at 0.00 after a cross, hook or kick).
+  `ChooseBlow`: the held blow while anything of it shows, then the one
+  furthest in, at once. 1.00 inside the jab's live frames.
+- **F23 -- a man through a door, or back in view, was traced under where
+  his feet were last drawn** (up a 15 cm kerb: hips 14.3 cm out, 14 frames
+  to come right). `TraceUnderHim`: the mesh's own sockets on the first
+  frame, on a teleport, and when the drawn feet are older than the last
+  update. 0.00 cm on the first frame.
+
+**Run on the whole of it, 2026-11-10:** the harness passes; every sabotage
+of the three suites the IK lives in: `ik` 307 of 307 (306, and one whose
+line an earlier fix had rewritten, re-pointed and caught), `posture` 49 of
+49, `feel` 56 of 56. Two commit messages of that day are wrong and are
+corrected here, not rewritten: `7872729` says "all 45 posture sabotages
+caught" of a command that had matched none -- run properly it was 42 of
+42 at that commit; `7eba20b` says four older strike sabotages were still
+caught before their results had been read -- one no longer applied, and
+`a19d253` re-points it.
+
+**Not closed, and said so:** a `Pivot_180` cut in from a run can still go
+the long way in some stride phases (the engine's own pose blend picks the
+arc); ZAYOS's hook inside about 85 cm (the chin is 63-77 degrees under his
+shoulder: that needs the clip, not the gate); the knee's kerb cases the
+review measured are not in the tests (walking onto a kerb, a guard with
+its lead foot on one); the cover's 1.48 case is Saud's pose scaled, not
+ZAYOS's own Block; one cover check has no sabotage (the function cannot
+be broken there).
+
+**Not verified -- as everything in this directory.** The engine side of
+every item (`SaudMotionAnimInstance.cpp/.h`, `SaudMotionComponent.cpp`) is
+read, not compiled: the new arguments to `Play` and `TurnStep`, the pole,
+the gate's and the strike's new arguments, `UpdateBlock` gathering blows
+for `ChooseBlow`, the shove (`FShove` in `UpdateFeet`; that a blocked
+blow's `LaunchCharacter` shows as Falling inside `AirGrace` is read from
+the engine's behaviour, not seen), and the clock on `FSaudFeetBack`.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
