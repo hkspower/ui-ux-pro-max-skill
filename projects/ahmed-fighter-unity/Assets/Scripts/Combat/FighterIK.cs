@@ -333,15 +333,30 @@ namespace Ahmed.Combat
             // put somewhere new: the rest point itself jumped
             bool put = h.Known && Flat(h.LastRest, rest) > SnapDrift * s;
             h.LastRest = rest; h.Known = true;
-            if (striking)
-            {
-                h.Held = false; h.Stepping = false; h.Still = 0f;
-                return rest;
-            }
             if (put)
             {
                 h.Held = true; h.Stepping = false; h.Anchor = rest; h.Still = 0f; h.LastDrift = 0f;
                 return rest;
+            }
+            if (striking)
+            {
+                // The kicking foot leaves from where it stands (2026-11-10). Until this
+                // day it was let go to its rest point on the kick's first frame, when the
+                // strike's weight is still nothing: out of a walk the foot jumped up to
+                // 34 cm in that one frame. It stays where it was -- a step stopped where it
+                // had got to -- for Strike() to take it from and bring it back to, and the
+                // ordinary step takes it home after the kick.
+                if (h.Stepping)
+                {
+                    float at = Smooth(h.T);
+                    h.Anchor = new Vector3(h.From.x + (rest.x - h.From.x) * at, rest.y, h.From.z + (rest.z - h.From.z) * at);
+                }
+                else if (!h.Held || Flat(h.Anchor, rest) > SnapDrift * s)
+                {
+                    h.Anchor = rest;
+                }
+                h.Held = true; h.Stepping = false; h.Still = 0f; h.LastDrift = Flat(h.Anchor, rest);
+                return new Vector3(h.Anchor.x, rest.y, h.Anchor.z);   // where it stands
             }
             float drift = Flat(h.Anchor, rest);
             if (h.Held)
@@ -724,36 +739,105 @@ namespace Ahmed.Combat
             return origin + facing * reach + Vector3.up * height;
         }
 
+        // The strike solved last frame: which limb (0 left arm, 1 right arm, 2 left
+        // leg, 3 right leg; -1 none) and where its end was, in the fighter's frame.
+        private int _struck = -1;
+        private Vector3 _struckEnd;
+        // A swing taken away -- he was hit in it, or another row began -- lets its
+        // limb go from where it was struck: its share runs 1 to 0 over LetGoSeconds.
+        private int _goLimb = -1;
+        private Vector3 _goFrom;
+        private float _letGo;
+
+        /// <summary>
+        /// How long a limb takes to come off a strike that was taken away
+        /// (2026-11-10). Until this day Strike() simply returned once the state
+        /// left Attack, and the fist or foot was back at the guard or the floor
+        /// on the frame of the blow -- 94 cm for a punch, 125 for a kick, in
+        /// one frame, and that snapped pose was the one hit stop then held.
+        /// The Unreal build lets a taken swing go in 0.05 s on a limb its clip
+        /// already carries; here the whole limb is the IK's, so twice that.
+        /// </summary>
+        public const float LetGoSeconds = 0.10f;
+
+        /// <summary>The let-go's share a frame on: it does not run through hit
+        /// stop, so the contact frame holds the limb where it was struck. Pure.</summary>
+        public static float LetGo(float share, float dt, bool frozen)
+        {
+            if (frozen) { return share; }
+            return Mathf.Max(0f, share - dt / LetGoSeconds);
+        }
+
+        private Limb LimbAt(int index)
+        {
+            return index == 0 ? _armL : index == 1 ? _armR : index == 2 ? _legL : _legR;
+        }
+
+        /// <summary>Elbows hang under the punch; the kicking knee leads the foot.</summary>
+        private void SolveStrike(Limb limb, bool arm, Vector3 target)
+        {
+            Vector3 pole = arm
+                ? (limb.Root.position + target) * 0.5f - Vector3.up * 0.6f
+                : limb.Root.position + _fighter.Facing * 0.6f;
+            TwoBoneIK.Apply(limb.Root, limb.Mid, limb.End, target, pole);
+        }
+
         private void Strike()
         {
+            // which limb the swing in progress is thrown with, and how far into it
             AttackRow row = _fighter.ActiveAttack;
-            if (_fighter.State != FighterState.Attack || row == null) { return; }
+            int cur = -1; bool arm = false; float weight = 0f;
+            if (_fighter.State == FighterState.Attack && row != null)
+            {
+                bool rear;
+                if (StrikeLimb(row.name, out arm, out rear))
+                {
+                    weight = StrikeWeight(_fighter.AttackTime, row.startup, row.active, row.recovery);
+                    if (weight > 0f) { cur = (arm ? 0 : 2) + (IsRightSide(rear, _southpaw) ? 1 : 0); }
+                }
+            }
 
-            bool arm, rear;
-            if (!StrikeLimb(row.name, out arm, out rear)) { return; }
-            bool right = IsRightSide(rear, _southpaw);
-            Limb limb = arm ? (right ? _armR : _armL) : (right ? _legR : _legL);
+            // a swing taken away: its limb is let go from where it was struck
+            if (_struck >= 0 && _struck != cur) { _goLimb = _struck; _goFrom = _struckEnd; _letGo = 1f; }
+            _struck = -1;
+            if (_letGo > 0f)
+            {
+                _letGo = LetGo(_letGo, Time.deltaTime, _fighter.Frozen);
+                Limb was = LimbAt(_goLimb);
+                if (_letGo > 0f && was.Ok)
+                {
+                    // from where the feet and the guard have it this frame, back toward the strike
+                    Vector3 held = Vector3.Lerp(was.End.position, transform.TransformPoint(_goFrom), Smooth(_letGo));
+                    SolveStrike(was, _goLimb < 2, held);
+                    _view.StrikeOn = true;
+                    _view.StrikeTarget = held;
+                    _view.StrikeWeight = Smooth(_letGo);
+                }
+                else { _letGo = 0f; _goLimb = -1; }
+            }
+
+            if (cur < 0) { return; }
+            Limb limb = LimbAt(cur);
             if (!limb.Ok) { return; }
-
-            float weight = StrikeWeight(_fighter.AttackTime, row.startup, row.active, row.recovery);
-            if (weight <= 0f) { return; }
 
             Vector3 facing = _fighter.Facing;
             Vector3 full = StrikeTarget(transform.position, facing, row.reach,
                                         arm ? ShoulderHeight : HipHeight);
-            Vector3 rest = transform.TransformPoint(limb.EndRestLocal);
-            Vector3 target = Vector3.Lerp(rest, full, weight);
+            // From where the limb IS this frame -- the feet, the guard and a let-go have
+            // been solved -- not from its A-pose rest point (2026-11-10): a punch pressed
+            // with the guard up sent the fist 49 to 66 cm down and back to that rest point
+            // in the first frame it had any weight, before it went forward.
+            Vector3 from = limb.End.position;
+            Vector3 target = Vector3.Lerp(from, full, weight);
             // Cocked before it is thrown. This is the tell.
             target -= facing * (WindUp(_fighter.AttackTime, row.startup) * WindUpDraw);
             _view.StrikeOn = true;
             _view.StrikeTarget = target;
             _view.StrikeWeight = weight;
 
-            // Elbows hang under the punch; the kicking knee leads the foot.
-            Vector3 pole = arm
-                ? (limb.Root.position + target) * 0.5f - Vector3.up * 0.6f
-                : limb.Root.position + facing * 0.6f;
-            TwoBoneIK.Apply(limb.Root, limb.Mid, limb.End, target, pole);
+            SolveStrike(limb, arm, target);
+            _struck = cur;
+            _struckEnd = transform.InverseTransformPoint(limb.End.position);
         }
     }
 }

@@ -5,6 +5,29 @@
 using System; using System.Collections.Generic; using UnityEngine;
 using Ahmed.Combat; using Ahmed.Data;
 
+// Where PlayerFighter.ReadInput sits in a frame: after Fighter.Update's own tick
+// (order 0), before Fighter.LateUpdate and FighterIK.LateUpdate (order 100). It
+// does what ReadInput does with a held block, a pressed strike and a held stick.
+[DefaultExecutionOrder(50)]
+public class StrikePad : MonoBehaviour {
+    public Fighter F; public bool HoldBlock, Walk; public string Press; public float Speed = 3.408f;
+    public Vector3 Way = Vector3.forward;
+    public float HitAt = -1f; public bool Struck;
+    void Update() {
+        F.Blocking = HoldBlock && !F.IsBusy;
+        if (!F.IsBusy) {
+            if (Press != null) { F.StartAttack(Press); Press = null; }
+            else if (Walk) { transform.position = transform.position + Way * (Speed * Time.deltaTime); }
+        }
+        // a blow taken in the middle of his own swing: the push and the hit stop, as ReceiveHit gives them
+        if (HitAt >= 0f && !Struck && F.State == FighterState.Attack && F.AttackTime >= HitAt) {
+            Struck = true;
+            F.ReceiveKnockback(-Way * 3f, false);
+            F.Freeze(0.075f);
+        }
+    }
+}
+
 public static class Pose {
     static int fails = 0;
     static void Check(bool ok, string w) { if (!ok) { fails++; Console.WriteLine("  FAIL " + w); } }
@@ -68,6 +91,152 @@ public static class Pose {
 
     static float AnkleY(Rig r, string side) { return r.Bones["foot_" + side].position.y; }
     static float Len(Rig r, string a, string b) { return (r.Bones[a].position - r.Bones[b].position).magnitude; }
+
+    // ------------------------------------------------------------ 2026-11-10: strikes
+    // The attack rows, read from the game's own attacks.json into GameData (the suites
+    // had never run a strike through the skeleton).
+    static void LoadRows() {
+        GameData.Load();
+        var d = (Dictionary<string, AttackRow>)typeof(GameData).GetField("_attacks",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
+        string text = System.IO.File.ReadAllText("Assets/Resources/Data/attacks.json");
+        foreach (System.Text.RegularExpressions.Match item in System.Text.RegularExpressions.Regex.Matches(text, "\\{[^{}]*\"name\"[^{}]*\\}")) {
+            AttackRow r = new AttackRow();
+            foreach (System.Text.RegularExpressions.Match kv in System.Text.RegularExpressions.Regex.Matches(item.Value, "\"(\\w+)\"\\s*:\\s*(\"[^\"]*\"|[\\w.]+)")) {
+                string k = kv.Groups[1].Value, v = kv.Groups[2].Value.Trim('"');
+                System.Reflection.FieldInfo f = typeof(AttackRow).GetField(k); if (f == null) continue;
+                if (f.FieldType == typeof(float)) f.SetValue(r, float.Parse(v, System.Globalization.CultureInfo.InvariantCulture));
+                else if (f.FieldType == typeof(bool)) f.SetValue(r, v == "true");
+                else f.SetValue(r, v);
+            }
+            r.Resolve(); d[r.name] = r;
+        }
+    }
+
+    // A man on a flat slab facing -Z (the side the fixture's _l bones are his left for), with a pad.
+    static Rig Fighter(float hz, out StrikePad pad) {
+        Scene.Reset(); Scene.DeltaTime = 1f / hz;
+        Slab("Ground", new Vector3(0f, -0.5f, 0f), new Vector3(2000f, 1f, 2000f));
+        Rig r = BuildFighter("Ahmed", Vector3.zero);
+        pad = r.Root.AddComponent<StrikePad>(); pad.F = r.Fighter; pad.Way = new Vector3(0f, 0f, -1f);
+        typeof(Fighter).GetMethod("InitialiseVitals", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            .Invoke(r.Fighter, new object[] { 100f, 9999f });
+        r.Fighter.FaceTowards(new Vector3(0f, 0f, -10f));
+        Scene.Step(4);
+        return r;
+    }
+
+    static string StrikeBone(string row) {
+        return row == "Jab" || row == "Hook" ? "hand_l" : row == "Kick" || row == "Knee" ? "foot_r" : "hand_r";
+    }
+
+    // the largest move of the striking limb's end in one frame over a strike; first: on the frame it starts
+    static float Throw(float hz, string row, bool fromGuard, float hitAt, out float first, out float frozenMove, out float whole) {
+        StrikePad pad; Rig r = Fighter(hz, out pad);
+        string bone = StrikeBone(row);
+        if (fromGuard) { pad.HoldBlock = true; Scene.Step((int)Math.Round(hz * 0.5f)); }
+        else Scene.Step((int)Math.Round(hz * 0.1f));
+        AttackRow a = GameData.Attack(row);
+        pad.Press = row; pad.HitAt = hitAt;
+        Vector3 prev = r.Bones[bone].position, atHit = prev, home = prev;
+        float worst = 0f; first = 0f; frozenMove = 0f; whole = 0f;
+        int n = (int)Math.Ceiling((a.startup + a.active + a.recovery) * hz) + (int)Math.Round(hz * 0.5f);
+        bool wasStruck = false;
+        for (int i = 1; i <= n; i++) {
+            Scene.Step();
+            Vector3 q = r.Bones[bone].position; float d = (q - prev).magnitude;
+            if (hitAt < 0f) { worst = Math.Max(worst, d); if (i == 1) first = d; }
+            else if (pad.Struck) {
+                if (!wasStruck) { atHit = prev; wasStruck = true; }
+                if (r.Fighter.Frozen) frozenMove = Math.Max(frozenMove, (q - atHit).magnitude);
+                worst = Math.Max(worst, d);
+                home = q;
+            }
+            prev = q;
+        }
+        if (hitAt >= 0f) whole = (home - atHit).magnitude;
+        return worst;
+    }
+
+    static void Strikes() {
+        Console.WriteLine("\nSTRIKES");
+        LoadRows();
+        AttackRow jab = GameData.Attack("Jab"), kick = GameData.Attack("Kick");
+        Check(jab != null && kick != null && Math.Abs(jab.startup - 0.07f) < 1e-4f && Math.Abs(kick.reach - 1.776f) < 1e-3f,
+              "(the rows are attacks.json's: the jab's 0.07 s startup, the kick's 1.776 m reach)");
+
+        // (1) a punch pressed with the guard up leaves from the guard. Until 2026-11-10 the
+        // strike blended from the hand's A-pose rest point: the fist went 49 to 66 cm down
+        // and back in the first frame it had any weight (64.3 cm for a jab at 120 Hz,
+        // against 22.0 for the same jab from hands down).
+        float f0, fz, wh;
+        bool leaves = true; float worstRatio = 0f;
+        foreach (string row in new[] { "Jab", "Cross", "Hook" })
+            foreach (float hz in new[] { 30f, 60f, 120f }) {
+                float fromRest = Throw(hz, row, false, -1f, out f0, out fz, out wh);
+                float fromGuard = Throw(hz, row, true, -1f, out f0, out fz, out wh);
+                worstRatio = Math.Max(worstRatio, fromGuard / fromRest);
+                if (fromGuard > 1.1f * fromRest) leaves = false;
+                if (hz == 120f) Console.WriteLine("  " + row + " at 120 Hz: the fist's largest frame is " + (fromGuard * 100).ToString("0.0")
+                    + " cm out of the guard, " + (fromRest * 100).ToString("0.0") + " cm from hands down");
+            }
+        Check(leaves, "a punch pressed with the guard up leaves from the guard: no frame of it faster than 1.1 x the same punch from hands down ("
+              + worstRatio.ToString("0.00") + " x at worst; jab, cross and hook at 30, 60 and 120 Hz)");
+        {
+            // ...and it lands where it always did
+            Vector3[] at = new Vector3[2];
+            for (int g = 0; g < 2; g++) {
+                StrikePad pad; Rig r = Fighter(60f, out pad);
+                if (g == 1) { pad.HoldBlock = true; Scene.Step(30); } else Scene.Step(6);
+                pad.Press = "Jab"; Scene.Step(1 + (int)Math.Round(60f * (jab.startup + 0.5f * jab.active)));
+                at[g] = r.Bones["hand_l"].position;
+            }
+            Check((at[0] - at[1]).magnitude < 1e-3f && at[0].z < -0.5f, "...and at its contact frame the fist is where the punch from hands down has it");
+        }
+
+        // (2) hit in the middle of his own swing. Until 2026-11-10 the limb was back at the
+        // guard or the floor on the frame of the blow (94 cm for a punch, 125 for a kick),
+        // and hit stop then held that snapped pose.
+        bool held = true, eased = true; float worstShare = 0f;
+        foreach (string row in new[] { "Jab", "Cross", "Kick", "Knee" })
+            foreach (float hz in new[] { 30f, 60f, 120f }) {
+                AttackRow a = GameData.Attack(row);
+                float worst = Throw(hz, row, false, a.startup + 0.5f * a.active, out f0, out fz, out wh);
+                if (fz > 0.005f) held = false;
+                // a smooth step over LetGoSeconds: its steepest frame is 1.5 dt / LetGoSeconds of the way
+                if (wh < 0.5f || worst > wh * (1.5f / (hz * FighterIK.LetGoSeconds) + 0.1f)) eased = false;
+                worstShare = Math.Max(worstShare, worst / wh);
+                if (hz == 60f && (row == "Jab" || row == "Kick"))
+                    Console.WriteLine("  hit in his " + row + " at 60 Hz: the limb is " + (wh * 100).ToString("0.0") + " cm from where it ends; through hit stop it moves "
+                        + (fz * 100).ToString("0.00") + " cm; its largest frame after is " + (worst * 100).ToString("0.0") + " cm");
+            }
+        Check(held, "hit in the middle of his own swing, the limb is held where it was struck through hit stop (under 0.5 cm; jab, cross, kick and knee at 30, 60 and 120 Hz)");
+        Check(eased, "...and is let go over LetGoSeconds after, never the whole way in a frame (" + (worstShare * 100).ToString("0") + " % of the way in the worst frame, at 30 Hz)");
+        Check(FighterIK.LetGo(1f, 1f / 60f, true) == 1f && Math.Abs(FighterIK.LetGo(1f, 0.05f, false) - 0.5f) < 1e-5f && FighterIK.LetGo(0.1f, 1f, false) == 0f,
+              "the let-go's share stands through hit stop, runs out in LetGoSeconds, and stops at nothing");
+
+        // (3) a kick pressed out of a walk. Until 2026-11-10 the kicking foot was let go to
+        // its rest point on the kick's first frame, the strike's weight still nothing: 33.7 cm.
+        bool stays = true;
+        foreach (float hz in new[] { 30f, 60f, 120f }) {
+            float worstFirst = 0f, sum = 0f;
+            for (int k = 0; k < 24; k++) {
+                StrikePad pad; Rig r = Fighter(hz, out pad);
+                pad.Walk = true;
+                Scene.Step((int)Math.Round(hz * (1.0f + k * 0.02f)));
+                Vector3 before = r.Bones["foot_r"].position;
+                pad.Press = "Kick";
+                Scene.Step();
+                float d = (r.Bones["foot_r"].position - before).magnitude;
+                worstFirst = Math.Max(worstFirst, d); sum += d;
+            }
+            if (worstFirst > 0.08f) stays = false;
+            if (hz == 60f) Console.WriteLine("  a kick out of a 3.408 m/s walk at 60 Hz, 24 moments of the stride: the kicking foot moves "
+                + (worstFirst * 100).ToString("0.0") + " cm at most on the kick's first frame, " + (sum / 24f * 100).ToString("0.0") + " on average");
+        }
+        Check(stays, "a kick pressed out of a walk leaves from where the foot stands: under 8 cm on the kick's first frame, at 30, 60 and 120 Hz");
+        Scene.DeltaTime = 1f / 60f;
+    }
 
     public static int Main() {
         // ---------------------------------------------------- feet on the floor
@@ -296,6 +465,8 @@ public static class Pose {
         Check(leftBehind > 0.07f, "carried 8 cm, his feet stay where they were planted (" + (leftBehind * 100).ToString("0.0") + " cm behind)");
         Check(offL < 0.005f && offR < 0.005f && Math.Abs(AnkleY(st, "l") - FighterIK.AnkleHeight) < 2e-3f,
               "and a second later both have stepped back under him (" + (offL * 100).ToString("0.0") + " and " + (offR * 100).ToString("0.0") + " cm off)");
+
+        Strikes();
 
         Console.WriteLine(fails == 0 ? "\nall pose checks passed" : "\n" + fails + " FAILURES");
         return fails == 0 ? 0 : 1;

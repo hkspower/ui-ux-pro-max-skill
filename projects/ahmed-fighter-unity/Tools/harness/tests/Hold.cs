@@ -4,8 +4,8 @@ using System; using UnityEngine; using Ahmed.Combat;
 // he carries its rest point less than StepDrift; then a step after him that
 // lifts in the middle and lands on its rest point, held again; one foot at a
 // time unless the standing one is carried ForceDrift; a jump of SnapDrift
-// re-plants it at once; hit stop holds a step where it is; the striking leg
-// is not held; every distance grows with the man; and walking, the held foot
+// re-plants it at once; hit stop holds a step where it is; the striking leg's
+// foot stays where it stood (2026-11-10); every distance grows with the man; and walking, the held foot
 // never slides and neither foot is ever left far behind.
 public static class HoldTest {
     static int fails = 0;
@@ -67,10 +67,36 @@ public static class HoldTest {
         for (int i = 0; i < 10; i++) FighterIK.HoldFoot(ref c, false, far, false, true, Dt, 1f, out lift);
         Check(c.Stepping && Math.Abs(c.T - tBefore) < 1e-6f, "frozen, a step stands where it is");
 
-        // the striking leg is not held
+        // the kicking foot leaves from where it stands (2026-11-10; until then it was let go
+        // to its rest point on the kick's first frame, 20 cm in one frame here)
         var d = new FighterIK.FootHold(); FighterIK.HoldFoot(ref d, false, rest, false, false, Dt, 1f, out lift);
         p = FighterIK.HoldFoot(ref d, false, far, true, false, Dt, 1f, out lift);
-        Check(!d.Held && !d.Stepping && Flat(p, far) < 1e-6f, "the striking leg is not held");
+        Check(d.Held && !d.Stepping && Flat(p, rest) < 1e-6f && lift == 0f, "the striking leg's foot stays where it stood on the kick's first frame");
+        // ...through the whole kick, however long, and it does not start a step
+        bool stayed = true;
+        for (int i = 0; i < 40; i++) {
+            p = FighterIK.HoldFoot(ref d, false, far, true, false, Dt, 1f, out lift);
+            if (d.Stepping || Flat(p, rest) > 1e-6f) stayed = false;
+        }
+        Check(stayed, "...and through the kick: it does not step while it strikes");
+        // after the kick the ordinary step takes it home
+        FighterIK.HoldFoot(ref d, false, far, false, false, Dt, 1f, out lift);
+        bool stepsHome = d.Stepping;
+        for (int i = 0; i < 20; i++) p = FighterIK.HoldFoot(ref d, false, far, false, false, Dt, 1f, out lift);
+        Check(stepsHome && d.Held && Flat(p, far) < 1e-6f, "...and after the kick it steps home");
+        // caught mid-step by the kick, it stops where the step had got to
+        var d2 = new FighterIK.FootHold(); FighterIK.HoldFoot(ref d2, false, rest, false, false, Dt, 1f, out lift);
+        Vector3 mids = rest;
+        for (int i = 0; i < 4; i++) mids = FighterIK.HoldFoot(ref d2, false, far, false, false, Dt, 1f, out lift);
+        bool wasStepping = d2.Stepping;
+        p = FighterIK.HoldFoot(ref d2, false, far, true, false, Dt, 1f, out lift);
+        Check(wasStepping && d2.Held && !d2.Stepping && Flat(p, mids) < 0.05f && Flat(p, rest) > 0.01f && Flat(p, far) > 0.01f,
+              "a foot caught mid-step by its own kick stops where the step had got to (" + (Flat(p, mids) * 100).ToString("0.0") + " cm on)");
+        // a kick thrown by a man put somewhere new is planted there
+        var d3 = new FighterIK.FootHold(); FighterIK.HoldFoot(ref d3, false, rest, false, false, Dt, 1f, out lift);
+        Vector3 kickPut = new Vector3(6f, 0.07f, -4f);
+        p = FighterIK.HoldFoot(ref d3, false, kickPut, true, false, Dt, 1f, out lift);
+        Check(d3.Held && Flat(p, kickPut) < 1e-6f, "a striking leg put somewhere new is planted there, not left behind");
 
         // every distance grows with the man
         var e = new FighterIK.FootHold(); FighterIK.HoldFoot(ref e, false, rest, false, false, Dt, 1.5f, out lift);
