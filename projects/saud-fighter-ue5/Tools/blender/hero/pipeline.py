@@ -188,12 +188,19 @@ PHYSIQUE = {
 # factors on assembly.masses by name. The trapezius stays at 1.0 on every
 # man: 1.08-1.20 took check_neck's girth to 0.465-0.475 (its band is
 # 0.40-0.46), and ZAYOS's lat at 1.10 broke the V (a 3 mm bulge).
+#
+# 2026-11-10 (the bodies reviewed: B14, B18): the canonical deltoid grows
+# with the arm now (assembly.DELT_GROWS on the man's LIMBS) and stands over
+# it (DELT_AXES), so two entries that were doing that job by hand are let
+# go: the brawler's 1.18 on an arm of 1.40 would be a cap 10 mm proud with
+# an edge round it (1.06: 3-5), and the thug's 0.95 left his cap under his
+# arm's own radius (1.00).
 MASS = {
-    # wiry: a little less chest and shoulder
-    "thug":    dict(delt=0.95, pec=0.92, pec_up=0.92, oblique=0.90),
+    # wiry: a little less chest
+    "thug":    dict(pec=0.92, pec_up=0.92, oblique=0.90),
     # the heavy man, heavier than Saud's frame at last: shoulders, chest
     # and a thick waist
-    "brawler": dict(delt=1.18, pec=1.12, pec_up=1.12, oblique=1.35, rectus_sheet=1.30, lat=1.05),
+    "brawler": dict(delt=1.06, pec=1.12, pec_up=1.12, oblique=1.35, rectus_sheet=1.30, lat=1.05),
     # the lean V of a kicker
     "saqr":    dict(delt=1.08, pec=0.95, oblique=0.70, rectus0=1.15, rectus1=1.15, rectus2=1.15, lat=0.95),
     "boss":    dict(delt=1.15, pec=1.10, pec_up=1.10, oblique=1.20),
@@ -552,6 +559,16 @@ def run(argv=None):
     return build_fighter(roster.spec("saud"), argv)
 
 
+def glove_scale(spec):
+    """How big a gloved man's gloves are against anatomy.glove's own rows:
+    the share of his limb factor his forearm keeps just above the wrist
+    (anatomy.END_SHARE), so the cuff closes round the forearm it is on.
+    ZAYOS: 1.15. (2026-11-10: at 1.0 his gloves were narrower than his
+    forearm, which the size field had made 1.43 times as thick.)"""
+    _h, l, _t, _F = A.build_field(spec["sc"], spec["look"].get("build", 1.0))
+    return 1.0 + A.END_SHARE * (l - 1.0)
+
+
 def build_fighter(spec, argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     name, low = spec["name"], spec["name"].lower()
@@ -653,7 +670,8 @@ def build_fighter(spec, argv=None):
         body, trees, eyes, jl = B.build(voxel_scale=3.0 if "--coarse" in argv else 1.0,
                                         face_scale=face_scale, hair_style=hair_style, arm_scale=arm_scale,
                                         gloves=gloves, physique=PHYSIQUE.get(kind), mass=MASS.get(kind),
-                                        noses=NOSES.get(kind), ears=EARS.get(kind), holds=HOLDS.get(kind))
+                                        noses=NOSES.get(kind), ears=EARS.get(kind), holds=HOLDS.get(kind),
+                                        glove_scale=glove_scale(spec))
         slots = {}
         mats = {"skin": F.shader("%s_Skin" % name, "skin", 0.52, subsurface=SKIN_SSS, pores=PORES["skin"]),
                 # the hair's roughness matches the skin's: the material edge
@@ -681,19 +699,21 @@ def build_fighter(spec, argv=None):
             # around the hd->he segment, wide enough for the glove's own
             # widest row (0.060 m half-width at t=0.42) plus the thumb lobe,
             # a little past the cuff (t=-0.38) and the closed tip (t=0.96).
-            L = 0.135
+            #
+            # 2026-11-10 (B06): the glove's own extent along the hand, from
+            # its cuff's rim (t -0.38) to its tip (t 1.07), at the man's
+            # glove size -- not a 7.5 cm capsule, whose round end reached
+            # 11 cm up the forearm and painted its skin as glove.
+            L = 0.135; gs = glove_scale(spec)
             for s in (1, -1):
                 hd = Vector((A.Jp("hand_l").x * s, A.Jp("hand_l").y, A.Jp("hand_l").z))
                 he = Vector((A.Jp("hand_end_l").x * s, A.Jp("hand_end_l").y, A.Jp("hand_end_l").z))
                 d = (he - hd).normalized()
-                lo = hd + d * (-0.42 * L); hi_ = hd + d * (1.02 * L)
-                # ...and the sleeve over the thumb (anatomy.glove), which
-                # reaches past that cylinder: its tip is 0.100 off the axis
-                th = [Vector((q.x * s, q.y, q.z)) for q in jl["thumb"]]
-                reach = 0.0150 + A.GLOVE_THUMB_PAD + 0.012
+                t_lo, t_hi = -0.40 * L * gs, 1.10 * L * gs
                 for p in body.data.polygons:
-                    if G._pt_seg(p.center, lo, hi_) < 0.075 or \
-                       any(G._pt_seg(p.center, a, b) < reach for a, b in zip(th[:-1], th[1:])):
+                    q = p.center - hd
+                    t_ = q.dot(d)
+                    if t_lo <= t_ <= t_hi and (q - d * t_).length < 0.085 * gs:
                         p.material_index = slots["glove"]
         tee, pants, soles = G.dress(body, tee=not no_tee, top=top, bottom=bottom)
         # the shader's own numbers per cut (the per-texel roughness is
@@ -1014,7 +1034,7 @@ def build_fighter(spec, argv=None):
         bpy.data.objects.remove(ref, do_unlink=True)
         stamp("skeleton identical to the boss clips' (drift %.1e m)" % worst)
     nf = R.add_finger_bones(rig, jl)
-    R.bind_all(body, [tee, pants] + soles + eyes, rig, factors.get("crotch"))
+    R.bind_all(body, [tee, pants] + soles + eyes, rig, factors.get("crotch"), gloved=gloves)
     stamp("stripped %d body faces under the garments" % strip_body(body, hidden_faces))
     mesh = R.join_all(body, [tee, pants] + soles + eyes); mesh.name = mesh.data.name = name
     legacy.weight_orphans(mesh, rig)

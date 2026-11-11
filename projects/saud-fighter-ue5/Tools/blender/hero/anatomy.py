@@ -131,8 +131,21 @@ BACK_MUSCLES = {
     # latissimus dorsi: from the armpit's back fold, sweeping down and in
     # to the lumbar fascia -- the V, drawn by a muscle, thickest at the
     # armpit and thinning to nothing over the small of the back
-    "lat": [(0.166, 1.345, 0.010, 0.040), (0.156, 1.290, 0.010, 0.060), (0.136, 1.228, 0.008, 0.065),
-            (0.106, 1.168, 0.005, 0.055), (0.072, 1.118, 0.002, 0.040)],
+    #
+    # 2026-11-10 (the bodies reviewed: B01). Five links, the widest (65 mm
+    # across) low at 1.228 and the last still 40 mm across at 1.118: the lat
+    # ended as a flap on the flank -- a fin and a notch above the waist. On
+    # the canonical body the outline stepped 7.9 mm in a centimetre there,
+    # inside the lean physique's own rule (8, check_physique's "a shelf or
+    # a fin") -- but the size field multiplies every sideways slope by a
+    # man's torso factor, and ZAYOS, bare, measured 10.2, his flank a thin
+    # blade standing beside the ribs. The shape the lean lat was given on
+    # 2026-10-03: seven links, the widest high under the arm, the across
+    # shrinking evenly and nothing proud by 1.095, so the lower edge runs
+    # into the waist.
+    "lat": [(0.170, 1.345, 0.011, 0.042), (0.162, 1.300, 0.012, 0.054), (0.148, 1.255, 0.011, 0.048),
+            (0.130, 1.210, 0.008, 0.042), (0.112, 1.170, 0.004, 0.036), (0.092, 1.130, 0.002, 0.028),
+            (0.070, 1.095, 0.000, 0.020)],
     # erector spinae: two columns either side of the spine from the sacrum
     # to the middle of the back, thickest over the lumbar, the furrow
     # between them the length of the back. Broad and soft: at a 22 mm
@@ -885,26 +898,45 @@ def arm(scale=1.0):
         upper = tube("upperarm", ua, la, smooth_rows([(t,) + bulk(*r) for t, *r in LEAN_UPPER]), segs=48)
         lower = tube("forearm", la, hd, smooth_rows([(t,) + bulk(*r) for t, *r in LEAN_FORE]), segs=48)
         return [upper, lower]
-    upper = tube("upperarm", ua, la, [
+    # The five other men's (2026-11-10, the bodies reviewed: B05, B13, B17).
+    # Their rings were lofted straight, six to a segment: a hard ridge at
+    # each (the forearm's outline turned 24-37 degrees at its belly's ring,
+    # the upper arm's 17-42, where Saud's, through smooth_rows, turn 10-12)
+    # -- an ice-cream cone of a forearm, a lathe-turned upper arm. Through
+    # the same curve now. And the upper arm's belly was carried 14 mm
+    # forward on a 65 mm radius, 1.54 times as far out in front of the bone
+    # as behind it -- "a sleeve, not an arm", the lean physique's own rule,
+    # held to 1.25: the triceps has its share (7 mm forward, 1.24). The
+    # elbow and the wrist take a share of a man's LIMBS (0.30, where they
+    # took 0.05 and nothing): bone is heavier on a heavier man, and the
+    # brawler's forearm was 2.51 times his wrist round where a heavy
+    # forearm is about twice it.
+    upper = tube("upperarm", ua, la, smooth_rows([
         (-0.05,) + bulk(0.048, 0.050, 0.000, 0.0, 0.50),  # tapers IN under the deltoid
-        (0.18,) + bulk(0.052, 0.058, +0.006, 0.0, 0.85),
-        (0.42,) + bulk(0.055, 0.065, +0.014, 0.0, 1.00),  # biceps belly forward, triceps back
-        (0.64,) + bulk(0.049, 0.058, +0.009, 0.0, 0.80),
-        (0.86,) + bulk(0.039, 0.044, +0.002, 0.0, 0.35),  # the narrowing above the elbow
-        (1.02,) + bulk(0.044, 0.038, 0.000, 0.0, 0.05),   # elbow: wide across, shallow through
-    ])
-    lower = tube("forearm", la, hd, [
-        (-0.02,) + bulk(0.044, 0.038, 0.000, 0.0, 0.25),
+        (0.18,) + bulk(0.052, 0.058, +0.004, 0.0, 0.85),
+        (0.42,) + bulk(0.055, 0.065, +0.007, 0.0, 1.00),  # biceps belly forward, triceps back
+        (0.64,) + bulk(0.049, 0.058, +0.005, 0.0, 0.80),
+        (0.86,) + bulk(0.039, 0.044, +0.002, 0.0, 0.40),  # the narrowing above the elbow
+        (1.02,) + bulk(0.044, 0.038, 0.000, 0.0, 0.30),   # elbow: wide across, shallow through
+    ]), segs=48)
+    lower = tube("forearm", la, hd, smooth_rows([
+        (-0.02,) + bulk(0.044, 0.038, 0.000, 0.0, 0.30),
+        # (the belly's shoulder, 2026-11-10: from the elbow straight to the
+        # belly's ring the heavy forearms -- the brawler's, at LIMBS 1.40 --
+        # rose 3.7 cm in 8 and fell away again, a bump whose outline turned
+        # 27 degrees; and the belly takes 0.85 of a man's LIMBS, not all of
+        # it: at 1.00 the brawler's forearm was thicker than his calf)
+        (0.14,) + bulk(0.046, 0.046, +0.003, -0.005, 0.70),
         # the brachioradialis and the extensors, the forearm's big belly, sit
         # on the RADIAL (thumb) side: with the palm forward in the A-pose that
         # is the side away from the body, which is -s here (s = d x f points
         # in toward the body). It was +0.009, on the ulnar side.
-        (0.30,) + bulk(0.046, 0.052, +0.005, -0.009, 1.00),
-        (0.55,) + bulk(0.039, 0.043, +0.003, 0.004, 0.60),
-        (0.80,) + bulk(0.031, 0.030, 0.000, 0.0, 0.25),
-        (1.00,) + bulk(0.030, 0.023, 0.000, 0.0, 0.0),      # wrist, a flattened oval (0.17 m round)
-        (1.05,) + bulk(0.029, 0.022, 0.000, 0.0, 0.0),
-    ])
+        (0.30,) + bulk(0.046, 0.050, +0.003, -0.009, 0.85),
+        (0.55,) + bulk(0.039, 0.045, +0.002, 0.001, 0.70),
+        (0.80,) + bulk(0.031, 0.030, 0.000, 0.0, 0.45),
+        (1.00,) + bulk(0.030, 0.023, 0.000, 0.0, 0.30),      # wrist, a flattened oval (0.17 m round)
+        (1.05,) + bulk(0.029, 0.022, 0.000, 0.0, 0.30),
+    ]), segs=48)
     return [upper, lower]
 
 def leg():
@@ -920,33 +952,43 @@ def leg():
     # the left leg, toward the midline, so "inside" is +ss, not -ss. The
     # thigh is fuller through its upper third (a fighter's 0.60 m) and the
     # knee wider across, so the leg reads thigh / knee / calf, not a taper.
-    thigh = tube("thigh", th, cf, [
+    # 2026-11-10 (the bodies reviewed: B03, B17): through a smooth curve
+    # like the arm, and the tube's top closed into the dome the lean thigh
+    # has had since 2026-10-03 -- its flat top stood outside the hips and
+    # ended in a shelf across them (the outline stepping 7.1 mm in a
+    # centimetre at the hip on the brawler and AL-SAQR, 11.3 on the thug,
+    # where Saud's steps 4.1).
+    thigh = tube("thigh", th, cf, smooth_rows([
         # The upper thigh is deeper than it is wide and sits OUT from the
         # hip joint (ss < 0 is away from the midline): with hip joints
         # 0.184 m apart, thighs 0.176 wide on the joint touched and welded
         # down to 0.79, a crotch 11 cm under mid-height. Parted, the crotch
         # is the pelvis floor at 0.900.
-        (-0.06, 0.082, 0.096, +0.004, -0.010),  # into the hip
+        (-0.13, 0.020, 0.024, -0.004, -0.012),  # the dome, inside the pelvis
+        (-0.10, 0.042, 0.052, -0.004, -0.012),
+        (-0.06, 0.062, 0.076, -0.002, -0.010),
         (0.16, 0.084, 0.100, +0.008, -0.008),   # the thigh's fullest
         (0.40, 0.080, 0.092, +0.013, -0.002),   # quadriceps forward, hamstring behind
         (0.62, 0.072, 0.080, +0.010, 0.0),
         (0.82, 0.061, 0.066, +0.005, 0.0),   # the pinch above the knee
         (0.92, 0.062, 0.060, +0.003, +0.005),# vastus medialis, on the inside
         (1.02, 0.064, 0.056, 0.000, 0.0),    # knee: wide across, shallow through
-    ])
+        (1.07, 0.057, 0.054, 0.000, 0.0),    # into the shank's top: no ring at the knee (as the lean thigh)
+    ]), segs=48)
     # The calf measured 1 mm wider than the knee and 4 mm deeper, and it sat
     # in FRONT of the tibia. It is a mass hanging off the back, its medial
     # head high and its lateral head lower, and it is what makes a shin read
     # as a shin rather than as a dowel.
-    shank = tube("shank", cf, ft, [
-        (-0.02, 0.056, 0.056, 0.000, 0.0),
+    shank = tube("shank", cf, ft, smooth_rows([
+        (-0.07, 0.061, 0.056, 0.000, 0.0),    # up under the thigh's end
+        (-0.02, 0.058, 0.056, 0.000, 0.0),
         (0.16, 0.058, 0.074, -0.014, 0.004),  # gastrocnemius, behind the bone
         (0.32, 0.055, 0.068, -0.011, -0.003), # the lateral head, lower
         (0.58, 0.044, 0.050, -0.005, 0.0),
         (0.82, 0.035, 0.038, -0.001, 0.0),
         (0.98, 0.032, 0.040, 0.000, 0.0),     # ankle
         (1.04, 0.031, 0.039, 0.000, 0.0),
-    ])
+    ]), segs=48)
     return [thigh, shank]
 
 def shoe():
@@ -1066,25 +1108,37 @@ def glove(scale=1.0, thumb=None):
     d = (he - hd).normalized(); n = Vector((0, -1, 0)); w = d.cross(n).normalized()
     L = 0.135
     rows = []
-    for t, hw, hth, sf in [
+    # 2026-11-10 (the bodies reviewed: B06). The envelope did not enclose the
+    # hand it covers: its shift went toward the BACK of the hand (-n), so
+    # its palm-side face stood 26 mm in front of the axis at t 0.84 where the
+    # fingers curl to 5 cm, and it ended at 0.130 from the wrist, short of
+    # the middle finger -- ZAYOS's fingers stood through his gloves. The
+    # shift is toward the palm now (the palm-side face 54-58 mm out from t
+    # 0.42 to 0.84) and the tip past the fingers (0.144).
+    # (through a smooth curve, like the limbs: nine rings lofted straight
+    # left the punching face in facets)
+    for t, hw, hth, sf in smooth_rows([
         (-0.38, 0.038, 0.034, 0.000),   # the cuff, flared over the forearm
-        (-0.20, 0.032, 0.029, 0.000),   # narrows to the wrist
-        (0.00, 0.034, 0.031, 0.000),    # the wrist
-        (0.18, 0.050, 0.045, -0.004),   # the padding starts to bulge
-        (0.42, 0.060, 0.054, -0.008),   # the fist, at its fattest
-        (0.66, 0.057, 0.050, -0.010),   # the punching face
-        (0.84, 0.042, 0.036, -0.010),   # rounding off
-        (0.96, 0.020, 0.018, -0.008),   # the closed tip
-    ]:
+        (-0.20, 0.033, 0.030, 0.000),   # narrows to the wrist
+        (0.00, 0.035, 0.032, 0.000),    # the wrist
+        (0.18, 0.050, 0.046, +0.002),   # the padding starts to bulge
+        (0.42, 0.060, 0.054, +0.004),   # the fist, at its fattest
+        (0.66, 0.058, 0.052, +0.006),   # the punching face
+        (0.84, 0.050, 0.046, +0.008),   # over the fingers' curl
+        (1.00, 0.034, 0.032, +0.006),   # rounding off
+        (1.07, 0.016, 0.015, +0.004),   # the closed tip
+    ], per=3):
         c = hd + d * (L * t * scale) + n * (sf * scale)
         rows.append((c, w * (hw * scale), n * (hth * scale)))
     parts = [loft("glove", rows, segs=32)]
     if thumb is None:
         # the thumb lobe: one rounded pad, not an articulated thumb -- a glove
-        # does not have knuckles in it
-        ta = (-w * 0.55 + d * 0.62 - n * 0.35).normalized()
-        tc = hd + d * (L * 0.14 * scale) - w * (0.055 * scale) - n * (0.006 * scale)
-        parts.append(ellipsoid("glovethumb", tc + ta * (0.032 * scale), (0.024 * scale, 0.021 * scale, 0.038 * scale), ta))
+        # does not have knuckles in it. Along the index side of the fist, a
+        # little to the palm's side, where a boxing glove carries it (it
+        # pointed to the back of the hand, as the envelope's shift did).
+        ta = (-w * 0.50 + d * 0.70 + n * 0.30).normalized()
+        tc = hd + d * (L * 0.20 * scale) - w * (0.052 * scale) + n * (0.010 * scale)
+        parts.append(ellipsoid("glovethumb", tc + ta * (0.034 * scale), (0.024 * scale, 0.022 * scale, 0.042 * scale), ta))
         return parts
     # The thumb's sleeve, over the thumb hand() actually built (its joints,
     # `thumb`): a padded tube down each segment and a round cap on the tip.
@@ -1547,6 +1601,10 @@ def _smooth(t):
     t = np.clip(t, 0.0, 1.0); return t * t * (3.0 - 2.0 * t)
 
 NEARER_LIMB = True    # a point two limbs hold is the nearer one's (see build_field)
+JOINT_SHARE = 0.60    # of a man's limb factor, at his elbows and knees: bone and tendon, heavier on a heavier man, not muscle
+JOINT_SPAN = 0.08     # ...over this share of the limb's length either side of the joint
+END_SHARE = 0.35      # ...and just above his wrists and ankles (nothing at the joint itself: the hand and the foot stay)
+TRUNK_DEPTH = 1.0     # the trunk deepened by this share of what it is widened (build_field)
 MIDLINE_KEEP = 0.5    # below the crotch no point ends nearer the midline than this share of its own distance
 
 def build_field(sc, build):
@@ -1583,12 +1641,32 @@ def build_field(sc, build):
     for s in (1, -1):
         sh, el = seg("upperarm_l", "lowerarm_l", s); wr = seg("lowerarm_l", "hand_l", s)[1]; tip = seg("hand_l", "hand_end_l", s)[1]
         hip, kn = seg("thigh_l", "calf_l", s); an = seg("calf_l", "foot_l", s)[1]
-        limbs.append(([sh, el, wr], 0.115, (0.12, 0.90), 0.10))
-        # The thigh comes in over 40 % of the leg, not 10: over 4 cm of
-        # thigh, x1.43 on ZAYOS stepped the trouser legs out from under the
-        # pelvis as two open-topped tubes, rim and all, the moment there was
-        # no tee over the waist to hide it.
-        limbs.append(([hip, kn, an], 0.150, (0.02, 0.93), 0.40))
+        # (polyline, reach, where the ramp to the whole factor begins and
+        # how long it is, where the fade to the hand or foot begins and how
+        # long it is, the joint in the middle as a share of the arc)
+        #
+        # 2026-11-10 (the bodies reviewed: B12, B14, B18, and B03's other
+        # half). A limb began at NOTHING where it leaves the trunk -- the
+        # arm 12 % down, the leg at the hip -- and took the whole factor at
+        # its middle joint: on AL-WAHSH and ZAYOS the arm was thinner at the
+        # shoulder than at the biceps (the cap 16 and 24 mm under the arm's
+        # own radius: a ball joint and a club), the thigh fatter at its
+        # middle than at the groin (0.94 of it on ZAYOS, 0.81 on Saud) over
+        # a knee thickened like muscle (55 cm round to Saud's 38); on the
+        # thug the pelvis narrowed over thigh tops that did not (a hip shelf,
+        # 11.3 mm in a centimetre). Now a limb leaves the trunk at the
+        # TRUNK'S OWN growth (TOP_SHARE: about the limb's axis that is the
+        # same change the trunk rule makes beside it, so the two agree where
+        # they meet), is whole a little way down, takes JOINT_SHARE of the
+        # factor at the elbow or knee, and fades to the hand or foot over
+        # the last third of its length, not its last 7 % (END_SHARE of it
+        # still there just above the wrist or ankle).
+        # (..., and behind the joint it hangs from: the arm's share fades out
+        # over 5 cm up its own line; the leg's -- None -- is what the trunk
+        # rule above the hips has not yet taken, so the two sum to the
+        # trunk's growth all the way up)
+        limbs.append(([sh, el, wr], 0.115, (0.0, 0.14), 0.78, float(np.linalg.norm(el - sh) / (np.linalg.norm(el - sh) + np.linalg.norm(wr - el))), 0.05))
+        limbs.append(([hip, kn, an], 0.150, (0.02, 0.25), 0.78, float(np.linalg.norm(kn - hip) / (np.linalg.norm(kn - hip) + np.linalg.norm(an - kn))), None))
         arms.append(([sh, el, wr, tip + (tip - wr) * 0.6], 0.16))
     shoulder_x = abs(Jp("upperarm_l").x)
     hip_x = abs(Jp("thigh_l").x)
@@ -1607,9 +1685,17 @@ def build_field(sc, build):
             acc += L
         return best_d, best_u, best_foot
 
-    def F(P):
+    # the share of the limb factor a limb has where it leaves the trunk: the
+    # trunk's own growth over the limb's (about 0.7 by the browser's mapping)
+    top = float(np.clip((t - 1.0) / (l - 1.0), 0.0, 1.0)) if abs(l - 1.0) > 1e-9 else 0.0
+
+    def F(P, joints=False):
+        """`joints`: the joint table's own points. They take everything
+        but the trunk's depth (TRUNK_DEPTH), so every joint is exactly
+        where it was before 2026-11-10."""
         P0 = np.array(P, dtype=float).reshape(-1, 3)
         P = P0.copy()
+        best_w = np.zeros(len(P))
         if abs(l - 1.0) > 1e-9:
             # limb thickness: radial about each limb's own axis, fading to
             # nothing at the joint it hangs from and at the wrist or ankle,
@@ -1629,9 +1715,25 @@ def build_field(sc, build):
             # scan, 2026-09-28). A point belongs to the nearest limb that
             # holds it.
             best_w = np.zeros(len(P)); best_d = np.full(len(P), np.inf); best_foot = P0.copy()
-            for pts, R, (u0, u1), ramp in limbs:
+            for pts, R, (u0, ramp), u1, uj, behind in limbs:
                 d, u, foot = along(P0, pts)
-                w = _smooth((u - u0) / ramp) * (1.0 - _smooth((u - u1) / 0.07))
+                # behind the joint the limb hangs from: about the limb's own
+                # line carried on, not about the joint's point (which would
+                # push what is above a hip UP)
+                a0 = pts[0]; d0 = (pts[1] - pts[0]) / np.linalg.norm(pts[1] - pts[0])
+                tt0 = (P0 - a0) @ d0
+                back = tt0 < 0.0
+                if back.any():
+                    fb = a0 + np.outer(tt0[back], d0)
+                    foot[back] = fb; d[back] = np.linalg.norm(P0[back] - fb, axis=1)
+                w = top + (1.0 - top) * _smooth((u - u0) / ramp)
+                w = w * (1.0 - (1.0 - END_SHARE) * _smooth((u - u1) / (0.92 - u1))) * (1.0 - _smooth((u - 0.93) / 0.07))
+                w = w * (1.0 - (1.0 - JOINT_SHARE) * (1.0 - _smooth(np.abs(u - uj) / JOINT_SPAN)))
+                if behind is None:
+                    wb = top * (1.0 - _smooth((P0[:, 2] - 0.96) / 0.04))
+                else:
+                    wb = top * _smooth((tt0 + behind) / behind)
+                w = np.where(back, wb, w)
                 w = w * (1.0 - _smooth((d - R * 0.75) / (R * 0.25)))
                 take = ((w > 0) & (d < best_d)) if NEARER_LIMB else (w > best_w)
                 best_w[take] = w[take]; best_d[take] = d[take]; best_foot[take] = foot[take]
@@ -1666,6 +1768,22 @@ def build_field(sc, build):
             shift = shift + np.sign(x) * hip_x * (t - 1.0) * _smooth(np.abs(x) / 0.012) * below
             rigid = np.sign(x) * shoulder_x * (t - 1.0)
             P[:, 0] = P[:, 0] + shift * (1.0 - arm_w) + rigid * arm_w
+            if TRUNK_DEPTH and not joints:
+                # ...and as deep as it is wide (2026-11-10, the bodies
+                # reviewed: B02, B16). The browser's "widen chest, keep
+                # height" is a drawing's rule: in the round a man widened
+                # and not deepened is a board -- ZAYOS's chest was 2.03 times
+                # as wide as deep and AL-WAHSH's 1.79 where Saud's is 1.58,
+                # and the thug, narrowed and not thinned, a barrel at 1.39.
+                # Depth about the plane the spine's and the hips' joints lie
+                # in (y = 0), from the crotch to the neck, the arms carried
+                # as they are.
+                # What a limb's own rule has already given a point of the
+                # trunk's growth (its share over the top share) is not given
+                # again: round a hip the two sum to the trunk's factor.
+                deep = _smooth((z - 0.90) / 0.05) * (1.0 - _smooth((z - 1.49) / 0.03))
+                had = np.clip(best_w / top, 0.0, 1.0) if (abs(l - 1.0) > 1e-9 and top > 1e-9) else 0.0
+                P[:, 1] = P[:, 1] + P0[:, 1] * (t - 1.0) * TRUNK_DEPTH * deep * (1.0 - arm_w) * (1.0 - had)
         if MIDLINE_KEEP and (abs(l - 1.0) > 1e-9 or abs(t - 1.0) > 1e-9):
             # The legs stay two legs. Between the thighs the trousers hang
             # 2-12 mm off the midline, and neither rule above knows the
@@ -1710,11 +1828,11 @@ def scale_to(objects, joints_l, sc, build):
         me.vertices.foreach_set("co", F(P.reshape(n, 3)).reshape(-1)); me.update()
     # the joints: the same field, so the bones are where the body is
     names = list(J.keys())
-    Q = F(np.array([list(J[k][0]) for k in names]))
+    Q = F(np.array([list(J[k][0]) for k in names]), joints=True)
     for k, q in zip(names, Q):
         J[k][0].x, J[k][0].y, J[k][0].z = float(q[0]), float(q[1]), float(q[2])
     for key, pts in joints_l.items():
-        Q = F(np.array([list(p) for p in pts]))
+        Q = F(np.array([list(p) for p in pts]), joints=True)
         for p, q in zip(pts, Q):
             p.x, p.y, p.z = float(q[0]), float(q[1]), float(q[2])
     print("build     : h %.3f (stature %.3f m)  limbs x%.3f  torso x%.3f  head x%.3f" % (h, legacy.HEIGHT * h, l, t, h ** 0.65))

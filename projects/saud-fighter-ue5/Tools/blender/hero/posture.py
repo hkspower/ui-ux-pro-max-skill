@@ -151,7 +151,7 @@ def generator(kind):
     spec = roster.spec(kind)
     h, _l, _t, F = A.build_field(spec["sc"], spec["look"].get("build", 1.0))
     names = list(L.ORDER)
-    Q = F(np.array([list(L.J[n][0]) for n in names]))
+    Q = F(np.array([list(L.J[n][0]) for n in names]), joints=True)
     joints = {n: q.copy() for n, q in zip(names, Q)}
     e = ear_points()
     pts = F(np.array([e["centre"], e["centre"] * [-1, 1, 1], e["lobe"], e["lobe"] * [-1, 1, 1]]))

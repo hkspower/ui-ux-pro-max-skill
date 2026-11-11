@@ -149,11 +149,41 @@ def head_held(mesh, arm):
     return least, count
 
 
-def bind_all(body, garments, arm, crotch=None):
+def stiffen_gloves(body):
+    """A boxing glove does not bend with the fingers inside it (2026-11-10,
+    the bodies reviewed: B06). Heat puts a glove's surface on the finger
+    and thumb bones under it, and every clip closes the fist: ZAYOS's
+    gloves crumpled. Every vertex of a glove's faces (the material the
+    pipeline names <Man>_Glove) gives what its finger and thumb bones hold
+    to the hand bone of its side; the hand's own blend into the forearm at
+    the cuff is heat's and is left. Returns how many vertices moved."""
+    slots = [i for i, m in enumerate(body.data.materials) if m is not None and m.name.endswith("_Glove")]
+    if not slots: return 0
+    on = set()
+    for p in body.data.polygons:
+        if p.material_index in slots: on.update(p.vertices)
+    moved = 0
+    for side in ("l", "r"):
+        hand = body.vertex_groups.get("hand_" + side)
+        if hand is None: continue
+        fingers = {g.index: g for g in body.vertex_groups
+                   if g.name.endswith("_" + side) and g.name.split("_")[0] in ("index", "middle", "ring", "pinky", "thumb")}
+        for vi in on:
+            v = body.data.vertices[vi]
+            held = [(g.group, g.weight) for g in v.groups if g.group in fingers and g.weight > 0.0]
+            if not held: continue
+            hand.add([vi], sum(w for _, w in held), "ADD")
+            for gi, _ in held: fingers[gi].remove([vi])
+            moved += 1
+    return moved
+
+
+def bind_all(body, garments, arm, crotch=None, gloved=False):
     """Heat on the body; the garments take the body's weights by proximity,
     which is what a shell 5 mm off the skin should do -- heat on a shell
     finds its own answer and it is not the body's. `crotch` is where the
-    weld is on this man (anatomy.scale_to); left out, Saud's own."""
+    weld is on this man (anatomy.scale_to); left out, Saud's own. `gloved`:
+    his gloves are made rigid on his hands (stiffen_gloves)."""
     legacy.bind(body, arm)
     n = own_the_head(body, arm)
     print("head: the skull made rigid on the head bone, the neck blended into it (%d vertices)" % n)
@@ -175,6 +205,10 @@ def bind_all(body, garments, arm, crotch=None):
             if wf > 0.0 and wf + wb >= 0.3:
                 gb.add([v.index], wf + wb, "REPLACE"); gf.remove([v.index]); moved += 1
     print("toe boxes: %d vertices' foot weight moved onto the ball" % moved)
+    if gloved:
+        n = stiffen_gloves(body)
+        assert n > 0, "a gloved man with no glove vertex on a finger bone: the glove material was not found"
+        print("gloves: %d vertices' finger weight moved onto the hand" % n)
     for g in garments:
         g.parent = arm
         mod = g.modifiers.new("Skin", "ARMATURE"); mod.object = arm

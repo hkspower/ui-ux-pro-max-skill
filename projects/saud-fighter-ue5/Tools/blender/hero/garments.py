@@ -168,7 +168,10 @@ def dress(body, tee=True, top="tee", bottom="track"):
     # fit() is called (g, kind, body) for the tee and the track trousers,
     # as always; the cut goes as a keyword only when it is not those
     for g, kind, cut in ((t, "tee", top), (pants, "pants", bottom)):
-        info = fit(g, kind, body) if cut in ("tee", "track") else fit(g, kind, body, cut=cut)
+        if kind == "pants" and not tee:
+            info = fit(g, kind, body, cut=cut, bare_waist=True)       # ZAYOS: an elastic band on a bare waist
+        else:
+            info = fit(g, kind, body) if cut in ("tee", "track") else fit(g, kind, body, cut=cut)
         if info.get("moved"):
             print("cloth     : %-5s draped %d verts (up to %.0f mm), folds to %.1f mm, %d held off the skin"
                   % (cut, info["moved"], info["drape_max"] * 1000, info["fold_max"] * 1000, info["pushed"]))
@@ -354,11 +357,39 @@ PELVIS_Z = 0.93           # the seat's drape stops above the crotch (0.90)
 MIN_CLEAR = 0.002         # check_cloth's floor, whatever CLEAR is set to
 check_cloth_in_dress = True   # --cloth-check checks each dressing itself
 
-def fit(g, kind, body=None, cut=None):
+BAND_Z = (1.045, 1.060, 1.075)   # a bare waist's waistband: where it begins to draw in, where it is in, the trousers' top
+BAND_MOST = 0.008                # check_cloth: a bare waist's band stands no further than this off the waist's own hull
+
+def _slice_hull(Q, zc, dz, bins, centre=(0.0, 0.012), reach=0.30):
+    """The hull of the points of Q in the slice at zc, as a radius per
+    angle bin about `centre` (the trunk only: nothing further out than
+    `reach` across, which leaves the hands out)."""
+    m = (np.abs(Q[:, 2] - zc) < dz) & (np.abs(Q[:, 0]) < reach)
+    if m.sum() < 8: return None
+    return _hull_radius(np.stack([Q[m, 0] - centre[0], Q[m, 1] - centre[1]], axis=1), bins)
+
+def _band_gap(Pn, Bd, zs=None):
+    """How far the trousers' inside stands off the waist's hull over the
+    waistband, per slice and angle: (the worst, the median)."""
+    bins = np.linspace(-np.pi, np.pi, 73)[:-1] + np.pi / 72
+    worst, every = 0.0, []
+    for zc in (np.arange(BAND_Z[1] + 0.003, BAND_Z[2] - 0.002, 0.004) if zs is None else zs):
+        hull = _slice_hull(Bd, zc, 0.004, bins)
+        m = (np.abs(Pn[:, 2] - zc) < 0.004)
+        if hull is None or m.sum() < 8: continue
+        th = np.arctan2(Pn[m, 0], Pn[m, 1] - 0.012); r = np.hypot(Pn[m, 0], Pn[m, 1] - 0.012)
+        k = np.clip(((th + np.pi) / (2 * np.pi) * 72).astype(int), 0, 71)
+        for b in range(72):
+            if (k == b).any():
+                gap = float(r[k == b].min() - hull[b]); every.append(gap); worst = max(worst, gap)
+    return worst, (float(np.median(every)) if every else float("nan"))
+
+def fit(g, kind, body=None, cut=None, bare_waist=False):
     """Drape and fold one garment in place ("tee" or "pants"). Canonical
     positions (before a man's size). See the note above. `cut` is the
     top's (None the tee, or a TANKS cut) or the trousers' (None 'track',
-    or a LEG_FIT cut)."""
+    or a LEG_FIT cut). `bare_waist`: the trousers of a man with no top
+    (ZAYOS): the waistband is elastic and lies on him."""
     me = g.data
     n = len(me.vertices)
     if n == 0: return dict(moved=0)
@@ -454,6 +485,50 @@ def fit(g, kind, body=None, cut=None):
                 grow, dirv = out
                 w = 1.0 - _smoothstep(0.82, 0.87, P[leg, 2])
                 D[leg] += dirv * (grow * w)[:, None]
+        if bare_waist and body is not None:
+            # 2026-11-10 (the bodies reviewed: B04). The trousers are a shell
+            # 10 mm off the skin under the seat's drape, and nothing drew the
+            # waistband in: under a top it is hidden, on ZAYOS's bare waist
+            # it stood off him as an open rim (up to 29.5 mm over the small
+            # of his back). An elastic band lies on the waist: over the top
+            # 3 cm the cloth is drawn to CLEAR off the HULL of the body's
+            # slice -- it bridges the spinal furrow and the linea alba, as a
+            # band does; pulled to the nearest skin it would sink into them.
+            Bd = np.array([v.co[:] for v in body.data.vertices])
+            bins = np.linspace(-np.pi, np.pi, 73)[:-1] + np.pi / 72
+            band = np.nonzero(P[:, 2] >= BAND_Z[0])[0]
+            Pd = P + D
+            zs = np.arange(BAND_Z[0], BAND_Z[2] + 0.004, 0.005)
+            deltas = []
+            for zc in zs:
+                hull = _slice_hull(Bd, zc, 0.004, bins)
+                m = band[np.abs(Pd[band, 2] - zc) < 0.004]
+                if hull is None or len(m) < 8:
+                    deltas.append(np.zeros(72)); continue
+                th = np.arctan2(Pd[m, 0], Pd[m, 1] - 0.012); r = np.hypot(Pd[m, 0], Pd[m, 1] - 0.012)
+                k = np.clip(((th + np.pi) / (2 * np.pi) * 72).astype(int), 0, 71)
+                inner = np.full(72, np.nan)
+                for b in range(72):
+                    if (k == b).any(): inner[b] = r[k == b].min()
+                good = ~np.isnan(inner)
+                if good.sum() < 12:
+                    deltas.append(np.zeros(72)); continue
+                inner = np.interp(np.arange(72), np.arange(72)[good], inner[good], period=72)
+                dl = hull + CLEAR["pants"] - inner
+                # rounded across angles: the band is one curve round him
+                for _ in range(2): dl = 0.25 * np.roll(dl, 1) + 0.5 * dl + 0.25 * np.roll(dl, -1)
+                deltas.append(dl)
+            deltas = np.array(deltas)
+            th = np.arctan2(Pd[band, 0], Pd[band, 1] - 0.012)
+            fb = (th + np.pi) / (2 * np.pi) * 72 - 0.5
+            b0 = np.floor(fb).astype(int); fa = fb - b0
+            fz = np.clip((Pd[band, 2] - zs[0]) / 0.005, 0, len(zs) - 1.001); z0 = fz.astype(int); za = fz - z0
+            def at(zi): return deltas[zi, b0 % 72] * (1 - fa) + deltas[zi, (b0 + 1) % 72] * fa
+            dl = at(z0) * (1 - za) + at(z0 + 1) * za
+            w = _smoothstep(BAND_Z[0], BAND_Z[1], Pd[band, 2])
+            rad = np.stack([Pd[band, 0], Pd[band, 1] - 0.012, np.zeros(len(band))], axis=1)
+            rad /= np.maximum(np.linalg.norm(rad, axis=1), 1e-9)[:, None]
+            D[band] += rad * (dl * w)[:, None]
     # The drape pushes each vertex straight out from the axis, and where the
     # surface curls round a bulge (the flank round the lat) two neighbours
     # were pushed across each other: 339 faces down the tee's sides turned
@@ -605,8 +680,15 @@ def check_cloth(tee, pants, body, assert_=True, top="tee", bottom="track"):
                     loc, nrm, _, d = tb.find_nearest(Vector(q))
                     if loc is not None: ds.append(d)
             out["leg_off_%02d" % round(tq * 100)] = float(np.median(ds)) if ds else 1.0
+    # a bare waist's waistband (2026-11-10, ZAYOS): the trousers' inside over
+    # the top of the band, off the hull of the waist it goes round
+    if not len(T) and len(Pn):
+        out["band_off"], out["band_median"] = _band_gap(Pn, Bd)
     if not assert_:
         return out
+    if "band_off" in out:
+        assert out["band_off"] <= BAND_MOST, "an open rim: the waistband stands %.1f mm off his bare waist, want %.0f at most" % (
+            out["band_off"] * 1000, BAND_MOST * 1000)
     if len(T):
         fmax = FURROW_MAX[top]
         assert out["tee_furrow"] <= fmax, "skin-tight: the %s sinks %.1f mm into the spinal furrow, want %.0f at most" % (

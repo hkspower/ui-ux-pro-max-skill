@@ -730,7 +730,8 @@ def _real_body(kind, faces=None, holds=None):
     body, _trees, _eyes, _jl = _quiet(
         B.build, voxel_scale=1.0, face_scale=P.FACES.get(kind) if faces is None else faces, hair_style=man["hair"],
         arm_scale=P.LIMBS.get(kind, 1.0), gloves=pal["gloves"], physique=P.PHYSIQUE.get(kind), mass=P.MASS.get(kind),
-        noses=P.NOSES.get(kind), ears=P.EARS.get(kind), holds=P.HOLDS.get(kind) if holds is None else holds)
+        noses=P.NOSES.get(kind), ears=P.EARS.get(kind), holds=P.HOLDS.get(kind) if holds is None else holds,
+        glove_scale=P.glove_scale(spec))
     return body
 
 

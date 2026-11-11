@@ -45,6 +45,15 @@ def chain(name, pts, radii, out_dir, step=0.010):
 # check still measures him. The names are the masses' own; a name masses()
 # does not build raises.
 DELT_OFF = 0.040        # the lean deltoid heads' centres off the arm's axis, at arm 1.30
+DELT_GROWS = 0.9        # the canonical deltoid's across and deep, with the arm's LIMBS (_masses)
+# The canonical deltoid's half-sizes: front to back, up-and-out from the
+# arm's axis, along the arm. (0.034, 0.038, 0.088) until 2026-11-10: with
+# its centre 6 mm up and out it reached 44 mm from the axis where the arm's
+# own tube is 52 -- it was INSIDE the arm, and the shoulder was the tube's
+# end, a rim (B18; check_physique's "no deltoid cap" measured -5.2 mm on
+# the canonical body and was held for the lean man only). Up and out it
+# now stands over the arm at its fullest.
+DELT_AXES = (0.040, 0.054, 0.095)
 
 def delt_heads(arm_scale=1.30):
     """The deltoid in three heads -- lateral, anterior, posterior -- as
@@ -83,7 +92,7 @@ def masses(physique=None, mass=None, arm_scale=1.0):
     pass, anatomy.definition -- and the one deltoid, for three heads grown
     with the arm (arm_scale) and the pec's clavicular head carried out
     under the anterior one (pec_tie). `mass` is {name: factor}, above."""
-    out = _masses()
+    out = _masses(arm_scale if physique is None else 1.0)
     if physique is not None:
         assert physique == "lean", "no masses for the %r physique" % physique
         keep = []
@@ -108,7 +117,7 @@ def masses(physique=None, mass=None, arm_scale=1.0):
             me.transform(Matrix.Translation(c) @ Matrix.Scale(k, 4) @ Matrix.Translation(-c))
     return out
 
-def _masses():
+def _masses(arm_scale=1.0):
     out = []
     # The deltoid is a teardrop that flows down the arm, not a ball on the
     # shelf. It was neither: sliced perpendicular to the humerus the arm was
@@ -118,7 +127,12 @@ def _masses():
     # this was doing the ribcage's job from the outside. Now the trunk is the
     # V (see anatomy.trunk) and this is a muscle again.
     ua, la = Jp("upperarm_l"), Jp("lowerarm_l")
-    out.append(ellipsoid("delt", ua + (la - ua) * 0.12 + Vector((-0.006, -0.004, 0.014)), (0.034, 0.038, 0.088), tuple(la - ua)))
+    # 2026-11-10 (the bodies reviewed: B14, B18): it grows with the arm it
+    # caps. It took a man's MASS and not his LIMBS, so the brawler's arm at
+    # 1.40 swelled under a deltoid at 1.18 -- the cap 6.6 mm under the arm's
+    # own radius, a club below a shoulder that did not grow.
+    kd = 1.0 + (arm_scale - 1.0) * DELT_GROWS
+    out.append(ellipsoid("delt", ua + (la - ua) * 0.12 + Vector((-0.006, -0.004, 0.014)) * kd, (DELT_AXES[0] * kd, DELT_AXES[1] * kd, DELT_AXES[2]), tuple(la - ua)))
     # The pec: its sternal head a fan whose long axis runs from the lower
     # sternum out and up into the armpit (0.86, 0.30, 0.40 -- back as well as
     # out, because the chest curves away), 1.5 cm proud at its centre, its
@@ -973,7 +987,7 @@ def union_remesh(parts, voxel, name):
     return A.union_remesh(parts, voxel, name)
 
 def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, gloves=False,
-          physique=None, mass=None, noses=None, ears=None, holds=None):
+          physique=None, mass=None, noses=None, ears=None, holds=None, glove_scale=1.0):
     """voxel_scale > 1 is a coarse, quick body for checking the stages after
     this one. `face_scale`, `hair_style` and `arm_scale` are one man's
     differences from another on the same skull and limbs -- see
@@ -1024,7 +1038,20 @@ def build(voxel_scale=1.0, face_scale=None, hair_style="quiff", arm_scale=1.0, g
     # rig; see anatomy.glove for why the union hides them cleanly.
     glove_parts = []
     if gloves:
-        gl = A.glove(thumb=jl["thumb"]); glove_parts = gl + [mirror_x(o) for o in gl]
+        # 2026-11-10 (the bodies reviewed: B06): the glove is the man's size
+        # (glove_scale: as wide as the forearm it closes round -- at 1.0 on
+        # ZAYOS it was narrower than his forearm), it is rigid on the hand
+        # (rig_export.bind_all moves its finger weights onto hand_*: a closed
+        # fist crumpled it), and so it is seen for ever in the shape built
+        # here. The thumb is the glove's own lobe: hand()'s thumb, built
+        # behind the hand, is left out of the union -- a sleeve down it would
+        # be frozen pointing back, and no bare thumb can stand out of a
+        # glove that has none inside it. The joints are untouched: the
+        # finger and thumb bones come from `jl`, not from the mesh.
+        for o in [o for o in hl + hr if o.name.split(".")[0].startswith("thumb_")]:
+            hl = [q for q in hl if q is not o]; hr = [q for q in hr if q is not o]
+            bpy.data.objects.remove(o, do_unlink=True)
+        gl = A.glove(scale=glove_scale, thumb=None); glove_parts = gl + [mirror_x(o) for o in gl]
     hands = union_remesh(hl + hr + glove_parts, 0.0025 * vs, "Hands"); A.smooth(hands, 0.5, 3)
     face = face_parts() + ear(1, ears.get("l", 0.0)) + ear(-1, ears.get("r", 0.0))
     # the physique's definition, at this pass so its edges survive
