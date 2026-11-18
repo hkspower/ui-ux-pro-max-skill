@@ -991,6 +991,64 @@ def leg():
     ]), segs=48)
     return [thigh, shank]
 
+# The trainer's upper (2026-11-11, the bodies reviewed: B11), heel to toe:
+# (y, half-width, the top's height, how square the top is: 2 an ellipse).
+# What it was: eight ELLIPSES, each standing on its lowest point, so the
+# shoe was a sausage on its sole -- widest 3-4 cm up, 0.76 of that a
+# centimetre off the floor -- 7.9 cm high behind the ankle (no heel
+# counter), 7.7 cm 5 cm ahead of it (no instep: a straight ramp from there
+# to the tip), 4.7 cm 2 cm behind the tip and 3.6 half a centimetre behind
+# it: a doorstop. Measured on all six rigs, the same at 1.80 m to a
+# millimetre.
+#
+# Now each section's sides stand upright on the sole (a foot's last: as
+# wide at the sole's top as above it), the heel counter stands 9.6 cm
+# behind the ankle, the collar is a ring round it, the tongue stands 10.4
+# cm in front of it and falls to a toe box that holds 5.6 cm to within 2 cm
+# of the tip. The PLAN is the old one's (7.6 cm at the heel, 9.4 at the
+# ball, the toe a little rounder) and so is the length, to a millimetre (y
+# 0.070 to -0.245): the sole under it and the clips' grounding corners
+# (build_saud.SOLE_MODEL) were fitted to those. check_shoe holds it.
+SHOE_ROWS = [
+    (0.0700, 0.0300, 0.060, 2.4),    # the heel's back: its top round in profile
+    (0.0655, 0.0355, 0.082, 3.0),
+    (0.0570, 0.0380, 0.093, 3.4),    # the heel counter
+    (0.0420, 0.0392, 0.096, 3.6),
+    (0.0200, 0.0408, 0.097, 3.6),
+    (0.0000, 0.0420, 0.097, 3.6),    # the collar, at the ankle joint
+    (-0.0300, 0.0436, 0.100, 3.2),
+    (-0.0500, 0.0445, 0.104, 2.6),   # the tongue's top, in front of the shin
+    (-0.0750, 0.0454, 0.098, 2.2),   # the instep
+    (-0.1050, 0.0463, 0.086, 2.2),
+    (-0.1350, 0.0470, 0.076, 2.3),
+    (-0.1600, 0.0470, 0.068, 2.4),   # the ball, the widest
+    (-0.1850, 0.0458, 0.063, 2.6),   # the toe box
+    (-0.2050, 0.0430, 0.060, 2.8),
+    (-0.2220, 0.0385, 0.058, 2.8),
+    (-0.2340, 0.0318, 0.052, 2.6),   # the toe, round in plan
+    (-0.2415, 0.0228, 0.042, 2.4),
+    (-0.2452, 0.0120, 0.028, 2.2),
+]
+SHOE_SOLE_Z = 0.0         # the upper's lowest line: on the floor, as it was (anatomy.measure reads the body's stature off it)
+SHOE_WELT_Z = 0.022       # ...and where a section is widest: the top of the sole slab under it (garments.soles: 0 to 0.020)
+SHOE_WALL = 3.0           # how upright its sides are below that (a superellipse's power: 2 is the old ellipse)
+SHOE_ENDS = (0.070, -0.245)   # the heel's back and the toe's tip, where they were: the shoe's length stays
+
+def _shoe_section(hw, top, square, segs):
+    """One section of the upper in (x, z): upright sides below the welt (a
+    superellipse of power SHOE_WALL, its lowest line on SHOE_SOLE_Z), an
+    arch of power `square` above it."""
+    zc = SHOE_SOLE_Z + min(SHOE_WELT_Z - SHOE_SOLE_Z, 0.45 * (top - SHOE_SOLE_Z))
+    out = []
+    for i in range(segs):
+        a = 2 * math.pi * i / segs
+        ca, sa = math.cos(a), math.sin(a)
+        p = square if sa >= 0 else SHOE_WALL
+        px = hw * math.copysign(abs(ca) ** (2.0 / p), ca)
+        pz = zc + ((top - zc) if sa >= 0 else (zc - SHOE_SOLE_Z)) * math.copysign(abs(sa) ** (2.0 / p), sa)
+        out.append((px, pz))
+    return out
+
 def shoe():
     """The trainer, lofted along the foot: heel, arch, ball, toe."""
     x = Jp("foot_l").x
@@ -998,18 +1056,68 @@ def shoe():
     # two centimetres: the old rows halved it from the ball to the toe, and
     # the topline sloped down to a point (CLAUDE.md, "the trainers read as
     # pointed dress heels" -- fixed 2026-09-25).
-    rows = [  # (y, z-centre, half-width, half-height)
-        (0.070, 0.038, 0.036, 0.036),    # heel back
-        (0.040, 0.040, 0.041, 0.040),
-        (-0.020, 0.040, 0.043, 0.040),
-        (-0.080, 0.037, 0.046, 0.037),   # arch to ball
-        (-0.140, 0.032, 0.048, 0.032),   # ball
-        (-0.190, 0.029, 0.046, 0.029),   # the toe box
-        (-0.228, 0.024, 0.036, 0.022),
-        (-0.245, 0.018, 0.020, 0.014),   # toe
-    ]
-    rings = [(Vector((x, y, zc)), X * rx, Z * rz) for y, zc, rx, rz in rows]
-    return loft("shoe", rings, segs=32)
+    # (2026-11-11, B11: it did not hold -- 4.7 cm 2 cm behind the tip, 3.6
+    # half a centimetre behind it -- see SHOE_ROWS.)
+    check_shoe()
+    segs = 32
+    bm = bmesh.new()
+    rows = []
+    for y, hw, top, square in smooth_rows(SHOE_ROWS, per=3):
+        rows.append([bm.verts.new((x + px, y, pz)) for px, pz in _shoe_section(hw, top, square, segs)])
+    for r0, r1 in zip(rows, rows[1:]):
+        for i in range(segs):
+            bm.faces.new((r0[i], r0[(i + 1) % segs], r1[(i + 1) % segs], r1[i]))
+    bm.faces.new(list(reversed(rows[0]))); bm.faces.new(rows[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new("shoe"); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new("shoe", me); bpy.context.collection.objects.link(o)
+    return o
+
+SHOE_RULES = (("instep", ">=", 0.100, "no instep: the shoe's top 5 cm ahead of the ankle joint is %.1f cm, want 10 (a ramp from the ankle to the toe)"),
+              ("counter", ">=", 0.090, "no heel counter: the shoe stands %.1f cm behind the ankle, want 9"),
+              ("toe_box", ">=", 0.054, "a doorstop: the toe box is %.1f cm high 2 cm behind the tip, want 5.4"),
+              ("stand", ">=", 0.90, "a sausage on its sole: a centimetre off the floor the upper is %.2f of its own width at the ball, want 0.90", 1.0),
+              ("ball", "<=", 0.096, "the upper overhangs its sole: %.1f cm at the ball on a 9.8 cm slab"))
+
+def check_shoe(rows=None, assert_=True):
+    """The trainer's upper as a shoe (2026-11-11, the bodies reviewed: B11),
+    on its rows, in every build (shoe() calls it): an instep (the top 5 cm
+    ahead of the ankle joint: 7.7 cm before, 10.4 now), a heel counter (4.6
+    cm behind it: 7.9, 9.6), a toe box (2 cm behind the tip: 4.7, 5.7),
+    sides that stand on the sole (the width a centimetre up over the width
+    at the ball: 0.76, 0.94), no wider than the slab under it -- and its
+    ends where they were, since the feet's IK and every clip stand on this
+    shoe's length. Returns the numbers."""
+    rows = sorted(smooth_rows(rows or SHOE_ROWS, per=4))
+    ys = [r[0] for r in rows]
+    at = lambda y, col: float(np.interp(y, ys, [r[col] for r in rows]))
+    ya = Jp("foot_l").y
+    yb = max(ys, key=lambda y: at(y, 1))
+    sect = _shoe_section(at(yb, 1), at(yb, 2), at(yb, 3), 720)
+    out = dict(instep=at(ya - 0.050, 2), counter=at(ya + 0.046, 2), toe_box=at(ys[0] + 0.020, 2),
+               stand=max(abs(px) for px, pz in sect if pz <= 0.010) / at(yb, 1), ball=2.0 * at(yb, 1),
+               heel=ys[-1], toe=ys[0])
+    if assert_:
+        for k, op, lim, msg, *unit in SHOE_RULES:
+            ok = out[k] >= lim if op == ">=" else out[k] <= lim
+            assert ok, msg % (out[k] * (unit[0] if unit else 100))
+        assert abs(out["heel"] - SHOE_ENDS[0]) <= 0.001 and abs(out["toe"] - SHOE_ENDS[1]) <= 0.001, (
+            "the shoe's length moved: heel %.4f, toe %.4f, were %.3f and %.3f (the feet's IK and the clips stand on it)"
+            % (out["heel"], out["toe"], SHOE_ENDS[0], SHOE_ENDS[1]))
+    return out
+
+# The hand's flesh round its joints (2026-11-11, the bodies reviewed: B08).
+# Every joint below is where it was -- the finger and thumb bones are made
+# from them and 57 clips are keyed on those bones -- and the fist's curl is
+# build_saud's (FIST_CURL / FIST_THUMB), so this is only what skin round
+# the same joints can do; what it cannot is said in hand()'s comment.
+FINGER_HALF = (0.0105, 0.0108, 0.0103, 0.0095)   # half-width across, index to little finger: neighbours meet
+FINGER_BACK = 0.72                               # the back of a finger over its half-width (bone and tendon)
+FINGER_PAD = (1.30, 1.30, 0.72)                  # the pulp on its palm side, per segment (the last faces the palm at rest)
+KNUCKLE = (0.0115, 0.0125)                       # a knuckle's head: half-length along the hand, half-width across it (they run into a row)
+PALM_ROWS = [  # (t of 0.108 m, half-width, half-thickness, shift toward the palm's side)
+    (0.0, 0.028, 0.018, 0.0), (0.30, 0.036, 0.020, -0.002), (0.65, 0.041, 0.018, -0.003),
+    (0.86, 0.0425, 0.0155, -0.001), (0.93, 0.040, 0.0125, -0.001)]
 
 def hand():
     hd, he = Jp("hand_l"), Jp("hand_end_l")
@@ -1017,9 +1125,15 @@ def hand():
     parts = []
     # The palm: a slab lofted from the wrist to the knuckle row, wider at the
     # knuckles, thicker at the heel of the hand.
+    # 2026-11-11 (B08): it ran on as a flat-ended board to 0.117, 1.0-2.3 cm
+    # PAST the knuckle joints (0.093-0.106), 1.9 cm thick behind them: with
+    # the fist closed the fingers stood on a plank that went on beyond them
+    # -- "a wedge". It ends under the knuckles now and each finger has a
+    # knuckle's head on its own joint, so the row follows the joints' arc
+    # and the knuckles are the fist's corner; its last rows sit 2-3 mm nearer
+    # the palm's side (the back of the hand 1.4 cm behind the joints).
     rows = []
-    for t, hw, hth, sf in [(0.0, 0.028, 0.018, 0.0), (0.30, 0.036, 0.020, -0.002),
-                           (0.65, 0.041, 0.018, -0.003), (1.0, 0.043, 0.015, -0.004), (1.08, 0.040, 0.013, -0.004)]:
+    for t, hw, hth, sf in PALM_ROWS:
         c = hd + d * (0.108 * t) + n * sf
         rows.append((c, w * hw, n * hth))
     parts.append(loft("palm", rows, segs=28))
@@ -1044,28 +1158,59 @@ def hand():
     #
     # `across` is negative toward the index side, so the row is reversed here
     # and the reach arcs about the middle finger's knuckle.
-    fingers = [(-0.031, (0.046, 0.028, 0.022), 0.0092),   # index
-               (-0.010, (0.050, 0.031, 0.024), 0.0096),   # middle, the longest
-               (0.011, (0.046, 0.029, 0.023), 0.0090),    # ring
-               (0.031, (0.036, 0.024, 0.020), 0.0080)]    # pinky, the shortest
+    #
+    # 2026-11-11 (B08), the fingers' flesh. They were round sticks 16-19 mm
+    # across on joints 20-21 mm apart: 2-5 mm of air between them, which
+    # the 2.5 / 3.5 mm remesh bridged in rungs -- a ladder of holes from the
+    # palm's side -- and 15 mm through, the same in front of the bone as
+    # behind it, so the closed fist kept a hole between each finger's first
+    # two segments and the palm (on the bound mesh 4.8 cm round in the section
+    # through the index finger, 5.1 through the middle). Each is now as wide as its
+    # share of the knuckle row (FINGER_HALF: neighbours meet, a groove
+    # between them), thinner behind the bone and padded in front of it
+    # (FINGER_BACK, FINGER_PAD -- the pulp, on the side the finger curls
+    # to), and has a knuckle's head on its first joint.
+    fingers = [(-0.031, (0.046, 0.028, 0.022), FINGER_HALF[0]),   # index
+               (-0.010, (0.050, 0.031, 0.024), FINGER_HALF[1]),   # middle, the longest
+               (0.011, (0.046, 0.029, 0.023), FINGER_HALF[2]),    # ring
+               (0.031, (0.036, 0.024, 0.020), FINGER_HALF[3])]    # pinky, the shortest
     CURL = (72.0, 109.0, 36.0)
     joints = {}
     for i, (across, lens, r) in enumerate(fingers):
         reach = 0.108 - 0.012 * abs(across + 0.006) / 0.03
         cur = hd + d * reach + w * across - n * 0.003; dirv = d; pts = [cur.copy()]
+        # (ellipsoid's axes about `d` come out through, across, along)
+        parts.append(ellipsoid("knuckle_%d" % i, cur + n * 0.0015, (r, KNUCKLE[1], KNUCKLE[0]), d))
         for k, L in enumerate(lens):
             rot = Matrix.Rotation(math.radians(CURL[k]), 4, w)
             dirv = (rot @ dirv).normalized()
             nxt = cur + dirv * L
-            rr = r * (1.0 - 0.07 * k)
+            rr = r * (1.0 - 0.03 * k)
+            inside = w.cross(dirv).normalized()          # the side the finger curls to: its pulp
+            back, pad = rr * FINGER_BACK, rr * FINGER_PAD[k]
+            ry, sf = (back + pad) * 0.5, (pad - back) * 0.5
+            # (the last segment ends round: its square end, wider now, came
+            # within 3 mm of the palm under it at rest and the remesh welded
+            # the ring finger's tip to the palm)
+            end = [(0.82, rr * 0.92, ry * 0.92, sf, 0), (1.0, rr * 0.66, ry * 0.66, sf, 0)] if k == 2 else [(1.0, rr * 0.92, ry * 0.90, sf, 0)]
             parts.append(tube("f%d_%d" % (i, k), cur - dirv * rr * 0.9, nxt + dirv * rr * 0.5,
-                              [(0.0, rr * 0.92, rr * 0.80, 0, 0), (0.5, rr, rr * 0.86, 0, 0), (1.0, rr * 0.90, rr * 0.78, 0, 0)],
-                              front=n, segs=16))
+                              [(0.0, rr * 0.94, ry * 0.93, sf, 0), (0.5, rr, ry, sf, 0)] + end, front=inside, segs=16))
             cur = nxt; pts.append(cur.copy())
         joints["f%d" % i] = pts
     # Thumb off the heel of the hand, angled out and forward.
     # The thumb lies across the front of the fingers, on the index side --
     # which is -w, not +w, so it used to sit on the outside of the hand.
+    #
+    # (2026-11-11, B08: it does not. Its three segments go along -n -- 0.40,
+    # 0.58, 0.60 -- and n is the palm's own side: the thumb is built BEHIND
+    # the hand, its tip 6.3 cm behind the palm's mid-plane, and FIST_THUMB
+    # folds it from there into the palm under the knuckles rather than
+    # across the fingers. t1..t3 are three of the skeleton's joints and the
+    # fold is keyed in every clip, so neither is changed here; nor the
+    # fingers' slide 1.6-2.1 cm toward the little finger as they close --
+    # the finger bones turn about their own X, which the bones' roll leaves
+    # off the hinge -- nor their last segments ending inside the palm:
+    # FIST_CURL on the built 72 / 109 / 36 is 102 / 139 / 58 degrees.)
     t0 = hd + d * 0.026 - w * 0.030 - n * 0.008
     t1 = t0 + (-w * 0.62 + d * 0.50 - n * 0.40).normalized() * 0.044
     t2 = t1 + (-w * 0.36 + d * 0.72 - n * 0.58).normalized() * 0.033
@@ -1073,10 +1218,127 @@ def hand():
     for k, (p, q, r) in enumerate([(t0, t1, 0.0150), (t1, t2, 0.0125), (t2, t3, 0.0105)]):
         parts.append(tube("thumb_%d" % k, p - (q - p).normalized() * r * 0.8, q + (q - p).normalized() * r * 0.5,
                           [(0.0, r * 0.9, r * 0.82, 0, 0), (0.5, r, r * 0.86, 0, 0), (1.0, r * 0.9, r * 0.8, 0, 0)], front=n, segs=16))
-    parts.append(ellipsoid("thenar", hd + d * 0.048 - w * 0.030 - n * 0.004, (0.026, 0.017, 0.040), d))
+    # The web between the thumb's first bone and the hand (B08): that bone
+    # is the thumb's metacarpal, which on a hand lies INSIDE its outline --
+    # here it stood clear of the palm from the wrist up, 2.2 cm outside its
+    # edge and 2.8 behind it at its far end: "a peg standing off the back
+    # corner of the wrist". A slab of flesh from the bone to the palm's
+    # edge, as the first web is. (Named thumb_*: a gloved man's union leaves
+    # the thumb out -- assembly.build -- and this goes with it.)
+    e0 = hd + d * 0.022 - w * 0.026 - n * 0.004
+    e1 = hd + d * 0.074 - w * 0.037 - n * 0.004
+    web = []
+    for s_, half in ((-0.06, 0.012), (0.25, 0.0125), (0.60, 0.0105), (0.88, 0.0075), (1.0, 0.004)):
+        a_, b_ = t0 + (t1 - t0) * s_, e0 + (e1 - e0) * s_
+        ux = (a_ - b_) * 0.5; uy = ux.cross(t1 - t0).normalized() * half
+        web.append(((a_ + b_) * 0.5, ux + ux.normalized() * 0.004, uy))
+    parts.append(loft("thumb_web", web, segs=20))
+    # (the thenar's axes are (through, across, along): it was 5.2 cm through
+    # and 8 cm long, a ridge standing 8 mm out of the BACK of the hand along
+    # its thumb side and running on under the index finger's tip, a
+    # millimetre from it. The heel of the thumb now: a little shorter, and
+    # no deeper than the palm beside it.)
+    parts.append(ellipsoid("thenar", hd + d * 0.042 - w * 0.030 - n * 0.001, (0.018, 0.022, 0.038), d))
     parts.append(ellipsoid("hypothenar", hd + d * 0.050 + w * 0.028 + n * 0.000, (0.016, 0.014, 0.040), d))
     joints["thumb"] = [t0, t1, t2, t3]
+    check_fist(fingers, CURL)
     return parts, joints
+
+FIST_HOLE = 0.010          # the longest way round a space the closed fist may enclose, on the tables (check_fist)
+
+def _fist_hole(across, lens, r, curl, close, cell=0.0005):
+    """The space one finger encloses when the fist is closed, in the plane
+    it curls in: (area m2, the way round it m) of the largest. The
+    finger's three segments as hand() builds them -- FINGER_BACK behind
+    the bone, FINGER_PAD in front -- turned about the knuckle row's line by
+    `curl` + `close` degrees a joint, over the palm (PALM_ROWS at this
+    finger's place across it) and the knuckle's head. On the TABLES, and
+    kinder than the bound mesh, which closes about each bone's own X,
+    slides, and thins its skin at a bend: where this read 1.3-2.6 cm round
+    (the hand before 2026-11-11) the bound mesh measured 4.4-5.1, and
+    where this reads none it measures 2.1-2.9 (a slit, 0.3-0.4 cm2)."""
+    reach = 0.108 - 0.012 * abs(across + 0.006) / 0.03
+    u = np.arange(reach - 0.065, reach + 0.035, cell); v = np.arange(-0.035, 0.075, cell)
+    U, V = np.meshgrid(u, v)
+    solid = np.zeros(U.shape, bool)
+    # the palm at this finger's place across it, and the knuckle's head
+    ts = [t * 0.108 for t, *_ in PALM_ROWS]
+    hw = np.interp(U, ts, [q[1] for q in PALM_ROWS]); hth = np.interp(U, ts, [q[2] for q in PALM_ROWS]); sf = np.interp(U, ts, [q[3] for q in PALM_ROWS])
+    half = hth * np.sqrt(np.clip(1.0 - (across / hw) ** 2, 0.0, 1.0))
+    solid |= (U >= 0.0) & (U <= ts[-1]) & (np.abs(V - sf) <= half)
+    solid |= ((U - reach) / KNUCKLE[0]) ** 2 + ((V + 0.003 - 0.0015) / r) ** 2 <= 1.0
+    cur = np.array([reach, -0.003]); ang = 0.0
+    for k, L in enumerate(lens):
+        ang += math.radians(curl[k] + close[k])
+        dirv = np.array([math.cos(ang), math.sin(ang)]); inside = np.array([-math.sin(ang), math.cos(ang)])
+        nxt = cur + dirv * L
+        rr = r * (1.0 - 0.03 * k)
+        back, pad = rr * FINGER_BACK, rr * FINGER_PAD[k]
+        ry, shift = (back + pad) * 0.5, (pad - back) * 0.5
+        a_ = cur - dirv * rr * 0.9; length = L + rr * 1.4
+        t = ((U - a_[0]) * dirv[0] + (V - a_[1]) * dirv[1]) / length
+        s_ = (U - a_[0]) * inside[0] + (V - a_[1]) * inside[1] - shift
+        prof = np.interp(t, [0.0, 0.5, 0.82, 1.0], [0.93, 1.0, 0.92, 0.66] if k == 2 else [0.93, 1.0, 0.94, 0.90]) * ry
+        solid |= (t >= 0.0) & (t <= 1.0) & (np.abs(s_) <= prof)
+        cur = nxt
+    # the outside, flooded from the edge; what is left empty is enclosed
+    free = ~solid
+    out = np.zeros_like(solid)
+    out[0, :] = free[0, :]; out[-1, :] = free[-1, :]; out[:, 0] = free[:, 0]; out[:, -1] = free[:, -1]
+    while True:
+        grown = out.copy()
+        grown[1:, :] |= out[:-1, :]; grown[:-1, :] |= out[1:, :]; grown[:, 1:] |= out[:, :-1]; grown[:, :-1] |= out[:, 1:]
+        grown &= free
+        if (grown == out).all(): break
+        out = grown
+    hole = free & ~out
+    best = (0.0, 0.0)
+    seen = np.zeros_like(hole)
+    for j0, i0 in zip(*np.nonzero(hole)):
+        if seen[j0, i0]: continue
+        stack = [(j0, i0)]; seen[j0, i0] = True; n_ = 0; edges = 0
+        while stack:
+            j, i = stack.pop(); n_ += 1
+            for jj, ii in ((j + 1, i), (j - 1, i), (j, i + 1), (j, i - 1)):
+                if hole[jj, ii]:
+                    if not seen[jj, ii]: seen[jj, ii] = True; stack.append((jj, ii))
+                else: edges += 1
+        if n_ * cell * cell > best[0]: best = (n_ * cell * cell, edges * cell * math.pi / 4.0)
+    return best
+
+def check_fist(fingers, curl, assert_=True):
+    """hand()'s flesh against the fist every clip closes (2026-11-11, the
+    bodies reviewed: B08), on its tables, in every build and every rig
+    (hand() calls it):
+
+    air     no air between neighbouring fingers: their last segments within
+            2 mm of meeting, under the hands' 2.5 mm voxel, so the remesh
+            closes it to a groove (1.4 now; at 4.0 it bridged the gap in
+            rungs, a ladder of holes from the palm's side);
+    hole    the closed fist encloses no space more than FIST_HOLE round
+            (_fist_hole, each finger closed by build_saud.FIST_CURL: none
+            now, 2.6 cm before -- a hole through the fist from either side);
+    plank   the palm ends under the knuckles, no more than a centimetre
+            past the nearest knuckle joint (0.7 now; at 2.3 the closed
+            fingers stood on a board that went on beyond them).
+
+    What it does not hold, because no skin round these joints can: the
+    fingertips' joints end inside the palm, the fingers slide toward the
+    little finger as they close, and the thumb is built behind the hand
+    (hand()'s comment). Returns the numbers."""
+    close = legacy.FIST_CURL
+    gaps = [(b[0] - a[0]) - (a[2] + b[2]) * (1.0 - 0.03 * 2) for a, b in zip(fingers, fingers[1:])]
+    holes = [_fist_hole(across, lens, r, curl, close) for across, lens, r in fingers]
+    reach = min(0.108 - 0.012 * abs(across + 0.006) / 0.03 for across, _l, _r in fingers)
+    out = dict(air=max(gaps), hole=max(h[1] for h in holes), holes=holes, plank=0.108 * PALM_ROWS[-1][0] - reach)
+    if assert_:
+        assert out["air"] <= 0.0020, ("air between the fingers: %.1f mm between two neighbours' last segments, want 2 or less "
+                                      "(the remesh bridges it in rungs: a ladder of holes)" % (out["air"] * 1000))
+        assert out["hole"] <= FIST_HOLE, ("the closed fist keeps a hole: %.1f cm round between a finger's segments and the palm, want %.1f or less "
+                                          "(no pulp on the finger's palm side)" % (out["hole"] * 100, FIST_HOLE * 100))
+        assert out["plank"] <= 0.010, ("the palm is a plank past the knuckles: it ends %.1f cm beyond the nearest knuckle joint, want 1 or less"
+                                       % (out["plank"] * 100))
+    return out
 
 # How far a glove's thumb stands off the thumb inside it: the padding. A
 # thumb segment is 10.5-15 mm in radius; with this it is 22.5-27.

@@ -426,7 +426,8 @@ def cloth_check():
     """--cloth-check (2026-09-27): garments.check_cloth on a body built the
     pipeline's way (pass one, the 3.5 mm union), dressed clean, then
     dressed once per rule broken: no fit (skin-tight), no folds, the
-    seat's drape run below the crotch (a skirt), no hold-off from the skin.
+    seat's drape run below the crotch (a skirt), no hold-off from the skin,
+    the trousers left lying back on themselves (folded over, 2026-11-11).
     bpy as a module; a few minutes, most of it the dressing."""
     import build_saud as legacy
     import bpy
@@ -447,7 +448,7 @@ def cloth_check():
         return out, err
     fit0 = G.fit
     out, err = None, None
-    saved = dict(fit=G.fit, FOLD_SCALE=G.FOLD_SCALE, PELVIS_Z=G.PELVIS_Z, CLEAR=dict(G.CLEAR))
+    saved = dict(fit=G.fit, FOLD_SCALE=G.FOLD_SCALE, PELVIS_Z=G.PELVIS_Z, CLEAR=dict(G.CLEAR), UNFOLD=G.UNFOLD)
     def restore():
         for k, v in saved.items(): setattr(G, k, v)
     G.check_cloth_in_dress = False
@@ -457,7 +458,9 @@ def cloth_check():
     bites = [("no fit", dict(fit=lambda g, kind, body=None: {}), "skin-tight"),
              ("no folds", dict(FOLD_SCALE=0.0), "no folds"),
              ("skirt", dict(PELVIS_Z=0.84), "skirt"),
-             ("no hold-off", dict(CLEAR={"tee": -1.0, "pants": -1.0}, FOLD_SCALE=3.0), "from the skin")]
+             ("no hold-off", dict(CLEAR={"tee": -1.0, "pants": -1.0}, FOLD_SCALE=3.0), "from the skin"),
+             # 2026-11-11 (B20): the trousers left lying back on themselves where the shell overshoots
+             ("not relaxed", dict(UNFOLD=0), "folded over")]
     caught = 0
     for label, patch, word in bites:
         for k, v in patch.items(): setattr(G, k, v)
@@ -537,7 +540,7 @@ def _tank_cloth(bites):
     out = bites.clean("tank clean", lambda: G.check_cloth(t, p, body, top=top, bottom=bottom))
     if out:
         print("  %-8s clean   %s  (%.0f s)" % ("tank", "  ".join("%s %.4f" % kv for kv in out.items()), time.time() - t0))
-    cov = bites.clean("tank bare", lambda: G.check_bare(body, t))
+    cov = bites.clean("tank bare", lambda: G.check_bare(body, t, cut=top))
     if cov:
         print("  %-8s clean   the tank over %d of %d outer upper-arm faces" % ("bare", *cov))
     idx = [q.index for q in body.data.polygons if G.stripped(q.center, top)]
@@ -562,6 +565,18 @@ def _tank_cloth(bites):
         finally:
             gone(tt, pp)
         print("    (%.0f s)" % (time.time() - t0))
+    # 2026-11-11 (B19): the singlet's region on this body leaves the arm whole
+    # (check_bare: one piece, no cloth on the arm, the strip off it), and
+    # with the arm left in it, as it was, carries a scrap under each arm
+    def singlet():
+        return G.shell(body, "Tee", G.top_region("singlet"), G.TANKS["singlet"]["offset"], 0.0025,
+                       fold=G.TANKS["singlet"]["fold"], fold_size=0.16)
+    tt = _quiet(singlet); bites.clean("singlet bare", lambda: G.check_bare(body, tt, cut="singlet")); gone(tt)
+    arm0 = G.ARM_OUT; G.ARM_OUT = 0.0
+    try:
+        top_bite("singlet, the arm left in", "a scrap", singlet, check=lambda g: G.check_bare(body, g, cut="singlet"))
+    finally:
+        G.ARM_OUT = arm0
     top_bite("tank on the tee's drape", "not compression", lambda: tank(fit=lambda g: G.fit(g, "tee", body, cut="singlet")))
     top_bite("tank skin-tight", "skin-tight", lambda: tank())
     top_bite("the tee's region", "sleeves",
@@ -958,7 +973,10 @@ def physique_check():
     own rule: the canonical trunk ('waist'), the lats tucked in ('v'),
     no rectus ('abs'), the rectus pair met ('linea'), no oblique, no
     serratus, the canonical one deltoid ('deltoid cap'), no pec tie-in
-    ('apart'); and the neck and back suites run again on the lean base,
+    ('apart'), and (2026-11-11) the hand and the trainer as they were
+    ('keeps a hole', 'air between the fingers', 'a plank past the
+    knuckles', 'no instep', 'a sausage on its sole'); and the neck and back
+    suites run again on the lean base,
     every sabotage still biting. bpy as a module; about eight minutes."""
     import time, bpy
     from hero import anatomy as A, assembly as ASM, pipeline as P
@@ -1043,7 +1061,16 @@ def physique_check():
              # down each flank, 9.9 mm in a centimetre) and the thighs' flat
              # tops (a shelf across the hips, 11.1)
              ("the lats' fin", dict(back=dict(lean["BACK_MUSCLES"], lat=old_lat)), "a shelf or a fin"),
-             ("the thighs' shelf", dict(A=dict(LEAN_THIGH=old_thigh)), "a shelf or a fin")]
+             ("the thighs' shelf", dict(A=dict(LEAN_THIGH=old_thigh)), "a shelf or a fin"),
+             # 2026-11-11 (the bodies reviewed: B08, B11): the hand and the
+             # trainer as they were, one thing at a time (anatomy.check_fist,
+             # check_shoe -- on the tables, so each fails before a mesh is made)
+             ("no pulp on the fingers", dict(A=dict(FINGER_PAD=(0.72, 0.72, 0.72))), "keeps a hole"),
+             ("stick fingers", dict(A=dict(FINGER_HALF=(0.0092, 0.0096, 0.0090, 0.0080))), "air between the fingers"),
+             ("the palm's plank", dict(A=dict(PALM_ROWS=A.PALM_ROWS[:3] + [(1.0, 0.043, 0.015, -0.004), (1.08, 0.040, 0.013, -0.004)])),
+              "a plank past the knuckles"),
+             ("the doorstop's top line", dict(A=dict(SHOE_ROWS=[(y, hw, min(top, 0.078), sq) for y, hw, top, sq in A.SHOE_ROWS])), "no instep"),
+             ("the shoe's old ellipses", dict(A=dict(SHOE_WALL=2.0)), "a sausage on its sole")]
     for label, patch, word in cases:
         saved = {k: getattr(A, k) for k in patch.get("A", {})}
         lean0 = dict(lean)

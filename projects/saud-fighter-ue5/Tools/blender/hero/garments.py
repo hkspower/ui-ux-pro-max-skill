@@ -77,10 +77,38 @@ def armhole_x(z, cut):
     return np.where(np.asarray(z) < zs[0], 1.0, np.interp(z, zs, xs))
 
 
+# 2026-11-11 (the bodies reviewed: B19). Below the armhole's first knot
+# (1.327 on the singlet) every face inside |x| 0.24 was the tank's, and in
+# the A-pose the underside of the upper arm comes inside 0.24 from 1.327
+# down to 1.307: the thug's singlet carried a scrap of cloth under each arm
+# (364 faces, 14.9 cm2, standing 6 mm off the arm) and the strip took the
+# arm's skin under it -- a hole 0.25 m round in each arm, which check_holes
+# passed because the scrap lay over it. A sleeveless top has no arm at any
+# height: nothing within ARM_OUT of the upper arm's axis past the joint.
+# The arm's own skin is 58-73 mm off that axis on the thug and AL-WAHSH;
+# Saud's compression top comes no nearer it than 86, and keeps every face.
+ARM_OUT = 0.080           # a tank's region stops this far from the upper arm's axis, past ARM_PAST of it
+ARM_PAST = 0.05           # ...from this fraction of the way to the elbow (the joint itself is the strap's)
+
+
+def _arm_off(c):
+    """How far `c` is from the nearer upper arm's axis past the joint
+    (ARM_PAST of the way to the elbow on), canonical; 1.0 short of that."""
+    best = 1.0
+    if abs(c.x) < 0.12: return best
+    for side in (1, -1):
+        sh = Vector((Jp("upperarm_l").x * side, Jp("upperarm_l").y, Jp("upperarm_l").z))
+        el = Vector((Jp("lowerarm_l").x * side, Jp("lowerarm_l").y, Jp("lowerarm_l").z))
+        ab = el - sh; t = (c - sh).dot(ab) / ab.length_squared
+        if t > ARM_PAST: best = min(best, (c - (sh + ab * min(t, 1.0))).length)
+    return best
+
+
 def tank_region(c, cut, margin=0.0):
     """The tank's trunk, as tee_region's without the sleeves and with its
-    cut's armholes and scoops taken out; `margin` shrinks it inward from
-    every edge (the strip keeps a band of skin inside every one)."""
+    cut's armholes and scoops taken out, and no arm (ARM_OUT); `margin`
+    shrinks it inward from every edge (the strip keeps a band of skin
+    inside every one)."""
     m = margin
     if not (1.062 + m <= c.z <= 1.575 - m and abs(c.x) < 0.24):
         return False
@@ -89,6 +117,7 @@ def tank_region(c, cut, margin=0.0):
     row = TANKS[cut]
     k = row["armhole"]
     if c.z > k[0][0] - m and abs(c.x) > float(armhole_x(c.z, cut)) - m: return False
+    if _arm_off(c) < ARM_OUT + m: return False                                           # the arm, whatever the height
     for side, cz, a, b in row["scoops"]:
         if (c.y < 0) == (side == "front") and (c.x / (a + m)) ** 2 + ((c.z - cz) / (b + m)) ** 2 < 1.0: return False
     return True
@@ -133,14 +162,70 @@ def shell(body, name, region, offset, thickness, fold=0.0, fold_size=0.14):
     return g
 
 def soles():
+    """The outsole under each shoe: 2 cm thick, flat on the floor, in the
+    plan of the upper that stands on it.
+
+    2026-11-11 (the bodies reviewed: B11). It was a cube, 9.8 x 32 cm with
+    square corners -- a plank, 9.8 cm wide from its heel to within a
+    centimetre of its front edge, standing 1.2 cm out a side at the heel
+    and beside the toe. Now the upper's own plan (anatomy.SHOE_ROWS) 2 mm
+    outside it: about 8 cm at the heel, 9.8 at the ball, round at the toe.
+    What the feet's IK and the clips' grounding were fitted to is kept to
+    the millimetre (build_saud.SOLE_MODEL, its corners 4.2 cm out): the
+    bottom at z 0, 2 cm thick with the same 8 mm bevel, the same ends
+    (y 0.078 and -0.242), the same 9.8 cm at its widest. Asserted."""
+    plan = [(y, hw) for y, hw, _top, _sq in A.SHOE_ROWS]
+    (yu0, _), (yu1, _) = plan[0], plan[-1]
+    y_heel, y_toe, margin = 0.078, -0.242, 0.002
     out = []
     for side in (1, -1):
         x = Jp("foot_l").x * side
-        bpy.ops.mesh.primitive_cube_add(size=1.0, location=(x, -0.082, 0.010))
-        o = bpy.context.object; o.name = "sole"; o.scale = (0.098, 0.320, 0.020)
-        bpy.ops.object.transform_apply(scale=True)
+        # (2026-11-18, the second reading: the plan was stretched onto the
+        # plank's ends -- 0.070..-0.2452 onto 0.078..-0.242 -- which slid it
+        # 8 mm toward the heel at the heel and 3-4 mm at the toe, so the
+        # upper's last 2.3 cm stood outside its sole, 7 mm at the tip. It is
+        # laid in the upper's own y now: a heel tail to the plank's end at
+        # the heel's width, the toe cut where the plank ended.)
+        pts = [(y, hw + margin) for y, hw in plan]
+        ring = [(pts[0][1], y_heel)]
+        for (y0, h0), (y1, h1) in zip(pts, pts[1:]):
+            ring.append((h0, y0))
+            if y1 <= y_toe < y0:
+                ring.append((h0 + (h1 - h0) * (y0 - y_toe) / (y0 - y1), y_toe)); break
+        else:
+            ring.append((pts[-1][1], pts[-1][0]))
+        outline = [(x + hw, y) for hw, y in ring] + [(x - hw, y) for hw, y in reversed(ring)]
+        bm = bmesh.new()
+        lo = [bm.verts.new((px, py, 0.0)) for px, py in outline]
+        hi = [bm.verts.new((px, py, 0.020)) for px, py in outline]
+        n = len(outline)
+        for i in range(n):
+            bm.faces.new((lo[i], lo[(i + 1) % n], hi[(i + 1) % n], hi[i]))
+        bm.faces.new(list(reversed(lo))); bm.faces.new(hi)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        me = bpy.data.meshes.new("sole"); bm.to_mesh(me); bm.free()
+        o = bpy.data.objects.new("sole", me); bpy.context.collection.objects.link(o)
+        bpy.ops.object.select_all(action='DESELECT'); o.select_set(True); bpy.context.view_layer.objects.active = o
+        # the rim and the corners of the ends, not the facets of the plan's curve
         bv = o.modifiers.new("Bev", "BEVEL"); bv.width = 0.008; bv.segments = 3
+        bv.limit_method = 'ANGLE'; bv.angle_limit = math.radians(40)
         bpy.ops.object.modifier_apply(modifier="Bev"); bpy.ops.object.shade_smooth()
+        P = [v.co for v in o.data.vertices]
+        ys = [p.y for p in P]; zs = [p.z for p in P]
+        def width(y0):
+            # of the plan, between the two of its rows either side of y0
+            for (h0, y_0), (h1, y_1) in zip(ring, ring[1:]):
+                if y_1 <= y0 <= y_0: return 2.0 * (h0 + (h1 - h0) * (y_0 - y0) / max(y_0 - y_1, 1e-9))
+            return 0.0
+        L = max(ys) - min(ys)
+        w5, w70, wf = width(max(ys) - 0.05 * L), width(max(ys) - 0.70 * L), width(min(ys) + 0.010)
+        wide = max(p.x for p in P) - min(p.x for p in P)
+        assert abs(min(zs)) < 1e-6 and abs(max(zs) - 0.020) < 1e-6 and abs(max(ys) - y_heel) < 5e-4 and abs(min(ys) - y_toe) < 5e-4 \
+            and abs(wide - 0.098) < 0.0015, ("the sole moved off what the feet's IK was fitted to: floor %.4f, top %.4f, heel %.4f, toe %.4f, "
+                                             "widest %.4f (0, 0.020, %.3f, %.3f, 0.098)" % (min(zs), max(zs), max(ys), min(ys), wide, y_heel, y_toe))
+        assert w5 <= 0.87 * w70 and wf <= 0.72 * w70, (
+            "the sole is a plank: %.1f cm at its heel and %.1f a centimetre from its front edge against %.1f at the ball "
+            "(want under 0.87 and 0.72 of it)" % (w5 * 100, wf * 100, w70 * 100))
         out.append(o)
     return out
 
@@ -173,13 +258,14 @@ def dress(body, tee=True, top="tee", bottom="track"):
         else:
             info = fit(g, kind, body) if cut in ("tee", "track") else fit(g, kind, body, cut=cut)
         if info.get("moved"):
-            print("cloth     : %-5s draped %d verts (up to %.0f mm), folds to %.1f mm, %d held off the skin"
-                  % (cut, info["moved"], info["drape_max"] * 1000, info["fold_max"] * 1000, info["pushed"]))
+            print("cloth     : %-5s draped %d verts (up to %.0f mm), folds to %.1f mm, %d held off the skin%s"
+                  % (cut, info["moved"], info["drape_max"] * 1000, info["fold_max"] * 1000, info["pushed"],
+                     ", %d relaxed where it lay back on itself" % info["unfolded"] if info.get("unfolded") else ""))
     if check_cloth_in_dress:
         ck = check_cloth(t, pants, body, top=top, bottom=bottom)
         print("cloth     : " + "  ".join("%s %.4f" % kv for kv in ck.items()))
         if tee and top != "tee":
-            cov, of = check_bare(body, t)
+            cov, of = check_bare(body, t, cut=top)
             print("cloth     : bare arms: %d of %d outer upper-arm faces under the %s" % (cov, of, top))
     return t, pants, soles()
 
@@ -321,6 +407,67 @@ def _untangle(me, P, D, passes):
         D = np.where(sel[:, None], 0.5 * D + 0.5 * acc / deg, D)
     return D
 
+def _edge_faces(me):
+    """The mesh's edges that two faces share, as (edge index, face a, face b)
+    arrays, and its open edges' vertices (a hem's)."""
+    le = np.empty(len(me.loops), dtype=np.int64); me.loops.foreach_get("edge_index", le)
+    lt = np.empty(len(me.polygons), dtype=np.int64); me.polygons.foreach_get("loop_total", lt)
+    lf = np.repeat(np.arange(len(lt)), lt)
+    o = np.argsort(le, kind="stable"); le, lf = le[o], lf[o]
+    cnt = np.bincount(le, minlength=len(me.edges))
+    first = np.nonzero(np.r_[True, le[1:] != le[:-1]])[0]
+    two = first[cnt[le[first]] == 2]
+    E = np.empty(len(me.edges) * 2, dtype=np.int64); me.edges.foreach_get("vertices", E); E = E.reshape(-1, 2)
+    return le[two], lf[two], lf[two + 1], np.unique(E[cnt == 1])
+
+def _folded(me, P, deg, adj=None):
+    """The edges at which the surface lies back on itself: the two faces
+    of each turned more than `deg` from each other. Returns (the edges'
+    indices, their two faces, their lengths). `adj` is _edge_faces(me),
+    for a caller that asks more than once."""
+    ei, fa, fb, _hem = adj or _edge_faces(me)
+    m = len(me.polygons)
+    ls = np.empty(m, dtype=np.int64); me.polygons.foreach_get("loop_start", ls)
+    lt = np.empty(m, dtype=np.int64); me.polygons.foreach_get("loop_total", lt)
+    lv = np.empty(len(me.loops), dtype=np.int64); me.loops.foreach_get("vertex_index", lv)
+    nr = _face_normals(P, ls, lt, lv)
+    nr /= np.maximum(np.linalg.norm(nr, axis=1), 1e-12)[:, None]
+    bad = (nr[fa] * nr[fb]).sum(1) < math.cos(math.radians(deg))
+    E = np.empty(len(me.edges) * 2, dtype=np.int64); me.edges.foreach_get("vertices", E); E = E.reshape(-1, 2)
+    e = ei[bad]
+    return e, fa[bad], fb[bad], np.linalg.norm(P[E[e, 0]] - P[E[e, 1]], axis=1)
+
+def _unfold(me, P, passes):
+    """Relax the surface where it lies back on itself -- round every edge
+    folded past UNFOLD_DEG, two rings out, the hems left where they are --
+    until no such edge is left or `passes` runs out. Returns the positions
+    and how many vertices it moved."""
+    n = len(P)
+    E = np.empty(len(me.edges) * 2, dtype=np.int64); me.edges.foreach_get("vertices", E); E = E.reshape(-1, 2)
+    deg = np.maximum(np.bincount(E.ravel(), minlength=n), 1).astype(float)[:, None]
+    m = len(me.polygons)
+    ls = np.empty(m, dtype=np.int64); me.polygons.foreach_get("loop_start", ls)
+    lt = np.empty(m, dtype=np.int64); me.polygons.foreach_get("loop_total", lt)
+    lv = np.empty(len(me.loops), dtype=np.int64); me.loops.foreach_get("vertex_index", lv)
+    adj = _edge_faces(me)
+    hem = np.zeros(n, bool); hem[adj[3]] = True
+    moved = np.zeros(n, bool)
+    P = P.copy()
+    for _ in range(passes):
+        _e, fa, fb, _l = _folded(me, P, UNFOLD_DEG, adj)
+        if not len(fa): break
+        bad = np.concatenate([fa, fb])
+        sel = np.zeros(n, bool)
+        for k in range(4): sel[lv[ls[bad] + np.minimum(k, lt[bad] - 1)]] = True
+        for _r in range(2):
+            grow = sel.copy(); grow[E[sel[E[:, 0]], 1]] = True; grow[E[sel[E[:, 1]], 0]] = True; sel = grow
+        sel &= ~hem
+        acc = np.zeros((n, 3))
+        np.add.at(acc, E[:, 0], P[E[:, 1]]); np.add.at(acc, E[:, 1], P[E[:, 0]])
+        P = np.where(sel[:, None], 0.5 * P + 0.5 * acc / deg, P)
+        moved |= sel
+    return P, int(moved.sum())
+
 def _smoothstep(e0, e1, x):
     t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0); return t * t * (3 - 2 * t)
 
@@ -353,6 +500,8 @@ ANGLE_SMOOTH = 10         # passes rounding each slice's hang across angles (was
 ARM_CLEAR = (0.11, 0.15)  # the tee's drape keeps this far off the upper arm's axis
 SLEEVE_LOOSE = (0.001, 0.004, 0.003)  # the sleeve off the arm: at the shoulder, more to the cuff, more below
 DRAPE_SMOOTH = 60         # at most, smoothing the drape where it turns faces over
+UNFOLD = 60               # at most, relaxing the trousers where they lie back on themselves (see _unfold)
+UNFOLD_DEG = 100.0        # ...an edge whose two faces are turned further than this from each other
 PELVIS_Z = 0.93           # the seat's drape stops above the crotch (0.90)
 MIN_CLEAR = 0.002         # check_cloth's floor, whatever CLEAR is set to
 check_cloth_in_dress = True   # --cloth-check checks each dressing itself
@@ -540,6 +689,22 @@ def fit(g, kind, body=None, cut=None, bare_waist=False):
     if DRAPE_SMOOTH:
         D = _untangle(me, P, D, DRAPE_SMOOTH)
     P = P + D
+    # 2026-11-11 (the bodies reviewed: B20). The shell is the skin pushed out
+    # along its normals, and where the skin turns a corner tighter than the
+    # push -- along the two edges of the crotch's roof, under each buttock,
+    # in the groin -- the pushed surface overshoots and lies back on itself:
+    # on the track trousers 276 edges (0.82 m) folded past 120 degrees and
+    # 554 pairs of faces through each other, 269 and 555 of them in the
+    # shell before any drape, all between 0.84 and 0.90 (the jogger, 7 mm off
+    # him, 100 edges and 182 pairs). The drape's own untangle could not see
+    # them: it compares each face with the shell's, which was already turned
+    # over. Cloth has one side; where it lies back on itself the trousers
+    # are relaxed until they do not (4 edges and 8 pairs left on the track,
+    # none on the jogger; 2,420 and 1,112 vertices taken, none moved more
+    # than 3.8 and 1.4 mm).
+    unfolded = 0
+    if kind == "pants" and UNFOLD:
+        P, unfolded = _unfold(me, P, UNFOLD)
     me.vertices.foreach_set("co", P.reshape(-1)); me.update()
     # ---- the folds, along the normals of the draped surface
     Nn = np.empty(n * 3); me.vertices.foreach_get("normal", Nn); Nn = Nn.reshape(n, 3)
@@ -599,12 +764,15 @@ def fit(g, kind, body=None, cut=None, bare_waist=False):
                 P[i] = np.array(loc + nrm * need); pushed += 1
     me.vertices.foreach_set("co", P.reshape(-1)); me.update()
     return dict(pushed=pushed, moved=int((np.linalg.norm(D, axis=1) > 0.001).sum()), drape_max=float(np.linalg.norm(D, axis=1).max()),
-                fold_max=float(np.abs(F).max()))
+                fold_max=float(np.abs(F).max()), unfolded=unfolded)
 
 
 FURROW_MAX = {"tee": 0.001, "singlet": 0.001, "compression": 0.003}   # how far a top may follow the spinal furrow
 TANK_HANG = 0.006         # a compression top stands at most this far off the waist at 1.14
 JOGGER_FIT = ((0.52, 0.010), (0.70, 0.009))   # the jogger's median off the leg at the knee and the calf, at most
+FOLD_DEG = 120.0          # check_cloth: an edge is folded over when its two faces are turned further than this from each other
+FOLD_MOST = 0.05          # ...and the trousers may carry this much of it, metres (0.006-0.015 relaxed; 0.82 not, the jogger 0.29)
+CROSS_MOST = 40           # ...and this many pairs of faces through each other (0-17 relaxed; 554 not, the jogger 182)
 
 
 def check_cloth(tee, pants, body, assert_=True, top="tee", bottom="track"):
@@ -684,6 +852,14 @@ def check_cloth(tee, pants, body, assert_=True, top="tee", bottom="track"):
     # the top of the band, off the hull of the waist it goes round
     if not len(T) and len(Pn):
         out["band_off"], out["band_median"] = _band_gap(Pn, Bd)
+    # the trousers lying back on themselves and running through themselves
+    # (2026-11-11, B20), any cut: the length of edge folded past FOLD_DEG,
+    # and the pairs of faces that cut each other and share no vertex
+    if len(Pn):
+        out["folded"] = float(_folded(pants.data, Pn, FOLD_DEG)[3].sum())
+        tp = BVHTree.FromObject(pants, bpy.context.evaluated_depsgraph_get())
+        pv = [set(p.vertices) for p in pants.data.polygons]
+        out["crossing"] = sum(1 for a, b in tp.overlap(tp) if a < b and not (pv[a] & pv[b]))
     if not assert_:
         return out
     if "band_off" in out:
@@ -706,6 +882,11 @@ def check_cloth(tee, pants, body, assert_=True, top="tee", bottom="track"):
             v = out["leg_off_%02d" % round(tq * 100)]
             assert v <= most, "not fitted: the joggers stand %.1f mm off the leg at %.0f %% of it, want %.0f at most" % (
                 v * 1000, tq * 100, most * 1000)
+    if "folded" in out:
+        assert out["folded"] <= FOLD_MOST, "folded over: %.2f m of the trousers' edges lie back on themselves (past %.0f degrees), want %.2f at most" % (
+            out["folded"], FOLD_DEG, FOLD_MOST)
+        assert out["crossing"] <= CROSS_MOST, "through themselves: %d pairs of the trousers' faces cut each other, want %d at most" % (
+            out["crossing"], CROSS_MOST)
     return out
 
 
@@ -735,15 +916,43 @@ def check_legs_apart(pants, crotch_z, assert_=True):
 
 
 BARE_MOST = 0.02          # check_bare: the share of the outer upper arm a sleeveless top may cover
+ARM_SKIN = 0.070          # check_bare: this near the upper arm's axis (past ARM_PAST of it) is the arm, all round
 
 
-def check_bare(body, top, assert_=True):
+def _pieces(me):
+    """The mesh's connected pieces as vertex counts, largest first, and one
+    vertex of the smallest."""
+    n = len(me.vertices)
+    par = list(range(n))
+    def find(i):
+        while par[i] != i:
+            par[i] = par[par[i]]; i = par[i]
+        return i
+    for e in me.edges:
+        a, b = find(e.vertices[0]), find(e.vertices[1])
+        if a != b: par[a] = b
+    size = {}
+    for i in range(n):
+        r = find(i); size[r] = size.get(r, 0) + 1
+    order = sorted(size, key=lambda r: -size[r])
+    return [size[r] for r in order], (order[-1] if order else None)
+
+
+def check_bare(body, top, assert_=True, cut=None):
     """A sleeveless top leaves the arms bare (2026-09-28): the body's faces
     on the outer half of each upper arm, from the shoulder joint to 35 % of
     the way to the elbow and within 0.11 m of its axis -- the deltoid, which
     the tank is there to show -- and a ray from each out along its normal
     must not meet the top within 20 mm; at most BARE_MOST of them may.
-    Returns (covered, of)."""
+    Returns (covered, of).
+
+    And no arm at all, all round (2026-11-11, B19; the singlet took a strip
+    of the upper arm's underside): the top is one piece -- a second one is
+    a scrap of cloth lying loose on him; no face of it lies within ARM_SKIN
+    of the upper arm's axis past the joint (the arm's own skin is 58-73 mm
+    off it); and, where `cut` names the top, the strip (stripped) takes no
+    body face that near it -- check_holes did not see those holes: the
+    scrap lay over them, and a face under the arm looks at the flank."""
     from mathutils.bvhtree import BVHTree
     dg = bpy.context.evaluated_depsgraph_get()
     tb = BVHTree.FromObject(top, dg)
@@ -762,13 +971,24 @@ def check_bare(body, top, assert_=True):
             of += 1
             hit = tb.ray_cast(c + p.normal * 0.0005, p.normal, 0.020)
             if hit[0] is not None: covered += 1
+    sizes, small = _pieces(top.data)
+    on_arm = sum(1 for p in top.data.polygons if _arm_off(p.center) < ARM_SKIN)
+    holes = 0 if cut is None else sum(1 for p in me.polygons if _arm_off(p.center) < ARM_SKIN and stripped(p.center, cut))
     if assert_:
         assert of and covered <= BARE_MOST * of, "sleeves: the %s covers %d of the %d outer upper-arm faces (%.0f %%), want %.0f %% at most" % (
             top.name, covered, of, 100.0 * covered / max(of, 1), BARE_MOST * 100)
+        assert len(sizes) == 1, "a scrap: the %s is in %d pieces, the smallest %d vertices at (%.3f, %.3f, %.3f), want one piece" % (
+            (top.name, len(sizes), sizes[-1]) + tuple(top.data.vertices[small].co))
+        assert not on_arm, "cloth on the arm: %d faces of the %s lie within %.0f mm of the upper arm's axis, want none" % (
+            on_arm, top.name, ARM_SKIN * 1000)
+        assert not holes, "holes in the arm: the strip under the %s takes %d faces of the upper arm's skin (within %.0f mm of its axis), want none" % (
+            cut, holes, ARM_SKIN * 1000)
     return covered, of
 
 
 HOLE_REACH = 0.060        # a stripped face must have a garment (or his own skin) this near along its normal
+HOLE_NEAR = 0.015         # ...or a garment lying this near over it (a shell stands 6-10 mm off the skin)
+HOLE_OVER = 0.8           # ...over it: the cloth within about 37 degrees of the face's normal (cos 0.8), not off to its side
 HOLE_MOST = 0.0005        # ...all but this share of them
 
 
@@ -788,16 +1008,30 @@ def check_holes(body, idx, garments, assert_=True):
     armpit and between the thighs a face looks at his own skin, inside the
     cloth with it. At 60 mm, with his skin counted: AL-SAQR 45 (0.033 %),
     Saud 0; the tee's sleeve strip left on under a tank, 0.9-1.8 %.
+    2026-11-11 (B20): ...or a garment lies right over it, within HOLE_NEAR
+    on its outer side. Along the two edges of the crotch's roof the skin
+    looks straight down the 10 mm between the thigh and its trouser leg, and
+    its ray runs 63-124 mm before it meets the cloth; what used to stop it
+    was the trousers folded back on themselves under the roof. With the
+    fold relaxed (_unfold) those 58 faces, cloth 9-10 mm under each, would
+    have counted as holes (62 of the thug's 123,607, 0.050 %).
     Returns (exposed, of)."""
     from mathutils.bvhtree import BVHTree
     dg = bpy.context.evaluated_depsgraph_get()
     trees = [BVHTree.FromObject(g, dg) for g in list(garments) + [body] if len(g.data.polygons)]
+    cloth = trees[:-1]
     me = body.data
     exposed = 0
     for i in idx:
         p = me.polygons[i]
         o = p.center + p.normal * 0.0002
         if not any(t.ray_cast(o, p.normal, HOLE_REACH)[0] is not None for t in trees):
+            near = (t.find_nearest(p.center, HOLE_NEAR)[0] for t in cloth)
+            # (2026-11-18, the second reading: over it, not beside it. On the
+            # outer side alone, a hem 6-10 mm off the skin forgave a face
+            # 11-15 mm past it; within about 37 degrees of the normal it is
+            # cloth right over the face, as the crotch's roof has it.)
+            if any(q is not None and (q - p.center).dot(p.normal) > HOLE_OVER * (q - p.center).length for q in near): continue
             exposed += 1
     n = max(len(idx), 1)
     if assert_:
