@@ -364,27 +364,33 @@ def neck_check(lean=False):
         sys.exit(1)
 
 
-LEAN_LATS_OUT = 0.060     # back_check(lean=True)'s 'lats out wide' (the canonical base's is 40 mm; 30 until
-                          # 2026-10-03, when the lean lats went down to the waist in seven links and 30 mm
-                          # out tripped the lat rule, not the V: 1.3 mm of bulge; 60 makes 2.5)
+# back_check's 'lats out wide', on both bases (2026-11-11): the lat's links under LATS_LOW pushed out
+# LATS_OUT and LATS_PROUD prouder, the ones above left where they are -- a flap low on the flank, a real
+# bulge in the outline: it rises 6.7 mm going down past 1.18 on the canonical base, 8.4 on the lean one,
+# and the lat rule still passes (8.3, 10.8 mm), so the V rule is the only one broken.
+# (Until then the WHOLE lat went out, 40 mm on the canonical base and 60 on the lean one. That never put
+# a bulge in the V: check_back reads the outline only inside 190 mm, so a lat out wide all the way down
+# reads as 190 at every height, and what the V rule caught was the scatter of that cap -- 2.7 mm on the
+# canonical base as it was before 2026-11-10, 2.5 on the lean one, and with the canonical lat of
+# 2026-11-10 1.2, which let the lat rule answer instead: WRONG CHECK.)
+LATS_OUT = 0.060
 LATS_PROUD = 0.006
+LATS_LOW = 1.20
 
 
 def back_check(lean=False):
     """--back-check (2026-09-27): anatomy.check_back on pass one of the
     build, clean, and each rule broken once by the base that breaks it:
-    no back muscles at all, the erectors flattened, no lats, the lats
-    pushed out past the flank. `lean` (--physique-check, 2026-09-28): the
-    same on Saud's lean base, whose lats are already out wide -- pushed
-    out 40 mm more they leave the half-width window and fail as 'no lats';
-    30 mm puts the bulge in the V. bpy as a module, a few seconds a base."""
+    no back muscles at all, the erectors flattened, no lats, the lats'
+    lower end pushed out past the flank (LATS_OUT). `lean`
+    (--physique-check, 2026-09-28): the same on Saud's lean base. bpy as
+    a module, a few seconds a base."""
     import build_saud as legacy
     import numpy as np
     from hero import anatomy as A, assembly as ASM, pipeline as P
     ph = P.PHYSIQUE["saud"] if lean else None
     ar = P.LIMBS["saud"] if lean else 1.0
     A.set_physique(ph)
-    wide = LEAN_LATS_OUT if lean else 0.040
     def base():
         legacy.reset_scene()
         left = A.arm(ar) + A.leg() + [A.shoe()] + ASM.masses(ph, None, ar)
@@ -396,7 +402,8 @@ def back_check(lean=False):
     bites = [("no back muscles", {}, "furrow"),
              ("flat erectors", dict(m, erector=[(x, z, 0.0005, a) for x, z, p, a in m["erector"]]), "furrow"),
              ("no lats", dict(erector=m["erector"]), "lats"),
-             ("lats out wide", dict(m, lat=[(x + wide, z, p + LATS_PROUD, a) for x, z, p, a in m["lat"]]), "V")]
+             ("lats out wide", dict(m, lat=[(x + LATS_OUT, z, p + LATS_PROUD, a) if z < LATS_LOW else (x, z, p, a)
+                                            for x, z, p, a in m["lat"]]), "V")]
     caught = 0
     for label, patch, word in bites:
         saved = A.BACK_MUSCLES; A.BACK_MUSCLES = patch
@@ -1083,7 +1090,8 @@ def grim_check():
     thug's top, the brawler's rust tee, bone tape, a grey accent; the
     brows in his skin, no furrow, the old frown, the old scar tone, scar
     tissue in the old tone, no pucker, no tape, no body scars; each man
-    built plain, ZAYOS's trapezius grown; a brick jaw; plain ears. bpy
+    built plain, AL-SAQR with the brawler's waist, ZAYOS's trapezius
+    grown; a brick jaw; plain ears. bpy
     as a module; about four minutes."""
     import numpy as np, time
     from hero import pipeline as P, finish as F, face as FA, roster, anatomy as A, assembly as ASM
@@ -1177,9 +1185,18 @@ def grim_check():
             print("  %-8s clean   chest %+.0f  waist %+.0f  biceps %+.0f mm over plain (%.3f / %.3f / %.3f), V %.3f (plain %.3f)  %.0f s" % (
                 kind, d["chest"] * 1000, d["waist"] * 1000, d["biceps"] * 1000, man["chest"], man["waist"], man["biceps"],
                 man["v"], plain["v"], time.time() - t))
-        word = {"thug": "no arms", "brawler": "no mass on the waist", "saqr": "kicker's V", "boss": "no mass on the chest",
+        # (AL-SAQR built plain: 'no arms' since 2026-11-11. The canonical lat of
+        # 2026-11-10 gave the plain body a V of 1.305, over his v_min of 1.29
+        # (it was 1.276), so plain no longer breaks his V rule and falls
+        # through to the arm's; his V is bitten below.)
+        word = {"thug": "no arms", "brawler": "no mass on the waist", "saqr": "no arms", "boss": "no mass on the chest",
                 "zayos": "no mass on the chest"}[kind]
         bites.run("%s built plain" % kind, word, lambda kind=kind, plain=plain: P.check_body_looks(kind, plain, plain))
+        if kind == "saqr":
+            # his V lost: his own MASS with the brawler's obliques (1.35) --
+            # a thick waist, V 1.202 against his 1.314
+            thick, _pt = measures(kind, mass=dict(P.MASS[kind], oblique=P.MASS["brawler"]["oblique"]))
+            bites.run("saqr, the brawler's waist", "kicker's V", lambda thick=thick, plain=plain: P.check_body_looks("saqr", thick, plain))
         _reset()
     def trap_zayos():
         Pb, _body = _physique_body("zayos", mass=dict(P.MASS.get("zayos", {}), trap=1.20))

@@ -1665,8 +1665,12 @@ def build_field(sc, build):
         # over 5 cm up its own line; the leg's -- None -- is what the trunk
         # rule above the hips has not yet taken, so the two sum to the
         # trunk's growth all the way up)
-        limbs.append(([sh, el, wr], 0.115, (0.0, 0.14), 0.78, float(np.linalg.norm(el - sh) / (np.linalg.norm(el - sh) + np.linalg.norm(wr - el))), 0.05))
-        limbs.append(([hip, kn, an], 0.150, (0.02, 0.25), 0.78, float(np.linalg.norm(kn - hip) / (np.linalg.norm(kn - hip) + np.linalg.norm(an - kn))), None))
+        # (..., and the limb's weight as it was before that day -- where its
+        # ramp began, how long it was, where its fade to the hand or foot
+        # began: the joint table still goes by it, and so does the trunk's
+        # side of the arm; see F)
+        limbs.append(([sh, el, wr], 0.115, (0.0, 0.14), 0.78, float(np.linalg.norm(el - sh) / (np.linalg.norm(el - sh) + np.linalg.norm(wr - el))), 0.05, (0.12, 0.10, 0.90)))
+        limbs.append(([hip, kn, an], 0.150, (0.02, 0.25), 0.78, float(np.linalg.norm(kn - hip) / (np.linalg.norm(kn - hip) + np.linalg.norm(an - kn))), None, (0.02, 0.40, 0.93)))
         arms.append(([sh, el, wr, tip + (tip - wr) * 0.6], 0.16))
     shoulder_x = abs(Jp("upperarm_l").x)
     hip_x = abs(Jp("thigh_l").x)
@@ -1689,10 +1693,28 @@ def build_field(sc, build):
     # trunk's own growth over the limb's (about 0.7 by the browser's mapping)
     top = float(np.clip((t - 1.0) / (l - 1.0), 0.0, 1.0)) if abs(l - 1.0) > 1e-9 else 0.0
 
+    def taper(z):
+        """How far either side of the midline the hips' carry tapers to
+        nothing (F): 12 mm -- and, from the crotch up, on a man NARROWER
+        than Saud, twice his carry. (2026-11-11. The thug's hips are carried
+        IN 13.1 mm, and a carry that goes from all to nothing in 12 mm
+        folds the strip either side of the midline through itself: 320
+        faces of his body inside out up the front of the crotch and over
+        the seat's cleft, 92 vertices across the midline, 384 faces of his
+        trousers' seam -- and 922 and 874 before 2026-11-10, in every thug
+        built. Over 26.1 mm the strip narrows to a quarter at its tightest
+        and nothing crosses: none, none, none. No joint lies in it; below
+        the crotch, where MIDLINE_KEEP holds the legs apart, as it was.)"""
+        return 0.012 + max(0.0, 2.0 * hip_x * (1.0 - t) - 0.012) * _smooth((z - 0.86) / 0.02)
+
     def F(P, joints=False):
-        """`joints`: the joint table's own points. They take everything
-        but the trunk's depth (TRUNK_DEPTH), so every joint is exactly
-        where it was before 2026-11-10."""
+        """`joints`: the joint table's own points. They go through the
+        field as it was before 2026-11-10 -- each limb's weight of that day
+        (`was`) and no trunk depth (TRUNK_DEPTH) -- so every joint is
+        exactly where it was. (2026-11-11: they had been given everything
+        but the depth, and a leg's share where it leaves the trunk, about
+        the leg's own line, took the pelvis 12 mm off the midline on the
+        thug, 17 on AL-WAHSH, 42 on ZAYOS; check_field holds it.)"""
         P0 = np.array(P, dtype=float).reshape(-1, 3)
         P = P0.copy()
         best_w = np.zeros(len(P))
@@ -1715,8 +1737,9 @@ def build_field(sc, build):
             # scan, 2026-09-28). A point belongs to the nearest limb that
             # holds it.
             best_w = np.zeros(len(P)); best_d = np.full(len(P), np.inf); best_foot = P0.copy()
-            for pts, R, (u0, ramp), u1, uj, behind in limbs:
+            for pts, R, (u0, ramp), u1, uj, behind, was in limbs:
                 d, u, foot = along(P0, pts)
+                w_was = _smooth((u - was[0]) / was[1]) * (1.0 - _smooth((u - was[2]) / 0.07))
                 # behind the joint the limb hangs from: about the limb's own
                 # line carried on, not about the joint's point (which would
                 # push what is above a hip UP)
@@ -1734,10 +1757,57 @@ def build_field(sc, build):
                 else:
                     wb = top * _smooth((tt0 + behind) / behind)
                 w = np.where(back, wb, w)
+                if behind is not None:
+                    # The arm, on the trunk's side of it (2026-11-11). The
+                    # share a limb has where it leaves the trunk is a push
+                    # out from the limb's line, and under the arm that is a
+                    # push into the chest: on ZAYOS the wall of the armpit
+                    # went 32 mm down and in while the wall 3 cm further
+                    # from the arm stayed (the reach's fade is 29 mm) --
+                    # 2,618 faces of his body inside out, the pec's edge
+                    # sliced, the lat's corner standing out as a lobe (25 on
+                    # AL-WAHSH; none before 2026-11-10, when the arm's
+                    # weight began 12 % down it). Round the arm's line from
+                    # straight up and out: the half that faces away from
+                    # the trunk -- the cap (+6.1 mm over the biceps' radius
+                    # on ZAYOS, +6.8 on AL-WAHSH, as on 2026-11-10) and the
+                    # arm's front and back -- the share as it is; from 120
+                    # degrees on, the trunk's side, no more than the weight
+                    # was before that day; from 90 to 120, the two blended.
+                    # (Blended from 70 to 100 it took the front of the upper
+                    # arm back to the old ramp as well: its ridge 16.2 /
+                    # 16.2 / 21.1 degrees on the thug, AL-WAHSH and ZAYOS,
+                    # which 2026-11-10 had brought to 8.5 / 10.9 / 10.4. As
+                    # it is, 10.6 / 10.9 / 10.6 -- and no face turns with
+                    # the blend begun anywhere from 70 to 107 degrees.)
+                    # (Above the elbow only: from 22 % down the arm to its
+                    # last tenth the old weight was the whole factor, and at
+                    # the wrist the new one is not to be cut to the old
+                    # fade.)
+                    cap = np.array([0.0, 0.0, 1.0]) - d0 * d0[2]; cap = cap / np.linalg.norm(cap)
+                    under = _smooth(-((P0 - foot) @ cap) / np.maximum(d, 1e-9) / 0.50) * (u < uj)
+                    w = w - np.maximum(w - w_was, 0.0) * under
+                if joints:
+                    d, u, foot = along(P0, pts); w = w_was
                 w = w * (1.0 - _smooth((d - R * 0.75) / (R * 0.25)))
                 take = ((w > 0) & (d < best_d)) if NEARER_LIMB else (w > best_w)
                 best_w[take] = w[take]; best_d[take] = d[take]; best_foot[take] = foot[take]
             P = best_foot + (P0 - best_foot) * (1.0 + (l - 1.0) * best_w)[:, None]
+            if not joints:
+                # The midline stays the midline (2026-11-11). A leg's share
+                # where it leaves the trunk is about the LEG's line, 9 cm
+                # out: beside the hips the carry below puts back what it
+                # takes sideways -- but the carry tapers to nothing in the
+                # last 12 mm either side of the midline, and the share did
+                # not, so the two halves of the pelvis were pushed THROUGH
+                # each other (ZAYOS: 265 vertices across the midline, the
+                # furthest 25 mm; a slit down the pubis) or pulled apart
+                # (the thug: an edge across it stretched 8 times). The
+                # share's sideways part takes the carry's taper (`taper`),
+                # from the crotch up (below it MIDLINE_KEEP holds the legs
+                # apart).
+                keep = 1.0 - (1.0 - _smooth(np.abs(P0[:, 0]) / taper(P0[:, 2]))) * _smooth((P0[:, 2] - 0.86) / 0.02)
+                P[:, 0] = P0[:, 0] + (P[:, 0] - P0[:, 0]) * keep
         if abs(t - 1.0) > 1e-9:
             # torso width: x scaled about the midline through the trunk, and
             # each arm carried inward, WHOLE and rigidly -- hand included --
@@ -1763,9 +1833,9 @@ def build_field(sc, build):
             # moment a pose parted the knees -- and his hips, which neither
             # rule reached, came out pinched between a x1.20 thigh and a
             # x1.31 waist. Tapered to nothing in the last centimetre either
-            # side of the midline, where the crotch joins the two.
+            # side of the midline, where the crotch joins the two (`taper`).
             below = 1.0 - _smooth((z - 0.96) / 0.04)
-            shift = shift + np.sign(x) * hip_x * (t - 1.0) * _smooth(np.abs(x) / 0.012) * below
+            shift = shift + np.sign(x) * hip_x * (t - 1.0) * _smooth(np.abs(x) / taper(z)) * below
             rigid = np.sign(x) * shoulder_x * (t - 1.0)
             P[:, 0] = P[:, 0] + shift * (1.0 - arm_w) + rigid * arm_w
             if TRUNK_DEPTH and not joints:
@@ -1781,7 +1851,15 @@ def build_field(sc, build):
                 # What a limb's own rule has already given a point of the
                 # trunk's growth (its share over the top share) is not given
                 # again: round a hip the two sum to the trunk's factor.
-                deep = _smooth((z - 0.90) / 0.05) * (1.0 - _smooth((z - 1.49) / 0.03))
+                # (2026-11-11: in from 0.83, whole by 0.88; it came in from
+                # 0.90 to 0.95. Behind the crotch the seat's underside lies
+                # 0.90 up in the ring where a leg's reach ends, 11-15 cm off
+                # its line: there the leg's share falls to nothing, and with
+                # no depth yet to take its place the skin was folded front
+                # to back -- 103 faces of ZAYOS's body inside out at (+-0.02,
+                # +0.11, 0.90). 18 with the rule in from 0.88, none from 0.87
+                # down to 0.78.)
+                deep = _smooth((z - 0.83) / 0.05) * (1.0 - _smooth((z - 1.49) / 0.03))
                 had = np.clip(best_w / top, 0.0, 1.0) if (abs(l - 1.0) > 1e-9 and top > 1e-9) else 0.0
                 P[:, 1] = P[:, 1] + P0[:, 1] * (t - 1.0) * TRUNK_DEPTH * deep * (1.0 - arm_w) * (1.0 - had)
         if MIDLINE_KEEP and (abs(l - 1.0) > 1e-9 or abs(t - 1.0) > 1e-9):
@@ -1815,17 +1893,94 @@ def build_field(sc, build):
         return out
     return h, l, t, F
 
+def check_field(F, h, body=None, assert_=True):
+    """The size field tears nothing it carries (2026-11-11; scale_to runs
+    it in every build, on the joint table at canon and on the body as the
+    field took it -- the decimated one). `body`: (canonical points,
+    triangles).
+
+    the spine's joints -- the pelvis and the three above it -- are where
+    the man's stature puts them and nowhere else (the field of 2026-11-10
+    took the pelvis 12 to 42 mm sideways), and every left joint is its
+    right one's mirror (that field kept the mirror; this is bitten by a
+    leg's rule left off one side); the midline stays the midline -- a
+    point a micron off it, from the crotch to the crown, ends within 0.05
+    mm of it (it ended 13 to 29 mm off: a slit down the pubis; 0.001 now);
+    and above the hips no face of the body is turned inside out by the
+    field (2,581 under ZAYOS's arms on his body as built, 211 on it
+    decimated). Below the hips' top (1.00 at canon) such faces are counted
+    and reported, not held: none on any man today (the thug had 320 until
+    the carry's taper was widened, ZAYOS 103 until the depth came in
+    lower). Returns the numbers."""
+    names = [n for n in J if not n.endswith("_r")]
+    Q = F(np.array([list(J[n][0]) for n in names] + [list(J[n[:-2] + "_r"][0]) for n in names if n.endswith("_l")]), joints=True)
+    left = [i for i, n in enumerate(names) if n.endswith("_l")]
+    spine = max(((float(np.linalg.norm(Q[i] - h * np.array(list(J[n][0])))), n) for i, n in enumerate(names)
+                 if n in ("pelvis", "spine_01", "spine_02", "spine_03")))
+    mirror = max(((float(np.abs(Q[i] * [-1, 1, 1] - Q[len(names) + k]).max()), names[i]) for k, i in enumerate(left)))
+    ys = np.arange(-0.13, 0.1301, 0.004); zs = np.arange(0.90, 1.7901, 0.004)
+    Y, Z = np.meshgrid(ys, zs)
+    sheet = np.stack([np.full(Y.size, 1e-6), Y.ravel(), Z.ravel()], 1)
+    off = np.abs(F(sheet)[:, 0]) / h
+    k = int(np.argmax(off))
+    out = dict(spine=spine[0], mirror=mirror[0], midline=float(off[k]), folded=0, folded_low=0)
+    at = None
+    if body is not None:
+        X0, T = body
+        X = F(X0)
+        n0 = np.cross(X0[T[:, 1]] - X0[T[:, 0]], X0[T[:, 2]] - X0[T[:, 0]])
+        n1 = np.cross(X[T[:, 1]] - X[T[:, 0]], X[T[:, 2]] - X[T[:, 0]])
+        C = X0[T].mean(1)
+        turned = (n0 * n1).sum(1) < 0.0
+        if turned.any():
+            # ...and it is the FIELD that turns it. The body scale_to is
+            # handed is the decimated one, and the collapse leaves slivers
+            # whose normals swing right over under any field: on ZAYOS a face
+            # of 0.5 mm2 on the nape turns 129 degrees under the field as it
+            # was before 2026-11-10 too, a needle 50 mm by 2 behind the
+            # armpit 101 -- and the field turns the surface there 5 and 10.
+            # So: the field's own gradient at the face's centre (central
+            # differences, a quarter of a millimetre) and the normal it
+            # carries the face's to (its cofactor); a face counts when the
+            # mesh and the field both say inside out.
+            i = np.where(turned)[0]; e = 2.5e-4
+            g = [(F(C[i] + d) - F(C[i] - d)) / (2.0 * e) for d in np.eye(3) * e]
+            nf = (np.cross(g[1], g[2]) * n0[i, 0:1] + np.cross(g[2], g[0]) * n0[i, 1:2]
+                  + np.cross(g[0], g[1]) * n0[i, 2:3])
+            turned[i] = (n0[i] * nf).sum(1) < 0.0
+        high = turned & (C[:, 2] > 1.00)
+        out.update(folded=int(high.sum()), folded_low=int((turned & ~high).sum()))
+        at = np.abs(C[high] * [1, 0, 0]).mean(0) + (C[high] * [0, 1, 1]).mean(0) if high.any() else None
+    if not assert_:
+        return out
+    assert spine[0] <= 1e-9, "the size field moved a joint: %s is %.2f mm from where his stature puts it (the joints stay put: F(joints=True))" % (
+        spine[1], spine[0] * 1000)
+    assert mirror[0] <= 1e-9, "the size field broke the skeleton's mirror: %s is %.2f mm off its right one's" % (mirror[1], mirror[0] * 1000)
+    assert off[k] <= 5e-5, "the size field tears the midline: a point on it at y %+.3f z %.3f ends %.1f mm off it" % (
+        sheet[k, 1], sheet[k, 2], off[k] * 1000)
+    assert out["folded"] == 0, "the size field folds the body: %d faces above the hips inside out, about (+-%.2f, %+.2f, %.2f)" % (
+        out["folded"], at[0], at[1], at[2])
+    return out
+
 def scale_to(objects, joints_l, sc, build):
-    """Take the built man to (sc, build): every mesh in `objects`, the joint
-    table J and the hand joints `joints_l`, through one field. Returns the
-    three factors. Saud's own numbers leave everything exactly as it is."""
+    """Take the built man to (sc, build): every mesh in `objects` (the body
+    first), the joint table J and the hand joints `joints_l`, through one
+    field. Returns the three factors. Saud's own numbers leave everything
+    exactly as it is."""
     h, l, t, F = build_field(sc, build)
     if abs(h - 1) < 1e-9 and abs(l - 1) < 1e-9 and abs(t - 1) < 1e-9:
         return dict(h=1.0, l=1.0, t=1.0)
+    body = None
     for o in objects:
         me = o.data; n = len(me.vertices)
         P = np.empty(n * 3); me.vertices.foreach_get("co", P)
+        if body is None:
+            me.calc_loop_triangles()
+            T = np.empty(len(me.loop_triangles) * 3, dtype=np.int32); me.loop_triangles.foreach_get("vertices", T)
+            body = (P.reshape(n, 3).copy(), T.reshape(-1, 3))
         me.vertices.foreach_set("co", F(P.reshape(n, 3)).reshape(-1)); me.update()
+    f = check_field(F, h, body)
+    print("field     : the spine and the midline where they were; no face of the body inside out above the hips (%d below them)" % f["folded_low"])
     # the joints: the same field, so the bones are where the body is
     names = list(J.keys())
     Q = F(np.array([list(J[k][0]) for k in names]), joints=True)

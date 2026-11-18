@@ -237,7 +237,11 @@ LIMBS = {
 # check, not geometry: not stamped). Measured on the pass-two body built
 # the physique way (--grim-check): the brawler, the heavy man, at least
 # 40 mm more waist and 20 mm more chest; AL-SAQR the kicker's V, check_back's
-# half-width at 1.30 over 1.14, at least 1.29 (plain 1.276); AL-WAHSH and
+# half-width at 1.30 over 1.14, at least 1.29 (his 1.314. 2026-11-11: since
+# the canonical lat of 2026-11-10 the plain body measures 1.305 -- it was
+# 1.276 -- so the rule no longer sets his MASS apart from none, 0.009 between
+# them; what it holds is that he keeps the V: with the brawler's obliques he
+# measures 1.202); AL-WAHSH and
 # ZAYOS at least 15 mm more chest; and every man whose LIMBS is over 1 an
 # upper arm at least 0.6 of that factor's excess thicker round the biceps
 # (anatomy.arm puts it on the biceps and the flexors, not the joints).
