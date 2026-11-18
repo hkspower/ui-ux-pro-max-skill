@@ -6119,6 +6119,130 @@ the material (the HLSL takes the same numbers, and the new `levels` lines
 are read-reviewed, not run); the pictures are Blender's through the numpy
 mirror.
 
+## The men's bodies, reviewed -- 2026-11-11, merged and rebuilt 2026-11-18
+
+Asked as "make full polish all charcter body shape fix", settled as all six
+Unreal men, the whole body, and the joints stay where they are: no bone,
+joint, clip or rig control moved (every man's skeleton is still the
+mannequin's 62 bones, `skeleton identical to the boss clips' (drift 0.0e+00
+m)` in every build). The six built bodies were read for shape faults, B01-B24
+(by eye on clay and posed renders, then each one measured); B21 (a wrist's
+twist) and B24 (a wrist's fold in the kicks) are not in this work.
+
+**The first set** (`40feb2d`, 2026-11-11), in the builder, on each man's real
+pass-two body taken through his size field: the limbs (B05, B13, B17: lofted
+like Saud's, the upper arm's belly shared front and back, a shoulder on the
+forearm's, no ring at the knee), the shoulder cap standing over the arm (B14,
+B18: -24 mm into the arm on ZAYOS, now +2 to +6.5 over it), the trunk
+deepened as it is widened (B02, B16, B03, B12), the lat's seven links into the
+waist (B01), ZAYOS's waistband (B04) and gloves (B06).
+
+**It moved the joints, and turned faces inside out** (found when the suites
+were run on it; repaired in `d6ac0ea`). The joint table went through the new
+field and the pelvis stood 12 mm off the midline on the thug, 17 on AL-WAHSH,
+42 on ZAYOS; a limb's share where it leaves the trunk folded the skin through
+itself (ZAYOS's armpit 2,618 faces, the thug's crotch 320, ZAYOS's pubis 265
+vertices across the midline). Now the joint table goes through the field as
+it was before the first set, the trunk's side of an arm takes no more than
+the old weight, the hips' carry tapers over 26 mm on a man narrower than
+Saud, and `anatomy.check_field` runs in every build (`scale_to`): nothing
+inside out, nothing across the midline, every joint where the table put it
+(`field : the spine and the midline where they were; no face of the body
+inside out above the hips` in each build).
+
+**The five themes** (written 2026-11-11, merged `a148ff5`):
+- **The seat and the side of the hip** (B09, B15; `rig_export.own_the_seat`,
+  `check_seat`): the buttock and the hip's outer line were the thigh's by
+  bone heat, so in a knee strike the seat swung under the pelvis like a bag
+  (the patch under the waistband travelled 14.6-19.5 cm of the thigh's
+  length, now 3-5) and the waistband's back followed the thigh. A thigh's
+  share is capped by where the vertex sits on the thigh; the weight goes to
+  the pelvis. Run in every build on the joined mesh.
+- **The kneecap** (B10, B23; `own_the_knee`, `knee_held`): heat blends a
+  hinge evenly, so a bent knee's cap stood at cos(half the bend) of its
+  distance from the joint, a pipe bend 7.6 cm through where it is 13.3 at
+  rest. The trouser front at the knee is cut finer first (a long face turning
+  with the shin is a crease), then the kneecap is the shin's. **The elbow was
+  tried with the same pass and left out**: the numbers were erratic and the
+  pictures not better (a boxed facet on Saud, a spur on AL-WAHSH's).
+- **The neck and the head's join** (B22; `own_the_head` rewritten,
+  `check_neck`): the rigid zone's lower edge slopes (0.60 of a neck-length
+  under the jaw, 0.25 at the occiput, so the nape is the neck's), the head's
+  share climbs to it, the column fades over 0.5-1.0 of a neck-length (ZAYOS's
+  and AL-WAHSH's necks were wider than the 0.6 that was left to heat) and the
+  chest hands over to the neck from under the joint. 0.0 cm of new sharp fold
+  in the kick's tilt or with the head turned 45 degrees, in every build.
+- **The fist and the shoe** (B08, B11; `anatomy.hand`, `check_fist`,
+  `shoe`, `check_shoe`, `garments.soles`): a closed fist closes (fingers as
+  wide as their share of the knuckle row, the palm ending under the knuckles,
+  a knuckle head, a thumb web in place of the peg); the trainer is a shoe, not
+  a wedge (sections with upright sides, a heel counter, a collar, a toe box
+  that holds its height) over a sole in the upper's own plan, 2 mm outside it,
+  where it was a 9.8 cm plank.
+- **The cloth** (B19, B20; `garments`): the singlet no longer takes a strip of
+  the upper arm (`tank_region` keeps the arm's own skin), and the track
+  trousers no longer fold over and through themselves (`_unfold`: the edges
+  folded past 100 degrees are relaxed, 60 passes; `check_legs_apart`).
+  `check_holes` takes a garment lying right over a stripped face as cover,
+  because the unfolded crotch's roof leaves the skin 9-10 mm from the cloth.
+
+**Read by a second reader before it was built** -- a reader per theme, every
+finding tried against the code by another, no building: no wrong sign, unit
+or off-by-one that breaks a build, and the **checks are weaker than their
+reports say**. Seven of nine one-line mutations of the seat's code pass its
+check (the frame flipped, a leg lost, the freed weight sent to the head bone,
+the blend turned into a step); the neck's skull rule is circular (the check
+takes the skull from the same blend the pass obeys); the fist's hole rule
+reads exactly 0.00 cm as shipped on all four fingers (the bound mesh still
+measures 2-3 cm round); `check_shoe` is a model of the table, not of the
+mesh; four of the five parts of the sole's assert compare literals with
+themselves; the singlet's "holes in the arm" rule is empty by construction.
+**Not fixed, said plainly:** none of these checks has been made to catch those
+mutations -- the notes above are what each pass does, not what its check can
+prove. Two real defects were cheap and are fixed: the sole's plan was
+stretched onto the old plank's ends, which slid it 8 mm toward the heel and
+left the upper's last 2.3 cm standing outside it (7 mm at the tip) -- it is
+laid in the upper's own y now, the least ledge 2.0 mm measured, and the
+front-width rule is 0.72 of the ball's (the toe rows allow 0.71); and
+`check_holes` forgave a face 11-15 mm past a hem as "cloth near it" -- the
+cloth must now lie within about 37 degrees of the face's normal
+(`HOLE_OVER` 0.8). Not run by anyone: the thug and AL-WAHSH through the
+dressed flow at the repaired field before the rebuild, the left leg raised,
+the Special's 107 degrees of hip flexion, Down and GetUp's sit, hip
+extension.
+
+**Built and checked, 2026-11-18.** All six men rebuilt whole through
+`a148ff5` (one process each, two at a time, 35-47 minutes a man; Saud's
+iron arm re-baked on his rebuilt UVs, the souq fight scene rebuilt with the
+new rigs, the 45 souq FBX and 25 textures that run re-exports put back).
+Every build passed its own checks inside the build -- `check_field`,
+`check_seat`, the kneecap's two asserts, `check_neck`, the cloth's, the
+sole's, the rig's `verify` (the sole-corner model within 3 mm of the shoe's
+lowest vertex, which the readers had doubted) -- and every skeleton is the
+boss clips' to 0.0 m. Then the suites, on the real checkpoints: `--check`
+every man straight on all 9 rules; `--back-check` 4/4; `--neck-check` 5/5;
+`--posture-bite` 10/10; `--physique-check` 21/21 (16 before the five
+themes); `--grim-check` 27/27; `--head-check` 7/7; `--eye-check` 15/15;
+`--nose-check` 12/12; `--hair-check` 4/4; `--fabric-check` 2/2;
+`--face-check` 17/17; `--vein-check` 5/5; `--cloth-check` the tee and the
+track 6/6, the tank and joggers, and the checkpoints' 10/10 -- after three
+fixes to the suite itself, because **this is the first time its last two
+parts have run on real checkpoints** (the helper ran the first only): the
+joggers-as-track sabotage was answered by B04's "an open rim" (checked
+first; the waistband is 12.8 mm off Saud's waist in track trousers) -- that
+rule is let go for it, and "not fitted" answers (11.5 mm at 52 % of the leg,
+want 10); the tee's-shares sabotage on Saud is answered by "the eye is shut"
+before the shoe floor (his head's budget collapses first) -- both accepted
+for him; and the body-share sabotage no longer starved the shoes at 0.74 (the
+cliff moves with the shoe: 309 faces) -- 0.73 leaves 199 and is caught.
+`check_holes` with the directional clause finds 6 of Saud's 125,873 stripped
+faces uncovered (0 before it; the rule allows 0.05 %, 62). The pictures that
+carry the men are re-rendered through the look: `anime-men.png`, the souq
+fight frames, the street, the title, the IK sheet, the posture sheet, the HUD,
+menus and System windows, and the men's own 3D renders. **Not verified:** no
+engine has imported a model or a texture; the checks above are the builder's
+own, and the second reading's list of what they cannot catch stands.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

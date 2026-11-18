@@ -593,9 +593,16 @@ def _tank_cloth(bites):
     tt = empty("Tee")
     pp = _quiet(G.shell, body, "Pants", G.pants_region, 0.010, 0.003, fold=0.0012, fold_size=0.20)
     _quiet(G.fit, pp, "pants", body)            # the track's own drape
+    band0 = G.BAND_MOST
     try:
+        # (2026-11-18, the first full run of this part since the rebuild: the
+        # track trousers' waistband stands 12.8 mm off Saud's bare waist, so
+        # "an open rim" (B04's rule, checked first) answered, not "not fitted".
+        # That rule is let go here so the jogger rule is the one bitten.)
+        G.BAND_MOST = 1.0
         bites.run("joggers cut as track", "not fitted", lambda: G.check_cloth(tt, pp, body, bottom=bottom))
     finally:
+        G.BAND_MOST = band0
         gone(tt, pp)
     print("    (%.0f s)" % (time.time() - t0))
 
@@ -608,9 +615,10 @@ def _checkpoint_bites(bites, D):
     shoe floor (at least SHOE_FLOOR shoe faces after it), the strip's hole
     rule on the body before the collapse, the tank's UVs (check_uv_flat)
     -- clean; then the tee's shares on a tank (the shoes collapse), for
-    Saud the body's share at 0.74 (167 shoe faces, under the floor: on
-    the lean limbs of 2026-10-01 the cliff moved -- 0.76, which left the
-    body before them 53, leaves this one 399 and bit nothing), the
+    Saud the body's share at 0.73 (199 shoe faces, under the floor: the
+    cliff moves with the shoe -- 0.76 on the lean limbs of 2026-10-01 left
+    399 and bit nothing; 0.74 left 167 then and leaves 309 on the shoe of
+    2026-11-18; 0.73 leaves 199), the
     tee's arm strip left on under the tank, and the tank's chart started
     above its hem at 1.10. About a minute a run."""
     import io, contextlib, re
@@ -652,10 +660,15 @@ def _checkpoint_bites(bites, D):
         if r:
             print("  %-8s clean   shoe faces %d (floor %d); holes %d of %d before the collapse; tank UVs %d of %d flat" % (
                 kind, r["shoes"], P.SHOE_FLOOR, r["holes"][0], r["holes"][1], r["flat"][0], r["flat"][1]))
-        bites.run("%s: the tee's shares" % kind, "shoe faces", lambda run=run: run(shares=P.SHARES["tee"]))
+        # (2026-11-18: on Saud's rebuilt checkpoint the tee's shares collapse
+        # his head's budget too, and "the eye is shut" answers before the shoe
+        # floor does; the body share below is the one that bites the floor.)
+        bites.run("%s: the tee's shares" % kind,
+                  (lambda e: "shoe faces" in e or "the eye is shut" in e) if kind == "saud" else "shoe faces",
+                  lambda run=run: run(shares=P.SHARES["tee"]))
         if kind == "saud":
-            bites.run("saud: body share 0.74", "want %d" % P.SHOE_FLOOR,
-                      lambda run=run: run(shares=(0.74,) + tuple(P.SHARES["tank"][1:])))
+            bites.run("saud: body share 0.73", "want %d" % P.SHOE_FLOOR,
+                      lambda run=run: run(shares=(0.73,) + tuple(P.SHARES["tank"][1:])))
         real = G.stripped
         def arm_left(c, top="tee", no_tee=False, seen=True, real=real):
             if real(c, top, no_tee, seen):
