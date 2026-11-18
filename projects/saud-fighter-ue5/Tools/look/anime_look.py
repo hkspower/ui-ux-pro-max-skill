@@ -657,6 +657,19 @@ LOOK = {
     "LV_BLACK": 0.0,
     "LV_WHITE": 0.72,
     "LV_GAMMA": 1.75,
+    # 2026-11-18 ("scan colors then fix colors"): the gamma is on each
+    # channel of the screen, and a pure red's green and blue are the small
+    # ones, so it lifted them most: Saud's #ff1a3c (Lab hue 29 degrees)
+    # drew pink at 11 lit and 20 in shadow, Kuwait's flag red #ce1126 (32)
+    # at 21 lit, ZAYOS's gloves (29) at 16 lit. A red that is pure (the accent's
+    # own test, ACCENT_FROM..ACCENT_FULL, read off the screen's values) takes
+    # LV_RED_KEEP of the way to the levels' own lift of its red with its
+    # screen ratios of green and blue kept: 0.55 left Saud's lit side
+    # 5 degrees pinker, 0.85 left the shadows 6 degrees too orange (the
+    # film's black clip); 0.7 is within 4 degrees lit and in shadow, all
+    # three reds. Paint the grade does not call a red -- skin, a rust tee,
+    # an orange lamp -- is the levels' as before.
+    "LV_RED_KEEP": 0.7,
     # 6. speed lines. 2026-09-28, needles: a streak's angular share is
     # (SPEED_W0 + SPEED_W1 * its hash) * reach ** SPEED_TAPER -- a point at
     # the blow, full width at the edge -- where it was a fixed wedge faded
@@ -1130,7 +1143,7 @@ def _sub(code):
         "CLOUD_DARK": _f3(L["CLOUD_DARK"]), "CLOUD_LIT_DEG": _f(L["CLOUD_LIT_DEG"]), "CLOUD_LIT": _f3(L["CLOUD_LIT"]),
         "CLOUD_EDGE": _f(L["CLOUD_EDGE"]), "CLOUD_RIM": _f(L["CLOUD_RIM"]),
         "CLOUD_FROM_SIN": _f(math.sin(math.radians(L["CLOUD_FROM_DEG"]))), "CLOUD_DRIFT": _f(L["CLOUD_DRIFT"]),
-        "LV_BLACK": _f(L["LV_BLACK"]), "LV_WHITE": _f(L["LV_WHITE"]), "LV_GAMMA": _f(L["LV_GAMMA"]),
+        "LV_BLACK": _f(L["LV_BLACK"]), "LV_WHITE": _f(L["LV_WHITE"]), "LV_GAMMA": _f(L["LV_GAMMA"]), "LV_RED_KEEP": _f(L["LV_RED_KEEP"]),
         "VIGNETTE_FROM": _f(L["VIGNETTE_FROM"]), "VIGNETTE_TO": _f(L["VIGNETTE_TO"]), "VIGNETTE": _f(L["VIGNETTE"]),
         "LINE_FIGHTER": _f(L["LINE_FIGHTER_PX"]), "LINE_WORLD": _f(L["LINE_WORLD_PX"]),
         "DEPTH_EDGE": _f(L["DEPTH_EDGE"]), "NORMAL_EDGE": _f(L["NORMAL_EDGE"]),
@@ -1555,7 +1568,15 @@ float Vr = length((VUV - 0.5) * float2(Aspect, 1.0)) / (0.5 * sqrt(Aspect * Aspe
 // picture's whites reach white; not on an impact frame, whose cut reads it.
 // Before the vignette (2026-10-03): after it, the gamma lifted the dark
 // corners back up and the vignette all but went.
-float3 Out = lerp(pow(saturate((S - LV_BLACK) / (LV_WHITE - LV_BLACK)), 1.0 / LV_GAMMA), S, Imp);
+float3 Lv = pow(saturate((S - LV_BLACK) / (LV_WHITE - LV_BLACK)), 1.0 / LV_GAMMA);
+// (2026-11-18) a pure red -- the accent's own test, on the screen's values
+// taken back to light -- keeps its screen ratios of green and blue
+// LV_RED_KEEP of the way: the gamma lifted them and turned it pink
+float3 SLin = pow(max(S, 0.0), 2.4);
+float RedPure = smoothstep(ACCENT_FROM, ACCENT_FULL, (SLin.r - max(SLin.g, SLin.b)) / max(SLin.r, 0.0001));
+float3 LvRed = float3(Lv.r, Lv.r * S.g / max(S.r, 0.0001), Lv.r * S.b / max(S.r, 0.0001));
+Lv = lerp(Lv, LvRed, RedPure * LV_RED_KEEP);
+float3 Out = lerp(Lv, S, Imp);
 // (2026-10-07) its darkening tinted per channel: the corners lean
 // violet-navy, the tint's luminance 1 so they are no darker than before
 Out *= 1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr) * (1.0 - Imp) * VIGNETTE_TINT;
@@ -2177,7 +2198,16 @@ def levels(S):
     import numpy as np
     L = LOOK
     x = np.clip((S - L["LV_BLACK"]) / (L["LV_WHITE"] - L["LV_BLACK"]), 0.0, 1.0)
-    return x ** (1.0 / L["LV_GAMMA"])
+    lv = x ** (1.0 / L["LV_GAMMA"])
+    if "grey_reds" in _FLAGS:
+        return lv
+    # a pure red keeps its screen ratios of green and blue (LV_RED_KEEP): the
+    # accent's own test, on the screen's values taken back to light
+    lin = np.maximum(S, 0.0) ** 2.4
+    pure = _smooth(L["ACCENT_FROM"], L["ACCENT_FULL"],
+                   (lin[..., 0] - np.maximum(lin[..., 1], lin[..., 2])) / np.maximum(lin[..., 0], 1e-4))
+    keep = np.concatenate([lv[..., :1], lv[..., :1] * S[..., 1:] / np.maximum(S[..., :1], 1e-4)], axis=-1)
+    return lv + (keep - lv) * (pure * L["LV_RED_KEEP"])[..., None]
 
 
 def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0, V=None, moon=None, sky_time=0.0):
@@ -2369,7 +2399,6 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0, V=N
     wsat = np.where(sky, L["SKY_SATURATION"], wsat)
     sat = lerp(np.where(fighter, L["SATURATION"], wsat), L["ACCENT_SAT"], accent)
     out = lerp((out @ luma)[..., None], out, sat[..., None])
-
     # 7a. the impact frame, drawn: the lit side ember, the rest ink (the
     # mask M_Anime_Frame cuts to the impact's tone)
     if impact > 0.0:
@@ -3248,7 +3277,9 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          # the clouds as they were before that day
          "crushed_floors", "heavy_dots", "inked_men", "thick_hatch", "black_clouds",
          # 2026-11-18, the fire's heart: raw, white at once, and capped to nothing
-         "lemon_cores", "white_cores", "dim_cores")
+         "lemon_cores", "white_cores", "dim_cores",
+         # 2026-11-18, the reds: lifted pink by the levels' gamma
+         "grey_reds")
 
 
 def power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c):
@@ -3722,6 +3753,8 @@ def check(bite=None, rig=None):
             LOOK["EMIT_WHITE_TO"] = LOOK["EMIT_WHITE_FROM"] + 0.5
         if bite == "dim_cores":
             LOOK["EMIT_CAP"] = 0.05
+        if bite == "grey_reds":
+            _FLAGS.add(bite)
         if bite == "black_clouds":
             LOOK["CLOUD_DARK"] = (0.016, 0.018, 0.027)
         if bite == "dim_hearts":
@@ -4292,6 +4325,37 @@ def check(bite=None, rig=None):
                 "the fire's heart: a white lamp stays white (a spread of %.3f between its channels, wanted 0.03 at most)" % max(float(np.ptp(fc_c)) for fc_c in fc_white)
         finally:
             LOOK["GRAIN"], LOOK["PAPER"] = fc_gp
+        # ------------------------------------------------ 2026-11-18, the reds' hue
+        # ("scan colors then fix colors".) Three pure reds as paint on a man,
+        # lit (T 1.2), mid (0.6) and in shadow (0.4), grain and paper off,
+        # in CIELAB hue on the screen against the paint's own. The levels'
+        # gamma lifted a red's green and blue and drew Saud's red pink
+        # (11 degrees for 29) and Kuwait's (21 for 32).
+        rh_gp = LOOK["GRAIN"], LOOK["PAPER"]
+        LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0
+        try:
+            rh_mid = (slice(200, 880), slice(16, 80))
+
+            def rh_hue(rh_rgb):
+                rh_li = np.where(rh_rgb <= 0.04045, rh_rgb / 12.92, ((np.clip(rh_rgb, 0, 1) + 0.055) / 1.055) ** 2.4)
+                rh_x = rh_li @ np.array([[0.4124, 0.2126, 0.0193], [0.3576, 0.7152, 0.1192], [0.1805, 0.0722, 0.9505]]) / np.array([0.95047, 1.0, 1.08883])
+                rh_f = np.where(rh_x > 216 / 24389, np.cbrt(rh_x), (24389 / 27 * rh_x + 16) / 116)
+                return math.degrees(math.atan2(200 * (rh_f[1] - rh_f[2]), 500 * (rh_f[0] - rh_f[1]))) % 360.0
+            rh_worst = (0.0, "")
+            for rh_name, rh_paint in (("Saud's #ff1a3c", (255, 26, 60)), ("Kuwait's #ce1126", (206, 17, 38)), ("a glove (190, 0, 40)", (190, 0, 40))):
+                rh_p = np.array(rh_paint, float) / 255.0
+                rh_a = np.where(rh_p <= 0.04045, rh_p / 12.92, ((rh_p + 0.055) / 1.055) ** 2.4)
+                for rh_T in (1.2, 0.6, 0.4):
+                    rh_C, rh_A, rh_N, rh_D, rh_on = _flat(96, 0.1, lit=1.0, depth=600.0, fighter=True, h=1080)
+                    rh_A = np.broadcast_to(rh_a, rh_A.shape).copy()
+                    rh_d, rh_m = look(rh_A * rh_T, rh_A, rh_N, rh_D, rh_on)
+                    rh_dh = (rh_hue(np.median(rh_d[rh_mid].reshape(-1, 3), axis=0)) - rh_hue(rh_p) + 180.0) % 360.0 - 180.0
+                    if abs(rh_dh) > abs(rh_worst[0]):
+                        rh_worst = (rh_dh, "%s at T %.1f" % (rh_name, rh_T))
+            assert abs(rh_worst[0]) <= 6.0, \
+                "the reds: a pure red keeps its paint's hue on the screen (%s drew %+.1f degrees off, wanted 6 at most)" % (rh_worst[1], rh_worst[0])
+        finally:
+            LOOK["GRAIN"], LOOK["PAPER"] = rh_gp
         # ------------------------------------------------ 2026-10-02, the painted sky
         # a view of the sky alone, up toward the moon (60 degrees across,
         # 0.05 a pixel: a star is a few pixels), at a time it is clear

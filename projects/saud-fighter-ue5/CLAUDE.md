@@ -5978,6 +5978,144 @@ older ranges the attacker re-ran). **Not verified:** no engine;
 never compiled; that a launch shows as Falling and lands part-way
 through a tick is the engine's behaviour as known, not seen.
 
+## The over-dark areas -- 2026-11-18
+
+Asked as "fix over dark areas", settled with the author as this build's
+look (the pictures of 2026-11-10) and everything too dark in it: the
+dotted shadow patches on the men, the dark sides of buildings, the
+ground, the black cloud blots. The night stays a night ("The dark areas",
+2026-10-04, had settled "no black holes" at L* 12; this raises what is
+drawn dark, not the picture's middle).
+
+**The scan.** Thirteen views drawn as the game draws them (the souq's
+fight, street and gate at 540 lines; six map views at 800 x 450; Saud and
+ZAYOS full length and their faces), their passes kept, and every pixel
+under L* 16, 20 and 25 put down to its cause: a line, the hatching, the
+dot screen, a man's or the world's deep, shadow or lit tone, the sky. A
+PATCH is a tone with its marks, read by its mean light, as the eye reads
+it.
+
+**What it found.** The dark was the world's shadow tone and what is drawn
+on it, not the men:
+- **The world's shadow side** -- 21-41 % of a map view, the gate wall,
+  the floor behind the men on their sheet -- was a patch at L* 18-21: its
+  tone on the black ladder's shadow floor (21.9) under a dot screen of
+  ink at 0.70 over a fifth of it (L* 7-10 on a map view, 15 on the gate).
+- **The deep tone** -- under the island's trees (9 % of its clearing), a
+  man's armpit or the hollow of a fist -- at L* 14 under a hatch of two
+  pixels in five, crossed: a black patch.
+- **The clouds' dark tone** was 0.71 of the sky's horizon behind them:
+  black blots with a pale rim (L* 21 on a 31 sky in the fight frame).
+- A quarter to a half of every view stood under L* 25 (22-48 %), 4-28 %
+  under L* 20 with the lines left out.
+- The men's own tones were not dark (a man's shadow patch L* 42-51); the
+  dotted patches on them were the dots (ink at 0.40) and the crossed
+  hatch on their deep.
+
+**What changed** -- `Tools/look/anime_look.py`, `LOOK` only; the HLSL
+takes the same numbers:
+
+| | was | now |
+| --- | --- | --- |
+| the ladder's floors, deep / shadow / lit | 0.0105 / 0.0155 / 0.0220 | 0.018 / 0.0215 / 0.027 |
+| the world's shadow and deep tones | 0.12 / 0.016 | 0.16 / 0.05 |
+| a man's deep tone | 0.045 | 0.07 |
+| the world's level; the men's lift | 0.60; 1.8 | 0.64; 1.95 |
+| the dot screen: radius; the world's; a man's | 1.5 px; 0.70; 0.40 | 1.3 px; 0.55; 0.25 |
+| the hatching's width | 0.34 (two pixels of five at 1080 lines) | 0.19 (one) |
+| a cloud's dark tone | (0.016, 0.018, 0.027) | (0.027, 0.030, 0.046), the horizon's |
+
+On the look's chart, in L* on the screen: the souq's ground paint deep /
+shadow / lit 14.3 / 21.9 / 29.3 -> 25.1 / 28.8 / 33.6 (the ladder's steps
+3.7 and 4.8); the dots take 0.132 of the world's shadow light (0.195) and
+0.067 of a man's (0.111); the crossed hatching 0.26 of a deep tone's
+(0.44). Tried and not kept: the world's level at 0.70 (the gate's fire
+greyed, R/B 1.38 against the graded 1.4); a lighter vignette (0.32: "the
+vignette takes the corners into the dark" fails); the dots' or the
+hatching's ALPHA under 0.5 (every rule that counts a mark reads its mask
+at 0.5).
+
+**Not changed:** the ink and every line; the terminators (how much of a
+man or a wall is in shadow); the fog; the vignette; the levels; the sky's
+bands -- its zenith is still near black (L* 8), so a view tipped up past
+45 degrees still has a dark top; and no rule of `check()`: the world is
+still darker and greyer than the men, its shadows still crushed under
+theirs (0.42; the rule 0.45).
+
+## Colours, scanned: the fire's heart and the reds -- 2026-11-18
+
+Asked as "scan colors then fix colors", settled as the Unreal look and
+"wrong or dull colours" -- the dark, muted mood stays ("Grounded, muted
+colour" in the art direction is not what was asked to change).
+
+**The scan.** The thirteen views of "The over-dark areas" above, their
+passes kept; every pixel put to a class -- skin lit and in shadow, kit, the
+world lit and in shadow, sky, lamp and fire -- and each class read in
+CIELAB: hue and chroma against the paint's, the share gone lemon (green
+over 0.9, blue under 0.30), the share clipped flat at blue 0. A second
+reader, who had not run the scan, took each finding to the pictures. Most
+were design and are left (the greyed world, the sky's cold cast, the
+Clearing's amber). Two were real.
+
+**1. A fire's heart was a flat lemon** (`6405e90`). A lamp or a fire
+kept its own light raw, so its green caught up with its red through the
+film's curve and its blue stayed 0: the souq's fire (hue 57) read (253,
+253, 1), hue 102, over 2.5-3 % of the street frame and every pool's
+middle. Its light is now held to `EMIT_CAP` (1.6) of the key at its own
+hue -- the amber it reaches first, (252, 182, 22) -- and goes to white by
+the road a hot thing takes, gold, butter, cream, ivory, from
+`EMIT_WHITE_FROM` 5 to `EMIT_WHITE_TO` 100 times the key; a white lamp
+stays white. In `check()`, "the fire's heart": never a lemon across T 5-60,
+amber first (R 0.95 or more, G 0.80 or less, B 0.10 or less at T 6.5),
+hotter is never darker and the hottest is the picture's white, a white
+lamp keeps its channels together. Sabotages `lemon_cores`, `white_cores`,
+`dim_cores`. `--graded-check` reads the real frames for it too
+("fire cores go lemon", the lemon share of the graded views) with
+`lemon_cores` as its sabotage.
+
+**2. A pure red was drawn pink.** Saud's `#ff1a3c` (CIELAB hue 29) drew
+at 11 lit and 20 in shadow, Kuwait's flag red `#ce1126` (32) at 21 lit,
+ZAYOS's gloves (29) at 16. Measured step by step on a flat man in the
+look: the film curve alone keeps a pure red's hue within 5 degrees of the
+paint's at every light level; it is `levels()`, the
+gamma M_Anime_Frame lays on each channel of the screen after the film
+(`LV_GAMMA` 1.75), which lifts a pure red's small green and blue most. A
+red that is pure -- the accent's own test, `ACCENT_FROM`..`ACCENT_FULL`,
+read off the screen's values taken back to light -- now takes
+`LV_RED_KEEP` (0.7) of the way to the levels' lift of its red with its
+screen ratios of green and blue kept. The 0.7 is the sweep's middle: 0.4
+left Saud's lit side 9 degrees pink, 0.85 left the shadows 6 degrees too
+orange (the film's black clip takes the small blue). Measured, flat man,
+lit / mid-and-shadow, paint hue against screen hue: Saud's red -18.5 /
+-8.9 -> -2.1 / +1.7; Kuwait's -10.9 / -3.1 -> +1.0 / +3.4; the gloves
+-12.5 / -4.7 -> +1.8 / +4.1. Skin, a rust tee and an orange lamp are not
+pure and take the levels as before; a flame, the impact frame and the
+HUD are drawn after them. In `check()`, "the reds": three pure reds lit,
+mid and in shadow stay within 6 degrees of their paint's hue; sabotage
+`grey_reds` (the levels as they were) draws them 18 degrees off and is
+caught.
+
+**Tried, not kept.** A grade step moving a pure red onto its paint's own
+chromaticity (the albedo as a direction) fixed the cold shadow tint's
+9 degrees and nothing in the lit state, where the levels are the cause, and
+once the levels were fixed it did nothing: removed. A levels step that
+keeps every colour's ratios would have lifted every saturated colour in
+the picture -- a far wider change than asked.
+
+**Seen, left.** Fire-lit surfaces clip flat at blue 0 over 4.3 % of the
+gate frame's warm pixels and 7.2 % of the street's (the pool's saturation
+past the gamut, `POOL_SAT` 1.6, is deliberate); a small blue floor on the
+emit ladder would soften it and was not asked for.
+
+**State.** The look and its checks are in: `anime_look.py --check` passes
+and the whole `--bite` suite on the final file catches 181 of 181 (the
+over-dark areas', the fire's heart's and the reds' among them). The
+pictures are re-rendered through it in one queue (see the commits).
+**Not verified:** no engine has built
+the material (the HLSL takes the same numbers, and the new `levels` lines
+are read-reviewed, not run); the pictures are Blender's through the numpy
+mirror.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and
