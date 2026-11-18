@@ -5884,6 +5884,100 @@ for `ChooseBlow`, the shove (`FShove` in `UpdateFeet`; that a blocked
 blow's `LaunchCharacter` shows as Falling inside `AirGrace` is read from
 the engine's behaviour, not seen), and the clock on `FSaudFeetBack`.
 
+## The IK, read a second time -- 2026-11-11, merged 2026-11-18
+
+The review the section above owed. Five readers with probes on the real
+sources went over the fixes of 2026-11-10 in both builds, and each one's
+two heaviest findings were tried by a second reader: sixteen findings,
+eight re-checked -- seven real, one (the yaw's sign, below) not a fault of
+those fixes. Two builders then fixed this build's, one after the other.
+**The helpers' limit ran out twice.** The four attackers who were to try
+to break the builders' fixes ran for forty minutes: the one on the feet
+had found a gap and corrected it before it was cut off (it is in); the
+other three never reported. What follows was merged on the harness and
+its sabotages alone, and that second attack is still owed.
+
+**Fixed** (all in `Combat/SaudIK.h`, engine-free; the `.cpp` only wires
+it; checks in `Tools/harness/tests/ik.cpp`, sabotages on lines 964-1006
+of `bites.txt`):
+
+- **The shove planted a guard who was WALKING.** A guard already over its
+  shuffle's pace when the blow landed had both feet planted for 0.20 s
+  while he walked on, then handed back along the floor: Saud's guard walk
+  at 130 cm/s, a ball 15-30 cm behind him, 409-686 cm/s over the floor.
+  `FShove::bWalked` (Step takes his ground speed and size): a walked guard
+  glides through the blow as he did before the shove -- 0-5.2 cm, 226 cm/s
+  at the most, the same as with no shove rule at all. And, the attacker's
+  correction: for `WalkBackSeconds` (0.12) after such a blow his walk
+  coming back is not read as a stop -- a second man's blow landing in
+  those frames shoved him all the same (30.6 cm, 458 cm/s; now shoved in
+  0 of 1,968 runs).
+- **The feet switched off in the middle of every shove.** The engine side
+  wanted the feet in the air only while sinking under a typed 50 cm/s; a
+  launch's own fall passes that before it lands (this project's gravity
+  is 1400, not 980: `Config/DefaultEngine.ini`), so from 45 Hz up both
+  holds were dropped for 1-3 frames of every push (3-5 cm of a blocked
+  kick's 12), and for most of a push down a slope.
+  `SaudIK::AirIsGround(AirTime, Sink, GravityZ, bShoved)`, with `AirGrace`
+  moved into the header: the limit is the fall of the capsule's floor gap
+  under the world's gravity (94 cm/s here), and a shoved guard keeps the
+  ground through the whole grace. 0 frames and 0.00 cm on the flat at
+  30-144 Hz.
+- **A turn that followed a turn was drawn the wrong way first** (78
+  degrees back before 168 forward, or 163 in a frame): `TurnStep`'s clip
+  state was never restarted for a new turn clip. It takes the crossfade's
+  serial now (`FTurn::ClipSerial`) and finds the lag afresh: 0.000 off the
+  second clip's curve, 6.06 through the cut.
+- **The guard was deaf for 0.08 s after a held blow ended by itself.**
+  `ChooseBlow` keeps a blow of which nothing shows as the held one, at
+  nothing, until another shows: a blow that begins after it is met 1.00
+  as it lands (0.00-0.58 before).
+
+**The recorded numbers change with the test, not the fix:** the push in
+`ik.cpp` is the capsule's fall at gravity 1400 landing part-way through a
+tick, where it was a typed 0.064 s -- a blocked kick at 60 Hz is "pushed
+11.8 cm, 0.00 cm slide, 2 steps, last landed 0.63 s" (10.6 cm above).
+
+**Three lines of the section above were wider than what was measured:**
+"0.000 degrees off the clip's curve" held only for a turn out of a clip
+that is not a turn (it holds for a turn after a turn now); F22's "then the
+one furthest in, at once" only for a blow already showing; F23's "0.00 cm
+on the first frame" is for a man who STANDS -- one back in view walking
+within a stride of a 15 cm step is still traced under his last drawn pose
+(13.6-16.3 cm on the first frame in 9-28 % of places; 28-65 % before F23).
+
+**Left, each reproduced first:** a guard that STANDS when hit and starts
+to walk inside the shove's 0.20 s (17-31 cm, 230-695 cm/s); a guard pushed
+back down a steep slope at a low frame rate (the fall outlasts the grace:
+15 degrees, a finisher at 30 Hz, 10.3 cm); F23's walking case, above;
+`LegPole`'s blend flipping for a leg bent a hair AGAINST its sole's
+forward (latent: none of the 1,216 mocap leg-frames or the five guards
+enters the band; the other clips are unmeasured); and the arm gate
+pulling ZAYOS's jab 0.80 to a man 60-80 cm to its side -- no rule about
+the shoulder shuts him out without shutting out the man straight ahead.
+
+**The yaw's sign -- read, not changed, the author's to decide.** The
+"if" recorded on 2026-10-04 has an answer by reading: Unreal's + yaw is
+toward +Y, a man's RIGHT (`SaudArena`, `SaudIK` and the tests already say
+so), and `SaudSteer` calls it his left. If the FBX import is as the rest
+of the project already assumes, every turn on the spot plays the other
+side's clip (the body flips about 164 degrees through the cut), every
+strafe and dash plays the other side's, and since 2026-11-10 a half turn
+spins 150-356 degrees through its cut on both sides. One step settles it
+(`SaudSteer`'s sides, the octant, the dash's quadrant, `SaudFeel::
+TurnStartYaw`, the tests taking the clip from the game): it was built and
+its harness passes, as a patch that is NOT in the repository. Only an
+engine can prove which way the import goes.
+
+**Checked:** the harness passes; the sabotages on lines 955-1006, 42 of
+42; the whole of `bites.txt`, 785 of 785, on the builders' patch before
+the attacker's correction went on top (after it: those 42, and the four
+older ranges the attacker re-ran). **Not verified:** no engine;
+`SaudMotionAnimInstance.cpp`'s part -- the order guard, shove, ground;
+`Move->GetGravityZ()`; `Fade.Serial` handed to `TurnStep` -- is read,
+never compiled; that a launch shows as Falling and lands part-way
+through a tick is the engine's behaviour as known, not seen.
+
 ## Working rules
 
 - **Don't add things that were not asked for.** Build the requested change and

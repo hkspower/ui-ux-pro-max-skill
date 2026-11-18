@@ -36,6 +36,7 @@ fresh() {   # a clean copy of what the harness compiles, same layout
     for d in Content/* Tools/*; do
         [ -e "$TMP/src/$d" ] || ln -s "$PWD/$d" "$TMP/src/$d"
     done
+    ln -s "$PWD/Config" "$TMP/src/Config"   # linked, never sabotaged: the ik test reads the project's gravity (2026-11-11)
 }
 
 run_test() {   # $1 test name; builds and runs it in the copy; output in $TMP/out

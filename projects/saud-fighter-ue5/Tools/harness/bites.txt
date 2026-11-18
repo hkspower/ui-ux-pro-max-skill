@@ -961,3 +961,46 @@ ik|Source/SaudFighter/Combat/SaudIK.h|s#bTeleported .. DrawnClock != LastUpdateC
 ik|Source/SaudFighter/Combat/SaudIK.h|s#return !bDrawn .. bTeleported .. DrawnClock#return !bDrawn \&\& bTeleported \&\& DrawnClock#|and so does a man put through a door
 ik|Source/SaudFighter/Combat/SaudIK.h|s#DrawnClock != LastUpdateClock;#DrawnClock != LastUpdateClock + 1.0;#|else where the feet will be
 
+# ---- 2026-11-11, the IK's second reading: the feet
+# a guard WALKED faster than its shuffle into the blow is not shoved (FShove's bWalked)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#else if (bLaunched \&\& bWalked) Left = 0.f;#else if (bLaunched \&\& bWalked) Left = ShoveSeconds;#|a guard walked faster than its shuffle when the blow lands is not shoved
+ik|Source/SaudFighter/Combat/SaudIK.h|s#else if (bLaunched \&\& bWalked) Left = 0.f;#else if (bLaunched \&\& bWalked) Left = ShoveSeconds;#|a guard walked faster than its shuffle into a blocked blow glides through it
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!bLaunched \&\& Left <= 0.f) bWalked = #if (!bLaunched) bWalked = #|a second blow inside the shove arms it again
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!bLaunched \&\& Left <= 0.f) bWalked = #if (Left <= 0.f) bWalked = #|a walked guard is not shoved on a later frame of a push slower than its pace either
+ik|Source/SaudFighter/Combat/SaudIK.h|s#bWalked = GroundSpeed > FMath::Max(Size, 0.1f) \* BlockShuffleMax;#bWalked = GroundSpeed > FMath::Max(Size * 0.f + 1.f, 0.1f) * BlockShuffleMax;#|the pace a guard is walked at grows with the man
+ik|Source/SaudFighter/Combat/SaudIK.h|s#bWalked = GroundSpeed > FMath::Max#bWalked = bWalked ? true : GroundSpeed > FMath::Max#|a guard that has stopped walking is shoved by the next blow
+ik|Source/SaudFighter/Combat/SaudIK.h|s#bWalked = GroundSpeed > FMath::Max#bWalked = GroundSpeed >= 0.f * FMath::Max#|a guard edging along inside its pace when the kick lands is still shoved
+ik|Source/SaudFighter/Combat/SaudCharacter.cpp|s#bBlocking ? 0.38f : 1.f#bBlocking ? 0.50f : 1.f#|the walk tested here is the game's
+# a walked guard's walk coming back from a blow is not a stop: a second man's blow there does not shove him (FShove's Back, WalkBackSeconds; the fixes attacked)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bLaunched \&\& bWalked) Back = WalkBackSeconds;#if (bLaunched \&\& bWalked) Back = 0.f;#|a walked guard whose walk is coming back from a blow is not read as stopped
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (bLaunched \&\& bWalked) Back = WalkBackSeconds;#if (bLaunched \&\& bWalked) Back = 0.f;#|a second man's blow as a walked guard's walk comes back does not plant him either
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (Back > 0.f) return Left > 0.f;#if (Back > 9.f) return Left > 0.f;#|a walked guard whose walk is coming back from a blow is not read as stopped
+ik|Source/SaudFighter/Combat/SaudIK.h|s#Back = FMath::Max(0.f, Back - FMath::Max(0.f, Dt));#Back = FMath::Max(0.f, Back);#|...for WalkBackSeconds on the ground and no longer
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float WalkBackSeconds = 0.12f;#constexpr float WalkBackSeconds = 0.03f;#|a second man's blow as a walked guard's walk comes back does not plant him either
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float WalkBackSeconds = 0.12f;#constexpr float WalkBackSeconds = 0.20f;#|...and it is over before one man's next blow can land
+ik|Content/Data/DT_Attacks.csv|s#^Jab,Box,7,0.07,0.06,0.13,#Jab,Box,7,0.07,0.06,0.03,#|...and it is over before one man's next blow can land
+# a launch's own fall is still the ground, for the feet (AirIsGround, AirSinkMax, AirGrace)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return AirSinkSlack \* FMath::Sqrt(2.f \* FMath::Abs(GravityZ) \* FloorGapMax);#return 50.f + 0.f * GravityZ;#|a launch with no lift is the ground on every frame of its fall
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return AirSinkSlack \* FMath::Sqrt(2.f \* FMath::Abs(GravityZ) \* FloorGapMax);#return 50.f + 0.f * GravityZ;#|the feet's share stays whole through a blocked kick's launch, shoved or not
+ik|Source/SaudFighter/Combat/SaudIK.h|s#2.f \* FMath::Abs(GravityZ) \* FloorGapMax#2.f * (980.f + 0.f * GravityZ) * FloorGapMax#|a launch with no lift is the ground on every frame of its fall
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float AirSinkSlack = 1.15f;#constexpr float AirSinkSlack = 1.f;#|the sink a launch may have is the fall of the widest floor gap under the world's own gravity
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float AirSinkSlack = 1.15f;#constexpr float AirSinkSlack = 1.5f;#|a man who walks off a ledge has lost the ground inside 0.07 s
+ik|Source/SaudFighter/Combat/SaudIK.h|s#(bShoved \(..\) Sink < AirSinkMax#((bShoved \&\& false) \1 Sink < AirSinkMax#|...and pushed back down a slope of 5 degrees
+ik|Source/SaudFighter/Combat/SaudIK.h|s#(bShoved \(..\) Sink < AirSinkMax#((bShoved \&\& false) \1 Sink < AirSinkMax#|a shoved guard keeps the ground through the grace however fast the slope lets him sink
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return AirTime <= AirGrace \&\& (bShoved#return AirTime <= 10.f * AirGrace \&\& (bShoved#|a shoved guard keeps the ground through the grace however fast the slope lets him sink, and no longer
+ik|Source/SaudFighter/Combat/SaudIK.h|s#constexpr float AirGrace = 0.10f;#constexpr float AirGrace = 0.04f;#|a shoved guard's feet have the ground on every frame of the push
+ik|Tools/harness/tests/ik.cpp|s#Slurp("Config/DefaultEngine.ini")#Slurp("Config/DefaultGame.ini")#|the fall tested here is the game's
+
+# ---- 2026-11-11, the IK's second reading: the arms and the turn
+# a turn clip that follows a turn clip is a new clip coming in: its lag found afresh (TurnStep's ClipSerial)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!S.bClip .. ClipSerial != S.ClipSerial)#if (!S.bClip)#|a turn that follows a turn: the body turns once more, by the second snap's own angle
+ik|Source/SaudFighter/Combat/SaudIK.h|s#if (!S.bClip .. ClipSerial != S.ClipSerial)#if (!S.bClip)#|...standing where it stood through the second cut, and ending on the facing
+ik|Source/SaudFighter/Combat/SaudIK.h|s#S.ClipSerial = ClipSerial;#S.ClipSerial = 0 * ClipSerial;#|a turn that follows a turn: the body turns once more, by the second snap's own angle
+ik|Source/SaudFighter/Combat/SaudIK.h|s#++Serial;#Serial += 0;#|a turn that follows a turn: the body turns once more, by the second snap's own angle
+ik|Tools/harness/tests/ik.cpp|s#bTold ? Fade.Serial : 0);#bTold ? Fade.Serial : Fade.Serial);#|...which takes the crossfade's serial
+ik|Source/SaudFighter/Combat/SaudMotionAnimInstance.cpp|s#ClipStartYaw, ClipLeft, bNewLook, Fade.Serial);#ClipStartYaw, ClipLeft, bNewLook);#|the anim instance hands TurnStep the crossfade's serial
+# a held blow that has ended by itself stays the held one, at nothing, so the guard is free at once (ChooseBlow)
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return (Best >= 0 .. !bHave) ? Best : Held;#return Best;#|a blow that begins once nothing of the held one shows is met whole as it lands
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return (Best >= 0 .. !bHave) ? Best : Held;#return Best;#|...and nothing is left showing of a blow that has ended by itself
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return (Best >= 0 .. !bHave) ? Best : Held;#return Best;#|a man's second jab is met whole as it lands
+ik|Source/SaudFighter/Combat/SaudIK.h|s#return (Best >= 0 .. !bHave) ? Best : Held;#return bHave ? Held : Best;#|a second man's blow thrown into the first man's recovery is met

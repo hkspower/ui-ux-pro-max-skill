@@ -52,12 +52,12 @@ namespace
 	/** How far above and below the character's floor a foot is looked for. */
 	constexpr float TraceUp = 60.f;
 	constexpr float TraceDown = 70.f;
-	/** A blow's push (LaunchCharacter, on every hit, block and parry) puts him
-	    in Falling with no lift, and the capsule drops its ~2 cm floor gap in
-	    0.064 s: a tenth of a second of that, sinking slower than AirSinkMax,
-	    is still standing. Walking off a ledge sinks faster at once. */
-	constexpr float AirGrace = 0.10f;
-	constexpr float AirSinkMax = 50.f;
+	// (A blow's push -- LaunchCharacter, on every hit, block and parry -- puts
+	// him in Falling with no lift, and the capsule drops its ~2 cm floor gap:
+	// in 0.052 to 0.059 s at this project's gravity, 1400; 0.064 s was the
+	// engine's 980. Whether that is still the ground is SaudIK::AirIsGround's
+	// to say since 2026-11-11, with SaudIK::AirGrace; the sink was a typed
+	// 50 cm/s here, which the launch's own fall passes before it lands.)
 
 	const FName& MarkBoneOf(SaudIK::EMarkBone B)
 	{
@@ -931,32 +931,36 @@ void USaudMotionAnimInstance::UpdateFeet(AFighterBase* Fighter, const FSaudFeetB
 	const UCapsuleComponent* Capsule = Fighter->GetCapsuleComponent();
 	if (!Mesh || !World || !Capsule) return;
 
-	// No ground under a man in the air, on the floor, mid-dash or climbing;
-	// a blow's push is still the ground (AirGrace).
 	const UCharacterMovementComponent* Move = Fighter->GetCharacterMovement();
 	const bool bFalling = Move && Move->IsFalling();
 	AirTime = bFalling ? AirTime + DeltaSeconds : 0.f;
 	const FVector Vel = Fighter->GetVelocity();
-	const bool bGround = Move && (Move->IsMovingOnGround() || (bFalling && AirTime <= AirGrace && Vel.Z > -AirSinkMax));
 	const EFighterState St = Fighter->State;
-	Frame.bFeetWanted = bFeetOnGround && bGround
-		&& St != EFighterState::Down && St != EFighterState::Dead && St != EFighterState::Dash;
 	Frame.bTeleported = bTeleported;
 	Frame.Velocity = FVector(Vel.X, Vel.Y, 0.f);
-	const bool bAttacking = St == EFighterState::Attack;
-	const bool bStanding = Frame.Velocity.Size() < SaudFeel::WalkThreshold;
-	Frame.bSettleFeet = bStanding && !bAttacking;
-	const SaudPlants::FClip* Newest = NewestPlants();
+	const float GroundSpeed = static_cast<float>(Frame.Velocity.Size());
 	// his guard, as the block's cover asks it (SaudIK::GuardUp, 2026-11-10: this
 	// asked `St == EFighterState::Block`, a state nothing sets, so no guard ever
 	// shuffled); not under a turn clip, which shows before the Block does
 	const bool bGuardUp = SaudIK::GuardUp(Fighter->bBlocking, St == EFighterState::Idle || St == EFighterState::Walk,
 	                                      St == EFighterState::Block, Fighter->GetUpRemaining) && !NewestTurns();
 	// a guard a blow has shoved keeps its feet and steps after him (SaudIK::FShove,
-	// 2026-11-10): the blow's launch is the push -- in the air, inside AirGrace.
-	// (A guard stepping off a kerb reads the same for that moment; his feet were
-	// kept through the grace already.)
-	const bool bShoved = Shove.Step(bGuardUp, bFalling && AirTime <= AirGrace, DeltaSeconds);
+	// 2026-11-10): the blow's launch is the push -- in the air, inside AirGrace --
+	// unless he was already walking faster than his shuffle when it came
+	// (2026-11-11). (A guard edging off a kerb reads the same for that moment;
+	// his feet are kept through the grace.)
+	const bool bShoved = Shove.Step(bGuardUp, bFalling && AirTime <= SaudIK::AirGrace, DeltaSeconds, GroundSpeed, BodyScale);
+	// No ground under a man in the air, on the floor, mid-dash or climbing; a
+	// blow's push is still the ground (SaudIK::AirIsGround, 2026-11-11: asked
+	// after the shove, which keeps the ground through the push's whole grace)
+	const bool bGround = Move && (Move->IsMovingOnGround()
+		|| (bFalling && SaudIK::AirIsGround(AirTime, -static_cast<float>(Vel.Z), Move->GetGravityZ(), bShoved)));
+	Frame.bFeetWanted = bFeetOnGround && bGround
+		&& St != EFighterState::Down && St != EFighterState::Dead && St != EFighterState::Dash;
+	const bool bAttacking = St == EFighterState::Attack;
+	const bool bStanding = GroundSpeed < SaudFeel::WalkThreshold;
+	Frame.bSettleFeet = bStanding && !bAttacking;
+	const SaudPlants::FClip* Newest = NewestPlants();
 	Frame.bHoldFeet = Newest ? SaudIK::HoldsFeetMeasured(bAttacking, bStanding, Newest->Stride,
 	                                                     bGuardUp, Frame.Velocity.Size(), BodyScale, bShoved)
 	                         : SaudIK::HoldsFeet(bAttacking, bStanding, Back.Stride, Fade.Serial);
@@ -1309,8 +1313,10 @@ void USaudMotionAnimInstance::UpdateTurn(AFighterBase* Fighter, bool bTeleported
 		ClipStartYaw = ClipTurnYaw[Fade.Layers[0].Clip];
 		ClipLeft = SaudIK::TurnClipLeft(Fade.Layers[0].Time, Frames, ClipTurnDone[Fade.Layers[0].Clip]);
 	}
+	// (the crossfade's serial says which play of the clip this is: a turn that
+	// follows a turn is a new clip coming in, and its lag is found afresh)
 	SaudIK::TurnStep(Turn, Turned, RawYaw, Pitch, bMayLook && Target != nullptr, bLying,
-	                 St == EFighterState::Attack, bTeleported, DeltaSeconds, TurnClip, ClipStartYaw, ClipLeft, bNewLook);
+	                 St == EFighterState::Attack, bTeleported, DeltaSeconds, TurnClip, ClipStartYaw, ClipLeft, bNewLook, Fade.Serial);
 
 	// Handed over in the mesh's own space.
 	const FTransform& C2W = Mesh->GetComponentTransform();

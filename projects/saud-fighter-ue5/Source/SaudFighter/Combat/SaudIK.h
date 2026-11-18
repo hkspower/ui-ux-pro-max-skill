@@ -766,20 +766,95 @@ namespace SaudIK
 	    inside 0.11 s; 0.20 covers it at 30 Hz. */
 	constexpr float ShoveSeconds = 0.20f;
 
+	/** A man in the air this long or less may still have the ground, for his
+	    feet: a blow's push (LaunchCharacter, on every hit, block and parry)
+	    puts him in Falling with no lift, and the capsule only drops the gap
+	    it keeps over its floor. (The engine side's own number until
+	    2026-11-11; the shove's launch and AirIsGround both ask it.) */
+	constexpr float AirGrace = 0.10f;
+	/** CharacterMovement keeps a walking capsule no more than this over its
+	    floor (its MAX_FLOOR_DIST, cm)... */
+	constexpr float FloorGapMax = 2.4f;
+	/** ...so a launch with no lift lands sinking no faster than the fall of
+	    that gap under the world's gravity, sqrt(2 g gap): 82 cm/s at this
+	    project's 1400 (Config/DefaultEngine.ini), 69 at the engine's 980.
+	    Sinking faster than that and this much again, he has walked off
+	    something. */
+	constexpr float AirSinkSlack = 1.15f;
+	inline float AirSinkMax(float GravityZ)
+	{
+		return AirSinkSlack * FMath::Sqrt(2.f * FMath::Abs(GravityZ) * FloorGapMax);
+	}
+
+	/** A walked guard a blow has found is still walked for this long once he
+	    is back on the ground (2026-11-11, the second reading's fixes
+	    attacked; FShove below). The launch replaces his walk, and as the
+	    walk comes back his speed passes under his pace -- walking into the
+	    blow he is stopped and turned round, 0.07 to 0.10 s from his last
+	    frame in the air at 30 to 240 Hz -- where bWalked was read as a stop:
+	    a second man's blow landing in those frames shoved a man who walks
+	    on, the fault itself (20 to 30 cm behind him, 490 to 690 cm/s back).
+	    Only a second man can land one that soon (one man's next blow is
+	    0.26 s behind his last), and a guard who did stop is shoved again
+	    once this is over. */
+	constexpr float WalkBackSeconds = 0.12f;
+
 	/** Whether a guard is being shoved, kept frame to frame. bGuardUp:
 	    GuardUp(); bLaunched: the capsule is in the air inside the push's
-	    grace, which is how a blow's push shows (the engine launches him). */
+	    grace (AirGrace), which is how a blow's push shows (the engine
+	    launches him); GroundSpeed, Size: his speed over the ground and his
+	    size against Saud's, as HoldsFeetMeasured takes them. A guard
+	    already WALKED faster than its shuffle when the blow came is not
+	    shoved (2026-11-11, the second reading: its feet were gliding, the
+	    shove planted both and kept them for ShoveSeconds while he walked on
+	    -- 15 to 30 cm behind him -- and then they were handed back along
+	    the floor at 400 to 690 cm/s; it glides through the blow as it
+	    did). bWalked is read only on a frame with no launch and no shove
+	    left: the push's own speed is not a walk, and a second blow inside
+	    the shove arms it again; nor for WalkBackSeconds after a blow that
+	    found him walked (Back), while his walk comes back. */
 	struct FShove
 	{
 		float Left = 0.f;
-		bool Step(bool bGuardUp, bool bLaunched, float Dt)
+		bool bWalked = false;      // over his shuffle's pace on the last frame nothing pushed him
+		float Back = 0.f;          // what is left of WalkBackSeconds: a walked guard's walk coming back
+		bool Step(bool bGuardUp, bool bLaunched, float Dt, float GroundSpeed = 0.f, float Size = 1.f)
 		{
 			if (!bGuardUp) Left = 0.f;
+			else if (bLaunched && bWalked) Left = 0.f;      // a walked guard glides
 			else if (bLaunched) Left = ShoveSeconds;
 			else Left = FMath::Max(0.f, Left - FMath::Max(0.f, Dt));
+			if (bLaunched && bWalked) Back = WalkBackSeconds;
+			else if (!bLaunched && Back > 0.f)
+			{
+				Back = FMath::Max(0.f, Back - FMath::Max(0.f, Dt));
+				if (Back > 0.f) return Left > 0.f;          // his walk is coming back: not read as a stop
+			}
+			if (!bLaunched && Left <= 0.f) bWalked = GroundSpeed > FMath::Max(Size, 0.1f) * BlockShuffleMax;
 			return Left > 0.f;
 		}
 	};
+
+	/** Whether a man in the air still has the ground, for his feet
+	    (2026-11-11, the second reading: "the feet's own air-sink gate turns
+	    the feet off in the middle of every shove"). The engine side asked
+	    AirGrace and a sink under a typed 50 cm/s; a launch's own fall passes
+	    50 before it lands -- 0.036 s in at this project's gravity, landing
+	    at 0.052 to 0.059 s -- so from 45 Hz up both holds were dropped for
+	    one to three frames of every push (3 to 5 cm of a blocked kick's 12
+	    slid), and pushed back down a slope, where the ground falls away and
+	    the fall is longer, for most of it. The limit is the fall of the
+	    floor gap under the world's own gravity (AirSinkMax), which a launch
+	    on the flat cannot pass and a ledge passes in 0.07 s; and a guard a
+	    blow has shoved (bShoved, FShove::Step's answer this frame) keeps the
+	    ground through the whole grace, however far the slope lets him sink.
+	    AirTime: seconds he has been falling; Sink: how fast he goes down,
+	    cm/s (his velocity's Z, negated; a jump rising is negative);
+	    GravityZ: the world's, either sign. */
+	inline bool AirIsGround(float AirTime, float Sink, float GravityZ, bool bShoved)
+	{
+		return AirTime <= AirGrace && (bShoved || Sink < AirSinkMax(GravityZ));
+	}
 
 	/** HoldsFeet from a clip's measured stride: a clip that walks holds its
 	    feet as the man moves; one that does not (the Block walked) glides --
@@ -1767,7 +1842,14 @@ namespace SaudIK
 	    man's jab thrown into the first man's recovery was met at 0.00 to
 	    0.58 and only after it had landed). With the held swing gone from
 	    the list the next is taken when the guard is free (bFree,
-	    FBlockTrack::Free): a blow still showing is never cut. */
+	    FBlockTrack::Free): a blow still showing is never cut.
+	    A held blow of which nothing shows stays the held one, at a schedule
+	    of nothing, until another shows or its swing leaves the list
+	    (2026-11-11, the second reading): given up for nobody, the guard
+	    went on letting go of its last sample for ContactLeadOut and was not
+	    free, so a blow that began to show in those 0.08 s was refused until
+	    they were over -- a second man's jab met at 0.00 to 0.58 as it
+	    landed. Held at nothing the guard is free at once. */
 	inline int ChooseBlow(const FBlowSeen* Blows, int Num, int Held, bool bFree)
 	{
 		const bool bHave = Held >= 0 && Held < Num;
@@ -1781,7 +1863,7 @@ namespace SaudIK
 			const float S = BlowSchedule(Blows[I]);
 			if (S > BestS) { BestS = S; Best = I; }
 		}
-		return Best;
+		return (Best >= 0 || !bHave) ? Best : Held;
 	}
 
 	// ------------------------------------------------------- body and look
@@ -1899,6 +1981,7 @@ namespace SaudIK
 		bool bClip = false;
 		float ClipHips = 0.f;
 		float ClipShare = 0.f;
+		int ClipSerial = 0;    // which play of a clip that lag was found under (TurnStep's ClipSerial)
 	};
 
 	/** How much of a turn clip's own turn is still to come at Time seconds
@@ -1956,9 +2039,18 @@ namespace SaudIK
 	    whoever was looked at before: the side kept from a man dead ahead
 	    was the sign of a fraction of a degree, and a man swinging on the
 	    flank at -110 was met with the face turned 100 the other way. */
+	/** ClipSerial (2026-11-11, the second reading): which play of a clip
+	    the newest one is -- the crossfade's Serial, which moves whenever a
+	    clip is played anew, a second Turn_L90 after the first included. A
+	    turn clip that follows a turn clip is a new clip coming in: its lag
+	    is found afresh, on its own side of the circle, and its share starts
+	    from nothing. Kept from the first clip, the lag was the first
+	    turn's with the second snap added and the share already whole: a
+	    quarter turn begun as another ended swung the body 78 degrees back
+	    before turning it 168 forward, or threw it 163 degrees in a frame. */
 	inline void TurnStep(FTurn& S, float Turned, float RawYaw, float LookPitch,
 	                     bool bMayLook, bool bLying, bool bStriking, bool bTeleported, float Dt, float TurnClip = -1.f,
-	                     float ClipStartYaw = 0.f, float ClipLeft = -1.f, bool bNewLook = false)
+	                     float ClipStartYaw = 0.f, float ClipLeft = -1.f, bool bNewLook = false, int ClipSerial = 0)
 	{
 		if (bTeleported)
 		{
@@ -1978,11 +2070,12 @@ namespace SaudIK
 		const bool bClipKnown = ClipLeft >= 0.f;
 		if (TurnClip >= 0.f && !bTeleported)
 		{
-			if (!S.bClip)
+			if (!S.bClip || ClipSerial != S.ClipSerial)
 			{
 				// the lag within a half turn of the clip's own start, so the two meet the short way
 				if (bClipKnown) S.Hips = ClipStartYaw + WrapDegrees(S.Hips - ClipStartYaw);
 				S.bClip = true; S.ClipHips = S.Hips; S.ClipShare = 0.f;
+				S.ClipSerial = ClipSerial;
 			}
 			else S.ClipHips -= WrapDegrees(Turned);
 			S.ClipShare = FMath::Max(S.ClipShare, FMath::Min(TurnClip, 1.f));

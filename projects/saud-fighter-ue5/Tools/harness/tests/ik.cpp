@@ -1450,6 +1450,41 @@ static void Contact()
             const FOut O = Guard({ {0.f, 0.07f, 0.06f, 0.13f, Never}, {0.28f, 0.10f, 0.07f, 0.19f, Never} }, 1, 60.f);
             Check(O.AtLive >= 0.99f, "...and a combo's second blow is still met as it lands");
         }
+        {
+            // 2026-11-11, the second reading: a held blow that ends by itself. A second man's jab
+            // begun at any moment from the frame nothing of the first blow shows (its live frames
+            // and ContactLeadOut over) to past the end of the first man's recovery, at every phase
+            // of the frame: taken as it begins to show, and whole when it lands.
+            float LeastLanding = 1.f, LeastMost = 1.f, MostSpent = 0.f;
+            for (const FSwing& First : Firsts)
+                for (float Hz : { 30.f, 60.f, 120.f })
+                    for (int Phase = 0; Phase < 4; ++Phase)
+                    {
+                        const float P = Phase * 0.25f / Hz;
+                        for (int L = 0; L <= 30; ++L)
+                        {
+                            const FSwing A = { P, First.Startup, First.Active, First.Recovery, Never };
+                            const FSwing Jab = { P + First.Startup + First.Active + ContactLeadOut + 0.01f * L, 0.07f, 0.06f, 0.13f, Never };
+                            const FOut O = Guard({ A, Jab }, 1, Hz);
+                            LeastLanding = std::fmin(LeastLanding, O.AtLive); LeastMost = std::fmin(LeastMost, O.Most);
+                        }
+                        // ...and nothing of the first blow is left showing once its own schedule is at nothing
+                        std::vector<float> Tr;
+                        Guard({ { P, First.Startup, First.Active, First.Recovery, Never } }, 0, Hz, &Tr);
+                        for (int N = 0; N < (int)Tr.size(); ++N)
+                            if (N / Hz >= P + First.Startup + First.Active + ContactLeadOut + 1e-4f) MostSpent = std::fmax(MostSpent, Tr[N]);
+                    }
+            std::printf("  a second man's jab begun after nothing of the first blow shows: the guard %.2f at least as it lands (%.2f inside its live frames); of a blow that has ended by itself %.2f still shows\n",
+                        LeastLanding, LeastMost, MostSpent);
+            Check(LeastLanding >= 0.99f, "a blow that begins once nothing of the held one shows is met whole as it lands, whenever it begins: the guard is not deaf while it lets go");
+            Check(MostSpent == 0.f, "...and nothing is left showing of a blow that has ended by itself");
+            // one man's jab and his next: the swing over at 0.26, the next thrown that frame
+            float LeastNext = 1.f;
+            for (float Hz : { 30.f, 60.f, 120.f, 144.f, 240.f })
+                LeastNext = std::fmin(LeastNext, Guard({ {0.f, 0.07f, 0.06f, 0.13f, Never}, {0.26f, 0.07f, 0.06f, 0.13f, Never} }, 1, Hz).AtLive);
+            std::printf("  one man's jab after his jab: the guard %.2f at least as the second lands\n", LeastNext);
+            Check(LeastNext >= 0.99f, "a man's second jab is met whole as it lands, at 30 to 240 Hz");
+        }
     }
 }
 
@@ -2484,6 +2519,52 @@ static void Plants()
         Check(HoldsFeetMeasured(false, false, 0.f, true, 194.f, 1.f, true) && !HoldsFeetMeasured(false, false, 0.f, true, 194.f, 1.f, false)
                   && !HoldsFeetMeasured(false, false, 0.f, false, 194.f, 1.f, true),
               "a shoved guard holds its feet at any pace; a guard walked that fast glides; only a guard is shoved");
+        // a guard already WALKED faster than its shuffle when the blow comes is not shoved (2026-11-11,
+        // the second reading: the shove planted a walking guard's feet and dropped them 15 to 30 cm behind)
+        {
+            const float Dt = 1.f / 60.f;
+            FShove W; W.Step(true, false, Dt, 130.f, 1.f);
+            const bool bGlides = !W.Step(true, true, Dt, 194.f, 1.f) && !W.Step(true, true, Dt, 194.f, 1.f) && !W.Step(true, false, Dt, 180.f, 1.f);
+            FShove E; E.Step(true, false, Dt, 55.f, 1.f);
+            Check(bGlides && E.Step(true, true, Dt, 194.f, 1.f), "a guard walked faster than its shuffle when the blow lands is not shoved; one edging along inside it is");
+            FShove Two; Two.Step(true, false, Dt, 0.f, 1.f); Two.Step(true, true, Dt, 194.f, 1.f); Two.Step(true, false, Dt, 150.f, 1.f);
+            Check(Two.Step(true, true, Dt, 310.f, 1.f) && Two.Left == ShoveSeconds, "a second blow inside the shove arms it again: the push's own speed is not a walk");
+            FShove J; J.Step(true, false, Dt, 130.f, 1.f);
+            Check(!J.Step(true, true, Dt, 50.f, 1.f) && !J.Step(true, true, Dt, 50.f, 1.f), "a walked guard is not shoved on a later frame of a push slower than its pace either");
+            FShove Small, Big; Small.Step(true, false, Dt, 80.f, 1.f); Big.Step(true, false, Dt, 80.f, 1.48f);
+            Check(!Small.Step(true, true, Dt, 194.f, 1.f) && Big.Step(true, true, Dt, 194.f, 1.48f), "the pace a guard is walked at grows with the man");
+            FShove Stop; Stop.Step(true, false, Dt, 130.f, 1.f); Stop.Step(true, false, Dt, 0.f, 1.f);
+            Check(Stop.Step(true, true, Dt, 194.f, 1.f), "a guard that has stopped walking is shoved by the next blow");
+            // ...but a walked guard's walk coming back from the blow is not a stop (2026-11-11, those fixes
+            // attacked): the launch replaces his walk, and for a few frames after he lands he is under his
+            // pace -- stopped and turned round, walking into it. A second man's blow landing there shoved a
+            // man who walks on. Here a kick's three frames in the air, then the ground at 60, 2 and 40 cm/s.
+            FShove Turn; Turn.Step(true, false, Dt, 130.f, 1.f);
+            for (int I = 0; I < 3; ++I) Turn.Step(true, true, Dt, 194.f, 1.f);
+            Turn.Step(true, false, Dt, 60.f, 1.f); Turn.Step(true, false, Dt, 2.f, 1.f); Turn.Step(true, false, Dt, 40.f, 1.f);
+            Check(!Turn.Step(true, true, Dt, 50.f, 1.f) && !Turn.Step(true, true, Dt, 50.f, 1.f),
+                  "a walked guard whose walk is coming back from a blow is not read as stopped: a second man's blow as he turns round does not shove him");
+            // ...for WalkBackSeconds of ground and no longer: one who did stop there is shoved by the next blow
+            FShove Stood; Stood.Step(true, false, Dt, 130.f, 1.f);
+            for (int I = 0; I < 3; ++I) Stood.Step(true, true, Dt, 194.f, 1.f);
+            bool bStillWalked = true;
+            for (float T = Dt; T < WalkBackSeconds - 1e-4f; T += Dt) { Stood.Step(true, false, Dt, 0.f, 1.f); if (!Stood.bWalked) bStillWalked = false; }
+            Stood.Step(true, false, Dt, 0.f, 1.f); Stood.Step(true, false, Dt, 0.f, 1.f);
+            Check(bStillWalked && !Stood.bWalked && Stood.Step(true, true, Dt, 194.f, 1.f),
+                  "...for WalkBackSeconds on the ground and no longer: a guard who has stood since is shoved by the next blow");
+            // (only a second man can land a blow that soon: one man's next is behind his last by its live
+            // frames, its recovery and the next one's startup -- 0.26 s, a jab after a jab -- so a guard who
+            // stopped at one man's blow is shoved by his next: the longest launch, this, and a slow frame)
+            float LeastTail = 1e9f, LeastStartup = 1e9f;
+            for (const auto& R : ReadCsv("Content/Data/DT_Attacks.csv"))
+            {
+                if (!R.count("Startup") || !R.count("Active") || !R.count("Recovery")) continue;
+                LeastTail = std::fmin(LeastTail, (float)std::atof(R.at("Active").c_str()) + (float)std::atof(R.at("Recovery").c_str()));
+                LeastStartup = std::fmin(LeastStartup, (float)std::atof(R.at("Startup").c_str()));
+            }
+            Check(Near(LeastTail + LeastStartup, 0.26f) && AirGrace + WalkBackSeconds + 1.f / 30.f < LeastTail + LeastStartup,
+                  "...and it is over before one man's next blow can land, the quickest the attack table has");
+        }
 
         // the numbers the push below is made of are the game's own, read where the game keeps them
         {
@@ -2523,33 +2604,82 @@ static void Plants()
                   "the shove outlasts the heaviest blocked blow's braking by two slow frames, and is over inside a quarter second");
         }
 
+        // the world's gravity is the project's own, read where the game keeps it: the launch's fall is made of it
+        float Gravity = 0.f;
+        {
+            const std::string Ini = Slurp("Config/DefaultEngine.ini");
+            const size_t A = Ini.find("DefaultGravityZ=");
+            const bool bRead = A != std::string::npos && std::sscanf(Ini.c_str() + A + 16, "%f", &Gravity) == 1;
+            Check(bRead && Near(Gravity, -1400.f), "the fall tested here is the game's: the project's own gravity, 1400 (the engine's default is 980)");
+            if (!bRead) Gravity = -1400.f;
+        }
+
         // a blocked blow's push as the game makes it: a third of the row's knockback (DT_Attacks:
-        // Jab 168, Kick 648, Special 1032), 0.064 s in the air with nothing braking it, then the
-        // character's braking (ground friction 12 x 2 a second and 4000 cm/s2)
-        struct FPush { int Steps = 0; float Slide = 0.f; float Pushed = 0.f; float LastLanded = 0.f; float Short = 0.f; };
-        auto Push = [&](float Knockback, float Hz, float K, bool bShoveRule) -> FPush
+        // Jab 168, Kick 648, Special 1032), launched with no lift. Nothing brakes it until the
+        // capsule has dropped the gap it keeps over its floor (CharacterMovement holds it 1.9 to
+        // 2.4 cm up) under the world's gravity -- PhysFalling moves by the midpoint and lands part
+        // of the way through a tick; pushed back down a slope the ground falls away, and the fall
+        // is longer -- then the character's braking (ground friction 12 x 2 a second and 4000
+        // cm/s2). The capsule is a model of the engine, read, not run. (Until 2026-11-11 the air
+        // was a typed 0.064 s, the fall at the engine's 980, with the feet wanted throughout; the
+        // feet's ground is asked now as UpdateFeet asks it: the guard, the shove, AirIsGround.)
+        struct FBlown
+        {
+            float G = 1400.f, Gap = 2.15f, Grade = 0.f;     // Grade: the ground's fall for each cm he is pushed back
+            bool bFalling = false;
+            float Sink = 0.f, Clear = 0.f, AirTime = 0.f;
+            float Push = 0.f;                                 // what is left of the blow's speed, straight back
+            float Landed = 0.f;                               // the seconds of the last tick spent on the ground
+            // (a launch that finds him in the air already replaces his speed and leaves his fall as it is)
+            void Launch(float Speed) { Push = Speed; if (!bFalling) { bFalling = true; Sink = 0.f; Clear = Gap; } }
+            /** One tick: how far it carries him back. */
+            float Tick(float Dt)
+            {
+                Landed = Dt;
+                if (bFalling)
+                {
+                    const float Closed = (Sink + 0.5f * G * Dt) * Dt - Grade * Push * Dt;     // of the gap, this tick
+                    if (Closed >= Clear) { Landed = Dt * (1.f - Clear / Closed); bFalling = false; Sink = 0.f; }
+                    else { Landed = 0.f; Clear -= Closed; Sink += G * Dt; }
+                }
+                float Back = Push * (Dt - Landed);
+                Push = std::fmax(0.f, Push - (24.f * Push + 4000.f) * Landed);
+                Back += Push * Landed;
+                AirTime = bFalling ? AirTime + Dt : 0.f;
+                return Back;
+            }
+        };
+        struct FPush { int Steps = 0; float Slide = 0.f; float Pushed = 0.f; float LastLanded = 0.f; float Short = 0.f; int Off = 0; float Share = 1.f; };
+        auto Push = [&](float Knockback, float Hz, float K, bool bShoveRule, float Gap = 2.15f, float SlopeDeg = 0.f) -> FPush
         {
             FPush O;
             Man M; if (K != 1.f) Grow(M, K);
+            const float Grade = std::tan(SlopeDeg * Pi / 180.f);
+            M.Height = [=](float Xw, float) { return Grade * Xw; };
+            M.Normal = [=](float, float) { return FVector(-Grade, 0.f, 1.f).GetSafeNormal(); };
             M.In.bSettle = true; M.Run(0.5f, Hz);
             FShove S;
+            FBlown C; C.G = -Gravity; C.Gap = Gap; C.Grade = Grade;
             const float Dt = 1.f / Hz;
-            float V = Knockback * 0.30f, X = 0.f, T = 0.f;
+            float X = 0.f, T = 0.f;
             FVector Was[2] = { M.St.Hold[0].Anchor, M.St.Hold[1].Anchor };
             bool WasStill[2] = { false, false }, WasStep[2] = { false, false };
+            C.Launch(Knockback * 0.30f);
             while (T < 1.2f)
             {
                 T += Dt;
-                const bool bAir = T <= 0.064f + 1e-6f;
-                if (!bAir) V = std::fmax(0.f, V - (24.f * V + 4000.f) * Dt);
-                X -= V * Dt;                                                     // pushed straight back
+                X -= C.Tick(Dt);                                                 // pushed straight back
+                const float V = C.Push;
                 const bool bStanding = V < 40.f;                                  // SaudFeel::WalkThreshold
-                const bool bShoved = bShoveRule && S.Step(true, bAir, Dt);
+                const bool bShoved = bShoveRule && S.Step(true, C.bFalling && C.AirTime <= AirGrace, Dt, V, K);
+                M.In.bWanted = !C.bFalling || AirIsGround(C.AirTime, C.Sink, C.G, bShoved);
+                if (!M.In.bWanted) ++O.Off;
                 M.In.bHold = HoldsFeetMeasured(false, bStanding, 0.f, true, V, K, bShoved);
                 M.In.bSettle = bStanding;
                 M.In.Velocity = FVector(-V, 0.f, 0.f);
-                M.In.Mesh = At(FVector(X, 0.f, 0.f), 0.f);
+                M.In.Mesh = At(FVector(X, 0.f, Grade * X), 0.f);
                 M.Step(Dt);
+                O.Share = std::fmin(O.Share, M.Plan.Alpha);
                 for (int F = 0; F < 2; ++F)
                 {
                     const bool bStep = M.St.Hold[F].bStep && M.St.Hold[F].Progress < 1.f;
@@ -2586,6 +2716,181 @@ static void Plants()
         Check(bAll, "...at 30, 60 and 120 Hz, for a man 0.95 to 1.48 of Saud's size, a kick's push and the finisher's");
         std::printf("  (a jab's push, %.1f cm: %.2f cm of slide, %d steps)\n", Jab.Pushed, Jab.Slide, Jab.Steps);
         Check(Jab.Slide < 0.5f, "a jab's push, under a step's worth, is held too");
+
+        // ---- the push's own fall never takes the ground from the feet (2026-11-11, the second reading:
+        // the engine side's gate was a sink under a typed 50 cm/s, which a launch passes before it lands --
+        // both holds were dropped for one to three frames of every push from 45 Hz up, and for most of
+        // one down a slope)
+        {
+            const float G = -Gravity;
+            // the fall alone: every frame of it is still the ground, shoved or not, whatever gap the capsule kept
+            bool bGround = true; int Typed = 0; float Hardest = 0.f;
+            for (float Gv : { G, 980.f })
+                for (float Hz : { 30.f, 45.f, 60.f, 72.f, 90.f, 120.f, 144.f, 240.f, 1000.f })
+                    for (float Gap : { 1.9f, 2.15f, 2.4f })
+                    {
+                        FBlown C; C.G = Gv; C.Gap = Gap; C.Launch(194.4f);
+                        for (int I = 0; I < 2000; ++I)
+                        {
+                            C.Tick(1.f / Hz);
+                            if (!C.bFalling) break;
+                            if (!AirIsGround(C.AirTime, C.Sink, -Gv, false)) bGround = false;
+                            if (Gv == G) Hardest = std::fmax(Hardest, C.Sink);
+                            if (Gv == G && Hz == 60.f && Gap == 2.15f && C.Sink >= 50.f) ++Typed;
+                        }
+                    }
+            std::printf("  a launch with no lift falls its floor gap sinking %.0f cm/s at the most; the feet's limit is %.0f (it was a typed 50: %d frame of a push at 60 Hz with no ground)\n",
+                        Hardest, AirSinkMax(Gravity), Typed);
+            Check(bGround && Typed > 0, "a launch with no lift is the ground on every frame of its fall, shoved or not, at 30 to 1000 Hz, the project's gravity and the engine's");
+            Check(AirSinkMax(-G) == AirSinkMax(G) && AirSinkMax(G) >= 1.1f * std::sqrt(2.f * G * 2.4f) && AirSinkMax(2000.f) > std::sqrt(2.f * 2000.f * 2.4f)
+                      && AirSinkMax(980.f) < AirSinkMax(G),
+                  "the sink a launch may have is the fall of the widest floor gap under the world's own gravity, and a tenth again");
+            // a ledge: nothing under him. With no guard he has lost the ground before he has dropped 3.5 cm
+            float Kept = 0.f, Drop = 0.f;
+            for (float Hz : { 30.f, 45.f, 60.f, 90.f, 120.f, 144.f })
+                for (int I = 1; I < 200; ++I)
+                {
+                    const float T = I / Hz;
+                    if (!AirIsGround(T, G * T, Gravity, false)) break;
+                    Kept = std::fmax(Kept, T); Drop = std::fmax(Drop, 0.5f * G * T * T);
+                }
+            std::printf("  a man with no guard who walks off a ledge keeps the ground for %.3f s and %.1f cm of drop at the most\n", Kept, Drop);
+            Check(Kept < 0.07f && Drop < 3.5f, "a man who walks off a ledge has lost the ground inside 0.07 s, before he has dropped 3.5 cm");
+            Check(AirIsGround(AirGrace, 500.f, Gravity, true) && !AirIsGround(AirGrace + 0.01f, 10.f, Gravity, true)
+                      && AirIsGround(0.05f, -400.f, Gravity, false) && !AirIsGround(AirGrace + 0.01f, -400.f, Gravity, false),
+                  "a shoved guard keeps the ground through the grace however fast the slope lets him sink, and no longer; a jump has it for the grace, as it had");
+
+            // the feet through the push: wanted on every frame, on the flat and pushed back down 5 degrees
+            bool bFlat = true, bSlope = true; int FlatOff = 0, SlopeOff = 0; float FlatSlide = 0.f, SlopeSlide = 0.f;
+            for (float Hz : { 30.f, 45.f, 60.f, 90.f, 120.f, 144.f })
+                for (float Kb : { 168.f, 648.f, 1032.f })
+                {
+                    for (float Gap : { 1.9f, 2.15f, 2.4f })
+                        for (float K : { 0.95f, 1.f, 1.48f })
+                        {
+                            const FPush P = Push(Kb, Hz, K, true, Gap);
+                            FlatOff = std::max(FlatOff, P.Off); FlatSlide = std::fmax(FlatSlide, P.Slide);
+                            if (P.Off > 0 || P.Slide > 0.5f || (Kb > 168.f && P.Steps < 2)) bFlat = false;
+                        }
+                    const FPush D = Push(Kb, Hz, 1.f, true, 2.15f, 5.f);
+                    SlopeOff = std::max(SlopeOff, D.Off); SlopeSlide = std::fmax(SlopeSlide, D.Slide);
+                    if (D.Off > 0 || D.Slide > 0.5f || (Kb > 168.f && D.Steps < 2)) bSlope = false;
+                }
+            std::printf("  through a push the feet are without the ground for %d frames and slide %.2f cm on the flat (30 to 144 Hz, gaps 1.9 to 2.4 cm, 0.95 to 1.48 of Saud's size); %d frames and %.2f cm pushed back down 5 degrees\n",
+                        FlatOff, FlatSlide, SlopeOff, SlopeSlide);
+            Check(bFlat, "a shoved guard's feet have the ground on every frame of the push, at 30 to 144 Hz, whatever gap the capsule kept over its floor");
+            Check(bSlope, "...and pushed back down a slope of 5 degrees, where the ground falls away under him");
+            Check(Kick.Share > 0.999f && KickOld.Share > 0.999f, "the feet's share stays whole through a blocked kick's launch, shoved or not");
+        }
+
+        // ---- a guard WALKED faster than its shuffle into the blow glides through it, as it did (2026-11-11,
+        // the second reading: the shove planted both feet for ShoveSeconds while he walked on, and the hold's
+        // end handed them back along the floor). Saud's guard walk, the stick held with the block: across the
+        // blow, away from it and into it. The launch replaces his walk (LaunchCharacter's XY override); it
+        // comes back at the stick's share of the character's acceleration once he lands. A model, read not run.
+        {
+            float GuardShare = 0.f, RunSpeed = 0.f, Accel = 0.f;
+            const std::string Saud = Slurp("Source/SaudFighter/Combat/SaudCharacter.cpp"), Cam = Slurp("Source/SaudFighter/Combat/SaudCamera.h"),
+                              Base = Slurp("Source/SaudFighter/Combat/FighterBase.cpp");
+            auto Num = [](const std::string& Src, const char* Key, float& Out)
+            {
+                const size_t A = Src.find(Key);
+                return A != std::string::npos && std::sscanf(Src.c_str() + A + std::strlen(Key), "%f", &Out) == 1;
+            };
+            const bool bRead = Num(Saud, "bBlocking ? ", GuardShare) && Num(Cam, "constexpr float RunSpeedCm = ", RunSpeed) && Num(Base, "MaxAcceleration = ", Accel);
+            Check(bRead && Near(GuardShare, 0.38f) && Near(RunSpeed, 341.f) && Near(Accel, 6000.f),
+                  "the walk tested here is the game's: the player's share of his speed with the block held, his speed, the character's acceleration");
+            if (!bRead) { GuardShare = 0.38f; RunSpeed = 341.f; Accel = 6000.f; }
+            struct FWalked { float Off = 0.f, Floor = 0.f; int Steps = 0, Shoved = 0; };
+            // (Second: a second man's blow that many seconds behind the first, SecondKb its knockback; none under 0)
+            auto Walked = [&](float Knockback, float Hz, float K, float Pace, float Dx, float Dy, float Second = -1.f, float SecondKb = 0.f) -> FWalked
+            {
+                FWalked O;
+                Man M; if (K != 1.f) Grow(M, K);
+                FShove S;
+                FBlown C; C.G = -Gravity;
+                const float Dt = 1.f / Hz;
+                float X = 0.f, Y = 0.f, W = Pace, T = -1.f;
+                bool bBlown = false, bTwice = false, WasStep[2] = { false, false };
+                FVector WasBall[2] = { M.BallW(0), M.BallW(1) };
+                while (T < 1.2f)
+                {
+                    T += Dt;
+                    if (!bBlown && T > 0.f) { C.Launch(Knockback * 0.30f); W = 0.f; bBlown = true; }
+                    else if (bBlown && !bTwice && Second >= 0.f && T > Second) { C.Launch(SecondKb * 0.30f); W = 0.f; bTwice = true; }
+                    const float Back = C.Tick(Dt);
+                    W = std::fmin(Pace, W + GuardShare * Accel * C.Landed);
+                    X += W * Dx * C.Landed - Back; Y += W * Dy * C.Landed;
+                    const FVector Vel(W * Dx - C.Push, W * Dy, 0.f);
+                    const float V = Flat(Vel);
+                    const bool bStanding = V < 40.f;
+                    const bool bShoved = S.Step(true, C.bFalling && C.AirTime <= AirGrace, Dt, V, K);
+                    if (bShoved) ++O.Shoved;
+                    M.In.bWanted = !C.bFalling || AirIsGround(C.AirTime, C.Sink, C.G, bShoved);
+                    M.In.bHold = HoldsFeetMeasured(false, bStanding, 0.f, true, V, K, bShoved);
+                    M.In.bSettle = bStanding;
+                    M.In.Velocity = Vel;
+                    M.In.Mesh = At(FVector(X, Y, 0.f), 0.f);
+                    M.Step(Dt);
+                    for (int F = 0; F < 2; ++F)
+                    {
+                        const bool bStep = M.St.Hold[F].bStep && M.St.Hold[F].Progress < 1.f;
+                        if (bBlown)
+                        {
+                            // the ball as it is drawn: how far it stands off the clip's, how fast it goes over the floor outside a step
+                            O.Off = std::fmax(O.Off, Flat(M.BallW(F) - M.RawW(F)));
+                            if (!bStep && !WasStep[F]) O.Floor = std::fmax(O.Floor, Flat(M.BallW(F) - WasBall[F]) / Dt);
+                            if (bStep && !WasStep[F]) ++O.Steps;
+                        }
+                        WasBall[F] = M.BallW(F); WasStep[F] = bStep;
+                    }
+                }
+                return O;
+            };
+            const float Pace = GuardShare * RunSpeed;
+            float Off = 0.f, Floor = 0.f;
+            for (float Hz : { 30.f, 60.f, 120.f })
+                for (float K : { 0.95f, 1.f, 1.48f })
+                    for (float Kb : { 168.f, 648.f })
+                        for (int Way = 0; Way < 3; ++Way)
+                        {
+                            const FWalked R = Walked(Kb, Hz, K, Pace, Way == 1 ? -1.f : Way == 2 ? 1.f : 0.f, Way == 0 ? 1.f : 0.f);
+                            Off = std::fmax(Off, R.Off); Floor = std::fmax(Floor, R.Floor);
+                        }
+            std::printf("  a guard walked at %.0f cm/s into a blocked jab or kick: a ball %.1f cm off the clip's at the most, %.0f cm/s over the floor outside a step (the kick's own push is 194)\n",
+                        Pace, Off, Floor);
+            Check(Off < 8.f && Floor < 300.f,
+                  "a guard walked faster than its shuffle into a blocked blow glides through it: its feet are not planted and dropped behind him, at 30, 60 and 120 Hz");
+            // ...nor by a SECOND man's blow as his walk comes back from the first (2026-11-11, those fixes
+            // attacked): for a few frames after he lands he is under his pace, and read there as stopped he
+            // was shoved by a blow landing in them -- planted, and dropped behind him as he walked on. The
+            // second blow 0.03 to 0.20 s behind the first, a jab or a kick after a jab or a kick. (Not shoved,
+            // he glides as with no shove rule at all: what is left, 8 cm and 282 cm/s, is the pace rule's own
+            // hold of a guard under his pace for a frame or two, twice over -- older than the shove.)
+            float Off2 = 0.f, Floor2 = 0.f; int Shoved2 = 0, Runs2 = 0;
+            for (float Hz : { 30.f, 60.f, 120.f, 144.f })
+                for (float Kb : { 168.f, 648.f })
+                    for (float Kb2 : { 168.f, 648.f })
+                        for (int Way = 0; Way < 3; ++Way)
+                            for (int I = 0; I <= 40; ++I)
+                            {
+                                const FWalked R = Walked(Kb, Hz, 1.f, Pace, Way == 1 ? -1.f : Way == 2 ? 1.f : 0.f, Way == 0 ? 1.f : 0.f, 0.03f + I / 240.f, Kb2);
+                                Off2 = std::fmax(Off2, R.Off); Floor2 = std::fmax(Floor2, R.Floor); ++Runs2;
+                                if (R.Shoved > 0) ++Shoved2;
+                            }
+            std::printf("  ...and a second man's blow 0.03 to 0.20 s behind the first: shoved in %d of %d runs; a ball %.1f cm off the clip's at the most, %.0f cm/s over the floor outside a step\n",
+                        Shoved2, Runs2, Off2, Floor2);
+            Check(Shoved2 == 0 && Off2 < 12.f && Floor2 < 350.f,
+                  "a second man's blow as a walked guard's walk comes back does not plant him either: he is not read as stopped while he turns round, at 30 to 144 Hz");
+            // ...and one edging along inside its pace is still shoved, and stepped after: no foot moves over the floor outside a step
+            bool bEdged = true;
+            for (float Hz : { 30.f, 60.f, 120.f })
+            {
+                const FWalked R = Walked(648.f, Hz, 1.f, 55.f, 0.f, 1.f);
+                if (R.Floor > 10.f || R.Steps < 2) bEdged = false;
+            }
+            Check(bEdged, "a guard edging along inside its pace when the kick lands is still shoved: its feet stay on the floor and step after him");
+        }
     }
 }
 
@@ -3025,6 +3330,81 @@ static void Loco()
         Check(H.Cut < 30.f && H.End < 1e-3f && H.HipsEnd < 1e-3f, "...standing where it stood through the cut, and ending on the facing");
         Check(Q.Trunk < 2.f && Q.Face < 2.f && H.Trunk < 2.f && H.Face < 2.f,
               "under a turn clip the chest and the face are never swung back against the turn");
+        // ---- a turn that follows a turn (2026-11-11, the second reading). The steer starts the
+        // next turn on the frame the first one's hold ends and its clip is played over the
+        // first's, so a turn clip is the newest on every frame: only the crossfade's serial
+        // says another came in. The clips go through the real FCrossfade as the engine plays
+        // them (Play, Advance, then TurnStep with the newest layer's weight and time and the
+        // crossfade's Serial); the body is drawn from every layer at its own weight and time.
+        struct FTwo { float Off = 0.f; float Cut = 0.f; float Against = 0.f; float End = 0.f; float HipsEnd = 0.f; float Travel = 0.f; float Need = 0.f; };
+        const FClipModel* const Models[4] = { &L90, &R90, &T180, &P180 };
+        auto Two = [&](int A, float SnapA, int B, float SnapB, float Hz, bool bTold) -> FTwo
+        {
+            FTwo R;
+            FTurn S = Whole();
+            FCrossfade Fade;
+            Fade.Play(9, 2.618f, true, false, 0.f, false);                        // his guard: no turn clip
+            const float Dt = 1.f / Hz;
+            float Actor = 0.f, Last = 0.f, Sum = 0.f, Base = 0.f, Whole_ = 0.f;
+            auto YawOf = [&](const FLayer& L) { return L.Clip >= 0 && L.Clip < 4 ? WrapDegrees(Models[L.Clip]->Start * (1.f - Come(*Models[L.Clip], L.Time))) : 0.f; };
+            const int First = (int)std::lround((float)Models[A]->Frames / 30.f * Hz);     // the first turn's hold: its clip's length
+            const int Frames = First + (int)std::lround((float)Models[B]->Frames / 30.f * Hz);
+            for (int I = 0; I < Frames; ++I)
+            {
+                const bool bSecond = I >= First;
+                const FClipModel& M = *Models[bSecond ? B : A];
+                const float Turned = I == 0 ? SnapA : I == First ? SnapB : 0.f;
+                Actor += Turned;
+                if (I == 0 || I == First) Fade.Play(bSecond ? B : A, (float)M.Frames / 30.f, false, true, 0.06f, false);   // a new turn restarts its clip (SaudFeel::Restarts)
+                Fade.Advance(Dt);
+                const float U = Fade.Layers[0].Time, W = Fade.Layers[0].Weight;
+                TurnStep(S, Turned, 0.f, 0.f, true, false, false, false, Dt, W, M.Start, TurnClipLeft(U, M.Frames, M.DoneBefore), false, bTold ? Fade.Serial : 0);
+                float Drawn = Actor + S.Hips;
+                for (int K = 0; K < Fade.Num; ++K) Drawn += Fade.Layers[K].Weight * YawOf(Fade.Layers[K]);
+                const float Move = WrapDegrees(Drawn - Last);
+                // where the body was drawn before the second clip's first frame, and what is left
+                // of its snap from there (a half turn: round the clip's own way)
+                if (I == First) { Base = Sum; Whole_ = WrapDegrees(Actor - Last); if (M.Start > 90.f && Whole_ > 0.f) Whole_ -= 360.f; R.Need = std::fabs(Whole_); }
+                Last = Drawn;
+                Sum += Move;
+                if (bSecond)
+                {
+                    R.Travel += std::fabs(Move);
+                    R.Off = std::fmax(R.Off, std::fabs((Sum - Base) - Whole_ * W * Come(M, U)));
+                    if (U <= 0.06f + 1e-4f) R.Cut = std::fmax(R.Cut, std::fabs(Sum - Base));
+                    R.Against = std::fmax(R.Against, -(Sum - Base) * (Whole_ > 0.f ? 1.f : -1.f));
+                }
+            }
+            R.End = WrapDegrees(Last - Actor);
+            R.HipsEnd = S.Hips;
+            return R;
+        };
+        struct FPair { int A; float SnapA; int B; float SnapB; };
+        const FPair Pairs[] = {
+            { 0, 90.f, 0, 90.f }, { 0, 90.f, 1, -90.f }, { 1, -90.f, 0, 90.f }, { 1, -90.f, 1, -90.f }, { 0, 60.f, 0, 60.f }, { 0, 90.f, 0, 50.f },
+            { 1, -60.f, 0, 120.f }, { 0, 90.f, 2, 180.f }, { 0, 90.f, 2, -150.f }, { 2, 180.f, 0, 90.f }, { 2, 180.f, 1, -90.f },
+            { 2, -150.f, 2, 180.f }, { 2, 170.f, 2, 150.f }, { 3, 180.f, 1, -90.f } };
+        FTwo T2, Untold;
+        float Over2 = 0.f;
+        for (float Hz : { 30.f, 60.f, 120.f })
+            for (const FPair& P : Pairs)
+            {
+                const FTwo R = Two(P.A, P.SnapA, P.B, P.SnapB, Hz, true);
+                T2.Off = std::fmax(T2.Off, R.Off); T2.Against = std::fmax(T2.Against, R.Against); T2.Cut = std::fmax(T2.Cut, R.Cut);
+                T2.End = std::fmax(T2.End, std::fabs(R.End)); T2.HipsEnd = std::fmax(T2.HipsEnd, std::fabs(R.HipsEnd));
+                Over2 = std::fmax(Over2, R.Travel - R.Need);
+                const FTwo N = Two(P.A, P.SnapA, P.B, P.SnapB, Hz, false);
+                Untold.Off = std::fmax(Untold.Off, N.Off); Untold.Against = std::fmax(Untold.Against, N.Against);
+            }
+        std::printf("  a turn begun as another ends: the body %.3f off the second clip's curve at worst, %.2f through the cut, %.3f against the turn, %.2f degrees more travelled than the turn needs (not told which play of the clip it is: %.0f off, %.0f against)\n",
+                    T2.Off, T2.Cut, T2.Against, Over2, Untold.Off, Untold.Against);
+        Check(T2.Off < 0.05f && T2.Against < 0.05f && Over2 < 0.05f,
+              "a turn that follows a turn: the body turns once more, by the second snap's own angle, never the wrong way first");
+        Check(T2.Cut < 30.f && T2.End < 1e-3f && T2.HipsEnd < 1e-3f, "...standing where it stood through the second cut, and ending on the facing");
+        Check(Untold.Off > 40.f && Untold.Against > 40.f, "...which takes the crossfade's serial: the same turns with no serial handed over are what the fault was");
+        // the engine's own line, by its text (nobody can compile it): UpdateTurn hands that serial over
+        Check(Slurp("Source/SaudFighter/Combat/SaudMotionAnimInstance.cpp").find("TurnClip, ClipStartYaw, ClipLeft, bNewLook, Fade.Serial);") != std::string::npos,
+              "the anim instance hands TurnStep the crossfade's serial (read from its text, not run)");
         // a clip whose turn is not known is handled as it always was: the whole lag out through the cut
         const FRun Old = Run(L90, 90.f, 60.f, false, 0);
         Check(Old.End < 1e-3f && Old.HipsEnd == 0.f, "a turn clip whose own turn is not known still clears the whole lag");
