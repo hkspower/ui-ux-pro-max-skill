@@ -6217,9 +6217,12 @@ iron arm re-baked on his rebuilt UVs, the souq fight scene rebuilt with the
 new rigs, the 45 souq FBX and 25 textures that run re-exports put back).
 Every build passed its own checks inside the build -- `check_field`,
 `check_seat`, the kneecap's two asserts, `check_neck`, the cloth's, the
-sole's, the rig's `verify` (the sole-corner model within 3 mm of the shoe's
-lowest vertex, which the readers had doubted) -- and every skeleton is the
-boss clips' to 0.0 m. Then the suites, on the real checkpoints: `--check`
+sole's, the rig's `verify` -- and every skeleton is the boss clips' to 0.0 m.
+`rig_full_ik.py --stance` on the six rebuilt rigs: OK on all, and Saud's
+sole-corner model (the clips' grounding, which the readers doubted against
+the new sole) stands 1.7 mm and 0.3 mm off the shoe's lowest vertex, the rule
+3 (the other five carry no stance spec and report none). Then the suites,
+on the real checkpoints: `--check`
 every man straight on all 9 rules; `--back-check` 4/4; `--neck-check` 5/5;
 `--posture-bite` 10/10; `--physique-check` 21/21 (16 before the five
 themes); `--grim-check` 27/27; `--head-check` 7/7; `--eye-check` 15/15;
