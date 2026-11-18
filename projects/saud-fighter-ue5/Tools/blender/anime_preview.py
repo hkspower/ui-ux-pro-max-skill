@@ -55,7 +55,9 @@ Photoshop's Auto Contrast reads it (range_of: the 0.1 % clip points, the
 L* the stretch would move) and its median, and each place camera's top
 (its pools' hearts); and since 2026-11-18 ("fix over dark areas") how much
 of the fight's frame and of each place's is a dark area (dark_share_of:
-under L* 20, neither the sky nor the look's own ink). Each prints
+under L* 20, neither the sky nor the look's own ink) and how much of it a
+flat lemon yellow (lemon_share_of: the fire's heart through the film's
+clip, until the same day's "scan colors then fix colors"). Each prints
 its numbers and, with --bite, proves every rule by a sabotage; a rule the
 unbroken scene itself fails is reported and its sabotage left uncounted,
 since a miss already there proves nothing. Read on the fast scene of
@@ -162,7 +164,13 @@ GRADED = dict(contrast=1.5, shadow_over_ink=2.0, pools=2.0, fire_rb=1.4,
               # black hole, at a higher line. Read at 540 lines: the fight
               # 0.6 %, the street 0.6 %, the gate 0.7 %; with the look's
               # floors and world tones of before that day 3.2, 4.5 and 3.1 %.
-              dark_l=20.0, dark_share=0.02)
+              dark_l=20.0, dark_share=0.02,
+              # 2026-11-18 ("scan colors then fix colors"): no more than this
+              # share of the fight camera's frame, or a place camera's, a flat
+              # lemon yellow -- red and green whole and the blue gone (the
+              # fire's heart through the film's clip: 2.5 % of the street
+              # frame, 0.0 now) -- 8-bit R and G over lemon_rg, B under lemon_b
+              lemon=0.002, lemon_rg=240, lemon_b=70)
 
 # --bite only: each breaks the one mechanism a check guards
 SABOTAGE = set()
@@ -181,7 +189,9 @@ GRADED_BITES = {"flat_world": "contrast", "sooted_world": "shadow tone", "flat_p
                 "frame_key": "one exposure",
                 # 2026-11-18: the black ladder's floors and the world's tones
                 # as they were before "fix over dark areas"
-                "crushed_floors": "dark areas"}
+                "crushed_floors": "dark areas",
+                # 2026-11-18, the fire's heart: raw, as it was (a flat lemon)
+                "lemon_cores": "lemon"}
 
 
 def _arg(name, default=None, n=1):
@@ -898,6 +908,12 @@ def range_of(pic8):
     return dict(lo=lo, hi=hi, dL=float(np.abs(lstar_of(lut[pic8]) - L0).mean()), median=float(np.median(L0)))
 
 
+def lemon_share_of(pic8):
+    """The share of a graded 8-bit picture that is a flat lemon yellow
+    (2026-11-18): red and green over GRADED's lemon_rg, blue under lemon_b."""
+    return float(((pic8[..., 0] >= GRADED["lemon_rg"]) & (pic8[..., 1] >= GRADED["lemon_rg"]) & (pic8[..., 2] <= GRADED["lemon_b"])).mean())
+
+
 def dark_share_of(pic8, m):
     """The share of a graded picture that is a dark area (2026-11-18):
     drawn under GRADED's dark_l in CIE L*, and neither the sky nor the
@@ -936,6 +952,7 @@ def graded_fight(got, exposure, over=None):
     r["key"], r["key_rule"], r["night"] = m["key"], m["key_rule"], "Combined_moon" in got
     r["range"] = range_of(AL.to_8bit(disp))
     r["dark"] = dark_share_of(AL.to_8bit(disp), m)
+    r["lemon"] = lemon_share_of(AL.to_8bit(disp))
     return r, disp
 
 
@@ -957,7 +974,7 @@ def graded_place(got, exposure, over=None):
              pools=float(np.percentile(gl, 95) / max(np.percentile(gl, 50), 1e-6)),
              shadow_share=float(((m["shadow"] > 0.5) & g).sum() / max(1, g.sum())),
              core_share=float(((m["emit"] > 0.5) & g).sum() / max(1, g.sum())),
-             range=range_of(AL.to_8bit(disp)), dark=dark_share_of(AL.to_8bit(disp), m))
+             range=range_of(AL.to_8bit(disp)), dark=dark_share_of(AL.to_8bit(disp), m), lemon=lemon_share_of(AL.to_8bit(disp)))
     body = g & (m["shadow"] < 0.5) & (m["emit"] < 0.5)
     if "Combined_fire" in got:
         body = body & (got["Combined_fire"][..., :3] @ luma > got["Combined_moon"][..., :3] @ luma)
@@ -1016,6 +1033,10 @@ def graded_misses(r):
         if dark > GRADED["dark_share"]:
             miss.append("dark areas: %.1f %% of %s is drawn under L* %.0f (not a line, a hatch, a dot or the sky), wanted %.0f %% at most"
                         % (100 * dark, name, GRADED["dark_l"], 100 * GRADED["dark_share"]))
+    for name, lemon in [("the fight", r.get("lemon", 0.0))] + [(n, p.get("lemon", 0.0)) for n, p in r["places"].items()]:
+        if lemon > GRADED["lemon"]:
+            miss.append("fire cores go lemon: %.2f %% of %s is a flat lemon yellow (R and G over %d, B under %d), wanted %.1f %% at most"
+                        % (100 * lemon, name, GRADED["lemon_rg"], GRADED["lemon_b"], 100 * GRADED["lemon"]))
     for name, p in r["places"].items():
         if p["pools"] < GRADED["pools"]:
             miss.append("the grade flattens the pools at %s: graded ground p95/p50 %.2f, wanted %.1f" % (name, p["pools"], GRADED["pools"]))
@@ -1037,15 +1058,15 @@ def graded_misses(r):
 
 def graded_report(r):
     places = "; ".join("%s key %.3f (%s) pools %.2f, %.0f %% shadow tone, %.1f %% cores, fire R/B %.2f, range %d-%d (%.2f L*), "
-                       "%.1f %% dark"
+                       "%.1f %% dark, %.2f %% lemon"
                        % (n, p["key"], p["key_rule"], p["pools"], 100 * p["shadow_share"], 100 * p["core_share"], p["fire_rb"],
-                          p["range"]["lo"], p["range"]["hi"], p["range"]["dL"], 100 * p.get("dark", 0.0))
+                          p["range"]["lo"], p["range"]["hi"], p["range"]["dL"], 100 * p.get("dark", 0.0), 100 * p.get("lemon", 0.0))
                        for n, p in r["places"].items())
     g = r["range"]
     return ("fighter/world contrast %.2f; world shadow fill p5 %.4f = %.2fx lum(INK) (%d px); the fight's range %d-%d of 255 "
-            "(Auto Contrast %.2f L*), median L* %.1f, %.1f %% of it dark; %s; Saud's iris %d of %d px seen (%d eye px)"
+            "(Auto Contrast %.2f L*), median L* %.1f, %.1f %% of it dark, %.2f %% lemon; %s; Saud's iris %d of %d px seen (%d eye px)"
             % (r["contrast"], r["shadow_tone"], r["shadow_tone"] / r["ink"], r["fill_px"], g["lo"], g["hi"], g["dL"], g["median"],
-               100 * r.get("dark", 0.0), places, r["eyes"]["iris_seen"], r["eyes"]["iris_px"], r["eyes"]["eye_px"]))
+               100 * r.get("dark", 0.0), 100 * r.get("lemon", 0.0), places, r["eyes"]["iris_seen"], r["eyes"]["iris_px"], r["eyes"]["eye_px"]))
 
 
 class _look_over:
@@ -1206,7 +1227,8 @@ def graded_check(blend, height, samples, bite=False, out=None, cache=None):
                 "short_range": dict(LV_WHITE=1.0, LV_GAMMA=1.0), "dim_hearts": dict(POOL_BRIGHT=1.6),
                 "sunk_middle": dict(LV_GAMMA=1.45), "lifted_middle": dict(LV_GAMMA=2.4),
                 "crushed_floors": dict(BLACK_DEEP=0.0105, BLACK_SHADOW=0.0155, BLACK_LIT=0.0220,
-                                       Q_SHADOW_WORLD=0.12, Q_DEEP_WORLD=0.016, WORLD_LEVEL=0.60)}.get(which, {})
+                                       Q_SHADOW_WORLD=0.12, Q_DEEP_WORLD=0.016, WORLD_LEVEL=0.60),
+                "lemon_cores": dict(EMIT_CAP=1e9, EMIT_WHITE_FROM=1e9, EMIT_WHITE_TO=2e9)}.get(which, {})
         face2 = face
         if which == "chin_down":
             _chin_down()

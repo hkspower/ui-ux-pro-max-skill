@@ -396,6 +396,20 @@ LOOK = {
     # a firelit face warm, its skin still its own
     "TINT_KEEP_FIGHTER": 0.70,
     "EMIT_FROM": 5.0,       # light this many times the key is a lamp, not a surface
+    # 2026-11-18 ("scan colors then fix colors"): a lamp's or a fire's heart
+    # kept its own light RAW, so its green caught up with its red through the
+    # film's curve and its blue stayed 0: the fire's orange-red (hue 57 in
+    # CIELAB) read (253, 253, 1), a flat lemon yellow, hue 102, over 2.5-3 %
+    # of the street frame and every pool's middle. Now its light is held to
+    # EMIT_CAP of the key at its own hue (the amber it reaches first,
+    # (252, 182, 22)) and goes to white by the road a hot thing takes as
+    # it gets hotter -- gold, butter, cream, ivory -- from EMIT_WHITE_FROM
+    # to EMIT_WHITE_TO times the key (T). A heart at 5-7 times the key is the
+    # amber it was; at 7-10 (253, 232, 122); 10-15 (253, 253, 181); over 25
+    # ivory. A white lamp stays white (its own max is its white).
+    "EMIT_CAP": 1.6,
+    "EMIT_WHITE_FROM": 5.0,
+    "EMIT_WHITE_TO": 100.0,
     # 2. hatching, in pixels of a 1080-line picture
     "HATCH_PX": 5.0,
     # 2026-11-18 ("fix over dark areas"): the width 0.34 -> 0.19. At 1080
@@ -1099,7 +1113,8 @@ def _sub(code):
         "SPLAT_N": str(int(L["SPLAT_N"])), "SPLAT_FROM": _f(L["SPLAT_FROM"]), "SPLAT_TO": _f(L["SPLAT_TO"]),
         "SPLAT_R0": _f(L["SPLAT_R"][0]), "SPLAT_R1": _f(L["SPLAT_R"][1]), "SPLAT_STRETCH": _f(L["SPLAT_STRETCH"]),
         "SHADOW_TINT": _f3(L["SHADOW_TINT"]), "TINT_KEEP": _f(L["TINT_KEEP"]), "TINT_KEEP_FIGHTER": _f(L["TINT_KEEP_FIGHTER"]),
-        "EMIT_FROM": _f(L["EMIT_FROM"]), "HATCH_PX": _f(L["HATCH_PX"]), "HATCH_W": _f(L["HATCH_WIDTH"]),
+        "EMIT_FROM": _f(L["EMIT_FROM"]), "EMIT_CAP": _f(L["EMIT_CAP"]), "EMIT_WHITE_FROM": _f(L["EMIT_WHITE_FROM"]),
+        "EMIT_WHITE_TO": _f(L["EMIT_WHITE_TO"]), "HATCH_PX": _f(L["HATCH_PX"]), "HATCH_W": _f(L["HATCH_WIDTH"]),
         "HATCH_A": _f(L["HATCH_ALPHA"]), "CROSS_BELOW": _f(L["CROSS_BELOW"]),
         "INK_D": "InkD", "EMBER_D": "EmberD",                 # the palette, from MPC_Anime (2026-10-03)
         "INK": "InkColour.rgb", "EMBER": "EmberColour.rgb",
@@ -1276,7 +1291,10 @@ Out *= lerp(LIT_TINT, SHADOW_TINT, Shad);
 float Yf = dot(Out, LUMA) / max(Key, 0.0001) / FIGHTER_KNEE;
 Out *= Fighter ? 1.0 + (FIGHTER_LEVEL - 1.0) / (1.0 + Yf * Yf) : 1.0;
 float Emit = smoothstep(EMIT_FROM, 2.0 * EMIT_FROM, T);
-Out = lerp(Out, C, Emit);
+// a lamp's or a fire's heart keeps its own light -- held to EMIT_CAP of the key at its own hue, going to white as it gets hotter
+float EMax = max(max(C.r, C.g), max(C.b, 0.000001));
+float EWhite = saturate((T - EMIT_WHITE_FROM) / (EMIT_WHITE_TO - EMIT_WHITE_FROM));
+Out = lerp(Out, lerp(C / EMax, float3(1, 1, 1), EWhite) * min(EMax, EMIT_CAP * Key), Emit);
 
 // 1c. the black ladder: black is the ink's alone. Every surface tone keeps
 // a floor -- the deep tone's lower than the shadow's -- lifted in the
@@ -2229,7 +2247,11 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0, V=N
     lvl_f = 1.0 if "flat_men" in _FLAGS else L["FIGHTER_LEVEL"]
     out = out * np.where(fighter, 1.0 + (lvl_f - 1.0) / (1.0 + yf * yf), 1.0)[..., None]
     emit = _smooth(L["EMIT_FROM"], 2.0 * L["EMIT_FROM"], T)
-    out = lerp(out, C, emit[..., None])
+    # a lamp's or a fire's heart keeps its own light -- held to EMIT_CAP of the key at its own hue, going to white as it gets hotter
+    emax = np.maximum(C.max(axis=-1), 1e-6)
+    ewhite = np.clip((T - L["EMIT_WHITE_FROM"]) / (L["EMIT_WHITE_TO"] - L["EMIT_WHITE_FROM"]), 0.0, 1.0)
+    elit = lerp(C / emax[..., None], 1.0, ewhite[..., None]) * np.minimum(emax, L["EMIT_CAP"] * key)[..., None]
+    out = lerp(out, elit, emit[..., None])
 
     # 1c. the black ladder: every surface tone keeps a floor, in the
     # shadows' navy, the world's divided by the level step 5 holds it to
@@ -3224,7 +3246,9 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          "dim_hearts", "sunk_middle", "lifted_middle",
          # 2026-11-18, the dark areas: the floors, the dots, the hatching and
          # the clouds as they were before that day
-         "crushed_floors", "heavy_dots", "inked_men", "thick_hatch", "black_clouds")
+         "crushed_floors", "heavy_dots", "inked_men", "thick_hatch", "black_clouds",
+         # 2026-11-18, the fire's heart: raw, white at once, and capped to nothing
+         "lemon_cores", "white_cores", "dim_cores")
 
 
 def power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c):
@@ -3692,6 +3716,12 @@ def check(bite=None, rig=None):
             LOOK["TONE_FIGHTER_ALPHA"] = 0.40
         if bite == "thick_hatch":
             LOOK["HATCH_WIDTH"] = 0.34
+        if bite == "lemon_cores":
+            LOOK["EMIT_CAP"], LOOK["EMIT_WHITE_FROM"], LOOK["EMIT_WHITE_TO"] = 1e9, 1e9, 2e9
+        if bite == "white_cores":
+            LOOK["EMIT_WHITE_TO"] = LOOK["EMIT_WHITE_FROM"] + 0.5
+        if bite == "dim_cores":
+            LOOK["EMIT_CAP"] = 0.05
         if bite == "black_clouds":
             LOOK["CLOUD_DARK"] = (0.016, 0.018, 0.027)
         if bite == "dim_hearts":
@@ -4230,6 +4260,38 @@ def check(bite=None, rig=None):
                 "the dark areas: a cloud is not a black blot in the night (its dark tone %.2f of the horizon's, wanted 0.9)" % (da_sky[0] / da_sky[1])
         finally:
             LOOK["GRAIN"], LOOK["PAPER"] = da_gp
+        # ------------------------------------------------ 2026-11-18, the fire's heart
+        # ("scan colors then fix colors".) A wall lit by the souq's fire (its
+        # light R 1, G 0.19, B 0) at T times the key, on the game's scale,
+        # in display values, grain and paper off. Raw, a heart read (255, 255,
+        # 0) from T 10 to 20: a lemon. Now amber to T 6.5, gold, butter,
+        # cream, and white from T 40; never lemon; never darker as it gets
+        # hotter; and a white lamp is still white.
+        fc_gp = LOOK["GRAIN"], LOOK["PAPER"]
+        LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0
+        try:
+            fc_mid = (slice(200, 880), slice(16, 80))
+
+            def fc_core(fc_T, fc_light=(1.0, 0.19, 0.0)):
+                fc_f = np.array(fc_light, float)
+                fc_C, fc_A, fc_N, fc_D, fc_on = _flat(96, 0.11, lit=1.0, depth=600.0, h=1080)
+                fc_d, fc_m = look(fc_A * fc_f * (fc_T / (fc_f @ luma)), fc_A, fc_N, fc_D, fc_on)
+                return np.median(fc_d[fc_mid].reshape(-1, 3), axis=0)
+            fc_sweep = [(fc_T, fc_core(fc_T)) for fc_T in np.arange(5.0, 60.01, 1.0)]
+            fc_lemon = [(fc_T, fc_c) for fc_T, fc_c in fc_sweep if fc_c[1] >= 0.9 and fc_c[2] < 0.30]
+            assert not fc_lemon, \
+                "the fire's heart: never a lemon (R and G whole, B %.2f at T %.0f: once the green is over 0.9 the blue is over 0.30)" % (fc_lemon[0][1][2], fc_lemon[0][0])
+            fc_amber = fc_core(6.5)
+            assert fc_amber[0] >= 0.95 and fc_amber[1] <= 0.80 and fc_amber[2] <= 0.10, \
+                "the fire's heart: a fire is amber first (R %.2f G %.2f B %.2f at T 6.5, wanted R 0.95+, G 0.80 or under, B 0.10 or under)" % tuple(fc_amber)
+            fc_y = [float(fc_c @ luma) for fc_T, fc_c in fc_sweep]
+            assert min(np.diff(fc_y)) >= -0.02 and fc_y[-1] >= 0.97, \
+                "the fire's heart: hotter is never darker, and the hottest is the picture's white (%.2f at T 60, the steepest fall %.3f)" % (fc_y[-1], min(np.diff(fc_y)))
+            fc_white = [fc_core(fc_T, (1.0, 1.0, 1.0)) for fc_T in (8.0, 40.0, 400.0)]
+            assert max(float(np.ptp(fc_c)) for fc_c in fc_white) <= 0.03, \
+                "the fire's heart: a white lamp stays white (a spread of %.3f between its channels, wanted 0.03 at most)" % max(float(np.ptp(fc_c)) for fc_c in fc_white)
+        finally:
+            LOOK["GRAIN"], LOOK["PAPER"] = fc_gp
         # ------------------------------------------------ 2026-10-02, the painted sky
         # a view of the sky alone, up toward the moon (60 degrees across,
         # 0.05 a pixel: a star is a few pixels), at a time it is clear
