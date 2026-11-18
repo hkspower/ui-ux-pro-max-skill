@@ -178,6 +178,64 @@
 > guard's fists cross on one of them and that is not settled here; that
 > the imported mesh names its bones `neck_01` and `head`; and the cost of
 > the player's `GatherTargets` every quarter second.
+>
+> **Read a second time, 2026-11-11; merged 2026-11-18.** Readers with
+> probes of their own went over the IK fixes of 2026-11-10 and found eight
+> faults in this port's, four of them confirmed by a second reader. All
+> eight are fixed in `FighterIK.cs` (and `IKDebug.cs`: a second cross for
+> a hand letting go):
+>
+> - **The let-go rides the drawn body.** Its point was kept in the root's
+>   frame, which `FaceTowards` snaps while the body is drawn round: a
+>   stick held round as a jab ended threw the hand up to 93 cm across the
+>   body in that frame. Kept in `RestPoint`'s frame: 2.3 cm at any angle.
+> - **A kick comes back under him.** The line above -- "`HoldFoot` keeps a
+>   striking leg's foot where it stands ... the ordinary step takes it
+>   home after" -- was a regression: a kick out of a walk came back to a
+>   point 41 cm behind its hip and the hips fell 9.7 cm in the frame it
+>   ended. Wholly out, the hold is brought under him (`HoldFoot`'s
+>   `fullyOut`): 0.0.
+> - **The man a blow lands on is kept, not only his place.** With two men
+>   in the box the blow that floored its man swung the limb 43 degrees to
+>   the other on the contact frame. 0.0 now.
+> - **The kicking knee.** `SolveStrike`'s leg pole lay on the line of a
+>   kick that stops on a man's front: the knee folded level and sideways
+>   and swapped side for 2 cm of where he stood. It is the limb's own
+>   line turned a quarter in his fore-and-aft plane: 17.6 cm at least on
+>   the kneecap's side, 0.0 across.
+> - **With nobody to look at, the head was left behind every turn** (38
+>   degrees behind a quarter turn at 60 Hz, 68 behind a half turn): the
+>   look's yaw is kept in the world only while there is a man to keep it
+>   on. 0.0 off the drawn body, turning on the spot or walking a curve.
+> - **A man behind him swung the head 140 degrees across the front** each
+>   time he crossed the line straight behind, and two men at one distance
+>   traded the look. `LookHoldSide` (`LookRearBand` 20 degrees) and a man
+>   kept until another is clearly nearer: 0 crossings in 6 s, 0 changes
+>   of side in 10 s.
+> - **Two men swinging at once:** one share served both hands, so a hand
+>   jumped up to 25 cm in a frame as the guard passed from one blow to the
+>   next, and moved inside hit stop. Each hand has its own share and
+>   point; a hand lets go of the first blow before it goes to the second.
+> - **The glove went to a point the fist never came to** (19.5 cm away at
+>   1.0 m, 8 cm past it at 0.66 m, and the check measured the glove
+>   against the code's own formula). A blocked punch stops at the glove:
+>   as it lands the fist is 4.3-10.1 cm from the covering hand's joint
+>   and never past it.
+>
+> Checked in `tests/Pose.cs`, `Hold.cs` and `IKDebug.cs`; the harness
+> passes. Sabotages: 127 of 127 caught on 2026-11-18 (the 63 above with
+> seven re-pointed at rewritten lines, and 64 new), run on these same
+> files in the builder's checkout; the list is still outside the
+> repository. **Not verified:**
+> nothing has been run in Unity. **The second set (the block and the
+> look) had no second reader at all** -- its builder was cut off by the
+> helpers' limit when its checks and sabotages already passed, wrote no
+> report, and the attackers who were to try both sets never ran: it is
+> merged on the harness alone. Left, measured by the first set's builder:
+> a kick out of a walk taken away in its STARTUP still drops the hips up
+> to 1.5 cm in a frame; a kick at a much taller man moves the knee 34-53
+> cm in a frame (before and after); a kick hit mid-swing trails the
+> standing foot 22.4 cm against the root.
 
 Guidance for anyone — person or assistant — working in this directory.
 

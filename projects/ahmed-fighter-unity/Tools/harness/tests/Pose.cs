@@ -13,9 +13,13 @@ public class StrikePad : MonoBehaviour {
     public Fighter F; public bool HoldBlock, Walk; public string Press; public float Speed = 3.408f;
     public Vector3 Way = Vector3.forward;
     public float HitAt = -1f; public bool Struck;
+    // the stick held along Way: every frame he is free he is faced along it, as ReadInput faces him
+    // (FaceTowards(position + wish)); a press that frame is thrown that way, as Punch faces the man first
+    public bool Turn;
     void Update() {
         F.Blocking = HoldBlock && !F.IsBusy;
         if (!F.IsBusy) {
+            if (Turn) F.FaceTowards(transform.position + Way);
             if (Press != null) { F.StartAttack(Press); Press = null; }
             else if (Walk) { transform.position = transform.position + Way * (Speed * Time.deltaTime); }
         }
@@ -187,25 +191,57 @@ public static class Pose {
         return worst;
     }
 
-    static void Vitals(Rig r) {
+    // A swing thrown facing +Z with the stick held `deg` round while it lasts: he is turned on the first
+    // frame he is free. The furthest the swing's hand is from its rest place in the drawn body's own frame
+    // (the Mesh child's), from the swing's last frame for 0.25 s. ankles: the nearest the two come in that time.
+    static float EndsInto(string row, float deg, float hz, float leftX, out float ankles) {
+        StrikePad pad; Rig r = Fighter(hz, out pad, leftX);
+        Scene.Step((int)Math.Round(hz * 0.1f));
+        Transform body = r.Root.transform.Find("Mesh"), hand = r.Bones[StrikeBone(row)];
+        Vector3 rest = body.InverseTransformPoint(hand.position);
+        pad.Press = row; Scene.Step();
+        float rad = deg * Mathf.Deg2Rad;
+        pad.Way = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)); pad.Turn = deg != 0f;
+        float worst = 0f; int after = 0, most = (int)Math.Round(hz * 0.25f);
+        ankles = 1f;
+        for (int i = 0; i < 400 && after <= most; i++) {
+            Scene.Step();
+            if (after == 0 && r.Fighter.State == FighterState.Attack) continue;
+            worst = Math.Max(worst, (body.InverseTransformPoint(hand.position) - rest).magnitude); after++;
+            Vector3 apart = r.Bones["foot_l"].position - r.Bones["foot_r"].position; apart.y = 0f;
+            ankles = Math.Min(ankles, apart.magnitude);
+        }
+        return worst;
+    }
+
+    static void Vitals(Rig r, float health = 1000f) {
         typeof(Fighter).GetMethod("InitialiseVitals", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-            .Invoke(r.Fighter, new object[] { 1000f, 9999f });
+            .Invoke(r.Fighter, new object[] { health, 9999f });
     }
 
     // A striker of his own size at the origin facing +Z, and (hisSize > 0) a man standing at `at`.
     // The row is thrown and the scene stepped to its first active frame: the frame the blow lands.
-    static Rig Land(string row, float mySize, Vector3 at, float hisSize, out Rig him) {
+    // leftX: the striker's layout, as BuildFighter's. also: a second man, after the first in the
+    // striker's list (the fight's sweep takes the first). hisHealth: the first man's. guards: he
+    // faces the striker with his guard up, so the blow is blocked.
+    static Rig Land(string row, float mySize, Vector3 at, float hisSize, out Rig him, float leftX = 1f, Vector3? also = null, float hisHealth = 1000f, bool guards = false) {
         Scene.Reset(); Scene.DeltaTime = 1f / 60f;
         Slab("Ground", new Vector3(0f, -0.5f, 0f), new Vector3(2000f, 1f, 2000f));
-        Rig r = BuildFighter("Striker", Vector3.zero, mySize, 1f, true);
+        Rig r = BuildFighter("Striker", Vector3.zero, mySize, leftX, true);
         StrikePad pad = r.Root.AddComponent<StrikePad>(); pad.F = r.Fighter;
         Vitals(r);
         r.Fighter.FaceTowards(new Vector3(0f, 0f, 10f));
         him = null;
         if (hisSize > 0f) {
             him = BuildFighter("Him", at, hisSize);
-            Vitals(him);
+            Vitals(him, hisHealth);
+            if (guards) { him.Fighter.FaceTowards(Vector3.zero); him.Fighter.Blocking = true; }
             ((AimFighter)r.Fighter).Them.Add(him.Fighter);
+        }
+        if (also.HasValue) {
+            Rig other = BuildFighter("Other", also.Value, 1f);
+            Vitals(other);
+            ((AimFighter)r.Fighter).Them.Add(other.Fighter);
         }
         Scene.Step(6);
         pad.Press = row;
@@ -287,6 +323,40 @@ public static class Pose {
         r = Land("Kick", 1f, new Vector3(0f, 0f, 1.40f), 1f, out him);
         Check(Vector3.Angle(r.Bones["thigh_r"].position - r.Bones["calf_r"].position, r.Bones["foot_r"].position - r.Bones["calf_r"].position) > 170f,
               "...and a kick at a man further than the leg still locks out");
+        {
+            // A kick that stops on his front lands on a bent leg (2026-11-11): which way the knee goes. On
+            // the kneecap's side of the leg's own line -- that line turned a quarter in his fore-and-aft
+            // plane: up, for a leg held level -- wherever the man stands. The pole was a point straight ahead
+            // of the hip, which such a kick points at: the knee folded level and sideways (22 cm), swapped
+            // side (44.6 cm) for 2 cm of where the man stood, and against a taller man bent backward (23.8).
+            // Men 20 cm either side and dead ahead, a taller man, the biggest from as near as two controllers
+            // allow (0.82 m: the leg rises 40 degrees, where a pole merely lifted 0.6 m leaves the knee 14.7 cm
+            // across), and the two places the swap lay between.
+            bool bent = true; float leastOn = 1f, mostAcross = 0f, swap = 0f, upAhead = 0f;
+            foreach (float leftX in new[] { 1f, -1f }) {
+                float side = -leftX;                                     // the side of him his kicking hip is on
+                float[][] men = { new[] { -0.20f, 0.90f, 1f }, new[] { 0f, 0.90f, 1f }, new[] { 0.20f, 0.90f, 1f }, new[] { 0f, 0.85f, 1.26f },
+                                  new[] { 0f, 0.82f, 1.55f }, new[] { 0.10f * side, 0.90f, 1f }, new[] { 0.12f * side, 0.90f, 1f } };
+                Vector3 kneeWas = Vector3.zero;
+                for (int i = 0; i < men.Length; i++) {
+                    r = Land("Kick", 1f, new Vector3(men[i][0], 0f, men[i][1]), men[i][2], out him, leftX);
+                    Vector3 hipJ = r.Bones["thigh_r"].position, kneeJ = r.Bones["calf_r"].position, ank = r.Bones["foot_r"].position;
+                    Vector3 line = (ank - hipJ).normalized, off = (kneeJ - hipJ) - line * Vector3.Dot(kneeJ - hipJ, line);
+                    Vector3 cap = Vector3.Cross(line, Vector3.Cross(Vector3.up, r.Fighter.Facing)).normalized;
+                    float on = Vector3.Dot(off, cap), across = (off - cap * on).magnitude;
+                    leastOn = Math.Min(leastOn, on); mostAcross = Math.Max(mostAcross, across);
+                    if (Vector3.Angle(hipJ - kneeJ, ank - kneeJ) > 165f) bent = false;
+                    if (i == 1 && leftX > 0f) upAhead = kneeJ.y - hipJ.y;
+                    if (i == men.Length - 1) swap = Math.Max(swap, (kneeJ - kneeWas).magnitude);
+                    kneeWas = kneeJ;
+                }
+            }
+            Console.WriteLine("  ...on a bent leg: the knee is " + (upAhead * 100).ToString("0.0") + " cm over the hip; over seven men and both layouts it is " + (leastOn * 100).ToString("0.0")
+                + " cm at least on the kneecap's side of the leg's line, " + (mostAcross * 100).ToString("0.0") + " cm at most across it, and moves " + (swap * 100).ToString("0.0")
+                + " cm for 2 cm of where the man stands");
+            Check(bent && leastOn > 0.10f && mostAcross < 0.08f, "a kick that stops on a man's front bends its knee to the kneecap's side of the leg's line, not across it and not backward (over 10 cm there, under 8 across)");
+            Check(swap < 0.03f, "...and the knee does not swap side for 2 cm of where the man stands (under 3 cm between a man 10 and 12 cm to the kicking side)");
+        }
 
         // ---- a punch goes to the man it lands on
         r = Land("Hook", 1f, new Vector3(0.48f, 0f, 1.11f), 1f, out him);
@@ -334,6 +404,49 @@ public static class Pose {
             Check(second && FlatAngle(next, struck) > 15f, "...and a new swing forgets him: with nobody there it goes down the row's own line");
         }
         {
+            // Two men in the row's box (2026-11-11): the blow floors or kills the first the sweep takes, and
+            // the limb stays on HIM. Only his place was kept, and a man down or dead was passed over: the
+            // other man was taken in his stead, and on the contact frame the fist swung 43 degrees (44 cm) to
+            // the man it had not hit -- the pose hit stop then held. A hook floors (the stub's Random.value
+            // is 0; in the game 45 % of heavy blows); a jab at a man with 5 health kills, and he goes down;
+            // a cross blocked by a man with 1 health kills him on his feet.
+            float worst = 0f, worstNext = 0f; bool landed = true, nextLanded = true;
+            Vector3 first = new Vector3(0.45f, 0f, 1.10f), other = new Vector3(-0.45f, 0f, 1.15f);
+            foreach (float leftX in new[] { 1f, -1f })
+                foreach (string row in new[] { "Hook", "Jab", "Cross" }) {
+                    Rig g = Land(row, 1f, first, 1f, out him, leftX, other, row == "Jab" ? 5f : row == "Cross" ? 1f : 1000f, row == "Cross");
+                    Fighter second = ((AimFighter)g.Fighter).Them[1];
+                    AttackRow a = GameData.Attack(row);
+                    if (him.Fighter.State != (row == "Cross" ? FighterState.Dead : FighterState.Down) || second.Health < 1000f || !g.Fighter.Frozen) landed = false;
+                    // the contact frame, the hit stop, and every frame after it the arm is still wholly out
+                    string hand = StrikeBone(row), arm = hand == "hand_l" ? "upperarm_l" : "upperarm_r";
+                    for (int i = 0; i < 40 && g.Fighter.State == FighterState.Attack && g.Fighter.AttackTime < a.startup + a.active; i++) {
+                        Vector3 sh = g.Bones[arm].position, wr = g.Bones[hand].position;
+                        Vector3 mark = FighterIK.StrikeMark(g.Root.transform.position, first, 1f, FighterIK.ShoulderHeight, FighterIK.KnuckleSkin);
+                        worst = Math.Max(worst, FlatAngle(wr - sh, mark - sh));
+                        Scene.Step();
+                    }
+                    if (row != "Hook") continue;
+                    // the next hook, pressed during this one: the man it floored is not kept past his own swing,
+                    // and the sweep passes him over -- it lands on the other man, and the arm goes to him
+                    g.Root.GetComponent<StrikePad>().Press = "Hook";
+                    float clock = g.Fighter.AttackTime; bool began = false;
+                    for (int i = 0; i < 300; i++) {
+                        Scene.Step();
+                        if (g.Fighter.State == FighterState.Attack && g.Fighter.AttackTime < clock) began = true;
+                        clock = g.Fighter.AttackTime;
+                        if (began && g.Fighter.AttackTime >= a.startup) break;
+                    }
+                    Vector3 toOther = FighterIK.StrikeMark(g.Root.transform.position, other, 1f, FighterIK.ShoulderHeight, FighterIK.KnuckleSkin) - g.Bones[arm].position;
+                    worstNext = Math.Max(worstNext, FlatAngle(g.Bones[hand].position - g.Bones[arm].position, toOther));
+                    if (!began || second.State != FighterState.Down) nextLanded = false;
+                }
+            Console.WriteLine("  two men in the box, the first floored or killed by the blow: the arm is " + worst.ToString("0.0")
+                + " degrees at most off the line to where he stood, from the contact frame until it starts back; the next hook is " + worstNext.ToString("0.0") + " off the line to the other man");
+            Check(landed && worst < 3f, "with two men in its box a blow that floors or kills the man it lands on stays on him: within 3 degrees of the line to where he stood, on the contact frame, through hit stop and while the arm is out");
+            Check(nextLanded && worstNext < 3f, "...and the next swing goes to the next man: the one it floored is kept for his own swing and no longer");
+        }
+        {
             // sizes: each man throws at his own shoulder height; a punch at a bigger man goes up, at a smaller man down
             float big = Land("Jab", 1.55f, Vector3.zero, 0f, out him).Bones["hand_l"].position.y;
             float small = Land("Jab", 1f, Vector3.zero, 0f, out him).Bones["hand_l"].position.y;
@@ -348,18 +461,65 @@ public static class Pose {
 
     // Two men facing each other on a flat slab, each with a pad and each the other's opponent:
     // `a` at the origin facing +Z (his _r bones on his right), `b` at `at` facing him.
-    static Rig Duel(Vector3 at, float sizeA, float sizeB, out Rig b, out StrikePad padA, out StrikePad padB, bool head = false) {
+    static Rig Duel(Vector3 at, float sizeA, float sizeB, out Rig b, out StrikePad padA, out StrikePad padB, bool head = false, float leftX = -1f) {
         Scene.Reset(); Scene.DeltaTime = 1f / 60f;
         Slab("Ground", new Vector3(0f, -0.5f, 0f), new Vector3(2000f, 1f, 2000f));
-        Rig a = BuildFighter("A", Vector3.zero, sizeA, -1f, true, head);
+        Rig a = BuildFighter("A", Vector3.zero, sizeA, leftX, true, head);
         padA = a.Root.AddComponent<StrikePad>(); padA.F = a.Fighter; Vitals(a);
         a.Fighter.FaceTowards(new Vector3(0f, 0f, 10f));
-        b = BuildFighter("B", at, sizeB, -1f, true);
+        b = BuildFighter("B", at, sizeB, leftX, true);
         padB = b.Root.AddComponent<StrikePad>(); padB.F = b.Fighter; Vitals(b);
         b.Fighter.FaceTowards(Vector3.zero);
         ((AimFighter)a.Fighter).Them.Add(b.Fighter);
         ((AimFighter)b.Fighter).Them.Add(a.Fighter);
         return a;
+    }
+
+    // A guard at the origin facing +Z with two men a metre before him, `angB` and `angC` degrees round
+    // from his front (negative: his left), both his opponents. B throws rowB; C throws rowC `lag`
+    // seconds later. The most either of his hands moves in one frame against his own root over the
+    // second that follows, and (frozen) the most either moves between two frames he is frozen on.
+    static float TwoSwing(float hz, string rowB, string rowC, float lag, float angB, float angC, out float frozen) {
+        int both, lost;
+        return TwoSwing(hz, rowB, rowC, lag, angB, angC, out frozen, out both, out lost);
+    }
+    // ...and (bothShown) the frames on which his debug view holds two meeting points, one hand's and the other's;
+    // (lostInStop) the frozen frames on which it holds none though it held one on the frame before
+    static float TwoSwing(float hz, string rowB, string rowC, float lag, float angB, float angC, out float frozen, out int bothShown, out int lostInStop) {
+        Scene.Reset(); Scene.DeltaTime = 1f / hz;
+        Slab("Ground", new Vector3(0f, -0.5f, 0f), new Vector3(2000f, 1f, 2000f));
+        Rig a = BuildFighter("A", Vector3.zero, 1f, -1f, true);
+        StrikePad padA = a.Root.AddComponent<StrikePad>(); padA.F = a.Fighter; Vitals(a);
+        a.Fighter.FaceTowards(new Vector3(0f, 0f, 10f));
+        Rig[] them = new Rig[2]; StrikePad[] pads = new StrikePad[2];
+        for (int i = 0; i < 2; i++) {
+            them[i] = BuildFighter(i == 0 ? "B" : "C", Round(i == 0 ? angB : angC, 1f), 1f, -1f, true);
+            pads[i] = them[i].Root.AddComponent<StrikePad>(); pads[i].F = them[i].Fighter; Vitals(them[i]);
+            them[i].Fighter.FaceTowards(Vector3.zero);
+            ((AimFighter)a.Fighter).Them.Add(them[i].Fighter);
+            ((AimFighter)them[i].Fighter).Them.Add(a.Fighter);
+        }
+        padA.HoldBlock = true;
+        Scene.Step((int)Math.Round(hz * 0.7f));
+        Vector3 pl = a.Bones["hand_l"].position - a.Root.transform.position, pr = a.Bones["hand_r"].position - a.Root.transform.position;
+        float worst = 0f; frozen = 0f; bool was = false, wasOn = false; bothShown = 0; lostInStop = 0;
+        System.Reflection.FieldInfo view = typeof(FighterIK).GetField("_view", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        pads[0].Press = rowB;
+        int at = (int)Math.Round(lag * hz);
+        for (int i = 0; i < (int)Math.Round(hz); i++) {
+            if (i == at) pads[1].Press = rowC;
+            Scene.Step();
+            Vector3 l = a.Bones["hand_l"].position - a.Root.transform.position, r = a.Bones["hand_r"].position - a.Root.transform.position;
+            float d = Math.Max((l - pl).magnitude, (r - pr).magnitude);
+            worst = Math.Max(worst, d);
+            if (a.Fighter.Frozen && was) frozen = Math.Max(frozen, d);
+            was = a.Fighter.Frozen; pl = l; pr = r;
+            IKDebug.View v = (IKDebug.View)view.GetValue(a.IK);
+            if (v.BlockOn && v.BlockAlsoOn && v.BlockWeight >= v.BlockAlsoWeight && v.BlockAlsoWeight > 0f && (v.BlockMeet - v.BlockAlsoMeet).magnitude > 0.05f) bothShown++;
+            if (a.Fighter.Frozen && wasOn && !v.BlockOn) lostInStop++;
+            wasOn = v.BlockOn;
+        }
+        return worst;
     }
 
     static void Block() {
@@ -386,6 +546,21 @@ public static class Pose {
                   && Vector3.Angle(FighterIK.CoverHand(guard, low, 1f, 1f) - guard, low - guard) < 0.1f,
                   "the covering hand goes to the meeting point by its share, and never more than BlockMaxShift from the guard");
             Check(FighterIK.CoverRight(false) && !FighterIK.CoverRight(true), "the hand on the blow's side covers: his right is before the guard's left");
+            // 2026-11-11: a punch a glove is on stops at the glove
+            Vector3 front = new Vector3(0f, 1.44f, 0.12f), from = new Vector3(0.1f, 1.5f, 1.0f);
+            Vector3 stop = FighterIK.BlockStop(front, from, 1f);
+            Check(Math.Abs((stop - front).magnitude - (FighterIK.BlockStandOff + FighterIK.BlockFaceGap)) < 1e-5f && Vector3.Angle(stop - front, from - front) < 0.1f
+                  && Math.Abs((stop - FighterIK.BlockMeet(front, from, 1f)).magnitude - FighterIK.BlockFaceGap) < 1e-5f
+                  && Math.Abs((FighterIK.BlockStop(front, from, 1.5f) - front).magnitude - 1.5f * (FighterIK.BlockStandOff + FighterIK.BlockFaceGap)) < 1e-5f
+                  && (FighterIK.BlockStop(front, front + new Vector3(0f, 0f, 0.05f), 1f) - front).magnitude <= 0.05f + 1e-5f
+                  && FighterIK.BlockFaceGap > 0.03f && FighterIK.BlockFaceGap < 0.15f,
+                  "a punch a glove is on stops BlockFaceGap short of the glove's own point, on the blow's own line, grown with the man");
+            // a covering hand's share
+            float up = 0f, steps = 0f; while (up < 1f && steps < 100f) { up = FighterIK.BlockShare(up, 1f, 1f / 60f); steps++; }
+            float down = 1f, stepsDown = 0f; while (down > 0f && stepsDown < 100f) { down = FighterIK.BlockShare(down, 0f, 1f / 60f); stepsDown++; }
+            Check(Math.Abs(steps - (float)Math.Ceiling(60f * FighterIK.BlockLeadIn - 1e-3f)) < 0.5f && Math.Abs(stepsDown - (float)Math.Ceiling(60f * FighterIK.BlockLeadOut - 1e-3f)) < 0.5f
+                  && FighterIK.BlockShare(0.3f, 0.35f, 1f / 60f) == 0.35f && FighterIK.BlockShare(0.3f, 0.28f, 1f / 60f) == 0.28f && FighterIK.BlockShare(0.4f, 1f, 0f) == 0.4f,
+                  "a covering hand's share goes on over BlockLeadIn at the fastest and off over BlockLeadOut, follows a blow that asks for less, and stands still in a frame of no time");
         }
 
         // ---- through the rig: a guard at the origin, a man a metre before him who throws
@@ -405,19 +580,31 @@ public static class Pose {
             padB.Press = row;
             // (the hands against his own root: a blocked blow shoves the whole man back)
             Vector3 prev = guardC; float worstStep = 0f, atLand = -1f, otherMoved = 0f, back = 0f; Vector3 landed = guardC;
+            // ...and where the blow's own joint is as it lands (2026-11-11): its distance from the covering
+            // hand's joint, and how far PAST the glove toward the guard's own middle it has gone
+            float fistGap = -1f, fistPast = 0f;
             for (int i = 0; i < 90; i++) {
                 Scene.Step();
                 Vector3 root = a.Root.transform.position;
                 Vector3 q = a.Bones[cover].position - root;
                 worstStep = Math.Max(worstStep, (q - prev).magnitude); prev = q;
                 otherMoved = Math.Max(otherMoved, (a.Bones[other].position - root - guardO).magnitude);
-                if (atLand < 0f && b.Fighter.State == FighterState.Attack && b.Fighter.AttackTime >= r.startup) { atLand = (q - meet).magnitude; landed = q; }
+                if (atLand < 0f && b.Fighter.State == FighterState.Attack && b.Fighter.AttackTime >= r.startup) {
+                    atLand = (q - meet).magnitude; landed = q;
+                    Vector3 fist = b.Bones[StrikeBone(row)].position - root;
+                    fistGap = (q - fist).magnitude; fistPast = q.z - fist.z;
+                }
             }
             back = (a.Bones[cover].position - a.Root.transform.position - guardC).magnitude;
             float want = Math.Min((meet - guardC).magnitude, FighterIK.BlockMaxShift);
+            // (This measures the HAND against its own meeting point, built here from the code's own formula. It
+            // says the hand gets where it is sent, not that the blow comes there: from this metre the fist stops
+            // short of the glove -- the arm is 0.6 m, the row lands from 1.3 -- and that is printed. Where the
+            // two do meet, and that the fist is never past the glove, is checked against the fist, below.)
             Console.WriteLine("  a guard met by a " + row + ": the covering hand is " + (atLand * 100).ToString("0.0") + " cm from the meeting point as the blow lands ("
                 + ((guardC - meet).magnitude * 100).ToString("0.0") + " from it in the plain guard), having moved " + ((landed - guardC).magnitude * 100).ToString("0.0")
-                + " cm; its largest frame " + (worstStep * 100).ToString("0.0") + " cm; the other hand moved " + (otherMoved * 100).ToString("0.0") + " cm");
+                + " cm; its largest frame " + (worstStep * 100).ToString("0.0") + " cm; the other hand moved " + (otherMoved * 100).ToString("0.0") + " cm; the blow's own joint is "
+                + (fistGap * 100).ToString("0.0") + " cm from the hand's" + (arm ? ", " + (-fistPast * 100).ToString("0.0") + " cm short of passing it" : ""));
             Check(Math.Abs((landed - guardC).magnitude - want) < 0.02f && atLand < (guardC - meet).magnitude - 0.9f * want + 0.02f,
                   "a guard meets a " + row + " with the hand on its side: there, or BlockMaxShift toward it, as the blow lands");
             Check(otherMoved < 0.01f, "...the other hand keeps the guard (" + row + ")");
@@ -473,6 +660,169 @@ public static class Pose {
             for (int i = 0; i < 8; i++) { Scene.Step(); downMoved = Math.Max(downMoved, Math.Max((a4.Bones["hand_l"].position - gl).magnitude, (a4.Bones["hand_r"].position - gr).magnitude)); }
             Check(downMoved < 1e-3f, "with no guard up nothing is met: the hands stay down until he is hit");
         }
+        {
+            // The glove and the FIST (2026-11-11, the second reading). The glove went BlockStandOff before his
+            // front and the blow went to his front whatever the glove did: from 0.66 m a blocked jab ended 8 cm
+            // PAST the glove, on his face. The check above never read the striker's hand and could not see it.
+            // Jab, cross and hook from 0.66, 0.80 and 0.90 m -- as far as the arm reaches the glove -- at 30, 60
+            // and 120 Hz, either layout: on the frame the blow lands, his fist's joint against the covering
+            // hand's joint. And on, until the arm is home: the glove lets go BlockLeadOut after the blow's live
+            // frames, with the arm still out -- stopped only by as much as the glove was there that frame, a
+            // blocked hook went on 6 cm toward his face after it had landed, 1.8 cm past the hand's joint.
+            float least = 1f, most = 0f, past = -1f, pastAfter = -1f, wentOn = 0f; bool blocked = true;
+            foreach (float leftX in new[] { -1f, 1f })
+                foreach (float hz in new[] { 30f, 60f, 120f })
+                    foreach (string row in new[] { "Jab", "Cross", "Hook" })
+                        foreach (float sep in new[] { 0.66f, 0.80f, 0.90f }) {
+                            Rig a = Duel(new Vector3(0f, 0f, sep), 1f, 1f, out b, out padA, out padB, false, leftX);
+                            Scene.DeltaTime = 1f / hz;
+                            padA.HoldBlock = true; Scene.Step((int)Math.Round(hz * 0.7f));
+                            AttackRow r = GameData.Attack(row);
+                            float health = a.Fighter.Health;
+                            padB.Press = row;
+                            for (int i = 0; i < 200 && !(b.Fighter.State == FighterState.Attack && b.Fighter.AttackTime >= r.startup); i++) Scene.Step();
+                            // by the names the IK itself goes by: the lead hand's blow comes to the guard's _r hand
+                            Vector3 glove = a.Bones[row == "Cross" ? "hand_l" : "hand_r"].position, fist = b.Bones[StrikeBone(row)].position;
+                            least = Math.Min(least, (glove - fist).magnitude); most = Math.Max(most, (glove - fist).magnitude);
+                            past = Math.Max(past, glove.z - fist.z);
+                            if (!(a.Fighter.Health < health) || a.Fighter.State == FighterState.Hit || !a.Fighter.Frozen) blocked = false;
+                            // (how far it goes on is read from 0.80 m: nearer, the lunge walks him into the man -- the
+                            // harness's controllers do not collide -- and from 0.90 the arm ends short and rides the lunge)
+                            float landed = fist.z - a.Root.transform.position.z;
+                            for (int i = 0; i < 200; i++) {
+                                Scene.Step();
+                                if (b.Fighter.State != FighterState.Attack) break;
+                                glove = a.Bones[row == "Cross" ? "hand_l" : "hand_r"].position; fist = b.Bones[StrikeBone(row)].position;
+                                pastAfter = Math.Max(pastAfter, glove.z - fist.z);
+                                if (sep == 0.80f) wentOn = Math.Max(wentOn, landed - (fist.z - a.Root.transform.position.z));
+                            }
+                        }
+            Console.WriteLine("  a punch on a guard from 0.66 to 0.90 m: as it lands the fist is " + (least * 100).ToString("0.0") + " to " + (most * 100).ToString("0.0")
+                + " cm from the covering hand's joint, and at the nearest " + (-past * 100).ToString("0.0") + " cm short of passing it (negative: past it); from then until the arm is home, "
+                + (-pastAfter * 100).ToString("0.0") + " cm short at the nearest, and from 0.80 m it goes on " + (wentOn * 100).ToString("0.0") + " cm toward him at most");
+            Check(blocked && past < 0.005f, "a blocked punch stops at the glove: its fist never nearer the guard's own middle than the covering hand (jab, cross and hook from 0.66, 0.80 and 0.90 m at 30, 60 and 120 Hz, either layout)");
+            Check(blocked && least > 0.03f && most < 0.12f, "...and the fist is at the glove: the two joints 3 to 12 cm apart as the blow lands, from as far as the arm reaches it");
+            Check(pastAfter < 0.005f && wentOn < 0.01f, "...and it stays stopped until the arm is home: never past the hand as the glove lets go, and no further toward him than it landed (under 1 cm, from 0.80 m)");
+            // ...a man with his guard down is struck where he always was: the stop is the glove's, not the fight's
+            Rig open = Duel(new Vector3(0f, 0f, 0.66f), 1f, 1f, out b, out padA, out padB);
+            Scene.Step(42); padB.Press = "Jab";
+            AttackRow jab = GameData.Attack("Jab");
+            for (int i = 0; i < 200 && !(b.Fighter.State == FighterState.Attack && b.Fighter.AttackTime >= jab.startup); i++) Scene.Step();
+            float short0 = b.Bones["hand_l"].position.z - FighterIK.FrontDepth;       // B stands on +Z facing him: his front is toward B
+            Check(Math.Abs(short0 - FighterIK.KnuckleSkin) < 0.01f && open.Fighter.State == FighterState.Hit,
+                  "...and a punch at a man with no guard up lands on him as it did: its joint a skin short of his front (" + (short0 * 100).ToString("0.0") + " cm)");
+        }
+        {
+            // Two men swing at once (2026-11-11, the second reading). One share served both hands: when the guard
+            // passed from one man's blow to the next the new hand began at the old blow's share and the old hand
+            // was dropped at once (22.8 cm in a frame at 60 Hz, 25.0 at 30), and it passed inside his own hit stop
+            // (12.7 cm on a frozen frame). B 15 degrees to his left jabs, C 15 degrees to his right kicks 0.03 s
+            // later: the jab comes to his right hand, the kick to his left.
+            float fz, worstOver = 0f, worstFrozen = 0f; string rates = ""; int shown = 0, shownAlone, lost = 0, lostNow;
+            foreach (float hz in new[] { 30f, 60f, 120f }) {
+                float most = FighterIK.BlockMaxShift / (hz * FighterIK.BlockLeadIn);
+                int both;
+                float w = TwoSwing(hz, "Jab", "Kick", 0.03f, -15f, 15f, out fz, out both, out lostNow);
+                lost += lostNow;
+                if (hz == 60f) shown = both;
+                worstOver = Math.Max(worstOver, w - most); worstFrozen = Math.Max(worstFrozen, fz);
+                rates += (rates == "" ? "" : " / ") + (w * 100).ToString("0.0");
+            }
+            // the blow before runs out while he is frozen by the next: a hook, then a kick 0.145 s later
+            float stop = TwoSwing(60f, "Hook", "Kick", 0.145f, -15f, 15f, out fz);
+            worstFrozen = Math.Max(worstFrozen, fz);
+            // (the debug view, read off the rig; and two blows that do not overlap -- a jab, and a cross from
+            // the same place 0.30 s later, to his other hand -- show one point at a time)
+            TwoSwing(60f, "Jab", "Cross", 0.30f, 0f, 0f, out fz, out shownAlone, out lostNow);
+            lost += lostNow;
+            Console.WriteLine("  a jab from one man and a kick from another 0.03 s later: a hand's largest frame is " + rates + " cm at 30 / 60 / 120 Hz; a hook then a kick 0.145 s later, "
+                + (stop * 100).ToString("0.0") + " cm at 60 Hz; while he is frozen a hand moves " + (worstFrozen * 100).ToString("0.00") + " cm at most; the debug view holds both hands' points on "
+                + shown + " frames of the first at 60 Hz");
+            Check(worstOver < 0.01f && stop < FighterIK.BlockMaxShift / (60f * FighterIK.BlockLeadIn) + 0.01f,
+                  "the guard passes from one man's blow to the next hand by hand: no hand faster than a blow caught late, BlockMaxShift over BlockLeadIn and 1 cm (30, 60 and 120 Hz)");
+            Check(worstFrozen < 0.001f, "...and nothing of it passes while he is frozen: through his own hit stop the hands stay where they were");
+            Check(shown >= 2 && shown <= 8 && shownAlone == 0, "...and while the one hand lets go and the other comes on the debug view holds both hands' points (" + shown + " frames at 60 Hz)");
+            Check(lost == 0, "...and it holds them through his hit stop: the meeting point is not dropped from the view on a frozen frame (" + lost + " such frames)");
+            // ...two blows that come to the SAME hand, from 15 and 40 degrees either side: a cross then a kick,
+            // a kick then a cross, a jab then a hook, 0 to 0.30 s apart. The hand lets go of the first where it met
+            // it before it goes to the second: its point was changed under it, up to 26 cm in a frame.
+            float sameFrozen = 0f, sameWorst = 0f;
+            foreach (float ang in new[] { 15f, 40f })
+                foreach (string[] pair in new[] { new[] { "Cross", "Kick" }, new[] { "Kick", "Cross" }, new[] { "Jab", "Hook" } })
+                    for (int k = 0; k <= 30; k += 3) {
+                        float w = TwoSwing(60f, pair[0], pair[1], k * 0.01f, -ang, ang, out fz);
+                        sameWorst = Math.Max(sameWorst, w); sameFrozen = Math.Max(sameFrozen, fz);
+                    }
+            Console.WriteLine("  two blows to the same hand, 0 to 0.30 s apart, from 15 and 40 degrees either side: its largest frame is " + (sameWorst * 100).ToString("0.0") + " cm at 60 Hz");
+            Check(sameWorst < FighterIK.BlockMaxShift / (60f * FighterIK.BlockLeadIn) + 0.01f && sameFrozen < 0.001f,
+                  "...and a hand that two men's blows both come to lets go of the first before it goes to the second: no faster than a blow caught late, and not while he is frozen");
+        }
+        {
+            // ...and one man's two blows to the same hand, a cross and then a kick. In play the first has always
+            // been let go of before the second begins; here the guard is held frozen (by the test) on the live
+            // cross until the kick is half wound up, so he wakes with all of the cross still on the hand the
+            // kick comes to.
+            Rig a = Duel(new Vector3(0f, 0f, 1.0f), 1f, 1f, out b, out padA, out padB);
+            padA.HoldBlock = true; Scene.Step(40);
+            AttackRow cross = GameData.Attack("Cross"), kick = GameData.Attack("Kick");
+            padB.Press = "Cross";
+            for (int i = 0; i < 60 && !(b.Fighter.State == FighterState.Attack && b.Fighter.AttackTime >= cross.startup + 0.03f); i++) Scene.Step();
+            Vector3 onCross = a.Bones["hand_l"].position - a.Root.transform.position;
+            a.Fighter.Freeze(cross.TotalTime - b.Fighter.AttackTime + 0.5f * kick.startup);
+            padB.Press = "Kick";
+            Vector3 prev = onCross; float worst = 0f, heldBy = 0f; bool woke = false, mid = false;
+            for (int i = 0; i < 90; i++) {
+                Scene.Step();
+                Vector3 q = a.Bones["hand_l"].position - a.Root.transform.position;
+                if (!woke && !a.Fighter.Frozen) {
+                    woke = true; heldBy = (prev - onCross).magnitude;
+                    mid = b.Fighter.State == FighterState.Attack && b.Fighter.ActiveAttack == kick && b.Fighter.AttackTime > 0f && b.Fighter.AttackTime < kick.startup;
+                }
+                worst = Math.Max(worst, (q - prev).magnitude); prev = q;
+            }
+            Check(woke && mid && heldBy < 1e-4f && worst > 0.02f && worst < FighterIK.BlockMaxShift / (60f * FighterIK.BlockLeadIn) + 0.01f,
+                  "...nor is the point changed under a hand for the same man's next blow: it lets go of the one before (" + (worst * 100).ToString("0.0") + " cm in its largest frame)");
+        }
+        {
+            // The stop is the glove's: a guard dropped while the punch is on its way has no glove on it when it
+            // lands, and the punch lands on him as any other -- a skin short of his front, and he is hit.
+            Rig a = Duel(new Vector3(0f, 0f, 0.66f), 1f, 1f, out b, out padA, out padB);
+            padA.HoldBlock = true; Scene.Step(42);
+            AttackRow jab = GameData.Attack("Jab");
+            padB.Press = "Jab";
+            for (int i = 0; i < 200 && !(b.Fighter.State == FighterState.Attack && b.Fighter.AttackTime >= jab.startup); i++) {
+                if (b.Fighter.State == FighterState.Attack && b.Fighter.AttackTime >= 0.03f) padA.HoldBlock = false;
+                Scene.Step();
+            }
+            float shortOf = b.Bones["hand_l"].position.z - FighterIK.FrontDepth;
+            Check(a.Fighter.State == FighterState.Hit && Math.Abs(shortOf - FighterIK.KnuckleSkin) < 0.03f,
+                  "a guard dropped as the punch comes has no glove on it: the punch lands on him, its joint " + (shortOf * 100).ToString("0.0") + " cm short of his front");
+        }
+        {
+            // The stop is one swing's: a jab is blocked, the guard comes down, and the next jab begins in one
+            // long frame (a hitch of 0.1 s) -- it has landed on the first frame it is drawn, with no wind-up
+            // frame to read the glove in -- and it lands on him, not where the last one was stopped.
+            Rig a = Duel(new Vector3(0f, 0f, 0.66f), 1f, 1f, out b, out padA, out padB);
+            padA.HoldBlock = true; Scene.Step(42);
+            AttackRow jab = GameData.Attack("Jab");
+            padB.Press = "Jab";
+            bool landed = false; float stopped = 0f;
+            for (int i = 0; i < 60; i++) {
+                Scene.Step();
+                if (!landed && b.Fighter.State == FighterState.Attack && b.Fighter.AttackTime >= jab.startup) { landed = true; stopped = b.Bones["hand_l"].position.z - a.Root.transform.position.z - FighterIK.FrontDepth; }
+            }
+            padA.HoldBlock = false; Scene.Step(40);
+            Scene.DeltaTime = 0.1f;
+            padB.Press = "Jab";
+            int n = 0;
+            for (; n < 4 && !(b.Fighter.State == FighterState.Attack && b.Fighter.AttackTime >= jab.startup); n++) Scene.Step();
+            float shortOf = b.Bones["hand_l"].position.z - a.Root.transform.position.z - FighterIK.FrontDepth;
+            Check(landed && stopped > 0.12f && n <= 2 && b.Fighter.State == FighterState.Attack && a.Fighter.State == FighterState.Hit && Math.Abs(shortOf - FighterIK.KnuckleSkin) < 0.03f,
+                  "a punch begun in one long frame after a blocked one is not stopped where the last one was: it lands on him, its joint " + (shortOf * 100).ToString("0.0")
+                  + " cm short of his front (the blocked one stopped " + (stopped * 100).ToString("0.0") + " short)");
+            Scene.DeltaTime = 1f / 60f;
+        }
+        Scene.DeltaTime = 1f / 60f;
     }
 
     static float Yaw(Rig r, string bone, string marker) {
@@ -482,6 +832,44 @@ public static class Pose {
     static float Pitch(Rig r, string bone, string marker) {
         Vector3 f = r.Bones[marker].position - r.Bones[bone].position;
         return Mathf.Atan2(f.y, Mathf.Sqrt(f.x * f.x + f.z * f.z)) * Mathf.Rad2Deg;
+    }
+
+    // The head's yaw against the body AS IT IS DRAWN, off the bones: the nose marker against the
+    // shoulder line (the _r bones are on his right in these rigs). + is to his right.
+    static float HeadOnBody(Rig r) {
+        Vector3 sh = r.Bones["upperarm_r"].position - r.Bones["upperarm_l"].position;
+        return FighterIK.WrapDegrees(Yaw(r, "head", "nose") - Mathf.Atan2(-sh.z, sh.x) * Mathf.Rad2Deg);
+    }
+
+    // A man with a head at the origin facing +Z, with a pad, and the men he may look at -- standing
+    // where `at` says, in his list in that order. Nobody swings in these scenes.
+    static Rig Looker(float hz, out StrikePad pad, out Rig[] men, params Vector3[] at) {
+        Scene.Reset(); Scene.DeltaTime = 1f / hz;
+        Slab("Ground", new Vector3(0f, -0.5f, 0f), new Vector3(4000f, 1f, 4000f));
+        Rig a = BuildFighter("A", Vector3.zero, 1f, -1f, true, true);
+        pad = a.Root.AddComponent<StrikePad>(); pad.F = a.Fighter; Vitals(a);
+        a.Fighter.FaceTowards(new Vector3(0f, 0f, 10f));
+        men = new Rig[at.Length];
+        for (int i = 0; i < at.Length; i++) {
+            men[i] = BuildFighter("B" + i, at[i], 1f, -1f, true);
+            Vitals(men[i]); men[i].Fighter.FaceTowards(Vector3.zero);
+            ((AimFighter)a.Fighter).Them.Add(men[i].Fighter);
+        }
+        return a;
+    }
+    static Vector3 Round(float deg, float dist) {
+        return new Vector3(Mathf.Sin(deg * Mathf.Deg2Rad) * dist, 0f, Mathf.Cos(deg * Mathf.Deg2Rad) * dist);
+    }
+    // A head's yaw followed over frames: how often it goes from one side of the front to the
+    // other (past a degree either side), how far it travels, and its largest frame.
+    class Sweep {
+        public int Crossings, Side; public float Travel, Fastest, Last; bool any;
+        public void Add(float yaw) {
+            if (any) { float d = Math.Abs(FighterIK.WrapDegrees(yaw - Last)); Travel += d; Fastest = Math.Max(Fastest, d); }
+            int s = yaw > 1f ? 1 : yaw < -1f ? -1 : 0;
+            if (s != 0) { if (Side != 0 && s != Side) Crossings++; Side = s; }
+            Last = yaw; any = true;
+        }
     }
 
     static void Look() {
@@ -592,6 +980,178 @@ public static class Pose {
             Scene.Step(8);
             Check(Math.Abs(Yaw(a, "head", "nose") - again) < 0.5f, "through hit stop the head stays where it was");
         }
+
+        // ---- 2026-11-11, the second reading: nobody to look at, a man behind him, two men at one distance
+        StrikePad pad; Rig[] men;
+        {
+            // Nobody in reach (a man 20 m off: listed, never looked at): the head rides the body. Its yaw was
+            // eased in the WORLD even with no man to hold it on, so it chased the body's yaw from behind: turned
+            // on the spot it was left 17 to 70 degrees back, and it hung 33 to the outside of a steered walk.
+            float worstTurn = 0f, worstWalk = 0f;
+            foreach (float hz in new[] { 30f, 60f, 120f }) {
+                foreach (float deg in new[] { 45f, 90f, 135f, 180f, -90f }) {
+                    Rig a = Looker(hz, out pad, out men, new Vector3(0f, 0f, 20f));
+                    Scene.Step((int)Math.Round(hz * 0.5f));
+                    a.Fighter.FaceTowards(Round(deg, 10f));
+                    for (int i = 0; i < (int)Math.Round(hz * 1.5f); i++) { Scene.Step(); worstTurn = Math.Max(worstTurn, Math.Abs(HeadOnBody(a))); }
+                }
+                // walked at his own speed with the stick steered round 360 degrees a second, faced along it every frame as ReadInput faces him
+                Rig w = Looker(hz, out pad, out men, new Vector3(0f, 0f, 20f));
+                Scene.Step((int)Math.Round(hz * 0.5f));
+                pad.Walk = true; pad.Turn = true;
+                for (int i = 0; i < (int)Math.Round(hz * 3f); i++) {
+                    pad.Way = Round(360f * i / hz, 1f);
+                    Scene.Step();
+                    worstWalk = Math.Max(worstWalk, Math.Abs(HeadOnBody(w)));
+                }
+            }
+            Console.WriteLine("  nobody within the look's reach: turned on the spot the head is " + worstTurn.ToString("0.0") + " degrees at most off the body as it is drawn; walking a curve of 360 degrees a second, "
+                + worstWalk.ToString("0.0"));
+            Check(worstTurn < 0.5f, "with nobody to look at the head rides the body through a turn: within half a degree of the shoulders' own facing (45 to 180 degrees round, either way, at 30, 60 and 120 Hz)");
+            Check(worstWalk < 0.5f, "...and through a steered walk: within half a degree at 360 degrees a second (30, 60 and 120 Hz)");
+        }
+        {
+            // the man he looks at leaves the look's reach on the frame he is turned right round: the head comes
+            // home against the body and never past it (in the world it swung through to 50 degrees on the far side)
+            Rig a = Looker(60f, out pad, out men, new Vector3(2f, 0f, 0f));
+            Scene.Step(90);
+            float from = HeadOnBody(a), least = 999f, back = 0f, was = from, step = 0f, third = 0f;
+            men[0].Root.transform.position = new Vector3(20f, 0f, 0f);
+            a.Fighter.FaceTowards(new Vector3(0f, 0f, -10f));
+            for (int i = 0; i < 90; i++) {
+                Scene.Step();
+                float h = HeadOnBody(a);
+                least = Math.Min(least, h); back = Math.Max(back, h - was); step = Math.Max(step, was - h); was = h;
+                if (i == 2) third = h;
+            }
+            Check(Math.Abs(from - FighterIK.LookMaxYaw) < 1f && least > -0.5f && back < 0.01f && Math.Abs(was) < 0.5f,
+                  "a man who leaves the look's reach as he turns: the head comes home against the body, never back out and never past the front (its least " + least.ToString("0.0") + " degrees)");
+            Check(step < 12f && third > 30f, "...over frames, as it looks: " + step.ToString("0.0") + " degrees in its largest frame, still " + third.ToString("0.0") + " off the front three frames on");
+        }
+        {
+            // pure: the side held
+            float side = 1f;
+            bool held = FighterIK.LookHoldSide(179f, ref side) == FighterIK.LookMaxYaw && side == 1f
+                     && FighterIK.LookHoldSide(-179f, ref side) == FighterIK.LookMaxYaw && side == 1f
+                     && FighterIK.LookHoldSide(-(180f - FighterIK.LookRearBand) - 1f, ref side) == FighterIK.LookMaxYaw && side == 1f;
+            bool let = FighterIK.LookHoldSide(-(180f - FighterIK.LookRearBand) + 1f, ref side) == -FighterIK.LookMaxYaw && side == -1f
+                    && FighterIK.LookHoldSide(179f, ref side) == -FighterIK.LookMaxYaw && side == -1f;
+            bool front = FighterIK.LookHoldSide(30f, ref side) == 30f && side == 1f && FighterIK.LookHoldSide(-30f, ref side) == -30f && side == -1f
+                      && FighterIK.LookHoldSide(100f, ref side) == FighterIK.LookMaxYaw && side == 1f;
+            float raw;
+            bool gives = FighterIK.LookAngles(eye, Vector3.forward, new Vector3(-0.3f, 1.672f, -2f), out y, out p, out raw) && raw < -170f && raw > -173f && y == -FighterIK.LookMaxYaw;
+            Check(held, "pure: a man who crosses the line straight behind is held over the shoulder the face is over, until he is LookRearBand past it");
+            Check(let && front, "...past the band the face comes across to him; anywhere else it is the limit alone, on the side he is");
+            Check(gives && FighterIK.LookRearBand > 5f && FighterIK.LookRearBand < 180f - FighterIK.LookMaxYaw - 30f,
+                  "...and the band is a band: a few degrees of sway, not the whole of his back (LookAngles gives the yaw before the limit)");
+        }
+        {
+            // a man 2 m straight behind who sways a centimetre either side of the line: the head stays over one
+            // shoulder (it went across the front twelve times in 6 s, 21 degrees in a frame at 60 Hz)
+            int crossings = 0; float travel = 0f; bool atLimit = true;
+            foreach (float hz in new[] { 30f, 60f, 120f }) {
+                Rig a = Looker(hz, out pad, out men, new Vector3(0.01f, 0f, -2f));
+                Sweep s = new Sweep();
+                for (int i = 0; i < (int)Math.Round(hz * 6f); i++) {
+                    men[0].Root.transform.position = new Vector3(0.01f * Mathf.Cos(2f * Mathf.PI * i / hz), 0f, -2f);
+                    Scene.Step(); s.Add(HeadOnBody(a));
+                }
+                crossings += s.Crossings; travel = Math.Max(travel, s.Travel);
+                if (Math.Abs(Math.Abs(s.Last) - FighterIK.LookMaxYaw) > 1f) atLimit = false;
+            }
+            // ...and walking away from a man who follows straight behind, steering a little
+            int walkCross = 0;
+            {
+                Rig a = Looker(60f, out pad, out men, new Vector3(0f, 0f, -1.5f));
+                Scene.Step(30);
+                pad.Walk = true; pad.Turn = true;
+                Sweep s = new Sweep();
+                for (int i = 0; i < 540; i++) {
+                    pad.Way = Round(2f * Mathf.Sin(2f * Mathf.PI * 0.7f * i / 60f), 1f);
+                    Vector3 to = a.Root.transform.position - men[0].Root.transform.position; to.y = 0f;
+                    men[0].Root.transform.position = men[0].Root.transform.position + to.normalized * Math.Min(3.408f / 60f, Math.Max(0f, to.magnitude - 1.5f));
+                    Scene.Step(); s.Add(HeadOnBody(a));
+                }
+                walkCross = s.Crossings;
+            }
+            Console.WriteLine("  a man straight behind who sways 1 cm: the head crosses the front " + crossings + " times in 6 s at 30, 60 and 120 Hz together and travels " + travel.ToString("0") + " degrees at most; followed on a steered walk, " + walkCross + " times in 9 s");
+            Check(crossings == 0 && travel < 100f && atLimit, "a man straight behind who sways across the line does not swing the head across the front: it stays over one shoulder, at the limit (30, 60 and 120 Hz)");
+            Check(walkCross == 0, "...nor does a man who follows him straight behind as he steers a walk");
+        }
+        {
+            // he faces a man and is turned right round: the head goes to one shoulder and stays there. It went
+            // to one shoulder and then, the turn done, swung through the front to the other (192 degrees
+            // travelled here) -- unless the man stood 2 cm to the right of the line.
+            bool stays = true; float most = 0f;
+            foreach (float x in new[] { 0f, -0.02f, 0.02f }) {
+                Rig a = Looker(60f, out pad, out men, new Vector3(x, 0f, 2f));
+                Scene.Step(60);
+                a.Fighter.FaceTowards(new Vector3(0f, 0f, -10f));
+                Sweep s = new Sweep();
+                for (int i = 0; i < 120; i++) { Scene.Step(); s.Add(HeadOnBody(a)); }
+                if (s.Crossings > 0 || Math.Abs(Math.Abs(s.Last) - FighterIK.LookMaxYaw) > 1f) stays = false;
+                most = Math.Max(most, s.Travel);
+            }
+            Check(stays && most < 75f, "turned his back on a man he faced, the head goes to one shoulder and stays: no swing back across the front once the turn is done (" + most.ToString("0") + " degrees travelled at most)");
+        }
+        {
+            // a man walked round his back from one side to the other: the face comes across with him, once,
+            // soon after he passes straight behind -- not held over the far shoulder until he is in front again
+            Rig a = Looker(60f, out pad, out men, Round(-100f, 2f));
+            Scene.Step(60);
+            Sweep s = new Sweep(); float cameAt = 999f, bearing = -100f;
+            for (int i = 0; i < 260; i++) {
+                bearing = Math.Max(-300f, -100f - i);                  // 60 degrees a second, through 180 to +60, and stops there
+                men[0].Root.transform.position = Round(bearing, 2f);
+                Scene.Step(); float h = HeadOnBody(a); s.Add(h);
+                if (cameAt > 900f && h > 1f) cameAt = FighterIK.WrapDegrees(bearing);
+            }
+            Console.WriteLine("  a man walked round his back at 60 degrees a second: the face comes across the front when he is at " + cameAt.ToString("0") + " degrees, " + s.Crossings + " time(s)");
+            Check(s.Crossings == 1 && cameAt > 145f && cameAt <= 180f && Math.Abs(s.Last - 60f) < 2f,
+                  "a man who walks round behind him takes the face across with him, once, within LookRearBand and a few frames of straight behind");
+        }
+        {
+            // two men at one distance: the look is kept (the nearest by bare distance traded it 16 times in 10 s
+            // for 2 cm, the head 120 degrees across each time), until one of them is clearly the nearer
+            Rig a = Looker(60f, out pad, out men, Round(60f, 2f), Round(-60f, 2f));
+            Sweep s = new Sweep();
+            for (int i = 0; i < 600; i++) {
+                float w = 0.02f * Mathf.Sin(2f * Mathf.PI * 0.8f * i / 60f);
+                men[0].Root.transform.position = Round(60f, 2f + w); men[1].Root.transform.position = Round(-60f, 2f - w);
+                Scene.Step(); s.Add(HeadOnBody(a));
+            }
+            float kept = s.Last;
+            men[1].Root.transform.position = Round(-60f, 1.4f);
+            Scene.Step(60);
+            float taken = HeadOnBody(a);
+            Console.WriteLine("  two men 60 degrees either side at 2 m, each 2 cm nearer in turn: the look changes side " + s.Crossings + " times in 10 s (" + s.Travel.ToString("0") + " degrees travelled)");
+            Check(s.Crossings == 0 && Math.Abs(kept - 60f) < 2f, "two men at one distance do not trade the look: it stays on the one it is on");
+            Check(Math.Abs(taken + 60f) < 2f, "...until the other is clearly the nearer (inside LookKeepShare of his distance): then it goes to him");
+            // ...and a man who takes the look is looked at over his own shoulder, whichever the face was over
+            Rig c = Looker(60f, out pad, out men, Round(170f, 2f), Round(-170f, 2.2f));
+            Scene.Step(60);
+            float first = HeadOnBody(c);
+            men[1].Root.transform.position = Round(-170f, 1.2f);
+            Scene.Step(60);
+            Check(Math.Abs(first - FighterIK.LookMaxYaw) < 1f && Math.Abs(HeadOnBody(c) + FighterIK.LookMaxYaw) < 1f,
+                  "...and another man who takes the look is looked at over his own shoulder, though both stand behind him");
+        }
+        {
+            // the man looked at walks out past the look's reach while another stands inside it: the look
+            // passes to the other without a frame of looking at nobody (kept without the reach, he held the
+            // look from past it: 4.6 degrees back toward the front in that frame)
+            Rig a = Looker(60f, out pad, out men, Round(30f, 6f), Round(60f, 8.5f));
+            Scene.Step(90);
+            float was = HeadOnBody(a), back = 0f, start = was;
+            for (int i = 0; i < 300; i++) {
+                men[0].Root.transform.position = Round(30f, 6f + 1.5f * i / 60f);
+                Scene.Step();
+                float h = HeadOnBody(a); back = Math.Max(back, was - h); was = h;
+            }
+            Check(Math.Abs(start - 30f) < 1f && Math.Abs(was - 60f) < 1f && back < 0.5f,
+                  "the man looked at walks out of the look's reach: the look passes to the next man inside it, never a frame back toward the front (" + back.ToString("0.00") + " degrees at most)");
+        }
+        Scene.DeltaTime = 1f / 60f;
     }
 
     static void Strikes() {
@@ -672,6 +1232,93 @@ public static class Pose {
                 + (worstFirst * 100).ToString("0.0") + " cm at most on the kick's first frame, " + (sum / 24f * 100).ToString("0.0") + " on average");
         }
         Check(stays, "a kick pressed out of a walk leaves from where the foot stands: under 8 cm on the kick's first frame, at 30, 60 and 120 Hz");
+
+        // ...and it comes back under him (2026-11-11). The foot's hold stayed where the walk had left it
+        // for the whole kick -- up to 34 cm behind -- and the lunge carried him 15 cm further: the kick came
+        // back to a point 41 cm behind its hip on a locked leg, and the hips fell 9.7 cm in the one frame
+        // the leg stopped striking (13.3 with the stick still held). The same 24 moments, each kick and
+        // knee followed through and 0.6 s on, with the stick let go at the press and with it held.
+        float worstBehind = 0f, worstFall = 0f, worstFallOn = 0f;
+        foreach (string row in new[] { "Kick", "Knee" })
+            foreach (float hz in new[] { 30f, 60f, 120f })
+                foreach (bool walksOn in new[] { false, true })
+                    for (int k = 0; k < 24; k++) {
+                        StrikePad pad; Rig r = Fighter(hz, out pad);
+                        pad.Walk = true;
+                        Scene.Step((int)Math.Round(hz * (1.0f + k * 0.02f)));
+                        pad.Press = row;
+                        Scene.Step();
+                        pad.Walk = walksOn;
+                        float hipWas = r.Bones["thigh_r"].position.y, behind = 0f, fall = 0f; int after = 0;
+                        for (int i = 0; i < 4 * (int)hz && after < (int)Math.Round(hz * 0.6f); i++) {
+                            Scene.Step();
+                            Vector3 hip = r.Bones["thigh_r"].position, foot = r.Bones["foot_r"].position;
+                            // (the last frame of the swing is the last this is read on)
+                            if (r.Fighter.State == FighterState.Attack) behind = (float)Math.Sqrt((foot.x - hip.x) * (foot.x - hip.x) + (foot.z - hip.z) * (foot.z - hip.z));
+                            else { fall = Math.Max(fall, hipWas - hip.y); after++; }
+                            hipWas = hip.y;
+                        }
+                        worstBehind = Math.Max(worstBehind, behind);
+                        if (walksOn) worstFallOn = Math.Max(worstFallOn, fall); else worstFall = Math.Max(worstFall, fall);
+                    }
+        Console.WriteLine("  ...followed through, kick and knee at 30, 60 and 120 Hz: on the swing's last frame the kicking ankle is " + (worstBehind * 100).ToString("0.0")
+            + " cm at most from under its hip; after it the hips fall " + (worstFall * 100).ToString("0.0") + " cm at most in a frame with the stick let go, "
+            + (worstFallOn * 100).ToString("0.0") + " walking on");
+        Check(worstBehind < 0.08f, "...and the kick brings the foot back under him: on the swing's last frame the ankle is within 8 cm of under its hip (kick and knee, 30, 60 and 120 Hz)");
+        Check(worstFall < 0.01f && worstFallOn < 0.04f, "...so the hips do not fall when the leg stops striking: under 1 cm in a frame with the stick let go at the press, under 4 walking on");
+
+        // (4) a swing that ends into a turn (2026-11-11). The stick held round while he swings turns him on
+        // the frame the swing ends (ReadInput: FaceTowards(position + wish), the first frame he is free), and
+        // every swing ends through the let-go. Its point was kept in the root's own frame, which that turn
+        // snaps, while the body is drawn round after it: at a half turn the hand was thrown 93 cm across the
+        // drawn body in that frame (63 cm at 90 degrees, 34 at 45), the arm at full stretch through the chest.
+        bool rides = true; float worstOver = 0f, straight60 = 0f, half60 = 0f, an, nearest = 1f;
+        foreach (float leftX in new[] { 1f, -1f })
+            foreach (float hz in new[] { 30f, 60f, 120f }) {
+                foreach (string row in new[] { "Jab", "Cross" }) {
+                    float straight = EndsInto(row, 0f, hz, leftX, out an);
+                    foreach (float deg in new[] { 45f, 90f, 180f }) {
+                        float off = EndsInto(row, deg, hz, leftX, out an);
+                        worstOver = Math.Max(worstOver, off - straight);
+                        if (off > straight + 0.02f) rides = false;
+                        if (row == "Jab" && hz == 60f && leftX > 0f && deg == 180f) { straight60 = straight; half60 = off; }
+                    }
+                }
+                // a kick's foot rode the root's frame too: into a turn it was brought across onto the standing foot
+                foreach (string row in new[] { "Kick", "Knee" })
+                    foreach (float deg in new[] { 90f, 135f, 180f }) { EndsInto(row, deg, hz, leftX, out an); nearest = Math.Min(nearest, an); }
+            }
+        Console.WriteLine("  a jab that ends into a half turn at 60 Hz: its hand is " + (half60 * 100).ToString("0.0") + " cm at most from its rest place on the drawn body ("
+            + (straight60 * 100).ToString("0.0") + " ended straight on); a kick or knee into a turn: the ankles are " + (nearest * 100).ToString("0.0") + " cm apart at the nearest");
+        Check(rides, "a swing that ends into a turn keeps its hand on the body as it is drawn: no further from its rest place there than the same swing ended straight on, plus 2 cm ("
+              + (worstOver * 100).ToString("0.0") + " cm over at worst; jab and cross into 45, 90 and 180 degrees at 30, 60 and 120 Hz, either layout)");
+        Check(nearest > 0.06f, "...and a kick that ends into a turn keeps its foot off the standing foot: the ankles never nearer than 6 cm (kick and knee into 90, 135 and 180 degrees at 30, 60 and 120 Hz, either layout)");
+        {
+            // ...and a swing begun with a turn and taken away still holds where it was struck: thrown at a man
+            // behind him (faced round and the jab started on that frame, as Punch does) and hit 0.03 s in, with
+            // 72 degrees of the body's turn still to come at 60 Hz
+            float worstBlow = 0f, worstStop = 0f; bool struck = true;
+            foreach (float leftX in new[] { 1f, -1f })
+                foreach (float hz in new[] { 30f, 60f, 120f }) {
+                    StrikePad pad; Rig r = Fighter(hz, out pad, leftX);
+                    Scene.Step((int)Math.Round(hz * 0.1f));
+                    pad.Way = new Vector3(0f, 0f, -1f); pad.Turn = true;
+                    pad.Press = "Jab"; pad.HitAt = hz < 45f ? 0.04f : 0.03f;       // (a frame of the jab has been drawn before the blow)
+                    Vector3 prev = r.Bones["hand_l"].position, atBlow = prev; bool was = false;
+                    for (int i = 0; i < 60; i++) {
+                        Scene.Step();
+                        Vector3 q = r.Bones["hand_l"].position;
+                        if (pad.Struck && !was) { worstBlow = Math.Max(worstBlow, (q - prev).magnitude); atBlow = q; was = true; }
+                        else if (was && r.Fighter.Frozen) worstStop = Math.Max(worstStop, (q - atBlow).magnitude);
+                        else if (was) break;
+                        prev = q;
+                    }
+                    if (!was) struck = false;
+                }
+            Console.WriteLine("  a jab begun with a half turn and taken away: its hand moves " + (worstBlow * 100).ToString("0.0") + " cm on the frame of the blow, "
+                + (worstStop * 100).ToString("0.00") + " through hit stop");
+            Check(struck && worstBlow < 0.01f && worstStop < 0.005f, "...and a swing begun with a half turn and taken away is still held where it was struck: under 1 cm on the frame of the blow, under 0.5 through hit stop (30, 60 and 120 Hz, either layout)");
+        }
         Scene.DeltaTime = 1f / 60f;
 
         // ------------------------------------------------- 2026-11-10: the turn

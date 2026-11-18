@@ -251,6 +251,10 @@ namespace Ahmed.Combat
             bool strikeRight;
             bool strikeLeg = StrikingLeg(out strikeRight);
             bool strikeL = strikeLeg && !strikeRight, strikeR = strikeLeg && strikeRight;
+            // the kicking leg wholly out: its foot's hold comes back under him (HoldFoot's fullyOut)
+            AttackRow swing = _fighter.ActiveAttack;
+            bool fullyOut = strikeLeg && swing != null
+                            && StrikeWeight(_fighter.AttackTime, swing.startup, swing.active, swing.recovery) >= 1f;
             // The ground under each foot first; then the hips come down to
             // the lower one; then the legs are solved from where the hips are.
             _mesh.localPosition = turned * _meshRest;
@@ -263,8 +267,8 @@ namespace Ahmed.Combat
             float driftR = _holdR.Held ? Flat(_holdR.Anchor, RestPoint(_legR.EndRestLocal)) : 0f;
             bool maySettle = _fighter.State != FighterState.Attack;
             bool turning = Mathf.Abs(_lag) > TurnStepDegrees;
-            bool onL = FindFoot(ref _legL, ref _holdL, _holdR.Stepping, strikeL, maySettle, driftR, turning, ref _view.FootL, out targetL);
-            bool onR = FindFoot(ref _legR, ref _holdR, _holdL.Stepping, strikeR, maySettle, driftL, turning, ref _view.FootR, out targetR);
+            bool onL = FindFoot(ref _legL, ref _holdL, _holdR.Stepping, strikeL, maySettle, driftR, turning, ref _view.FootL, out targetL, fullyOut);
+            bool onR = FindFoot(ref _legR, ref _holdR, _holdL.Stepping, strikeR, maySettle, driftL, turning, ref _view.FootR, out targetR, fullyOut);
             float rootY = transform.position.y;
             float want = HipDrop(onL && !strikeL, _view.FootL.Point.y - rootY, onR && !strikeR, _view.FootR.Point.y - rootY);
             // ... and far enough that each standing leg reaches its foot where the hold has it (ReachDrop)
@@ -411,9 +415,20 @@ namespace Ahmed.Combat
         /// mid-step kept stepping from where he had been, the leg flung flat
         /// toward it for the rest of the step.
         /// </summary>
+        /// <summary>
+        /// (2026-11-11, the second reading.) fullyOut: the striking leg wholly out
+        /// (the strike's weight 1). Its foot's hold stayed where the walk had left it
+        /// -- up to 34 cm behind -- for the whole kick, and the lunge carried him 15 cm
+        /// further: the kick came back to a point 41 cm behind its hip on a locked
+        /// leg, and the hips fell 9.7 cm in the one frame the leg stopped striking
+        /// (13.3 with the stick still held). Wholly out, the strike does not read
+        /// where the foot stood, so the hold is brought under him then, unseen, and
+        /// the kick comes back to a place the leg can stand on.
+        /// </summary>
         public static Vector3 HoldFoot(ref FootHold h, bool otherSteps, Vector3 rest, bool striking,
                                        bool frozen, float dt, float size, out float lift,
-                                       bool maySettle = false, float otherDrift = 0f, bool turning = false)
+                                       bool maySettle = false, float otherDrift = 0f, bool turning = false,
+                                       bool fullyOut = false)
         {
             lift = 0f;
             float s = size > 0f ? size : 1f;
@@ -431,9 +446,13 @@ namespace Ahmed.Combat
                 // day it was let go to its rest point on the kick's first frame, when the
                 // strike's weight is still nothing: out of a walk the foot jumped up to
                 // 34 cm in that one frame. It stays where it was -- a step stopped where it
-                // had got to -- for Strike() to take it from and bring it back to, and the
-                // ordinary step takes it home after the kick.
-                if (h.Stepping)
+                // had got to -- for Strike() to take it from; wholly out (fullyOut) the hold
+                // comes under him, and the kick brings the foot back there.
+                if (fullyOut)
+                {
+                    h.Anchor = rest;
+                }
+                else if (h.Stepping)
                 {
                     float at = Smooth(h.T);
                     h.Anchor = new Vector3(h.From.x + (rest.x - h.From.x) * at, rest.y, h.From.z + (rest.z - h.From.z) * at);
@@ -509,7 +528,7 @@ namespace Ahmed.Combat
         /// hits it: a ray that begins inside a collider does not see it.
         /// </summary>
         private bool FindFoot(ref Limb leg, ref FootHold hold, bool otherSteps, bool striking, bool maySettle, float otherDrift,
-                              bool turning, ref IKDebug.FootView view, out Vector3 target)
+                              bool turning, ref IKDebug.FootView view, out Vector3 target, bool fullyOut)
         {
             target = Vector3.zero;
             if (!leg.Ok) { return false; }
@@ -519,7 +538,7 @@ namespace Ahmed.Combat
             // (his own size, off his skeleton: the root this reads was never scaled, 2026-11-10)
             float lift;
             Vector3 place = HoldFoot(ref hold, otherSteps, ankleRest, striking, _fighter.Frozen, Time.deltaTime, _size, out lift,
-                                     maySettle, otherDrift, turning);
+                                     maySettle, otherDrift, turning, striking && fullyOut);
             Vector3 origin = place + Vector3.up * RayStart;
             Vector3 point;
             view.Cast = true;
@@ -680,12 +699,11 @@ namespace Ahmed.Combat
             Vector3 facing = DrawnFacing();
             Vector3 side = Vector3.Cross(Vector3.up, facing);
             _view.GuardOn = _guard > 0.001f;
-            bool covers = _blockShare > 0f;
-            GuardHand(ref _armL, facing, -side, ref _view.GuardL, covers && !_blockRight);
-            GuardHand(ref _armR, facing, side, ref _view.GuardR, covers && _blockRight);
+            GuardHand(ref _armL, facing, -side, ref _view.GuardL, _coverL);
+            GuardHand(ref _armR, facing, side, ref _view.GuardR, _coverR);
         }
 
-        private void GuardHand(ref Limb arm, Vector3 facing, Vector3 side, ref Vector3 shown, bool covers)
+        private void GuardHand(ref Limb arm, Vector3 facing, Vector3 side, ref Vector3 shown, Cover cover)
         {
             if (!arm.Ok) { return; }
             Vector3 rest = RestPoint(arm.EndRestLocal);
@@ -699,8 +717,8 @@ namespace Ahmed.Combat
             {
                 target += FlinchOffset(_fighter.Recoil);
             }
-            // the hand on the blow's side goes to meet it (FindBlow)
-            if (covers) { target = CoverHand(target, transform.TransformPoint(_blockMeet), _blockShare * _guard, _size); }
+            // the hand on the blow's side goes to meet it, by its own share (FindBlow)
+            if (cover.Share > 0f) { target = CoverHand(target, transform.TransformPoint(cover.Meet), cover.Share * _guard, _size); }
             shown = target;
             Vector3 pole = (arm.Root.position + target) * 0.5f - Vector3.up * 0.6f;
             TwoBoneIK.Apply(arm.Root, arm.Mid, arm.End, target, pole);
@@ -1014,6 +1032,27 @@ namespace Ahmed.Combat
             return mark + to / d * Mathf.Min(BlockStandOff * (size > 0f ? size : 1f), d);
         }
 
+        /// <summary>A blow's joint stops this far before the covering glove's: the
+        /// glove's face is a few cm before its bones, the knuckles a few under
+        /// their skin (the Unreal build's BlockFaceGap).</summary>
+        public const float BlockFaceGap = 0.08f;
+
+        /// <summary>
+        /// Where a punch's joint stops on a glove that is on it: BlockFaceGap
+        /// short of the glove's own point (BlockMeet), on the same line
+        /// (2026-11-11, the second reading; the Unreal build stops a guarded
+        /// blow BlockStandOff + BlockFaceGap out the same way). The blow went to
+        /// his front whatever the glove did: thrown from 0.66 m a blocked jab
+        /// ended 8 cm past the glove, on his face. Pure.
+        /// </summary>
+        public static Vector3 BlockStop(Vector3 mark, Vector3 hisRoot, float size)
+        {
+            Vector3 to = hisRoot - mark;
+            float d = to.magnitude;
+            if (d < 1e-4f) { return mark; }
+            return mark + to / d * Mathf.Min((BlockStandOff + BlockFaceGap) * (size > 0f ? size : 1f), d);
+        }
+
         /// <summary>The covering hand's place: from its place in the guard toward
         /// the meeting point by the share, and never more than BlockMaxShift from
         /// the guard -- a kick at the hip brings the forearm down, not the fist to
@@ -1038,17 +1077,63 @@ namespace Ahmed.Combat
         private readonly Fighter[] _blows = new Fighter[8];
         private readonly float[] _blowWeights = new float[8];
         private Fighter _blockFrom;
-        private float _blockShare;
-        private Vector3 _blockMeet;        // in the fighter's frame
-        private bool _blockRight;
         private bool _wasBlocking;
+
+        /// <summary>
+        /// One hand's cover: its own share, the point it goes to (in the
+        /// fighter's frame) and the blow that is -- whose, and which row
+        /// (2026-11-11, the second reading). There was one share, one point
+        /// and one side for both hands: when the guard passed from one man's
+        /// blow to the next the new hand began at the old blow's share and the
+        /// old hand was dropped from it at once -- a jab from one man and a
+        /// kick 0.03 s later from another moved a hand 22.8 cm in a frame at
+        /// 60 Hz (25.0 at 30 Hz), 107 of 496 such pairings over 10 cm; and two
+        /// blows that came to the same hand moved its point under it, 26 cm.
+        /// </summary>
+        private struct Cover
+        {
+            public float Share;
+            public Vector3 Meet;
+            public Fighter On;
+            public AttackRow Row;
+        }
+
+        private Cover _coverL, _coverR;
+
+        /// <summary>A covering hand's share a frame on: toward what its blow asks,
+        /// on over BlockLeadIn at the fastest, off over BlockLeadOut. Pure.</summary>
+        public static float BlockShare(float share, float wanted, float dt)
+        {
+            return wanted >= share ? Mathf.Min(wanted, share + dt / BlockLeadIn)
+                                   : Mathf.Max(wanted, share - dt / BlockLeadOut);
+        }
+
+        /// <summary>One hand's cover a frame on. Picked: the blow the guard holds
+        /// comes to this hand -- `man`'s `row`, met at `at`, asking `wanted`. A hand
+        /// still on another blow lets go of that first, where it met it: its point
+        /// is never changed for another blow's under it, so the hand moves no
+        /// faster than its share does.</summary>
+        private static void CoverStep(ref Cover c, bool picked, Fighter man, AttackRow row, Vector3 at, float wanted, float dt)
+        {
+            if (picked && c.Share > 0f && (c.On != man || c.Row != row)) { picked = false; }
+            if (picked) { c.Meet = at; c.On = man; c.Row = row; }
+            c.Share = BlockShare(c.Share, picked ? wanted : 0f, dt);
+        }
 
         /// <summary>The blow the guard meets this frame: among his opponents'
         /// swings that have a striking limb, hold him in their box and come from
         /// in front (the fight's own rule: only that is blocked).</summary>
         private void FindBlow()
         {
+            // Hit stop holds the whole cover, which blow and which hand included
+            // (2026-11-11): only the share was held, so a blow that ran out while he
+            // was frozen passed its share to the next man's on a frozen frame -- a
+            // hand moved 12.7 cm inside his own hit stop.
+            if (_fighter.Frozen) { ShowCovers(); return; }
             float wanted = 0f;
+            bool right = false;
+            Vector3 meet = Vector3.zero;
+            AttackRow blow = null;
             bool blocking = _fighter.Blocking;
             if (blocking)
             {
@@ -1082,10 +1167,11 @@ namespace Ahmed.Combat
                     float height = arm ? ShoulderHeight : StrikesWithKnee(row.name) ? KneeMarkHeight : HipHeight;
                     Vector3 mark = StrikeMark(t.transform.position, me, _size, height, 0f);
                     Vector3 hisRoot = t.transform.position + Vector3.up * ((arm ? ShoulderHeight : HipHeight) * hisSize);
-                    _blockMeet = transform.InverseTransformPoint(BlockMeet(mark, hisRoot, _size));
+                    meet = transform.InverseTransformPoint(BlockMeet(mark, hisRoot, _size));
                     EnemyFighter enemy = t as EnemyFighter;
-                    _blockRight = CoverRight(IsRightSide(rear, Southpaw(enemy != null ? enemy.Archetype : null)));
+                    right = CoverRight(IsRightSide(rear, Southpaw(enemy != null ? enemy.Archetype : null)));
                     wanted = _blowWeights[pick];
+                    blow = row;
                 }
                 for (int i = 0; i < n; i++) { _blows[i] = null; }
             }
@@ -1094,18 +1180,30 @@ namespace Ahmed.Combat
                 _blockFrom = null;
             }
             _wasBlocking = blocking;
-            // on over BlockLeadIn at the fastest, off over BlockLeadOut; hit stop holds it
-            if (!_fighter.Frozen)
-            {
-                float dt = Time.deltaTime;
-                _blockShare = wanted >= _blockShare ? Mathf.Min(wanted, _blockShare + dt / BlockLeadIn)
-                                                    : Mathf.Max(wanted, _blockShare - dt / BlockLeadOut);
-            }
-            if (_blockShare > 0f)
+            // each hand by its own share: the one the blow comes to goes on to it, the other lets go
+            float dt = Time.deltaTime;
+            CoverStep(ref _coverL, _blockFrom != null && !right, _blockFrom, blow, meet, wanted, dt);
+            CoverStep(ref _coverR, _blockFrom != null && right, _blockFrom, blow, meet, wanted, dt);
+            ShowCovers();
+        }
+
+        /// <summary>The debug view of the cover: the point of the hand further on,
+        /// and the other hand's while it lets go.</summary>
+        private void ShowCovers()
+        {
+            Cover on = _coverR.Share >= _coverL.Share ? _coverR : _coverL;
+            Cover off = _coverR.Share >= _coverL.Share ? _coverL : _coverR;
+            if (on.Share > 0f)
             {
                 _view.BlockOn = true;
-                _view.BlockMeet = transform.TransformPoint(_blockMeet);
-                _view.BlockWeight = _blockShare * _guard;
+                _view.BlockMeet = transform.TransformPoint(on.Meet);
+                _view.BlockWeight = on.Share * _guard;
+            }
+            if (off.Share > 0f)
+            {
+                _view.BlockAlsoOn = true;
+                _view.BlockAlsoMeet = transform.TransformPoint(off.Meet);
+                _view.BlockAlsoWeight = off.Share * _guard;
             }
         }
 
@@ -1132,14 +1230,52 @@ namespace Ahmed.Combat
         /// beyond LookReach or on top of him. Pure.</summary>
         public static bool LookAngles(Vector3 eye, Vector3 facing, Vector3 target, out float yaw, out float pitch)
         {
-            yaw = 0f; pitch = 0f;
+            float raw;
+            return LookAngles(eye, facing, target, out yaw, out pitch, out raw);
+        }
+
+        /// <summary>...and `raw`: the yaw before it is held to the limit, in (-180, 180] --
+        /// which side of straight behind a man past the limit is on (LookHoldSide).</summary>
+        public static bool LookAngles(Vector3 eye, Vector3 facing, Vector3 target, out float yaw, out float pitch, out float raw)
+        {
+            yaw = 0f; pitch = 0f; raw = 0f;
             Vector3 to = target - eye;
             float flat = Mathf.Sqrt(to.x * to.x + to.z * to.z);
             if (flat < 0.05f || flat > LookReach) { return false; }
             float turn = (Mathf.Atan2(to.x, to.z) - Mathf.Atan2(facing.x, facing.z)) * Mathf.Rad2Deg;
-            yaw = Mathf.Clamp(WrapDegrees(turn), -LookMaxYaw, LookMaxYaw);
+            raw = WrapDegrees(turn);
+            yaw = Mathf.Clamp(raw, -LookMaxYaw, LookMaxYaw);
             pitch = Mathf.Clamp(Mathf.Atan2(to.y, flat) * Mathf.Rad2Deg, -LookMaxPitch, LookMaxPitch);
             return true;
+        }
+
+        /// <summary>The man looked at keeps the look until another is a quarter
+        /// nearer (2026-11-11, the second reading; the Unreal build's
+        /// LookKeepShare). The look went to the nearest by bare distance: two men
+        /// at one distance traded it for 2 cm -- 16 times in 10 s, the head 120
+        /// degrees across the front each time; two men chasing him, 14 times.</summary>
+        public const float LookKeepShare = 0.75f;
+        /// <summary>A man within this of straight behind stays over the shoulder
+        /// the face is already over (LookHoldSide). Degrees.</summary>
+        public const float LookRearBand = 20f;
+
+        /// <summary>
+        /// The yaw the head wants for a man at `raw`, held to LookMaxYaw -- and
+        /// a man who crosses the line straight behind him is kept over the
+        /// shoulder the face is already over (`side`, +1 his right) until he
+        /// is LookRearBand past it (2026-11-11, the second reading). The limit
+        /// alone changed sign at that line: a man 2 m behind him swaying 1 cm
+        /// swung the head 140 degrees across the front twelve times in 6 s,
+        /// 21 degrees in a frame at 60 Hz. After the Unreal build's HoldSide,
+        /// but let go LookRearBand past the line, not at the limit: at this
+        /// port's 70 degrees that kept the face over the far shoulder through
+        /// 110 degrees of a man walking round his back. Pure.
+        /// </summary>
+        public static float LookHoldSide(float raw, ref float side)
+        {
+            if (raw * side < 0f && Mathf.Abs(raw) > 180f - LookRearBand) { return side * LookMaxYaw; }
+            side = raw >= 0f ? 1f : -1f;
+            return Mathf.Clamp(raw, -LookMaxYaw, LookMaxYaw);
         }
 
         /// <summary>An angle eased toward another: the same place at any frame rate. Pure.</summary>
@@ -1165,6 +1301,10 @@ namespace Ahmed.Combat
         private Quaternion _headRest = Quaternion.identity, _neckRest = Quaternion.identity;
         private float _lookWorld, _lookYaw, _lookPitch;
         private bool _lookKnown;
+        // The man looked at last frame (nobody: null) and the shoulder the face is
+        // over, +1 his right (2026-11-11). The look's own: not the fight's man.
+        private Fighter _lookMan;
+        private float _lookSide = 1f;
 
         private void Look()
         {
@@ -1173,6 +1313,7 @@ namespace Ahmed.Combat
             FighterState st = _fighter.State;
             bool may = st != FighterState.Hit && st != FighterState.Down && st != FighterState.Dead;
             Vector3 eye = _head.position, facing = DrawnFacing();
+            Fighter looked = null;
             if (may)
             {
                 // the nearest opponent standing or fighting; his eyes at his own height
@@ -1182,26 +1323,42 @@ namespace Ahmed.Combat
                 {
                     Fighter t = them[i];
                     if (t == null || t == _fighter || !t.IsAlive) { continue; }
+                    // a man beyond the look's reach (as LookAngles measures it, from the eye) is no
+                    // choice: kept, he held the look from past it and nobody was looked at
+                    if (Flat(t.transform.position, eye) > LookReach) { continue; }
                     float d = Flat(t.transform.position, transform.position);
+                    if (t == _lookMan) { d *= LookKeepShare; }
                     if (d < best) { best = d; nearest = t; }
                 }
                 if (nearest != null)
                 {
                     Vector3 eyes = nearest.transform.position + Vector3.up * (EyeHeight * SizeOfMan(nearest));
-                    if (LookAngles(eye, facing, eyes, out yaw, out pitch))
+                    float raw;
+                    if (LookAngles(eye, facing, eyes, out yaw, out pitch, out raw))
                     {
+                        // another man is looked at over his own shoulder; the same man is held (LookHoldSide)
+                        if (nearest != _lookMan) { _lookSide = raw >= 0f ? 1f : -1f; }
+                        yaw = LookHoldSide(raw, ref _lookSide);
+                        looked = nearest;
                         _view.LookOn = true;
                         _view.LookFrom = eye;
                         _view.LookTo = eyes;
                     }
                 }
             }
+            _lookMan = looked;
             // the head's yaw is kept in the world, so it stays on the man while the body
             // is drawn round under it (LookTurn); hit stop holds it
             if (!_lookKnown) { _lookWorld = _yaw; _lookKnown = true; }
             if (!_fighter.Frozen)
             {
-                _lookWorld = LookTurn(_lookWorld, _yaw + yaw, _yaw, Time.deltaTime);
+                // ...in the world only while there is a man to keep it on (2026-11-11). With
+                // nobody it chased the body's yaw from behind: the head was left up to 68
+                // degrees back on every turn (70 at 120 Hz) and hung 33 to the outside of a
+                // steered walk. With nobody it rides the body, easing home against it
+                // (_lookYaw is still last frame's yaw against the body here).
+                _lookWorld = looked != null ? LookTurn(_lookWorld, _yaw + yaw, _yaw, Time.deltaTime)
+                                            : _yaw + LookEase(_lookYaw, 0f, Time.deltaTime);
                 _lookPitch = LookEase(_lookPitch, pitch, Time.deltaTime);
             }
             _lookYaw = Mathf.Clamp(WrapDegrees(_lookWorld - _yaw), -LookMaxYaw, LookMaxYaw);
@@ -1225,21 +1382,31 @@ namespace Ahmed.Combat
         private Vector3 _aimAt;
         private float _aimSize = 1f;
         private float _aimClock = -1f;
+        // ...and the man himself (2026-11-11): only his place was kept, so once the blow
+        // had floored or killed him the next man in the box was taken in his stead.
+        // Set with _aimed and read only while it stands.
+        private Fighter _aimMan;
 
         /// <summary>Where the man the swing in progress lands on stands: the first
         /// the fight's own sweep takes (Fighter.ResolveHits' order: alive, not
         /// down, inside the row's box), so the limb is drawn to the man the blow
         /// lands on and not merely the nearest. His size off his controller. Once
-        /// found he is kept for the swing, where he last stood. False with nobody.</summary>
+        /// found he is kept for the swing, where he last stood: floored or killed,
+        /// nobody is looked for in his place -- with two men in the box the limb
+        /// swung 43 degrees (44 cm) to the man it had not hit, on the contact frame,
+        /// and hit stop held it there. False with nobody.</summary>
         private bool StruckMan(AttackRow row, out Vector3 at, out float hisSize)
         {
             // a new swing forgets the last one's man
             bool fresh = _aimClock < 0f || _fighter.AttackTime < _aimClock;
             if (_fighter.AttackTime < _aimClock) { _aimed = false; }
+            // ...and how far the last one was stopped at a glove
+            if (fresh) { _stopped = 0f; }
             _aimClock = _fighter.AttackTime;
             Opponents(fresh);
             Vector3 origin = transform.position;
-            for (int i = 0; i < _targets.Count; i++)
+            bool felled = _aimed && _aimMan != null && (!_aimMan.IsAlive || _aimMan.State == FighterState.Down);
+            for (int i = 0; i < _targets.Count && !felled; i++)
             {
                 Fighter t = _targets[i];
                 if (t == null || t == _fighter || !t.IsAlive || t.State == FighterState.Down) { continue; }
@@ -1247,6 +1414,7 @@ namespace Ahmed.Combat
                 CharacterController body = t.GetComponent<CharacterController>();
                 _aimSize = body != null && body.height > 0.1f ? body.height / 1.8f : 1f;
                 _aimAt = t.transform.position;
+                _aimMan = t;
                 _aimed = true;
                 break;
             }
@@ -1254,8 +1422,28 @@ namespace Ahmed.Combat
             return _aimed;
         }
 
+        /// <summary>How far the man this swing lands on has a glove on it: the
+        /// share of his hand on this blow's side, while it is this blow it is on
+        /// (his FindBlow), by how far his guard is up. Nothing while his guard is
+        /// down, turned away or busy with another blow.</summary>
+        private float Guarded(bool myRight, AttackRow row)
+        {
+            FighterIK his = _aimMan != null ? _aimMan.GetComponent<FighterIK>() : null;
+            if (his == null) { return 0f; }
+            Cover glove = CoverRight(myRight) ? his._coverR : his._coverL;
+            return glove.On == _fighter && glove.Row == row ? glove.Share * his._guard : 0f;
+        }
+
+        // How far the punch in progress has been stopped at his glove: as Guarded gives
+        // it while the arm winds up, and from the frame it lands never less (Strike).
+        // A new swing starts it from nothing (StruckMan).
+        private float _stopped;
+
         // The strike solved last frame: which limb (0 left arm, 1 right arm, 2 left
-        // leg, 3 right leg; -1 none) and where its end was, in the fighter's frame.
+        // leg, 3 right leg; -1 none) and where its end was, on the body as it is drawn
+        // (RestPoint's frame, 2026-11-11). It was kept in the root's own frame, which
+        // FaceTowards snaps: a stick held round as a jab ended threw the hand 93 cm
+        // across the drawn body in that frame (63 cm at 90 degrees, 17 at 20).
         private int _struck = -1;
         private Vector3 _struckEnd;
         // A swing taken away -- he was hit in it, or another row began -- lets its
@@ -1288,12 +1476,19 @@ namespace Ahmed.Combat
             return index == 0 ? _armL : index == 1 ? _armR : index == 2 ? _legL : _legR;
         }
 
-        /// <summary>Elbows hang under the punch; the kicking knee leads the foot.</summary>
+        /// <summary>Elbows hang under the punch; the kicking knee leads the foot.
+        /// The leg's pole is on the kneecap's side of the limb's own line, wherever
+        /// that line points: the line turned a quarter in his fore-and-aft plane
+        /// (a leg pointing down bends forward, one pointing forward bends up).
+        /// Until 2026-11-11 it was a point 0.6 m ahead of the hip, which a kick
+        /// that stops on a man's front points straight at: the knee folded level
+        /// and sideways (22 cm), swapped side for 2 cm of where he stood, and
+        /// against a taller man bent backward.</summary>
         private void SolveStrike(Limb limb, bool arm, Vector3 target)
         {
             Vector3 pole = arm
                 ? (limb.Root.position + target) * 0.5f - Vector3.up * 0.6f
-                : limb.Root.position + _fighter.Facing * 0.6f;
+                : limb.Root.position + Vector3.Cross(target - limb.Root.position, Vector3.Cross(Vector3.up, _fighter.Facing));
             TwoBoneIK.Apply(limb.Root, limb.Mid, limb.End, target, pole);
         }
 
@@ -1324,7 +1519,7 @@ namespace Ahmed.Combat
                 if (_letGo > 0f && was.Ok)
                 {
                     // from where the feet and the guard have it this frame, back toward the strike
-                    Vector3 held = Vector3.Lerp(was.End.position, transform.TransformPoint(_goFrom), Smooth(_letGo));
+                    Vector3 held = Vector3.Lerp(was.End.position, RestPoint(_goFrom), Smooth(_letGo));
                     SolveStrike(was, _goLimb < 2, held);
                     _view.StrikeOn = true;
                     _view.StrikeTarget = held;
@@ -1369,10 +1564,28 @@ namespace Ahmed.Combat
                 // the row's own line: at its reach, at his own shoulder or hip height
                 Vector3 full = StrikeTarget(transform.position, facing, row.reach,
                                             (arm ? ShoulderHeight : HipHeight) * _size);
+                // A punch his glove is on stops at the glove, by as much as the glove is there
+                // (Guarded) -- and once it has landed it stays stopped: his glove lets go
+                // BlockLeadOut after the live frames, with the arm still out, and a blocked
+                // hook went on 6 cm toward his face after it.
+                float guarded = 0f;
+                if (arm)
+                {
+                    guarded = man ? Guarded((cur & 1) == 1, row) : 0f;
+                    if (_fighter.AttackTime >= row.startup) { guarded = Mathf.Max(guarded, _stopped); }
+                    _stopped = guarded;
+                }
                 if (man)
                 {
                     Vector3 mark = StrikeMark(transform.position, hisPlace, hisSize,
                                               arm ? ShoulderHeight : HipHeight, (arm ? KnuckleSkin : BallSkin) * _size);
+                    // the point his own FindBlow meets it at, BlockFaceGap short (BlockStop)
+                    if (guarded > 0f)
+                    {
+                        Vector3 front = StrikeMark(transform.position, hisPlace, hisSize, ShoulderHeight, 0f);
+                        Vector3 mine = transform.position + Vector3.up * (ShoulderHeight * SizeOfMan(_fighter));
+                        mark = Vector3.Lerp(mark, BlockStop(front, mine, hisSize), guarded);
+                    }
                     full = StrikeAim(limb.Root.position, full, mark, AimGate(limb.Root.position, full, mark, arm));
                 }
                 // From where the limb IS this frame -- the feet, the guard and a let-go have
@@ -1387,7 +1600,7 @@ namespace Ahmed.Combat
                 SolveStrike(limb, arm, target);
             }
             _struck = cur;
-            _struckEnd = transform.InverseTransformPoint(limb.End.position);
+            _struckEnd = Quaternion.AngleAxis(-_lag, Vector3.up) * transform.InverseTransformPoint(limb.End.position);
         }
     }
 }

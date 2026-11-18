@@ -22,7 +22,9 @@ namespace Ahmed.Combat
     ///  - the guard's two fist targets while the guard is up;
     ///  - the strike's target, its cross growing as the strike comes on;
     ///  - where the guard meets a blow, a cyan cross growing as the covering
-    ///    hand comes onto it (FighterIK.FindBlow, 2026-11-10);
+    ///    hand comes onto it (FighterIK.FindBlow, 2026-11-10), and a second,
+    ///    shrinking, where the other hand lets go of the blow before
+    ///    (2026-11-11: each hand has its own share);
     ///  - the look, a pink line from the head to the eyes it is turned to
     ///    (FighterIK.Look, 2026-11-10).
     ///
@@ -93,6 +95,10 @@ namespace Ahmed.Combat
             public bool BlockOn;
             public Vector3 BlockMeet;
             public float BlockWeight;
+            /// <summary>The other hand's point, while it lets go of the blow before (2026-11-11).</summary>
+            public bool BlockAlsoOn;
+            public Vector3 BlockAlsoMeet;
+            public float BlockAlsoWeight;
             public bool LookOn;
             public Vector3 LookFrom, LookTo;
         }
@@ -123,6 +129,11 @@ namespace Ahmed.Combat
             {
                 float w = Mathf.Clamp01(v.BlockWeight);
                 into.Add(Cross(v.BlockMeet, StrikeMin + (StrikeMax - StrikeMin) * w, Colour.Block));
+            }
+            if (v.BlockAlsoOn && v.BlockAlsoWeight > 0f)
+            {
+                float w = Mathf.Clamp01(v.BlockAlsoWeight);
+                into.Add(Cross(v.BlockAlsoMeet, StrikeMin + (StrikeMax - StrikeMin) * w, Colour.Block));
             }
             if (v.LookOn) { into.Add(Line(v.LookFrom, v.LookTo, Colour.Look)); }
         }

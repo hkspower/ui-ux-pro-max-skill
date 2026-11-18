@@ -84,6 +84,23 @@ public static class HoldTest {
         bool stepsHome = d.Stepping;
         for (int i = 0; i < 20; i++) p = FighterIK.HoldFoot(ref d, false, far, false, false, Dt, 1f, out lift);
         Check(stepsHome && d.Held && Flat(p, far) < 1e-6f, "...and after the kick it steps home");
+        // wholly out (2026-11-11): the hold comes under him, unseen, and the kick brings the foot back there --
+        // held, with no step home to take and nothing owed to the hips. (Left where the walk had it, the kick
+        // came back to a point 41 cm behind its hip and the hips fell 9.7 cm in the frame it ended.)
+        var o = new FighterIK.FootHold(); FighterIK.HoldFoot(ref o, false, rest, false, false, Dt, 1f, out lift);
+        Vector3 lunged = rest + new Vector3(0f, 0f, 0.30f);
+        p = FighterIK.HoldFoot(ref o, false, lunged, true, false, Dt, 1f, out lift);                             // going out: it stays
+        bool goingOut = Flat(p, rest) < 1e-6f;
+        p = FighterIK.HoldFoot(ref o, false, lunged, true, false, Dt, 1f, out lift, false, 0f, false, true);     // wholly out
+        bool under = o.Held && !o.Stepping && Flat(p, lunged) < 1e-6f && Flat(o.Anchor, lunged) < 1e-6f && lift == 0f;
+        p = FighterIK.HoldFoot(ref o, false, lunged, true, false, Dt, 1f, out lift);                             // coming back
+        bool comingBack = Flat(p, lunged) < 1e-6f;
+        p = FighterIK.HoldFoot(ref o, false, lunged, false, false, Dt, 1f, out lift);                            // the kick is over
+        Check(goingOut && under && comingBack && o.Held && !o.Stepping && Flat(p, lunged) < 1e-6f,
+              "wholly out, the striking leg's hold comes under him: the kick comes back to it and after the kick the foot is held there, with no step to take");
+        var o2 = new FighterIK.FootHold(); FighterIK.HoldFoot(ref o2, false, rest, false, false, Dt, 1f, out lift);
+        p = FighterIK.HoldFoot(ref o2, false, rest + new Vector3(0f, 0f, 0.08f), false, false, Dt, 1f, out lift, false, 0f, false, true);
+        Check(o2.Held && Flat(p, rest) < 1e-6f, "...and that is the striking leg's alone: a standing foot keeps its place");
         // a big turn still to come: both feet go round with the body as soon as it has carried them
         // SettleDrift, though the other is stepping; with no turn they wait for StepDrift, one at a time
         var tn = new FighterIK.FootHold(); FighterIK.HoldFoot(ref tn, false, rest, false, false, Dt, 1f, out lift);

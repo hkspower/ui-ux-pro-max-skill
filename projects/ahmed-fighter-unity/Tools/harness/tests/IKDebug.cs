@@ -72,6 +72,14 @@ public static class IKDebugTest {
         v.BlockWeight = 1f; IKDebug.Build(v, l);
         Check(bSmall > 0f && l.Count == 1 && l[0].Size > bSmall && l[0].Colour == IKDebug.Colour.Block && l[0].Shape == IKDebug.Shape.Cross && Same(l[0].A, v.BlockMeet),
               "where the guard meets a blow is a cross on the meeting point that grows as the hand comes onto it");
+        // 2026-11-11: each hand has its own share, so the hand letting go of the blow before has a point too
+        v.BlockAlsoOn = true; v.BlockAlsoMeet = new Vector3(0.1f, 1.2f, 0.3f); v.BlockAlsoWeight = 0f;
+        IKDebug.Build(v, l);
+        bool alone = l.Count == 1;
+        v.BlockAlsoWeight = 0.4f; IKDebug.Build(v, l);
+        Check(alone && l.Count == 2 && l[1].Colour == IKDebug.Colour.Block && l[1].Shape == IKDebug.Shape.Cross && Same(l[1].A, v.BlockAlsoMeet) && l[1].Size < l[0].Size
+              && Same(l[0].A, v.BlockMeet),
+              "the hand letting go of the blow before has its own cross, on its own point, smaller as it lets go; none once it has");
         v = new IKDebug.View(); v.LookFrom = new Vector3(0f, 1.67f, 0f); v.LookTo = new Vector3(1f, 1.67f, 1f);
         IKDebug.Build(v, l);
         Check(l.Count == 0, "the look is not drawn while he looks at nobody");
