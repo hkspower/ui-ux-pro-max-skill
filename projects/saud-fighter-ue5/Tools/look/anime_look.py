@@ -159,6 +159,34 @@ is the painted sky's horizon), a day scene of one flat lit tone (the
 prologue's gym), and the JaziratAlHajar map view (its brightest 0.5 % at
 L* 52, Auto Tone 14.6), left as found.
 
+THE DARK AREAS, 2026-11-18 ("fix over dark areas", settled as this look
+and everything too dark in it: the dotted shadow patches on the men, the
+dark sides of buildings, the ground, the black cloud blots). Scanned on
+thirteen views drawn as the game draws them (the souq's fight, street and
+gate, six map views, two men full length and their faces), every pixel
+under L* 16, 20 and 25 put down to its cause -- a line, the hatching, the
+dot screen, a man's or the world's deep, shadow or lit tone, the sky. The
+dark was the WORLD'S SHADOW TONE and what is drawn on it: on a map view
+21-41 % of the frame a shadow patch at L* 18-21 (the tone on the black
+ladder's floor, 21.9, under ink dots at 0.70 over a fifth of it, L* 7-10),
+the deep under it 14 with a hatch of two pixels in five, and the clouds'
+dark tone 0.71 of the sky behind them. What moved, all in LOOK: the
+ladder's floors (deep 0.0105 -> 0.018, shadow 0.0155 -> 0.0215, lit 0.0220
+-> 0.027: L* 14.3 / 21.9 / 29.3 -> 25.1 / 28.8 / 33.6 on dark paint), the
+world's own shadow tones (Q_SHADOW_WORLD 0.12 -> 0.16, Q_DEEP_WORLD 0.016
+-> 0.05) and a man's deep (Q_DEEP 0.045 -> 0.07), the world's level 0.60
+-> 0.64 and the men's lift 1.8 -> 1.95 with it (they stand 1.55x the world
+in the fight, 1.72 before, the rule 1.5), the dot screen (its radius 1.5
+-> 1.3 px, the world's 0.70 -> 0.55, a man's 0.40 -> 0.25), the hatching
+(HATCH_WIDTH 0.34 -> 0.19: one pixel of five at 1080 lines where it was
+two) and CLOUD_DARK (the horizon's own tone). The ink, the terminators,
+the sky's bands, the fog, the vignette and the levels are as they were,
+and no rule of check() was changed: the night is still a night (the
+fight's median L* 29.8 -> 33.0, the band 24-36). Held by check()'s "the
+dark areas" on tiles at the game's own scale, by --graded-check's and the
+map views' black-hole rules (under L* 20 on the fight and place cameras,
+L* 16 on a map view), and by five sabotages.
+
 WHAT THE CHECKS PROVE. The boil of the brush, the grain and the splatter
 are hashes, frac(sin(x) * 43758.5453), with x up to about 3e4 radians; a
 GPU's fp32 sin does not reproduce numpy's float64 bit for bit. The checks
@@ -231,11 +259,17 @@ LOOK = {
     # 0.05 -> 0.045 (still a fifth of his lit tone, where a face reads); the
     # WORLD's apart from his and crushed, 0.12 and 0.016 (times WORLD_LEVEL
     # 0.009 linear, just over the ink)
+    # 2026-11-18 ("fix over dark areas"): a man's deep 0.045 -> 0.07, the
+    # world's shadow 0.12 -> 0.16 and its deep 0.016 -> 0.05 -- on dark
+    # paint the ladder's floors (1c) decide the tone, on a pale wall these
+    # do: a grey wall's shadow L* 25.5 -> 32.8. A man's own shadow tone
+    # stays 0.20; the world's is still crushed under his (0.42 of it, the
+    # rule 0.45).
     "Q_LIT": 0.84,
     "Q_SHADOW": 0.20,
-    "Q_DEEP": 0.045,
-    "Q_SHADOW_WORLD": 0.12,
-    "Q_DEEP_WORLD": 0.016,
+    "Q_DEEP": 0.07,
+    "Q_SHADOW_WORLD": 0.16,
+    "Q_DEEP_WORLD": 0.05,
     "Q_HIGHLIGHT": 1.10,
     # 1d. the firelight ladder and the men's level (2026-10-03, "improve
     # color levels at game"). Every lit surface of the world took one flat
@@ -271,11 +305,15 @@ LOOK = {
     # paving) and the gate's top 216 (1.2x); at 4.0 the gate's fire R/B
     # fell to 1.46 against the graded 1.4 (the film's shoulder greys a
     # bright warm tone) -- 3.6 keeps 1.50.
+    # 2026-11-18 ("fix over dark areas"): the men's lift 1.8 -> 1.95, with
+    # the world's level (0.60 -> 0.64): the world came up under them and
+    # they still stand off it -- 1.55x the world on the fight camera (1.72
+    # before; the graded rule wants 1.5).
     "T_POOL1": 1.6,
     "T_POOL2": 1.85,
     "POOL_DIM": 0.34,
     "POOL_BRIGHT": 3.6,
-    "FIGHTER_LEVEL": 1.8,
+    "FIGHTER_LEVEL": 1.95,
     "FIGHTER_KNEE": 0.03,
     # ... and what a fire lights keeps the fire's colour: the world's
     # saturation rises to POOL_SAT over the pool's body and heart where the
@@ -317,9 +355,17 @@ LOOK = {
     # at its levels): ink 1.9, deep 13.9, shadow 21.4, lit 28.6. A deep
     # tone is where nothing lights a surface but the sky (a moon shadow
     # beyond every fire), 1-6 % of a map view; at 9.6 it read black.
-    "BLACK_DEEP": 0.0105,
-    "BLACK_SHADOW": 0.0155,
-    "BLACK_LIT": 0.0220,
+    # 2026-11-18 ("fix over dark areas": everything too dark): deep 0.0105
+    # -> 0.018, shadow 0.0155 -> 0.0215, lit 0.0220 -> 0.027 -- on the
+    # souq's ground paint L* 14.3 / 21.9 / 29.3 -> 25.1 / 28.8 / 33.6, the
+    # steps 3.7 and 4.8 (the ladder wants 3.5 and 4). The world's shadow
+    # side sat ON the shadow floor in every map view -- 16-31 % of the
+    # frame at L* 22 under its dots -- so the floor is what lifts it; the
+    # deep is where nothing but the sky lights a surface (under the
+    # island's trees, 5-9 % of its clearing).
+    "BLACK_DEEP": 0.018,
+    "BLACK_SHADOW": 0.0215,
+    "BLACK_LIT": 0.027,
     "BLACK_KNEE": 10.0,
     # 1b. the rim (2026-09-28): a hard cold edge of light on a man's shadow
     # side, RIM_PX (1080 lines) wide just inside his heaviest line. Its
@@ -352,7 +398,12 @@ LOOK = {
     "EMIT_FROM": 5.0,       # light this many times the key is a lamp, not a surface
     # 2. hatching, in pixels of a 1080-line picture
     "HATCH_PX": 5.0,
-    "HATCH_WIDTH": 0.34,    # share of each period that is ink
+    # 2026-11-18 ("fix over dark areas"): the width 0.34 -> 0.19. At 1080
+    # lines the period is five pixels, so 0.34 drew two of every five and
+    # 0.19 draws one (0.20-0.39 all round to two): crossed, the hatching
+    # took 0.44 of a deep tone's light -- a black patch in a man's armpit
+    # or under a tree -- and takes 0.26.
+    "HATCH_WIDTH": 0.19,    # share of each period that is ink
     "HATCH_ALPHA": 0.55,
     "CROSS_BELOW": 0.06,    # light under this is cross-hatched
     # 2b. screentone (2026-09-28): a 45-degree dot screen over the mid
@@ -360,11 +411,18 @@ LOOK = {
     # pixels -- a period of TONE_PX, dots of radius TONE_R_PX (19.6 % of
     # the area), their edge ramped over TONE_AA_PX -- lighter on a man, so
     # the shadow side of a face still reads
+    # 2026-11-18 ("fix over dark areas"): the dots smaller (radius 1.5 ->
+    # 1.3 px: 20 % of the area -> 15 %) and lighter (the world's 0.70 ->
+    # 0.55, a man's 0.40 -> 0.25). On the world's shadow they took 0.195
+    # of its light and read L* 7-10 on a map view, a black slab with a
+    # grain; now 0.132. On a man 0.111 -> 0.067: the dotted patch on a
+    # chest or a thigh is a tint, not a stain. (The world's stays over
+    # 0.5: its mask is read at that level by every rule that counts a dot.)
     "TONE_PX": 6.0,
-    "TONE_R_PX": 1.5,
+    "TONE_R_PX": 1.3,
     "TONE_AA_PX": 1.0,
-    "TONE_ALPHA": 0.70,
-    "TONE_FIGHTER_ALPHA": 0.40,
+    "TONE_ALPHA": 0.55,
+    "TONE_FIGHTER_ALPHA": 0.25,
     # 3. ink
     # Ink is the darkest thing in the picture. It was 0.030 linear -- a
     # mid-grey once exposed, lighter than a black tee, so round dark kit the
@@ -448,8 +506,13 @@ LOOK = {
     # 28.5 -> 29.2, its men still 1.73x the world; the night sky 0.70x
     # the street before it (0.73). A little more of the world's own
     # middle without the dusk 0.75 made.
+    # 2026-11-18 ("fix over dark areas"): 0.60 -> 0.64, the lit world a
+    # little up with its shadows (a grey wall lit L* 48.1 -> 49.6; dark
+    # paint is on the ladder's lit floor either way, 33.7, inside the
+    # range's 26-34). 0.70 greyed the gate's fire (R/B 1.38 against the
+    # graded 1.4: the film's shoulder); 0.64 keeps 1.43.
     "SKY_SATURATION": 0.42,
-    "WORLD_LEVEL": 0.60,
+    "WORLD_LEVEL": 0.64,
     "ACCENT_FROM": 0.80,     # a red this pure -- (r - max(g, b)) / r -- starts to count
     "ACCENT_FULL": 0.92,     # ...and is all accent here: #c8102e is 0.95, a rust tee 0.74
     "ACCENT_SAT": 1.06,
@@ -515,7 +578,12 @@ LOOK = {
     "CLOUD_SCALE": 1.4,
     "CLOUD_COVER": 0.56,
     "CLOUD_LIFT": 0.18,
-    "CLOUD_DARK": (0.016, 0.018, 0.027),
+    # 2026-11-18 ("fix over dark areas"): CLOUD_DARK (0.016, 0.018, 0.027)
+    # -> (0.027, 0.030, 0.046). It was 0.71 of the horizon band's tone, so
+    # every cloud low in the sky was a black blot with a pale rim (L* 21
+    # on a 31 sky in the fight frame); now the horizon's own tone (1.02),
+    # and higher up, where the night darkens, a cloud is the lighter.
+    "CLOUD_DARK": (0.027, 0.030, 0.046),
     "CLOUD_LIT": (0.20, 0.21, 0.24),
     "CLOUD_LIT_DEG": 35.0,
     "CLOUD_EDGE": 0.035,
@@ -3153,7 +3221,10 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          "cyan_rim", "blue_horizon", "light_horizon", "grey_vignette", "dark_vignette",
          "sys_timing", "enum_drift", "system_frozen", "trail_any_blow", "hawk_ignored",
          # 2026-10-14, the range: the fires' white and the lit middle
-         "dim_hearts", "sunk_middle", "lifted_middle")
+         "dim_hearts", "sunk_middle", "lifted_middle",
+         # 2026-11-18, the dark areas: the floors, the dots, the hatching and
+         # the clouds as they were before that day
+         "crushed_floors", "heavy_dots", "inked_men", "thick_hatch", "black_clouds")
 
 
 def power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c):
@@ -3613,6 +3684,16 @@ def check(bite=None, rig=None):
             LOOK["LV_WHITE"] = 0.40
         if bite == "grey_blacks":
             LOOK["LV_BLACK"] = -0.10
+        if bite == "crushed_floors":
+            LOOK["BLACK_DEEP"], LOOK["BLACK_SHADOW"], LOOK["BLACK_LIT"] = 0.0105, 0.0155, 0.0220
+        if bite == "heavy_dots":
+            LOOK["TONE_ALPHA"], LOOK["TONE_FIGHTER_ALPHA"], LOOK["TONE_R_PX"] = 0.70, 0.40, 1.5
+        if bite == "inked_men":
+            LOOK["TONE_FIGHTER_ALPHA"] = 0.40
+        if bite == "thick_hatch":
+            LOOK["HATCH_WIDTH"] = 0.34
+        if bite == "black_clouds":
+            LOOK["CLOUD_DARK"] = (0.016, 0.018, 0.027)
         if bite == "dim_hearts":
             LOOK["POOL_BRIGHT"] = 1.6       # the heart a step over the body, no white in it
         if bite == "sunk_middle":
@@ -4095,6 +4176,60 @@ def check(bite=None, rig=None):
                 % (rg_L["ground heart"], rg_L["pale heart"])
         finally:
             LOOK["GRAIN"], LOOK["PAPER"] = rg_gp
+        # ------------------------------------------------ 2026-11-18, the dark areas
+        # ("fix over dark areas", settled as this look, everything too dark:
+        # the dotted shadow patches on the men, the dark sides of buildings,
+        # the ground, the black cloud blots.) On flat walls AT THE GAME'S
+        # SCALE -- 1080 rows, so the dot screen and the hatching are drawn as
+        # the game draws them (on a 96-row tile both are under a pixel) -- in
+        # CIE L* on the screen, grain and paper off. A PATCH is a tone with
+        # its marks, read as the eye reads it: by its mean light. The souq's
+        # ground paint (0.11) in shadow reads L* 26 or more between its dots
+        # and in deep shadow 22 or more between its hatching (21.9 and 14.3
+        # before); the dot screen takes no more than 0.16 of the world's
+        # shadow light and 0.08 of a man's (0.195 and 0.111), the crossed
+        # hatching no more than 0.32 of a deep tone's (0.443); a man's black
+        # kit in shadow, dots and all, L* 25 or more (20.1); the lit ground
+        # still a step over its shadow; and a cloud's dark tone no darker
+        # than 0.9 of the night's horizon behind it (0.71: black blots).
+        da_gp = LOOK["GRAIN"], LOOK["PAPER"]
+        LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0
+        try:
+            da_mid = (slice(200, 880), slice(16, 80))
+
+            def da_y(da_d):
+                da_li = np.where(da_d <= 0.04045, da_d / 12.92, ((np.clip(da_d, 0, 1) + 0.055) / 1.055) ** 2.4)
+                return da_li @ luma
+
+            def da_l(da_v):
+                return float(116.0 * np.cbrt(da_v) - 16.0 if da_v > 216 / 24389 else da_v * 24389 / 27)
+
+            def da_wall(da_alb, da_t, da_man):
+                # (the fill's L*, the patch's L*, the share of the fill's light its marks take)
+                da_d, da_m = look(*_flat(96, da_alb, lit=da_t, depth=600.0, fighter=da_man, h=1080))
+                da_fill = ((da_m["hatch"][da_mid] < 0.02) & (da_m["screentone"][da_mid] < 0.02)
+                           & (da_m["ink"][da_mid] < 0.02))
+                da_f, da_p = float(np.median(da_y(da_d)[da_mid][da_fill])), float(da_y(da_d)[da_mid].mean())
+                return da_l(da_f), da_l(da_p), 1.0 - da_p / da_f
+            da_ws, da_wd, da_wl = da_wall(0.11, 0.40, False), da_wall(0.11, 0.05, False), da_wall(0.11, 1.2, False)
+            da_ms, da_mk = da_wall(0.30, 0.40, True), da_wall(0.004, 0.40, True)
+            assert da_ws[0] >= 26.0 and da_wd[0] >= 22.0, \
+                "the dark areas: the world's shadow side is not a black slab (the souq's ground L* %.1f in shadow, wanted 26; %.1f in deep shadow, wanted 22)" % (da_ws[0], da_wd[0])
+            assert da_ws[2] <= 0.16, \
+                "the dark areas: the dot screen tints the world's shadow, it does not blacken it (it takes %.3f of its light, wanted 0.16 at most)" % da_ws[2]
+            assert da_wd[2] <= 0.32, \
+                "the dark areas: the hatching is lines on a deep tone, not a black patch (crossed, it takes %.3f of its light, wanted 0.32 at most)" % da_wd[2]
+            assert da_ms[2] <= 0.08, \
+                "the dark areas: the dots on a man's shadow side are a tint, not a stain (they take %.3f of its light, wanted 0.08 at most)" % da_ms[2]
+            assert da_mk[1] >= 25.0, \
+                "the dark areas: a man's black kit in shadow still reads, dots and all (L* %.1f, wanted 25)" % da_mk[1]
+            assert da_wl[0] >= da_ws[0] + 3.0, \
+                "the dark areas: the lit ground stays a step over its shadow (L* %.1f over %.1f)" % (da_wl[0], da_ws[0])
+            da_sky = [float(levels(to_display(np.array(LOOK[k], float))) @ luma) for k in ("CLOUD_DARK", "SKY_HORIZON")]
+            assert da_sky[0] >= 0.9 * da_sky[1], \
+                "the dark areas: a cloud is not a black blot in the night (its dark tone %.2f of the horizon's, wanted 0.9)" % (da_sky[0] / da_sky[1])
+        finally:
+            LOOK["GRAIN"], LOOK["PAPER"] = da_gp
         # ------------------------------------------------ 2026-10-02, the painted sky
         # a view of the sky alone, up toward the moon (60 degrees across,
         # 0.05 a pixel: a star is a few pixels), at a time it is clear

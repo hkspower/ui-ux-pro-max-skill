@@ -160,9 +160,13 @@ SEEN = 0.85                  # ... and the first thing along that line no nearer
 GROUND_SHARE = 0.30          # a rendered view: at least this much of the frame is world, not sky
 GREY_BAND = (0.06, 0.75)     # ... its median display value inside this
 INK_SHARE = 0.003            # ... ink on at least this share of it
-HOLE_L = 12.0                # ... and no more than HOLE_SHARE of it a black hole: drawn under
+HOLE_L = 16.0                # ... and no more than HOLE_SHARE of it a black hole: drawn under
 HOLE_SHARE = 0.05            #     this L* and neither sky nor ink (a line, a hatch, a dot) --
                              #     the dark night settled 2026-10-04, "night, no black holes".
+                             #     2026-11-18 ("fix over dark areas"): the line 12 -> 16. Read
+                             #     at 800 x 450 on six views, under 16: 0.1-2.8 % with the
+                             #     look's floors of that day (the island's clearing the most),
+                             #     1.7-9.1 % before them.
                              #     Measured then: 0.2-2.0 % of every view, the island's clearing
                              #     3.9 % (its near trees' shaded side in the vignette's corners);
                              #     drawn the old way, at the stand-in key, 10-59 %
