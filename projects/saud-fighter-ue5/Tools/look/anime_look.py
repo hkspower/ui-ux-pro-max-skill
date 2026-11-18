@@ -182,7 +182,9 @@ in the fight, 1.72 before, the rule 1.5), the dot screen (its radius 1.5
 two) and CLOUD_DARK (the horizon's own tone). The ink, the terminators,
 the sky's bands, the fog, the vignette and the levels are as they were,
 and no rule of check() was changed: the night is still a night (the
-fight's median L* 29.8 -> 33.0, the band 24-36). Held by check()'s "the
+fight's median L* 29.8 -> 32.9; --graded-check's band for it, twelve wide,
+moved with it, 24-36 -> 27-39, because the sunk middle's 26.0 had passed
+the old one). Held by check()'s "the
 dark areas" on tiles at the game's own scale, by --graded-check's and the
 map views' black-hole rules (under L* 20 on the fight and place cameras,
 L* 16 on a map view), and by five sabotages.

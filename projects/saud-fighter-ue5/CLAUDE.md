@@ -6040,7 +6040,10 @@ man or a wall is in shadow); the fog; the vignette; the levels; the sky's
 bands -- its zenith is still near black (L* 8), so a view tipped up past
 45 degrees still has a dark top; and no rule of `check()`: the world is
 still darker and greyer than the men, its shadows still crushed under
-theirs (0.42; the rule 0.45).
+theirs (0.42; the rule 0.45). One graded rule moved with the picture: the
+fight's median L* went 29.8 -> 32.9, and `--graded-check`'s band for it,
+twelve wide, 24-36 -> 27-39 -- left, the sunk-middle sabotage (26.0) passed
+it.
 
 ## Colours, scanned: the fire's heart and the reds -- 2026-11-18
 

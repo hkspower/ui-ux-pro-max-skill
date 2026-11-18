@@ -156,7 +156,11 @@ GRADED = dict(contrast=1.5, shadow_over_ink=2.0, pools=2.0, fire_rb=1.4,
               # ... and the middle placed: the fight's median L* in this band
               # (28.5 before, 29.2 after; a world level of 0.75 read 42, a dusk;
               # the previews drawn at the stand-in key read 18.5, a hole)
-              middle=(24.0, 36.0),
+              # 2026-11-18 ("fix over dark areas"): the band 24-36 -> 27-39, the
+              # same twelve wide about where the picture now stands -- the lifted
+              # floors moved the fight's median L* 29.8 -> 32.9. Left at 24-36,
+              # the sunk middle (LV_GAMMA 1.45, now 26.0) passed it.
+              middle=(27.0, 39.0),
               # 2026-11-18 ("fix over dark areas"): no more than dark_share of
               # the fight camera's frame, or a place camera's, a dark area --
               # drawn under dark_l in CIE L* and neither the sky nor the
