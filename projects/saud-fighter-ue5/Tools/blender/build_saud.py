@@ -56,7 +56,7 @@ PALETTE = {
     "tee":    (0.029, 0.031, 0.039, 1.0),   # #15171c  fitted black tee
     "pants":  (0.020, 0.021, 0.027, 1.0),   # #0e1014  black trousers
     "shoe":   (0.007, 0.003, 0.009, 1.0),   # #130a18  trainers, the palette's ink
-    "band":   _unreal_kit("band"),          # #AD2E4C  the cerise's albedo
+    "band":   _unreal_kit("band"),          # #AB2949  the albedo that the look draws as the cerise
     "hair":   (0.020, 0.014, 0.009, 1.0),   # #1e150f
     "beard":  (0.026, 0.018, 0.012, 1.0),   # a shade off the hair
     "eye":    (0.012, 0.010, 0.009, 1.0),

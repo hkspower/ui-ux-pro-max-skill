@@ -30,8 +30,9 @@ own widget (rig_full_ik.widget_edges), and the FK torso as rings at the
 evaluated spine, neck and head -- CTRL_chest and CTRL_head are rotation-
 only controls that hang off CTRL_hips and do not follow an FK spine, so
 they are drawn only if turned, and CTRL_look only when `look` is on. The
-lead (L) side is Saud's band colour (build_saud.PALETTE's band, his cerise), the rear (R)
-EMBER, the body BONE, every line on an INK halo -- the look's own colours.
+lead (L) side is his band (build_saud.PALETTE's band: the line is drawn in the band's
+albedo, not in the colour the look shows it in), the rear (R) EMBER, the body BONE,
+every line on an INK halo -- the look's own colours.
 
 WHAT IT CHECKS, each panel (every one proved to fail by --bite):
   the controls reproduce the shipped frame -- every deform bone's head and
@@ -316,11 +317,12 @@ def skin_error(rig, mesh):
 # ============================================================ the overlay
 def colours():
     """The look's own, as displayed -- read when drawn, so the sheet is in
-    whatever the look is now."""
+    whatever the look is now. (`band` is his band's albedo as the table gives
+    it, in sRGB, not the colour the look draws of it.)"""
     def rgb(c):
         return tuple(int(round(255 * max(0.0, min(1.0, v)))) for v in AL.display(c))
     return dict(ink=rgb(AL.LOOK["INK"]), bone=rgb(AL.LOOK["BONE"]), ember=rgb(AL.LOOK["EMBER"]),
-                cerise=rgb(L.PALETTE["band"][:3]))
+                band=rgb(L.PALETTE["band"][:3]))
 
 
 def projector(cam, size):
@@ -344,7 +346,7 @@ def overlay(pic, rig, cam, size, props, header, footer):
     every drawn control, the centre of what was drawn (its registration)."""
     from PIL import Image, ImageDraw, ImageFont
     C = colours()
-    side_col = {"l": C["cerise"], "r": C["ember"], "": C["bone"]}
+    side_col = {"l": C["band"], "r": C["ember"], "": C["bone"]}
     W, pb = rig.matrix_world, rig.pose.bones
     P = projector(cam, size)
     im = Image.fromarray(pic).convert("RGB")
@@ -421,7 +423,7 @@ def overlay(pic, rig, cam, size, props, header, footer):
         big_f = small_f = ImageFont.load_default()
     band = int(58 * k)
     d.rectangle([0, 0, size[0], band], fill=C["ink"])
-    d.line([0, band, size[0], band], fill=C["cerise"], width=max(2, int(3 * k)))
+    d.line([0, band, size[0], band], fill=C["band"], width=max(2, int(3 * k)))
     d.text((int(18 * k), int(8 * k)), header, font=big_f, fill=C["bone"])
     foot = int(36 * k)
     d.rectangle([0, size[1] - foot, size[0], size[1]], fill=C["ink"])
@@ -583,10 +585,10 @@ def sheet(pics, size, out, man, anim=None):
     if where.startswith(".."):
         where = anim
     d.text((gap + int(14 * k), int(64 * k)),
-           "posed through rigs/%s.blend's controls at frames of %s.  cerise: lead (L)   "
+           "posed through rigs/%s.blend's controls at frames of %s.  his band: lead (L)   "
            "ember: rear (R)   bone: the body   dashed: a pole   rings: the FK spine, neck, head" % (man, where),
            font=f2, fill=C["bone"])
-    d.line([0, title - 2, Wd, title - 2], fill=C["cerise"], width=max(2, int(3 * k)))
+    d.line([0, title - 2, Wd, title - 2], fill=C["band"], width=max(2, int(3 * k)))
     for i, p in enumerate(pics):
         r, c = divmod(i, cols)
         im.paste(Image.fromarray(p), (gap + c * (size[0] + gap), title + gap + r * (size[1] + gap)))

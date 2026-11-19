@@ -135,13 +135,22 @@ def rgba_alpha(colour):
 # that goes missing is an error and never the browser's old colour quietly
 # back. Every hex is an ALBEDO, the sRGB base colour the pipeline paints, as
 # given, with no fabric floor under it (finish.fabric lifts a browser colour;
-# a dark plum or wine lifted to L* 19 reads as grey-mauve). Every one was
-# solved against the look as it stands (2026-11-19): the albedo whose lit
-# patch, through the look, comes nearest the palette's colour. That colour is
-# the `shows` of the line's comment and is data in UNREAL_SHOWS below, which
-# finish.check_kit holds the look's picture of each line to. A line with no
-# `shows` has no approved palette colour (a man's trousers are only his
-# jewel, dark); a hex marked "estimate" was not solved at all.
+# a dark plum or wine lifted to L* 19 reads as grey-mauve). A line with a
+# `shows` -- the palette's colour it must read as on screen, in its comment and
+# as data in UNREAL_SHOWS below, which finish.check_kit holds the look's
+# picture of the line to -- was SOLVED against the look as it stands
+# (2026-11-19, second round): an albedo whose lit patch, drawn by the look
+# (finish.shown()), comes within 1 Delta E of the nearest to that colour (a
+# hill-climb over sRGB integers from several starts; the second reader's
+# search found four of them 0.07-0.56 nearer still, which no eye can see and
+# which would bring two bands to 1.4 over the accent floor, so they stay).
+# Saud's cream is the nearest that keeps his
+# top 21 or more from his skin in a*b* (the skin rule wants 20). Not solved:
+# AL-SAQR's top (his saffron is out of the look's reach: the nearest albedo
+# found, #FF6D00, is still Delta E 8.6 off and an odd orange as a cloth, so the
+# lead's #936E10 stays, with the limit of its own in finish.SHOWS_LIMIT; the
+# first rebuild's render decides it), a line with no `shows` (a man's trousers
+# but Saud's are only his jewel, dark), and a hex marked "estimate".
 # They are the lead's to refine once the look is final: change a line here and
 # nothing else (`--check` and `--grim-check` hold what is held, and the
 # browser's value for the slot is still in spec()['browser_col']).
@@ -152,24 +161,24 @@ def rgba_alpha(colour):
 # Saud's chest is not in here: it is Kuwait's flag and keeps its true colours
 # (finish.kit_colour).
 UNREAL_KIT = {
-    ("saud", "top"):       "#A5A098",   # shows #F0E8DE cream
-    ("saud", "bottom"):    "#241216",   # shows #6B2A3A madder wine
-    ("saud", "band"):      "#AD2E4C",   # shows #F42A63 cerise (was Kuwait red #ff1a3c)
-    ("thug", "top"):       "#73687F",   # shows #B7A7C9 ash-lilac
+    ("saud", "top"):       "#A0A197",   # shows #F0E8DE cream
+    ("saud", "bottom"):    "#210C11",   # shows #6B2A3A madder wine
+    ("saud", "band"):      "#AB2949",   # shows #F42A63 cerise (was Kuwait red #ff1a3c)
+    ("thug", "top"):       "#6C668C",   # shows #B7A7C9 ash-lilac
     ("thug", "bottom"):    "#100D15",   # the lilac, dark
-    ("thug", "band"):      "#5B5260",   # estimate: a muted lilac, the top's hue
-    ("brawler", "top"):    "#05483F",   # shows #138C7C jade
+    ("thug", "band"):      "#5B5260",   # estimate: a muted lilac, the ash-lilac's hue
+    ("brawler", "top"):    "#174E44",   # shows #138C7C jade
     ("brawler", "bottom"): "#071E1B",   # the jade, dark
-    ("brawler", "band"):   "#5B1B21",   # shows #B4142E blood (was Kuwait red #c8102e)
-    ("saqr", "top"):       "#936E10",   # shows #E8B020 saffron
+    ("brawler", "band"):   "#612124",   # shows #B4142E blood (was Kuwait red #c8102e)
+    ("saqr", "top"):       "#936E10",   # shows #E8B020 saffron: the lead's, kept (not solved: see above)
     ("saqr", "bottom"):    "#292118",   # the saffron, dark
-    ("saqr", "band"):      "#A39D96",   # shows #F3E4D0 bone, at the cream's ratio
-    ("boss", "top"):       "#220F31",   # shows #6E2A9C violet (AL-WAHSH)
+    ("saqr", "band"):      "#A79C85",   # shows #F3E4D0 bone
+    ("boss", "top"):       "#2D1E4F",   # shows #6E2A9C violet (AL-WAHSH)
     ("boss", "bottom"):    "#07020E",   # the violet, dark
-    ("boss", "band"):      "#5B1B21",   # shows #B4142E blood, as the brawler's (was Kuwait red #c8102e)
+    ("boss", "band"):      "#612124",   # shows #B4142E blood, as the brawler's (was Kuwait red #c8102e)
     ("zayos", "top"):      "#060408",   # never drawn (he wears none): his bottom's colour
     ("zayos", "bottom"):   "#060408",   # near-black plum
-    ("zayos", "band"):     "#27508D",   # shows #4A8EF2 azure: his gloves and his band (were red #c8102e)
+    ("zayos", "band"):     "#2654BD",   # shows #4A8EF2 azure: his gloves and his band (were red #c8102e)
 }
 KIT_SLOTS = ("top", "bottom", "band")
 UNREAL_MEN = ("saud", "thug", "brawler", "saqr", "boss", "zayos")
@@ -190,15 +199,29 @@ UNREAL_SHOWS = {
     ("boss", "band"):   "#B4142E",
     ("zayos", "band"):  "#4A8EF2",
 }
+# The eleven lines the palette approves a colour for, written out once more so
+# that a line dropped from UNREAL_SHOWS is an error and not a rule quietly
+# switched off for it (check_kit_table). A line the palette gives no colour
+# (a man's trousers but Saud's, the thug's band, ZAYOS's top) is not here.
+UNREAL_SHOWS_LINES = (
+    ("saud", "top"), ("saud", "bottom"), ("saud", "band"),
+    ("thug", "top"),
+    ("brawler", "top"), ("brawler", "band"),
+    ("saqr", "top"), ("saqr", "band"),
+    ("boss", "top"), ("boss", "band"),
+    ("zayos", "band"),
+)
 
 
 def check_kit_table(men=None):
     """The table is well formed and COMPLETE: each key a (man, slot) of
     KIT_SLOTS, each value a #rrggbb, every one of the six men's three slots
     present (a missing line would paint the browser's old colour, floored,
-    and nothing else would notice), the approved `shows` colours well formed
-    and each on a line of the table, and, given the men the browser has
-    (`men`, the roster's kinds), no man it does not have."""
+    and nothing else would notice), the approved `shows` colours well formed,
+    each on a line of the table and one for every one of the eleven approved
+    lines (a line dropped from UNREAL_SHOWS would switch its rule off), and,
+    given the men the browser has (`men`, the roster's kinds), no man it does
+    not have."""
     hexed = lambda h: isinstance(h, str) and re.fullmatch(r"#[0-9A-Fa-f]{6}", h)
     for (kind, slot), hexv in UNREAL_KIT.items():
         assert slot in KIT_SLOTS, "UNREAL_KIT: %s has no %r slot (%s)" % (kind, slot, ", ".join(KIT_SLOTS))
@@ -207,6 +230,8 @@ def check_kit_table(men=None):
         missing = _missing(kind)
         assert not missing, "UNREAL_KIT has no %s %s: it would be painted in the browser's own colour" % (
             kind, " or ".join(missing))
+    for kind, slot in UNREAL_SHOWS_LINES:
+        assert (kind, slot) in UNREAL_SHOWS, "UNREAL_SHOWS has no %s %s: the look's picture of that line would be held to nothing" % (kind, slot)
     for (kind, slot), hexv in UNREAL_SHOWS.items():
         assert (kind, slot) in UNREAL_KIT, "UNREAL_SHOWS: %s's %s is not a line of UNREAL_KIT" % (kind, slot)
         assert hexed(hexv), "UNREAL_SHOWS: %s's %s is %r, want #rrggbb" % (kind, slot, hexv)

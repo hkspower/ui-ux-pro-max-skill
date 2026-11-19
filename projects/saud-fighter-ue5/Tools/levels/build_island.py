@@ -881,7 +881,7 @@ def draw(P, path):
                      "exaggerated %.0fx." % (SLICE * 2 / 100.0, zs),
            fill=(210, 206, 198))
     g.text((16, SY + 8), "sea %d, shallows %d, surf %d, stone %d cm"
-           % (SEA_Z, SHALLOW_Z, SURF_Z, SHORE_Z), fill=(150, 170, 180))
+           % (SEA_Z, SHALLOW_Z, SURF_Z, SHORE_Z), fill=(246, 234, 219))   # the HUD text cream #F6EADB; a slate (150, 170, 180) until 2026-11-19
     x = 16
     for name in sorted(ANIMALS):
         g.ellipse([x, 62, x + 8, 70], fill=ANIMALS[name]["col"])

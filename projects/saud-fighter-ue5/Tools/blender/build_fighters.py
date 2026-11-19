@@ -1155,13 +1155,14 @@ def physique_check():
 def grim_check():
     """--grim-check (2026-09-28, the five men grim): the kit (finish
     .check_kit, rewritten 2026-11-19 for the six jewel-coloured men of
-    roster.UNREAL_KIT: every slot a line of the table, each top and band the
-    look draws within Delta E 6 of the palette's colour -- the envelope the
-    grim kit's dark and muted rules were, as the jewel kit has it -- the six
-    identity colours apart and none of them his skin, the trousers the dark of
-    him and under his top, the band quiet or his one declared accent, one
-    accent at most, the shoe a plum black, worn tape; it held the grim kit's
-    dark, muted, one red accent before), the
+    roster.UNREAL_KIT: every slot a line of the table, each of the eleven
+    approved lines (top, band, Saud's trousers) drawn by the look within Delta E
+    6 of the palette's colour (AL-SAQR's top alone has a limit of its own) -- the
+    envelope the grim kit's dark and muted rules were, as the jewel kit has it
+    -- the six identity colours apart and none of them his skin, the trousers
+    the dark of him and under his top, the band quiet or his one declared
+    accent, one accent at most, the shoe a plum black, worn tape; it held the
+    grim kit's dark, muted, one red accent before), the
     paint (pipeline.paint_checks for every man: brows, furrow, frown, scars
     paler than the skin with a pucker, the brawler's tape, the body scars),
     the body his MASS and LIMBS were for (pipeline.check_body_looks, against
@@ -1170,14 +1171,15 @@ def grim_check():
     asserts in every build: MERGE 6) and the cauliflower ears
     (assembly.check_cauliflower) -- clean, then each broken: each of the
     eighteen table lines deleted (from the table, from spec(), and as the
-    browser's colour come back in the palette); the thug back in the
-    browser's grey, AL-WAHSH in ZAYOS's azure, a loud band on AL-SAQR and on
-    the thug (undeclared), a second accent, the boss in the thug's top, the
-    brawler's rust tee and his skin brown, a pale tan near Saud's skin, bone
-    tape (on the boss; set on Saud), ZAYOS's gloves gone grey, the brawler's
-    trousers in his jade, Saud's in cream; a white, a neon-green, a hot-pink,
-    the browser's orange and violet top that does not show its colour, a
-    blue-grey shoe; the brows in his skin, no furrow, the old frown, the old
+    browser's colour come back in the palette) and each of the eleven
+    UNREAL_SHOWS lines deleted; the thug back in the browser's grey, AL-WAHSH
+    in ZAYOS's azure, a loud band on AL-SAQR and on the thug (undeclared), a
+    second accent, the boss in the thug's top, the brawler's rust tee and his
+    skin brown, a pale tan near Saud's skin, bone tape (on the boss; set on
+    Saud), ZAYOS's gloves gone grey, the brawler's trousers in his jade,
+    Saud's in cream; a line that does not show its colour, one bite aimed at
+    each of the eleven (and the run counts them); a grey and a blue-grey
+    shoe; the brows in his skin, no furrow, the old frown, the old
     scar tone, scar tissue in the old tone, no pucker, no tape, no body
     scars; each man built plain, AL-SAQR with the brawler's waist, ZAYOS's
     trapezius grown; a brick jaw; plain ears. bpy as a module; about four
@@ -1206,7 +1208,7 @@ def grim_check():
     print("  identity clean   apart by " + "  ".join("%s-%s %.1f" % e for e in ev))
     for (k, slot), (got, want, d, limit) in F.kit_shows(pals()).items():
         print("  %-8s %-7s the look draws %s, the palette's %s: Delta E %.1f (at most %.1f%s)" % (
-            k, slot, got, want, d, limit, ", the look's own shortfall" if (k, slot) in F.SHOWS_LIMIT else ""))
+            k, slot, got, want, d, limit, ", out of the look's reach (finish.SHOWS_LIMIT)" if (k, slot) in F.SHOWS_LIMIT else ""))
     UK = roster.UNREAL_KIT
     bone = "#" + F.BONE
 
@@ -1230,7 +1232,7 @@ def grim_check():
         # the browser's rust tee is 13.0 from the brawler's skin in a*b*:
         # it read as a bare chest; so does a dark brown the same hue; and a
         # pale tan 17.3 from Saud's, which pins the limit from below (his
-        # cream, 19.5, is the line's other side)
+        # cream, 21.05, is the line's other side: the limit is 20)
         ("the brawler's rust tee", dict(brawler=dict(top="#8c4a34")), "as skin"),
         ("the brawler in skin brown", dict(brawler=dict(top="#5c473b")), "as skin"),
         ("a pale tan on Saud", dict(saud=dict(top="#A99F95")), "as skin"),
@@ -1244,11 +1246,12 @@ def grim_check():
         # enough to pass the L* rule, not the ratio), and pale ones
         ("the brawler's trousers in jade", dict(brawler=dict(bottom=UK[("brawler", "top")])), "as light as the top"),
         ("saud in cream trousers", dict(saud=dict(bottom=UK[("saud", "top")])), "pale trousers"),
-        # a top that does not show what the palette says: white, neon green,
-        # hot pink, and two of the browser's own loud tops (the runner's
-        # orange, the champion's violet); the grey that only sat 12 from
-        # Saud's cream, with the cream not at the table; and the lines the
-        # look cannot draw within 6, each still bitten at its own limit
+        # a line that does not show what the palette says: white, neon green,
+        # hot pink, and the browser's own loud tops (the runner's orange, the
+        # champion's violet), and so on -- one bite at least aimed at EACH of
+        # the eleven approved lines, which the run counts below; the grey that
+        # only sat 12 from Saud's cream, with the cream not at the table, is
+        # the run after this one
         ("a white boss top", dict(boss=dict(top="#ffffff")), "does not show"),
         ("a neon-green boss top", dict(boss=dict(top="#00ff40")), "does not show"),
         ("a hot-pink thug top", dict(thug=dict(top="#ff40c0")), "does not show"),
@@ -1256,15 +1259,37 @@ def grim_check():
         ("the champion's violet, thug", dict(thug=dict(top="#6b3bb0")), "does not show"),
         ("a white saqr top", dict(saqr=dict(top="#ffffff")), "does not show"),
         ("saqr's band in the thug's", dict(saqr=dict(band=UK[("thug", "band")])), "does not show"),
-        ("zayos's gloves in cerise", dict(zayos=dict(band=UK[("saud", "band")])), "does not show")]
+        ("zayos's gloves in cerise", dict(zayos=dict(band=UK[("saud", "band")])), "does not show"),
+        ("the runner's orange, Saud", dict(saud=dict(top="#e07b2c")), "does not show"),
+        ("saud's trousers in the browser's black", dict(saud=dict(bottom="#0e1014")), "does not show"),
+        ("saud's band in the browser's red", dict(saud=dict(band="#ff1a3c")), "does not show"),
+        ("the brawler's band in Kuwait red", dict(brawler=dict(band="#c8102e")), "does not show"),
+        ("the boss's band in Saud's cerise", dict(boss=dict(band=UK[("saud", "band")])), "does not show")]
     for label, over, word in kit_bites:
         bites.run(label, word, lambda over=over: F.check_kit(pals(**over)))
+    # one bite aimed at each of the eleven approved lines: the lines the
+    # `does not show` bites above name, against the lines the table's `shows`
+    # must hold (so a line added to the palette without a bite fails here)
+    aimed = {(k, slot) for _, over, word in kit_bites if word == "does not show" for k, kit in over.items() for slot in kit
+             if slot in roster.KIT_SLOTS}
+    unaimed = sorted((set(roster.UNREAL_SHOWS_LINES) | set(roster.UNREAL_SHOWS)) - aimed)
+    bites.total += 1
+    bites.caught += not unaimed
+    print("  %-26s %s" % ("a bite for each line", "%d of %d approved lines have one" % (len(aimed & set(roster.UNREAL_SHOWS_LINES)), len(roster.UNREAL_SHOWS_LINES))
+                          if not unaimed else "NONE aimed at: %s" % unaimed))
     bites.run("the grey, Saud not seated", "does not show",
               lambda: F.check_kit({k: p for k, p in pals(thug=dict(top="#8a9099")).items() if k != "saud"}))
-    # a shoe that is not a plum black: the browser's blue-grey floored, a steel
-    # blue (inside the chroma cap, outside the hue), and a neutral
-    for label, hexv in (("the browser's blue-grey shoe", "#2c2f33"), ("a steel-blue shoe", "#26323f"), ("a neutral black shoe", "#000000")):
-        bites.run(label, "cold shoe", shoe_of(hexv))
+    # a shoe that is not a plum black. The browser's blue-grey floored has C* 3.0:
+    # it is a grey, and the chroma floor says so. A steel blue (C* 9.9) is inside
+    # the chroma cap and over the floor: only its hue (263) fails it. A neutral
+    # grey has no hue at all -- its a*, b* are the white point's rounding and
+    # atan2 puts them at 297, inside the plum range -- so only the floor fails
+    # #101010 and #222222 (only #000000's hue, 0, is outside the range, which is
+    # not the reason it is bitten for)
+    for label, hexv, word in (("the browser's blue-grey shoe", "#2c2f33", "grey shoe"), ("a steel-blue shoe", "#26323f", "cold shoe"),
+                              ("a neutral black shoe", "#101010", "grey shoe"), ("a neutral grey shoe", "#222222", "grey shoe"),
+                              ("a pure black shoe", "#000000", "grey shoe")):
+        bites.run(label, word, shoe_of(hexv))
 
     # the table whole: each of its eighteen lines deleted, three ways -- from
     # the table (check_kit_table, which --check and every build run), from
@@ -1297,6 +1322,15 @@ def grim_check():
                 bites.caught += ok
                 got.append("%s %s" % (where, "caught" if ok else "WRONG CHECK: %s" % str(e)[:90]))
         print("  no %-22s %s" % ("%s %s" % (kind, slot), "  ".join(got)))
+    # ...and the approved colours whole: each of the eleven UNREAL_SHOWS lines
+    # deleted must fail check_kit_table naming the line (a line dropped from
+    # there would switch its `shows` rule off for good)
+    for (kind, slot) in roster.UNREAL_SHOWS_LINES:
+        saved = roster.UNREAL_SHOWS.pop((kind, slot))
+        try:
+            bites.run("no shows %s %s" % (kind, slot), "UNREAL_SHOWS has no %s %s" % (kind, slot), lambda: roster.check_kit_table(men))
+        finally:
+            roster.UNREAL_SHOWS[(kind, slot)] = saved
     sys.stdout.flush()
 
     # ---- the paint, every man (paint_checks, as every build runs it)

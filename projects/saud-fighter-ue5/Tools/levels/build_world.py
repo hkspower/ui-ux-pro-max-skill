@@ -243,6 +243,7 @@ WATER = (0.0125, 0.0170, 0.0150)
 # it is the teal-green chosen above (167, the approved picture sheet's), held
 # to a window of 150-200 by check 29. Navy (the old slate, 254) is outside.
 WATER_HUES = (150.0, 200.0)
+OLD_SLATE_HUE = 254.0                # the water's old hue; water_miss names it only for a hue within 30 degrees of it
 ROLE_ROUGH = dict(paving=0.85, ground=0.95, tall=0.90, block=0.90, rim=0.90, water=0.06, iron=0.60)
 WAY_THROUGH = 1.20                   # the paving at least this many times its ground's luminance
 FIRE_POST = dict(brazier=(60.0, 95.0), pyre=(7.0, 290.0))   # a derived district's fire as a post: across, tall (cm)
@@ -981,8 +982,9 @@ def water_miss(c):
         return "the water is grey (chroma %.1f, under %.0f): not the world's teal-green (hue %.0f-%.0f)" \
             % (chroma, SOUQ.STONE_CHROMA, *WATER_HUES)
     if not SOUQ.in_hues(hue, WATER_HUES):
-        return "the water is hue %.0f (chroma %.1f), not the world's teal-green (hue %.0f-%.0f): not the old navy slate (254)" \
-            % (hue, chroma, *WATER_HUES)
+        navy = abs((hue - OLD_SLATE_HUE + 180.0) % 360.0 - 180.0) <= 30.0
+        return "the water is hue %.0f (chroma %.1f), not the world's teal-green (hue %.0f-%.0f)%s" \
+            % (hue, chroma, *WATER_HUES, ": not the old navy slate (%.0f)" % OLD_SLATE_HUE if navy else "")
     return None
 
 
@@ -1241,7 +1243,8 @@ def bite(verbose=True):
         print("the unbroken world fails its own check, so no sabotage can be counted: %s" % e)
         return False
 
-    def case(label, expect, tables=(), mutate=None):
+    def case(label, expect, tables=(), mutate=None, forbid=None):
+        """`forbid`: text the message must not hold (a clause said where it should not be)."""
         with SOUQ._override(list(tables)):
             with contextlib.redirect_stdout(io.StringIO()):
                 try:
@@ -1251,7 +1254,7 @@ def bite(verbose=True):
                     check(P)
                     cases.append((label, False, "did not bite"))
                 except AssertionError as e:
-                    cases.append((label, expect in str(e), str(e)[:110]))
+                    cases.append((label, expect in str(e) and not (forbid and forbid in str(e)), str(e)[:110]))
 
     def district(P, name):
         return next(d for d in P["districts"].values() if d["stage"]["Name"] == name)
@@ -1303,7 +1306,12 @@ def bite(verbose=True):
     case("grey world (no chroma at all)", "is grey", [(G, "role_colour", lambda theme, role: grey)])
     case("a theme with no stone family", "has no stone family", [(G, "THEME_FAMILY", {k: v for k, v in THEME_FAMILY.items() if k != "Gym"})])
     # the water has no stone's rule: its own window (the old slate is hue 254)
-    case("navy water (the old slate)", "the water is hue", [(G, "WATER", (0.012, 0.016, 0.020))])
+    # the message names the old navy slate only for a hue near it (the first), not for a green one (the second)
+    case("navy water (the old slate)", "not the old navy slate (254)", [(G, "WATER", (0.012, 0.016, 0.020))])
+    case("green water (not called navy)", "the water is hue 131", [(G, "WATER", (0.014, 0.017, 0.012))], forbid="navy")
+    # the 30-degree reach of that clause is pinned from both sides: an azure 40 degrees off the slate is not called navy, a slate-blue 21 degrees off is
+    case("azure water (hue 214, not called navy)", "the water is hue 214", [(G, "WATER", (0.0095, 0.0165, 0.0180))], forbid="navy")
+    case("slate-blue water (hue 233, called navy)", "not the old navy slate (254)", [(G, "WATER", (0.0105, 0.0175, 0.0210))])
     case("grey water (a grey has no hue to hold)", "the water is grey", [(G, "WATER", (0.016, 0.016, 0.016))])
     # the whole world on the old cold cast: the mud goes brown (the souq's own check says so first)
     case("old cold cast (the mud goes brown)", "a brown mud", [(SOUQ.WEATHER, "cast", (0.92, 0.98, 1.08))])

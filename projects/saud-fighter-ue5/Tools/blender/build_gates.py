@@ -51,8 +51,10 @@ triangle budget; the door's oval inside its trigger, its lip under a step,
 a man's capsule through it; the portals collide with nothing (the C++);
 every gate in a plan wears its kind's portal, the arena's door its own and
 no street exit one, the door's portal clear of every fight and every fire
-beside it; and the preview sheet's colours the look's (sheet_misses). --bite
-breaks each.
+beside it; and the preview sheet's colours the look's (sheet_misses holds the
+SHEET table to the look, source_misses holds preview() to SHEET: no RGB tuple
+literal of its own -- a colour written as a hex string or through a name is
+not seen). --bite breaks each.
 
 UNVERIFIED. No engine has imported a portal; the FBX is written by Blender
 and read back by Blender. The editor half (import, the material slot, the
@@ -61,6 +63,7 @@ not run: the component is reached as the actor's "portal" property, the
 lift by set_relative_location, and bArenaDoor as "arena_door", as UE 5.4's
 Python names them from memory.
 """
+import ast
 import json
 import math
 import os
@@ -112,7 +115,8 @@ MATERIAL_OF = {"gate": "M_Portal_System", "door": "M_Portal_Danger"}
 # too dark to read on the panel -- over the HUD's panel #1B1020, the text the
 # HUD's cream #F6EADB. They were the old cyan (70, 200, 255), crimson
 # (255, 51, 85), navy (6, 9, 20) and ice (234, 246, 255). sheet_misses() holds
-# each to the look's, so a look that moves again fails here.
+# each to the look's, so a look that moves again fails here; source_misses()
+# holds preview() to this table (it draws no RGB tuple literal of its own).
 SHEET = dict(background=(27, 16, 32), text=(246, 234, 219), gate=(255, 46, 146), door=(255, 75, 54))
 SHEET_OF = dict(background="HUD_PANEL", text="HUD_ICE", gate="HUD_SYSTEM", door="HUD_DANGER")
 INSTANCE_OF = {"M_Portal_System": "MI_Portal_System", "M_Portal_Danger": "MI_Portal_Danger"}
@@ -311,7 +315,9 @@ def trigger_extent():
 
 def source_misses(texts=None):
     """The box is the levels' cube and the souq's wall; the portals collide
-    with nothing and cast no shadow (the C++)."""
+    with nothing and cast no shadow (the C++); preview() draws the sheet
+    through SHEET alone, with no RGB tuple literal of its own (so
+    sheet_misses, which holds SHEET to the look, holds what is drawn)."""
     T = texts or {}
     read = lambda rel: T[rel] if rel in T else open(os.path.join(PROJECT, rel), encoding="utf-8").read()
     out = []
@@ -330,6 +336,23 @@ def source_misses(texts=None):
             out.append("%s's portal collides: a portal is never in the street or a fight as a thing to walk into" % rel)
         if "Portal->SetUsingAbsoluteScale(true)" not in src:
             out.append("%s's portal takes its parent's scale: the gate's cube is scaled 1.6 x 0.6 x 3.0" % rel)
+    # preview(): every three- or four-number tuple in it would be a colour (a position is two numbers,
+    # a size a name), and the sheet's colours are SHEET's -- a literal there is drawn in whatever
+    # palette it was typed in, and sheet_misses never sees it
+    tree = ast.parse(read("Tools/blender/build_gates.py"))
+    fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "preview"), None)
+    if fn is None:
+        out.append("build_gates.py has no preview(): its sheet's colours are not held to SHEET")
+    else:
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Tuple) and len(n.elts) in (3, 4):
+                try:
+                    v = ast.literal_eval(n)
+                except (ValueError, TypeError, SyntaxError):
+                    continue
+                if all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in v):
+                    out.append("preview() draws the colour literal %s (line %d), not SHEET's: the sheet would draw in a palette the look does not hold"
+                               % (v, n.lineno))
     return out
 
 
@@ -339,8 +362,10 @@ def _srgb8(c):
 
 
 def sheet_misses(sheet=None):
-    """The preview sheet draws in the look's own colours: each of SHEET's
-    (within one 8-bit step) the look's HUD colour it stands for (SHEET_OF)."""
+    """The preview sheet draws in the look's own colours: each of SHEET's is
+    (within one 8-bit step) the look's HUD colour it stands for (SHEET_OF).
+    This holds the table; that preview() draws through it, with no RGB tuple
+    literal of its own, is source_misses'."""
     if LOOK_DIR not in sys.path:
         sys.path.insert(0, LOOK_DIR)
     from anime_look import LOOK
@@ -467,13 +492,24 @@ def bite():
            ("portal collides", broken("Source/SaudFighter/World/AbilityGate.cpp", "Portal->SetCollisionEnabled(ECollisionEnabled::NoCollision)",
                                       "Portal->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics)"), "collides"),
            ("door scaled", broken("Source/SaudFighter/World/AreaExit.cpp", "Portal->SetUsingAbsoluteScale(true)", "Portal->SetUsingAbsoluteScale(false)"), "parent's scale")]
+    def in_preview(old, new):
+        """This file with `old` -> `new` once, from preview()'s def on: bite()
+        quotes the same text, so the search starts at the def's real line."""
+        rel = "Tools/blender/build_gates.py"
+        t = open(os.path.join(PROJECT, rel), encoding="utf-8").read()
+        i = t.index("\ndef preview(")
+        assert old in t[i:], "sabotage did not apply: %s" % old
+        return {rel: t[:i] + t[i:].replace(old, new, 1)}
+    src += [("cyan in preview()", in_preview('fill=SHEET["gate"]', "fill=(70, 200, 255)"), "colour literal (70, 200, 255)"),
+            ("preview() renamed", in_preview("def preview(", "def preview_sheet("), "has no preview()")]
     for name, T, want in src:
         hit = [m for m in source_misses(T) if want in m]
         caught += bool(hit)
         print("  %-18s %s" % (name, ("caught: " + hit[0]) if hit else "NOT caught"))
     # the preview sheet's colours: each one put back to the old palette
-    for name, key, old_c in (("cyan gate titles", "gate", (70, 200, 255)), ("crimson door title", "door", (255, 51, 85)),
-                             ("navy sheet", "background", (6, 9, 20)), ("ice text", "text", (234, 246, 255))):
+    sheet_cases = [("cyan gate titles", "gate", (70, 200, 255)), ("crimson door title", "door", (255, 51, 85)),
+                   ("navy sheet", "background", (6, 9, 20)), ("ice text", "text", (234, 246, 255))]
+    for name, key, old_c in sheet_cases:
         hit = [m for m in sheet_misses(dict(SHEET, **{key: old_c})) if "preview sheet's %s" % key in m]
         caught += bool(hit)
         print("  %-18s %s" % (name, ("caught: " + hit[0]) if hit else "NOT caught"))
@@ -500,7 +536,7 @@ def bite():
         hit = [m for m in miss if want in m]
         caught += bool(hit)
         print("  %-18s %s" % (name, ("caught: " + hit[0]) if hit else "NOT caught (%s)" % (miss[:1] or "passes")))
-    total = len(cases) + len(src) + len(pcases) + 4
+    total = len(cases) + len(src) + len(sheet_cases) + len(pcases)
     print("  %d of %d bite" % (caught, total))
     return caught == total
 

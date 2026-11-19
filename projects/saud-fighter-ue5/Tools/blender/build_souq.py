@@ -227,7 +227,8 @@ def _luma(c):
 HUES = dict(light=(300.0, 360.0), warm=(350.0, 30.0), cool=(293.0, 330.0))
 # a stone with less chroma than this (read at luminance 0.25, see tint_of) is
 # a grey, which has no hue to hold and is not the palette's: the lowest in use
-# is 8.3 (the gate wall, Fishmarket), the palette's own ground 11.9
+# is 8.3 (the gate wall, Fishmarket), the palette's own ground 17.4 (#63494D
+# read the same way, at luminance 0.25; at its own luminance it is 11.9)
 STONE_CHROMA = 5.0
 
 
@@ -1525,9 +1526,11 @@ def bite(verbose=True):
         case(what, none, want, [(BROWSER_ART, "barrel", hexc), (PALETTE, "M_Souq_Iron", dict(hex=(hexc, RUST), family="cool"))])
     case("pink souq (a magenta cast)", none, "a magenta or a navy", [(W, "cast", (1.05, 0.86, 1.35))])
     case("grey souq (no chroma, no cast)", none, "is grey", [(W, "chroma", 0.0), (W, "cast", (1.0, 1.0, 1.0))])
-    # a red cast that keeps every stone inside the warm window (hue 359-1) at a purity of 0.66-0.73:
-    # the purity rule is reached, not shadowed by the hue rule (the old magenta cast, 2.0 0.5 2.0,
-    # is hue 341 now, and fails the hue rule first)
+    # a red cast that keeps every warm stone inside the warm window (measured: hue 350-1) at a
+    # purity of 0.66-0.73, so the purity rule is reached, not shadowed by the hue rule (the old
+    # magenta cast, 2.0 0.5 2.0, is hue 341 now, and fails the hue rule first). It is the first row
+    # checked, M_Souq_Mud (hue 358, purity 0.73), that reaches the purity rule; the cool iron is
+    # sent to hue 332.6 (purity 0.60), outside its own window (293-330), but is checked later
     case("painted stone (a loud red cast)", none, "paint, not stone", [(W, "cast", (1.2, 0.45, 0.9))])
     case("loud cloth", none, "banner shouts", [(W, "cloth_chroma", 1.0)])
     case("red lost", none, "no longer the look's accent", [(W, "blood_chroma", 0.4)])
@@ -1753,7 +1756,8 @@ def draw(P, path):
             r = p["pool"] * 100.0 * sc; g.ellipse([x - r, y - r, x + r, y + r], outline=(150, 70, 20))
             g.ellipse([x - 3, y - 3, x + 3, y + 3], fill=(255, 140, 40))
         else:
-            g.ellipse([x - 2, y - 2, x + 2, y + 2], fill=(220, 190, 120) if p["kind"].startswith("crate") else (150, 170, 190))
+            # a barrel is iron, so its dot is the palette's mauve (CIELAB hue 309, the iron's) lifted to read on the plan; it was a slate (150, 170, 190) until 2026-11-19
+            g.ellipse([x - 2, y - 2, x + 2, y + 2], fill=(220, 190, 120) if p["kind"].startswith("crate") else (170, 150, 193))
     for l in P.get("lanterns", []):
         x, y = to(l["x"], l["y"]); g.point((x, y), fill=(255, 220, 140))
     for s in P["sites"]:

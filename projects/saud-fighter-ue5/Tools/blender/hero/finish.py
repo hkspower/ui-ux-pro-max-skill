@@ -275,7 +275,7 @@ assert FA.SAUD_SKIN == '#f0d8c4', "face.py's tones are ratios to the skin they w
 # Since 2026-11-19 the six men's top, trousers and band are not the browser's
 # flat colours but roster.UNREAL_KIT's albedo, solved against the look, and
 # palette_for paints those as given: the floor never sees them (it would draw
-# Saud's wine #241216 from L* 7.8 up to 20 and AL-WAHSH's plum #07020E from
+# Saud's wine #210C11 from L* 5.7 up to 19 and AL-WAHSH's plum #07020E from
 # L* 1.1 up to 17, each a grey-mauve with a fifth more chroma and none of its
 # depth). So the darkest of them -- AL-WAHSH's and ZAYOS's trousers, 0.0012
 # and 0.0014 -- sit below the 0.005 that lost its folds, on purpose: the look
@@ -324,10 +324,13 @@ def fabric(c):
 KIT_KEYS = ("top", "bottom", "band", "accent", "hands", "tape", "tape_blood", "scabs", "beard",
             "glove_rough", "glove_coat", "pants_rough")
 # What was a cold neutral on every man, now the palette "Sodium Afterglow"'s
-# own (2026-11-19), as albedo and painted as given, no floor under them:
+# own (2026-11-19), as albedo and painted as given, no floor under them. These
+# are the lead's estimates, none solved against the look, and no check holds
+# them to the palette: BONE, TAPE, SOLE and ZAYOS's never-drawn top are held by
+# none, and the shoe only by the plum-black bounds of KIT_RULES (L*, C*, hue).
 SHOE = '130a18'         # the palette's ink #130A18: a plum black, not the browser's blue-grey #101216
-SOLE = '1f1124'         # the HUD's trough #2E1B35 at half its light: a dark plum a step lighter than the shoe
-BONE = 'a39d96'         # the palette's bone #F3E4D0 as an albedo, at the cream top's ratio (as roster's saqr band)
+SOLE = '1f1124'         # the HUD's trough #2E1B35 at half its light: a step lighter than the shoe in ALBEDO only (the look draws the two nearly alike), judged on the first rebuild's render
+BONE = 'a39d96'         # the palette's bone #F3E4D0 as an albedo: the lead's estimate, near the cream's ratio
 TAPE = BONE             # Saud's hand tape, which was the browser's bone white #e8e2d4; the three bars on his shoe too
 
 
@@ -409,50 +412,50 @@ def palette_for(spec, kit=None, top="tee", bottom="track"):
 #     `given`), none is the browser's colour painted for want of a line;
 #   - each top, band and trousers the palette names shows it (`shows`): the
 #     albedo drawn through the look (shown()) lands within Delta E 76 of 6
-#     of the palette's colour (roster.UNREAL_SHOWS). This is the dark / muted
-#     / loud envelope the grim kit had, rewritten: it bounds a top from BOTH
-#     sides, so white, neon green, hot pink, the browser's runner orange or
-#     champion violet, and a grey that happens to sit 12 from the cream all
-#     fail it, as a cap on lightness or chroma could not do for jewels. The
-#     look lifts a dark, so a dark albedo is judged by what the look draws;
+#     of the palette's colour (roster.UNREAL_SHOWS: eleven lines, all of them
+#     required there; AL-SAQR's top alone has a limit of its own, SHOWS_LIMIT).
+#     This is the dark / muted / loud envelope the grim kit had, rewritten: it
+#     bounds a top from BOTH sides, so white, neon green, hot pink, the
+#     browser's runner orange or champion violet, and a grey that happens to
+#     sit 12 from the cream all fail it, as a cap on lightness or chroma could
+#     not do for jewels. The look lifts a dark, so a dark albedo is judged by
+#     what the look draws;
 #   - the six identity colours -- his top, ZAYOS's gloves -- are apart (Delta E
-#     76 >= 20: the least is Saud's cream and the thug's lilac, 27.3), and none
-#     is his own skin (a*b* distance >= 19, below);
+#     76 >= 20: the least is the thug's lilac and AL-WAHSH's violet, 31.7), and
+#     none is his own skin (a*b* distance >= 20, below);
 #   - the trousers are the dark of him: L* <= 32, and under a top at most 0.45
-#     of its luminance (the table's are at most 0.21, the brawler's; Saud's wine, 0.02);
+#     of its luminance (the table's are at most 0.17, the brawler's; Saud's wine, 0.02);
 #   - a band is quiet (C* <= 20) unless it is his one declared accent
 #     (pipeline.KIT `accent`), and a declared accent reads (C* >= 30);
 #     at most one accent a man;
-#   - the shoe stays black (L* <= 34, C* <= 16) and a plum black: its hue within
-#     35 degrees of the palette's ink (311.5), so the browser's blue-grey (264
-#     to 273) fails, which the chroma cap alone let through;
+#   - the shoe stays black (L* <= 34, C* <= 16) and a plum black: C* at least
+#     4 (the ink's is 8.7; a neutral grey has no hue, and the atan2 of its
+#     rounding lands on 297, inside the range, so the hue alone passes it) and
+#     its hue within 35 degrees of the palette's ink (311.5), so the browser's
+#     blue-grey (264 to 273) fails, which the chroma cap alone let through;
 #   - worn tape, not bone white (L* <= 60: the wraps did not change; held on
 #     a tape this build sets, pipeline.KIT `tape`, as it always was -- Saud's
 #     wraps are the palette's bone (BONE, L* 65) and are not held).
 # The skin rule was Delta E 76 >= 22 and became a*b* >= 20 with the jewel kit
 # (a cream top's albedo is as light as skin by construction, so it is the
-# colour that parts them, not the lightness), then 19 with the lead's second
-# solve of the cream: #A5A098 is 19.54 from Saud's skin in a*b*, 0.54 to spare,
-# and a cream refined toward the skin trips it. What reads as skin is lower,
-# and pinned from below: the brawler's rust tee, which read as a bare chest, is
-# 13.0 (17.4 in the old measure), a dark brown of the skin's own hue 11.7, and
-# a pale tan 17.3 from Saud's skin is caught.
-KIT_RULES = dict(apart=20.0, skin=19.0, under=0.45, bottom_L=32.0, accent_C=30.0, quiet_C=20.0,
-                 shoe_L=34.0, shoe_C=16.0, shoe_hue=(276.5, 346.5), tape_L=60.0, shows=6.0)
-# The lines the look, as it stands, cannot draw within `shows` of the palette:
-# it greys a colour that is not a pure red (LOOK SATURATION 0.82 on a fighter;
-# ACCENT_FROM..ACCENT_FULL, which only a red passes), so saffron, azure and the
-# lilac come out well short of their palette hexes, and the violet and the bone
-# by a few tenths. For the thug's top, AL-SAQR's top, AL-WAHSH's top and ZAYOS's
-# gloves the table's albedo is the best a solve finds against the look (a gain
-# and a pull to grey, searched for the nearest lit patch), so the shortfall is
-# the look's; AL-SAQR's band is not: kept as the estimate it was, the same
-# search finds #A79D8F, Delta E 3.5. The limit is the distance measured on
-# 2026-11-19 (8.5 / 25.8 / 6.2 / 6.3 / 18.9) rounded up to the half and given
-# half a point more. Delete an entry when the look's accent rule moves and the
-# line is solved again; the default is `shows`.
-SHOWS_LIMIT = {("thug", "top"): 9.5, ("saqr", "top"): 26.5, ("saqr", "band"): 7.0,
-               ("boss", "top"): 7.0, ("zayos", "band"): 19.5}
+# colour that parts them, not the lightness). Saud's cream, #A0A197, is 21.05
+# from his skin in a*b* (the nearest to the palette's cream that keeps 21: the
+# solve was made with that margin), so the limit has 1.05 to spare above and
+# a cream refined toward his skin trips it. What reads as skin is lower, and
+# pinned from below: a pale tan 17.3 from Saud's skin is caught (2.7 under the
+# limit), the brawler's rust tee, which read as a bare chest, is 13.0 (17.4 in
+# the old measure), a dark brown of the skin's own hue 11.7.
+KIT_RULES = dict(apart=20.0, skin=20.0, under=0.45, bottom_L=32.0, accent_C=30.0, quiet_C=20.0,
+                 shoe_L=34.0, shoe_C=16.0, shoe_C_min=4.0, shoe_hue=(276.5, 346.5), tape_L=60.0, shows=6.0)
+# The one line the look, as it stands, cannot draw within `shows` of the
+# palette: AL-SAQR's saffron top (#E8B020). The nearest albedo found for it, by
+# a hill-climb through shown() from several starts, is #FF6D00, Delta E 8.6
+# off, and as a cloth that is a fire-orange, not a saffron; the lead's #936E10
+# (kept) draws 25.8 off. The limit is that measured 25.8 rounded up, 26.0: it
+# still fails a white top (77.5) and a rebuild that moves the look. Every other
+# line is solved to meet `shows` (6.0). The first rebuild's render decides this
+# one; delete the entry when it is solved again.
+SHOWS_LIMIT = {("saqr", "top"): 26.0}
 SHOWN_LIT = 1.2          # a man lit at the key: his light is this times his albedo
 KIT_SLOTS = (("tee", "top"), ("pants", "bottom"), ("shoe", "shoe"), ("band", "band"))
 _SHOWN = {}
@@ -560,6 +563,11 @@ def check_kit(pals, assert_=True):
             if slot == "shoe":
                 assert L <= R["shoe_L"] and C <= R["shoe_C"], "a pale shoe: %s's shoe L* %.1f C* %.1f, want %.0f and %.0f at most" % (
                     kind, L, C, R["shoe_L"], R["shoe_C"])
+                # a plum black has colour in it: a neutral grey has no hue at all (its
+                # a*, b* are the white point's rounding, and atan2 of them lands on
+                # 297, inside the range), so the hue is held only with a chroma
+                assert C >= R["shoe_C_min"], "a grey shoe: %s's shoe C* %.1f, want %.0f at least (a plum black, the ink's is 8.7)" % (
+                    kind, C, R["shoe_C_min"])
                 _, a, b = _lab(pal["shoe"])
                 hue = float(np.degrees(np.arctan2(b, a)) % 360.0)
                 assert R["shoe_hue"][0] <= hue <= R["shoe_hue"][1], "a cold shoe: %s's shoe hue %.0f, want a plum black, %.0f to %.0f" % (
