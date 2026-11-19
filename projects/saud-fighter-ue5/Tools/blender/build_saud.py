@@ -36,14 +36,26 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HEIGHT = 1.80
 
 # --------------------------------------------------------------- palette
-# Straight from the browser build's `col` table so the two Sauds match.
+# Straight from the browser build's `col` table so the two Sauds match --
+# except his top, trousers and band, which since 2026-11-19 are the Unreal
+# build's own (hero/roster.UNREAL_KIT, the palette "Sodium Afterglow"): read
+# from there, so the colour lives in one place.
 # Linear values, matching the browser build's `col` table for Saud.
+def _unreal_kit(slot):
+    """Saud's `top`, `bottom` or `band`, as the Unreal build paints it:
+    hero/roster.UNREAL_KIT's albedo hex, linear, opaque."""
+    from hero import roster
+    h = roster.UNREAL_KIT[("saud", slot)].lstrip("#")
+    c = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    return tuple(round(x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4, 3) for x in c) + (1.0,)
+
+
 PALETTE = {
     "skin":   (0.888, 0.716, 0.597, 1.0),   # #f0d8c4  fair
-    "tee":    (0.029, 0.031, 0.039, 1.0),   # #15171c  fitted black tee
-    "pants":  (0.020, 0.021, 0.027, 1.0),   # #0e1014  black trousers
+    "tee":    _unreal_kit("top"),           # #A3A09C  cream
+    "pants":  _unreal_kit("bottom"),        # #240910  madder wine
     "shoe":   (0.032, 0.034, 0.040, 1.0),   # trainers, a touch off the trousers
-    "band":   (0.608, 0.008, 0.043, 1.0),   # #c8102e  Kuwait red
+    "band":   _unreal_kit("band"),          # #FD2C67  cerise
     "hair":   (0.020, 0.014, 0.009, 1.0),   # #1e150f
     "beard":  (0.026, 0.018, 0.012, 1.0),   # a shade off the hair
     "eye":    (0.012, 0.010, 0.009, 1.0),

@@ -247,12 +247,15 @@ def lin(c): return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.
 # What was typed in paint() for Saud, before the roster read it out of the
 # browser build instead: kept as the record of where the derived palette
 # has to land for him (see palette_for and the test in build_fighters.py).
-# band c8102e -> ff1a3c 2026-09-20, with assets/saud.js: the record moves with him.
 # skin f0d8c4 -> bd9278 2026-09-24, with assets/saud.js: measured skin, not a
 # Northern European's. face.SAUD_SKIN stays #f0d8c4 -- it is the skin the
 # face's tones were WRITTEN on, and every tone is used as a ratio to it
 # (face.shade's tone()), so it is a reference, not his colour.
-_SAUD_PAINT = dict(skin='bd9278', hair='1e150f', tee='15171c', pants='0e1014', band='ff1a3c', shoe='101216')
+# 2026-11-19: his top, trousers and band (tee 15171c, pants 0e1014, band
+# ff1a3c, which are still the browser's) left this record: the 3D man wears
+# roster.UNREAL_KIT's, the Unreal build's own, and saud_palette() reads them
+# from there. What stays typed is what is still the browser's.
+_SAUD_PAINT = dict(skin='bd9278', hair='1e150f', shoe='101216')
 from . import face as FA
 assert FA.SAUD_SKIN == '#f0d8c4', "face.py's tones are ratios to the skin they were written on; change them together"
 
@@ -267,6 +270,13 @@ assert FA.SAUD_SKIN == '#f0d8c4', "face.py's tones are ratios to the skin they w
 # are kept and given 20 % more, so a black with blue in it reads as a cool
 # charcoal and a brown one as a warm one. Above L* 36 the colour is the
 # browser's untouched. Unreal only: the browser's numbers do not move.
+# Since 2026-11-19 the six men's top, trousers and band are not the browser's
+# flat colours but roster.UNREAL_KIT's albedo, solved against the look, and
+# palette_for paints those as given: the floor never sees them (it would draw
+# Saud's wine #240910 from L* 5.5 up to 19 and AL-WAHSH's plum #1C0B2A the
+# same, each a grey-mauve with a fifth more chroma and none of its depth). It
+# is still what a colour that IS the browser's goes through: the shoe, the
+# blood on a wrap, a man the table does not name.
 FABRIC_KNEE = 36.0
 FABRIC_KEEP = 0.55
 FABRIC_CHROMA = 1.20
@@ -296,10 +306,12 @@ def fabric(c):
 
 
 # A kit entry's keys (pipeline.KIT, the Unreal build's own and NOT the
-# browser's): the colours of the top, trousers and band, which slot is the
-# man's one accent, his hands, the tape's colour and the blood on it, scabs
-# on bare knuckles, his stubble, the glove's finish and the trousers'
-# roughness.
+# browser's): which slot is the man's one accent, his hands, the tape's
+# colour and the blood on it, scabs on bare knuckles, his stubble, the
+# glove's finish and the trousers' roughness -- and the colours of the top,
+# trousers and band, which are roster.UNREAL_KIT's and which a kit entry only
+# overrides (the checks' seam: a sabotage names one; an albedo like the
+# table's, painted as given).
 KIT_KEYS = ("top", "bottom", "band", "accent", "hands", "tape", "tape_blood", "scabs", "beard",
             "glove_rough", "glove_coat", "pants_rough")
 TAPE = 'e8e2d4'         # the browser's hand tape, bone white
@@ -317,14 +329,23 @@ def palette_for(spec, kit=None, top="tee", bottom="track"):
     browser keeps its colours) and the cut of the top and the trousers
     (pipeline.TOPS, BOTTOMS: 'tee' or a garments.TANKS cut, 'track' or
     'jogger'). With neither, the roster exactly.
+
+    Since 2026-11-19 the top, trousers and band of the six 3D men are the
+    Unreal build's own albedo (roster.UNREAL_KIT, which spec() lays over the
+    browser's and names in spec['albedo']): those are painted as given, with
+    no fabric floor under them (see FABRIC_KNEE). A colour that is still the
+    browser's flat colour goes through the floor as it always did.
     """
     from . import roster
     kit = dict(kit or {})
     bad = set(kit) - set(KIT_KEYS)
     assert not bad, "no such kit key: %s (%s)" % (sorted(bad), ", ".join(KIT_KEYS))
     c, look = dict(spec["col"]), spec["look"]
+    final = set(spec.get("albedo", ()))      # albedo as given: the table's, or a kit entry's
     for k in ("top", "bottom", "band"):
-        if k in kit: c[k] = kit[k]
+        if k in kit:
+            c[k] = kit[k]; final.add(k)
+    dyed = lambda slot: lin(srgb(c[slot])) if slot in final else fabric(lin(srgb(c[slot])))
     beard = kit.get("beard", look.get("beard"))
     # The wash's alpha, kept beside the composited colour: the colour is
     # what a .30 wash lands on the skin, but the shadow a beard casts and
@@ -344,12 +365,12 @@ def palette_for(spec, kit=None, top="tee", bottom="track"):
     return dict(
         skin=lin(srgb(c["skin"])), hair=lin(srgb(hair)) if hair else None,
         beard=lin(srgb(beard)) if beard else None, beard_k=beard_k,
-        tee=fabric(lin(srgb(c["top"]))), pants=fabric(lin(srgb(c["bottom"]))), band=fabric(lin(srgb(c["band"]))),
+        tee=dyed("top"), pants=dyed("bottom"), band=dyed("band"),
         shoe=fabric(lin(srgb('101216'))),
         lip=lin(srgb('c98a78')), tape=lin(srgb(kit.get("tape", TAPE))), nail=lin(srgb('f4dccb')),
         # the kit: what the browser lists for him and nothing it does not
         # (and what the Unreal build's KIT adds: wraps on the brawler)
-        tape_on=(hands == "wraps"), patch=bool(look.get("patch")),
+        tape_on=(hands == "wraps"), tape_set=("tape" in kit), patch=bool(look.get("patch")),
         stripe=bool(look.get("stripe")), watch=bool(look.get("watch")),
         scar=bool(look.get("scar")), gloves=(hands == "gloves"),
         bald=bool(look.get("bald")), no_tee=not look.get("tee", True),
@@ -362,41 +383,54 @@ def palette_for(spec, kit=None, top="tee", bottom="track"):
         glove_rough=kit.get("glove_rough", 0.40), glove_coat=kit.get("glove_coat", 0.25),
         pants_rough=kit.get("pants_rough", PANTS_ROUGH))
 
-# The grim kit, held (2026-09-28, the five men's; Saud's kit is the
-# browser's and is not held): every slot a man shows that is not his one
-# declared accent -- the top, the trousers, the shoe, the band -- dark
-# (L* <= 34 after fabric), muted (C* <= 16) and not a red that reads as an
-# accent (purity (r - max(g, b)) / r, the grade's red measure, under
-# 0.78); at most one accent, and that one a red that reads (purity >=
-# 0.80); worn tape, not bone white (L* <= 60); the five tops apart
-# (Delta E 76 >= 10) and none of them his own skin (>= 22: the brawler's
-# rust tee was 17.4, and read as a bare chest).
-KIT_RULES = dict(dark_L=34.0, dark_C=16.0, purity=0.78, accent_purity=0.80, tape_L=60.0, apart=10.0, skin=22.0)
+# The kit, held. Before 2026-11-19 it held the grim kit (2026-09-28: every
+# slot dark, L* <= 34, muted, C* <= 16, no red but the one declared accent,
+# the five tops Delta E >= 10 apart); the palette "Sodium Afterglow" put
+# jewel-coloured men in its place, so what is held is rewritten for them,
+# and measured on the albedo the pipeline paints (roster.UNREAL_KIT), not on
+# the look's picture of it:
+#   - the top is a man's jewel and has no cap on chroma or lightness, but the
+#     six identity colours -- his top, ZAYOS's gloves -- are apart (Delta E 76
+#     >= 20: the least is Saud's cream and the thug's lilac, 25.9) and none is
+#     his own skin (a*b* distance >= 20. It was Delta E 76 >= 22 and is not the
+#     same rule: a cream top's albedo is as light as skin by construction, so
+#     it is the colour that parts them -- and Saud's cream is 21.4 from his
+#     skin, under the old 22 by 0.6. What reads as skin is lower: the brawler's
+#     rust tee, which read as a bare chest, is 13.0 in a*b* (17.4 in the old
+#     measure), a dark brown of the skin's own hue 11.7);
+#   - the trousers are the dark of him: L* <= 32, and under a top at most
+#     0.45 of its luminance (the table's are 0.30; Saud's wine, 0.02);
+#   - a band is quiet (C* <= 20) unless it is his one declared accent
+#     (pipeline.KIT `accent`), and a declared accent reads (C* >= 30);
+#     at most one accent a man;
+#   - the shoe stays black (L* <= 34, C* <= 16: the browser's #101216 through
+#     the floor, which the palette did not touch);
+#   - worn tape, not bone white (L* <= 60: the wraps did not change; held on
+#     a tape this build sets, pipeline.KIT `tape`, as it always was -- Saud's
+#     wraps are the browser's bone-white hero tape and are not held).
+KIT_RULES = dict(apart=20.0, skin=20.0, under=0.45, bottom_L=32.0, accent_C=30.0, quiet_C=20.0,
+                 shoe_L=34.0, shoe_C=16.0, tape_L=60.0)
 KIT_SLOTS = (("tee", "top"), ("pants", "bottom"), ("shoe", "shoe"), ("band", "band"))
 
 
-def _purity(c):
-    c = np.asarray(c, float)
-    return float((c[0] - max(c[1], c[2])) / max(c[0], 1e-9))
-
-
 def kit_numbers(pal):
-    """{slot: (L*, C*, purity)} for the slots a man shows (no top on a man
-    with none), and his tape's L* when he wears it."""
+    """{slot: (L*, C*, Y)} for the slots a man shows (no top on a man with
+    none), Y the linear luminance, and his tape's L* when he wears it."""
     out = {}
     for key, slot in KIT_SLOTS:
         if key == "tee" and pal["no_tee"]:
             continue
         L, a, b = _lab(pal[key])
-        out[slot] = (float(L), float(np.hypot(a, b)), _purity(pal[key]))
+        out[slot] = (float(L), float(np.hypot(a, b)), float(np.asarray(pal[key], float) @ np.array([0.2126, 0.7152, 0.0722])))
     if pal["tape_on"]:
         out["tape"] = (float(_lab(pal["tape"])[0]), 0.0, 0.0)
     return out
 
 
 def check_kit(pals, assert_=True):
-    """`pals` {kind: palette_for(...)}: each man's grim kit (KIT_RULES),
-    then, over all of them, the tops apart. Returns {kind: kit_numbers}."""
+    """`pals` {kind: palette_for(...)}: each man's kit (KIT_RULES), then,
+    over all of them, the identity colours apart. Returns {kind:
+    kit_numbers}."""
     R = KIT_RULES
     out = {k: kit_numbers(p) for k, p in pals.items()}
     if not assert_:
@@ -405,35 +439,48 @@ def check_kit(pals, assert_=True):
         acc = pal.get("accent")
         accents = [] if acc is None else ([acc] if isinstance(acc, str) else list(acc))
         assert len(accents) <= 1, "more than one accent on %s: %s, want one at most" % (kind, accents)
-        for slot, (L, C, pur) in out[kind].items():
+        for slot, (L, C, Y) in out[kind].items():
             if slot == "tape":
-                assert L <= R["tape_L"], "bone tape on %s: L* %.1f, want %.0f at most" % (kind, L, R["tape_L"])
+                # only a tape this build sets (pipeline.KIT `tape`) is held; Saud's
+                # wraps are the browser's bone-white hero tape, and stay
+                if pal.get("tape_set"):
+                    assert L <= R["tape_L"], "bone tape on %s: L* %.1f, want %.0f at most" % (kind, L, R["tape_L"])
                 continue
             if slot in accents:
-                assert pur >= R["accent_purity"], "a weak accent: %s's %s purity %.2f, want %.2f" % (
-                    kind, slot, pur, R["accent_purity"])
-                continue
-            assert pur < R["purity"], "an undeclared accent: %s's %s purity %.2f, want under %.2f (or declare it)" % (
-                kind, slot, pur, R["purity"])
-            assert L <= R["dark_L"], "pastel: %s's %s L* %.1f after fabric, want %.0f at most" % (kind, slot, L, R["dark_L"])
-            assert C <= R["dark_C"], "shouts: %s's %s C* %.1f after fabric, want %.0f at most" % (kind, slot, C, R["dark_C"])
+                assert C >= R["accent_C"], "a weak accent: %s's %s C* %.1f, want %.0f at least" % (kind, slot, C, R["accent_C"])
+            elif slot == "band":
+                assert C <= R["quiet_C"], "an undeclared accent: %s's band C* %.1f, want %.0f at most (or declare it)" % (
+                    kind, C, R["quiet_C"])
+            if slot == "bottom":
+                assert L <= R["bottom_L"], "pale trousers: %s's bottom L* %.1f, want %.0f at most" % (kind, L, R["bottom_L"])
+                if "top" in out[kind]:
+                    r = Y / max(out[kind]["top"][2], 1e-9)
+                    assert r <= R["under"], "trousers as light as the top: %s's bottom is %.2f of his top's luminance, want %.2f at most" % (
+                        kind, r, R["under"])
+            if slot == "shoe":
+                assert L <= R["shoe_L"] and C <= R["shoe_C"], "a pale shoe: %s's shoe L* %.1f C* %.1f, want %.0f and %.0f at most" % (
+                    kind, L, C, R["shoe_L"], R["shoe_C"])
         if not pal["no_tee"]:
-            d = float(np.linalg.norm(_lab(pal["tee"]) - _lab(pal["skin"])))
-            assert d >= R["skin"], "the top reads as skin: %s's top Delta E %.1f from his skin, want %.0f" % (kind, d, R["skin"])
-    tops = [(k, _lab(p["tee"])) for k, p in pals.items() if not p["no_tee"]]
-    for i, (ka, la) in enumerate(tops):
-        for kb, lb in tops[i + 1:]:
+            d = float(np.linalg.norm((_lab(pal["tee"]) - _lab(pal["skin"]))[1:]))
+            assert d >= R["skin"], "the top reads as skin: %s's top is %.1f from his skin in a*b*, want %.0f" % (kind, d, R["skin"])
+    ident = [(k, _lab(p["band"] if p["no_tee"] else p["tee"])) for k, p in pals.items()]
+    for i, (ka, la) in enumerate(ident):
+        for kb, lb in ident[i + 1:]:
             d = float(np.linalg.norm(la - lb))
-            assert d >= R["apart"], "the same kit: %s's and %s's tops Delta E %.1f apart, want %.0f" % (ka, kb, d, R["apart"])
+            assert d >= R["apart"], "the same kit: %s's and %s's identity colours (top; ZAYOS's gloves) Delta E %.1f apart, want %.0f" % (
+                ka, kb, d, R["apart"])
     return out
 
 
 def saud_palette():
-    """Today's Saud, exactly as paint() used to spell him."""
+    """Today's Saud, exactly as paint() used to spell him: his skin, hair
+    and shoe typed (_SAUD_PAINT), his top, trousers and band the Unreal
+    build's albedo (roster.UNREAL_KIT), painted as given."""
+    from . import roster
+    k = lambda slot: lin(srgb(roster.UNREAL_KIT[("saud", slot)]))
     return dict(skin=lin(srgb(_SAUD_PAINT['skin'])), hair=lin(srgb(_SAUD_PAINT['hair'])),
                 beard=lin(srgb('2a1d13')) * 0.9, beard_k=1.0,
-                tee=fabric(lin(srgb(_SAUD_PAINT['tee']))), pants=fabric(lin(srgb(_SAUD_PAINT['pants']))),
-                band=fabric(lin(srgb(_SAUD_PAINT['band']))), shoe=fabric(lin(srgb(_SAUD_PAINT['shoe']))),
+                tee=k("top"), pants=k("bottom"), band=k("band"), shoe=fabric(lin(srgb(_SAUD_PAINT['shoe']))),
                 lip=lin(srgb('c98a78')), tape=lin(srgb('e8e2d4')), nail=lin(srgb('f4dccb')),
                 tape_on=True, patch=True, stripe=True, watch=True, name="Saud")
 

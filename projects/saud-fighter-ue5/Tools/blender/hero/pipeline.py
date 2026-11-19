@@ -376,27 +376,23 @@ BOTTOMS = {
 }
 
 # A man's kit where it is not the browser's (finish.palette_for merges it):
-# every non-accent slot pushed into the dark palette, at most one declared
-# accent a man (`accent`), the hand tape a worn grey (it was bone white on
-# every wrapped man) with dried blood at the knuckles, knuckle scabs on
-# bare hands, a man's stubble, the glove's finish and the trousers'
+# which slot is his one declared accent (`accent`: Saud's cerise band, the
+# brawler's and AL-WAHSH's blood-red bands, ZAYOS's azure gloves; the thug and
+# AL-SAQR have none, their bands are quiet), the hand tape a worn grey (it was
+# bone white on every wrapped man) with dried blood at the knuckles, knuckle
+# scabs on bare hands, a man's stubble, the glove's finish and the trousers'
 # roughness (cotton drill, not tricot, on the street men). Hex before
-# finish.fabric. Saud's colours stay the browser's (his tank, joggers and
-# the fabrics' own finish are TOPS/BOTTOMS').
+# finish.fabric. The COLOURS of the top, trousers and band are not here: they
+# are roster.UNREAL_KIT's, one line each (2026-11-19, the palette "Sodium
+# Afterglow"; this table held the grim kit's before). Saud's tank, joggers and
+# the fabrics' own finish are TOPS/BOTTOMS'.
 KIT = {
-    "thug":    dict(top="#35372f", bottom="#23262b", band="#3b3833", scabs="#4a1c16",
-                    beard="rgba(23,19,16,.40)", pants_rough=0.76),
-    # (the oxblood top and band muted 2026-09-28, #43201c and #4f2a22 as
-    # the five-men spec gave them: C* 23.2 and 24.7 after fabric, against
-    # that spec's own C* 16 for a slot that is not the accent; now 13.5 and
-    # 14.4, the same hue and L*)
-    "brawler": dict(top="#3a2522", bottom="#241d19", band="#452f29", hands="wraps",
-                    tape="#8f8676", tape_blood="#4a1c16", pants_rough=0.76),
-    "saqr":    dict(top="#252233", bottom="#17181d", band="#7a3413", accent="band",
-                    tape="#8f8676", beard="rgba(34,24,19,.35)"),
-    "boss":    dict(top="#1a1a1c", bottom="#121214", band="#9e0f1c", accent="band",
-                    tape="#6f6456", tape_blood="#4a1c16"),
-    "zayos":   dict(bottom="#141114", band="#5e1015", accent="band", glove_rough=0.62, glove_coat=0.05),
+    "saud":    dict(accent="band"),
+    "thug":    dict(scabs="#4a1c16", beard="rgba(23,19,16,.40)", pants_rough=0.76),
+    "brawler": dict(accent="band", hands="wraps", tape="#8f8676", tape_blood="#4a1c16", pants_rough=0.76),
+    "saqr":    dict(tape="#8f8676", beard="rgba(34,24,19,.35)"),
+    "boss":    dict(accent="band", tape="#6f6456", tape_blood="#4a1c16"),
+    "zayos":   dict(accent="band", glove_rough=0.62, glove_coat=0.05),
 }
 
 # A man's veins (face.set_look's vein_* knobs; `hold` is face.check_veins'
@@ -509,6 +505,7 @@ def apply_man(kind, spec=None):
     from . import roster, sculpt as SC, face as FA
     spec = spec or roster.spec(kind)
     men = {"saud"} | set(roster.enemies())
+    roster.check_kit_table(men)
     for t in ("CUTS", "FACES", "NOSES", "NOSE_LOOKS", "EYES", "HOLDS", "PHYSIQUE", "MASS", "LIMBS", "EARS",
               "PAINT", "TOPS", "BOTTOMS", "KIT", "VEINS", "BODY_LOOKS"):
         bad = set(globals()[t]) - men
@@ -550,8 +547,9 @@ def paint_checks(kind, pal, assert_=True):
                                   strokes=face_strokes, grim=kind in PAINT, tape=bool(want.get("nose_tape")),
                                   assert_=assert_)
     out["body_scars"] = FA.check_body_scars(body_strokes, pal["skin"], assert_=assert_)
-    # a man with the Unreal build's own kit: dark, muted, one accent
-    # (finish.check_kit; the tops apart is --grim-check's, over all five)
+    # a man with the Unreal build's own kit: his trousers the dark of him,
+    # his band quiet or his one accent, his top not his skin (finish.check_kit;
+    # the identity colours apart is --grim-check's, over all six)
     if kind in KIT:
         out["kit"] = F.check_kit({kind: pal}, assert_=assert_)
     return out

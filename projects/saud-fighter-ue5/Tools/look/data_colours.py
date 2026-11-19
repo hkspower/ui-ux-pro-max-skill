@@ -17,14 +17,19 @@ colours, and each is held to that table here:
     assets/enemies.js for the 3D pipeline): every fighter's skin, top,
     bottom, band, hair, beard and cap against Kit_<Fighter>_*, all twelve
     -- a hex as a hex, a wash (the browser's rgba beard) by its colour and
-    its alpha;
+    its alpha. The top, bottom and band are the roster's `browser_col`, the
+    browser's own: since 2026-11-19 spec()['col'] is what the 3D man is
+    painted in, the Unreal build's roster.UNREAL_KIT laid over it, and that
+    is not a copy;
   - the open world's ground (Tools/levels/build_world.py THEME_GROUND,
     also its own check 27) against Theme_<Place>_Ground0/1, all nine;
   - the souq's ground (Tools/blender/build_souq.py BROWSER_ART["ground"])
     against Theme_Souq_Ground0/1.
 
 What the Unreal build changes ON PURPOSE is not a copy and is not checked
-here: the dark kits drawn up to a fabric's floor (hero/finish.fabric), the
+here: the six men's top, trousers and band (roster.UNREAL_KIT, albedo; held
+by build_fighters.py --check and --grim-check), the dark browser colours
+drawn up to a fabric's floor (hero/finish.fabric), the
 weathering of the souq (build_souq._worn), the look's own palette (LOOK,
 SaudHud::Colour, the fire's embers) and the cars -- each is labelled
 Unreal-only where it lives. Everything else the souq draws (BROWSER_ART's
@@ -72,7 +77,8 @@ def copies(sabotage=None):
     for kind in kinds:
         s = roster.spec(kind)
         for slot, where in KIT_SLOTS:
-            v = s[where].get(slot)
+            # the browser's own colours: spec()['col'] has the Unreal kit over them
+            v = (s["browser_col"] if where == "col" else s[where]).get(slot)
             if isinstance(v, str):
                 if sabotage == "kit" and kind == "thug" and slot == "top":
                     v = "#8a9098"
@@ -110,8 +116,12 @@ def check(sabotage=None):
 
 # ------------------------------------------------- the men's baked colours
 # Each man's baked colour maps against the colours they were meant to bake
-# to (hero.finish.palette_for: the roster, the Unreal-only kit, the dark
-# kits' fabric floor), in CIELAB. Measured 2026-10-03 on all six: skin
+# to (hero.finish.palette_for: the roster, the Unreal-only kit -- since
+# 2026-11-19 the top, trousers and band are roster.UNREAL_KIT's albedo,
+# painted as given -- and the fabric floor under what is still the
+# browser's), in CIELAB. Measured 2026-10-03 on the men as they were then
+# (the browser's dark kits, drawn up to the floor; the maps in the project
+# now are those until the six are rebuilt with the new kit): skin
 # 0.8-1.4 (a shade darker -- the mottle, the flush and the stubble are
 # painted in), tops and trousers 0.2-0.7, shoes 1.3, gloves 0.1; nothing
 # over the 2.3 an eye can just tell apart, so nothing was re-baked. The

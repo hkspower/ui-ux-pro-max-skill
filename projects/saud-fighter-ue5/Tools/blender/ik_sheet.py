@@ -30,7 +30,7 @@ own widget (rig_full_ik.widget_edges), and the FK torso as rings at the
 evaluated spine, neck and head -- CTRL_chest and CTRL_head are rotation-
 only controls that hang off CTRL_hips and do not follow an FK spine, so
 they are drawn only if turned, and CTRL_look only when `look` is on. The
-lead (L) side is Kuwait's red (build_saud.PALETTE's band), the rear (R)
+lead (L) side is Saud's band colour (build_saud.PALETTE's band, his cerise), the rear (R)
 EMBER, the body BONE, every line on an INK halo -- the look's own colours.
 
 WHAT IT CHECKS, each panel (every one proved to fail by --bite):
