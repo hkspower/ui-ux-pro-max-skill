@@ -15,7 +15,7 @@ WHAT THIS FILE OWNS
                   off any real model; no make is named or copied.
     colours       every colour through the souq's weathering curve
                   (build_souq._worn) and held at the look's ink floor, so a
-                  car stands in the same soot band as the stone around it
+                  car stands in the same weathered band as the stone around it
     cars.json     Content/Models/Cars/cars.json, WRITTEN from the two tables
                   with --json. The Unity tool reads it and nothing else;
                   check() fails if it has drifted from the tables.
@@ -193,19 +193,19 @@ def colours(souq=None):
     S = souq or SOUQ
     floor, hold = S.ink_floor(), S.ink_hold()
 
-    def worn(h, chroma=None):
+    def worn(h, chroma=None, cast=True):
         k = S.WEATHER[chroma] if isinstance(chroma, str) else chroma
-        c = S._worn(h, k)[:3]
+        c = S._worn(h, k, cast=cast)[:3]
         y = S._luma(c)
         if y < hold:
             c = tuple(v * hold / max(y, 1e-9) for v in c) if y > 1e-9 else (hold, hold, hold)
         return tuple(round(v, 5) for v in c)
 
     out = dict(ink_floor=floor, ink_hold=round(hold, 5),
-               slots={k: dict(albedo=worn(v["hex"], v.get("chroma")), rough=v["rough"]) for k, v in SLOTS.items()},
+               slots={k: dict(albedo=worn(v["hex"], v.get("chroma"), cast="chroma" not in v), rough=v["rough"]) for k, v in SLOTS.items()},
                grime={k: worn(h) for k, h in GRIME.items()},
-               paint={c["name"]: worn(c["paint"]["hex"], c["paint"]["chroma"]) for c in CARS},
-               band={c["name"]: worn(c["band"]["hex"], c["band"]["chroma"]) for c in CARS if c.get("band")})
+               paint={c["name"]: worn(c["paint"]["hex"], c["paint"]["chroma"], cast=False) for c in CARS},
+               band={c["name"]: worn(c["band"]["hex"], c["band"]["chroma"], cast=False) for c in CARS if c.get("band")})
     return out
 
 
@@ -481,12 +481,12 @@ def check_spec(souq=None, on_disk=True):
             b = c["bed"]
             assert b["tail"] > -c["length"] / 2 and b["front"] < rx0 + 0.02, "%s: the bed runs into the cab" % n
             assert b["floor"] < _line_at(c["body"], (b["tail"] + b["front"]) / 2) - 0.2, "%s: the bed is not a bed" % n
-    # C3. every colour is in the soot band: over the ink, a car's paint no
+    # C3. every colour is in the weathered band: over the ink, a car's paint no
     #     paler than PAINT_HI, and cars.json is the tables' own
     for k, v in list(col["paint"].items()) + list(col["band"].items()) + list(col["grime"].items()):
         y = S._luma(v)
         assert y >= floor - 1e-6, "%s's paint is %.4f, under the ink floor %.3f" % (k, y, floor)
-        assert y <= PAINT_HI, "%s's paint is %.3f, a glow in the souq's soot (at most %.2f)" % (k, y, PAINT_HI)
+        assert y <= PAINT_HI, "%s's paint is %.3f, a glow in the souq's weathered stone (at most %.2f)" % (k, y, PAINT_HI)
     for k, v in col["slots"].items():
         assert S._luma(v["albedo"]) >= floor - 1e-6, "%s is %.4f, under the ink floor %.3f" % (k, S._luma(v["albedo"]), floor)
     if on_disk:
@@ -608,12 +608,15 @@ def bite(P, verbose=True):
         if verbose:
             print("  %-22s %s  (%s)" % (name, "caught" if ok else "NOT CAUGHT", got or "passed"))
     # the tables
-    raw = lambda h, k=None: SOUQ._lin(SOUQ._hex(h))
+    raw = lambda h, k=None, cast=True: SOUQ._lin(SOUQ._hex(h))
     spec_cases = [
         ("a wheel too big", lambda: car("Sedan")["wheel"].__setitem__("r", 0.44), "arch"),
         ("a dark paint, unheld", lambda: car("Sedan")["paint"].__setitem__("hex", "#000000") or
          setattr(SOUQ, "ink_hold", lambda floor=None: 0.0), "Sedan's paint"),
         ("paint not weathered", lambda: setattr(SOUQ, "_worn", raw), "glow"),
+        # a paint is a dye (cast=False): the stone's cast on it would turn the olive pickup rose-umber,
+        # and cars.json, written without it, is what says so
+        ("paint takes the stone's cast", lambda: setattr(SOUQ, "_worn", lambda h, k=None, cast=True: worn(h, k, True)), "drifted"),
         ("a window off the cab", lambda: car("Pickup")["glass"].__setitem__("front", (0.16, 0.95)), "window"),
         ("cars.json by hand", lambda: car("SUV").__setitem__("length", 4.96), "drifted"),
     ]

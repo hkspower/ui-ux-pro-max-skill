@@ -61,7 +61,7 @@ build_levels.py's Souq rig (24 degrees up) put where he walks in from.
 
 THE NIGHT (2026-09-28, "make all game like dark anime adult style", the
 Unreal build; every number below is this build's, not the browser's). The
-souq is soot stone under a hard moon, lit only by what burns. Since
+souq is weathered stone under a hard moon, lit only by what burns. Since
 2026-11-19 (Sodium Afterglow, "remove all current colors, use new colors")
 the moon is a dusty mauve and the stone leans rose-umber, not navy:
     the palette   every browser colour through WEATHER's curve -- chroma
@@ -202,15 +202,33 @@ def _luma(c):
 # #5A3345 350, the moon's halo #7E4A63 349 -- mauve to rose. The world: the
 # ground #63494D is 9, the brick #6F484C 15, the wall #765D5E 18 (rose-umber)
 # and the metal #504356 316 (its coolest stone). Each WINDOW is a wrapping
-# arc lo..hi that holds the palette's family and shuts out the old one: the
-# light's, 300-360, is the family less 30 to the rose end; the stone's,
-# 290-30, is the metal less 26 (above the old navy ground, Towers, at 281)
-# to the wall plus 12 (below the old mud-brick at 37-49). No navy (the old
-# night: 250-280), amber (the old fire: 60-85) or brown mud (50-60) is inside.
-HUES = dict(light=(300.0, 360.0), stone=(290.0, 30.0))
-# a colour with less chroma than this (read at luminance 0.25, see tint_of)
-# has no hue to hold: a grey, or a white moon
-NO_HUE = 2.5
+# arc lo..hi that holds the palette's family and shuts out the old one.
+#   light  300-360: the family less 30 to the rose end. No navy (the old
+#          night: 250-280) or amber (the old fire: 60-85) is inside.
+#   warm   350-30: the stone the browser paints brown or tan -- the souq's
+#          mud, plaster, flagstone, sand, wood and gate wall, the Gym's,
+#          Failaka's, Desert's and Souq's grounds -- which comes out 356-20
+#          (the Gym's ground the lowest, the souq's dark ground the highest),
+#          the palette's ground, brick and wall (9-18) among it. The edges
+#          are 6 degrees under the Gym and 10 over the souq's ground. The old
+#          mud (37-49) and a magenta (343) are outside.
+#   cool   293-330: the stone it paints slate, navy or violet -- the iron,
+#          Towers, Marina, Fishmarket, Highway, Arena -- which comes out
+#          299-320, the palette's metal (316) among it; the edges are 6
+#          degrees under Towers and 10 over the Arena. The old navy (Towers
+#          at 281, the slate at 266) and a pink (343) are outside.
+# One 100-degree window for all stone, as this was until the second reading
+# (2026-11-19), let a magenta mud (343) through; two, and the chroma floor
+# below, do not. The palette's wood #5C4035 (hue 48) and cloth #5A3A66 (318)
+# are in neither window on purpose: the look's WORLD_DIR / CLOTH_DIR grade
+# pulls wood and cloth to the palette at run time, so the builders keep their
+# own dye variety (the souq's wood is cast to the stone's 16-18; its banners
+# keep the browser's red, green and gold).
+HUES = dict(light=(300.0, 360.0), warm=(350.0, 30.0), cool=(293.0, 330.0))
+# a stone with less chroma than this (read at luminance 0.25, see tint_of) is
+# a grey, which has no hue to hold and is not the palette's: the lowest in use
+# is 8.3 (the gate wall, Fishmarket), the palette's own ground 11.9
+STONE_CHROMA = 5.0
 
 
 def _lab(c):
@@ -260,16 +278,27 @@ def moon_miss(c):
     return None
 
 
-def stone_miss(c, what):
+def stone_miss(c, what, family):
     """Why the weathered colour `c` (linear) is not the palette's stone, or
-    None: its hue (when it has one) must lie inside HUES["stone"], mauve
-    through rose to umber. A brown mud is 50-60, the old navy slate 250-280.
+    None: it needs the chroma of a stone (STONE_CHROMA: not a grey) and a hue
+    inside its family's window (`family`, "warm" -- HUES["warm"], rose-umber --
+    or "cool", mauve: the caller says, there is no default). A brown mud is
+    50-60 and the old navy slate 250-280; a magenta
+    is under the warm window and a pink over the cool one. The message says
+    which way it missed, so a sabotage can say which rule it broke.
     build_souq.check_palette and build_world.check 29 both read it."""
     hue, chroma = tint_of(c)
-    if chroma < NO_HUE or in_hues(hue, HUES["stone"]):
+    if chroma < STONE_CHROMA:
+        return "%s is grey (chroma %.1f, under %.0f): the palette's stone is rose-umber, and a weathering takes a colour down, not out" \
+            % (what, chroma, STONE_CHROMA)
+    lo, hi = HUES[family]
+    if in_hues(hue, (lo, hi)):
         return None
-    return "%s is hue %.0f (chroma %.1f): brown mud or slate, not the palette's rose-umber stone (hue %.0f-%.0f)" \
-        % (what, hue, chroma, *HUES["stone"])
+    behind = (lo - hue) % 360.0 < (hue - hi) % 360.0             # nearer the window's low edge than its high
+    kind = ("a magenta or a navy" if behind else "a brown mud or an olive") if family == "warm" \
+        else ("a navy or a slate" if behind else "a pink or a magenta")
+    return "%s is hue %.0f (chroma %.1f): %s, not the palette's %s stone (hue %.0f-%.0f)" \
+        % (what, hue, chroma, kind, "rose-umber" if family == "warm" else "mauve", lo, hi)
 
 
 def ink_floor(L=None):
@@ -308,7 +337,7 @@ def _world_rig():
     raise AssertionError("build_world.py has no WORLD_RIG")
 
 
-# THE PALETTE. The browser's colours, weathered to soot stone by one curve
+# THE PALETTE. The browser's colours, weathered to dark stone by one curve
 # for the whole world (build_world colours its districts through it too):
 # in linear light each colour's chroma is pulled toward its grey, a cast is
 # laid on, and its luminance y goes to LO x (y / y_lo) ^ gamma. A
@@ -339,9 +368,10 @@ def _world_rig():
 # the weathering pulling the other way, and is what a rebake or an
 # engine-built material (build_world's roles) starts from. A NEUTRAL cast
 # would leave the mud-brick at hue 52 (R/B 1.60), the old brown, for the
-# grade to turn the whole way. The cast is the STONE's (see _worn): cloth
-# and vegetation, weathered at cloth_chroma or blood_chroma, keep the hue
-# they were painted.
+# grade to turn the whole way. The cast is the STONE's, an argument of _worn
+# (cast=True for stone, dust, rust and the stone-chroma slots): a dye -- cloth
+# and vegetation at cloth_chroma or blood_chroma, a car's paint -- is
+# cast=False and keeps the hue it was painted.
 WEATHER = dict(lo=ink_floor(), y_lo=0.015, gamma=0.29, hi=0.17,
                chroma=0.28, cast=(1.05, 0.86, 1.06),
                cloth_chroma=0.42, blood_chroma=0.85)
@@ -361,7 +391,7 @@ PALETTE = {
     "M_Souq_Flagstone": dict(hex=(BROWSER_ART["ground"][0], BROWSER_ART["ground"][1], BROWSER_ART["ground_dark"])),
     "M_Souq_Sand":      dict(hex=(BROWSER_ART["ground"][0], BROWSER_ART["ground"][1], BROWSER_ART["ground_light"], BROWSER_ART["ground_dark"])),
     "M_Souq_Wood":      dict(hex=(BROWSER_ART["crate"], BROWSER_ART["crate_edge"])),
-    "M_Souq_Iron":      dict(hex=(BROWSER_ART["barrel"], RUST)),                 # RUST: Unreal-only
+    "M_Souq_Iron":      dict(hex=(BROWSER_ART["barrel"], RUST), family="cool"),  # RUST: Unreal-only; slate, the one cool stone (HUES)
     "M_Souq_Damp":      dict(hex=(BROWSER_ART["pier"], BROWSER_ART["ground_light"])),   # Unreal-only
     "M_Souq_Puddle":    dict(hex=(BROWSER_ART["ground"][0], BROWSER_ART["ground"][1])), # Unreal-only
     "M_Souq_Cloth0":    dict(hex=(BROWSER_ART["banners"][0],), chroma="blood_chroma"),
@@ -1210,7 +1240,7 @@ def check(P, against_levels=True):
     for b in P["blocks"]:
         for sc in b["scale"]:
             assert 0.80 <= sc <= 1.25, "%s at (%.0f, %.0f) is scaled %.2f from its variant" % (b["kind"], b["x"], b["y"], sc)
-    # 10. the palette is soot stone, over the ink
+    # 10. the palette is weathered stone, over the ink
     check_palette()
     # 11. fires and the dressing stand where crates may: check 6 above
     #     walks P["props"], and the street's fires and kerb dressing are in it
@@ -1277,7 +1307,7 @@ def check(P, against_levels=True):
     print("checked: %snothing solid stands in" % ("the plan agrees with build_levels.py to the centimetre, " if against_levels else ""))
     print("the street or a fight or off the edge, every door is a gap, the way through stays in,")
     print("every crate is on the street, the gate is beside the road in its actor's box, one minaret.")
-    print("The night: soot stone over the ink (floor %.3f), %d fires and %d at the doors, every fight and"
+    print("The night: weathered stone over the ink (floor %.3f), %d fires and %d at the doors, every fight and"
           % (WEATHER["lo"], stats["fires"], stats["door_fires"]))
     print("door lit, %.0f %% of the way between fights in %d pools (longest dark run %d m), %d lights"
           % (stats["lit"] * 100.0, stats["pools"], stats["dark_run_m"], stats["lights"]))
@@ -1287,12 +1317,13 @@ def check(P, against_levels=True):
 
 def check_palette():
     """10 (and build_world 29): every colour a material can bake to lies in
-    the soot band [the ink floor, HI], the browser's order is kept, stone
-    is the palette's rose-umber (hue inside HUES["stone"], purity at most
-    0.55) and not brown mud or slate, a cloth is faded (purity at most
-    0.55) and the red stays the look's accent. Until 2026-11-19 stone was
-    "grey" -- R/B at most 1.50 -- which the palette's own stone (the ground
-    #63494D is R/B 1.69, the brick #6F484C 2.2) is not."""
+    the weathered band [the ink floor, HI], the browser's order is kept, stone
+    is the palette's rose-umber or, for the iron, its mauve (a chroma over
+    STONE_CHROMA and a hue inside its family's window, HUES, purity at most
+    0.55) and not a grey, a brown mud, a navy or a magenta, a cloth is faded
+    (purity at most 0.55) and the red stays the look's accent. Until
+    2026-11-19 stone was "grey" -- R/B at most 1.50 -- which the palette's
+    own stone (the ground #63494D is R/B 1.69, the brick #6F484C 2.2) is not."""
     floor = ink_floor(); names = {v: k for k, v in BROWSER_ART.items() if isinstance(v, str)}
     # a power keeps the order of what it weathers only while it rises
     assert WEATHER["gamma"] > 0.0, "the weathering does not keep the browser's order (gamma %.2f)" % WEATHER["gamma"]
@@ -1303,7 +1334,7 @@ def check_palette():
             what = names.get(hexes[int(key[-1])], hexes[int(key[-1])]) if key.startswith("colour") else key
             assert y >= floor - 1e-9, "%s's %s is %.4f, as dark as the ink: in the world's shadow it would be under %.1fx the ink (floor %.3f)" \
                 % (name, what, y, 2.0, floor)
-            assert y <= WEATHER["hi"], "%s is %.2f, paler than soot stone (at most %.2f)" % (what, y, WEATHER["hi"])
+            assert y <= WEATHER["hi"], "%s is %.2f, paler than weathered stone (at most %.2f)" % (what, y, WEATHER["hi"])
     for name, row in PALETTE.items():
         for h, c in zip(row["hex"], palette(name)):
             what = names.get(h, h); pur = 1.0 - min(c[:3]) / max(max(c[:3]), 1e-9)
@@ -1315,7 +1346,7 @@ def check_palette():
                 assert pur <= 0.55, "the %s banner shouts (purity %.2f)" % (("red", "green", "gold")[BROWSER_ART["banners"].index(h)], pur)
             else:
                 if h != RUST:
-                    why = stone_miss(c, what)
+                    why = stone_miss(c, what, row.get("family", "warm"))
                     assert why is None, why
                 assert pur <= 0.55, "%s is %.2f pure: paint, not stone" % (what, pur)
 
@@ -1482,11 +1513,22 @@ def bite(verbose=True):
     W, N, G = WEATHER, NIGHT, globals()
     none = lambda P: None
     # 10. the palette
-    case("pale souq (gamma 0.45)", none, "paler than soot stone", [(W, "gamma", 0.45)])
+    case("pale souq (gamma 0.45)", none, "paler than weathered stone", [(W, "gamma", 0.45)])
     case("inky souq (lo 0.002)", none, "as dark as the ink", [(W, "lo", 0.002)])
-    case("brown souq", none, "brown mud or slate", [(W, "cast", (1.10, 1.0, 0.88)), (W, "chroma", 0.5)])
-    case("navy souq (the old cold cast)", none, "brown mud or slate", [(W, "cast", (0.92, 0.98, 1.08))])
-    case("painted stone (a loud magenta cast)", none, "paint, not stone", [(W, "cast", (2.0, 0.5, 2.0))])
+    case("brown souq", none, "a brown mud", [(W, "cast", (1.10, 1.0, 0.88)), (W, "chroma", 0.5)])
+    case("old cold cast (the mud goes brown)", none, "a brown mud", [(W, "cast", (0.92, 0.98, 1.08))])
+    # the warm window's low edge, the cool window's two, and the chroma floor: the cool
+    # sabotages put a hex on the iron (the one cool souq stone) that the real cast leaves
+    # at hue 283 (navy) and 343 (pink), the warm stone untouched and inside its window
+    for what, hexc, want in (("navy iron (the cool stone gone blue)", "#00608a", "a navy or a slate"),
+                             ("pink iron (the cool stone gone pink)", "#8a3060", "a pink or a magenta")):
+        case(what, none, want, [(BROWSER_ART, "barrel", hexc), (PALETTE, "M_Souq_Iron", dict(hex=(hexc, RUST), family="cool"))])
+    case("pink souq (a magenta cast)", none, "a magenta or a navy", [(W, "cast", (1.05, 0.86, 1.35))])
+    case("grey souq (no chroma, no cast)", none, "is grey", [(W, "chroma", 0.0), (W, "cast", (1.0, 1.0, 1.0))])
+    # a red cast that keeps every stone inside the warm window (hue 359-1) at a purity of 0.66-0.73:
+    # the purity rule is reached, not shadowed by the hue rule (the old magenta cast, 2.0 0.5 2.0,
+    # is hue 341 now, and fails the hue rule first)
+    case("painted stone (a loud red cast)", none, "paint, not stone", [(W, "cast", (1.2, 0.45, 0.9))])
     case("loud cloth", none, "banner shouts", [(W, "cloth_chroma", 1.0)])
     case("red lost", none, "no longer the look's accent", [(W, "blood_chroma", 0.4)])
     case("order inverted (gamma < 0)", none, "order", [(W, "gamma", -0.1)])
@@ -1559,6 +1601,7 @@ def bite(verbose=True):
     case("amber moon", none, "the moon is hue", [(MOON, "colour", (1.0, 0.85, 0.63))])
     case("navy moon (the old night's)", none, "the moon is hue", [(MOON, "colour", (0.60, 0.70, 0.96))])
     case("white moon", none, "a white light", [(MOON, "colour", (1.0, 1.0, 1.0))])
+    case("neon moon", none, "a neon", [(MOON, "colour", (1.0, 0.2, 0.9))])
     case("soft moon (12 degrees)", none, "the moon is soft", [(MOON, "angle", 12.0)])
     case("white-hot fire (6500 K)", none, "burns at", [(N, "temp_k", 6500.0)])
     case("cold lantern", none, "lantern's light", [(N, "lantern_hex", "#8cb4ff")])
@@ -1702,7 +1745,8 @@ def draw(P, path):
         if b["kind"] == "minaret":
             g.ellipse([to(b["x"] - 500, b["y"] + 500), to(b["x"] + 500, b["y"] - 500)], outline=(255, 230, 150))
     for q in P.get("puddles", []):
-        x, y = to(q["x"], q["y"]); r = max(1.5, q["scale"][0] * 50.0 * sc); g.ellipse([x - r, y - r, x + r, y + r], fill=(90, 110, 130))
+        # a puddle is the wet rose-umber of the palette's ground #63494D (99, 73, 77); it was a slate (90, 110, 130) until 2026-11-19
+        x, y = to(q["x"], q["y"]); r = max(1.5, q["scale"][0] * 50.0 * sc); g.ellipse([x - r, y - r, x + r, y + r], fill=(99, 73, 77))
     for p in P["props"] + P.get("door_fires", []):
         x, y = to(p["x"], p["y"])
         if p["kind"] in FIRE_KINDS:
@@ -1714,14 +1758,15 @@ def draw(P, path):
         x, y = to(l["x"], l["y"]); g.point((x, y), fill=(255, 220, 140))
     for s in P["sites"]:
         x, y = to(s["x"], s["y"]); r = s["r"] * sc
-        g.ellipse([x - r, y - r, x + r, y + r], outline=(250, 170, 90) if s["kind"] == "wave" else (90, 200, 255))
+        # the gate's site and the gate are the System's cerise #FF2E92 (cyan (90, 200, 255) until 2026-11-19)
+        g.ellipse([x - r, y - r, x + r, y + r], outline=(250, 170, 90) if s["kind"] == "wave" else (255, 46, 146))
     if P["gate"]:
-        x, y = to(P["gate"]["x"], P["gate"]["y"]); g.rectangle([x - 4, y - 4, x + 4, y + 4], fill=(90, 200, 255))
+        x, y = to(P["gate"]["x"], P["gate"]["y"]); g.rectangle([x - 4, y - 4, x + 4, y + 4], fill=(255, 46, 146))
     for side, (dx, dy) in P["doors"].items():
         x, y = to(dx, dy); g.ellipse([x - 5, y - 5, x + 5, y + 5], fill=(120, 255, 120)); g.text((x + 8, y - 6), side, fill=(200, 255, 200))
     g.text((16, 16), "SOUQ AL-DAWAR, built: the street on the spiral, stalls and warehouses either side, the rim gapped", fill=(220, 220, 220))
     g.text((16, 32), "at every way out, crates down the street, the cracked wall beside the road, one minaret.", fill=(220, 220, 220))
-    g.text((16, 48), "The night: fires (orange, ringed by the pool where each out-lights the moon), lit lanterns, puddles (slate).",
+    g.text((16, 48), "The night: fires (orange, ringed by the pool where each out-lights the moon), lit lanterns, puddles (wet rose-umber).",
            fill=(220, 220, 220))
     os.makedirs(os.path.dirname(path), exist_ok=True); im.save(path); print("drew", path)
 
@@ -1745,18 +1790,21 @@ def _lin(rgba):
 # luminance a power of the browser's from the ink floor up (the cast was a
 # colder one until 2026-11-19, an aubergine-warm one since). The lantern is
 # not weathered: what burns keeps its colour.
-def _worn(h, chroma=None):
-    """A browser colour, weathered: linear RGBA (see WEATHER)."""
+def _worn(h, chroma=None, cast=True):
+    """A browser colour, weathered: linear RGBA (see WEATHER). `cast` says
+    whether the stone's aubergine cast goes on it. It is an argument, not a
+    guess from the chroma (it was `chroma == WEATHER["chroma"]` until the
+    second reading, 2026-11-19, which took the cast off a car's paint by an
+    accident of its 0.42): True for stone, dust, rust and the slots weathered
+    at the stone's chroma; False for a DYE -- a cloth, a leaf, a car's paint,
+    a lamp's red -- which keeps the hue it was painted, because the look's
+    CLOTH_DIR grade pulls dyes to the palette at run time and the cast would
+    take the island's grass out of green (island_surfaces: a* under -1)."""
     c = _lin(_hex(h))[:3]
     y = _luma(c)
     k = WEATHER["chroma"] if chroma is None else chroma
-    # the cast is the STONE's: a colour weathered at any other chroma (a
-    # cloth, a green leaf: WEATHER's cloth_chroma and blood_chroma) keeps its
-    # own hue, as the browser painted it -- the aubergine cast of 2026-11-19
-    # would take the island's grass and leaves out of green (their check,
-    # island_surfaces: a* under -1), and a banner's hue is the look's to pull
-    cast = WEATHER["cast"] if k == WEATHER["chroma"] else (1.0, 1.0, 1.0)
-    g = [max(0.0, (y + (v - y) * k) * t) for v, t in zip(c, cast)]
+    t_ = WEATHER["cast"] if cast else (1.0, 1.0, 1.0)
+    g = [max(0.0, (y + (v - y) * k) * t) for v, t in zip(c, t_)]
     want = WEATHER["lo"] * (max(y, 1e-6) / WEATHER["y_lo"]) ** WEATHER["gamma"]
     s = want / max(_luma(g), 1e-9)
     return tuple(v * s for v in g) + (1.0,)
@@ -1791,7 +1839,7 @@ def palette(name):
     """A material's weathered colours, in PALETTE's order: linear RGBA."""
     row = PALETTE[name]
     k = WEATHER[row["chroma"]] if "chroma" in row else None
-    return [_worn(h, k) for h in row["hex"]]
+    return [_worn(h, k, cast="chroma" not in row) for h in row["hex"]]       # a row with its own chroma is a dye
 
 
 def tones(name):
@@ -1875,7 +1923,7 @@ class Souq:
     def material(self, name, kind):
         """A procedural material in tile space: UV * TILE is metres. Every
         colour comes from PALETTE through tones(), the same rows check()
-        holds to the soot band; grime mixes toward a tone held at the floor,
+        holds to the weathered band; grime mixes toward a tone held at the floor,
         so nothing here bakes darker than the ink allows."""
         bpy = self.bpy
         if name in self.mats: return self.mats[name]

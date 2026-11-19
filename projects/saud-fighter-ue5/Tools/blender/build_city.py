@@ -707,7 +707,7 @@ class City(BS.Souq):
             b = mat.node_tree.nodes["Principled BSDF"]
             cols = BS.palette(name)
             if kind == "window":
-                # dark glass: the souq's weathering on a navy, glossy
+                # dark glass: the souq's weathering on the navy source hex (#1d2a3d), glossy
                 b.inputs["Base Color"].default_value = cols[0]; b.inputs["Roughness"].default_value = 0.12
                 b.inputs["Metallic"].default_value = 0.3
             else:

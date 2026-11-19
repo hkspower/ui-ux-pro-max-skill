@@ -51,7 +51,8 @@ triangle budget; the door's oval inside its trigger, its lip under a step,
 a man's capsule through it; the portals collide with nothing (the C++);
 every gate in a plan wears its kind's portal, the arena's door its own and
 no street exit one, the door's portal clear of every fight and every fire
-beside it. --bite breaks each.
+beside it; and the preview sheet's colours the look's (sheet_misses). --bite
+breaks each.
 
 UNVERIFIED. No engine has imported a portal; the FBX is written by Blender
 and read back by Blender. The editor half (import, the material slot, the
@@ -104,6 +105,16 @@ CAPSULE = dict(r=34.0, h=176.0)  # ACharacter's default capsule (radius 34, half
 STEP_CM = 45.0                   # the movement component's default step height, as remembered
 SITE_RADIUS = 900.0              # SaudArena::SiteRadius, the builders' SITE_RADIUS: a fight's room
 MATERIAL_OF = {"gate": "M_Portal_System", "door": "M_Portal_Danger"}
+# The preview sheet's colours, 8-bit sRGB (2026-11-19, Sodium Afterglow): a
+# gate's title in the System's cerise #FF2E92 and the door's in the danger red
+# #FF4B36 -- the colour of the portal each names, LOOK["HUD_SYSTEM"] and
+# ["HUD_DANGER"], and the door's red rather than the blood #B4142E, which is
+# too dark to read on the panel -- over the HUD's panel #1B1020, the text the
+# HUD's cream #F6EADB. They were the old cyan (70, 200, 255), crimson
+# (255, 51, 85), navy (6, 9, 20) and ice (234, 246, 255). sheet_misses() holds
+# each to the look's, so a look that moves again fails here.
+SHEET = dict(background=(27, 16, 32), text=(246, 234, 219), gate=(255, 46, 146), door=(255, 75, 54))
+SHEET_OF = dict(background="HUD_PANEL", text="HUD_ICE", gate="HUD_SYSTEM", door="HUD_DANGER")
 INSTANCE_OF = {"M_Portal_System": "MI_Portal_System", "M_Portal_Danger": "MI_Portal_Danger"}
 
 SABOTAGE = set()
@@ -322,6 +333,26 @@ def source_misses(texts=None):
     return out
 
 
+def _srgb8(c):
+    """A linear colour as 8-bit sRGB."""
+    return tuple(int(round(255.0 * (v * 12.92 if v <= 0.0031308 else 1.055 * v ** (1.0 / 2.4) - 0.055))) for v in c[:3])
+
+
+def sheet_misses(sheet=None):
+    """The preview sheet draws in the look's own colours: each of SHEET's
+    (within one 8-bit step) the look's HUD colour it stands for (SHEET_OF)."""
+    if LOOK_DIR not in sys.path:
+        sys.path.insert(0, LOOK_DIR)
+    from anime_look import LOOK
+    out = []
+    for k, key in SHEET_OF.items():
+        got, want = tuple((sheet or SHEET)[k]), _srgb8(LOOK[key])
+        if max(abs(a - b) for a, b in zip(got, want)) > 1:
+            out.append("the preview sheet's %s is %s, not the look's %s %s: the sheet would draw the System in another palette"
+                       % (k, got, key, want))
+    return out
+
+
 # ------------------------------------------------------------- the placement
 def placement_misses(actors, stages, middle=None, fights=None, solids=None, expect_doors=None, where=""):
     """A level plan's gates and exits against the portals: every Gate
@@ -392,6 +423,7 @@ def check(verbose=True):
     for name in kinds():
         out.extend(mesh_misses(geometry(name)))
     out.extend(source_misses())
+    out.extend(sheet_misses())
     if verbose:
         for m in out:
             print("MISS " + m)
@@ -403,7 +435,7 @@ def check(verbose=True):
             print("checked: every portal closed and wound out, in its gate's box (%s) and %.0f cm proud at most,"
                   % ("x".join("%.0f" % v for v in GATE_BOX), PROUD_MAX))
             print("its energy proud of the plinth, its UVs the material's; the door's in its trigger, a man through it;")
-            print("none of them collides. " + "; ".join(rows))
+            print("none of them collides; the preview sheet draws in the look's colours. " + "; ".join(rows))
     return out
 
 
@@ -439,6 +471,12 @@ def bite():
         hit = [m for m in source_misses(T) if want in m]
         caught += bool(hit)
         print("  %-18s %s" % (name, ("caught: " + hit[0]) if hit else "NOT caught"))
+    # the preview sheet's colours: each one put back to the old palette
+    for name, key, old_c in (("cyan gate titles", "gate", (70, 200, 255)), ("crimson door title", "door", (255, 51, 85)),
+                             ("navy sheet", "background", (6, 9, 20)), ("ice text", "text", (234, 246, 255))):
+        hit = [m for m in sheet_misses(dict(SHEET, **{key: old_c})) if "preview sheet's %s" % key in m]
+        caught += bool(hit)
+        print("  %-18s %s" % (name, ("caught: " + hit[0]) if hit else "NOT caught"))
     # the placement rules, on a small plan of their own
     stages = _stages()
     arena = arena_stage(stages)
@@ -462,7 +500,7 @@ def bite():
         hit = [m for m in miss if want in m]
         caught += bool(hit)
         print("  %-18s %s" % (name, ("caught: " + hit[0]) if hit else "NOT caught (%s)" % (miss[:1] or "passes")))
-    total = len(cases) + len(src) + len(pcases)
+    total = len(cases) + len(src) + len(pcases) + 4
     print("  %d of %d bite" % (caught, total))
     return caught == total
 
@@ -607,7 +645,7 @@ def _flat_material(bpy, name, rgb, rough=0.9):
 
 def _row_scene(kind_name):
     """One row of the sheet: four of this portal in its gate, one a state,
-    on soot flagstone under the souq's moon and one pyre in front."""
+    on the souq's weathered flagstone under its moon and one pyre in front."""
     import bpy
     import numpy as np
     sys.path.insert(0, HERE)
@@ -621,7 +659,7 @@ def _row_scene(kind_name):
     door = G["kind"] == "door"
     gap = 5.6 if door else 2.7
     xs = [(i - 1.5) * gap for i in range(len(STATES))]
-    # the ground: the souq flagstone's soot
+    # the ground: the souq's flagstone, weathered
     flag = BS.palette("M_Souq_Flagstone")
     ground_col = tuple((np.array(BS._lin(flag[0])[:3]) + np.array(BS._lin(flag[1])[:3])) * 0.5)
     bpy.ops.mesh.primitive_plane_add(size=1.0, location=(0.0, 4.0, 0.0))
@@ -708,22 +746,22 @@ def preview(out=None, samples=24, height=400):
         print("  %-22s key %.3f, holes %.1f %% of the frame, %.2f %% of the portals (%.1f %% of the frame is portal, median L* %.0f)"
               % (name, m["key"], holes * 100, p_holes * 100, portal.mean() * 100, report[-1]["portal_L"]), flush=True)
     W, Hh, lab = 1280, height, 30
-    sheet = Image.new("RGB", (W, 54 + len(rows) * (Hh + lab)), (6, 9, 20))
+    sheet = Image.new("RGB", (W, 54 + len(rows) * (Hh + lab)), SHEET["background"])
     dr = ImageDraw.Draw(sheet)
     try:
         font = ImageFont.truetype("DejaVuSans-Bold.ttf", 17); big = ImageFont.truetype("DejaVuSans-Bold.ttf", 22)
     except Exception:
         font = big = ImageFont.load_default()
-    dr.text((14, 14), "THE SYSTEM'S PORTALS -- every sealed gate and the arena's door, as the game draws them", fill=(234, 246, 255), font=big)
+    dr.text((14, 14), "THE SYSTEM'S PORTALS -- every sealed gate and the arena's door, as the game draws them", fill=SHEET["text"], font=big)
     names = {"Wall": "CRACKED WALL (HAYMAKER)", "Shutter": "STEEL SHUTTER (POWER KICK)", "Ledge": "LEDGE (VAULT)",
              "Gap": "BROKEN GROUND (DASH LEAP)", "Stash": "LOCKER (needs nothing: never sealed in the game)"}
     for r, (G, pic) in enumerate(rows):
         y0 = 54 + r * (Hh + lab)
-        title = names.get(G["gate"], "THE ARENA'S DOOR (HAWK FIST) -- crimson")
-        dr.text((14, y0 + 6), title, fill=(70, 200, 255) if G["kind"] == "gate" else (255, 51, 85), font=font)
+        title = names.get(G["gate"], "THE ARENA'S DOOR (HAWK FIST) -- danger red")
+        dr.text((14, y0 + 6), title, fill=SHEET["gate"] if G["kind"] == "gate" else SHEET["door"], font=font)
         sheet.paste(Image.fromarray(pic), (0, y0 + lab))
         for i, (label, _s) in enumerate(STATES):
-            dr.text((W * i // 4 + W // 8 - 70, y0 + lab + Hh - 26), label, fill=(234, 246, 255), font=font)
+            dr.text((W * i // 4 + W // 8 - 70, y0 + lab + Hh - 26), label, fill=SHEET["text"], font=font)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     sheet.save(out)
     print("wrote %s" % out)

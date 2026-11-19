@@ -697,8 +697,9 @@ def render(pr, path=RENDER, samples=48):
     """Every prop on a sand floor under a low mauve moon and a soft sky,
     in two rows: the plants and rocks, then the temple, pier and boat. (A
     cold moon (0.80, 0.86, 1.0, 3.0) and a blue sky (0.35, 0.42, 0.55) until
-    2026-11-19; the palette's moon #998696 and a mauve sky now, each at the
-    old one's luminance.)"""
+    2026-11-19; the palette's moon #998696 and its sky_horizon #5A3345 now,
+    each at the old one's luminance, the sky as the souq's and the city's
+    are.)"""
     bpy = pr.bpy
     from mathutils import Vector
     sc = bpy.context.scene
@@ -735,7 +736,7 @@ def render(pr, path=RENDER, samples=48):
     sun.rotation_euler = (math.radians(50), 0, math.radians(-35))
     sc.world = bpy.data.worlds.new("W")
     sc.world.use_nodes = True
-    sc.world.node_tree.nodes["Background"].inputs[0].default_value = (0.51, 0.38, 0.49, 1)
+    sc.world.node_tree.nodes["Background"].inputs[0].default_value = (0.853, 0.276, 0.496, 1)    # sky_horizon at the old sky's luma, 0.4145
     sc.world.node_tree.nodes["Background"].inputs[1].default_value = 0.6
     sc.render.engine = "CYCLES"
     sc.cycles.samples = samples

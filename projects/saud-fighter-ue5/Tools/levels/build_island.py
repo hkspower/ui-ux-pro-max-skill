@@ -818,7 +818,8 @@ def draw(P, path):
 
     for a in P["actors"]:
         x, y = to(a["x"], a["y"])
-        col = {"WaveDirector": (255, 255, 255), "Gate": (90, 200, 255),
+        # a gate is the System's cerise #FF2E92 (it was cyan (90, 200, 255) until 2026-11-19)
+        col = {"WaveDirector": (255, 255, 255), "Gate": (255, 46, 146),
                "Exit": (120, 255, 120), "PlayerStart": (255, 120, 255),
                "WaveMarker": (250, 170, 90)}[a["kind"]]
         g.ellipse([x - 4, y - 4, x + 4, y + 4], fill=col)

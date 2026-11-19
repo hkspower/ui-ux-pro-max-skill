@@ -210,7 +210,7 @@ THEME_GROUND = {
 COLORS_CSV = os.path.join(PROJECT, "Content", "Data", "DT_Colors.csv")
 # What each primitive is painted as (Unreal-only): its role, and each role's
 # colour from its theme's pair through the souq's one weathering
-# (build_souq._worn: the same soot band, the same ink floor) -- the way
+# (build_souq._worn: the same weathered band, the same ink floor) -- the way
 # through the lighter of the pair, the ground and what stands tall the
 # darker, blocks and the rim between. Water and iron are Unreal-only colours.
 ROLE_OF_KIND = dict(
@@ -226,12 +226,23 @@ ROLE_OF_KIND = dict(
     brazier="iron", pyre="iron",
 )
 ROLES = dict(paving=(0,), ground=(1,), tall=(1,), block=(0, 1), rim=(0, 1))
+# which of the palette's stone families (build_souq.HUES) a theme's stone is
+# held to by check 29: what the browser paints a brown or a tan is warm
+# (rose-umber, hue 350-30), what it paints a slate, a navy or a violet is
+# cool (mauve, 293-330). The palette's wood and cloth are not here on purpose:
+# the look's WORLD_DIR / CLOTH_DIR grade applies them at run time (HUES).
+THEME_FAMILY = dict(Souq="warm", Gym="warm", Failaka="warm", Desert="warm",
+                    Towers="cool", Fishmarket="cool", Marina="cool", Highway="cool", Arena="cool")
 # the shallows, Unreal-only; held at the ink floor like everything. A deep
 # green-black (hue 167 in CIELAB, linear 0.0125 0.0170 0.0150) since
 # 2026-11-19, where it was a blue-grey slate (hue 254, 0.012 0.016 0.020):
 # the one cool thing in a rose-umber world, with no blue in it, and the
 # look's aubergine shadow tone over it is what makes it plum-black on screen.
 WATER = (0.0125, 0.0170, 0.0150)
+# the one cool hue in the world's rose-umber: the palette gives no water, so
+# it is the teal-green chosen above (167, the approved picture sheet's), held
+# to a window of 150-200 by check 29. Navy (the old slate, 254) is outside.
+WATER_HUES = (150.0, 200.0)
 ROLE_ROUGH = dict(paving=0.85, ground=0.95, tall=0.90, block=0.90, rim=0.90, water=0.06, iron=0.60)
 WAY_THROUGH = 1.20                   # the paving at least this many times its ground's luminance
 FIRE_POST = dict(brazier=(60.0, 95.0), pyre=(7.0, 290.0))   # a derived district's fire as a post: across, tall (cm)
@@ -961,6 +972,20 @@ def air_miss(c):
     return None
 
 
+def water_miss(c):
+    """Why the water colour `c` (linear) is not the world's teal-green, or
+    None: it needs a stone's chroma (SOUQ.STONE_CHROMA: a grey has no hue, and
+    reads as one inside any window) and a hue in WATER_HUES (SOUQ.tint_of)."""
+    hue, chroma = SOUQ.tint_of(c)
+    if chroma < SOUQ.STONE_CHROMA:
+        return "the water is grey (chroma %.1f, under %.0f): not the world's teal-green (hue %.0f-%.0f)" \
+            % (chroma, SOUQ.STONE_CHROMA, *WATER_HUES)
+    if not SOUQ.in_hues(hue, WATER_HUES):
+        return "the water is hue %.0f (chroma %.1f), not the world's teal-green (hue %.0f-%.0f): not the old navy slate (254)" \
+            % (hue, chroma, *WATER_HUES)
+    return None
+
+
 # ------------------------------------------------------------------ check
 def check(P):
     """The same discipline Tools/fab/lay_out_world.py holds its layout to,
@@ -1075,22 +1100,26 @@ def check(P):
         if not p.get("mesh") and p["kind"] not in ROLE_OF_KIND:
             grey[p["kind"]] = grey.get(p["kind"], 0) + 1
     assert not grey, ", ".join("%d %ss" % (n, k) for k, n in sorted(grey.items())) + " would build engine-grey"
-    # 29. every district's palette is in the souq's soot band, over the ink,
-    #     and the palette's rose-umber stone in hue (it was "R/B at most
-    #     1.50: brown mud, not soot stone" until 2026-11-19, which the
-    #     palette's own ground -- R/B 1.69 -- would fail)
+    # 29. every district's palette is in the souq's weathered band, over the ink,
+    #     and the palette's stone in hue and chroma, its theme's family: not a
+    #     grey, a brown mud, a navy or a magenta (it was "R/B at most 1.50:
+    #     brown mud, not soot stone" until 2026-11-19, which the palette's own
+    #     ground -- R/B 1.69 -- would fail); the water the world's teal-green
     floor = SOUQ.ink_floor()
     for (theme, role), (col, _r) in sorted(materials_of(P).items(), key=str):
         y = SOUQ._luma(col)
         if role == "iron":
             continue                                   # the souq's iron, held by its own check
         assert y >= floor - 1e-9, "%s's %s is %.4f, as dark as the ink (floor %.3f)" % (theme, role, y, floor)
-        assert y <= SOUQ.WEATHER["hi"], "%s's %s is %.3f, paler than soot stone (at most %.2f)" % (theme, role, y, SOUQ.WEATHER["hi"])
+        assert y <= SOUQ.WEATHER["hi"], "%s's %s is %.3f, paler than weathered stone (at most %.2f)" % (theme, role, y, SOUQ.WEATHER["hi"])
         pur = 1.0 - min(col) / max(max(col), 1e-9)
         assert pur <= 0.55, "%s's %s is %.2f pure: paint, not stone" % (theme, role, pur)
-        if role != "water":
-            why = SOUQ.stone_miss(col, "%s's %s" % (theme, role))
-            assert why is None, why
+        if role == "water":
+            why = water_miss(col)
+        else:
+            assert theme in THEME_FAMILY, "%s has no stone family (THEME_FAMILY)" % theme
+            why = SOUQ.stone_miss(col, "%s's %s" % (theme, role), THEME_FAMILY[theme])
+        assert why is None, why
     # 30. the way through reads: in every district its paving is lighter than its ground
     for idx, d in D.items():
         theme = d["stage"]["Theme"]
@@ -1179,7 +1208,7 @@ def check(P):
     print("doorway opens onto the one that answers it. The island passes its own")
     print("checks at the bearings this world gives it, and stands on no neighbour.")
     print("The night: no primitive builds engine-grey, every district's colours are the browser's")
-    print("grounds in the soot band over the ink and rose-umber, every way through reads, the fog is the")
+    print("grounds in the weathered band over the ink and the palette's rose-umber or mauve, every way through reads, the fog is the")
     print("look's air, a dark plum, under a hard mauve moon, and every district's fires light its fights and doors in pools,")
     print("within the light budget.")
     print("The cars: %d parked, every one at its kerb, clear of every fight, fire, block and way out." % n_cars)
@@ -1201,7 +1230,10 @@ def bite(verbose=True):
     stages, world = load()
     # the unbroken world has to pass first, or no sabotage can be counted:
     # since 2026-11-19 check 32 holds the look's air (LOOK["HAZE"]) to the
-    # palette's plum, so a look still on the old navy fails every case at it
+    # palette's plum, so a look still on the old navy fails every case at it,
+    # and check 34 holds cars.json to the weathering, so a change to that
+    # needs `park_cars.py --json` before this: patch, park_cars.py --json,
+    # then --bite
     try:
         with contextlib.redirect_stdout(io.StringIO()):
             check(plan(stages, world))
@@ -1257,13 +1289,24 @@ def bite(verbose=True):
     # the weathering's curve tops out at 0.132 for a pure white source, under
     # WEATHER["hi"] (0.17), so no browser hex can reach it: the bite lowers the
     # bound to just over the palest real role (0.100) and puts a white in it
-    case("pale desert", "paler than soot stone", [(T, "Desert", ("#f4ecd8", "#e8dcc0")), (SOUQ.WEATHER, "hi", 0.11)])
+    case("pale desert", "paler than weathered stone", [(T, "Desert", ("#f4ecd8", "#e8dcc0")), (SOUQ.WEATHER, "hi", 0.11)])
     case("inky marina", "as dark as the ink", [(T, "Marina", ("#3b3350", "#050308"))])
     case("painted gym (red)", "paint, not stone", [(T, "Gym", ("#ff2000", "#c01800"))])
-    case("olive gym (brown mud)", "brown mud or slate", [(T, "Gym", ("#808020", "#585810"))])
-    # the cast turns a navy hex to violet (Towers' #2a3552 weathers to hue 299), so
-    # the old navy is proved with the old cast, on the whole world
-    case("navy world (the old cold cast)", "brown mud or slate", [(SOUQ.WEATHER, "cast", (0.92, 0.98, 1.08))])
+    # check 29's hue and chroma rules, one family and one side each. The cast turns a navy
+    # hex to violet (Towers' #2a3552 weathers to hue 299), so the navy and the pinks are
+    # hexes the real cast leaves at hue 283 (Towers), 338-340 (the Gym, Marina), the rest untouched
+    case("olive gym (brown mud)", "a brown mud", [(T, "Gym", ("#808020", "#585810"))])
+    case("magenta gym (hue 338)", "a magenta or a navy", [(T, "Gym", ("#6a3a50", "#4a2a3a"))])
+    case("navy Towers (the cool stone gone blue)", "a navy or a slate", [(T, "Towers", ("#00608a", "#004868"))])
+    case("pink Marina (the cool stone gone pink)", "a pink or a magenta", [(T, "Marina", ("#6a3a50", "#4a2a3a"))])
+    grey = (0.08, 0.08, 0.08)
+    case("grey world (no chroma at all)", "is grey", [(G, "role_colour", lambda theme, role: grey)])
+    case("a theme with no stone family", "has no stone family", [(G, "THEME_FAMILY", {k: v for k, v in THEME_FAMILY.items() if k != "Gym"})])
+    # the water has no stone's rule: its own window (the old slate is hue 254)
+    case("navy water (the old slate)", "the water is hue", [(G, "WATER", (0.012, 0.016, 0.020))])
+    case("grey water (a grey has no hue to hold)", "the water is grey", [(G, "WATER", (0.016, 0.016, 0.016))])
+    # the whole world on the old cold cast: the mud goes brown (the souq's own check says so first)
+    case("old cold cast (the mud goes brown)", "a brown mud", [(SOUQ.WEATHER, "cast", (0.92, 0.98, 1.08))])
     case("street as ground", "does not read", [(ROLES, "paving", (1,))])
     # --- 31: each derived district's night
     def dark_fight(P):
@@ -1290,9 +1333,12 @@ def bite(verbose=True):
     case("navy fog in the world only", "two airs", [(R, "fog", NAVY_AIR)])
     case("navy air (the look's and the world's)", "not the palette's dark plum", [(R, "fog", NAVY_AIR), (LOOK, "HAZE", NAVY_AIR)])
     case("grey air (the look's and the world's)", "a grey haze", [(R, "fog", (0.05, 0.05, 0.05)), (LOOK, "HAZE", (0.05, 0.05, 0.05))])
+    SMOKE = (0.20, 0.01, 0.12)
+    case("coloured smoke (the look's and the world's)", "a coloured smoke", [(R, "fog", SMOKE), (LOOK, "HAZE", SMOKE)])
     case("fog from afar (15 m)", "the fog starts", [(R, "fog_start", 1500.0)])
     case("an amber sun, not the moon", "the moon is hue", [(R, "sun", (1.00, 0.88, 0.70)), (R, "angle", 8.0)])
     case("navy moon (the old night's)", "the moon is hue", [(R, "sun", (0.58, 0.68, 0.95))])
+    case("neon moon", "a neon", [(R, "sun", (1.0, 0.2, 0.9))])
     case("soft moon (8 degrees)", "the moon is soft", [(R, "angle", 8.0)])
     # --- 33: the budget
     def fires_x4(P):
@@ -1436,7 +1482,8 @@ def draw(P, path):
     # actors
     for a in P["actors"]:
         x, y = to(a["x"], a["y"])
-        col = {"WaveDirector": (255, 255, 255), "Gate": (90, 200, 255),
+        # a gate is the System's cerise #FF2E92 (it was cyan (90, 200, 255) until 2026-11-19)
+        col = {"WaveDirector": (255, 255, 255), "Gate": (255, 46, 146),
                "Exit": (120, 255, 120), "PlayerStart": (255, 120, 255),
                "WaveMarker": (250, 170, 90), "Boat": (240, 220, 160), "LevelExit": (255, 230, 80)}[a["kind"]]
         r = 4 if a["kind"] in ("Exit", "PlayerStart", "LevelExit", "Boat") else 3

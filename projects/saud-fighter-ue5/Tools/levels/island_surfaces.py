@@ -34,7 +34,7 @@ THE COLOURS are Unreal-only -- the browser has no island -- natural
 colours of each ground, taken through the world's own weathering curve
 (build_souq._worn, the curve every colour of the open world takes), at the
 world's chroma for sand, rock and mud and at the cloth chroma for the two
-green layers, so the jungle still reads green under the navy night. Every
+green layers, so the jungle still reads green under the plum night. Every
 texel is held between the ink floor (build_souq.ink_hold, one 8-bit step
 over the look's floor) and WEATHER["hi"], as the souq's materials are.
 
@@ -122,7 +122,8 @@ def weathered(layer):
     """{name: linear RGB} for a layer: each hex through the world's curve."""
     row = PALETTE[layer]
     k = S.WEATHER[row["chroma"]]
-    return {n: np.array(S._worn(h, k)[:3], np.float32) for n, h in row["hex"].items()}
+    cast = row["chroma"] == "chroma"          # the stone's cast on the stone layers; the green ones are dyes (_worn)
+    return {n: np.array(S._worn(h, k, cast=cast)[:3], np.float32) for n, h in row["hex"].items()}
 
 
 # ================================================================ noise
@@ -903,7 +904,8 @@ def draw(maps, path=SHEET):
     cross), and a quarter of it (a ground's 50 cm) at full size."""
     from PIL import Image, ImageDraw
     cell = 512
-    sheet = Image.new("RGB", (cell * 2 + 30, (cell + 28) * len(maps) + 10), (12, 14, 20))
+    # the HUD's panel #1B1020 and text #F6EADB (a navy (12, 14, 20) and an ice (220, 230, 240) until 2026-11-19)
+    sheet = Image.new("RGB", (cell * 2 + 30, (cell + 28) * len(maps) + 10), (27, 16, 32))
     dr = ImageDraw.Draw(sheet)
     light = np.array([-0.45, -0.55, 0.70], np.float32)
     light /= np.linalg.norm(light)
@@ -920,7 +922,7 @@ def draw(maps, path=SHEET):
         crop = Image.fromarray(img[:crop_px, :crop_px]).resize((cell, cell), Image.LANCZOS)
         y = 10 + row * (cell + 28)
         dr.text((10, y), "%s   (left: %g m, the tile 2 x 2;  right: %g cm)" % (name, 2 * tm, crop_px / size * tm * 100),
-                fill=(220, 230, 240))
+                fill=(246, 234, 219))
         sheet.paste(whole, (10, y + 16))
         sheet.paste(crop, (20 + cell, y + 16))
     os.makedirs(os.path.dirname(path), exist_ok=True)
