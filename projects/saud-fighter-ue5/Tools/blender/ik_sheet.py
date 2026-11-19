@@ -320,7 +320,7 @@ def colours():
     def rgb(c):
         return tuple(int(round(255 * max(0.0, min(1.0, v)))) for v in AL.display(c))
     return dict(ink=rgb(AL.LOOK["INK"]), bone=rgb(AL.LOOK["BONE"]), ember=rgb(AL.LOOK["EMBER"]),
-                red=rgb(L.PALETTE["band"][:3]))
+                cerise=rgb(L.PALETTE["band"][:3]))
 
 
 def projector(cam, size):
@@ -344,7 +344,7 @@ def overlay(pic, rig, cam, size, props, header, footer):
     every drawn control, the centre of what was drawn (its registration)."""
     from PIL import Image, ImageDraw, ImageFont
     C = colours()
-    side_col = {"l": C["red"], "r": C["ember"], "": C["bone"]}
+    side_col = {"l": C["cerise"], "r": C["ember"], "": C["bone"]}
     W, pb = rig.matrix_world, rig.pose.bones
     P = projector(cam, size)
     im = Image.fromarray(pic).convert("RGB")
@@ -421,7 +421,7 @@ def overlay(pic, rig, cam, size, props, header, footer):
         big_f = small_f = ImageFont.load_default()
     band = int(58 * k)
     d.rectangle([0, 0, size[0], band], fill=C["ink"])
-    d.line([0, band, size[0], band], fill=C["red"], width=max(2, int(3 * k)))
+    d.line([0, band, size[0], band], fill=C["cerise"], width=max(2, int(3 * k)))
     d.text((int(18 * k), int(8 * k)), header, font=big_f, fill=C["bone"])
     foot = int(36 * k)
     d.rectangle([0, size[1] - foot, size[0], size[1]], fill=C["ink"])
@@ -583,10 +583,10 @@ def sheet(pics, size, out, man, anim=None):
     if where.startswith(".."):
         where = anim
     d.text((gap + int(14 * k), int(64 * k)),
-           "posed through rigs/%s.blend's controls at frames of %s.  red: lead (L)   "
+           "posed through rigs/%s.blend's controls at frames of %s.  cerise: lead (L)   "
            "ember: rear (R)   bone: the body   dashed: a pole   rings: the FK spine, neck, head" % (man, where),
            font=f2, fill=C["bone"])
-    d.line([0, title - 2, Wd, title - 2], fill=C["red"], width=max(2, int(3 * k)))
+    d.line([0, title - 2, Wd, title - 2], fill=C["cerise"], width=max(2, int(3 * k)))
     for i, p in enumerate(pics):
         r, c = divmod(i, cols)
         im.paste(Image.fromarray(p), (gap + c * (size[0] + gap), title + gap + r * (size[1] + gap)))

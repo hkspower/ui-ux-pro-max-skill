@@ -37,9 +37,10 @@ HEIGHT = 1.80
 
 # --------------------------------------------------------------- palette
 # Straight from the browser build's `col` table so the two Sauds match --
-# except his top, trousers and band, which since 2026-11-19 are the Unreal
-# build's own (hero/roster.UNREAL_KIT, the palette "Sodium Afterglow"): read
-# from there, so the colour lives in one place.
+# except his band, which since 2026-11-19 is the Unreal build's own
+# (hero/roster.UNREAL_KIT, the palette "Sodium Afterglow"): read from there,
+# so the colour lives in one place. ik_sheet.py draws the lead side in it; of
+# this table nothing else is read.
 # Linear values, matching the browser build's `col` table for Saud.
 def _unreal_kit(slot):
     """Saud's `top`, `bottom` or `band`, as the Unreal build paints it:
@@ -52,17 +53,17 @@ def _unreal_kit(slot):
 
 PALETTE = {
     "skin":   (0.888, 0.716, 0.597, 1.0),   # #f0d8c4  fair
-    "tee":    _unreal_kit("top"),           # #A3A09C  cream
-    "pants":  _unreal_kit("bottom"),        # #240910  madder wine
-    "shoe":   (0.032, 0.034, 0.040, 1.0),   # trainers, a touch off the trousers
-    "band":   _unreal_kit("band"),          # #FD2C67  cerise
+    "tee":    (0.029, 0.031, 0.039, 1.0),   # #15171c  fitted black tee
+    "pants":  (0.020, 0.021, 0.027, 1.0),   # #0e1014  black trousers
+    "shoe":   (0.007, 0.003, 0.009, 1.0),   # #130a18  trainers, the palette's ink
+    "band":   _unreal_kit("band"),          # #AD2E4C  the cerise's albedo
     "hair":   (0.020, 0.014, 0.009, 1.0),   # #1e150f
     "beard":  (0.026, 0.018, 0.012, 1.0),   # a shade off the hair
     "eye":    (0.012, 0.010, 0.009, 1.0),
     # The kit the browser build lists for him (assets/saud.js): taped fists,
     # a wristwatch on the lead arm, the flag on the chest. Same man.
-    "wrap":   (0.807, 0.768, 0.672, 1.0),   # #e8e2d4  hand tape, the browser's tapeCol
-    "watch":  (0.030, 0.034, 0.045, 1.0),   # dark steel
+    "wrap":   (0.366, 0.337, 0.305, 1.0),   # #a39d96  hand tape, the palette's bone
+    "watch":  (0.007, 0.003, 0.009, 1.0),   # #130a18  the palette's ink
     "mouth":  (0.190, 0.062, 0.045, 1.0),   # the lip line inside the beard
     "flag_g": (0.000, 0.201, 0.047, 1.0),   # #007a3d
     "flag_w": (0.887, 0.913, 0.940, 1.0),   # #f3f5f8

@@ -60,14 +60,16 @@ ROSTER = ("saud", "thug", "brawler")
 
 def check(kinds):
     """The roster reads; the Unreal build's kit table (roster.UNREAL_KIT, the
-    palette "Sodium Afterglow") is well formed, reaches every 3D man's paint
-    as given -- no fabric floor under it, which would draw Saud's wine and
-    AL-WAHSH's plum up to a grey-mauve -- and leaves the browser's own
-    colours as the browser has them; the floor still floors a colour that is
-    the browser's; and Saud's derived palette lands where paint() spells him
-    (skin, hair and shoe typed, top, trousers and band the table's) -- except
-    the beard, which is now the browser's wash over his skin rather than a
-    shade somebody chose, and that is reported."""
+    palette "Sodium Afterglow") is well formed and WHOLE -- every one of the
+    six men's three slots has a line, so no browser colour can come back for
+    want of one -- reaches every 3D man's paint as given -- no fabric floor
+    under it, which would draw Saud's wine and AL-WAHSH's plum up to a
+    grey-mauve -- and leaves the browser's own colours as the browser has
+    them; the floor still floors a colour that is the browser's; and Saud's
+    derived palette lands where paint() spells him (skin and hair typed,
+    top, trousers and band the table's, shoe and tape the palette's) --
+    except the beard, which is now the browser's wash over his skin rather
+    than a shade somebody chose, and that is reported."""
     from hero import roster, finish as F
     import numpy as np
     men = {"saud"} | set(roster.enemies())
@@ -91,15 +93,13 @@ def check(kinds):
         pal = F.palette_for(s)
         assert s["browser_col"] == raw[kind], "%s: the browser's colours were changed: %s -> %s" % (kind, raw[kind], s["browser_col"])
         for slot, key in (("top", "tee"), ("bottom", "pants"), ("band", "band")):
-            if (kind, slot) not in roster.UNREAL_KIT:
-                continue
             hexv = roster.UNREAL_KIT[(kind, slot)]
             assert s["col"][slot] == hexv and slot in s["albedo"], "%s's %s: spec() gives %s, the table has %s" % (kind, slot, s["col"][slot], hexv)
             assert np.allclose(pal[key], lin_hex(hexv), atol=1e-9), "%s's %s %s is painted as %s, not as given" % (
                 kind, slot, hexv, np.asarray(pal[key]).round(4).tolist())
     wine, plum = lin_hex(roster.UNREAL_KIT[("saud", "bottom")]), lin_hex(roster.UNREAL_KIT[("boss", "bottom")])
-    print("  the table reaches the paint as given; the floor would have drawn Saud's wine L* %.1f -> %.1f and AL-WAHSH's plum L* %.1f -> %.1f (not painted)" % (
-        F._lab(wine)[0], F._lab(F.fabric(wine))[0], F._lab(plum)[0], F._lab(F.fabric(plum))[0]))
+    print("  the table is whole (%d lines) and reaches the paint as given; the floor would have drawn Saud's wine L* %.1f -> %.1f and AL-WAHSH's plum L* %.1f -> %.1f (not painted)" % (
+        len(roster.UNREAL_KIT), F._lab(wine)[0], F._lab(F.fabric(wine))[0], F._lab(plum)[0], F._lab(F.fabric(plum))[0]))
     # ...and a colour that is the browser's still goes through the floor: a
     # man the table does not name (the bouncer's #191d24, never built in 3D)
     s = roster.spec("bouncer")
@@ -111,7 +111,7 @@ def check(kinds):
     new, old = F.palette_for(roster.spec("saud")), F.saud_palette()
     same = [k for k in ("skin", "hair", "tee", "pants", "band", "shoe") if np.allclose(new[k], old[k])]
     assert len(same) == 6, "Saud's palette drifted from what paint() spells: %s" % (set("skin hair tee pants band shoe".split()) - set(same))
-    print("  Saud's palette, read from the browser and the Unreal kit table, equals the one paint() spells: skin hair shoe typed, tee pants band the table's")
+    print("  Saud's palette, read from the browser and the Unreal kit table, equals the one paint() spells: skin hair typed, tee pants band the table's, shoe the palette's ink")
     print("  beard: typed %s -> read %s (the browser's rgba wash over his skin)" % (
         tuple(round(float(v), 4) for v in old["beard"]), tuple(round(float(v), 4) for v in new["beard"])))
     for k in ("tape_on", "patch", "stripe", "watch"):
@@ -1155,26 +1155,33 @@ def physique_check():
 def grim_check():
     """--grim-check (2026-09-28, the five men grim): the kit (finish
     .check_kit, rewritten 2026-11-19 for the six jewel-coloured men of
-    roster.UNREAL_KIT: the trousers the dark of him and under his top, the
-    band quiet or his one declared accent, one accent at most, the shoe
-    black, worn tape, the six identity colours apart and none of them his
-    skin; it held the grim kit's dark, muted, one red accent before), the
+    roster.UNREAL_KIT: every slot a line of the table, each top and band the
+    look draws within Delta E 6 of the palette's colour -- the envelope the
+    grim kit's dark and muted rules were, as the jewel kit has it -- the six
+    identity colours apart and none of them his skin, the trousers the dark of
+    him and under his top, the band quiet or his one declared accent, one
+    accent at most, the shoe a plum black, worn tape; it held the grim kit's
+    dark, muted, one red accent before), the
     paint (pipeline.paint_checks for every man: brows, furrow, frown, scars
     paler than the skin with a pucker, the brawler's tape, the body scars),
     the body his MASS and LIMBS were for (pipeline.check_body_looks, against
     the same body built plain), every man's jaw inside his cheekbones
     (check_mien's every-man rule, measured on all six heads before it
     asserts in every build: MERGE 6) and the cauliflower ears
-    (assembly.check_cauliflower) -- clean, then each broken: the thug back
-    in the browser's grey, AL-WAHSH in ZAYOS's azure, a loud band on AL-SAQR
-    and on the thug (undeclared), a second accent, the boss in the thug's
-    top, the brawler's rust tee and his skin brown, bone tape (on the boss;
-    set on Saud), ZAYOS's gloves gone grey, the brawler's trousers in his
-    jade, Saud's in cream; the brows in his skin, no furrow, the old frown,
-    the old scar tone, scar tissue in the old tone, no pucker, no tape, no
-    body scars; each man built plain, AL-SAQR with the brawler's waist,
-    ZAYOS's trapezius grown; a brick jaw; plain ears. bpy as a module; about
-    four minutes."""
+    (assembly.check_cauliflower) -- clean, then each broken: each of the
+    eighteen table lines deleted (from the table, from spec(), and as the
+    browser's colour come back in the palette); the thug back in the
+    browser's grey, AL-WAHSH in ZAYOS's azure, a loud band on AL-SAQR and on
+    the thug (undeclared), a second accent, the boss in the thug's top, the
+    brawler's rust tee and his skin brown, a pale tan near Saud's skin, bone
+    tape (on the boss; set on Saud), ZAYOS's gloves gone grey, the brawler's
+    trousers in his jade, Saud's in cream; a white, a neon-green, a hot-pink,
+    the browser's orange and violet top that does not show its colour, a
+    blue-grey shoe; the brows in his skin, no furrow, the old frown, the old
+    scar tone, scar tissue in the old tone, no pucker, no tape, no body
+    scars; each man built plain, AL-SAQR with the brawler's waist, ZAYOS's
+    trapezius grown; a brick jaw; plain ears. bpy as a module; about four
+    minutes."""
     import numpy as np, time
     from hero import pipeline as P, finish as F, face as FA, roster, anatomy as A, assembly as ASM
     bites = _Bites("grim")
@@ -1197,10 +1204,21 @@ def grim_check():
     ev = [(ka, kb, float(np.linalg.norm(F._lab(ident(pa)) - F._lab(ident(pb)))))
           for i, (ka, pa) in enumerate(pals().items()) for kb, pb in list(pals().items())[i + 1:]]
     print("  identity clean   apart by " + "  ".join("%s-%s %.1f" % e for e in ev))
+    for (k, slot), (got, want, d, limit) in F.kit_shows(pals()).items():
+        print("  %-8s %-7s the look draws %s, the palette's %s: Delta E %.1f (at most %.1f%s)" % (
+            k, slot, got, want, d, limit, ", the look's own shortfall" if (k, slot) in F.SHOWS_LIMIT else ""))
     UK = roster.UNREAL_KIT
+    bone = "#" + F.BONE
+
+    def shoe_of(hexv):
+        """The thug's shoe in `hexv` (a kit entry has no shoe: the palette's own is set after)."""
+        def run():
+            ps = pals(); ps["thug"]["shoe"] = F.lin(F.srgb(hexv))
+            return F.check_kit(ps)
+        return run
     kit_bites = [
         # identity colours not apart: the old palette's grey back on the thug
-        # (Saud's cream's near twin, Delta E 10), and a top in ZAYOS's gloves'
+        # (Saud's cream's near twin, Delta E 12), and a top in ZAYOS's gloves'
         # azure (he has no top: his gloves are his identity colour)
         ("thug in the browser's grey", dict(thug=dict(top="#8a9099")), "the same kit"),
         ("the boss in ZAYOS's azure", dict(boss=dict(top=UK[("zayos", "band")])), "the same kit"),
@@ -1210,21 +1228,76 @@ def grim_check():
         ("a second accent on the boss", dict(boss=dict(accent=("band", "top"))), "one accent"),
         ("the boss in the thug's top", dict(boss=dict(top=UK[("thug", "top")])), "the same kit"),
         # the browser's rust tee is 13.0 from the brawler's skin in a*b*:
-        # it read as a bare chest; so does a dark brown the same hue
+        # it read as a bare chest; so does a dark brown the same hue; and a
+        # pale tan 17.3 from Saud's, which pins the limit from below (his
+        # cream, 19.5, is the line's other side)
         ("the brawler's rust tee", dict(brawler=dict(top="#8c4a34")), "as skin"),
         ("the brawler in skin brown", dict(brawler=dict(top="#5c473b")), "as skin"),
-        ("bone tape on the boss", dict(boss=dict(tape="#e8e2d4")), "bone tape"),
-        # (Saud's own wraps are the browser's bone tape and are not held; a tape
+        ("a pale tan on Saud", dict(saud=dict(top="#A99F95")), "as skin"),
+        ("bone tape on the boss", dict(boss=dict(tape=bone)), "bone tape"),
+        # (Saud's own wraps are the palette's bone and are not held; a tape
         # this build SETS on him is)
-        ("bone tape set on Saud", dict(saud=dict(tape="#e8e2d4")), "bone tape"),
+        ("bone tape set on Saud", dict(saud=dict(tape=bone)), "bone tape"),
         # a declared accent that does not read: ZAYOS's gloves, grey
         ("zayos's gloves gone grey", dict(zayos=dict(band="#4a4c52")), "weak accent"),
         # trousers as light as the top (the brawler's in his jade: dark
         # enough to pass the L* rule, not the ratio), and pale ones
         ("the brawler's trousers in jade", dict(brawler=dict(bottom=UK[("brawler", "top")])), "as light as the top"),
-        ("saud in cream trousers", dict(saud=dict(bottom=UK[("saud", "top")])), "pale trousers")]
+        ("saud in cream trousers", dict(saud=dict(bottom=UK[("saud", "top")])), "pale trousers"),
+        # a top that does not show what the palette says: white, neon green,
+        # hot pink, and two of the browser's own loud tops (the runner's
+        # orange, the champion's violet); the grey that only sat 12 from
+        # Saud's cream, with the cream not at the table; and the lines the
+        # look cannot draw within 6, each still bitten at its own limit
+        ("a white boss top", dict(boss=dict(top="#ffffff")), "does not show"),
+        ("a neon-green boss top", dict(boss=dict(top="#00ff40")), "does not show"),
+        ("a hot-pink thug top", dict(thug=dict(top="#ff40c0")), "does not show"),
+        ("the runner's orange, brawler", dict(brawler=dict(top="#e07b2c")), "does not show"),
+        ("the champion's violet, thug", dict(thug=dict(top="#6b3bb0")), "does not show"),
+        ("a white saqr top", dict(saqr=dict(top="#ffffff")), "does not show"),
+        ("saqr's band in the thug's", dict(saqr=dict(band=UK[("thug", "band")])), "does not show"),
+        ("zayos's gloves in cerise", dict(zayos=dict(band=UK[("saud", "band")])), "does not show")]
     for label, over, word in kit_bites:
         bites.run(label, word, lambda over=over: F.check_kit(pals(**over)))
+    bites.run("the grey, Saud not seated", "does not show",
+              lambda: F.check_kit({k: p for k, p in pals(thug=dict(top="#8a9099")).items() if k != "saud"}))
+    # a shoe that is not a plum black: the browser's blue-grey floored, a steel
+    # blue (inside the chroma cap, outside the hue), and a neutral
+    for label, hexv in (("the browser's blue-grey shoe", "#2c2f33"), ("a steel-blue shoe", "#26323f"), ("a neutral black shoe", "#000000")):
+        bites.run(label, "cold shoe", shoe_of(hexv))
+
+    # the table whole: each of its eighteen lines deleted, three ways -- from
+    # the table (check_kit_table, which --check and every build run), from
+    # spec() (what every consumer reads) and as the browser's own colour come
+    # back into the palette (check_kit) -- must fail, naming the line
+    men = {"saud"} | set(roster.enemies())
+    def without(key, fn):
+        saved = roster.UNREAL_KIT.pop(key)
+        try:
+            return fn()
+        finally:
+            roster.UNREAL_KIT[key] = saved
+    def browser_back(kind, slot):
+        sp = roster.spec(kind)
+        sp["albedo"] = tuple(x for x in sp["albedo"] if x != slot)
+        sp["col"][slot] = sp["browser_col"][slot]
+        ps = pals(); ps[kind] = F.palette_for(sp, P.KIT.get(kind), P.TOPS.get(kind, "tee"), P.BOTTOMS.get(kind, "track"))
+        return F.check_kit(ps)
+    for (kind, slot) in sorted(UK):
+        word, got = "has no %s %s" % (kind, slot), []
+        for where, fn in (("table", lambda: without((kind, slot), lambda: roster.check_kit_table(men))),
+                          ("spec()", lambda: without((kind, slot), lambda: roster.spec(kind))),
+                          ("kit", lambda: browser_back(kind, slot))):
+            bites.total += 1
+            try:
+                fn()
+                got.append("%s NOT caught" % where)
+            except (AssertionError, KeyError) as e:
+                ok = word in str(e)
+                bites.caught += ok
+                got.append("%s %s" % (where, "caught" if ok else "WRONG CHECK: %s" % str(e)[:90]))
+        print("  no %-22s %s" % ("%s %s" % (kind, slot), "  ".join(got)))
+    sys.stdout.flush()
 
     # ---- the paint, every man (paint_checks, as every build runs it)
     def paint(kind, look=None, tables=None, face=None):

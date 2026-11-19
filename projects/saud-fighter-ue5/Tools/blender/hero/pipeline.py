@@ -684,7 +684,10 @@ def build_fighter(spec, argv=None):
             # ZAYOS: leather/vinyl, not skin or fabric -- a step glossier
             # than the shoe's own coat, no weave (a boxing glove has no weft).
             # (2026-09-28: the kit's own finish, KIT: 0.40 / 0.25 as it was,
-            # ZAYOS's oxblood leather 0.62 / 0.05 -- it read as candy plastic)
+            # ZAYOS's oxblood leather 0.62 / 0.05 -- it read as candy plastic.
+            # His gloves have been azure since 2026-11-19, and 0.62 / 0.05 is
+            # still the oxblood's finish: it was tuned on that red and has not
+            # been looked at on the azure.)
             mats["glove"] = F.shader("%s_Glove" % name, "glove", pal["glove_rough"], coat=pal["glove_coat"])
         body_kinds = ("skin", "hair", "shoe") + (("glove",) if gloves else ())
         for k in body_kinds:

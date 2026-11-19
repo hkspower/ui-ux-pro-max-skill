@@ -130,61 +130,108 @@ def rgba_alpha(colour):
 # assets/enemies.js) and they do not move; the 3D men are painted from THIS
 # table instead, the way pipeline.FACES and CUTS are the 3D men's own.
 #
-# One line per colour, (man, slot) -> hex. Every hex is an ALBEDO: the sRGB
-# base colour the pipeline paints, as given, with no fabric floor under it
-# (finish.fabric lifts a browser colour; these were solved against the look
-# already, and a dark plum or wine lifted to L* 19 reads as grey-mauve).
-# The colour it should look on screen, lit through the look, is the comment.
+# One line per colour, (man, slot) -> hex, for each of the six men and each of
+# KIT_SLOTS: all eighteen are required (check_kit_table, spec()), so a line
+# that goes missing is an error and never the browser's old colour quietly
+# back. Every hex is an ALBEDO, the sRGB base colour the pipeline paints, as
+# given, with no fabric floor under it (finish.fabric lifts a browser colour;
+# a dark plum or wine lifted to L* 19 reads as grey-mauve). Every one was
+# solved against the look as it stands (2026-11-19): the albedo whose lit
+# patch, through the look, comes nearest the palette's colour. That colour is
+# the `shows` of the line's comment and is data in UNREAL_SHOWS below, which
+# finish.check_kit holds the look's picture of each line to. A line with no
+# `shows` has no approved palette colour (a man's trousers are only his
+# jewel, dark); a hex marked "estimate" was not solved at all.
 # They are the lead's to refine once the look is final: change a line here and
 # nothing else (`--check` and `--grim-check` hold what is held, and the
 # browser's value for the slot is still in spec()['browser_col']).
 #
-#   given     the lead's solved albedo (top, bottom, band, gloves)
-#   x0.30     the man's bottom: his top's colour at 0.30 of its linear light
-#   estimate  not given; a first guess to be solved the same way
-#
 # ZAYOS wears no top (his chest is bare): his `band` is what his gloves and
-# his waistband are painted in. The flag patch on Saud's chest is not in here:
-# it is Kuwait's flag and keeps its true colours (finish.kit_colour).
+# his waistband are painted in, and his `top` line is never drawn; it is there
+# so that no colour of the browser's is left in his kit. The flag patch on
+# Saud's chest is not in here: it is Kuwait's flag and keeps its true colours
+# (finish.kit_colour).
 UNREAL_KIT = {
-    ("saud", "top"):       "#A3A09C",   # given     shows #F0E8DE cream
-    ("saud", "bottom"):    "#240910",   # given     shows #6B2A3A madder wine
-    ("saud", "band"):      "#FD2C67",   # given     shows #F42A63 cerise (was Kuwait red #ff1a3c)
-    ("thug", "top"):       "#73687F",   # given     shows #B7A7C9 ash-lilac
-    ("thug", "bottom"):    "#403947",   # x0.30     the lilac, dark
-    ("thug", "band"):      "#625C68",   # estimate  a muted lilac: L* 40, C* 8, the top's hue
-    ("brawler", "top"):    "#1B4E46",   # given     shows #138C7C jade
-    ("brawler", "bottom"): "#0B2A25",   # x0.30     the jade, dark
-    ("brawler", "band"):   "#8A0F20",   # given     shows #B4142E blood (was Kuwait red #c8102e)
-    ("saqr", "top"):       "#936E10",   # given     shows #E8B020 saffron
-    ("saqr", "bottom"):    "#533D05",   # x0.30     the saffron, dark
-    ("saqr", "band"):      "#A39D96",   # estimate  bone-cream (the palette's #F3E4D0) at the cream top's ratios
-    ("boss", "top"):       "#381C4E",   # given     shows #6E2A9C violet (AL-WAHSH)
-    ("boss", "bottom"):    "#1C0B2A",   # x0.30     the violet, dark
-    ("boss", "band"):      "#8A0F20",   # given     blood, as the brawler's (was Kuwait red #c8102e)
-    ("zayos", "bottom"):   "#181019",   # estimate  near-black plum: shows #201826; L* 5.7, a plum
-    ("zayos", "band"):     "#27508D",   # given     shows #4A8EF2 azure: his gloves and his band (were red #c8102e)
+    ("saud", "top"):       "#A5A098",   # shows #F0E8DE cream
+    ("saud", "bottom"):    "#241216",   # shows #6B2A3A madder wine
+    ("saud", "band"):      "#AD2E4C",   # shows #F42A63 cerise (was Kuwait red #ff1a3c)
+    ("thug", "top"):       "#73687F",   # shows #B7A7C9 ash-lilac
+    ("thug", "bottom"):    "#100D15",   # the lilac, dark
+    ("thug", "band"):      "#5B5260",   # estimate: a muted lilac, the top's hue
+    ("brawler", "top"):    "#05483F",   # shows #138C7C jade
+    ("brawler", "bottom"): "#071E1B",   # the jade, dark
+    ("brawler", "band"):   "#5B1B21",   # shows #B4142E blood (was Kuwait red #c8102e)
+    ("saqr", "top"):       "#936E10",   # shows #E8B020 saffron
+    ("saqr", "bottom"):    "#292118",   # the saffron, dark
+    ("saqr", "band"):      "#A39D96",   # shows #F3E4D0 bone, at the cream's ratio
+    ("boss", "top"):       "#220F31",   # shows #6E2A9C violet (AL-WAHSH)
+    ("boss", "bottom"):    "#07020E",   # the violet, dark
+    ("boss", "band"):      "#5B1B21",   # shows #B4142E blood, as the brawler's (was Kuwait red #c8102e)
+    ("zayos", "top"):      "#060408",   # never drawn (he wears none): his bottom's colour
+    ("zayos", "bottom"):   "#060408",   # near-black plum
+    ("zayos", "band"):     "#27508D",   # shows #4A8EF2 azure: his gloves and his band (were red #c8102e)
 }
 KIT_SLOTS = ("top", "bottom", "band")
+UNREAL_MEN = ("saud", "thug", "brawler", "saqr", "boss", "zayos")
+
+# The palette's colour each approved line should read as on screen: the
+# `shows` of the table, as data. finish.check_kit draws each line's albedo
+# through the look and holds it to this (finish.KIT_RULES `shows`).
+UNREAL_SHOWS = {
+    ("saud", "top"):    "#F0E8DE",
+    ("saud", "bottom"): "#6B2A3A",
+    ("saud", "band"):   "#F42A63",
+    ("thug", "top"):    "#B7A7C9",
+    ("brawler", "top"): "#138C7C",
+    ("brawler", "band"): "#B4142E",
+    ("saqr", "top"):    "#E8B020",
+    ("saqr", "band"):   "#F3E4D0",
+    ("boss", "top"):    "#6E2A9C",
+    ("boss", "band"):   "#B4142E",
+    ("zayos", "band"):  "#4A8EF2",
+}
 
 
 def check_kit_table(men=None):
-    """The table is well formed: each key a (man, slot) of KIT_SLOTS, each
-    value a #rrggbb, and, given the men the browser has (`men`, the roster's
-    kinds), no man it does not have."""
+    """The table is well formed and COMPLETE: each key a (man, slot) of
+    KIT_SLOTS, each value a #rrggbb, every one of the six men's three slots
+    present (a missing line would paint the browser's old colour, floored,
+    and nothing else would notice), the approved `shows` colours well formed
+    and each on a line of the table, and, given the men the browser has
+    (`men`, the roster's kinds), no man it does not have."""
+    hexed = lambda h: isinstance(h, str) and re.fullmatch(r"#[0-9A-Fa-f]{6}", h)
     for (kind, slot), hexv in UNREAL_KIT.items():
         assert slot in KIT_SLOTS, "UNREAL_KIT: %s has no %r slot (%s)" % (kind, slot, ", ".join(KIT_SLOTS))
-        assert re.fullmatch(r"#[0-9A-Fa-f]{6}", hexv), "UNREAL_KIT: %s's %s is %r, want #rrggbb" % (kind, slot, hexv)
+        assert hexed(hexv), "UNREAL_KIT: %s's %s is %r, want #rrggbb" % (kind, slot, hexv)
+    for kind in UNREAL_MEN:
+        missing = _missing(kind)
+        assert not missing, "UNREAL_KIT has no %s %s: it would be painted in the browser's own colour" % (
+            kind, " or ".join(missing))
+    for (kind, slot), hexv in UNREAL_SHOWS.items():
+        assert (kind, slot) in UNREAL_KIT, "UNREAL_SHOWS: %s's %s is not a line of UNREAL_KIT" % (kind, slot)
+        assert hexed(hexv), "UNREAL_SHOWS: %s's %s is %r, want #rrggbb" % (kind, slot, hexv)
     if men is not None:
         bad = sorted({k for k, _ in UNREAL_KIT} - set(men))
         assert not bad, "UNREAL_KIT names no man in the roster: %s" % bad
+        gone = sorted(set(UNREAL_MEN) - set(men))
+        assert not gone, "the roster has no %s, whom UNREAL_KIT dresses" % gone
+
+
+def _missing(kind):
+    """The slots of KIT_SLOTS the table has no line for, for one of its six
+    men (none for a man it does not dress)."""
+    return [slot for slot in KIT_SLOTS if kind in UNREAL_MEN and (kind, slot) not in UNREAL_KIT]
 
 
 check_kit_table()
 
 
 def _unreal_kit(kind):
-    """{slot: hex} this build gives `kind`."""
+    """{slot: hex} this build gives `kind`; one of its six men with a slot
+    missing is an error, never the browser's colour for it."""
+    missing = _missing(kind)
+    assert not missing, "UNREAL_KIT has no %s %s: it would be painted in the browser's own colour" % (
+        kind, " or ".join(missing))
     return {slot: hexv for (k, slot), hexv in UNREAL_KIT.items() if k == kind}
 
 
@@ -192,7 +239,8 @@ def spec(kind):
     """One fighter, in one shape, whoever he is. `col` is what the 3D man is
     painted in: the browser's with UNREAL_KIT over it; `browser_col` is the
     browser's own and `albedo` the slots UNREAL_KIT gave (those are final
-    albedo; the rest are the browser's flat colours)."""
+    albedo; the rest are the browser's flat colours -- on a man the table
+    does not dress, one the 3D build does not make)."""
     if kind == "saud":
         a = saud()
         look = dict(a["look"])
