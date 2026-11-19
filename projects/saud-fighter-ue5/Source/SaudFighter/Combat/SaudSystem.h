@@ -26,9 +26,9 @@
  *  - the open quest, shown as a small line on the HUD (QUEST / FIND THE WAY
  *    UP / IN PROGRESS) from the first landing until the victory removes it;
  *  - the LAYOUT and the DRAWING (Build): in the HUD's own primitives and
- *    palette (SaudHud in SaudAnime.h -- the navy panel cut at two corners,
- *    the cyan edge and its glow, ice lettering; crimson for a warning;
- *    violet for HAWK FIST), title-safe at every screen shape, nothing over
+ *    palette (SaudHud in SaudAnime.h -- the plum panel cut at two corners,
+ *    the cerise edge and its glow, ice lettering; vermilion for a warning;
+ *    pink for HAWK FIST), title-safe at every screen shape, nothing over
  *    the fight's centre box, nothing over the HUD's own windows, every text
  *    stroked and at least 1/36 of the screen tall.
  *
@@ -97,8 +97,8 @@ namespace SaudSystem
 	/** Where an event shows: the window (one at a time), the toast (one at
 	    a time, beside it), or nowhere of the System's own. */
 	enum class ELane : unsigned char { Window, Toast, None };
-	/** A window's edge: the System's cyan; violet for HAWK FIST, the one
-	    talent that was not his; crimson for a warning. */
+	/** A window's edge: the System's cerise; pink for HAWK FIST, the one
+	    talent that was not his; vermilion for a warning. */
 	enum class ETint : unsigned char { System, Shadow, Danger };
 
 	struct FRule
@@ -254,8 +254,8 @@ namespace SaudSystem
 		return FMath::Clamp(ReadBase + ReadPerChar * static_cast<float>(Chars(L)), ReadMin, ReadMax);
 	}
 
-	/** The one talent that was not his is violet; a man down is crimson;
-	    everything else is the System's cyan. */
+	/** The one talent that was not his is pink; a man down is vermilion;
+	    everything else is the System's cerise. */
 	inline ETint TintFor(EKind K, const char* Key)
 	{
 		if (K == EKind::Down) return ETint::Danger;
@@ -674,17 +674,20 @@ namespace SaudSystem
 	{
 		return T == ETint::Danger ? SaudHud::Colour::Danger : (T == ETint::Shadow ? SaudHud::Colour::Shadow : SaudHud::Colour::System);
 	}
-	/** A heading in its window's colour -- violet lifted halfway to ice,
-	    since the violet itself is 4.4:1 on the ink and a heading needs 4.5. */
+	/** A heading in its window's colour -- HAWK FIST's pink lifted halfway
+	    to cream, as its violet was (the violet itself was 4.4:1 on the ink
+	    and a heading needs 4.5; the pink is 8.97:1 and needs no lift, so
+	    this is only the look it had). */
 	inline FRgba TitleColour(ETint T)
 	{
 		return T == ETint::Shadow ? SaudHud::LerpColour(SaudHud::Colour::Shadow, SaudHud::Colour::Ice, 0.5f) : EdgeColour(T);
 	}
-	/** A reward or a status: the System's cyan; ice in a crimson window
-	    (crimson is a heading's colour, not a line's: 5.6:1). */
+	/** A reward or a status: the System's colour for a line (the cerise lifted
+	    toward cream, SaudHud::LineColour); cream in a vermilion window
+	    (vermilion is a heading's colour, not a line's: 6.1:1). */
 	inline FRgba RewardColour(ETint T)
 	{
-		return T == ETint::Danger ? SaudHud::Colour::Ice : SaudHud::Colour::System;
+		return T == ETint::Danger ? SaudHud::Colour::Ice : SaudHud::LineColour();
 	}
 
 	inline void FadeTris(SaudHud::FDrawList& L, int From, int To, float Fade)
@@ -754,14 +757,15 @@ namespace SaudSystem
 		FadeTris(Out.Shapes, Out.From[I], Out.Shapes.NumTris, Fade);
 		Out.To[I] = Out.Shapes.NumTris;
 		const float Pad = P.Px(PadPx), Stroke = P.Px(SaudHud::TextStroke), Head = P.Px(SaudHud::HeadH);
-		FRgba Cy = SaudHud::Colour::System, Ice = SaudHud::Colour::Ice;
-		Cy.A *= Fade;
+		FRgba Sys = SaudHud::Colour::System, Line = SaudHud::LineColour(), Ice = SaudHud::Colour::Ice;
+		Sys.A *= Fade;
+		Line.A *= Fade;
 		Ice.A *= Fade;
-		Out.Text(M.Quest.Title, ESlot::Title, {R.X + Pad, R.Y + 0.5f * (Head - P.Px(TitleText))}, P.Px(TitleText), Cy, Stroke,
+		Out.Text(M.Quest.Title, ESlot::Title, {R.X + Pad, R.Y + 0.5f * (Head - P.Px(TitleText))}, P.Px(TitleText), Sys, Stroke,
 		         EAlign::Left, EPiece::Quest);
 		const float Y = R.Y + Head + P.Px(6.f);
 		Out.Text(M.Quest.Head, ESlot::Head, {R.X + Pad, Y}, P.Px(LineText), Ice, Stroke, EAlign::Left, EPiece::Quest);
-		Out.Text(M.Quest.Status, ESlot::Status, {R.X + Pad, Y + P.Px(LineText + RowGap)}, P.Px(LineText), Cy, Stroke,
+		Out.Text(M.Quest.Status, ESlot::Status, {R.X + Pad, Y + P.Px(LineText + RowGap)}, P.Px(LineText), Line, Stroke,
 		         EAlign::Left, EPiece::Quest);
 	}
 

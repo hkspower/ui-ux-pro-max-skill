@@ -137,7 +137,7 @@ class Raster:
         # the ink is full under a text at half its opacity or more, and fades
         # with a text fading in below that (SaudHUD.cpp's DrawText)
         m = np.asarray(mask, np.float32)[..., None] / 255.0 * min(1.0, 2.0 * item["rgba"][3])
-        self.lin = self.lin * (1 - m) + np.array([0.0022, 0.0019, 0.0017], np.float32) * m   # Colour::Ink
+        self.lin = self.lin * (1 - m) + np.array([0.0026, 0.0016, 0.0033], np.float32) * m   # Colour::Ink
         fill = Image.new("L", mask.size, 0)
         ImageDraw.Draw(fill).text((x, y), s, font=font, fill=255)
         f = np.asarray(fill, np.float32)[..., None] / 255.0 * item["rgba"][3]

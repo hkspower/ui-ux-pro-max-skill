@@ -57,7 +57,7 @@
  * leader.
  *
  * Only the HUD's palette (SaudHud::Colour), in the System's colours since
- * 2026-10-03: the pad, its rims and the leaders in the System's cyan, the
+ * 2026-10-03: the pad, its rims and the leaders in the System's cerise, the
  * labels and the markings in Ice, the PlayStation circle's rim in Danger. Header of free functions and plain structs, like SaudAnime.h,
  * so Tools/harness builds it with g++ and checks it (tests/controls.cpp).
  */
@@ -619,7 +619,7 @@ namespace SaudControls
 	constexpr float DpadGlyphArm = 0.30f;    // a d-pad glyph's arms, from the centre...
 	constexpr float DpadGlyphHead = 0.19f;   // ...the lit arm's arrowhead, half its base...
 	constexpr float DpadTip = 0.43f;         // ...and its tip
-	constexpr float DpadDimAlpha = 0.45f;    // the three unlit arms: the System's cyan at this
+	constexpr float DpadDimAlpha = 0.45f;    // the three unlit arms: the System's cerise at this
 	constexpr float LetterStroke = 0.10f;    // the ink round it (3 page px at Size 30)
 	constexpr float ShapeStroke = 0.11f;     // a PlayStation shape's line
 	constexpr float TabWide = 2.3f;          // a shoulder tab's width
@@ -635,7 +635,7 @@ namespace SaudControls
 	    one a disc with its shape drawn as geometry (cross: two bars; circle:
 	    a ring; square and triangle: hollow), every shape in FillColour and
 	    the circle's rim in Danger -- the one PlayStation accent -- the rest in
-	    the System's cyan. Shoulders and triggers are rounded tabs with
+	    the System's cerise. Shoulders and triggers are rounded tabs with
 	    their name; Menu / Options a disc with three bars; View / Create a
 	    disc with two rectangles; a stick a ring with a dot; its click (L3 /
 	    R3) a disc with its name; a d-pad direction the cross in a disc with
@@ -1011,7 +1011,7 @@ namespace SaudControls
 		const float Rim = FMath::Max(1.f, P.Px(PadRim));
 		const FRgba Body = SaudHud::WithAlpha(System, BodyAlpha);
 
-		// the pad: two grips, the body over them, the d-pad cross (ink in a cyan rim)
+		// the pad: two grips, the body over them, the d-pad cross (ink in a cerise rim)
 		const float Tilt = FMath::DegreesToRadians(GripTilt);
 		const float BodyBottom = C.Y + P.Px(0.5f * BodyH);
 		RimmedEllipse(Out, {C.X - P.Px(GripX), C.Y + P.Px(GripY)}, P.Px(GripA), P.Px(GripB), Tilt, BodyBottom, Rim, System,

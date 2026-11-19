@@ -247,7 +247,7 @@ int main(int argc, char** argv)
 	M.Focus = Focus;
 	M.FocusFrom = static_cast<float>(FocusFrom < 0 ? Focus : FocusFrom);
 	M.FocusT = FocusFrom < 0 ? 1.f : FocusT;
-	// a refused buy, just pressed: the plate crimson, the hint saying why
+	// a refused buy, just pressed: the plate vermilion, the hint saying why
 	if (Deny >= 0 && Screen == EScreen::Training)
 	{
 		M.Focus = Deny < N ? Deny : N - 1;

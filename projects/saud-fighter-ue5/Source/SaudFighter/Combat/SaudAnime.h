@@ -101,10 +101,10 @@ namespace SaudAnime
 		constexpr const SaudChar* BoneColour = SAUD_TEXT("BoneColour");
 		constexpr const SaudChar* BloodColour = SAUD_TEXT("BloodColour");
 		constexpr const SaudChar* EmberColour = SAUD_TEXT("EmberColour");
-		/** The System's three (2026-10-03): the cyan a heavy blow's impact
+		/** The System's three (2026-10-03): the cerise a heavy blow's impact
 		    frame, the mark's drops and a share of the speed lines are drawn
-		    in; the ice of the mark's star, the aura's core and the eyes;
-		    the violet of Saud's aura. */
+		    in; the ice (cream) of the mark's star, the aura's core and the
+		    eyes; the pink of Saud's aura. */
 		constexpr const SaudChar* SystemColour = SAUD_TEXT("SystemColour");
 		constexpr const SaudChar* IceColour = SAUD_TEXT("IceColour");
 		constexpr const SaudChar* ShadowColour = SAUD_TEXT("ShadowColour");
@@ -141,7 +141,7 @@ namespace SaudAnime
 		constexpr const SaudChar* EyeScale = SAUD_TEXT("EyeScale");
 		/** The System's events seen in the picture (2026-10-07, SystemFx
 		    below): each effect's age in real seconds (-1: none), HAWK FIST's
-		    skill (1: violet and ember), Saud's middle and his feet on the
+		    skill (1: pink and ember), Saud's middle and his feet on the
 		    screen (viewport fraction, Y down), how deep (cm) and one figure
 		    pixel there (share of the viewport's height, as the fire's); the
 		    gate's flash the same way. */
@@ -183,8 +183,8 @@ namespace SaudAnime
 	constexpr float OnTwos = 2.f * Frame;      // the speed lines redraw on twos
 
 	/** What the impact frame's light half is: since 2026-10-03 (the
-	    System's style) a heavy blow's or a knockdown's SYSTEM cyan -- a
-	    blue-white flash -- where it was the dark seinen's BLOOD (2026-09-28);
+	    System's style) a heavy blow's or a knockdown's SYSTEM cerise -- a
+	    hot pink flash -- where it was the dark seinen's BLOOD (2026-09-28);
 	    a parry's BONE (the reversal, as paper was); and EMBER only for what
 	    burns -- a burning HAWK FIST punch's own frame (FState::MarkBurning).
 	    Blood keeps its number and is drawn by nothing ForBlow asks for now.
@@ -205,7 +205,7 @@ namespace SaudAnime
 	    with an ink edge -- ice since 2026-10-03, bone before -- full for
 	    MarkHold -- at least the heavy freeze, SaudFeel::HitStopHeavy, so it
 	    stands for the whole of it -- shrinking to nothing at MarkSpark, and
-	    drops flung out of it and falling -- the System's cyan, blood
+	    drops flung out of it and falling -- the System's cerise, blood
 	    before -- gone at MarkSeconds. Heavy clean hits and knockdowns only. */
 	constexpr float MarkHold = 2.f * Frame;
 	constexpr float MarkSpark = 4.f * Frame;
@@ -227,7 +227,7 @@ namespace SaudAnime
 		float WoundAmp = 0.f;       // 1 when the player is the one hit, or 0
 	};
 
-	/** Heavy clean hit: one frame of ink and the System's cyan, a mark where
+	/** Heavy clean hit: one frame of ink and the System's cerise, a mark where
 	    it landed.
 	    Knockdown: two, the second flipped -- the cut to black a fall gets --
 	    and a mark. Parry: two in bone, the first flipped, because the parry
@@ -415,10 +415,10 @@ namespace SaudAnime
 
 	/**
 	 * Saud's power-up (2026-10-03, "#94": the System's style, none of its
-	 * names). When his rage is full a violet aura burns round him -- flat
-	 * tongues of violet over an ice core, rising off his outline, drawn by
+	 * names). When his rage is full a pink aura burns round him -- flat
+	 * tongues of pink over a cream core, rising off his outline, drawn by
 	 * M_Anime_Frame from the custom-stencil value SaudStencil his mesh
-	 * writes -- and his eyes glow ice with a violet halo and a flare either
+	 * writes -- and his eyes glow cream with a pink halo and a flare either
 	 * side. Through the finisher it burns at full. The level eases up over
 	 * RiseSeconds and down over FallSeconds, in real time (a blow's freeze
 	 * holds the world, not the aura).
@@ -470,17 +470,17 @@ namespace SaudAnime
 	 * this is what the picture does at the same moment, drawn by
 	 * M_Anime_Frame step 8d from the ages written here:
 	 *
-	 *  - LevelUp: a pillar of the System's cyan light rising round Saud from
+	 *  - LevelUp: a pillar of the System's cerise light rising round Saud from
 	 *    the ground, flat-toned, inked, PillarSeconds;
-	 *  - SkillAcquired: a ring burst off his middle and a brief cyan-ice rim
-	 *    on him (BurstSeconds, RimSeconds) -- HAWK FIST's in violet and ember;
+	 *  - SkillAcquired: a ring burst off his middle and a brief cerise-cream rim
+	 *    on him (BurstSeconds, RimSeconds) -- HAWK FIST's in pink and ember;
 	 *  - RankUp: a wider, slower ring (RankSeconds);
 	 *  - QuestComplete: a short glow round the screen's edge (QuestSeconds);
 	 *  - GateOpened: a flash at the gate's own point on the screen
 	 *    (FlashSeconds).
 	 *
 	 * And the System's energy on his strikes: a heavy blow of Saud's that
-	 * lands leaves a thin cyan trail along the path his striking limb took
+	 * lands leaves a thin cerise trail along the path his striking limb took
 	 * the last TrailSpanSeconds, for TrailSeconds -- never an enemy's.
 	 *
 	 * All of it runs in REAL time, like FPower: a blow's freeze holds the
@@ -694,8 +694,8 @@ namespace SaudAnime
  * -- CLAUDE.md's "the HUD is read at a distance".
  *
  * The look, since 2026-10-03 (the System's style): every part is a window
- * -- a navy panel cut at two corners, a glowing edge, a heading strip, ice
- * corner marks -- STATUS, COMBO and WARNING; see "the layout" below. From
+ * -- a plum panel cut at two corners, a glowing edge, a heading strip,
+ * cream corner marks -- STATUS, COMBO and WARNING; see "the layout" below. From
  * 2026-09-28 it was a dark seinen's page (an ink-wash sweep, leaning blood
  * slashes, a blood splat); from 2026-09-26 a dark fantasy's (translucent
  * plates in a bronze keyline); before that a manga page's.
@@ -735,37 +735,47 @@ namespace SaudHud
 	/** A colour in LINEAR light, and its alpha. */
 	struct FRgba { float R = 0.f, G = 0.f, B = 0.f, A = 1.f; };
 
-	/** The HUD's palette, linear. Ink, Bone, Blood and Ember are the look's
-	    own (Tools/look/anime_look.py LOOK INK, BONE, BLOOD and EMBER, which
-	    checks these four against its own), so the HUD, the impact frame and
-	    the speed lines are one blood and one ink. Every bar is at least 3:1
-	    against the trough it sits in (WCAG 2.1 1.4.11, checked in the
-	    harness from these numbers): blood 3.03, ash 4.96, gold 4.08, ember
-	    6.0; the bone trail 3.36 against the blood; bone lettering 11.0
-	    against its ink stroke.
+	/** The HUD's palette, linear: SODIUM AFTERGLOW (2026-11-19, "remove all
+	    current colors, use new colors"), a dark Gulf dusk -- aubergine plum
+	    under everything, a hot cerise for the System, cream lettering, the
+	    bars each their own colour. The slots keep the names they had (Ash,
+	    Gold, Shadow, Ice, ...); what a name draws is in its line below.
+	    Ink, Bone, Blood and Ember are the look's own (Tools/look/anime_look.py
+	    LOOK INK, BONE, BLOOD and EMBER, which checks these four against its
+	    own), so the HUD, the impact frame and the speed lines are one blood
+	    and one ink. Of the four only Blood is the palette's hex to the digit;
+	    Ink, Bone and Ember are the look's own tuning of the palette's (its
+	    tint at the luminance the look had; #130A18, #F3E4D0 and #FF8C5A
+	    themselves are the lit colours the palette shows on screen). Every bar is at least 3:1 against the trough
+	    it sits in (WCAG 2.1 1.4.11, checked in the harness from these
+	    numbers): health 3.84, stamina 13.19, rage 6.94; the cream trail 3.48
+	    against the health; cream lettering 17.05 against its ink stroke.
 
 	    Since 2026-10-03 ("update colors schema at game": the game reads its
 	    colours from the data) these are the DEFAULTS, and what is drawn is
 	    the live palette: the game fills it from Content/Data/
-	    DT_LookColors.csv (Look_Ink ... Look_Gold, written by anime_look.py
+	    DT_LookColors.csv (Look_Ink ... Look_Health, written by anime_look.py
 	    from its LOOK and checked against these) when the tables load
 	    (USaudConfigSubsystem), and Colour::Ink and the rest name the live
 	    values, so every line that draws with them draws the data's. */
 	namespace Defaults
 	{
-		constexpr FRgba Ink{0.0022f, 0.0019f, 0.0017f, 1.f};
-		constexpr FRgba Bone{0.56f, 0.52f, 0.44f, 1.f};
-		constexpr FRgba Blood{0.5271f, 0.0103f, 0.0137f, 1.f};   // #C01A1F (health was #9B1616, 2.07:1)
-		constexpr FRgba Ember{0.74f, 0.18f, 0.042f, 1.f};
-		constexpr FRgba Trough{0.006f, 0.006f, 0.008f, 1.f};
-		constexpr FRgba Ash{0.2541f, 0.2270f, 0.1714f, 1.f};     // #8A8374, stamina (moss #4A6E33 was 2.93:1)
-		constexpr FRgba Gold{0.3515f, 0.1441f, 0.0160f, 1.f};    // #A06A22, rage until the System
+		constexpr FRgba Ink{0.0026f, 0.0016f, 0.0033f, 1.f};     // #09050B, the ink round every letter: aubergine black (the look's)
+		constexpr FRgba Bone{0.5923f, 0.5127f, 0.4169f, 1.f};    // #CABEAD, a parry's tone: warm cream (the look's)
+		constexpr FRgba Blood{0.4564f, 0.0070f, 0.0273f, 1.f};   // #B4142E, the wound (2.33:1 on the trough: no bar is drawn in it)
+		constexpr FRgba Ember{0.7094f, 0.1860f, 0.0725f, 1.f};   // #DB774C, a burning punch's tone: salmon (the look's)
+		constexpr FRgba Trough{0.0273f, 0.0110f, 0.0356f, 1.f};  // #2E1B35, every bar's trough: deep plum
+		constexpr FRgba Ash{0.5089f, 0.9301f, 0.6939f, 1.f};     // #BDF7D9, stamina: pale mint
+		constexpr FRgba Gold{1.0f, 0.2747f, 0.0103f, 1.f};       // #FF8F1A, rage: amber orange
 		// the System (2026-10-03, its style, none of its names): see Build
-		constexpr FRgba System{0.0619f, 0.5776f, 1.0f, 1.f};     // #46C8FF, the windows' edge and headings
-		constexpr FRgba Panel{0.0030f, 0.0060f, 0.0194f, 1.f};   // #0A1226, the windows
-		constexpr FRgba Shadow{0.2542f, 0.0742f, 1.0f, 1.f};     // #8A4DFF, his rage, his power
-		constexpr FRgba Danger{1.0f, 0.0331f, 0.0908f, 1.f};     // #FF3355, health, low health, a boss
-		constexpr FRgba Ice{0.8228f, 0.9216f, 1.0f, 1.f};        // #EAF6FF, the System's lettering
+		constexpr FRgba System{1.0f, 0.0273f, 0.2874f, 1.f};     // #FF2E92, the windows' edge and headings: hot cerise
+		constexpr FRgba Panel{0.0110f, 0.0052f, 0.0144f, 1.f};   // #1B1020, the windows: deep plum
+		constexpr FRgba Shadow{1.0f, 0.2307f, 0.5271f, 1.f};     // #FF84C0, his power: rose pink
+		constexpr FRgba Danger{1.0f, 0.0704f, 0.0369f, 1.f};     // #FF4B36, low health, a boss's warning, a denied buy: vermilion
+		constexpr FRgba Ice{0.9216f, 0.8228f, 0.7084f, 1.f};     // #F6EADB, the System's lettering: cream
+		// the health bar's own red (2026-11-19: a 13th slot; the palette has it apart from Danger,
+		// and Ice on Danger is 2.81:1, under the trail's 3:1)
+		constexpr FRgba Health{0.7913f, 0.0467f, 0.0369f, 1.f};  // #E63D36, every health bar: red
 	}
 
 	struct FPalette
@@ -773,7 +783,7 @@ namespace SaudHud
 		FRgba Ink = Defaults::Ink, Bone = Defaults::Bone, Blood = Defaults::Blood, Ember = Defaults::Ember;
 		FRgba Trough = Defaults::Trough, Ash = Defaults::Ash, Gold = Defaults::Gold;
 		FRgba System = Defaults::System, Panel = Defaults::Panel, Shadow = Defaults::Shadow;
-		FRgba Danger = Defaults::Danger, Ice = Defaults::Ice;
+		FRgba Danger = Defaults::Danger, Ice = Defaults::Ice, Health = Defaults::Health;
 	};
 
 	/** The one palette everything draws with. */
@@ -792,7 +802,7 @@ namespace SaudHud
 			{"Ink", &FPalette::Ink}, {"Bone", &FPalette::Bone}, {"Blood", &FPalette::Blood}, {"Ember", &FPalette::Ember},
 			{"Trough", &FPalette::Trough}, {"Ash", &FPalette::Ash}, {"Gold", &FPalette::Gold},
 			{"System", &FPalette::System}, {"Panel", &FPalette::Panel}, {"Shadow", &FPalette::Shadow},
-			{"Danger", &FPalette::Danger}, {"Ice", &FPalette::Ice},
+			{"Danger", &FPalette::Danger}, {"Ice", &FPalette::Ice}, {"Health", &FPalette::Health},
 		};
 		for (const FSlot& S : Slots)
 		{
@@ -825,6 +835,7 @@ namespace SaudHud
 		inline const FRgba& Shadow = LivePalette().Shadow;
 		inline const FRgba& Danger = LivePalette().Danger;
 		inline const FRgba& Ice = LivePalette().Ice;
+		inline const FRgba& Health = LivePalette().Health;
 	}
 
 	/** The page laid onto a screen: scale by height, centred across. */
@@ -853,8 +864,8 @@ namespace SaudHud
 	// ------------------------------------------------------------ the layout
 	// The System (2026-10-03, "make all game same solo leveling all
 	// design", settled as its style and none of its names): every part of
-	// the HUD is a window -- a deep navy panel cut at two corners, a
-	// glowing cyan edge, a heading strip -- the way a game's own system
+	// the HUD is a window -- a deep plum panel cut at two corners, a
+	// glowing cerise edge, a heading strip -- the way a game's own system
 	// would talk to the man playing it. Page px, from the safe corner they
 	// hang off.
 	constexpr float PanelAlpha = 0.78f;
@@ -1148,6 +1159,16 @@ namespace SaudHud
 	{
 		return {FMath::Lerp(A.R, B.R, T), FMath::Lerp(A.G, B.G, T), FMath::Lerp(A.B, B.B, T), FMath::Lerp(A.A, B.A, T)};
 	}
+	/** The System's colour for a LINE of lettering (HITS, a status, a reward,
+	    a section), as opposed to a heading: the cerise lifted LineLift of the
+	    way to cream. The cerise itself is 5.83:1 on its ink stroke -- enough
+	    for a heading (4.5:1), not for a line (7:1); lifted it is 8.08:1. Its
+	    shapes (an edge, a bar's fill) stay the cerise itself. */
+	constexpr float LineLift = 0.20f;
+	inline FRgba LineColour()
+	{
+		return LerpColour(LivePalette().System, LivePalette().Ice, LineLift);
+	}
 	inline FRect Grow(const FRect& R, float B)
 	{
 		return {R.X - B, R.Y - B, R.W + 2.f * B, R.H + 2.f * B};
@@ -1208,9 +1229,9 @@ namespace SaudHud
 		}
 	}
 
-	/** A System window: the glow fading out from its edge, the navy panel,
+	/** A System window: the glow fading out from its edge, the plum panel,
 	    the heading strip tinted the edge's colour, the edge, and the two
-	    corner marks outside its uncut corners. Edge is the System's cyan, or
+	    corner marks outside its uncut corners. Edge is the System's cerise, or
 	    danger. Glow scales the glow (a pulse). */
 	inline void Window(FDrawList& Out, const FPage& P, const FRect& R, const FRgba& Edge, float Glow, EHudGroup G)
 	{
@@ -1304,7 +1325,7 @@ namespace SaudHud
 		{
 			const FStreetBar& B = S.Street[i];
 			const FRect R = {B.X - 0.5f * L.EnemyBarW, B.Y, L.EnemyBarW, L.EnemyBarH};
-			SysBar(Out, R, B.Fill, B.Ghost, Colour::Danger, WithAlpha(Colour::System, 0.9f),
+			SysBar(Out, R, B.Fill, B.Ghost, Colour::Health, WithAlpha(Colour::System, 0.9f),
 			       FMath::Max(1.f, P.Px(EnemyInk)), R.W, EHudGroup::Street);
 		}
 
@@ -1318,15 +1339,15 @@ namespace SaudHud
 			Window(Out, P, L.Player, Edge, Glow, G);
 			Out.Text(EHudText::Title, static_cast<int>(ETitle::Status), L.PlayerTitle, P.Px(TitleText), Edge, Stroke, false, G);
 			Out.Text(EHudText::Name, 0, L.Name, P.Px(NameText), Colour::Ice, Stroke, false, G);
-			// rage: five cells of his power, violet; full, they pulse toward ice
+			// rage: five cells in the rage's own colour (Gold, amber); full, they pulse toward ice
 			const float RP = S.bRageReady ? Pulse(S.Clock, RagePulseHz) : 0.f;
-			const FRgba RageC = S.bRageReady ? LerpColour(Colour::Shadow, Colour::Ice, 0.35f * RP) : Colour::Shadow;
+			const FRgba RageC = S.bRageReady ? LerpColour(Colour::Gold, Colour::Ice, 0.35f * RP) : Colour::Gold;
 			for (int i = 0; i < RageBlocks; ++i)
 			{
-				SysBar(Out, L.Rage[i], RageBlock(S.Rage, i), 0.f, RageC, WithAlpha(Colour::Shadow, 0.9f), Key, L.Rage[i].W, G);
+				SysBar(Out, L.Rage[i], RageBlock(S.Rage, i), 0.f, RageC, WithAlpha(Colour::Gold, 0.9f), Key, L.Rage[i].W, G);
 			}
-			SysBar(Out, L.Stamina, S.Stamina, 0.f, Colour::System, WithAlpha(Colour::System, 0.6f), Key, L.Stamina.W, G);
-			SysBar(Out, L.Health, S.Health, S.Ghost, Colour::Danger, WithAlpha(Edge, 0.9f), Key, L.Health.W, G);
+			SysBar(Out, L.Stamina, S.Stamina, 0.f, Colour::Ash, WithAlpha(Colour::Ash, 0.6f), Key, L.Stamina.W, G);
+			SysBar(Out, L.Health, S.Health, S.Ghost, Colour::Health, WithAlpha(Edge, 0.9f), Key, L.Health.W, G);
 		}
 
 		if (S.Combo >= 2)
@@ -1341,7 +1362,7 @@ namespace SaudHud
 			const float HitsY = L.Combo.Y + L.Combo.H - P.Px(HitsText) - P.Px(12.f);
 			const float Mid = 0.5f * (L.Combo.Y + P.Px(HeadH) + HitsY);
 			Out.Text(EHudText::Count, S.Combo, {L.Count.X, Mid - 0.5f * H}, H, Colour::Ice, Stroke, true, G);
-			Out.Text(EHudText::Hits, 0, {L.Count.X, HitsY}, P.Px(HitsText), Colour::System, Stroke, true, G);
+			Out.Text(EHudText::Hits, 0, {L.Count.X, HitsY}, P.Px(HitsText), LineColour(), Stroke, true, G);
 		}
 
 		if (S.bBoss)
@@ -1358,7 +1379,7 @@ namespace SaudHud
 				Out.Text(EHudText::Title, static_cast<int>(ETitle::Warning), L.BossTitle, P.Px(TitleText), Colour::Danger, Stroke, false, G);
 				Out.Text(EHudText::BossName, 0, L.BossName, P.Px(BossNameText), Colour::Ice, Stroke, false, G);
 			}
-			SysBar(Out, L.BossBar, S.BossHealth, S.BossGhost, Colour::Danger, WithAlpha(Colour::Danger, 0.9f), Key,
+			SysBar(Out, L.BossBar, S.BossHealth, S.BossGhost, Colour::Health, WithAlpha(Colour::Danger, 0.9f), Key,
 			       Shown - (L.BossBar.X - L.Boss.X) - P.Px(PadPx), G);
 		}
 	}

@@ -102,7 +102,7 @@ public:
 	    the title fight -- DT_Stages' arena row (Theme Arena, a boss stage,
 	    not survival: AL-HALQA, index 8). Set by the level builders from the
 	    data (build_gates.is_arena_door), never by hand. Only this door
-	    draws the System's crimson portal; every other exit is a street. */
+	    draws the System's vermilion portal; every other exit is a street. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
 	bool bArenaDoor = false;
 

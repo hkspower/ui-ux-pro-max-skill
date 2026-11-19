@@ -196,9 +196,10 @@ static bool IsPalette(const FRgba& C)
 	using namespace SaudHud::Colour;
 	if (SameRgb(C, Ink) || SameRgb(C, Bone) || SameRgb(C, Blood) || SameRgb(C, Ember) || SameRgb(C, Trough)
 	    || SameRgb(C, Ash) || SameRgb(C, Gold) || SameRgb(C, System) || SameRgb(C, Panel) || SameRgb(C, Shadow)
-	    || SameRgb(C, Danger) || SameRgb(C, Ice)) return true;
-	// or on the focus's line from the panel to the System's cyan
-	const float T = (C.G - Panel.G) / (System.G - Panel.G);
+	    || SameRgb(C, Danger) || SameRgb(C, Ice) || SameRgb(C, Health)) return true;
+	// or on the focus's line from the panel to the System's cerise (found by the
+	// red channel: the cerise's green is only 0.02 above the panel's)
+	const float T = (C.R - Panel.R) / (System.R - Panel.R);
 	return T >= -1e-4f && T <= 1.f + 1e-4f && Near(C.R, Panel.R + (System.R - Panel.R) * T, 1e-3f)
 	       && Near(C.B, Panel.B + (System.B - Panel.B) * T, 1e-3f);
 }
@@ -917,11 +918,11 @@ static void PageRules()
 	Check(Stroked, "every text has an ink stroke of 2 screen px at 720 lines, 7:1 against its fill");
 	Check(Bright, "no text is dimmed under half");
 	Check(Wound, "no triangle is inverted or degenerate");
-	Check(Palette, "the HUD's palette only (and the focus between the panel and the System's cyan)");
+	Check(Palette, "the HUD's palette only (and the focus between the panel and the System's cerise)");
 	Check(Apart, "no item plate overlaps another");
 	Check(Labelled, "every item's label sits on its own plate");
 	Check(OneFocus, "exactly one focused item");
-	Check(FocusReads, "the focused plate is 3:1 against the unfocused fill, its label ice; the rest the panel's navy");
+	Check(FocusReads, "the focused plate is 3:1 against the unfocused fill, its label ice; the rest the panel's plum");
 	Check(Pulses, "the focus pulses on the real-time clock, slowly");
 	Check(ValuesRead, "the settings rows read the model");
 	Check(Continue, "a Title with no save has no CONTINUE, with one no FIGHT");
@@ -1067,7 +1068,7 @@ static void PageRules()
 			const FRgba F = FocusFill(0.0137f * static_cast<float>(k));
 			Lowest = std::fmin(Lowest, Contrast(F, Panel));
 			LabelLowest = std::fmin(LabelLowest, Contrast(Ice, F));
-			const float T = (F.G - Panel.G) / (System.G - Panel.G);
+			const float T = (F.R - Panel.R) / (System.R - Panel.R);
 			Nearest = std::fmin(Nearest, T);
 			Furthest = std::fmax(Furthest, T);
 		}
@@ -1075,10 +1076,11 @@ static void PageRules()
 		std::printf("  contrast: focused plate at least %.2f on the panel, its ice label at least %.2f on it, ice %.2f on ink\n",
 		            Lowest, LabelLowest, CIce);
 		Check(Lowest >= 3.f && LabelLowest >= 3.f && CIce >= 7.f, "the focus stands 3:1 through its whole pulse, and its label on it");
-		// ...a lit blue, not the System's cyan itself: 30-45 % of the way there
-		std::printf("  the pulse goes %.0f-%.0f %% of the way from the panel to the System's cyan\n", 100.f * Nearest, 100.f * Furthest);
-		Check(Nearest >= 0.30f - 1e-3f && Furthest <= 0.45f + 1e-3f && Furthest - Nearest > 0.05f,
-		      "the focus breathes 30-45 % of the way from the panel to the System's cyan");
+		// ...a lit rose, not the System's cerise itself: 60-75 % of the way there (30-45 % while
+		// the System was cyan: the cerise is darker, and 30 % of the way stood only 2.29:1 off the panel)
+		std::printf("  the pulse goes %.0f-%.0f %% of the way from the panel to the System's cerise\n", 100.f * Nearest, 100.f * Furthest);
+		Check(Nearest >= 0.60f - 1e-3f && Furthest <= 0.75f + 1e-3f && Furthest - Nearest > 0.05f,
+		      "the focus breathes 60-75 % of the way from the panel to the System's cerise");
 	}
 }
 
@@ -1403,7 +1405,7 @@ static void StatusPage()
 					Quest = Quest && Qn->Value == (S.bQuestOpen ? 0 : 1)
 					        && (FindText(EMenuText::QuestState) != nullptr) == S.bQuestOpen;
 					// the skills: the name when found, "?" when not; the slot
-					// lit and marked when found; HAWK FIST's violet either way
+					// lit and marked when found; HAWK FIST's pink either way
 					for (int K = 0; K < SaudMenu::Skills; ++K)
 					{
 						const FMenuText* X = NthText(EMenuText::SkillName, K);
@@ -1485,8 +1487,8 @@ static void StatusPage()
 							if (List.Texts[t].Part != EMenuPart::Window) Clear = Clear && !Overlap(Whole, TextBox(List.Texts[t]));
 						Clear = Clear && Inside(Whole, Win, 0.5f) && Whole.X0 < Win.X0 && Whole.X1 > Win.X1;
 					}
-					// the window's look: a solid cyan edge, a glow fading to
-					// nothing, the navy panel, ice corner marks outside it
+					// the window's look: a solid cerise edge, a glow fading to
+					// nothing, the plum panel, ice corner marks outside it
 					{
 						bool Edge = false, GlowIn = false, GlowOut = true;
 						int Brackets = 0;
@@ -1519,13 +1521,13 @@ static void StatusPage()
 	Check(Present, "the status window shows SAUD, the level, the rank, XP, HP, MP, STAMINA, the skills, the tracks, the quest");
 	Check(Values, "...each read off the save: the level and rank from the earned XP, the XP to the next, the game's HP, MP, STAMINA");
 	Check(Skills, "a skill found shows its name in a lit, marked slot; one not found a dim '?' in a dim slot");
-	Check(Hawk, "HAWK FIST's slot is violet, found or not");
+	Check(Hawk, "HAWK FIST's slot is pink, found or not");
 	Check(Pipped, "every track shows its five levels, lit to the level bought");
 	Check(Bar, "the XP bar is as full as the earned XP is through the level (full at the top), 3:1 on its trough");
 	Check(Quest, "the quest is FIND THE WAY UP, IN PROGRESS, until the title is won, then removed");
 	Check(InWindow && Apart, "every line of the window is inside it, none touching another");
 	Check(Clear, "the window stands clear of the column, the heading, the hint and the prompt strip, its glow included");
-	Check(Glows, "the window is the System's: a solid cyan edge, a glow fading to nothing, the navy panel");
+	Check(Glows, "the window is the System's: a solid cerise edge, a glow fading to nothing, the plum panel");
 	Check(Framed, "...and ice corner marks outside its two uncut corners");
 }
 
@@ -1599,7 +1601,7 @@ static void TrainingPage()
 	Check(Plates, "every track's plate: its name, then its five levels lit to the level bought");
 	Check(Costs, "...then what the next level costs (MAX at the top), right on the plate, clear of the pips");
 	Check(Clear, "the pips of every plate line up");
-	Check(Poor, "a crimson rule under every cost the XP will not cover, and only those");
+	Check(Poor, "a vermilion rule under every cost the XP will not cover, and only those");
 	Check(Spend, "the XP to spend under the heading's bar, in ice, above the plates");
 	Check(Hints, "the hint says what each track gives (BACK: back to the pause)");
 }
@@ -1639,11 +1641,11 @@ static void Buying()
 		const FPage P = FPage::For(1920, 1080);
 		M.Since = 1.f;
 		Build(P, M, List);
-		bool Crimson = false;
+		bool Vermilion = false;
 		for (int t = 0; t < List.NumTris; ++t)
 			if (List.Tris[t].Item == M.Focus && List.Tris[t].Part == EMenuPart::Keyline)
-				Crimson = SameRgb(List.Tris[t].V[0].C, SaudHud::Colour::Danger);
-		Check(Crimson, "...its plate's keyline crimson");
+				Vermilion = SameRgb(List.Tris[t].V[0].C, SaudHud::Colour::Danger);
+		Check(Vermilion, "...its plate's keyline vermilion");
 		Step(M, DeniedSeconds + 0.01f);
 		Check(HintOf(M, EItem::TrainBox) == EHint::TrainBox, "...for 1.2 s, then the hint is the track's again");
 		Navigate(M, EAction::Confirm);

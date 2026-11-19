@@ -529,7 +529,7 @@ static void Queue()
         Mo.Push(Ev(EKind::Down));
         Run(Mo, PreemptClose + 2.f / 60.f, 60.f);
         Check(Mo.Window.bOn && Mo.Window.E.Kind == EKind::Down && Mo.Window.E.Tint == ETint::Danger,
-              "a man going down cuts what is showing, at once, and the window is crimson");
+              "a man going down cuts what is showing, at once, and the window is vermilion");
     }
     // two level ups not yet shown are one window
     {
@@ -600,12 +600,12 @@ static void Queue()
         Mo.Push(Ev(EKind::SkillAcquired, "HawkFist"));
         Mo.Tick({1.f / 60.f, 1.f / 60.f});
         Check(Mo.NumOpened == 1 && Mo.Opened[0] == EKind::SkillAcquired && Mo.Window.E.Tint == ETint::Shadow,
-              "what opened is reported for the look's flourish, and HAWK FIST's window is violet");
+              "what opened is reported for the look's flourish, and HAWK FIST's window is pink");
         Mo.Tick({1.f / 60.f, 1.f / 60.f});
         Check(Mo.NumOpened == 0, "...once, on the frame it opens");
         Check(TintFor(EKind::SkillAcquired, "Vault") == ETint::System && TintFor(EKind::LevelUp, "") == ETint::System
                   && TintFor(EKind::Down, "") == ETint::Danger,
-              "every other window is the System's cyan; a man down's crimson");
+              "every other window is the System's cerise; a man down's vermilion");
     }
 }
 
@@ -859,7 +859,7 @@ static void Page()
     Check(Edged, "every System window has a solid edge and a glow fading out from it to nothing");
     Check(Wound, "no triangle is inverted or degenerate");
 
-    // its colours: HAWK FIST violet, a man down crimson, the rest cyan
+    // its colours: HAWK FIST pink, a man down vermilion, the rest cerise
     {
         const FPage P = FPage::For(1920, 1080);
         auto EdgeOf = [&](const FSysEvent& E) {
@@ -872,7 +872,7 @@ static void Page()
         auto Is = [](const FRgba& A, const FRgba& B) { return std::fabs(A.R - B.R) < 1e-4f && std::fabs(A.G - B.G) < 1e-4f && std::fabs(A.B - B.B) < 1e-4f; };
         Check(Is(EdgeOf(Ev(EKind::SkillAcquired, "HawkFist")), SaudHud::Colour::Shadow) && Is(EdgeOf(Ev(EKind::Down)), SaudHud::Colour::Danger)
                   && Is(EdgeOf(Ev(EKind::SkillAcquired, "Vault")), SaudHud::Colour::System) && Is(EdgeOf(Ev(EKind::QuestRemoved)), SaudHud::Colour::System),
-              "drawn: HAWK FIST's window edged violet, a man down's crimson, every other the System's cyan");
+              "drawn: HAWK FIST's window edged pink, a man down's vermilion, every other the System's cerise");
     }
 
     // how much of the screen it darkens, alpha-weighted, at 1080p

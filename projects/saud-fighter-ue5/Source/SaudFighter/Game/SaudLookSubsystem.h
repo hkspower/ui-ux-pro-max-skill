@@ -47,11 +47,11 @@ struct FHitResultData;
  *
  * The System's events (2026-10-07): the windows track calls OnSystemEvent
  * when the System speaks -- a level, a skill, a rank, a quest done, a gate
- * opened -- and the picture answers (SaudAnime::SystemFx): a pillar of cyan
+ * opened -- and the picture answers (SaudAnime::SystemFx): a pillar of cerise
  * light round Saud, a ring burst and a rim on him, a wider ring, a glow
  * round the screen's edge, a flash at the gate. Their ages run in real time
  * and Saud and the gate are projected each tick, as the fire's fist is. And
- * a heavy blow of Saud's that lands leaves a thin cyan trail along the path
+ * a heavy blow of Saud's that lands leaves a thin cerise trail along the path
  * his striking limb took (SystemFx::FTrail): the limb's tip is recorded
  * through every heavy swing of his and the last 0.12 s of it taken when the
  * blow lands.
@@ -80,8 +80,8 @@ public:
 	    shows Fx. Where is what it happened at -- the gate for GateOpened (no
 	    gate, no flash); a level, a skill and a rank are drawn about the
 	    player's Saud whatever Where is, and a quest round the screen. Skill:
-	    the talent a SkillAcquired gave -- HAWK FIST's is drawn in violet and
-	    ember; left None, the System's cyan and ice. */
+	    the talent a SkillAcquired gave -- HAWK FIST's is drawn in pink and
+	    ember; left None, the System's cerise and ice. */
 	void OnSystemEvent(SaudAnime::ESystemFx Fx, const AActor* Where, EAbility Skill = EAbility::None);
 
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;

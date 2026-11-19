@@ -23,8 +23,8 @@ anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float OnTwos = 2.f \* Fr
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#Boil = SAUD_TEXT("Boil")#Boil = SAUD_TEXT("Boil2")#|the boil is written as Boil
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#Impact.Tone = ETone::Ember;#Impact.Tone = ETone::System;#|a burning punch's own frame goes ember
 # 2026-10-03, the System's hits and Saud's power-up
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Impact = {Frame, false, false, ETone::System};#L.Impact = {Frame, false, false, ETone::Blood};#|a heavy hit and a knockdown are cut in the System's cyan
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#Bone = 2, System = 3 };#Bone = 2, System = 4 };#|a heavy hit and a knockdown are cut in the System's cyan
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.Impact = {Frame, false, false, ETone::System};#L.Impact = {Frame, false, false, ETone::Blood};#|a heavy hit and a knockdown are cut in the System's cerise
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Bone = 2, System = 3 };#Bone = 2, System = 4 };#|a heavy hit and a knockdown are cut in the System's cerise
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#return bFinisher ? Finisher : (bRageReady ? Ready : 0.f);#return bFinisher ? Ready : (bRageReady ? Ready : 0.f);#|the finisher at full
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float RiseSeconds = 0.25f;#constexpr float RiseSeconds = 0.05f;#|the aura rises to what it is asked in 0.25 s
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float FallSeconds = 0.60f;#constexpr float FallSeconds = 0.20f;#|...and goes out over 0.60 s
@@ -49,7 +49,19 @@ anime|Source/SaudFighter/Combat/SaudAnime.h|s#PlayerH = 134.f#PlayerH = 200.f#|n
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float PanelAlpha = 0.78f;#constexpr float PanelAlpha = 1.0f;#|the HUD's backing takes at most 10.5 % of the screen
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#HitsText = 32.f#HitsText = 24.f#|no text the player reads is under 1/36 of the screen
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#TextStroke = 3.f#TextStroke = 1.f#|every text has an ink stroke of 2 screen px at 720 lines
-anime|Source/SaudFighter/Combat/SaudAnime.h|s#Danger{1.0f, 0.0331f, 0.0908f, 1.f}#Danger{0.06f, 0.004f, 0.008f, 1.f}#|every bar is 3:1 against its trough
+# 2026-11-19, the palette: each bar is drawn in its own slot (Health, Ash, Gold), so each bar's contrast is its slot's;
+# and a health in Danger's vermilion would read against the trough but its cream trail would not (2.81:1)
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Health{0.7913f, 0.0467f, 0.0369f, 1.f}#Health{0.06f, 0.004f, 0.008f, 1.f}#|every bar is 3:1 against its trough
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Health{0.7913f, 0.0467f, 0.0369f, 1.f}#Health{1.0f, 0.0704f, 0.0369f, 1.f}#|every bar is 3:1 against its trough, and the trail against the health
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Ash{0.5089f, 0.9301f, 0.6939f, 1.f}#Ash{0.06f, 0.004f, 0.008f, 1.f}#|every bar is 3:1 against its trough
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Gold{1.0f, 0.2747f, 0.0103f, 1.f}#Gold{0.06f, 0.004f, 0.008f, 1.f}#|every bar is 3:1 against its trough
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Danger{1.0f, 0.0704f, 0.0369f, 1.f}#Danger{0.06f, 0.004f, 0.008f, 1.f}#|every text has an ink stroke of 2 screen px at 720 lines, 7:1 against its fill
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float LineLift = 0.20f;#constexpr float LineLift = 0.f;#|every text has an ink stroke of 2 screen px at 720 lines, 7:1 against its fill
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Colour::Ash, WithAlpha(Colour::Ash, 0.6f)#Colour::System, WithAlpha(Colour::System, 0.6f)#|health, stamina and rage are each drawn in their own slot
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Ice, 0.35f \* RP) : Colour::Gold;#Ice, 0.35f * RP) : Colour::Shadow;#|health, stamina and rage are each drawn in their own slot
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#S.Ghost, Colour::Health, WithAlpha(Edge, 0.9f)#S.Ghost, Colour::Danger, WithAlpha(Edge, 0.9f)#|health, stamina and rage are each drawn in their own slot
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#S.BossGhost, Colour::Health, WithAlpha(Colour::Danger, 0.9f)#S.BossGhost, Colour::Danger, WithAlpha(Colour::Danger, 0.9f)#|health, stamina and rage are each drawn in their own slot
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#B.Fill, B.Ghost, Colour::Health, WithAlpha(Colour::System, 0.9f)#B.Fill, B.Ghost, Colour::Danger, WithAlpha(Colour::System, 0.9f)#|health, stamina and rage are each drawn in their own slot
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float GlowPx = 10.f;#constexpr float GlowPx = -10.f;#|no triangle is inverted or degenerate
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#WithAlpha(Edge, 0.f), G, EHudPart::Glow#WithAlpha(Edge, 0.3f), G, EHudPart::Glow#|every window has a solid edge and a glow fading out from it to nothing
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#Out.Quad(BL2, Ice, G, EHudPart::Bracket);#Out.Quad(BL2, Ice, G, EHudPart::Keyline);#|every window carries its corner marks, outside its panel
@@ -69,9 +81,11 @@ anime|Source/SaudFighter/Combat/SaudAnime.h|s#return 1.f + 0.35f \* FMath::Exp#r
 
 # 2026-10-03, the System's menus
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#SaudHud::WithAlpha(Colour::System, SaudHud::SlashAlpha), EMenuPart::Slash#SaudHud::WithAlpha(Colour::Blood, SaudHud::SlashAlpha), EMenuPart::Slash#|the heading in ice over the wash, the System's bar under it
-menu|Source/SaudFighter/Combat/SaudMenu.h|s#constexpr float FocusMix = 0.30f;#constexpr float FocusMix = 0.10f;#|the focus stands 3:1 through its whole pulse
-menu|Source/SaudFighter/Combat/SaudMenu.h|s#constexpr float FocusPulse = 0.15f;#constexpr float FocusPulse = 0.45f;#|the focus breathes 30-45 % of the way from the panel to the System's cyan
-menu|Source/SaudFighter/Combat/SaudMenu.h|s#return SaudHud::WithAlpha(Colour::Panel, PlateAlpha);#return SaudHud::WithAlpha(Colour::Trough, PlateAlpha);#|the rest the panel's navy
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#constexpr float FocusMix = 0.60f;#constexpr float FocusMix = 0.10f;#|the focus stands 3:1 through its whole pulse
+# the cyan's own mix, 0.30, no longer stands off the cerise's panel (2.29:1)
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#constexpr float FocusMix = 0.60f;#constexpr float FocusMix = 0.30f;#|the focus stands 3:1 through its whole pulse
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#constexpr float FocusPulse = 0.15f;#constexpr float FocusPulse = 0.45f;#|the focus breathes 60-75 % of the way from the panel to the System's cerise
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#return SaudHud::WithAlpha(Colour::Panel, PlateAlpha);#return SaudHud::WithAlpha(Colour::Trough, PlateAlpha);#|the rest the panel's plum
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#const FRgba Label = Fade(SaudHud::LerpColour(DimText(), Colour::Ice, W));#const FRgba Label = Fade(SaudHud::LerpColour(DimText(), Colour::Bone, W));#|its label ice
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#SaudHud::WithAlpha(Colour::System, A);#SaudHud::WithAlpha({0.2f, 0.9f, 0.3f, 1.f}, A);#|the HUD's palette only
 # ---- the controls (2026-09-30): the table, the words, the keys, the glyphs
@@ -391,6 +405,10 @@ feel|Source/SaudFighter/Combat/SaudFeel.h|s#return !bSerialMoved \&\& KindOf(Sho
 # 2026-10-03, the colours from the data: the HUD draws the live palette
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#inline const FRgba\& Danger = LivePalette().Danger;#inline const FRgba\& Danger = Defaults::Danger;#|a danger set in the live palette is the danger the HUD draws
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#{"Gold", \&FPalette::Gold},##|every palette colour has a slot by its data name
+# 2026-11-19: the 13th slot, Health, end to end
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#{"Health", \&FPalette::Health},##|every palette colour has a slot by its data name
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#inline const FRgba\& Health = LivePalette().Health;#inline const FRgba\& Health = Defaults::Health;#|health, stamina and rage are each drawn in their own slot
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Danger = Defaults::Danger, Ice = Defaults::Ice, Health = Defaults::Health;#Danger = Defaults::Danger, Ice = Defaults::Ice, Health = Defaults::Danger;#|the palette starts as the defaults
 
 # 2026-10-03, the night's lights (SaudLight.h): drawn by their pool, shadowed by the nearest
 light|Source/SaudFighter/Combat/SaudLight.h|s#ShadowBudget = 8;#ShadowBudget = 80;#|eight shadowed fires cast at once
@@ -654,7 +672,7 @@ menu|Source/SaudFighter/Combat/SaudMenu.h|s#S.Spendable -= Train::Cost(L);#S.Spe
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#++S.Track\[T\];#S.Track[T] += 0;#|the cost spent, the track a level up
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (S.Spendable < Train::Cost(L)) return Deny(M, M.Focus, false);#{}#|YES is checked again
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#return M.bDeniedMaxed ? EHint::Maxed : EHint::Poor;#return EHint::Maxed;#|the hint says NOT ENOUGH XP
-menu|Source/SaudFighter/Combat/SaudMenu.h|s#Fade(bDenied ? Colour::Danger :#Fade(bDenied ? Colour::System :#|its plate's keyline crimson
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#Fade(bDenied ? Colour::Danger :#Fade(bDenied ? Colour::System :#|its plate's keyline vermilion
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#M.DeniedLeft = FMath::Max(0.f, M.DeniedLeft - Dt);#M.DeniedLeft = FMath::Max(0.f, M.DeniedLeft - 0.f * Dt);#|then the hint is the track's again
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#M.DeniedLeft = 0.f;   // a denial is about the item it was on##|or until the focus moves
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (M.Screen != M.Root && M.Depth < FMenuModel::MaxDepth)#if (false \&\& M.Depth < FMenuModel::MaxDepth)#|Back goes back the way in
@@ -670,15 +688,15 @@ menu|Source/SaudFighter/Combat/SaudMenu.h|s#bTop ? 0 : S.LevelNext - S.Earned,#b
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#Line(EMenuText::StatHp, S.MaxHealth,#Line(EMenuText::StatHp, S.MaxMana,#|each read off the save
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#Line(EMenuText::SkillName, K, bHas ? 1 : 0,#Line(EMenuText::SkillName, K, 1,#|a skill found shows its name in a lit, marked slot
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#^\t\t\t\tif (bHas)$#\t\t\t\tif (true)#|a skill found shows its name in a lit, marked slot
-menu|Source/SaudFighter/Combat/SaudMenu.h|s#const FRgba Edge = K == HawkFistSkill ? SaudHud::WithAlpha(Colour::Shadow#const FRgba Edge = K == HawkFistSkill ? SaudHud::WithAlpha(Colour::System#|HAWK FIST's slot is violet
-menu|Source/SaudFighter/Combat/SaudMenu.h|s#P.Px(WinPipGap), S.Track\[Tk\], Cyan#P.Px(WinPipGap), S.Track[Tk] / 2, Cyan#|every track shows its five levels, lit to the level bought
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#const FRgba Edge = K == HawkFistSkill ? SaudHud::WithAlpha(Colour::Shadow#const FRgba Edge = K == HawkFistSkill ? SaudHud::WithAlpha(Colour::System#|HAWK FIST's slot is pink
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#P.Px(WinPipGap), S.Track\[Tk\], Cerise#P.Px(WinPipGap), S.Track[Tk] / 2, Cerise#|every track shows its five levels, lit to the level bought
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#static_cast<float>(S.Earned - S.LevelFloor)#static_cast<float>(S.Earned)#|the XP bar is as full as the earned XP is through the level
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#Line(EMenuText::QuestName, S.bQuestOpen ? 0 : 1,#Line(EMenuText::QuestName, 0,#|the quest is FIND THE WAY UP, IN PROGRESS, until the title is won
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#^\t\t\tif (S.bQuestOpen)$#\t\t\tif (true)#|the quest is FIND THE WAY UP, IN PROGRESS, until the title is won
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#L.Stat\[2\] = {In + 0.58f \* CW, At};#L.Stat[2] = {In + 0.80f * CW, At};#|every line of the window is inside it, none touching another
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#constexpr float WinGap = 48.f;#constexpr float WinGap = 0.f;#|the window stands clear of the column
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#P.Right() - P.Px(SaudHud::WindowInset) - X#P.Right() - X#|every vertex the menu draws is inside the title-safe area
-menu|Source/SaudFighter/Combat/SaudMenu.h|s#WithAlpha(Colour::System, 0.f), EMenuPart::Glow#WithAlpha(Colour::System, 0.3f), EMenuPart::Glow#|the window is the System's: a solid cyan edge, a glow fading to nothing
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#WithAlpha(Colour::System, 0.f), EMenuPart::Glow#WithAlpha(Colour::System, 0.3f), EMenuPart::Glow#|the window is the System's: a solid cerise edge, a glow fading to nothing
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#const FRgba Ice = WithAlpha(Colour::Ice, 0.9f \* A);#const FRgba Ice = WithAlpha(Colour::System, 0.9f * A);#|ice corner marks outside its two uncut corners
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#R.W \*= Arrive(M, WinDelay, WinWipe);#R.W *= Arrive(M, WinDelay, 0.8f);#|is settled -- the page at rest -- by 0.6 s
 
@@ -686,7 +704,7 @@ menu|Source/SaudFighter/Combat/SaudMenu.h|s#R.W \*= Arrive(M, WinDelay, WinWipe)
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#Pips(Out, Pr, P.Px(PipGap), Lv,#Pips(Out, Pr, P.Px(PipGap), Lv / 2,#|every track's plate: its name, then its five levels lit to the level bought
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#const int Cost = bTop ? -1 : Train::Cost(Lv);#const int Cost = bTop ? -1 : Train::Cost(Lv + 1);#|then what the next level costs (MAX at the top)
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#Train::Cost(Train::MaxLevel - 1), TH);#Cost, TH);#|the pips of every plate line up
-menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (!bTop && M.Status.Spendable < Cost)#if (!bTop)#|a crimson rule under every cost the XP will not cover, and only those
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#if (!bTop && M.Status.Spendable < Cost)#if (!bTop)#|a vermilion rule under every cost the XP will not cover, and only those
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#Out.Text(EMenuText::SpendXp, M.Status.Spendable,#Out.Text(EMenuText::SpendXp, M.Status.Earned,#|the XP to spend under the heading's bar
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#return static_cast<EHint>(static_cast<int>(EHint::TrainBox) + TrackOfItem(I));#return EHint::TrainBox;#|the hint says what each track gives
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#M.Status.Track\[M.TrainTrack\] + 1 : 0;#M.Status.Track[M.TrainTrack] : 0;#|the question: TRAIN? -- TRAIN BOXING TO LEVEL 3
@@ -717,8 +735,8 @@ system|Source/SaudFighter/Combat/SaudSystem.h|s#case EKind::GateCleared:   retur
 system|Source/SaudFighter/Combat/SaudSystem.h|s#else if (FindPending(E.Kind, E.Key) >= 0)#else if (false \&\& FindPending(E.Kind, E.Key) >= 0)#|an area's quest pushed twice before it shows is said once
 system|Source/SaudFighter/Combat/SaudSystem.h|s#if (PriorityOf(Queue\[Low\]) >= R.Priority) return;#if (true) return;#|a full queue drops the least of what waits
 system|Source/SaudFighter/Combat/SaudSystem.h|s#if (NumOpened < 2) Opened\[NumOpened++\] = Into.E.Kind;#(void)Opened;#|what opened is reported for the look's flourish
-system|Source/SaudFighter/Combat/SaudSystem.h|s#if (K == EKind::SkillAcquired \&\& Same(Key, "HawkFist")) return ETint::Shadow;#(void)Key;#|drawn: HAWK FIST's window edged violet
-system|Source/SaudFighter/Combat/SaudSystem.h|s#if (K == EKind::Down) return ETint::Danger;#(void)0;#|a man going down cuts what is showing, at once, and the window is crimson
+system|Source/SaudFighter/Combat/SaudSystem.h|s#if (K == EKind::SkillAcquired \&\& Same(Key, "HawkFist")) return ETint::Shadow;#(void)Key;#|drawn: HAWK FIST's window edged pink
+system|Source/SaudFighter/Combat/SaudSystem.h|s#if (K == EKind::Down) return ETint::Danger;#(void)0;#|a man going down cuts what is showing, at once, and the window is vermilion
 
 # ---- the clock
 system|Source/SaudFighter/Combat/SaudSystem.h|s#const float Dt = FMath::Clamp(Clock.Real, 0.f, 0.25f);#const float Dt = FMath::Clamp(Clock.World, 0.f, 0.25f);#|the same through a blow's freeze
@@ -743,7 +761,11 @@ system|Source/SaudFighter/Combat/SaudSystem.h|s#const float Y = bUnderQuest ?#co
 system|Source/SaudFighter/Combat/SaudSystem.h|s#constexpr float TopPad = 8.f, RowGap = 4.f, BottomPad = 10.f;#constexpr float TopPad = 8.f, RowGap = 4.f, BottomPad = 40.f;#|nothing the System draws is over the fight's centre box
 system|Source/SaudFighter/Combat/SaudSystem.h|s#constexpr float HeadText = 40.f;#constexpr float HeadText = 26.f;#|no word the System shows is under 1/36 of the screen
 system|Source/SaudFighter/Combat/SaudSystem.h|s#const float Pad = P.Px(PadPx), Stroke = P.Px(SaudHud::TextStroke), Head = P.Px(SaudHud::HeadH);#const float Pad = P.Px(PadPx), Stroke = P.Px(1.f), Head = P.Px(SaudHud::HeadH);#|every word stroked in ink
-system|Source/SaudFighter/Combat/SaudSystem.h|s#SaudHud::LerpColour(SaudHud::Colour::Shadow, SaudHud::Colour::Ice, 0.5f)#SaudHud::Colour::Shadow#|headings 4.5:1 against it, the rest 7:1
+# 2026-11-19: the lift of HAWK FIST's heading toward cream is not load-bearing any more (the pink alone is 8.97:1, the
+# violet it was written for 4.4:1), so what is held here is the heading rule itself: a heading in a colour under 4.5:1
+system|Source/SaudFighter/Combat/SaudSystem.h|s#Shadow, SaudHud::Colour::Ice, 0.5f) : EdgeColour(T);#Shadow, SaudHud::Colour::Ice, 0.5f) : SaudHud::Colour::Trough;#|headings 4.5:1 against it, the rest 7:1
+system|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float LineLift = 0.20f;#constexpr float LineLift = 0.f;#|headings 4.5:1 against it, the rest 7:1
+menu|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float LineLift = 0.20f;#constexpr float LineLift = 0.f;#|every text has an ink stroke of 2 screen px at 720 lines, 7:1 against its fill
 system|Source/SaudFighter/Combat/SaudSystem.h|s#const FRgba Ice = A(SaudHud::Colour::Ice), Title#const FRgba Ice = A(EdgeColour(Tint)), Title#|headings 4.5:1 against it, the rest 7:1
 system|Source/SaudFighter/Combat/SaudSystem.h|s#SaudHud::Window(Out.Shapes, P, R, EdgeColour(Tint), 1.f,#SaudHud::Window(Out.Shapes, P, R, EdgeColour(Tint), 0.f,#|every System window has a solid edge and a glow
 system|Source/SaudFighter/Combat/SaudSystem.h|s#constexpr float RowSep = 28.f;#constexpr float RowSep = -60.f;#|the first line and its reward never run into each other

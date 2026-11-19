@@ -57,11 +57,12 @@ static void Blows()
     Check(Frame <= DF.HitStop, "a knockdown's first impact frame is inside the freeze");
 
     // The tone: since 2026-10-03 (the System) a heavy blow's and a
-    // knockdown's cyan, blood before; a parry's bone. M_Anime_Frame reads
+    // knockdown's cerise (cyan until the palette of 2026-11-19), blood
+    // before; a parry's bone. M_Anime_Frame reads
     // the number: 3 is the System's (anime_look.py checks the other side).
     Check(Heavy.Impact.Tone == ETone::System && Down.Impact.Tone == ETone::System
               && static_cast<int>(ETone::System) == 3,
-          "a heavy hit and a knockdown are cut in the System's cyan");
+          "a heavy hit and a knockdown are cut in the System's cerise");
     Check(Parry.Impact.Tone == ETone::Bone, "a parry is cut in bone");
     // The mark: only where a blow lands heavy.
     Check(Heavy.MarkLife > 0.f && Down.MarkLife > 0.f && Light.MarkLife == 0.f && Block.MarkLife == 0.f
@@ -572,8 +573,8 @@ static void Hud()
                 const FBox B = GroupBox(X.Group);
                 TextIn = TextIn && X.At.X >= B.X0 && X.At.X <= B.X1 && X.At.Y >= B.Y0 && X.At.Y + X.Height <= B.Y1 + 0.5f;
                 Legible = Legible && X.Height >= MinTextShare * P.ScreenH - 0.01f;
-                // every letter stroked in ink; a heading (cyan, or danger's
-                // crimson) at least 4.5:1 against it, the rest 7:1
+                // every letter stroked in ink; a heading (cerise, or danger's
+                // vermilion) at least 4.5:1 against it, the rest 7:1
                 Stroked = Stroked && X.Stroke >= 2.f * P.ScreenH / 720.f - 0.01f
                                   && Contrast(X.Colour, Colour::Ink) >= (X.Slot == EHudText::Title ? 4.5f : 7.f);
             }
@@ -636,7 +637,7 @@ static void Hud()
     Check(Wound, "no triangle is inverted or degenerate");
     Check(Edged, "every window has a solid edge and a glow fading out from it to nothing");
 
-    // the ice corner marks: two at each window's uncut corners, standing
+    // the cream corner marks: two at each window's uncut corners, standing
     // outside its panel
     {
         const FPage P = FPage::For(1920, 1080);
@@ -660,10 +661,12 @@ static void Hud()
         Check(Back <= 0.105f, "the HUD's backing takes at most 10.5 % of the screen");
     }
 
-    // every bar reads against its trough (WCAG 2.1 1.4.11, 3:1), and the
-    // trail against the blood it drains to
-    const float CHealth = Contrast(Colour::Danger, Colour::Trough), CStam = Contrast(Colour::System, Colour::Trough);
-    const float CRage = Contrast(Colour::Shadow, Colour::Trough), CTrail = Contrast(Colour::Ice, Colour::Danger);
+    // every bar reads against its trough (WCAG 2.1 1.4.11, 3:1), each in its
+    // own colour (health: Health, stamina: Ash, rage: Gold), and the trail
+    // against the health it drains to. (Until the palette of 2026-11-19 they
+    // were Danger, System and Shadow, and Colour::Ash and Gold drew nothing.)
+    const float CHealth = Contrast(Colour::Health, Colour::Trough), CStam = Contrast(Colour::Ash, Colour::Trough);
+    const float CRage = Contrast(Colour::Gold, Colour::Trough), CTrail = Contrast(Colour::Ice, Colour::Health);
     std::printf("  contrast: health %.2f, stamina %.2f, rage %.2f against the trough; the trail %.2f against the health\n",
                 CHealth, CStam, CRage, CTrail);
     Check(CHealth >= 3.f && CStam >= 3.f && CRage >= 3.f && CTrail >= 3.f,
@@ -682,7 +685,7 @@ static void Hud()
     }
 
     // danger: at 30 % health or under the player's window is edged in
-    // danger's crimson, and pulses; above, in the System's cyan
+    // danger's vermilion, and pulses; above, in the System's cerise
     {
         const FPage P = FPage::For(1920, 1080);
         auto EdgeOf = [](EHudGroup G, FRgba& Out) {
@@ -714,7 +717,7 @@ static void Hud()
             Lo = std::fmin(Lo, G); Hi = std::fmax(Hi, G);
         }
         Pulses = Hi - Lo > 0.1f;
-        Check(Calm && Warns, "at 30 % health or under the player's window is edged in danger; above, in the System's cyan");
+        Check(Calm && Warns, "at 30 % health or under the player's window is edged in danger; above, in the System's cerise");
         Check(Pulses, "...and its glow pulses");
     }
 
@@ -835,17 +838,19 @@ static bool SameRgb(const FRgba& A, const FRgba& B)
 
 // The HUD draws the LIVE palette, the one the game fills from
 // DT_LookColors.csv (2026-10-03): a colour set through PaletteSlot is the
-// colour drawn, every one of the seven has a slot, and the defaults are
-// what the palette starts as.
+// colour drawn, every one of the thirteen has a slot, and the defaults are
+// what the palette starts as. (Since 2026-11-19 each bar has its own slot:
+// health, stamina and rage are drawn in Health, Ash and Gold.)
 static void Palette()
 {
     static FDrawList L;
     const FPage P = FPage::For(1920, 1080);
-    const char* Names[] = {"Ink", "Bone", "Blood", "Ember", "Trough", "Ash", "Gold", "System", "Panel", "Shadow", "Danger", "Ice"};
+    const char* Names[] = {"Ink", "Bone", "Blood", "Ember", "Trough", "Ash", "Gold", "System", "Panel", "Shadow", "Danger", "Ice", "Health"};
     bool bSlots = true;
     for (const char* N : Names) bSlots = bSlots && PaletteSlot(N) != nullptr;
     Check(bSlots && PaletteSlot("Pink") == nullptr, "every palette colour has a slot by its data name, and nothing else does");
-    Check(SameRgb(LivePalette().Blood, Defaults::Blood) && SameRgb(Colour::Bone, Defaults::Bone),
+    Check(SameRgb(LivePalette().Blood, Defaults::Blood) && SameRgb(Colour::Bone, Defaults::Bone)
+              && SameRgb(LivePalette().Health, Defaults::Health),
           "the palette starts as the defaults");
     const FRgba Saved = *PaletteSlot("Danger");
     const FRgba Green{0.0f, 0.4f, 0.1f, 1.f};
@@ -861,7 +866,48 @@ static void Palette()
     *PaletteSlot("Danger") = Saved;
     Check(bGreen && !bOld, "a danger set in the live palette is the danger the HUD draws");
     Check(SameRgb(Colour::Danger, Defaults::Danger), "and the palette put back is the default again");
-    std::printf("  the live palette: 12 slots; a danger set through it drawn\n");
+    // each bar is drawn in its own slot, and nothing else is a bar: set Health,
+    // Ash and Gold to three colours of their own and every fill of the HUD is
+    // the one of the bar it is -- the player's health, his stamina, each rage
+    // cell, the boss's bar and a street man's
+    {
+        const FRgba Gr{0.0f, 0.4f, 0.1f, 1.f}, Bl{0.1f, 0.1f, 0.9f, 1.f}, Or{0.9f, 0.5f, 0.0f, 1.f};
+        FHudState Mix = Worst(99, 0.5f);
+        Mix.bRageReady = false;   // a full rage pulses toward cream: its cells are not the slot's own colour then
+        Mix.NumStreet = 1;
+        Mix.Street[0] = {400.f, 900.f, 0.4f, 0.8f};
+        FRgba* const SH = PaletteSlot("Health"); FRgba* const SA = PaletteSlot("Ash"); FRgba* const SG = PaletteSlot("Gold");
+        if (!SH || !SA || !SG)
+        {
+            Check(false, "health, stamina and rage are each drawn in their own slot: Health, Ash and Gold; the boss's bar and a street man's in Health");
+            return;
+        }
+        const FRgba WasH = *SH, WasA = *SA, WasG = *SG;
+        *SH = Gr; *SA = Bl; *SG = Or;
+        Build(P, Mix, L);
+        const FLayout Ly = Lay(P);
+        auto In = [](const FRect& R, float X, float Y) { return X >= R.X - 0.5f && X <= R.X + R.W + 0.5f && Y >= R.Y - 0.5f && Y <= R.Y + R.H + 0.5f; };
+        int NHealth = 0, NStamina = 0, NRage = 0, NBoss = 0, NStreet = 0;
+        bool bBars = true;
+        for (int t = 0; t < L.NumTris; ++t)
+        {
+            const FHudTri& T = L.Tris[t];
+            if (T.Part != EHudPart::Fill) continue;
+            const float CX = (T.V[0].P.X + T.V[1].P.X + T.V[2].P.X) / 3.f, CY = (T.V[0].P.Y + T.V[1].P.Y + T.V[2].P.Y) / 3.f;
+            const FRgba* Want = nullptr;
+            if (T.Group == EHudGroup::Street) { Want = &Gr; ++NStreet; }
+            else if (T.Group == EHudGroup::Boss) { Want = &Gr; ++NBoss; }
+            else if (In(Ly.Health, CX, CY)) { Want = &Gr; ++NHealth; }
+            else if (In(Ly.Stamina, CX, CY)) { Want = &Bl; ++NStamina; }
+            else for (int i = 0; i < RageBlocks; ++i) if (In(Ly.Rage[i], CX, CY)) { Want = &Or; ++NRage; }
+            for (const FHudVert& V : T.V) bBars = bBars && Want && SameRgb(V.C, *Want);
+        }
+        *SH = WasH; *SA = WasA; *SG = WasG;
+        std::printf("  fills by bar: health %d, stamina %d, rage %d, boss %d, street %d triangles\n", NHealth, NStamina, NRage, NBoss, NStreet);
+        Check(bBars && NHealth > 0 && NStamina > 0 && NRage >= 2 * RageBlocks && NBoss > 0 && NStreet > 0,
+              "health, stamina and rage are each drawn in their own slot: Health, Ash and Gold; the boss's bar and a street man's in Health");
+    }
+    std::printf("  the live palette: 13 slots; a danger set through it drawn, and each bar in its own\n");
 }
 
 int main()

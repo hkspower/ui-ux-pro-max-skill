@@ -16,7 +16,7 @@ holds no copy of them.
 
 STAND-INS, not the engine's:
   - the Title, the Settings and the Controls screen are drawn over a plain
-    plate of the palette's Trough black. In the game the Title stands over
+    plate of the palette's Trough, a deep plum. In the game the Title stands over
     the level itself -- since 2026-10-01 Saud live in his guard, framed by
     ASaudTitleCamera, drawn over the souq by Tools/blender/title_preview.py
     (menu-title-3d*.png) -- and a page opened from the Title stands over
@@ -54,7 +54,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import hud_preview  # noqa: E402  (the rasteriser: Raster, background, ROOT)
 
 ROOT = hud_preview.ROOT
-TROUGH = (0.006, 0.006, 0.008)   # SaudHud::Colour::Trough, linear
+TROUGH = (0.0273, 0.0110, 0.0356)   # SaudHud::Colour::Trough, linear (#2E1B35)
 
 
 def build_dump(out_dir):
@@ -73,8 +73,8 @@ def dump(exe, w, h, state):
 
 
 def plate(w, h):
-    """A Trough-black plate: the stand-in for the level under the Title."""
-    return Image.new("RGB", (w, h), (0, 0, 0))
+    """A Trough plate (#2E1B35): the stand-in for the level under the Title."""
+    return Image.new("RGB", (w, h), (0x2E, 0x1B, 0x35))
 
 
 def draw(exe, bg, w, h, state, out):

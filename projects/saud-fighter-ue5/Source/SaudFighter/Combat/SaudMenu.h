@@ -14,12 +14,12 @@
  *
  * The look is the System's (2026-10-03; the dark seinen's ink and blood
  * before), with the HUD's palette only: "SAUD" in Ice with the System's
- * cyan bar under it, "KUWAIT FIGHTER" small and dim; the items as square
- * plates -- the focused one the panel's navy lit toward the System's cyan,
- * with its label in Ice and a cyan keyline, breathing slowly on the
- * real-time clock; the others the panel's navy in a dim cyan keyline with
- * a dim label; a navy window with a cyan line along its top behind the
- * column; the pause the same column over a navy scrim.
+ * cerise bar under it, "KUWAIT FIGHTER" small and dim; the items as square
+ * plates -- the focused one the panel's plum lit toward the System's cerise,
+ * with its label in Ice and a cerise keyline, breathing slowly on the
+ * real-time clock; the others the panel's plum in a dim cerise keyline with
+ * a dim label; a plum window with a cerise line along its top behind the
+ * column; the pause the same column over a plum scrim.
  * The settings rows show their value ("DIFFICULTY  PRO", "SOUND  7"). The
  * controls screen is SaudControls::BuildControlsPage's diagram with a BACK
  * plate and the pad-flip prompt. A prompt strip sits along the bottom safe
@@ -33,7 +33,7 @@
  * path, add a Sub slot per item here.
  *
  * The dim text is Ice at DimAlpha, which composites over the plates to a
- * grey-blue and keeps the 7:1 against its Ink stroke the harness holds (it
+ * plum-grey and keeps the 7:1 against its Ink stroke the harness holds (it
  * also holds the alpha at or over 0.5).
  *
  * The strings live in the engine (SaudHUD.cpp or the menu's own .cpp): a
@@ -270,7 +270,7 @@ namespace SaudMenu
 		static const char* const Names[Skills] = {"VAULT", "DASH LEAP", "POWER KICK", "HAYMAKER", "HAWK FIST"};
 		return K >= 0 && K < Skills ? Names[K] : "";
 	}
-	constexpr int HawkFistSkill = 4;   // the one that was not his: violet
+	constexpr int HawkFistSkill = 4;   // the one that was not his: pink
 
 	/** Everything the status window and the training show, from the save
 	    (USaudMenuSubsystem::ReadStatus fills it; MakeStatus works out the
@@ -380,7 +380,7 @@ namespace SaudMenu
 	    at those would still be sliding at 0.68 s.) */
 	constexpr float PlateDelay = 0.05f, PlateStagger = 0.05f, PlateArrive = 0.24f;
 	constexpr float EnterSeconds = 0.60f;
-	/** A denied buy: the plate's keyline crimson and the hint saying why,
+	/** A denied buy: the plate's keyline vermilion and the hint saying why,
 	    this long (real seconds), or until the focus moves. */
 	constexpr float DeniedSeconds = 1.2f;
 
@@ -634,7 +634,7 @@ namespace SaudMenu
 				return EMenuEffect::Denied;
 			}
 		}
-		/** A buy that cannot be: the plate's keyline crimson and the hint
+		/** A buy that cannot be: the plate's keyline vermilion and the hint
 		    saying why, for DeniedSeconds. */
 		inline EMenuEffect Deny(FMenuModel& M, int Item, bool bMaxed)
 		{
@@ -807,7 +807,7 @@ namespace SaudMenu
 		Scrim, Wash, Slash, Keyline, Plate, Glyph, Diagram, Meter,
 		// 2026-10-07: the status window -- its glow, panel, heading strip and
 		// edge, its corner marks -- and the marks in it (a skill's slot, a
-		// rule, the XP bar's trough and fill; a crimson rule under a cost
+		// rule, the XP bar's trough and fill; a vermilion rule under a cost
 		// the XP will not cover)
 		Glow, Window, Edge, Bracket, Mark, Bar
 	};
@@ -1145,15 +1145,18 @@ namespace SaudMenu
 	constexpr float GlyphGap = 12.f;             // glyph to its word
 	constexpr float PromptGap = 48.f;            // between prompts
 	constexpr float ScrimAlpha = 0.78f;
-	constexpr float PlateAlpha = 0.96f;          // (0.88 until the System: its cyan keyline would show through)
+	constexpr float PlateAlpha = 0.96f;          // (0.88 until the System: its cerise keyline would show through)
 	constexpr float DimAlpha = 0.55f;            // the dim text and keylines: Ice / System at this
 	constexpr float PulseHz = 0.38f;             // the focus pulse: one breath in 2.6 s
-	/** The focused plate is the panel's navy taken FocusMix of the way to
-	    the System's cyan, and FocusPulse further at the top of its breath:
-	    a deep lit blue that stands 3:1 off the panel and carries ice
+	/** The focused plate is the panel's plum taken FocusMix of the way to
+	    the System's cerise, and FocusPulse further at the top of its breath:
+	    a deep lit rose that stands 3:1 off the panel and carries cream
 	    lettering 3:1 at its brightest (2026-10-03, the System; it was blood
-	    breathing toward ember). */
-	constexpr float FocusMix = 0.30f;
+	    breathing toward ember). The cerise is far darker than the cyan was,
+	    so the mix is 0.60, not 0.30: at 0.30 the focus stood 2.29:1 off the
+	    panel (3.58 at 0.60), and at the top of its breath, 0.75, the label
+	    has 3.67. */
+	constexpr float FocusMix = 0.60f;
 	constexpr float FocusPulse = 0.15f;
 	constexpr float SysLinePx = 2.f;             // the System's line along the top of the wash
 	// 2026-10-02
@@ -1166,7 +1169,7 @@ namespace SaudMenu
 	// 2026-10-07: the training's plates and the status window
 	constexpr float PipW = 22.f, PipH = 18.f, PipGap = 6.f;      // a track's five levels, on its plate
 	constexpr float PipGapToCost = 24.f;
-	constexpr float PoorRule = 3.f;              // the crimson rule under a cost the XP will not cover
+	constexpr float PoorRule = 3.f;              // the vermilion rule under a cost the XP will not cover
 	constexpr float WinGap = 48.f;               // the column (plate and nudge) to the window
 	constexpr float WinMaxW = 780.f;             // the window, at most (it takes what the screen leaves, to this)
 	constexpr float WinPad = 24.f;
@@ -1331,8 +1334,8 @@ namespace SaudMenu
 		return L;
 	}
 
-	/** The focused plate's fill on the real-time clock: the panel's navy
-	    lit toward the System's cyan, breathing a little further, slowly.
+	/** The focused plate's fill on the real-time clock: the panel's plum
+	    lit toward the System's cerise, breathing a little further, slowly.
 	    Never under FocusMix, so it never comes nearer the panel than the
 	    3:1 the menu promises; never past FocusMix + FocusPulse, so its ice
 	    label keeps 3:1 on it. */
@@ -1451,10 +1454,10 @@ namespace SaudMenu
 
 	namespace Detail
 	{
-		/** The System's window behind the column: a straight navy panel,
+		/** The System's window behind the column: a straight plum panel,
 		    full Alpha to FadeFrom of its width and fading to nothing
 		    (smoothstep) at its end, in strips every PitchPx so the fade is
-		    smooth, with the System's cyan line along its top fading with
+		    smooth, with the System's cerise line along its top fading with
 		    it. (It was the HUD's torn ink strip until 2026-10-03.) */
 		inline void SysWash(FMenuList& Out, const FPage& P, const FRect& R, float Alpha, float FadeFrom)
 		{
@@ -1533,7 +1536,7 @@ namespace SaudMenu
 		}
 
 		/** Five level pips in R, Lit of them in Lit's colour, the rest dim
-		    cyan; Tag 1 on a lit one (as a meter's segments). */
+		    cerise; Tag 1 on a lit one (as a meter's segments). */
 		inline void Pips(FMenuList& Out, const FRect& R, float Gap, int Lit, const FRgba& On, float Alpha, int Item)
 		{
 			const float SW = (R.W - 4.f * Gap) / 5.f;
@@ -1545,7 +1548,7 @@ namespace SaudMenu
 		}
 
 		/** A Training plate's right side: the track's five levels and what
-		    its next one costs (MAX at the top), and a crimson rule under a
+		    its next one costs (MAX at the top), and a vermilion rule under a
 		    cost the spendable will not cover. */
 		inline void TrackPlate(FMenuList& Out, const FPage& P, const FMenuModel& M, const FRect& R, int T, int Item,
 		                       const FRgba& Label, float In)
@@ -1572,7 +1575,7 @@ namespace SaudMenu
 		}
 
 		/** A System window in the menu's list, as the HUD draws its own
-		    (SaudHud::Window): the glow fading out from the edge, the navy
+		    (SaudHud::Window): the glow fading out from the edge, the plum
 		    panel cut at two corners, the heading strip and its hairline,
 		    the edge, the ice corner marks outside the uncut corners. A is
 		    the whole window's alpha (its entrance). */
@@ -1640,7 +1643,8 @@ namespace SaudMenu
 			const float T = P.Px(WinText), Big = P.Px(WinBigText), Stroke = P.Px(SaudHud::TextStroke);
 			const FRgba Ice = SaudHud::WithAlpha(Colour::Ice, A);
 			const FRgba Dim = SaudHud::WithAlpha(Colour::Ice, DimAlpha * A);
-			const FRgba Cyan = SaudHud::WithAlpha(Colour::System, A);
+			const FRgba Cerise = SaudHud::WithAlpha(Colour::System, A);
+			const FRgba Lines = SaudHud::WithAlpha(SaudHud::LineColour(), A);
 			const auto Line = [&](EMenuText Slot, int V, int Aux, const FPoint& At, float H, const FRgba& C)
 			{
 				Out.Text(Slot, V, Aux, At, H, C, Stroke, false, -1, EMenuPart::Window);
@@ -1652,7 +1656,7 @@ namespace SaudMenu
 			};
 			Line(EMenuText::WinName, 0, 0, L.WinName, T, Ice);
 			Line(EMenuText::LevelLine, S.Level, 0, L.Level, Big, Ice);
-			Line(EMenuText::RankTitle, S.Rank, 0, L.Rank, Big, Cyan);
+			Line(EMenuText::RankTitle, S.Rank, 0, L.Rank, Big, Lines);
 			// the XP bar: how far through this level the earned XP is (full at the top)
 			Line(EMenuText::XpLabel, 0, 0, L.XpLabel, T, Ice);
 			const bool bTop = S.LevelNext <= 0;
@@ -1663,7 +1667,7 @@ namespace SaudMenu
 			Rect(Out, L.XpBar, SaudHud::WithAlpha(Colour::Trough, A), EMenuPart::Bar, -1, 1);
 			if (Through * L.XpBar.W >= 0.5f)
 			{
-				Rect(Out, {L.XpBar.X, L.XpBar.Y, L.XpBar.W * Through, L.XpBar.H}, Cyan, EMenuPart::Bar, -1, 2);
+				Rect(Out, {L.XpBar.X, L.XpBar.Y, L.XpBar.W * Through, L.XpBar.H}, Cerise, EMenuPart::Bar, -1, 2);
 			}
 			Line(EMenuText::XpLine, S.Earned, bTop ? 0 : S.LevelNext, L.XpLine, T, Dim);
 			Line(EMenuText::XpToNext, bTop ? 0 : S.LevelNext - S.Earned, bTop ? 0 : S.Level + 1, L.XpToNext, T, Dim);
@@ -1673,8 +1677,8 @@ namespace SaudMenu
 			Line(EMenuText::StatStamina, S.MaxStamina, 0, L.Stat[2], T, Ice);
 			Rule(L.Rule[1]);
 			// the five skills: a slot each, the name when he has it and a
-			// "?" when he has not; HAWK FIST's slot violet either way
-			Line(EMenuText::Section, 0, 0, L.Section[0], T, Cyan);
+			// "?" when he has not; HAWK FIST's slot pink either way
+			Line(EMenuText::Section, 0, 0, L.Section[0], T, Lines);
 			for (int K = 0; K < Skills; ++K)
 			{
 				const FRect& Sl = L.Slot[K];
@@ -1693,20 +1697,20 @@ namespace SaudMenu
 				     bHas ? Ice : Dim);
 			}
 			// the six tracks, each its five levels
-			Line(EMenuText::Section, 1, 0, L.Section[1], T, Cyan);
+			Line(EMenuText::Section, 1, 0, L.Section[1], T, Lines);
 			for (int Tk = 0; Tk < Train::Tracks; ++Tk)
 			{
 				Line(EMenuText::TrackName, Tk, 0, L.TrackAt[Tk], T, S.Track[Tk] > 0 ? Ice : Dim);
-				Pips(Out, L.Pips[Tk], P.Px(WinPipGap), S.Track[Tk], Cyan, A, -1);
+				Pips(Out, L.Pips[Tk], P.Px(WinPipGap), S.Track[Tk], Cerise, A, -1);
 			}
 			// the quest: FIND THE WAY UP, in progress, until the title is
 			// won; then nothing ("--": removed, no longer required)
 			Rule(L.Rule[2]);
-			Line(EMenuText::Section, 2, 0, L.Section[2], T, Cyan);
+			Line(EMenuText::Section, 2, 0, L.Section[2], T, Lines);
 			Line(EMenuText::QuestName, S.bQuestOpen ? 0 : 1, 0, L.Quest, P.Px(WinQuestText), S.bQuestOpen ? Ice : Dim);
 			if (S.bQuestOpen)
 			{
-				Line(EMenuText::QuestState, 0, 0, L.QuestState, T, Cyan);
+				Line(EMenuText::QuestState, 0, 0, L.QuestState, T, Lines);
 			}
 		}
 	}
@@ -1741,7 +1745,7 @@ namespace SaudMenu
 		{
 			// the System's window behind the column, wiping open from the
 			// left as the screen opens; the heading in ice, the System's
-			// cyan bar wiping open under it, and on the Title the sub-line
+			// cerise bar wiping open under it, and on the Title the sub-line
 			// (on a Confirm, what Yes does: the hint below)
 			FRect Wash = L.Wash;
 			Wash.W *= Arrive(M, 0.f, WashWipeSeconds);
@@ -1781,9 +1785,9 @@ namespace SaudMenu
 			}
 		}
 
-		// the items: square plates, the focused one a lit System blue in a
-		// cyan keyline with an ice label, the rest the panel's navy in a dim
-		// cyan keyline with a dim label. The focus glides: while it moves two
+		// the items: square plates, the focused one a lit System rose in a
+		// cerise keyline with an ice label, the rest the panel's plum in a dim
+		// cerise keyline with a dim label. The focus glides: while it moves two
 		// neighbours share it, each lit and nudged out of the column by
 		// its share. Each plate slides in from the left as the screen
 		// opens, one after another.
@@ -1800,7 +1804,7 @@ namespace SaudMenu
 				R.X += P.Px(FocusNudge) * W - P.Px(SlideIn) * (1.f - In);
 			}
 			const auto Fade = [In](FRgba C) { C.A *= In; return C; };
-			// a buy just denied on this plate: its keyline crimson
+			// a buy just denied on this plate: its keyline vermilion
 			const bool bDenied = M.Screen == EScreen::Training && M.DeniedLeft > 0.f && M.DeniedItem == i;
 			Detail::Plate(Out, R, Fade(SaudHud::LerpColour(UnfocusedFill(), FocusFill(M.Clock), W)),
 			              Fade(bDenied ? Colour::Danger : SaudHud::LerpColour(DimKey, Colour::System, W)), Key, i);
@@ -1817,7 +1821,7 @@ namespace SaudMenu
 				         EMenuPart::Plate);
 			}
 			// a track: its five levels and what the next costs, right on its
-			// plate (MAX at the top); a crimson rule under a cost the XP
+			// plate (MAX at the top); a vermilion rule under a cost the XP
 			// will not cover
 			if (TrackOfItem(List[i]) >= 0)
 			{

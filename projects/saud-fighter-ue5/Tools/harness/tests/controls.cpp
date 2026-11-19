@@ -84,13 +84,13 @@ static bool SameRgb(const FRgba& A, const FRgba& B)
 {
     return std::fabs(A.R - B.R) < 1e-4f && std::fabs(A.G - B.G) < 1e-4f && std::fabs(A.B - B.B) < 1e-4f;
 }
-/** The HUD's seven, or a d-pad arm dimmed on the line from Ink to Bone. */
+/** The HUD's thirteen, or a d-pad arm dimmed on the line from Ink to Bone. */
 static bool IsPalette(const FRgba& C)
 {
     using namespace SaudHud::Colour;
     if (SameRgb(C, Ink) || SameRgb(C, Bone) || SameRgb(C, Blood) || SameRgb(C, Ember) || SameRgb(C, Trough)
         || SameRgb(C, Ash) || SameRgb(C, Gold) || SameRgb(C, System) || SameRgb(C, Panel) || SameRgb(C, Shadow)
-        || SameRgb(C, Danger) || SameRgb(C, Ice)) return true;
+        || SameRgb(C, Danger) || SameRgb(C, Ice) || SameRgb(C, Health)) return true;
     const float T = (C.R - Ink.R) / (Bone.R - Ink.R);
     return T >= -1e-4f && T <= 1.f + 1e-4f && std::fabs(C.G - (Ink.G + (Bone.G - Ink.G) * T)) < 1e-3f
            && std::fabs(C.B - (Ink.B + (Bone.B - Ink.B) * T)) < 1e-3f;
@@ -464,7 +464,7 @@ static void Glyphs()
         }
         if (Lit < 0.40f * Size || Unlit > 0.34f * Size) Arrowed = false;
     }
-    Check(Arrowed, "a d-pad glyph's lit arm reaches out with an arrowhead, in the fill; the other three are short and dim cyan");
+    Check(Arrowed, "a d-pad glyph's lit arm reaches out with an arrowhead, in the fill; the other three are short and dim cerise");
 
     // at the prompt strip's size, 48 page px, every glyph's word is 30 px or
     // over: 1/36 of the screen, the floor every word the player reads keeps
@@ -486,7 +486,7 @@ static void Glyphs()
     Check(SameAsXbox, "a keyboard draws the Xbox glyph");
 
     // the PlayStation circle's rim is the one accent, in Danger; every other
-    // disc's rim is the System's cyan
+    // disc's rim is the System's cerise
     bool Accent = true;
     for (int b = 0; b < NumButtons; ++b)
     {
@@ -502,7 +502,7 @@ static void Glyphs()
                     && !SameRgb(List.Tris[t].C[0], WantBlood ? SaudHud::Colour::Danger : SaudHud::Colour::System)) Accent = false;
         }
     }
-    Check(Accent, "the PlayStation circle's rim is Danger, the one accent; every other rim is the System's cyan");
+    Check(Accent, "the PlayStation circle's rim is Danger, the one accent; every other rim is the System's cerise");
 }
 
 // ------------------------------------------------------------ PAGE
