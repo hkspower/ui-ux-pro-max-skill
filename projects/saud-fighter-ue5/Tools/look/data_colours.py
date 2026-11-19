@@ -129,6 +129,12 @@ def check(sabotage=None):
 # is its faded sides, painted as skin through stubble by design (AL-SAQR's
 # crest is a strip down the middle), and the strands paint their gaps
 # darker -- at 3.0: 0.0-2.6.
+# 2026-11-19 (the palette): the shoe's map holds three things -- the upper
+# (the palette's ink), the sole (a step lighter, 59 % of its texels) and
+# three bone bars. Their colours were near-identical until then, so the
+# median read the upper; with a plum sole it reads the sole (7.6 off). The
+# upper is the DARKEST of them, so the shoe is held, like the hair, on the
+# darkest quarter of its texels: 0.0.
 BAKED_DE = 2.3
 HAIR_DE = 3.0
 MEN = ("saud", "thug", "brawler", "saqr", "boss", "zayos")
@@ -160,13 +166,15 @@ def check_baked(sabotage=None):
                 continue
             px = lin(np.asarray(Image.open(path).convert("RGB"), float).reshape(-1, 3) / 255.0)
             px = px[px.max(1) > lin(np.array(3 / 255.0))]            # not the gutter
-            if part == "Hair":
+            if part in ("Hair", "Shoe"):
                 Y = px @ np.array([0.2126, 0.7152, 0.0722])
                 px = px[Y <= np.percentile(Y, 25)]
             got = np.median(px, axis=0)
             want = np.asarray(pal[key], float)[:3]
             if sabotage == "baked" and kind == "brawler" and part == "Tee":
                 want = want * 1.25
+            if sabotage == "baked_shoe" and kind == "saud" and part == "Shoe":
+                want = want * 1.6               # an upper that bakes 60 % lighter than the palette's ink
             de = float(np.linalg.norm(_lab(got) - _lab(want)))
             limit = HAIR_DE if part == "Hair" else BAKED_DE
             rows.append((man, part, de))
@@ -179,9 +187,13 @@ def main():
     if "--baked" in sys.argv:
         if "--bite" in sys.argv:
             ok, _ = check_baked()
-            m, _ = check_baked("baked")
-            print("  baked  %s" % (("caught: " + m[0]) if (m and not ok) else "NOT caught"))
-            sys.exit(0 if m and not ok else 1)
+            hit = True
+            for which in ("baked", "baked_shoe"):
+                m, _ = check_baked(which)
+                caught = bool(m) and not ok
+                hit &= caught
+                print("  %-10s %s" % (which, ("caught: " + m[0]) if caught else "NOT caught"))
+            sys.exit(0 if hit else 1)
         miss, rows = check_baked()
         for man, part, de in rows:
             print("  %-8s %-6s dE %.2f" % (man, part, de))
