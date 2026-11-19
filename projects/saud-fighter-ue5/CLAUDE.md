@@ -46,22 +46,25 @@ much each one matters:
 **Since 2026-09-26 it is a DARK seinen** ("use darker theme style like
 Demon's Souls", settled as: darken the anime, do not replace it). The ink,
 the flat tones and the impact frames stay; the picture goes grim --
-near-black shadows, a cold slate split tone, the world held darker and
-greyer than the men in it, a dark cold fog that starts close, a dim
-overcast sky, a vignette, and warm light only from what burns. See "The
-dark", below. "Grounded, muted colour" above now means that: Kuwait's
-palette weathered to soot and stone, with Kuwait's red and a lamp's
-flame the colours left standing.
+near-black shadows, a split tone, the world held darker and greyer than
+the men in it, a dark fog that starts close, a dim overcast sky, a
+vignette, and warm light only from what burns. See "The dark", below.
+"Grounded, muted colour" above now means that: Kuwait's palette weathered
+to soot and stone, with Kuwait's red and a lamp's flame the colours left
+standing. (Its split tone was a cold slate until 2026-11-19, when the
+palette changed: see "Sodium Afterglow".)
 
 **Since 2026-10-03 it wears the System's style** ("make all game same solo
 leveling all design", settled as its style and none of its names,
 characters or logos): the HUD and the menus are a game's own system's
-windows -- navy panels, glowing cyan edges, ice lettering, crimson for
-danger, violet for Saud's power -- heavy blows flash cyan, Saud's full rage
-burns as a violet aura with glowing eyes, and the night is navy with a cyan
-rim on the fighters. The ink, the flat tones and the dark stay. See "The
-System's HUD", "The System's menus", "Saud's power-up, and the System's
-hits" and "The System's night".
+windows -- plum panels, glowing cerise edges, cream lettering, red for
+danger, pink for Saud's power -- heavy blows flash cerise, Saud's full
+rage burns as an orange aura with glowing eyes, and the night is a dusty
+mauve with a cerise rim on the fighters. The ink, the flat tones and the
+dark stay. See "The System's HUD", "The System's menus", "Saud's power-up,
+and the System's hits" and "The System's night" (their colour numbers are
+the ones of 2026-10-03: navy, cyan, violet, crimson -- replaced 2026-11-19,
+see "Sodium Afterglow" for today's).
 
 **What to avoid:** chibi or super-deformed proportions, oversized eyes, moe
 softness, pastel palettes, bouncy squash-and-stretch, anything that reads
@@ -4328,6 +4331,8 @@ polished".)
 
 ## The System's HUD -- 2026-10-03
 
+> **Colours superseded 2026-11-19.** The navy, cyan, violet, crimson and ice named below were replaced by the palette Sodium Afterglow (plum, cerise, pink, orange, red, cream; a mauve night). The layout, sizes, timings and rules here stand; for any colour read "Sodium Afterglow", near the end of this file.
+
 Asked as "#94 do" (the Solo Leveling style, the Unreal build), settled as
 its style and none of its names, characters or logos, in four parts: the
 HUD (this), the menus, Saud's power-up and the hits, and the look. This is
@@ -4389,6 +4394,8 @@ dark seinen's ink and blood until the next part.
 
 ## The System's menus -- 2026-10-03
 
+> **Colours superseded 2026-11-19.** The navy, cyan, violet, crimson and ice named below were replaced by the palette Sodium Afterglow (plum, cerise, pink, orange, red, cream; a mauve night). The layout, sizes, timings and rules here stand; for any colour read "Sodium Afterglow", near the end of this file.
+
 The second part of "#94" (the Solo Leveling style): the title, the pause,
 the settings, the confirm and the controls page in the System's colours.
 The layout, the model, the motion and every rule of "The main menu, easier
@@ -4429,6 +4436,8 @@ menu and controls suites 58 of 58 caught. `menu_preview.py` re-renders
 **Not verified:** no engine has drawn any of it.
 
 ## Saud's power-up, and the System's hits -- 2026-10-03
+
+> **Colours superseded 2026-11-19.** The navy, cyan, violet, crimson and ice named below were replaced by the palette Sodium Afterglow (plum, cerise, pink, orange, red, cream; a mauve night). The layout, sizes, timings and rules here stand; for any colour read "Sodium Afterglow", near the end of this file.
 
 The third part of "#94" (the Solo Leveling style): Saud's power-up and the
 hit effects, in the System's colours. The rules of every blow ("A blow has
@@ -4497,6 +4506,8 @@ burns. The eyes follow his facing, not his head's turn (the runtime IK turns
 the head up to 70 degrees off it).
 
 ## The System's night -- 2026-10-03
+
+> **Colours superseded 2026-11-19.** The navy, cyan, violet, crimson and ice named below were replaced by the palette Sodium Afterglow (plum, cerise, pink, orange, red, cream; a mauve night). The layout, sizes, timings and rules here stand; for any colour read "Sodium Afterglow", near the end of this file.
 
 The fourth and last part of "#94" (the Solo Leveling style): the look's
 grade, in `Tools/look/anime_look.py`'s table only.
@@ -5551,6 +5562,8 @@ history says so); rebuilding them would change nothing but file ids.
 No engine version change was asked for; the project is still UE 5.4.
 
 ## The System, deeper: its voice, the status screen, the gates as portals -- 2026-10-07
+
+> **Colours superseded 2026-11-19.** The navy, cyan, violet, crimson and ice named below were replaced by the palette Sodium Afterglow (plum, cerise, pink, orange, red, cream; a mauve night). The layout, sizes, timings and rules here stand; for any colour read "Sodium Afterglow", near the end of this file.
 
 Asked as "improve solo leveling theme all game", settled as: the Unreal
 build only; all four of -- System windows & events, gates as portals,

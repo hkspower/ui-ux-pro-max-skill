@@ -13,14 +13,14 @@ ranks).
 WHAT IT IS. A portal is a flat oval of swirling energy in a thin ringed
 frame, set in the gate's own wall (the gate's mesh stays; the portal sits
 in it -- Tools/blender/build_gates.py makes the meshes and places them). A
-talent gate glows the System's cyan (LOOK["HUD_SYSTEM"], the HUD's own
-#46C8FF); the arena's door glows its crimson (LOOK["HUD_DANGER"],
-#FF3355): danger. Both read from Tools/look/anime_look.py's table at build
+talent gate glows the System's cerise (LOOK["HUD_SYSTEM"], the HUD's own
+#FF2E92; #46C8FF cyan until 2026-11-19); the arena's door glows its red
+(LOOK["HUD_DANGER"], #FF4B36; #FF3355 until 2026-11-19): danger. Both read from Tools/look/anime_look.py's table at build
 time, never copied. Drawn flat, in two tones, as the look draws
 everything: a two-armed spiral over a counter-turning one, cut into ARMS
 of the colour -- lamps, whose colour the look keeps -- and the DARK
 between them, a light the look reads as a black surface and draws as its
-own navy floor (the System's windows are navy under a glowing edge); an
+own plum floor (the System's windows are plum under a glowing edge); an
 ice core (LOOK["HUD_ICE"]) and a bright lip inside the frame; the frame
 two thin bright lines with ticks turning round it between them, the dark
 under them.
@@ -109,12 +109,12 @@ STATE_PARAM = "PortalState"
 # luminance (see THE LIGHT): the look keeps a surface's own light only from
 # T = its light over its albedo (floored at 0.02) past 2 x EMIT_FROM, so a
 # black-based emitter is a lamp from 0.2 of the key; under EMIT_FROM it is
-# drawn as a black surface -- the look's own navy floor.
+# drawn as a black surface -- the look's own plum floor.
 PORTAL = dict(
     # the swirl: a two-armed spiral over a three-armed one turning the
     # other way, cut into two flat tones -- the arms, lamps in the colour,
-    # and between them the dark, the look's lit floor (its navy, as the
-    # System's own panels are navy under a glowing edge)
+    # and between them the dark, the look's lit floor (its plum, as the
+    # System's own panels are plum under a glowing edge)
     ARMS=2.0, TWIST=7.0,
     ARMS2=3.0, TWIST2=-4.0, MIX2=0.40,
     SPIN_OPEN=0.45,                 # turns a second, openable
@@ -518,7 +518,7 @@ def check():
     #    is the palette colour's chromaticity, both kinds
     Rr = np.hypot(P[..., 0], P[..., 1])
     band = energy & (Rr > K["CORE_R"] + 0.1) & (Rr < 1.0 - K["LIP_W"] - 0.1)
-    for name, colour in (("cyan", sysc), ("crimson", danger)):
+    for name, colour in (("system", sysc), ("danger", danger)):
         rgb, mask, _ = em(1.0, 2.0, colour)
         arms = band & (rgb @ luma > 0.9 * K["ARM"])
         got = rgb[arms].mean(0)
@@ -548,7 +548,7 @@ def check():
     #    blown white at rest and little at the flare's peak; the arms' hue
     #    the palette's; SEALED dimmer on the screen too
     screen = {}
-    for name, colour in (("cyan", sysc), ("crimson", danger)):
+    for name, colour in (("system", sysc), ("danger", danger)):
         for sname, s in (("sealed", 0.0), ("openable", 1.0), ("flaring", peak), ("collapsing", 1.6)):
             worst = dict(hole=0.0, white=0.0, half=0.0, lamp=9.0)
             Ls = []
@@ -628,7 +628,7 @@ def measure():
     P, Q, inside = card(200)
     luma = np.array(LUMA)
     out = {}
-    for name, key in (("cyan", "HUD_SYSTEM"), ("crimson", "HUD_DANGER")):
+    for name, key in (("system", "HUD_SYSTEM"), ("danger", "HUD_DANGER")):
         for sname, s in (("sealed", 0.0), ("openable", 1.0), ("flaring", 1.0 + PORTAL["FLARE_T"] * 0.5)):
             rgb, mask, lock = emission(P, Q, 1.0, s, 2.0, LOOK[key])
             disp, m, on, C, A = through_look(rgb, mask)

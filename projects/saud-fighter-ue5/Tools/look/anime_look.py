@@ -342,7 +342,7 @@ LOOK = {
     # it (the world's divided by WORLD_LEVEL, which holds it down after):
     # the deep tone L* 9, the shadow L* 14 and the lit side L* 20, so even
     # a black surface keeps its terminator. The lift is the shadows' own
-    # navy (SHADOW_TINT) and
+    # plum (SHADOW_TINT; a navy until 2026-11-19) and
     # soft (a p-norm with the tone, BLACK_KNEE), so a tone over its floor
     # barely moves and dark detail keeps its order. The ink, the hatching
     # and the dots are drawn after it, so they stay black on the lift.
@@ -638,8 +638,8 @@ LOOK = {
     "VIGNETTE_FROM": 0.40,
     "VIGNETTE_TO": 1.05,
     # 2026-10-07 ("the System, deeper"): the vignette's tint -- how much of
-    # its darkening each channel takes. The corners lean violet-navy (blue
-    # kept, red a touch over green) and no darker than before: the weights'
+    # its darkening each channel takes. The corners lean plum (green taken
+    # most; they were violet-navy, blue kept, until 2026-11-19) and no darker than before: the weights'
     # luminance is 1 (checked), so the dark areas' rules and the graded
     # check see the same corners. (1, 1, 1) before: a grey vignette.
     "VIGNETTE_TINT": (0.71, 1.11, 0.73),     # 2026-11-19: darkens green the most, so the corners go plum (the cold navy's was (0.98, 1.03, 0.76))
@@ -718,8 +718,9 @@ LOOK = {
     "SPEED_ON_FIGHTER": 0.0,  # the lines stop at a fighter
     # A share of the streaks is drawn in an accent rather than ink: a
     # two-tone panel. Since 2026-10-03 (the System) the accent is the
-    # System's cyan (HUD_SYSTEM); it was blood. Linear. 2026-09-28: one
-    # blood for the lines, the impact frame and the HUD, #C01A1F (the HUD's;
+    # System's cerise (HUD_SYSTEM; cyan until 2026-11-19); it was blood.
+    # Linear. 2026-09-28: one blood for the lines, the impact frame and the
+    # HUD, #C01A1F (the HUD's, #B4142E since 2026-11-19;
     # #8e1420, 0.2705 0.0070 0.0144, before), brighter, so fewer of the lines
     # were blood: 0.27 -> 0.15 (the same hash picks the accent and the drawn
     # lines, which put 55 % of the streak pixels in it at 0.27). Blood is
@@ -749,10 +750,13 @@ LOOK = {
     "HUD_GOLD": (1, 0.2747, 0.0103),
     # the System's (2026-10-03, "make all game same solo leveling all
     # design": its style, none of its names): the windows' glowing edge and
-    # their headings (cyan #46C8FF), the panels (deep navy #0A1226), Saud's
-    # power and his rage (violet #8A4DFF), danger -- low health, a boss's
-    # warning, his health bar (crimson #FF3355), and the System's lettering
-    # (ice #EAF6FF). Linear, like the rest.
+    # their headings (cerise #FF2E92), the panels (deep plum #1B1020), Saud's
+    # power (pink #FF84C0) and his rage (orange, HUD_GOLD), danger -- low
+    # health, a boss's warning (#FF4B36), his health bar (HUD_HEALTH), and
+    # the System's lettering (cream #F6EADB, HUD_ICE). Until 2026-11-19 these
+    # were cyan #46C8FF, navy #0A1226, violet #8A4DFF, crimson #FF3355 and
+    # ice #EAF6FF (the palette Sodium Afterglow replaced them). Linear, like
+    # the rest.
     "HUD_SYSTEM": (1, 0.0273, 0.2874),
     "HUD_PANEL": (0.011, 0.0052, 0.0144),
     "HUD_SHADOW": (1, 0.2307, 0.5271),
@@ -798,7 +802,7 @@ LOOK = {
     "EYE_BEHIND_CM": 6.0,
     # 8d. the System's events (2026-10-07, "the System, deeper"; SaudAnime::
     # SystemFx, whose lengths are these, checked): flat, two tones -- the
-    # System's cyan and ice (HAWK FIST's skill violet and ember) -- and an
+    # System's cerise and ice (HAWK FIST's skill violet and ember) -- and an
     # ink edge SYS_INK_PX (1080 lines) round every shape, as the world's
     # line; in figure px about Saud (MPC_Anime.SysX/Y, his middle; SysFootX/Y,
     # the ground under him), scaled to his distance as the aura is. Never
@@ -815,7 +819,7 @@ LOOK = {
     # A level: a pillar of light round him, rising from the ground --
     # SYS_PILLAR_W figure px either side of him (his guard stands in it), up to SYS_PILLAR_H px over the ground (eased out over
     # SYS_PILLAR_UP_S), over a ground ellipse SYS_PILLAR_BASE (its radius
-    # over the half-width, its squash); the cyan band at SYS_PILLAR_A, an ice
+    # over the half-width, its squash); the cerise band at SYS_PILLAR_A, an ice
     # core SYS_PILLAR_CORE of the width broken by bars SYS_PILLAR_BAND px
     # apart (SYS_PILLAR_BAR of each a gap) rising SYS_PILLAR_RISE px a
     # second; narrowing to nothing over its last SYS_PILLAR_OUT_S. All of it
@@ -839,7 +843,7 @@ LOOK = {
     # (eased out), its band SYS_BURST_W[0] thinning to [1] px, the inner
     # SYS_BURST_CORE of it the second tone, over SYS_BURST_S; and a rim on
     # him SYS_RIM_PX (1080 lines) wide just inside his heaviest line, for
-    # SYS_RIM_S, the cyan SYS_RIM_MIX of the way to ice (HAWK FIST's ember).
+    # SYS_RIM_S, the cerise SYS_RIM_MIX of the way to ice (HAWK FIST's ember).
     "SYS_BURST_S": 0.50,
     "SYS_BURST_R": (14.0, 80.0),
     "SYS_BURST_W": (7.0, 1.5),
@@ -847,12 +851,12 @@ LOOK = {
     "SYS_RIM_S": 0.60,
     "SYS_RIM_PX": 3.0,
     "SYS_RIM_MIX": 0.5,
-    # A rank: the ring wider and slower, cyan and ice.
+    # A rank: the ring wider and slower, cerise and ice.
     "SYS_RANK_S": 0.90,
     "SYS_RANK_R": (20.0, 150.0),
     "SYS_RANK_W": (10.0, 2.0),
     # A quest done: a glow round the screen's edge in SYS_QUEST_STEPS flat
-    # steps of the cyan (SYS_QUEST_A at the edge, less inward), an ice
+    # steps of the cerise (SYS_QUEST_A at the edge, less inward), an ice
     # hairline SYS_QUEST_LINE of the band at the very edge; SYS_QUEST_BAND of
     # the height deep, in over SYS_QUEST_IN_S and out over the last
     # SYS_QUEST_OUT_S of SYS_QUEST_S. After the speed lines, never on an
@@ -866,9 +870,9 @@ LOOK = {
     "SYS_QUEST_LINE": 0.12,
     # A gate opened: a flash at its point -- an ice star of SYS_FLASH_SPIKES
     # points (alternate ones SYS_FLASH_SHORT as long) to SYS_FLASH_PX figure
-    # px, its core SYS_FLASH_CORE, as sharp as SYS_FLASH_SHARP, in a cyan
+    # px, its core SYS_FLASH_CORE, as sharp as SYS_FLASH_SHARP, in a cerise
     # band SYS_FLASH_BAND of its radius; grown in SYS_FLASH_HOLD_S, held, and
-    # shrinking to nothing at SYS_FLASH_S; and a cyan ring from
+    # shrinking to nothing at SYS_FLASH_S; and a cerise ring from
     # SYS_FLASH_RING[0] to [1] px, its band SYS_FLASH_RING_W px. Not on a man
     # SYS_GATE_BEHIND_CM nearer than the gate's middle.
     "SYS_FLASH_S": 0.45,
@@ -886,7 +890,7 @@ LOOK = {
     # blow of Saud's lands, a thin trail along the path his striking limb
     # took (SaudAnime::SystemFx::FTrail, TRAIL_POINTS points, the contact
     # first), SYS_TRAIL_W figure px either side at the contact tapering to a
-    # point, the cyan with an ice core SYS_TRAIL_CORE of it and an ink edge;
+    # point, the cerise with an ice core SYS_TRAIL_CORE of it and an ink edge;
     # held whole SYS_TRAIL_HOLD_S, its tail then drawn back into the contact
     # by SYS_TRAIL_S. Over him too --
     # it is his limb's own path -- but never within SYS_TRAIL_CLEAR px of the
@@ -924,7 +928,7 @@ LOOK = {
     # 7d. the mark where a heavy blow lands (2026-09-28; SaudAnime.h
     # MarkHold / MarkSpark / MarkSeconds, the frames below, checked against
     # it): a needle star in HUD_ICE (BONE until 2026-10-03) with an ink edge
-    # (MARK_INK_PX, 1080 lines), its drops the System's cyan (BLOOD before);
+    # (MARK_INK_PX, 1080 lines), its drops the System's cerise (BLOOD before 2026-10-03);
     # MARK_PX figure pixels to its longest tip (about 32 cm), its core
     # MARK_CORE of that, MARK_SPIKES points alternating long and short, each
     # as sharp as MARK_SHARP; full for MARK_HOLD_F film frames, shrinking to
@@ -1062,7 +1066,7 @@ MPC_SCALARS = (
     ("BurnScale", 0.0),
     ("BurnSeed", 0.0),      # a new set of sparks every burst
     # the hit effects of the dark seinen (2026-09-28, SaudAnime::Param)
-    ("ImpactTone", 0.0),    # the impact frame's light half: 0 blood, 1 ember, 2 bone, 3 the System's cyan
+    ("ImpactTone", 0.0),    # the impact frame's light half: 0 blood, 1 ember, 2 bone, 3 the System's cerise
     ("Wound", 0.0),         # 0..1, the player's wound border
     ("MarkAge", -1.0),      # seconds since a heavy blow landed; < 0: no mark
     ("MarkX", 0.5), ("MarkY", 0.5),          # where it landed, 0..1 of the viewport, Y down
@@ -1355,7 +1359,7 @@ Out = lerp(Out, lerp(C / EMax, float3(1, 1, 1), EWhite) * min(EMax, EMIT_CAP * K
 
 // 1c. the black ladder: black is the ink's alone. Every surface tone keeps
 // a floor -- the deep tone's lower than the shadow's -- lifted in the
-// shadows' navy; the world's is divided by the level the grade holds it to
+// shadows' plum; the world's is divided by the level the grade holds it to
 // (step 5), so the screen shows it where it is set. Soft (a BLACK_KNEE-norm), so a
 // tone over its floor barely moves. The lines, the hatching and the dots
 // are drawn after, in ink, under it.
@@ -1562,7 +1566,7 @@ def hlsl_frame():
        the cut. A quest's edge glow is drawn after the wound, never on an
        impact frame.
     7d. The mark where a heavy blow landed (2026-09-28): an ice needle
-       star with an ink edge and the System's cyan drops, before the cut.
+       star with an ink edge and the System's cerise drops, before the cut.
     7b. The impact frame cut to exactly two colours: whatever TSR's
        history, bloom or the tonemapper did to M_Anime_Post's ember and
        ink, a pixel brighter than IMPACT_CUT is the impact's TONE and the
@@ -1622,13 +1626,13 @@ float3 LvRed = float3(Lv.r, Lv.r * S.g / max(S.r, 0.0001), Lv.r * S.b / max(S.r,
 Lv = lerp(Lv, LvRed, RedPure * LV_RED_KEEP);
 float3 Out = lerp(Lv, S, Imp);
 // (2026-10-07) its darkening tinted per channel: the corners lean
-// violet-navy, the tint's luminance 1 so they are no darker than before
+// plum, the tint's luminance 1 so they are no darker than before
 Out *= 1.0 - VIGNETTE * smoothstep(VIGNETTE_FROM, VIGNETTE_TO, Vr) * (1.0 - Imp) * VIGNETTE_TINT;
 """) + hlsl_fire() + hlsl_power() + hlsl_system() + _sub(r"""
 // 7d. the mark where a heavy blow landed, in units of its radius (MARK_PX
 // figure px, scaled to the man's distance): an ice needle star with an ink
 // edge, full for MARK_HOLD s and shrinking to nothing at MARK_SPARK s, and
-// the System's cyan drops flung out of it and falling, gone at MARK_S s; on the man hit
+// the System's cerise drops flung out of it and falling, gone at MARK_S s; on the man hit
 // and what is behind him, never on a man BURST_BEHIND cm nearer
 if (MarkAge >= 0.0 && MarkAge < MARK_S)
 {
@@ -1661,7 +1665,7 @@ if (MarkAge >= 0.0 && MarkAge < MARK_S)
 }
 
 // 7b. the cut (the fire, the aura and the mark are cut with everything
-// else): the light half in the impact's tone -- a heavy blow's System cyan,
+// else): the light half in the impact's tone -- a heavy blow's System cerise,
 // a burning punch's ember, a parry's bone (and 0, blood, which nothing
 // asks for since 2026-10-03) -- and the rest ink
 float3 ToneD = ImpactTone < 0.5 ? BLOOD_D : (ImpactTone < 1.5 ? EMBER_D : (ImpactTone < 2.5 ? BONE_D : SYSTEM_D));
@@ -1704,7 +1708,7 @@ if (Imp > 0.0 && Speed > 0.0)
 
 // 6. speed lines, behind the figures as a panel draws them: needles, a
 // point at the blow and full width at the edge; bone over dark ground and
-// ink over light; a share in the System's cyan; not on an impact frame
+// ink over light; a share in the System's cerise; not on an impact frame
 float Rad = length(Vi);
 float Ang = (atan2(Vi.y, Vi.x) / 6.2831853 + 0.5) * SPEED_COUNT;
 float Rnd = frac(sin(floor(Ang) * 12.9898 + SpeedSeed * 78.233) * 43758.5453);
@@ -1730,7 +1734,7 @@ if (Wound > 0.0 && Imp < 0.5)
 }
 
 // 8d. a quest done (2026-10-07): a short glow round the screen's edge in
-// flat steps of the System's cyan, an ice hairline at the very edge; in
+// flat steps of the System's cerise, an ice hairline at the very edge; in
 // and out with its band's depth; not on an impact frame
 if (SysQuestAge >= 0.0 && SysQuestAge < SYS_QUEST_S && Imp < 0.5)
 {
@@ -1846,13 +1850,13 @@ def hlsl_system():
     return _sub(r"""
 // 8d. the System's events. In figure px about Saud -- his middle (SysX/Y) and
 // the ground under him (SysFootX/Y) -- or a gate's point: flat, the System's
-// cyan and ice (a HAWK FIST skill violet and ember), an ink edge round each;
+// cerise and ice (a HAWK FIST skill violet and ember), an ink edge round each;
 // never on him (the stencil) and never on a man nearer the camera
 {
     float2 Spx = View.BufferSizeAndInvSize.zw;                  // one buffer px, in buffer UV
     float SysSelf = abs(SceneTextureLookup(UV, 25, false).r - AURA_STENCIL) < 0.5 ? 1.0 : 0.0;
     // (not on another man unless he stands behind Saud: the light is round
-    // Saud, and a man beside him tinted cyan read as standing in it)
+    // Saud, and a man beside him tinted cerise read as standing in it)
     float SysShow = (D > SysDepth - SYS_BEHIND ? 1.0 : 0.0) * (1.0 - SysSelf)
                   * ((Fighter && D < SysDepth + SYS_FIGHTER_BEHIND) ? 0.0 : 1.0);
     float SysFp = max(SysScale, 1e-6);
@@ -1911,7 +1915,7 @@ def hlsl_system():
         }
         Out = lerp(Out, SysBurstHawk > 0.5 ? EMBER_D : lerp(SYSTEM_D, ICE_D, SYS_RIM_MIX), Band * (1.0 - Line));
     }
-    // a gate opened: an ice star in a cyan band and a cyan ring, at its point
+    // a gate opened: an ice star in a cerise band and a cerise ring, at its point
     if (SysFlashAge >= 0.0 && SysFlashAge < SYS_FLASH_S && SysFlashScale > 0.0)
     {
         float2 Gv = (VUV - float2(SysFlashX, SysFlashY)) * float2(Aspect, 1.0) / SysFlashScale;
@@ -1937,7 +1941,7 @@ def hlsl_system():
     }
     // 8e. the trail on his heavy blow: the path his striking limb took, the
     // contact first, tapering to a point, held whole past the mark's star
-    // and then its tail drawn back into the contact; cyan with an ice core, inked; over him too, but never on his
+    // and then its tail drawn back into the contact; cerise with an ice core, inked; over him too, but never on his
     // fist, and never on a man nearer than it
     if (TrailAge >= 0.0 && TrailAge < SYS_TRAIL_S && TrailScale > 0.0)
     {
@@ -2339,7 +2343,7 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0, V=N
     out = lerp(out, elit, emit[..., None])
 
     # 1c. the black ladder: every surface tone keeps a floor, in the
-    # shadows' navy, the world's divided by the level step 5 holds it to
+    # shadows' plum, the world's divided by the level step 5 holds it to
     # (unlevelled_floor: not divided); the ink drawn after stays under it
     def ladder(o):
         lvl = np.where(fighter, 1.0, 1.0 if "unlevelled_floor" in _FLAGS else L["WORLD_LEVEL"])
@@ -2770,7 +2774,7 @@ def system_step(out, D, saud, fx, fighter=None):
             rim = saud & box
         hawk = fx["hawk"] > 0.5 and "cyan_hawk" not in _FLAGS
         out = put(out, ember if hawk else lerp(cyan, ice, L["SYS_RIM_MIX"]), rim)
-    # a gate opened: an ice star in a cyan band and a cyan ring, at its point
+    # a gate opened: an ice star in a cerise band and a cerise ring, at its point
     age = fx["flash"]
     if 0.0 <= age < L["SYS_FLASH_S"] and fx["flash_scale"] > 0.0:
         fs = fx["flash_scale"]
@@ -2955,7 +2959,7 @@ def frame(S, fighter, impact=0.0, speed=0.0, centre=(0.5, 0.5), seed=0.0, D=None
             out = np.where(flip[..., None], np.where(cut[..., None], ink_d, tone_d), out)
     if speed > 0.0 and (not imp or "lines_through_cut" in _FLAGS):
         # 6. speed lines: needles, bone over dark ground and ink over
-        # light, a share in the System's cyan, not on an impact frame
+        # light, a share in the System's cerise, not on an impact frame
         rad = np.hypot(vx, vy)
         ang = (np.arctan2(vy, vx) / (2 * math.pi) + 0.5) * L["SPEED_COUNT"]
         rnd = fr(np.sin(np.floor(ang) * 12.9898 + seed * 78.233) * 43758.5453)
@@ -4892,7 +4896,7 @@ def check(bite=None, rig=None):
         FIRE["RING_A"] = ring_a
         LOOK["VIGNETTE"], LOOK["GRAIN"], LOOK["PAPER"] = keep_h
         # 7d. the mark: an ice star with an ink edge where the blow landed,
-        #     standing through the freeze (2/24 s), gone by 4/24; its cyan
+        #     standing through the freeze (2/24 s), gone by 4/24; its cerise
         #     drops flung out and falling, gone at 6/24 (bone and blood
         #     until 2026-10-03)
         bone_d = np.array(display(LOOK["HUD_ICE"]))
