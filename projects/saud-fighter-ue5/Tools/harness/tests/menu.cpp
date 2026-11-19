@@ -191,16 +191,25 @@ static bool PlateFill(int Item, FRgba& Out)
 		if (List.Tris[t].Item == Item && List.Tris[t].Part == EMenuPart::Plate) { Out = List.Tris[t].V[0].C; return true; }
 	return false;
 }
+/** The keyline round a plate (the first of its Keyline triangles; a plate has one quad). */
+static bool KeylineOf(int Item, FRgba& Out)
+{
+	for (int t = 0; t < List.NumTris; ++t)
+		if (List.Tris[t].Item == Item && List.Tris[t].Part == EMenuPart::Keyline) { Out = List.Tris[t].V[0].C; return true; }
+	return false;
+}
 static bool IsPalette(const FRgba& C)
 {
 	using namespace SaudHud::Colour;
 	if (SameRgb(C, Ink) || SameRgb(C, Bone) || SameRgb(C, Blood) || SameRgb(C, Ember) || SameRgb(C, Trough)
 	    || SameRgb(C, Ash) || SameRgb(C, Gold) || SameRgb(C, System) || SameRgb(C, Panel) || SameRgb(C, Shadow)
 	    || SameRgb(C, Danger) || SameRgb(C, Ice) || SameRgb(C, Health)) return true;
-	// or on the focus's line from the panel to the System's cerise (found by the
-	// red channel: the cerise's green is only 0.02 above the panel's)
+	// or on the focus's line from the panel to the System's cerise. T is read off the red
+	// channel (the cerise's green is only 0.02 above the panel's, too short a run to
+	// read it from); T itself makes red true by construction, so green and blue are
+	// each checked against the line -- all three channels, none of them a tautology
 	const float T = (C.R - Panel.R) / (System.R - Panel.R);
-	return T >= -1e-4f && T <= 1.f + 1e-4f && Near(C.R, Panel.R + (System.R - Panel.R) * T, 1e-3f)
+	return T >= -1e-4f && T <= 1.f + 1e-4f && Near(C.G, Panel.G + (System.G - Panel.G) * T, 1e-3f)
 	       && Near(C.B, Panel.B + (System.B - Panel.B) * T, 1e-3f);
 }
 static bool Mine(EMenuPart Pt)
@@ -587,6 +596,7 @@ static void PageRules()
 	float GapOf[7] = {-1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f};   // slash bottom to the first plate, page px, per screen
 	bool Hinted = true, Tagged = true, Metered = true, Nudged = true;
 	bool GapsAgree = true;
+	float KeyLowest = 1e9f;   // the focused plate's keyline against its fill, the lowest drawn (0: none was drawn)
 	int Builds = 0, WorstTris = 0, WorstTexts = 0;
 	const char* WorstName = "";
 	for (const auto& Sh : Shapes)
@@ -663,6 +673,12 @@ static void PageRules()
 							if (bStands != (i == Focus)) OneFocus = false;
 							if (i == Focus) FocusReads = FocusReads && bStands && SameRgb(X->Colour, SaudHud::Colour::Ice);
 							else FocusReads = FocusReads && SameRgb(Fill, SaudHud::Colour::Panel);
+							// and the focused plate's keyline reads against the plate it is round
+							if (i == Focus)
+							{
+								FRgba Key;
+								KeyLowest = std::fmin(KeyLowest, KeylineOf(i, Key) ? Contrast(Key, Fill) : 0.f);
+							}
 						}
 						OneFocus = OneFocus && Focused == 1;
 						// the settings rows read the model
@@ -923,6 +939,8 @@ static void PageRules()
 	Check(Labelled, "every item's label sits on its own plate");
 	Check(OneFocus, "exactly one focused item");
 	Check(FocusReads, "the focused plate is 3:1 against the unfocused fill, its label ice; the rest the panel's plum");
+	std::printf("  the focused plate's keyline: at least %.2f:1 against its fill\n", KeyLowest);
+	Check(KeyLowest >= 1.8f, "the focused plate's keyline is 1.8:1 against its fill, so it reads as a line");
 	Check(Pulses, "the focus pulses on the real-time clock, slowly");
 	Check(ValuesRead, "the settings rows read the model");
 	Check(Continue, "a Title with no save has no CONTINUE, with one no FIGHT");
@@ -1488,7 +1506,7 @@ static void StatusPage()
 						Clear = Clear && Inside(Whole, Win, 0.5f) && Whole.X0 < Win.X0 && Whole.X1 > Win.X1;
 					}
 					// the window's look: a solid cerise edge, a glow fading to
-					// nothing, the plum panel, ice corner marks outside it
+					// nothing, the plum panel, cream corner marks outside it
 					{
 						bool Edge = false, GlowIn = false, GlowOut = true;
 						int Brackets = 0;

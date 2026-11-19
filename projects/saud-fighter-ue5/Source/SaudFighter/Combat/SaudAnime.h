@@ -740,16 +740,27 @@ namespace SaudHud
 	    under everything, a hot cerise for the System, cream lettering, the
 	    bars each their own colour. The slots keep the names they had (Ash,
 	    Gold, Shadow, Ice, ...); what a name draws is in its line below.
-	    Ink, Bone, Blood and Ember are the look's own (Tools/look/anime_look.py
-	    LOOK INK, BONE, BLOOD and EMBER, which checks these four against its
-	    own), so the HUD, the impact frame and the speed lines are one blood
-	    and one ink. Of the four only Blood is the palette's hex to the digit;
-	    Ink, Bone and Ember are the look's own tuning of the palette's (its
-	    tint at the luminance the look had; #130A18, #F3E4D0 and #FF8C5A
-	    themselves are the lit colours the palette shows on screen). Every bar is at least 3:1 against the trough
-	    it sits in (WCAG 2.1 1.4.11, checked in the harness from these
-	    numbers): health 3.84, stamina 13.19, rage 6.94; the cream trail 3.48
-	    against the health; cream lettering 17.05 against its ink stroke.
+
+	    Where the numbers come from: each is its slot's value in LOOK in
+	    Tools/look/anime_look.py (its PALETTE lists every slot), which fails
+	    if one differs from the number below by 1e-6. Ink, Bone, Blood and
+	    Ember are the look's own INK, BONE, BLOOD and EMBER, so the HUD, the
+	    impact frame and the speed lines are one blood and one ink; the rest
+	    are its HUD_* values, the palette's hexes decoded to linear. The
+	    hex at the end of a line is that line's own number encoded to sRGB: it
+	    follows the number, not the palette, so a number retuned in the look
+	    is retuned on its line here, hex and all.
+
+	    With the numbers as they stand (2026-11-19) every bar is at least 3:1
+	    against the trough it sits in (WCAG 2.1 1.4.11, checked in the harness
+	    from these numbers): health 3.84, stamina 13.19, rage 6.94; the cream
+	    trail 3.48 against the health; cream lettering 17.05 against its ink
+	    stroke.
+
+	    Shadow (HAWK FIST's pink) and the System's cerise are two pinks of
+	    the approved palette, the same hue: the one talent that was not his is
+	    told from the System's windows by lightness, not by hue (accepted
+	    2026-11-19; SaudSystem.h, ETint).
 
 	    Since 2026-10-03 ("update colors schema at game": the game reads its
 	    colours from the data) these are the DEFAULTS, and what is drawn is
@@ -793,18 +804,26 @@ namespace SaudHud
 		return P;
 	}
 
+	/** One colour of the palette: its name in the data (Look_<Name>) and where
+	    it lives in FPalette. */
+	struct FPaletteSlot { const char* Name; FRgba FPalette::* Member; };
+	/** The table: every colour of the palette, once. PaletteSlotCount is its
+	    length -- what the game's "Palette: n of N colours" line reports as N
+	    (USaudConfigSubsystem::ApplyPalette) -- so a colour added here is
+	    counted, with no second number to keep. */
+	inline constexpr FPaletteSlot PaletteSlots[] = {
+		{"Ink", &FPalette::Ink}, {"Bone", &FPalette::Bone}, {"Blood", &FPalette::Blood}, {"Ember", &FPalette::Ember},
+		{"Trough", &FPalette::Trough}, {"Ash", &FPalette::Ash}, {"Gold", &FPalette::Gold},
+		{"System", &FPalette::System}, {"Panel", &FPalette::Panel}, {"Shadow", &FPalette::Shadow},
+		{"Danger", &FPalette::Danger}, {"Ice", &FPalette::Ice}, {"Health", &FPalette::Health},
+	};
+	inline constexpr int PaletteSlotCount = static_cast<int>(sizeof(PaletteSlots) / sizeof(PaletteSlots[0]));
+
 	/** The live palette's colours by their names in the data (Look_<Name>);
 	    nullptr for a name it does not have. */
 	inline FRgba* PaletteSlot(const char* Name)
 	{
-		struct FSlot { const char* Name; FRgba FPalette::* Member; };
-		static const FSlot Slots[] = {
-			{"Ink", &FPalette::Ink}, {"Bone", &FPalette::Bone}, {"Blood", &FPalette::Blood}, {"Ember", &FPalette::Ember},
-			{"Trough", &FPalette::Trough}, {"Ash", &FPalette::Ash}, {"Gold", &FPalette::Gold},
-			{"System", &FPalette::System}, {"Panel", &FPalette::Panel}, {"Shadow", &FPalette::Shadow},
-			{"Danger", &FPalette::Danger}, {"Ice", &FPalette::Ice}, {"Health", &FPalette::Health},
-		};
-		for (const FSlot& S : Slots)
+		for (const FPaletteSlot& S : PaletteSlots)
 		{
 			const char* A = S.Name;
 			const char* B = Name;
@@ -893,7 +912,7 @@ namespace SaudHud
 	    danger and pulses (the blood drips until the System). */
 	constexpr float DangerBelow = 0.30f;
 	constexpr float DangerPulseHz = 1.6f;
-	/** The full rage pulses its cells this fast, toward ice. */
+	/** The full rage pulses its cells this fast, toward cream. */
 	constexpr float RagePulseHz = 1.4f;
 	// shared with the menus (Combat/SaudMenu.h) until they take the System too
 	constexpr float TearPx = 7.f;
@@ -963,9 +982,9 @@ namespace SaudHud
 		LeanQuad(R, Fill, Lean, Out);
 	}
 
-	/** The bone trail behind a bar that has just been cut: it holds where
-	    the bar was for a beat, then drains down to it. A bar that rises (a
-	    heal) is followed at once. */
+	/** The cream trail (the Ice slot since 2026-10-03; bone before) behind a
+	    bar that has just been cut: it holds where the bar was for a beat,
+	    then drains down to it. A bar that rises (a heal) is followed at once. */
 	struct FGhost
 	{
 		static constexpr float HoldSeconds = 0.45f;
@@ -1270,7 +1289,7 @@ namespace SaudHud
 	}
 
 	/** A System bar: an edge-coloured frame KeyPx round it, the dark
-	    trough, the ice trail where the bar was (Ghost), then the fill.
+	    trough, the cream trail where the bar was (Ghost), then the fill.
 	    ClipW, when under R.W, cuts the whole bar off there -- clipped,
 	    never squeezed, so it never shows more health than there is. */
 	inline void SysBar(FDrawList& Out, const FRect& R, float Fill, float Ghost, const FRgba& C, const FRgba& Frame,
@@ -1339,7 +1358,7 @@ namespace SaudHud
 			Window(Out, P, L.Player, Edge, Glow, G);
 			Out.Text(EHudText::Title, static_cast<int>(ETitle::Status), L.PlayerTitle, P.Px(TitleText), Edge, Stroke, false, G);
 			Out.Text(EHudText::Name, 0, L.Name, P.Px(NameText), Colour::Ice, Stroke, false, G);
-			// rage: five cells in the rage's own colour (Gold, amber); full, they pulse toward ice
+			// rage: five cells in the rage's own colour (Gold, amber); full, they pulse toward cream
 			const float RP = S.bRageReady ? Pulse(S.Clock, RagePulseHz) : 0.f;
 			const FRgba RageC = S.bRageReady ? LerpColour(Colour::Gold, Colour::Ice, 0.35f * RP) : Colour::Gold;
 			for (int i = 0; i < RageBlocks; ++i)

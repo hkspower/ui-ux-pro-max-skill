@@ -62,6 +62,12 @@ anime|Source/SaudFighter/Combat/SaudAnime.h|s#Ice, 0.35f \* RP) : Colour::Gold;#
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#S.Ghost, Colour::Health, WithAlpha(Edge, 0.9f)#S.Ghost, Colour::Danger, WithAlpha(Edge, 0.9f)#|health, stamina and rage are each drawn in their own slot
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#S.BossGhost, Colour::Health, WithAlpha(Colour::Danger, 0.9f)#S.BossGhost, Colour::Danger, WithAlpha(Colour::Danger, 0.9f)#|health, stamina and rage are each drawn in their own slot
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#B.Fill, B.Ghost, Colour::Health, WithAlpha(Colour::System, 0.9f)#B.Fill, B.Ghost, Colour::Danger, WithAlpha(Colour::System, 0.9f)#|health, stamina and rage are each drawn in their own slot
+# 2026-11-19, second reading: the frames and edges are held to their slots too, each repointed alone (the fill left right)
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#Colour::Ash, WithAlpha(Colour::Ash, 0.6f)#Colour::Ash, WithAlpha(Colour::System, 0.6f)#|every frame and edge is drawn in its own slot
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#RageC, WithAlpha(Colour::Gold, 0.9f)#RageC, WithAlpha(Colour::Shadow, 0.9f)#|every frame and edge is drawn in its own slot
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#B.Fill, B.Ghost, Colour::Health, WithAlpha(Colour::System, 0.9f)#B.Fill, B.Ghost, Colour::Health, WithAlpha(Colour::Danger, 0.9f)#|every frame and edge is drawn in its own slot
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#{L.Boss.X, L.Boss.Y, Shown, L.Boss.H}, Colour::Danger, Glow, G);#{L.Boss.X, L.Boss.Y, Shown, L.Boss.H}, Colour::System, Glow, G);#|every frame and edge is drawn in its own slot
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#L.BossTitle, P.Px(TitleText), Colour::Danger, Stroke#L.BossTitle, P.Px(TitleText), Colour::System, Stroke#|every frame and edge is drawn in its own slot
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#constexpr float GlowPx = 10.f;#constexpr float GlowPx = -10.f;#|no triangle is inverted or degenerate
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#WithAlpha(Edge, 0.f), G, EHudPart::Glow#WithAlpha(Edge, 0.3f), G, EHudPart::Glow#|every window has a solid edge and a glow fading out from it to nothing
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#Out.Quad(BL2, Ice, G, EHudPart::Bracket);#Out.Quad(BL2, Ice, G, EHudPart::Keyline);#|every window carries its corner marks, outside its panel
@@ -88,6 +94,16 @@ menu|Source/SaudFighter/Combat/SaudMenu.h|s#constexpr float FocusPulse = 0.15f;#
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#return SaudHud::WithAlpha(Colour::Panel, PlateAlpha);#return SaudHud::WithAlpha(Colour::Trough, PlateAlpha);#|the rest the panel's plum
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#const FRgba Label = Fade(SaudHud::LerpColour(DimText(), Colour::Ice, W));#const FRgba Label = Fade(SaudHud::LerpColour(DimText(), Colour::Bone, W));#|its label ice
 menu|Source/SaudFighter/Combat/SaudMenu.h|s#SaudHud::WithAlpha(Colour::System, A);#SaudHud::WithAlpha({0.2f, 0.9f, 0.3f, 1.f}, A);#|the HUD's palette only
+# 2026-11-19, second reading: the focus is on the line from the panel to the cerise in all three channels (the parameter is
+# read off the red, so green and blue are each held to it; green was left out and a green 0.004 off passed)
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#return SaudHud::LerpColour(Colour::Panel, Colour::System, FocusMix + FocusPulse \* Pulse);#FRgba Q = SaudHud::LerpColour(Colour::Panel, Colour::System, FocusMix + FocusPulse * Pulse); Q.G += 0.004f; return Q;#|the HUD's palette only (and the focus between the panel and the System's cerise)
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#return SaudHud::LerpColour(Colour::Panel, Colour::System, FocusMix + FocusPulse \* Pulse);#FRgba Q = SaudHud::LerpColour(Colour::Panel, Colour::System, FocusMix + FocusPulse * Pulse); Q.G += 0.01f; return Q;#|the HUD's palette only (and the focus between the panel and the System's cerise)
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#return SaudHud::LerpColour(Colour::Panel, Colour::System, FocusMix + FocusPulse \* Pulse);#FRgba Q = SaudHud::LerpColour(Colour::Panel, Colour::System, FocusMix + FocusPulse * Pulse); Q.B += 0.004f; return Q;#|the HUD's palette only (and the focus between the panel and the System's cerise)
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#return SaudHud::LerpColour(Colour::Panel, Colour::System, FocusMix + FocusPulse \* Pulse);#FRgba Q = SaudHud::LerpColour(Colour::Panel, Colour::System, FocusMix + FocusPulse * Pulse); Q.R += 0.01f; return Q;#|the HUD's palette only (and the focus between the panel and the System's cerise)
+# the focused plate's keyline is the cream: the cerise (what it was) is 1.25-1.48:1 against the plate, and the fill cannot be made to
+# keep 3:1 off the panel and 1.8:1 off a cerise keyline both; the dim cerise of an unfocused plate is no better
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#SaudHud::LerpColour(DimKey, Colour::Ice, W)#SaudHud::LerpColour(DimKey, Colour::System, W)#|the focused plate's keyline is 1.8:1 against its fill
+menu|Source/SaudFighter/Combat/SaudMenu.h|s#SaudHud::LerpColour(DimKey, Colour::Ice, W)#DimKey#|the focused plate's keyline is 1.8:1 against its fill
 # ---- the controls (2026-09-30): the table, the words, the keys, the glyphs
 controls|Source/SaudFighter/Combat/SaudControls.h|s#{EAction::Kick, EContext::Fight, EButton::FaceSouth}#{EAction::Kick, EContext::Fight, EButton::FaceWest}#|no pad button carries two fight actions
 controls|Source/SaudFighter/Combat/SaudControls.h|/EAction::Move, EContext::Fight, EButton::LeftStick/d|every fight action has a pad button
@@ -409,6 +425,9 @@ anime|Source/SaudFighter/Combat/SaudAnime.h|s#{"Gold", \&FPalette::Gold},##|ever
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#{"Health", \&FPalette::Health},##|every palette colour has a slot by its data name
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#inline const FRgba\& Health = LivePalette().Health;#inline const FRgba\& Health = Defaults::Health;#|health, stamina and rage are each drawn in their own slot
 anime|Source/SaudFighter/Combat/SaudAnime.h|s#Danger = Defaults::Danger, Ice = Defaults::Ice, Health = Defaults::Health;#Danger = Defaults::Danger, Ice = Defaults::Ice, Health = Defaults::Danger;#|the palette starts as the defaults
+# ...and the count the game logs ("of N") is the table's length, not a number beside it
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#{"Ink", \&FPalette::Ink},#{"Ink", \&FPalette::Ink}, {"Ink", \&FPalette::Ink},#|the slot table is one row a colour
+anime|Source/SaudFighter/Combat/SaudAnime.h|s#inline constexpr int PaletteSlotCount = .*;#inline constexpr int PaletteSlotCount = 12;#|the slot table is one row a colour
 
 # 2026-10-03, the night's lights (SaudLight.h): drawn by their pool, shadowed by the nearest
 light|Source/SaudFighter/Combat/SaudLight.h|s#ShadowBudget = 8;#ShadowBudget = 80;#|eight shadowed fires cast at once

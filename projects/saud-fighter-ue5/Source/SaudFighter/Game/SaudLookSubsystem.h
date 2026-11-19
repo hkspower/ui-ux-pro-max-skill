@@ -81,7 +81,7 @@ public:
 	    gate, no flash); a level, a skill and a rank are drawn about the
 	    player's Saud whatever Where is, and a quest round the screen. Skill:
 	    the talent a SkillAcquired gave -- HAWK FIST's is drawn in pink and
-	    ember; left None, the System's cerise and ice. */
+	    ember; left None, the System's cerise and cream. */
 	void OnSystemEvent(SaudAnime::ESystemFx Fx, const AActor* Where, EAbility Skill = EAbility::None);
 
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;

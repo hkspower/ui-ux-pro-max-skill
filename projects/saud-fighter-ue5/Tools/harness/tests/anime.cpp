@@ -849,6 +849,8 @@ static void Palette()
     bool bSlots = true;
     for (const char* N : Names) bSlots = bSlots && PaletteSlot(N) != nullptr;
     Check(bSlots && PaletteSlot("Pink") == nullptr, "every palette colour has a slot by its data name, and nothing else does");
+    Check(PaletteSlotCount == static_cast<int>(sizeof(Names) / sizeof(Names[0])),
+          "the slot table is one row a colour, and PaletteSlotCount (the game's \"of N\") is its length");
     Check(SameRgb(LivePalette().Blood, Defaults::Blood) && SameRgb(Colour::Bone, Defaults::Bone)
               && SameRgb(LivePalette().Health, Defaults::Health),
           "the palette starts as the defaults");
@@ -869,45 +871,77 @@ static void Palette()
     // each bar is drawn in its own slot, and nothing else is a bar: set Health,
     // Ash and Gold to three colours of their own and every fill of the HUD is
     // the one of the bar it is -- the player's health, his stamina, each rage
-    // cell, the boss's bar and a street man's
+    // cell, the boss's bar and a street man's; and, with the System and Danger
+    // set to two of their own, so is every frame and edge: the stamina's in Ash,
+    // each rage cell's in Gold, a street man's bar's in the System, the boss's
+    // window in Danger and his WARNING heading in Danger
     {
         const FRgba Gr{0.0f, 0.4f, 0.1f, 1.f}, Bl{0.1f, 0.1f, 0.9f, 1.f}, Or{0.9f, 0.5f, 0.0f, 1.f};
+        const FRgba Sy{0.8f, 0.0f, 0.8f, 1.f}, Dg{0.9f, 0.9f, 0.0f, 1.f};
         FHudState Mix = Worst(99, 0.5f);
         Mix.bRageReady = false;   // a full rage pulses toward cream: its cells are not the slot's own colour then
         Mix.NumStreet = 1;
         Mix.Street[0] = {400.f, 900.f, 0.4f, 0.8f};
         FRgba* const SH = PaletteSlot("Health"); FRgba* const SA = PaletteSlot("Ash"); FRgba* const SG = PaletteSlot("Gold");
-        if (!SH || !SA || !SG)
+        FRgba* const SS = PaletteSlot("System"); FRgba* const SD = PaletteSlot("Danger");
+        if (!SH || !SA || !SG || !SS || !SD)
         {
             Check(false, "health, stamina and rage are each drawn in their own slot: Health, Ash and Gold; the boss's bar and a street man's in Health");
+            Check(false, "every frame and edge is drawn in its own slot: the stamina's Ash, a rage cell's Gold, a street man's bar's the System, the boss's window and WARNING Danger");
             return;
         }
-        const FRgba WasH = *SH, WasA = *SA, WasG = *SG;
-        *SH = Gr; *SA = Bl; *SG = Or;
+        const FRgba WasH = *SH, WasA = *SA, WasG = *SG, WasS = *SS, WasD = *SD;
+        *SH = Gr; *SA = Bl; *SG = Or; *SS = Sy; *SD = Dg;
         Build(P, Mix, L);
         const FLayout Ly = Lay(P);
         auto In = [](const FRect& R, float X, float Y) { return X >= R.X - 0.5f && X <= R.X + R.W + 0.5f && Y >= R.Y - 0.5f && Y <= R.Y + R.H + 0.5f; };
         int NHealth = 0, NStamina = 0, NRage = 0, NBoss = 0, NStreet = 0;
-        bool bBars = true;
+        int NStaminaFrame = 0, NRageFrame = 0, NStreetFrame = 0, NBossEdge = 0, NWarning = 0;
+        bool bBars = true, bFrames = true;
         for (int t = 0; t < L.NumTris; ++t)
         {
             const FHudTri& T = L.Tris[t];
-            if (T.Part != EHudPart::Fill) continue;
             const float CX = (T.V[0].P.X + T.V[1].P.X + T.V[2].P.X) / 3.f, CY = (T.V[0].P.Y + T.V[1].P.Y + T.V[2].P.Y) / 3.f;
             const FRgba* Want = nullptr;
-            if (T.Group == EHudGroup::Street) { Want = &Gr; ++NStreet; }
-            else if (T.Group == EHudGroup::Boss) { Want = &Gr; ++NBoss; }
-            else if (In(Ly.Health, CX, CY)) { Want = &Gr; ++NHealth; }
-            else if (In(Ly.Stamina, CX, CY)) { Want = &Bl; ++NStamina; }
-            else for (int i = 0; i < RageBlocks; ++i) if (In(Ly.Rage[i], CX, CY)) { Want = &Or; ++NRage; }
-            for (const FHudVert& V : T.V) bBars = bBars && Want && SameRgb(V.C, *Want);
+            if (T.Part == EHudPart::Fill)
+            {
+                if (T.Group == EHudGroup::Street) { Want = &Gr; ++NStreet; }
+                else if (T.Group == EHudGroup::Boss) { Want = &Gr; ++NBoss; }
+                else if (In(Ly.Health, CX, CY)) { Want = &Gr; ++NHealth; }
+                else if (In(Ly.Stamina, CX, CY)) { Want = &Bl; ++NStamina; }
+                else for (int i = 0; i < RageBlocks; ++i) if (In(Ly.Rage[i], CX, CY)) { Want = &Or; ++NRage; }
+                for (const FHudVert& V : T.V) bBars = bBars && Want && SameRgb(V.C, *Want);
+                continue;
+            }
+            // the frames and edges: RGB only (a frame carries alpha 0.6 or 0.9, a window's glow fades to 0).
+            // The player's health frame (the window's edge colour) and the boss's bar frame are not examined.
+            if (T.Part == EHudPart::Keyline)
+            {
+                if (T.Group == EHudGroup::Street) { Want = &Sy; ++NStreetFrame; }
+                else if (T.Group == EHudGroup::Player && In(Ly.Stamina, CX, CY)) { Want = &Bl; ++NStaminaFrame; }
+                else if (T.Group == EHudGroup::Player)
+                    for (int i = 0; i < RageBlocks; ++i) if (In(Ly.Rage[i], CX, CY)) { Want = &Or; ++NRageFrame; }
+            }
+            else if (T.Part == EHudPart::Edge && T.Group == EHudGroup::Boss) { Want = &Dg; ++NBossEdge; }
+            if (Want) for (const FHudVert& V : T.V) bFrames = bFrames && SameRgb(V.C, *Want);
         }
-        *SH = WasH; *SA = WasA; *SG = WasG;
+        for (int t = 0; t < L.NumTexts; ++t)
+        {
+            const FHudText& X = L.Texts[t];
+            if (X.Slot != EHudText::Title || X.Value != static_cast<int>(ETitle::Warning)) continue;
+            ++NWarning;
+            bFrames = bFrames && X.Group == EHudGroup::Boss && SameRgb(X.Colour, Dg);
+        }
+        *SH = WasH; *SA = WasA; *SG = WasG; *SS = WasS; *SD = WasD;
         std::printf("  fills by bar: health %d, stamina %d, rage %d, boss %d, street %d triangles\n", NHealth, NStamina, NRage, NBoss, NStreet);
+        std::printf("  frames and edges: stamina %d, rage %d, street %d, boss window %d triangles, %d WARNING heading\n",
+                    NStaminaFrame, NRageFrame, NStreetFrame, NBossEdge, NWarning);
         Check(bBars && NHealth > 0 && NStamina > 0 && NRage >= 2 * RageBlocks && NBoss > 0 && NStreet > 0,
               "health, stamina and rage are each drawn in their own slot: Health, Ash and Gold; the boss's bar and a street man's in Health");
+        Check(bFrames && NStaminaFrame > 0 && NRageFrame >= 2 * RageBlocks && NStreetFrame > 0 && NBossEdge > 0 && NWarning == 1,
+              "every frame and edge is drawn in its own slot: the stamina's Ash, a rage cell's Gold, a street man's bar's the System, the boss's window and WARNING Danger");
     }
-    std::printf("  the live palette: 13 slots; a danger set through it drawn, and each bar in its own\n");
+    std::printf("  the live palette: %d slots; a danger set through it drawn, and each bar in its own\n", PaletteSlotCount);
 }
 
 int main()

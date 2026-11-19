@@ -400,5 +400,5 @@ void USaudConfigSubsystem::ApplyPalette() const
 			++Set;
 		}
 	}
-	UE_LOG(LogSaudBalance, Log, TEXT("Palette: %d of 13 colours from DT_LookColors."), Set);
+	UE_LOG(LogSaudBalance, Log, TEXT("Palette: %d of %d colours from DT_LookColors."), Set, SaudHud::PaletteSlotCount);
 }

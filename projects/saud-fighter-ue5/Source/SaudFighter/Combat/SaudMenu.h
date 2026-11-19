@@ -16,7 +16,7 @@
  * before), with the HUD's palette only: "SAUD" in Ice with the System's
  * cerise bar under it, "KUWAIT FIGHTER" small and dim; the items as square
  * plates -- the focused one the panel's plum lit toward the System's cerise,
- * with its label in Ice and a cerise keyline, breathing slowly on the
+ * with its label and its keyline in Ice (cream), breathing slowly on the
  * real-time clock; the others the panel's plum in a dim cerise keyline with
  * a dim label; a plum window with a cerise line along its top behind the
  * column; the pause the same column over a plum scrim.
@@ -1155,7 +1155,15 @@ namespace SaudMenu
 	    breathing toward ember). The cerise is far darker than the cyan was,
 	    so the mix is 0.60, not 0.30: at 0.30 the focus stood 2.29:1 off the
 	    panel (3.58 at 0.60), and at the top of its breath, 0.75, the label
-	    has 3.67. */
+	    has 3.67.
+
+	    Its keyline is the cream too (Ice, the label's), not the cerise
+	    (2026-11-19): round a plate that is itself the cerise lit, the
+	    cerise stood 1.25-1.48:1 off the fill and read as no line at all,
+	    and no mix gives both -- the fill is 3:1 off the panel only from a
+	    luminance of 0.121 up, and the cerise keyline 1.8:1 off the fill only
+	    from 0.118 down (at the very edge of the 3:1 it is 1.77:1). The cream
+	    stands 3.67-4.33:1 off the fill through the whole breath. */
 	constexpr float FocusMix = 0.60f;
 	constexpr float FocusPulse = 0.15f;
 	constexpr float SysLinePx = 2.f;             // the System's line along the top of the wash
@@ -1337,8 +1345,8 @@ namespace SaudMenu
 	/** The focused plate's fill on the real-time clock: the panel's plum
 	    lit toward the System's cerise, breathing a little further, slowly.
 	    Never under FocusMix, so it never comes nearer the panel than the
-	    3:1 the menu promises; never past FocusMix + FocusPulse, so its ice
-	    label keeps 3:1 on it. */
+	    3:1 the menu promises; never past FocusMix + FocusPulse, so its cream
+	    label and keyline keep 3:1 on it. */
 	inline FRgba FocusFill(float Clock)
 	{
 		const float Pulse = 0.5f + 0.5f * FMath::Sin(Clock * 6.2831853f * PulseHz);
@@ -1577,7 +1585,7 @@ namespace SaudMenu
 		/** A System window in the menu's list, as the HUD draws its own
 		    (SaudHud::Window): the glow fading out from the edge, the plum
 		    panel cut at two corners, the heading strip and its hairline,
-		    the edge, the ice corner marks outside the uncut corners. A is
+		    the edge, the cream corner marks outside the uncut corners. A is
 		    the whole window's alpha (its entrance). */
 		inline void SysWindow(FMenuList& Out, const FPage& P, const FRect& R, float A)
 		{
@@ -1744,7 +1752,7 @@ namespace SaudMenu
 		else
 		{
 			// the System's window behind the column, wiping open from the
-			// left as the screen opens; the heading in ice, the System's
+			// left as the screen opens; the heading in cream, the System's
 			// cerise bar wiping open under it, and on the Title the sub-line
 			// (on a Confirm, what Yes does: the hint below)
 			FRect Wash = L.Wash;
@@ -1786,7 +1794,7 @@ namespace SaudMenu
 		}
 
 		// the items: square plates, the focused one a lit System rose in a
-		// cerise keyline with an ice label, the rest the panel's plum in a dim
+		// cream keyline with a cream label, the rest the panel's plum in a dim
 		// cerise keyline with a dim label. The focus glides: while it moves two
 		// neighbours share it, each lit and nudged out of the column by
 		// its share. Each plate slides in from the left as the screen
@@ -1807,7 +1815,7 @@ namespace SaudMenu
 			// a buy just denied on this plate: its keyline vermilion
 			const bool bDenied = M.Screen == EScreen::Training && M.DeniedLeft > 0.f && M.DeniedItem == i;
 			Detail::Plate(Out, R, Fade(SaudHud::LerpColour(UnfocusedFill(), FocusFill(M.Clock), W)),
-			              Fade(bDenied ? Colour::Danger : SaudHud::LerpColour(DimKey, Colour::System, W)), Key, i);
+			              Fade(bDenied ? Colour::Danger : SaudHud::LerpColour(DimKey, Colour::Ice, W)), Key, i);
 			const FRgba Label = Fade(SaudHud::LerpColour(DimText(), Colour::Ice, W));
 			const FPoint At = {R.X + R.H * PlateLean + P.Px(LabelIn), R.Y + 0.5f * (R.H - H)};
 			Out.Text(SlotOf(List[i]), ValueOf(M, List[i]), 0, At, H, Label, Stroke, false, i, EMenuPart::Plate);

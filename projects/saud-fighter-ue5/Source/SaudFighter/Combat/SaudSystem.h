@@ -27,7 +27,7 @@
  *    UP / IN PROGRESS) from the first landing until the victory removes it;
  *  - the LAYOUT and the DRAWING (Build): in the HUD's own primitives and
  *    palette (SaudHud in SaudAnime.h -- the plum panel cut at two corners,
- *    the cerise edge and its glow, ice lettering; vermilion for a warning;
+ *    the cerise edge and its glow, cream lettering; vermilion for a warning;
  *    pink for HAWK FIST), title-safe at every screen shape, nothing over
  *    the fight's centre box, nothing over the HUD's own windows, every text
  *    stroked and at least 1/36 of the screen tall.
@@ -98,7 +98,10 @@ namespace SaudSystem
 	    a time, beside it), or nowhere of the System's own. */
 	enum class ELane : unsigned char { Window, Toast, None };
 	/** A window's edge: the System's cerise; pink for HAWK FIST, the one
-	    talent that was not his; vermilion for a warning. */
+	    talent that was not his; vermilion for a warning. The two pinks are the
+	    approved palette's own (#FF84C0 and #FF2E92) and the same hue: they are
+	    told apart by lightness (L* 71 and 57, dE76 31), not by hue. Accepted
+	    2026-11-19, not changed. */
 	enum class ETint : unsigned char { System, Shadow, Danger };
 
 	struct FRule
