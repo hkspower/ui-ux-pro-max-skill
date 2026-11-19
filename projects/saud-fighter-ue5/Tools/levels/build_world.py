@@ -143,12 +143,25 @@ DEFAULT_VOCAB = _vocab("block", "tower", "wall", "concrete", False, 16, 0.55, 4,
 # HAZE_NEAR_CM, fogd 0.040 -> 0.050, falling off with height 0.5. The look
 # reads this table (anime_look._world_rig, with ast) for its own checks:
 # keep it a dict(...) of literals and LOOK["..."] values. Unreal-only, not
-# the browser's (build_levels.py's per-stage rigs are its, untouched).
+# the browser's.
+#
+# 2026-11-19, Sodium Afterglow ("remove all current colors, use new colors"):
+# the moon is the palette's moon, #998696, a dusty mauve (hue 330 in CIELAB),
+# in place of the navy one -- (0.58, 0.68, 0.95) -> (0.830, 0.621, 0.795),
+# the palette's own linear 0.319 0.238 0.305 scaled x2.61 to the same
+# luminance (0.678), so the night is not a step brighter; lux, pitch, yaw,
+# the 0.55-degree disc, the sky light and the fog distance stay. The fog was
+# never typed here: it is LOOK["HAZE"], the look's air (the palette's fog,
+# #3A2535, a dark plum), so it moved when the look did. There is no fill
+# light in this rig -- the sky light is the fill, and what it captures is
+# the look's sky -- so the afterglow's lit_tint #D8A890 has no light here to
+# colour; check() 32 holds the moon to the palette's mauve and the air to
+# its plum.
 _LOOK_DIR = os.path.join(PROJECT, "Tools", "look")
 if _LOOK_DIR not in sys.path:
     sys.path.insert(0, _LOOK_DIR)
 from anime_look import LOOK   # noqa: E402  (plain Python at import)
-WORLD_RIG = dict(pitch=-38, yaw=-125, sun=(0.58, 0.68, 0.95), lux=2.0, angle=0.55,
+WORLD_RIG = dict(pitch=-38, yaw=-125, sun=(0.830, 0.621, 0.795), lux=2.0, angle=0.55,
                  sky=0.30, fog=LOOK["HAZE"], fogd=0.050, fog_start=LOOK["HAZE_NEAR_CM"],
                  fog_falloff=0.5)
 # The world's exposure (2026-10-03, "light and brightness optimization").
@@ -176,8 +189,12 @@ def exposure_bias(rig=None):
     return math.log2(1.2 * MOON_TONE * LOOK["KEY"] * math.pi / ground)
 # The air a fire lights (Unreal-only): the height fog volumetric, so every
 # fire's light scatters into a halo, and a thin low mist under it. The mist
-# numbers are the first thing to tune by eye in the editor.
-AIR = dict(volumetric=True, scattering=0.6, albedo=(140, 148, 158), extinction=1.0, start_cm=100.0,
+# numbers are the first thing to tune by eye in the editor. The albedo is
+# what the air scatters a fire's light as (8-bit sRGB): the palette's moon
+# #998696 at the luminance of the cold grey it replaces (140, 148, 158), so
+# a fire's halo is the same size and the dust in it is mauve, not blue
+# (2026-11-19).
+AIR = dict(volumetric=True, scattering=0.6, albedo=(161, 141, 158), extinction=1.0, start_cm=100.0,
            view_m=60.0, mist=dict(density=0.06, falloff=0.5, offset=0.0))
 
 # ------------------------------------------------------- the ground's colour
@@ -209,7 +226,12 @@ ROLE_OF_KIND = dict(
     brazier="iron", pyre="iron",
 )
 ROLES = dict(paving=(0,), ground=(1,), tall=(1,), block=(0, 1), rim=(0, 1))
-WATER = (0.012, 0.016, 0.020)        # the shallows, Unreal-only; held at the ink floor like everything
+# the shallows, Unreal-only; held at the ink floor like everything. A deep
+# green-black (hue 167 in CIELAB, linear 0.0125 0.0170 0.0150) since
+# 2026-11-19, where it was a blue-grey slate (hue 254, 0.012 0.016 0.020):
+# the one cool thing in a rose-umber world, with no blue in it, and the
+# look's aubergine shadow tone over it is what makes it plum-black on screen.
+WATER = (0.0125, 0.0170, 0.0150)
 ROLE_ROUGH = dict(paving=0.85, ground=0.95, tall=0.90, block=0.90, rim=0.90, water=0.06, iron=0.60)
 WAY_THROUGH = 1.20                   # the paving at least this many times its ground's luminance
 FIRE_POST = dict(brazier=(60.0, 95.0), pyre=(7.0, 290.0))   # a derived district's fire as a post: across, tall (cm)
@@ -917,6 +939,28 @@ def _browser_grounds():
     return got
 
 
+# the air's chroma, read at luminance 0.25 (SOUQ.tint_of): the palette's fog
+# #3A2535 is 31 (hue 334), the old navy air 24 (hue 277). Under the low end
+# it is a grey haze, over the high end a coloured smoke.
+AIR_CHROMA = (10.0, 60.0)
+
+
+def air_miss(c):
+    """Why the fog colour `c` (linear) is not the palette's dark plum, or
+    None: its hue must lie in SOUQ.HUES["light"] (mauve to rose) with the
+    chroma of a plum, not a grey, a navy (the old night's, hue 277) or a
+    warm brown (hue 70)."""
+    hue, chroma = SOUQ.tint_of(c)
+    if chroma < AIR_CHROMA[0]:
+        return "the air's chroma is %.1f (hue %.0f): a grey haze, not the palette's dark plum (%.0f-%.0f)" % (chroma, hue, *AIR_CHROMA)
+    if chroma > AIR_CHROMA[1]:
+        return "the air's chroma is %.1f (hue %.0f): a coloured smoke, not the palette's dark plum (%.0f-%.0f)" % (chroma, hue, *AIR_CHROMA)
+    if not SOUQ.in_hues(hue, SOUQ.HUES["light"]):
+        return "the air is hue %.0f (chroma %.1f), not the palette's dark plum (hue %.0f-%.0f): not a navy, not a warm brown" \
+            % (hue, chroma, *SOUQ.HUES["light"])
+    return None
+
+
 # ------------------------------------------------------------------ check
 def check(P):
     """The same discipline Tools/fab/lay_out_world.py holds its layout to,
@@ -1031,7 +1075,10 @@ def check(P):
         if not p.get("mesh") and p["kind"] not in ROLE_OF_KIND:
             grey[p["kind"]] = grey.get(p["kind"], 0) + 1
     assert not grey, ", ".join("%d %ss" % (n, k) for k, n in sorted(grey.items())) + " would build engine-grey"
-    # 29. every district's palette is in the souq's soot band, over the ink
+    # 29. every district's palette is in the souq's soot band, over the ink,
+    #     and the palette's rose-umber stone in hue (it was "R/B at most
+    #     1.50: brown mud, not soot stone" until 2026-11-19, which the
+    #     palette's own ground -- R/B 1.69 -- would fail)
     floor = SOUQ.ink_floor()
     for (theme, role), (col, _r) in sorted(materials_of(P).items(), key=str):
         y = SOUQ._luma(col)
@@ -1042,7 +1089,8 @@ def check(P):
         pur = 1.0 - min(col) / max(max(col), 1e-9)
         assert pur <= 0.55, "%s's %s is %.2f pure: paint, not stone" % (theme, role, pur)
         if role != "water":
-            assert col[0] / col[2] <= 1.50, "%s's %s R/B %.2f: brown mud, not soot stone" % (theme, role, col[0] / col[2])
+            why = SOUQ.stone_miss(col, "%s's %s" % (theme, role))
+            assert why is None, why
     # 30. the way through reads: in every district its paving is lighter than its ground
     for idx, d in D.items():
         theme = d["stage"]["Theme"]
@@ -1055,21 +1103,27 @@ def check(P):
     for theme, pair in _browser_grounds().items():
         assert tuple(h.lower() for h in THEME_GROUND[theme]) == pair, \
             "THEME_GROUND %s is %s, not the browser's %s (DT_Colors.csv Theme_%s_Ground0/1)" % (theme, THEME_GROUND[theme], pair, theme)
-    # 32. the fog is the look's air; the moon cold and hard. WORLD_RIG takes
+    # 32. the fog is the look's air, a dark plum; the moon the palette's
+    # dusty mauve, and hard. WORLD_RIG takes
     # its fog from LOOK["HAZE"] and its start from LOOK["HAZE_NEAR_CM"] by
     # construction, so what this guards is the day someone types a colour or
     # a distance into WORLD_RIG instead (as the warm-fog and fog-from-afar
     # sabotages do): the world and the grade would then be two airs. It is
     # the ONE fog-hue check (MERGE 2026-09-28): anime_look reads WORLD_RIG
     # for its own rig checks (angle, sky) and has no fog-hue check of its own.
+    # Until 2026-11-19 it also held the fog and the moon COLD ("the moon is
+    # cold, only fire is warm", B/R at least 1.4); the palette's moon has B/R
+    # 0.96, so the rule is the palette's hue now (SOUQ.moon_miss, air_miss).
     r = WORLD_RIG; haze = LOOK["HAZE"]
     nf, nh = [c / sum(r["fog"]) for c in r["fog"]], [c / sum(haze) for c in haze]
     off = max(abs(a - b) / b for a, b in zip(nf, nh))
     assert off <= 0.03, "the fog's hue is %.0f %% off the look's air (HAZE %s): two airs" % (off * 100.0, haze)
     assert abs(r["fog_start"] - LOOK["HAZE_NEAR_CM"]) < 1e-6, "the fog starts at %.0f cm, the look's air at %.0f" \
         % (r["fog_start"], LOOK["HAZE_NEAR_CM"])
-    assert r["sun"][2] / r["sun"][0] >= 1.4, "the world's light is warm (B/R %.2f): the moon is cold, only fire is warm" \
-        % (r["sun"][2] / r["sun"][0])
+    why = SOUQ.moon_miss(r["sun"])
+    assert why is None, "the world's light: " + why
+    why = air_miss(r["fog"])
+    assert why is None, why
     assert r["angle"] <= 1.0, "the moon is soft (%.1f degrees): its shadows smear under the cel cut" % r["angle"]
     # 33. the light budget, every district: the souq, the derived, their doors
     B = SOUQ.NIGHT["budget"]
@@ -1125,8 +1179,8 @@ def check(P):
     print("doorway opens onto the one that answers it. The island passes its own")
     print("checks at the bearings this world gives it, and stands on no neighbour.")
     print("The night: no primitive builds engine-grey, every district's colours are the browser's")
-    print("grounds in the soot band over the ink, every way through reads, the fog is the look's air")
-    print("under a cold hard moon, and every district's fires light its fights and doors in pools,")
+    print("grounds in the soot band over the ink and rose-umber, every way through reads, the fog is the")
+    print("look's air, a dark plum, under a hard mauve moon, and every district's fires light its fights and doors in pools,")
     print("within the light budget.")
     print("The cars: %d parked, every one at its kerb, clear of every fight, fire, block and way out." % n_cars)
     print("The portals: every gate wears its kind's, the one arena door its own, clear of every fight and fire.")
@@ -1145,6 +1199,15 @@ def bite(verbose=True):
     cases = []
     G, T, R = globals(), THEME_GROUND, WORLD_RIG
     stages, world = load()
+    # the unbroken world has to pass first, or no sabotage can be counted:
+    # since 2026-11-19 check 32 holds the look's air (LOOK["HAZE"]) to the
+    # palette's plum, so a look still on the old navy fails every case at it
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            check(plan(stages, world))
+    except AssertionError as e:
+        print("the unbroken world fails its own check, so no sabotage can be counted: %s" % e)
+        return False
 
     def case(label, expect, tables=(), mutate=None):
         with SOUQ._override(list(tables)):
@@ -1191,10 +1254,16 @@ def bite(verbose=True):
     case("theme drift (Towers, one digit)", "not the browser's", [(T, "Towers", ("#2a3553", "#1a2136"))])
     roles = {k: v for k, v in ROLE_OF_KIND.items() if k != "barrier"}
     case("unpainted barrier", "84 barriers would build engine-grey", [(G, "ROLE_OF_KIND", roles)])
-    case("pale desert", "paler than soot stone", [(T, "Desert", ("#f4ecd8", "#e8dcc0"))])
+    # the weathering's curve tops out at 0.132 for a pure white source, under
+    # WEATHER["hi"] (0.17), so no browser hex can reach it: the bite lowers the
+    # bound to just over the palest real role (0.100) and puts a white in it
+    case("pale desert", "paler than soot stone", [(T, "Desert", ("#f4ecd8", "#e8dcc0")), (SOUQ.WEATHER, "hi", 0.11)])
     case("inky marina", "as dark as the ink", [(T, "Marina", ("#3b3350", "#050308"))])
     case("painted gym (red)", "paint, not stone", [(T, "Gym", ("#ff2000", "#c01800"))])
-    case("brown gym", "brown mud", [(T, "Gym", ("#e07020", "#904010"))])
+    case("olive gym (brown mud)", "brown mud or slate", [(T, "Gym", ("#808020", "#585810"))])
+    # the cast turns a navy hex to violet (Towers' #2a3552 weathers to hue 299), so
+    # the old navy is proved with the old cast, on the whole world
+    case("navy world (the old cold cast)", "brown mud or slate", [(SOUQ.WEATHER, "cast", (0.92, 0.98, 1.08))])
     case("street as ground", "does not read", [(ROLES, "paving", (1,))])
     # --- 31: each derived district's night
     def dark_fight(P):
@@ -1216,9 +1285,14 @@ def bite(verbose=True):
         f = Q["fires"][len(Q["fires"]) // 2]; f["x"], f["y"] = b["x"] - d["ox"], b["y"] - d["oy"]
     case("fire inside a block", "stands inside a", mutate=fire_in_block)
     # --- 32: the air and the moon
+    NAVY_AIR = (0.036, 0.050, 0.088)           # the look's HAZE until 2026-11-19: the old night's air
     case("warm fog", "two airs", [(R, "fog", (0.58, 0.47, 0.38))])
+    case("navy fog in the world only", "two airs", [(R, "fog", NAVY_AIR)])
+    case("navy air (the look's and the world's)", "not the palette's dark plum", [(R, "fog", NAVY_AIR), (LOOK, "HAZE", NAVY_AIR)])
+    case("grey air (the look's and the world's)", "a grey haze", [(R, "fog", (0.05, 0.05, 0.05)), (LOOK, "HAZE", (0.05, 0.05, 0.05))])
     case("fog from afar (15 m)", "the fog starts", [(R, "fog_start", 1500.0)])
-    case("a sun, not the moon", "warm", [(R, "sun", (1.00, 0.88, 0.70)), (R, "angle", 8.0)])
+    case("an amber sun, not the moon", "the moon is hue", [(R, "sun", (1.00, 0.88, 0.70)), (R, "angle", 8.0)])
+    case("navy moon (the old night's)", "the moon is hue", [(R, "sun", (0.58, 0.68, 0.95))])
     case("soft moon (8 degrees)", "the moon is soft", [(R, "angle", 8.0)])
     # --- 33: the budget
     def fires_x4(P):
@@ -1319,7 +1393,7 @@ def draw(P, path):
             for p in sorted((p for p in P["scenery"] if p["district"] == idx
                              and p["shape"] == "disc"), key=lambda p: -p["sx"]):
                 r = p["sx"] * 0.5
-                col = {"shallows": (24, 52, 68), "beach": (110, 98, 76),
+                col = {"shallows": (26, 50, 44), "beach": (110, 98, 76),
                        "plateau": (74, 70, 62)}[p["kind"]]
                 g.ellipse([to(ox - r, oy + r), to(ox + r, oy - r)], fill=col)
             continue

@@ -857,12 +857,14 @@ class City(BS.Souq):
         sc.camera = cam
         if "CityMoon" not in bpy.data.objects:
             moon = bpy.data.objects.new("CityMoon", bpy.data.lights.new("CityMoon", "SUN")); sc.collection.objects.link(moon)
-            moon.data.energy = 1.2; moon.data.color = (0.58, 0.68, 0.95); moon.data.angle = math.radians(0.55)
+            moon.data.energy = 1.2; moon.data.color = BW.WORLD_RIG["sun"]; moon.data.angle = math.radians(0.55)
             moon.rotation_euler = (math.radians(52), 0, math.radians(-125))
         if sc.world is None:
             sc.world = bpy.data.worlds.new("CityWorld")
         sc.world.use_nodes = True
-        sc.world.node_tree.nodes["Background"].inputs[0].default_value = (0.02, 0.03, 0.06, 1)
+        # the sky (2026-11-19: it was a navy (0.02, 0.03, 0.06)): the palette's
+        # sky_horizon #5A3345 at the navy's luminance, 0.030
+        sc.world.node_tree.nodes["Background"].inputs[0].default_value = (0.062, 0.020, 0.036, 1)
         sc.world.node_tree.nodes["Background"].inputs[1].default_value = 0.3
         sc.render.engine = "CYCLES"; sc.cycles.samples = 16 if self.fast else 64
         sc.render.resolution_x, sc.render.resolution_y = res

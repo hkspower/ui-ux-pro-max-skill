@@ -131,16 +131,44 @@ BEARING = {"West": 180.0, "East": 0.0, "Door": 90.0}
 # One rig per theme, carried across from the browser build's THEME[x].rig.
 # Rotation is the sun: pitch is elevation (negative = above the horizon), yaw
 # is where it comes from. Colours are the key; the sky light fills.
+#
+# 2026-11-19, Sodium Afterglow ("remove all current colors, use new colors"):
+# the BROWSER's colours were the sun's and the fog's here -- a warm day for the
+# souq, Failaka and the highway, cold blues and violets for the rest. They are
+# the palette's now, at each rig's own luminance, so nothing is brighter or
+# dimmer than it was (the pitch, yaw, sky light and exposure are as they were):
+#   sun  the warm-day rigs (Souq, Failaka, Highway, and the Gym's work lights)
+#        wear the afterglow, the palette's lit_tint #D8A890, half way from
+#        grey (a salmon at full strength is no sun); the cool open-air rigs
+#        (Fishmarket, Towers, Marina, Desert, Arena) wear the moon #998696.
+#        A colour over 1 is not a light's, so the excess went to lux: lux x
+#        luma(sun) is what it was, to a percent (Souq 9.0 lux x 0.866 = 7.79
+#        -> 9.9 x 0.788 = 7.80; Arena 12 -> 14.7).
+#   fog  the warm hazes (Souq, Failaka, Highway) the palette's cloud_lit
+#        #9A5A55, a rose-ember; every other fog its fog #3A2535, a plum --
+#        each half way from grey, at the old fog's luminance (a day's haze is
+#        20-35 times the night's dark plum, and at full strength it is neon).
+# The numbers: colour = (palette tone / its luma) at half strength x the old
+# luma; the old were -- Souq (1.00, 0.85, 0.63) / (0.94, 0.75, 0.51), Gym
+# (0.91, 0.94, 1.00) / (0.47, 0.59, 0.75), Fishmarket (0.95, 0.97, 0.98) /
+# (0.78, 0.88, 0.92), Towers (0.72, 0.81, 1.00) / (0.35, 0.55, 0.86), Marina
+# (0.62, 0.50, 0.83) / (0.63, 0.35, 0.86), Failaka (1.00, 0.72, 0.47) /
+# (1.00, 0.67, 0.47), Highway (1.00, 0.69, 0.44) / (1.00, 0.63, 0.43), Desert
+# (0.78, 0.83, 1.00) / (0.47, 0.43, 0.71), Arena (1.00, 1.00, 1.00) / (0.71,
+# 0.42, 0.88), each sun / fog. These are daylight rigs for the standalone
+# levels, which nothing opens now (the game plays on build_world.py's one
+# night, whose rig is its own); only the Prologue's, in build_prologue.py,
+# is lit in play.
 RIGS = {
-    "Souq":       dict(pitch=-24, yaw=-150, sun=(1.00, 0.85, 0.63), lux=9.0,  sky=1.6, fog=(0.94, 0.75, 0.51), fogd=0.020, expo=1.05),
-    "Gym":        dict(pitch=-78, yaw=-100, sun=(0.91, 0.94, 1.00), lux=4.5,  sky=0.7, fog=(0.47, 0.59, 0.75), fogd=0.008, expo=0.98),
-    "Fishmarket": dict(pitch=-40, yaw=-110, sun=(0.95, 0.97, 0.98), lux=5.0,  sky=2.4, fog=(0.78, 0.88, 0.92), fogd=0.024, expo=1.02),
-    "Towers":     dict(pitch=-32, yaw=-140, sun=(0.72, 0.81, 1.00), lux=1.4,  sky=0.9, fog=(0.35, 0.55, 0.86), fogd=0.016, expo=0.94),
-    "Marina":     dict(pitch=-35, yaw=-125, sun=(0.62, 0.50, 0.83), lux=1.1,  sky=0.8, fog=(0.63, 0.35, 0.86), fogd=0.018, expo=0.92),
-    "Failaka":    dict(pitch=-12, yaw=40,   sun=(1.00, 0.72, 0.47), lux=8.0,  sky=1.4, fog=(1.00, 0.67, 0.47), fogd=0.028, expo=1.06),
-    "Highway":    dict(pitch=-16, yaw=-145, sun=(1.00, 0.69, 0.44), lux=7.0,  sky=1.2, fog=(1.00, 0.63, 0.43), fogd=0.026, expo=1.00),
-    "Desert":     dict(pitch=-55, yaw=-120, sun=(0.78, 0.83, 1.00), lux=0.9,  sky=0.6, fog=(0.47, 0.43, 0.71), fogd=0.014, expo=0.92),
-    "Arena":      dict(pitch=-84, yaw=-95,  sun=(1.00, 1.00, 1.00), lux=12.0, sky=0.5, fog=(0.71, 0.42, 0.88), fogd=0.006, expo=1.05),
+    "Souq":       dict(pitch=-24, yaw=-150, sun=(1.00, 0.74, 0.64), lux=9.9,  sky=1.6, fog=(1.23, 0.65, 0.62), fogd=0.020, expo=1.05),
+    "Gym":        dict(pitch=-78, yaw=-100, sun=(1.00, 0.74, 0.64), lux=5.4,  sky=0.7, fog=(0.78, 0.50, 0.70), fogd=0.008, expo=0.98),
+    "Fishmarket": dict(pitch=-40, yaw=-110, sun=(1.00, 0.75, 0.96), lux=5.9,  sky=2.4, fog=(1.17, 0.75, 1.05), fogd=0.024, expo=1.02),
+    "Towers":     dict(pitch=-32, yaw=-140, sun=(0.98, 0.74, 0.94), lux=1.4,  sky=0.9, fog=(0.72, 0.46, 0.65), fogd=0.016, expo=0.94),
+    "Marina":     dict(pitch=-35, yaw=-125, sun=(0.67, 0.50, 0.64), lux=1.1,  sky=0.8, fog=(0.60, 0.39, 0.54), fogd=0.018, expo=0.92),
+    "Failaka":    dict(pitch=-12, yaw=40,   sun=(0.97, 0.71, 0.62), lux=8.0,  sky=1.4, fog=(1.15, 0.61, 0.59), fogd=0.028, expo=1.06),
+    "Highway":    dict(pitch=-16, yaw=-145, sun=(0.94, 0.69, 0.60), lux=7.0,  sky=1.2, fog=(1.10, 0.59, 0.56), fogd=0.026, expo=1.00),
+    "Desert":     dict(pitch=-55, yaw=-120, sun=(1.00, 0.75, 0.96), lux=0.9,  sky=0.6, fog=(0.62, 0.40, 0.56), fogd=0.014, expo=0.92),
+    "Arena":      dict(pitch=-84, yaw=-95,  sun=(1.00, 0.75, 0.96), lux=14.7, sky=0.5, fog=(0.70, 0.45, 0.63), fogd=0.006, expo=1.05),
 }
 
 # ------------------------------------------------------------------ data

@@ -128,8 +128,15 @@ RUIN = dict(block="ruin", tall="stone", spacing=1700.0, density=0.45,
             min_w=300.0, max_w=800.0, min_h=160.0, max_h=450.0,
             tall_chance=0.16, tall_min=500.0, tall_max=800.0, yaw_jitter=26)
 
-RIG = dict(pitch=-32, yaw=-108, sun=(1.00, 0.94, 0.82), lux=7.0,
-           sky=1.6, fog=(0.72, 0.80, 0.84), fogd=0.008, expo=1.04)
+# 2026-11-19, Sodium Afterglow: the sun was a warm white (1.00, 0.94, 0.82,
+# 7.0 lux) over a pale blue-grey haze (0.72, 0.80, 0.84); it is the palette's
+# afterglow #D8A890 half way from grey, and the haze its plum #3A2535 half
+# way from grey, each at the old one's luminance (lux x luma 7.0 x 0.944 =
+# 6.61 -> 8.4 x 0.788 = 6.62; a colour over 1 is not a light's, so the excess
+# is in the lux). The rule is build_levels.py's RIGS. The world plays this
+# island under build_world.py's one moon, not this rig.
+RIG = dict(pitch=-32, yaw=-108, sun=(1.00, 0.74, 0.64), lux=8.4,
+           sky=1.6, fog=(1.06, 0.69, 0.96), fogd=0.008, expo=1.04)
 
 
 # --------------------------------------------------------------- the animals
@@ -761,7 +768,7 @@ def draw(P, path):
     PLAN_H = 1500
     reach = SHALLOWS * E * 1.06
     sc = W / (reach * 2.0)
-    im = Image.new("RGB", (W, H), (10, 14, 18))
+    im = Image.new("RGB", (W, H), (12, 16, 15))
     g = ImageDraw.Draw(im)
 
     def to(x, y):
@@ -770,8 +777,8 @@ def draw(P, path):
     def disc(r, col, outline=None):
         g.ellipse([to(-r, r), to(r, -r)], fill=col, outline=outline)
 
-    disc(SHALLOWS * E, (24, 52, 68))
-    disc(SURF * E, (38, 74, 86))
+    disc(SHALLOWS * E, (26, 50, 44))
+    disc(SURF * E, (40, 72, 62))
     d = (SURF - PLATEAU) * E / BEACH_STEPS
     for k in range(BEACH_STEPS - 1, -1, -1):
         disc(SURF * E - k * d, (116 - k * 8, 104 - k * 8, 82 - k * 6))
@@ -824,13 +831,13 @@ def draw(P, path):
     # exaggerated hard -- and said so on the picture, because an unlabelled
     # exaggerated section is a lie.
     zs = 5.0
-    g.rectangle([0, SY, W, H], fill=(8, 11, 15))
+    g.rectangle([0, SY, W, H], fill=(10, 13, 12))
 
     def sto(x, z):
         return (W / 2 + x * sc, zmid - z * sc * zs)
 
     g.rectangle([sto(-reach, SEA_Z)[0], sto(0, SEA_Z)[1],
-                 sto(reach, SEA_Z)[0], H], fill=(24, 52, 68))
+                 sto(reach, SEA_Z)[0], H], fill=(26, 50, 44))
     for k in range(BEACH_STEPS - 1, -1, -1):
         r = SURF * E - k * d
         z = lerp(SURF_Z, SHORE_Z, (k + 1.0) / BEACH_STEPS)
@@ -838,7 +845,7 @@ def draw(P, path):
                     fill=(116 - k * 8, 104 - k * 8, 82 - k * 6))
     g.rectangle([sto(-PLATEAU * E, SHORE_Z)[0], sto(0, SHORE_Z)[1],
                  sto(PLATEAU * E, SHORE_Z)[0], H], fill=(74, 70, 62))
-    g.line([sto(-reach, SEA_Z), sto(reach, SEA_Z)], fill=(120, 190, 210))
+    g.line([sto(-reach, SEA_Z), sto(reach, SEA_Z)], fill=(124, 188, 168))
 
     SLICE = 2400.0                              # the section is a slice, and
                                                 # scenery and animals have to

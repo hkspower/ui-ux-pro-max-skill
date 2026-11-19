@@ -40,10 +40,16 @@ LEVEL_NAME = "L_Prologue"
 GAME_MODE_PATH = "/Script/SaudFighter.SaudPrologueGameMode"
 
 # Saud's own gym, not one of the nine districts, so it takes its own rig
-# rather than reaching into RIGS in build_levels.py -- cooler and dimmer than
-# any street theme, an indoor cage under work lights.
-RIG = dict(pitch=-78, yaw=-100, sun=(0.91, 0.94, 1.00), lux=4.5,
-           sky=0.7, fog=(0.47, 0.59, 0.75), fogd=0.008, expo=0.98)
+# rather than reaching into RIGS in build_levels.py -- dimmer than any street
+# theme, an indoor cage under work lights. Cooler too, until 2026-11-19
+# (Sodium Afterglow): the work lights were a cold white (0.91, 0.94, 1.00,
+# 4.5 lux) in a pale blue haze (0.47, 0.59, 0.75); they are sodium now, the
+# palette's afterglow #D8A890 half way from grey, and the haze its plum
+# #3A2535 half way from grey, each at the old one's luminance (lux x luma
+# 4.5 x 0.938 = 4.22 -> 5.4 x 0.788 = 4.26: a colour over 1 is not a light's,
+# so the excess is in the lux). It is the same rig as RIGS["Gym"], as it was.
+RIG = dict(pitch=-78, yaw=-100, sun=(1.00, 0.74, 0.64), lux=5.4,
+           sky=0.7, fog=(0.78, 0.50, 0.70), fogd=0.008, expo=0.98)
 
 FLOOR_TOP_Z = 0.0
 SPAWN_X = 300.0

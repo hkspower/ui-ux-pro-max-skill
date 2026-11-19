@@ -568,7 +568,7 @@ def draw(h, W, P, plan, path):
     rgb *= (0.55 + 0.6 * light)[..., None]
     water = hs < 0.0
     depth = np.clip(-hs / 30.0, 0.0, 1.0)[..., None]
-    rgb = np.where(water[..., None], (1 - depth) * np.array([0.16, 0.42, 0.50]) + depth * np.array([0.05, 0.14, 0.26]), rgb)
+    rgb = np.where(water[..., None], (1 - depth) * np.array([0.14, 0.34, 0.30]) + depth * np.array([0.05, 0.12, 0.11]), rgb)
     img = Image.fromarray((np.clip(rgb, 0, 1) * 255).astype(np.uint8))
     d = ImageDraw.Draw(img)
     def px(x, y):

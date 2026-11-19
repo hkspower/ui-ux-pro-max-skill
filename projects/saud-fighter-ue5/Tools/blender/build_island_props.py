@@ -694,8 +694,11 @@ def export(pr):
 
 
 def render(pr, path=RENDER, samples=48):
-    """Every prop on a sand floor under a low cold moon and a soft sky,
-    in two rows: the plants and rocks, then the temple, pier and boat."""
+    """Every prop on a sand floor under a low mauve moon and a soft sky,
+    in two rows: the plants and rocks, then the temple, pier and boat. (A
+    cold moon (0.80, 0.86, 1.0, 3.0) and a blue sky (0.35, 0.42, 0.55) until
+    2026-11-19; the palette's moon #998696 and a mauve sky now, each at the
+    old one's luminance.)"""
     bpy = pr.bpy
     from mathutils import Vector
     sc = bpy.context.scene
@@ -726,13 +729,13 @@ def render(pr, path=RENDER, samples=48):
     sc.camera = cam
     sun = bpy.data.objects.new("Moon", bpy.data.lights.new("Moon", "SUN"))
     sc.collection.objects.link(sun)
-    sun.data.energy = 3.0
-    sun.data.color = (0.80, 0.86, 1.0)
+    sun.data.energy = 3.15
+    sun.data.color = (1.0, 0.75, 0.96)
     sun.data.angle = math.radians(2)
     sun.rotation_euler = (math.radians(50), 0, math.radians(-35))
     sc.world = bpy.data.worlds.new("W")
     sc.world.use_nodes = True
-    sc.world.node_tree.nodes["Background"].inputs[0].default_value = (0.35, 0.42, 0.55, 1)
+    sc.world.node_tree.nodes["Background"].inputs[0].default_value = (0.51, 0.38, 0.49, 1)
     sc.world.node_tree.nodes["Background"].inputs[1].default_value = 0.6
     sc.render.engine = "CYCLES"
     sc.cycles.samples = samples

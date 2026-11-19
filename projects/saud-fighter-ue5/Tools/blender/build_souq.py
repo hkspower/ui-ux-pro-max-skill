@@ -61,15 +61,18 @@ build_levels.py's Souq rig (24 degrees up) put where he walks in from.
 
 THE NIGHT (2026-09-28, "make all game like dark anime adult style", the
 Unreal build; every number below is this build's, not the browser's). The
-souq is soot stone under a cold hard moon, lit only by what burns:
+souq is soot stone under a hard moon, lit only by what burns. Since
+2026-11-19 (Sodium Afterglow, "remove all current colors, use new colors")
+the moon is a dusty mauve and the stone leans rose-umber, not navy:
     the palette   every browser colour through WEATHER's curve -- chroma
-                  pulled to grey, a cold cast, luminance a power (0.29) of
-                  the browser's from the ink floor up -- so the darkest
-                  stone in the world's shadow tone is still twice the ink
-                  (ink_floor(), read from Tools/look/anime_look.py: 0.060);
+                  pulled to grey, an aubergine-warm cast, luminance a power
+                  (0.29) of the browser's from the ink floor up -- so the
+                  darkest stone in the world's shadow tone is still twice
+                  the ink (ink_floor(), read from Tools/look/anime_look.py);
                   soot streaks, a damp plinth at every wall's foot, rust,
                   mortar and puddles, each a tone held at that floor
-    the light     MOON: 0.55 degrees, B/R 1.60, sky #3a4656 x 0.25; a pyre
+    the light     MOON: 0.55 degrees, the palette's mauve (hue 330), sky
+                  #62384b x 0.25 (the palette's sky_horizon); a pyre
                   (a fire basket up a pole) either side of every fight and
                   the gate, a brazier every 30 m, two at every way out, a
                   lantern lit in every stall that faces the street -- each
@@ -192,6 +195,83 @@ def _luma(c):
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 
 
+# THE PALETTE'S HUES (Sodium Afterglow, 2026-11-19), the one thing the colour
+# checks below hold a colour to now that the night is no longer navy: where
+# in CIELAB (D65), in degrees, each family of the palette sits. The light and
+# the sky: the moon #998696 is 330, the fog #3A2535 334, the sky's horizon
+# #5A3345 350, the moon's halo #7E4A63 349 -- mauve to rose. The world: the
+# ground #63494D is 9, the brick #6F484C 15, the wall #765D5E 18 (rose-umber)
+# and the metal #504356 316 (its coolest stone). Each WINDOW is a wrapping
+# arc lo..hi that holds the palette's family and shuts out the old one: the
+# light's, 300-360, is the family less 30 to the rose end; the stone's,
+# 290-30, is the metal less 26 (above the old navy ground, Towers, at 281)
+# to the wall plus 12 (below the old mud-brick at 37-49). No navy (the old
+# night: 250-280), amber (the old fire: 60-85) or brown mud (50-60) is inside.
+HUES = dict(light=(300.0, 360.0), stone=(290.0, 30.0))
+# a colour with less chroma than this (read at luminance 0.25, see tint_of)
+# has no hue to hold: a grey, or a white moon
+NO_HUE = 2.5
+
+
+def _lab(c):
+    """CIELAB (D65) of a linear sRGB colour, plain Python (no numpy here)."""
+    m = ((0.4124564, 0.3575761, 0.1804375), (0.2126729, 0.7151522, 0.0721750), (0.0193339, 0.1191920, 0.9503041))
+    wp = (0.95047, 1.0, 1.08883)
+    xyz = [sum(m[i][j] * c[j] for j in range(3)) / wp[i] for i in range(3)]
+    f = [t ** (1.0 / 3.0) if t > 216.0 / 24389.0 else (24389.0 / 27.0 * t + 16.0) / 116.0 for t in xyz]
+    return 116.0 * f[1] - 16.0, 500.0 * (f[0] - f[1]), 200.0 * (f[1] - f[2])
+
+
+def tint_of(c, at=0.25):
+    """(hue in CIELAB degrees, chroma) of a linear colour's DIRECTION: the
+    colour scaled to luminance `at` first, so a fog a fiftieth as bright as
+    the moon and a moon of the same tint read the same hue and a chroma that
+    means the same thing. A black has no tint: (0, 0)."""
+    y = _luma(c)
+    if y <= 1e-12:
+        return 0.0, 0.0
+    _L, a, b = _lab([v * at / y for v in c[:3]])
+    return math.degrees(math.atan2(b, a)) % 360.0, math.hypot(a, b)
+
+
+def in_hues(hue, window):
+    """Is `hue` inside the arc window = (lo, hi) degrees, which may wrap 360?"""
+    return (hue - window[0]) % 360.0 <= (window[1] - window[0]) % 360.0
+
+
+# the moon's chroma, read at luminance 0.25 (tint_of): the palette's own is
+# 11.7. Under the low end it is a white light, over the high end a neon.
+MOON_CHROMA = (6.0, 25.0)
+
+
+def moon_miss(c):
+    """Why `c` (a linear light colour) is not the palette's moon, or None.
+    The palette's moon is a dusty mauve; the old night's was a navy (B/R
+    1.6, hue 276) and the only amber light is what burns (hue 60-80).
+    build_souq.check 18 and build_world.check 32 both hold their moon to it."""
+    hue, chroma = tint_of(c)
+    if chroma < MOON_CHROMA[0]:
+        return "the moon's chroma is %.1f (hue %.0f): a white light; the palette's is a dusty mauve, %.0f-%.0f" % (chroma, hue, *MOON_CHROMA)
+    if chroma > MOON_CHROMA[1]:
+        return "the moon's chroma is %.1f (hue %.0f): a neon; the palette's is a dusty mauve, %.0f-%.0f" % (chroma, hue, *MOON_CHROMA)
+    if not in_hues(hue, HUES["light"]):
+        return "the moon is hue %.0f (chroma %.1f), not the palette's dusty mauve (hue %.0f-%.0f): not an amber (the only warm light is what burns) and not the old night's navy" \
+            % (hue, chroma, *HUES["light"])
+    return None
+
+
+def stone_miss(c, what):
+    """Why the weathered colour `c` (linear) is not the palette's stone, or
+    None: its hue (when it has one) must lie inside HUES["stone"], mauve
+    through rose to umber. A brown mud is 50-60, the old navy slate 250-280.
+    build_souq.check_palette and build_world.check 29 both read it."""
+    hue, chroma = tint_of(c)
+    if chroma < NO_HUE or in_hues(hue, HUES["stone"]):
+        return None
+    return "%s is hue %.0f (chroma %.1f): brown mud or slate, not the palette's rose-umber stone (hue %.0f-%.0f)" \
+        % (what, hue, chroma, *HUES["stone"])
+
+
 def ink_floor(L=None):
     """The darkest albedo the world may have, from the look: a wall at it
     and in the world's SHADOW tone still comes to twice the ink (MERGE,
@@ -230,8 +310,8 @@ def _world_rig():
 
 # THE PALETTE. The browser's colours, weathered to soot stone by one curve
 # for the whole world (build_world colours its districts through it too):
-# in linear light each colour's chroma is pulled toward its grey, a cold
-# cast is laid on, and its luminance y goes to LO x (y / y_lo) ^ gamma. A
+# in linear light each colour's chroma is pulled toward its grey, a cast is
+# laid on, and its luminance y goes to LO x (y / y_lo) ^ gamma. A
 # power keeps the browser's order and every one of its contrasts in
 # proportion (each ratio r becomes r ^ gamma); the world spec's affine
 # tanh curve could not, once LO rose to the ink floor: with LO 0.060 it
@@ -241,8 +321,29 @@ def _world_rig():
 # district's way through 1.20 x its ground (Gym needs 0.276), and it puts
 # the palest source (the sun-bleached stone #e0b077) at 0.164, under HI.
 # Unreal-only, not the browser's.
+#
+# THE CAST (2026-11-19, Sodium Afterglow: "remove all current colors, use new
+# colors"). It was a cold navy one, (0.92, 0.98, 1.08): red down, blue up,
+# which took the souq's mud-brick to hue 37-49 and Towers' navy ground to 281.
+# It is aubergine-warm now, (1.05, 0.86, 1.06): green down by a seventh, red
+# and blue up a twentieth -- the direction the palette's world sits in (the
+# ground #63494D has G/R 0.53, the brick #6F484C 0.41; the cloth #5A3A66 and
+# the metal #504356 lean the same way, to violet). It moves the souq's mud,
+# plaster, flagstone and sand from hue 37-49 to 11-20 (the palette's stone is
+# 9-18), and its greys and blues to 299-320 (mauve), at a CIELAB chroma of
+# 4-12 in the stone's own luminance (the palette's ground is 11.9): still a
+# weathering, which darkens and takes the chroma out of the browser's
+# colours, not a paint. The final hue is Tools/look/anime_look.py's world
+# albedo grade's to finish (it pulls every surface toward the palette's world
+# family), so a baked texture does not need rebaking for it; this only stops
+# the weathering pulling the other way, and is what a rebake or an
+# engine-built material (build_world's roles) starts from. A NEUTRAL cast
+# would leave the mud-brick at hue 52 (R/B 1.60), the old brown, for the
+# grade to turn the whole way. The cast is the STONE's (see _worn): cloth
+# and vegetation, weathered at cloth_chroma or blood_chroma, keep the hue
+# they were painted.
 WEATHER = dict(lo=ink_floor(), y_lo=0.015, gamma=0.29, hi=0.17,
-               chroma=0.28, cast=(0.92, 0.98, 1.08),
+               chroma=0.28, cast=(1.05, 0.86, 1.06),
                cloth_chroma=0.42, blood_chroma=0.85)
 CRACK = "#140e0a"      # a hole, not a surface: kept as dark as the browser paints it, never weathered
 RUST = "#6b3a1f"       # Unreal-only: the browser's barrel hoops have no rust
@@ -319,8 +420,16 @@ LIGHT_CULL = dict(degrees=2.5, fade=0.25, tag="SaudShadow")
 def draw_distance_cm(pool_m):
     """How far a light whose pool is pool_m in radius is drawn, cm."""
     return pool_m * 100.0 / math.tan(math.radians(LIGHT_CULL["degrees"]))
-# the render moon: the souq sun's direction, colder, harder, a little dimmer
-MOON = dict(energy=1.2, colour=(0.60, 0.70, 0.96), angle=0.55, sky="#3a4656", sky_strength=0.25)
+# the render moon: the souq sun's direction, harder, a little dimmer. Its
+# colour (2026-11-19, Sodium Afterglow) is the palette's moon #998696, a dusty
+# mauve (hue 330), at the luminance the cold one had (0.60, 0.70, 0.96 -> luma
+# 0.698: x2.68 of the palette's own linear 0.319 0.238 0.305), so the night is
+# not a step brighter; the sky, the fill under it, is the palette's sky_horizon
+# #5A3345 (hue 350) at the luminance of the old slate #3a4656 (0.0595: x1.20).
+# There is no separate warm fill light in this scene -- the fires are the only
+# warm light, and the sky is the fill -- so the afterglow's lit_tint #D8A890
+# has no light here to colour.
+MOON = dict(energy=1.2, colour=(0.854, 0.639, 0.817), angle=0.55, sky="#62384b", sky_strength=0.25)
 # kerb dressing at the browser's own density per metre of street (one prop
 # per 265 px of its 72 m run, at the 0.70 its hash keeps): the browser's six
 # keep their places, the rest are laid by this build's hash
@@ -1109,12 +1218,13 @@ def check(P, against_levels=True):
     # 12-17. the night: every fight and door lit, pools not floodlight, the
     #        lit lanterns the lanterns, a light budget, the units
     stats = check_night(night_of(P))
-    # 18. warm fire, a cold hard moon
+    # 18. warm fire, a mauve hard moon (a cold hard moon until 2026-11-19:
+    #     "B/R at least 1.4", which the palette's moon, B/R 0.96, is not)
     assert NIGHT["temp_k"] <= 2200.0, "the fire burns at %.0f K, not a flame's 1800" % NIGHT["temp_k"]
     lan = _lin(_hex(NIGHT["lantern_hex"]))
     assert lan[0] / lan[2] >= 3.0, "the lantern's light is not the browser's warm #ffdc8c (R/B %.1f)" % (lan[0] / lan[2])
-    mc = MOON["colour"]
-    assert mc[2] / mc[0] >= 1.4, "the moon is warm (B/R %.2f): the only warm light is what burns" % (mc[2] / mc[0])
+    why = moon_miss(MOON["colour"])
+    assert why is None, why
     assert MOON["angle"] <= 1.0, "the moon is soft (%.1f degrees): its cast shadows smear under the cel cut" % MOON["angle"]
     # 19. the street is lined at the browser's density per metre
     kerb = [p for p in P["props"] if p["kind"] in ("crate", "crate_broken", "barrel")]
@@ -1178,8 +1288,11 @@ def check(P, against_levels=True):
 def check_palette():
     """10 (and build_world 29): every colour a material can bake to lies in
     the soot band [the ink floor, HI], the browser's order is kept, stone
-    is grey (R/B at most 1.50, purity at most 0.55), a cloth is faded
-    (purity at most 0.55) and Kuwait's red stays the look's accent."""
+    is the palette's rose-umber (hue inside HUES["stone"], purity at most
+    0.55) and not brown mud or slate, a cloth is faded (purity at most
+    0.55) and the red stays the look's accent. Until 2026-11-19 stone was
+    "grey" -- R/B at most 1.50 -- which the palette's own stone (the ground
+    #63494D is R/B 1.69, the brick #6F484C 2.2) is not."""
     floor = ink_floor(); names = {v: k for k, v in BROWSER_ART.items() if isinstance(v, str)}
     # a power keeps the order of what it weathers only while it rises
     assert WEATHER["gamma"] > 0.0, "the weathering does not keep the browser's order (gamma %.2f)" % WEATHER["gamma"]
@@ -1202,7 +1315,8 @@ def check_palette():
                 assert pur <= 0.55, "the %s banner shouts (purity %.2f)" % (("red", "green", "gold")[BROWSER_ART["banners"].index(h)], pur)
             else:
                 if h != RUST:
-                    assert c[0] / c[2] <= 1.50, "%s R/B %.2f: brown mud, not soot stone" % (what, c[0] / c[2])
+                    why = stone_miss(c, what)
+                    assert why is None, why
                 assert pur <= 0.55, "%s is %.2f pure: paint, not stone" % (what, pur)
 
 
@@ -1370,8 +1484,9 @@ def bite(verbose=True):
     # 10. the palette
     case("pale souq (gamma 0.45)", none, "paler than soot stone", [(W, "gamma", 0.45)])
     case("inky souq (lo 0.002)", none, "as dark as the ink", [(W, "lo", 0.002)])
-    case("brown souq", none, "brown mud", [(W, "cast", (1.10, 1.0, 0.88)), (W, "chroma", 0.5)])
-    case("painted stone (blue cast)", none, "paint, not stone", [(W, "cast", (0.6, 1.0, 1.6))])
+    case("brown souq", none, "brown mud or slate", [(W, "cast", (1.10, 1.0, 0.88)), (W, "chroma", 0.5)])
+    case("navy souq (the old cold cast)", none, "brown mud or slate", [(W, "cast", (0.92, 0.98, 1.08))])
+    case("painted stone (a loud magenta cast)", none, "paint, not stone", [(W, "cast", (2.0, 0.5, 2.0))])
     case("loud cloth", none, "banner shouts", [(W, "cloth_chroma", 1.0)])
     case("red lost", none, "no longer the look's accent", [(W, "blood_chroma", 0.4)])
     case("order inverted (gamma < 0)", none, "order", [(W, "gamma", -0.1)])
@@ -1440,8 +1555,10 @@ def bite(verbose=True):
         for f in fires_of(P): f["cd"] = f["I"]
     case("watts as candela (no 4 pi)", watts_as_candela, "Blender watts make a")
     case("candela without the moon", candela_as_lux, "UE candela make a")
-    # 18. warm fire, cold hard moon
-    case("warm moon", none, "the moon is warm", [(MOON, "colour", (1.0, 0.85, 0.63))])
+    # 18. warm fire, a mauve hard moon
+    case("amber moon", none, "the moon is hue", [(MOON, "colour", (1.0, 0.85, 0.63))])
+    case("navy moon (the old night's)", none, "the moon is hue", [(MOON, "colour", (0.60, 0.70, 0.96))])
+    case("white moon", none, "a white light", [(MOON, "colour", (1.0, 1.0, 1.0))])
     case("soft moon (12 degrees)", none, "the moon is soft", [(MOON, "angle", 12.0)])
     case("white-hot fire (6500 K)", none, "burns at", [(N, "temp_k", 6500.0)])
     case("cold lantern", none, "lantern's light", [(N, "lantern_hex", "#8cb4ff")])
@@ -1624,15 +1741,22 @@ def _lin(rgba):
 # takes the kit. 2026-09-26 it was linear (chroma 0.40, level 0.50, a
 # cold cast), which left mud-brick brown (R/B 1.83) and could not hold the
 # pale sources down without pushing the dark grounds under the ink. Since
-# 2026-09-28 it is WEATHER's curve (above): chroma 0.28, a colder cast, and
-# the luminance a power of the browser's from the ink floor up. The
-# lantern is not weathered: what burns keeps its colour.
+# 2026-09-28 it is WEATHER's curve (above): chroma 0.28, a cast, and the
+# luminance a power of the browser's from the ink floor up (the cast was a
+# colder one until 2026-11-19, an aubergine-warm one since). The lantern is
+# not weathered: what burns keeps its colour.
 def _worn(h, chroma=None):
     """A browser colour, weathered: linear RGBA (see WEATHER)."""
     c = _lin(_hex(h))[:3]
     y = _luma(c)
     k = WEATHER["chroma"] if chroma is None else chroma
-    g = [max(0.0, (y + (v - y) * k) * t) for v, t in zip(c, WEATHER["cast"])]
+    # the cast is the STONE's: a colour weathered at any other chroma (a
+    # cloth, a green leaf: WEATHER's cloth_chroma and blood_chroma) keeps its
+    # own hue, as the browser painted it -- the aubergine cast of 2026-11-19
+    # would take the island's grass and leaves out of green (their check,
+    # island_surfaces: a* under -1), and a banner's hue is the look's to pull
+    cast = WEATHER["cast"] if k == WEATHER["chroma"] else (1.0, 1.0, 1.0)
+    g = [max(0.0, (y + (v - y) * k) * t) for v, t in zip(c, cast)]
     want = WEATHER["lo"] * (max(y, 1e-6) / WEATHER["y_lo"]) ** WEATHER["gamma"]
     s = want / max(_luma(g), 1e-9)
     return tuple(v * s for v in g) + (1.0,)
@@ -2646,11 +2770,13 @@ class Souq:
         where he walks in (the West door), down the length of the market.
         2026-09-26 (the dark) it was a dim ashen overcast (energy 1.6,
         (0.74, 0.80, 0.90), a 12-degree disc, sky #4a545c x 0.35); since
-        2026-09-28 it is MOON: colder (B/R 1.60), a little dimmer (1.2), and
-        hard -- the moon's own 0.55-degree disc, so a cast shadow is a shape
-        the cel cut draws clean, not a smear it cuts into a wobbly band --
-        under a darker, colder sky (#3a4656 x 0.25: moon to shade about
-        10:1). The warm light is the fires' (lights()). The open world's
+        2026-09-28 it is MOON: a little dimmer (1.2), and hard -- the moon's
+        own 0.55-degree disc, so a cast shadow is a shape the cel cut draws
+        clean, not a smear it cuts into a wobbly band -- under a darker sky
+        (x 0.25: moon to shade about 10:1); a cold navy moon and slate sky
+        (B/R 1.60, #3a4656) until 2026-11-19, the palette's mauve moon and
+        its plum sky (#62384b, the sky_horizon at the slate's luminance)
+        since. The warm light is the fires' (lights()). The open world's
         own moon is build_world.py's WORLD_RIG."""
         bpy = self.bpy
         from mathutils import Vector
