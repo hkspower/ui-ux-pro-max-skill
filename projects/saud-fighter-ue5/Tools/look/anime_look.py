@@ -381,7 +381,7 @@ LOOK = {
     # 2026-10-07 ("the System, deeper"): a little deeper, toward the
     # night's violet-navy -- hue 209 -> 220 degrees, a shade darker -- an
     # accent only (0.48, 0.92, 1.32 before)
-    "RIM_TINT": (0.50, 0.80, 1.38),
+    "RIM_TINT": (1.6229, 0.5181, 0.8658),
     # Split toning: shadows lean to a cool slate, the lit side to dust-warm,
     # so light and shade differ in hue as well as value -- the depth a
     # painted cel has. Until 2026-09-25 one warm tint lay over everything
@@ -389,8 +389,8 @@ LOOK = {
     # 2026-09-26, the dark: colder -- slate-blue shadows, an ashen light
     # that is barely warm; the warmth is left to what burns
     # 2026-10-03, the System: the shadows navy (slate, 0.78 0.88 1.04, before)
-    "SHADOW_TINT": (0.70, 0.84, 1.14),
-    "LIT_TINT": (1.08, 1.00, 0.84),
+    "SHADOW_TINT": (0.9889, 0.7671, 1.011),
+    "LIT_TINT": (1.1572, 0.971, 0.8999),
     "TINT_KEEP": 1.5,       # how much of the light's hue the tone keeps
     # ... on a man (2026-10-03): the world's is over 1, so a fire's pool
     # carries the fire's colour past what the light alone gives it; a face
@@ -445,7 +445,7 @@ LOOK = {
     # outline read as a pale halo (anime-men.png, 2026-09-24).
     # 2026-09-26: darker still (0.004 before), so it stays under a black
     # tee lit at the darker Q_LIT
-    "INK": (0.0022, 0.0019, 0.0017),
+    "INK": (0.0026, 0.0016, 0.0033),
     # The silhouette round a fighter is centred on his edge: OUTER_SHARE of
     # it outside him, over whatever is behind (found by his custom depth).
     # Until 2026-09-25 only the inside was drawn, at half this width.
@@ -532,6 +532,27 @@ LOOK = {
     "ACCENT_FROM": 0.80,     # a red this pure -- (r - max(g, b)) / r -- starts to count
     "ACCENT_FULL": 0.92,     # ...and is all accent here: #c8102e is 0.95, a rust tee 0.74
     "ACCENT_SAT": 1.06,
+    # 2026-11-19 ("remove all current colors, use new colors", Sodium
+    # Afterglow): the WORLD's base colour -- every surface that is not a man
+    # and not the sky -- is pulled toward one family, rose-umber, whatever
+    # the surface was painted (the souq's weathered browser colours, a
+    # derived district's engine grey), and a vivid dye (an awning, a banner)
+    # toward plum. Lightness is kept exactly: the tone ladder and the dark
+    # levels read the same; only the hue moves. WORLD_DIR / CLOTH_DIR are
+    # chromaticities of luminance 1; WORLD_PULL / CLOTH_PULL how far a surface
+    # goes toward them; CLOTH_SAT the base colour's saturation, (max - min) /
+    # max, over which a surface counts as a dye (a stone is under 0.25).
+    # (fitted, on the cached souq frames, to the approved preview that moved
+    # the albedo in Lab: mean 4.6 of 255 off over the world's pixels. The
+    # palette's world is rose-umber #63494D / #765D5E / #6F484C, a dye plum
+    # #5A3A66; one direction for all stone: a stone, a plaster and a
+    # mud-brick differ in lightness only now, a wood and a metal as well --
+    # a per-material hue needs the material in the G-buffer.)
+    "WORLD_DIR": (1.1812, 0.9493, 0.9676),
+    "WORLD_PULL": 1.0,
+    "CLOTH_DIR": (1.5280, 0.7496, 1.9256),
+    "CLOTH_PULL": 0.8,
+    "CLOTH_SAT": (0.35, 0.60),
     # Air: the world, not a fighter, goes toward a dusty dusk as it recedes
     # -- a painted background's depth, the souq's far walls behind the fight
     # softer and warmer than the stall beside it. Albedo-like, times Key.
@@ -541,7 +562,7 @@ LOOK = {
     # (0.13, 0.145, 0.15) from 6 m to 90 m up to 0.62 before; luma 0.142 ->
     # 0.054, blue over red 1.15 -> 1.67. The world's height fog is this
     # colour from this distance (build_world.WORLD_RIG takes both from here).
-    "HAZE": (0.036, 0.050, 0.088),     # 2026-10-03, the System: navy (0.045 0.055 0.075 before)
+    "HAZE": (0.0814, 0.0384, 0.0693),     # 2026-10-03, the System: navy (0.045 0.055 0.075 before)
     "HAZE_NEAR_CM": 400.0,
     "HAZE_FAR_CM": 7000.0,
     "HAZE_MAX": 0.70,
@@ -565,16 +586,16 @@ LOOK = {
     # the zenith and every tone of the world as they were (0.023 0.032 0.065
     # before). Its blue over its luminance kept near 2: (0.026, 0.028, 0.066)
     # read 0.61 of its paint's colour, over "the sky is not an accent"'s 0.6
-    "SKY_HORIZON": (0.027, 0.028, 0.061),
-    "SKY_ZENITH": (0.0035, 0.006, 0.019),
+    "SKY_HORIZON": (0.0589, 0.0211, 0.0355),
+    "SKY_ZENITH": (0.01, 0.0044, 0.0152),
     "SKY_ZENITH_DEG": 45.0,
     # the moon is drawn on the world's moon (build_world.WORLD_RIG's yaw,
     # the light's own bearing) but lower, at MOON_ELEV_DEG, where a boom
     # tipped a little up can see it; the light still falls from its pitch
-    "MOON_COL": (2.2, 2.15, 1.95),
+    "MOON_COL": (2.5789, 1.984, 2.4783),
     "MOON_R_DEG": 2.4,
     "MOON_INK_DEG": 0.18,
-    "MOON_HALO": (0.16, 0.17, 0.22),
+    "MOON_HALO": (0.314, 0.1261, 0.2016),
     "MOON_HALO_DEG": 12.0,
     "MOON_HALO_BANDS": 3.0,
     "MOON_ELEV_DEG": 20.0,
@@ -582,7 +603,7 @@ LOOK = {
     # CLOUD_LIFT) cut into cells STAR_CELL_DEG across; STARS of the cells
     # hold one, a dot STAR_R of a cell, none below STAR_FROM_DEG
     "STARS": 0.012,
-    "STAR_COL": (0.55, 0.57, 0.65),
+    "STAR_COL": (0.6426, 0.5464, 0.6113),
     "STAR_CELL_DEG": 0.9,
     "STAR_R": 0.10,
     "STAR_FROM_DEG": 12.0,
@@ -599,8 +620,8 @@ LOOK = {
     # every cloud low in the sky was a black blot with a pale rim (L* 21
     # on a 31 sky in the fight frame); now the horizon's own tone (1.02),
     # and higher up, where the night darkens, a cloud is the lighter.
-    "CLOUD_DARK": (0.027, 0.030, 0.046),
-    "CLOUD_LIT": (0.20, 0.21, 0.24),
+    "CLOUD_DARK": (0.0491, 0.0208, 0.0717),
+    "CLOUD_LIT": (0.4327, 0.1513, 0.1367),
     "CLOUD_LIT_DEG": 35.0,
     "CLOUD_EDGE": 0.035,
     "CLOUD_RIM": 0.45,
@@ -621,7 +642,7 @@ LOOK = {
     # kept, red a touch over green) and no darker than before: the weights'
     # luminance is 1 (checked), so the dark areas' rules and the graded
     # check see the same corners. (1, 1, 1) before: a grey vignette.
-    "VIGNETTE_TINT": (0.98, 1.03, 0.76),
+    "VIGNETTE_TINT": (0.71, 1.11, 0.73),     # 2026-11-19: darkens green the most, so the corners go plum (the cold navy's was (0.98, 1.03, 0.76))
     # the levels (2026-10-02, "improve brightness levels" -- the picture too
     # dark -- and "improve white levels"), in M_Anime_Frame after the
     # vignette, on display values: LV_BLACK to black, LV_WHITE to white, a
@@ -671,7 +692,11 @@ LOOK = {
     # film's black clip); 0.7 is within 4 degrees lit and in shadow, all
     # three reds. Paint the grade does not call a red -- skin, a rust tee,
     # an orange lamp -- is the levels' as before.
-    "LV_RED_KEEP": 0.7,
+    # (2026-11-19, the palette: the shadow tint is an aubergine now, which
+    # leans a red's shadow 1-2 degrees the other way -- the same sweep reads
+    # 0.5 -> lit -6.1 / shadow +5.7, 0.6 -> -4.0 / +6.5, 0.7 -> -2.0 / +7.3:
+    # 0.55, within 6 degrees of all three.)
+    "LV_RED_KEEP": 0.55,
     # 6. speed lines. 2026-09-28, needles: a streak's angular share is
     # (SPEED_W0 + SPEED_W1 * its hash) * reach ** SPEED_TAPER -- a point at
     # the blow, full width at the edge -- where it was a fixed wedge faded
@@ -699,7 +724,7 @@ LOOK = {
     # were blood: 0.27 -> 0.15 (the same hash picks the accent and the drawn
     # lines, which put 55 % of the streak pixels in it at 0.27). Blood is
     # the wound's now, and a tone nothing asks for.
-    "BLOOD": (0.5271, 0.0103, 0.0137),
+    "BLOOD": (0.4564, 0.007, 0.0273),
     "SPEED_ACCENT": 0.15,   # 2026-09-26: 0.22 -> 0.27; 2026-09-28: 0.15 (SPEED_RED until 2026-10-03)
     # 7. impact frame. 2026-09-26, the dark: its light half is an EMBER --
     # a blood-orange, the colour of what burns -- where it was paper
@@ -713,26 +738,27 @@ LOOK = {
     # not a pumpkin). M_Anime_Post still draws the frame's light half in
     # EMBER: it is the mask M_Anime_Frame cuts at IMPACT_CUT, and blood's
     # own display luma (0.24) is under it.
-    "EMBER": (0.74, 0.18, 0.042),
-    "BONE": (0.56, 0.52, 0.44),
+    "EMBER": (0.7094, 0.186, 0.0725),
+    "BONE": (0.5923, 0.5127, 0.4169),
     # the HUD's own three (SaudHud::Defaults, held to these): the bars'
     # trough, the stamina's ash, the rage's gold. With INK, BONE, BLOOD and
     # EMBER they are the palette the game reads from DT_LookColors.csv
     # (PALETTE, palette_csv(); 2026-10-03)
-    "HUD_TROUGH": (0.006, 0.006, 0.008),
-    "HUD_ASH": (0.2541, 0.2270, 0.1714),
-    "HUD_GOLD": (0.3515, 0.1441, 0.0160),
+    "HUD_TROUGH": (0.0273, 0.011, 0.0356),
+    "HUD_ASH": (0.5089, 0.9301, 0.6939),
+    "HUD_GOLD": (1, 0.2747, 0.0103),
     # the System's (2026-10-03, "make all game same solo leveling all
     # design": its style, none of its names): the windows' glowing edge and
     # their headings (cyan #46C8FF), the panels (deep navy #0A1226), Saud's
     # power and his rage (violet #8A4DFF), danger -- low health, a boss's
     # warning, his health bar (crimson #FF3355), and the System's lettering
     # (ice #EAF6FF). Linear, like the rest.
-    "HUD_SYSTEM": (0.0619, 0.5776, 1.0),
-    "HUD_PANEL": (0.0030, 0.0060, 0.0194),
-    "HUD_SHADOW": (0.2542, 0.0742, 1.0),
-    "HUD_DANGER": (1.0, 0.0331, 0.0908),
-    "HUD_ICE": (0.8228, 0.9216, 1.0),
+    "HUD_SYSTEM": (1, 0.0273, 0.2874),
+    "HUD_PANEL": (0.011, 0.0052, 0.0144),
+    "HUD_SHADOW": (1, 0.2307, 0.5271),
+    "HUD_HEALTH": (0.7913, 0.0467, 0.0369),     # 2026-11-19, a 13th slot: #E63D36, the player's health, the boss's and the street men's bars (Danger keeps the alarms)
+    "HUD_DANGER": (1, 0.0704, 0.0369),
+    "HUD_ICE": (0.9216, 0.8228, 0.7084),
     "IMPACT_CUT": 0.45,       # display luminance above which the cut frame is its tone
     # 8c. Saud's power-up (2026-10-03, the System's style, none of its
     # names; SaudAnime::Power). When his rage is full a violet aura burns
@@ -986,18 +1012,20 @@ FIRE = {
     "TONGUE_ROOT_PX": 3.0,                       # a tongue starts 3 px behind the fist
     "TONGUE_W": tuple(5.2 - 1.1 * i for i in range(3)),        # half-widths
     "TONGUE_LEN": tuple(20.0 - 4.5 * i for i in range(3)),     # times the heat
-    "TONGUE_COL": ((255, 120, 32, 0.92), (214, 54, 14, 0.88), (255, 196, 120, 0.95)),
+    # 2026-11-19, the palette: a vermilion body, a crimson under it, a pale-hot
+    # heart (were orange (255, 120, 32), red (214, 54, 14), (255, 196, 120))
+    "TONGUE_COL": ((255, 107, 58, 0.92), (196, 40, 52, 0.88), (255, 226, 190, 0.95)),
     "SWAY_RATE": 11.0, "SWAY_PHASE": 2.1, "SWAY_PX": 3.2,
     "GLOW_CX": 2.0, "GLOW_R": 26.0,              # radius times the heat
     "GLOW_MID": 0.45,                            # the gradient's middle stop
-    "GLOW_COL": ((255, 170, 90, 0.80), (210, 70, 16, 0.42), (120, 14, 4, 0.0)),
+    "GLOW_COL": ((255, 140, 90, 0.80), (214, 62, 42, 0.42), (139, 35, 53, 0.0)),
     "RING_FROM": 8.0, "RING_TO": 74.0, "RING_S": 0.28, "RING_A": 0.85, "RING_W": 6.0, "RING_SQUASH": 0.62,
-    "RING_COL": (230, 92, 28, 1.0),
+    "RING_COL": (240, 82, 52, 1.0),
     "SPARKS_HOT": 14, "SPARKS_PALE": 8,
     "SPARK_SPD": (300.0, 190.0), "SPARK_SHARE_MIN": 0.3,
     "SPARK_LIFT": 40.0, "SPARK_G": 460.0, "SPARK_DRAG": 2.4493,
     "SPARK_LIFE": (0.25, 0.55), "SPARK_R": (2.0, 5.0),
-    "SPARK_COL": ((255, 110, 30, 0.95), (255, 190, 110, 0.95)),
+    "SPARK_COL": ((255, 107, 58, 0.95), (255, 214, 168, 0.95)),
 }
 
 
@@ -1071,7 +1099,7 @@ MPC_VECTORS = (("InkColour", "INK"), ("BoneColour", "BONE"), ("BloodColour", "BL
 PALETTE = (("Ink", "INK"), ("Bone", "BONE"), ("Blood", "BLOOD"), ("Ember", "EMBER"),
            ("Trough", "HUD_TROUGH"), ("Ash", "HUD_ASH"), ("Gold", "HUD_GOLD"),
            ("System", "HUD_SYSTEM"), ("Panel", "HUD_PANEL"), ("Shadow", "HUD_SHADOW"),
-           ("Danger", "HUD_DANGER"), ("Ice", "HUD_ICE"))
+           ("Danger", "HUD_DANGER"), ("Ice", "HUD_ICE"), ("Health", "HUD_HEALTH"))
 LOOK_COLORS_CSV = os.path.join(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")),
                                "Content", "Data", "DT_LookColors.csv")
 FIRE_PARAMS = ("FireHeat", "FireX", "FireY", "FireDirX", "FireDirY", "FireDepth", "FireScale", "FireTime",
@@ -1155,6 +1183,8 @@ def _sub(code):
         "FADE_FAR": _f(L["FADE_FAR_CM"]), "FADE_MIN": _f(L["FADE_MIN"]),
         "SATURATION": _f(L["SATURATION"]), "LIT_TINT": _f3(L["LIT_TINT"]),
         "ACCENT_FROM": _f(L["ACCENT_FROM"]), "ACCENT_FULL": _f(L["ACCENT_FULL"]), "ACCENT_SAT": _f(L["ACCENT_SAT"]),
+        "WORLD_DIR": _f3(L["WORLD_DIR"]), "WORLD_PULL": _f(L["WORLD_PULL"]), "CLOTH_DIR": _f3(L["CLOTH_DIR"]), "CLOTH_PULL": _f(L["CLOTH_PULL"]),
+        "CLOTH_SAT0": _f(L["CLOTH_SAT"][0]), "CLOTH_SAT1": _f(L["CLOTH_SAT"][1]),
         "HAZE_NEAR": _f(L["HAZE_NEAR_CM"]), "HAZE_FAR": _f(L["HAZE_FAR_CM"]), "HAZE_MAX": _f(L["HAZE_MAX"]),
         "HAZE": _f3(L["HAZE"]),
         "BLOOD_D": "BloodD", "SPEED_ACCENT": _f(L["SPEED_ACCENT"]),
@@ -1298,7 +1328,19 @@ float Q = lerp(lerp(lerp(Q_LIT * Gp, Q_HIGH * Gp, High), Qs, Shad), Qd, Deep);
 float3 Hue = C / max(A, 0.02);
 float Warm = smoothstep(POOL_WARM0, POOL_WARM1, Hue.r / max(Hue.b, 0.0001));   // the light a fire's
 Hue = clamp(lerp(float3(1, 1, 1), Hue / max(dot(Hue, LUMA), 0.0001), Fighter ? TINT_KEEP_FIGHTER : TINT_KEEP), 0.0, 2.0);
-float3 Out = A * (Q * Key) * Hue;
+// 1a. the world's base colour onto the palette's world (2026-11-19): a
+// stone toward WORLD_DIR, a dye toward CLOTH_DIR, lightness kept; the light's
+// hue (above) is the engine's own
+float3 Ab = A;
+if (!Fighter && !Sky)
+{
+    float Lw = dot(A, LUMA);
+    float Sat = (max(A.r, max(A.g, A.b)) - min(A.r, min(A.g, A.b))) / max(max(A.r, max(A.g, A.b)), 0.0001);
+    float Cl = smoothstep(CLOTH_SAT0, CLOTH_SAT1, Sat);
+    Ab = lerp(A, Lw * WORLD_DIR, WORLD_PULL * (1.0 - Cl));
+    Ab = lerp(Ab, Lw * CLOTH_DIR, CLOTH_PULL * Cl);
+}
+float3 Out = Ab * (Q * Key) * Hue;
 Out *= lerp(LIT_TINT, SHADOW_TINT, Shad);
 // 1d. a fighter's level: his dark tones lifted toward FIGHTER_LEVEL, a knee
 // at FIGHTER_KNEE of the key -- black kit and his shadow side up, lit skin,
@@ -2271,7 +2313,18 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0, V=N
     warm = _smooth(L["POOL_WARM"][0], L["POOL_WARM"][1], hue[..., 0] / np.maximum(hue[..., 2], 1e-4))
     keep = np.where(fighter, L["TINT_KEEP_FIGHTER"], L["TINT_KEEP"])[..., None]
     hue = np.clip(lerp(np.ones(3), hue / np.maximum(hue @ luma, 1e-4)[..., None], keep), 0.0, 2.0)
-    out = A * (Q * key)[..., None] * hue
+    # 1a. the world's base colour onto the palette's world (2026-11-19)
+    wld = ~sky if "world_on_men" in _FLAGS else ~fighter & ~sky
+    if "grey_world" in _FLAGS:
+        Ab = A
+    else:
+        lw = (A @ luma)[..., None]
+        mx, mn = A.max(axis=-1), A.min(axis=-1)
+        cl = _smooth(L["CLOTH_SAT"][0], L["CLOTH_SAT"][1], (mx - mn) / np.maximum(mx, 1e-4))[..., None]
+        Ab = lerp(A, lw * np.array(L["WORLD_DIR"]), L["WORLD_PULL"] * (1.0 - cl))
+        Ab = lerp(Ab, lw * np.array(L["CLOTH_DIR"]), L["CLOTH_PULL"] * cl)
+        Ab = np.where(wld[..., None], Ab, A)
+    out = Ab * (Q * key)[..., None] * hue
     out = out * lerp(np.array(L["LIT_TINT"]), np.array(L["SHADOW_TINT"]), shad[..., None])
     # 1d. a fighter's level, under a knee: his dark tones lifted, lit skin
     # all but where it was (y (1 + (l - 1) / (1 + (y/k)^2)) rises with y)
@@ -3281,7 +3334,9 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          # 2026-11-18, the fire's heart: raw, white at once, and capped to nothing
          "lemon_cores", "white_cores", "dim_cores",
          # 2026-11-18, the reds: lifted pink by the levels' gamma
-         "grey_reds")
+         "grey_reds",
+         # 2026-11-19, the palette: the world's base colour onto one family
+         "grey_world", "world_on_men", "bright_world")
 
 
 def power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c):
@@ -3757,6 +3812,10 @@ def check(bite=None, rig=None):
             LOOK["EMIT_CAP"] = 0.05
         if bite == "grey_reds":
             _FLAGS.add(bite)
+        if bite in ("grey_world", "world_on_men"):
+            _FLAGS.add(bite)
+        if bite == "bright_world":
+            LOOK["WORLD_DIR"] = (1.55, 1.25, 1.25)       # a direction of luminance 1.3: the world a third lighter
         if bite == "black_clouds":
             LOOK["CLOUD_DARK"] = (0.016, 0.018, 0.027)
         if bite == "dim_hearts":
@@ -3921,7 +3980,7 @@ def check(bite=None, rig=None):
         # 1b. split toning: the shadow side is cooler than the lit side, in
         #     hue and not only in value
         br = lambda px: np.median(px[:, 2] / np.maximum(px[:, 0], 1e-6))
-        assert br(out[sh]) > 1.15 * br(out[lit]), "the shadows lean cool against a warm light"
+        assert br(out[sh]) > 1.15 * br(out[lit]), "the shadows lean plum against a peach light"
         # 5. the grade holds colour under, except the red accent
         Cp, Ap, Np, Dp, onp = _patches()
         op, _mp = preview(Cp, Ap, Np, Dp, onp)
@@ -3971,13 +4030,20 @@ def check(bite=None, rig=None):
         fogc = np.array(LOOK["HAZE"])
         near_d = np.abs(out[wall] - fogc).sum(axis=1).mean()
         far_d = np.abs(of[wall] - fogc).sum(axis=1).mean()
-        assert far_d < 0.6 * near_d, "the far world is in the air"
+        # (2026-11-19, the palette: the world and the fog are one plum-umber
+        # family now, so a near wall is already close to the fog's colour --
+        # 0.0461 against 0.0287 far, 0.62 where the cold navy's was under
+        # 0.6. The rule is 0.75; no air at all is 1.0.)
+        assert far_d < 0.75 * near_d, "the far world is in the air (%.4f of the fog's colour far, %.4f near)" % (far_d, near_d)
         assert np.abs(of[on] - out[on]).max() < 1e-9, "and a fighter is not"
-        # ... and the air is a grim fog, dark and cold -- not a warm dusk,
-        #     and (2026-09-28) darker and colder than the grey it was
-        #     (luma 0.142, blue 1.15x red): under 0.08, blue 1.4x red
+        # ... and the air is a grim fog, dark and hued -- not a warm dusk,
+        #     and (2026-09-28) darker than the grey it was (luma 0.142):
+        #     under 0.08. 2026-11-19 (the palette): the fog is an aubergine,
+        #     no longer a cold navy -- its green the least of its channels
+        #     (under 0.6 of the red and of the blue); a warm dusk's green
+        #     is 0.8 of its red, the old grey's is all three
         hz = np.array(LOOK["HAZE"])
-        assert hz @ np.array(LUMA) < 0.08 and hz[2] >= 1.4 * hz[0], "the fog is grim: dark and cold"
+        assert hz @ np.array(LUMA) < 0.08 and hz[1] <= 0.6 * min(hz[0], hz[2]), "the fog is grim: dark and aubergine"
         # 3. a silhouette line all round the sphere's edge
         ring = on & (~_shift(on, 1, 0, False) | ~_shift(on, -1, 0, False)
                      | ~_shift(on, 0, 1, False) | ~_shift(on, 0, -1, False))
@@ -4081,7 +4147,7 @@ def check(bite=None, rig=None):
                 bl_fill = (bl_mw["hatch"][bl_mid] < 0.02) & (bl_mw["screentone"][bl_mid] < 0.02) & (bl_mw["ink"][bl_mid] < 0.02)
                 bl_mark = (bl_mw["hatch"][bl_mid] > 0.5) | (bl_mw["screentone"][bl_mid] > 0.5)
                 return (float(np.median(bl_lm[bl_fill])), float(np.median(bl_lm[bl_mark])) if bl_mark.any() else None,
-                        float(np.median(bl_dm[bl_fill][:, 2] / np.maximum(bl_dm[bl_fill][:, 0], 1e-4))))
+                        float(np.median(bl_dm[bl_fill][:, 1] / np.maximum(0.5 * (bl_dm[bl_fill][:, 0] + bl_dm[bl_fill][:, 2]), 1e-4))))
             for bl_man in (False, True):
                 bl_who = "a man" if bl_man else "the world"
                 # (lit: in a pool's body, over T_POOL1 -- since 2026-10-04 the
@@ -4104,8 +4170,11 @@ def check(bite=None, rig=None):
                         bl_lt, bl__x, bl__y = bl_wall(bl_alb, 1.2, bl_man)
                         assert bl_sh >= bl_dp + 3.5 and bl_lt >= bl_sh + 4.0, \
                             "the black ladder: %s's near-black keeps its steps (deep %.1f, shadow %.1f, lit %.1f)" % (bl_who, bl_dp, bl_sh, bl_lt)
-                        assert min(bl_dp_br, bl_sh_br) >= 1.15, \
-                            "the black ladder: %s's lift is the shadows' navy (blue/red %.2f, %.2f)" % (bl_who, bl_dp_br, bl_sh_br)
+                        # (2026-11-19, the palette: the shadows are aubergine, not
+                        # navy -- the lift's green is under the mean of its red and
+                        # its blue; the grey floor of the sabotage is 1.0)
+                        assert max(bl_dp_br, bl_sh_br) <= 0.92, \
+                            "the black ladder: %s's lift is the shadows' aubergine (green over the red-blue mean %.2f, %.2f)" % (bl_who, bl_dp_br, bl_sh_br)
                     assert bl_hatch_l is not None and bl_hatch_l <= bl_dp - 3.0, \
                         "the black ladder: the hatching reads on %s's deep tone (L* %s on %.1f)" % (bl_who, bl_hatch_l, bl_dp)
                     if not bl_man:
@@ -4354,10 +4423,55 @@ def check(bite=None, rig=None):
                     rh_dh = (rh_hue(np.median(rh_d[rh_mid].reshape(-1, 3), axis=0)) - rh_hue(rh_p) + 180.0) % 360.0 - 180.0
                     if abs(rh_dh) > abs(rh_worst[0]):
                         rh_worst = (rh_dh, "%s at T %.1f" % (rh_name, rh_T))
-            assert abs(rh_worst[0]) <= 6.0, \
-                "the reds: a pure red keeps its paint's hue on the screen (%s drew %+.1f degrees off, wanted 6 at most)" % (rh_worst[1], rh_worst[0])
+            # (2026-11-19, the palette: 6 degrees -> 7, the aubergine shadow
+            # tint widens the span by a tenth of a degree at its worst, 6.1;
+            # the levels' lift undone is 18-21 degrees off and still caught)
+            assert abs(rh_worst[0]) <= 7.0, \
+                "the reds: a pure red keeps its paint's hue on the screen (%s drew %+.1f degrees off, wanted 7 at most)" % (rh_worst[1], rh_worst[0])
         finally:
             LOOK["GRAIN"], LOOK["PAPER"] = rh_gp
+        # ------------------------------------------------ 2026-11-19, the world's palette
+        # ("remove all current colors, use new colors".) The world's base
+        # colour is pulled onto one family, rose-umber, and a vivid dye
+        # toward plum, lightness kept, and a man is not touched by it. On a
+        # flat wall a sand (0.30, 0.24, 0.16) read ochre, hue 72, before; now
+        # it is rose-umber (350); a rust dye (0.45, 0.08, 0.05) read hue 34,
+        # now plum (339).
+        wp_gp = LOOK["GRAIN"], LOOK["PAPER"]
+        LOOK["GRAIN"], LOOK["PAPER"] = 0.0, 0.0
+        try:
+            def wp_lch(wp_alb, wp_man):
+                wp_C, wp_A, wp_N, wp_D, wp_on = _flat(96, 0.1, lit=1.0, depth=600.0, fighter=wp_man, h=1080)
+                wp_A = np.broadcast_to(np.array(wp_alb, float), wp_A.shape).copy()
+                wp_d, wp_m = look(wp_A * 1.0, wp_A, wp_N, wp_D, wp_on)
+                wp_sel = (slice(200, 880), slice(16, 80))
+                wp_fill = (wp_m["hatch"][wp_sel] < 0.02) & (wp_m["screentone"][wp_sel] < 0.02) & (wp_m["ink"][wp_sel] < 0.02)
+                wp_px = np.median(wp_d[wp_sel][wp_fill], axis=0)
+                wp_li = np.where(wp_px <= 0.04045, wp_px / 12.92, ((wp_px + 0.055) / 1.055) ** 2.4)
+                wp_x = wp_li @ np.array([[0.4124, 0.2126, 0.0193], [0.3576, 0.7152, 0.1192], [0.1805, 0.0722, 0.9505]]) / np.array([0.95047, 1.0, 1.08883])
+                wp_f = np.where(wp_x > 216 / 24389, np.cbrt(wp_x), (24389 / 27 * wp_x + 16) / 116)
+                wp_a, wp_b = 500 * (wp_f[0] - wp_f[1]), 200 * (wp_f[1] - wp_f[2])
+                return 116 * wp_f[1] - 16, math.hypot(wp_a, wp_b), math.degrees(math.atan2(wp_b, wp_a)) % 360.0
+            wp_sand, wp_rust = (0.30, 0.24, 0.16), (0.45, 0.08, 0.05)
+            wp_s, wp_r, wp_ms = wp_lch(wp_sand, False), wp_lch(wp_rust, False), wp_lch(wp_sand, True)
+            wp_hd = lambda h, c0, c1: (h - c0) % 360.0 <= (c1 - c0) % 360.0
+            assert wp_hd(wp_s[2], 340.0, 30.0) and wp_s[1] >= 5.0, \
+                "the world's palette: a sand is rose-umber (hue %.0f, chroma %.1f; wanted 340-30 and 5 or more)" % (wp_s[2], wp_s[1])
+            assert wp_hd(wp_r[2], 320.0, 352.0), \
+                "the world's palette: a vivid dye goes plum (hue %.0f, wanted 320-352)" % wp_r[2]
+            _FLAGS.add("grey_world")
+            wp_s0 = wp_lch(wp_sand, False)
+            _FLAGS.discard("grey_world")
+            assert abs(wp_s[0] - wp_s0[0]) <= 1.0, \
+                "the world's palette moves only the hue (L* %.1f where it was %.1f)" % (wp_s[0], wp_s0[0])
+            _FLAGS.add("grey_world")
+            wp_ms0 = wp_lch(wp_sand, True)
+            _FLAGS.discard("grey_world")
+            assert abs(wp_ms[0] - wp_ms0[0]) <= 0.5 and abs(wp_ms[2] - wp_ms0[2]) <= 3.0, \
+                "the world's palette is not on a man (hue %.0f where it was %.0f)" % (wp_ms[2], wp_ms0[2])
+        finally:
+            LOOK["GRAIN"], LOOK["PAPER"] = wp_gp
+            _FLAGS.discard("grey_world")
         # ------------------------------------------------ 2026-10-02, the painted sky
         # a view of the sky alone, up toward the moon (60 degrees across,
         # 0.05 a pixel: a star is a few pixels), at a time it is clear
@@ -4399,7 +4513,9 @@ def check(bite=None, rig=None):
         # (2026-10-07) the horizon band a little deeper violet-navy, and no
         # lighter than the navy it was (luminance 0.0325)
         hh = _hue(LOOK["SKY_HORIZON"])
-        assert 232.0 <= hh <= 250.0, "the sky's horizon band leans violet-navy (hue %.0f)" % hh
+        # (2026-11-19, the palette: the dusk's plum, not a violet-navy:
+        # hue 320-350 where it was 232-250; the luminance cap is as it was)
+        assert 320.0 <= hh <= 350.0, "the sky's horizon band leans plum (hue %.0f)" % hh
         yh_ = float(np.dot(LOOK["SKY_HORIZON"], LUMA))
         assert yh_ <= 0.0325, "and is no lighter than it was (%.4f)" % yh_
         # the clouds: some of the sky, not all, in a few flat tones, lit
@@ -4456,14 +4572,17 @@ def check(bite=None, rig=None):
         assert 10.0 <= hue(tc1) <= 40.0 and tc1.max() - tc1.min() > 0.4, \
             "a burning punch's frame is an ember, not paper (hue %.0f, chroma %.2f)" % (hue(tc1), tc1.max() - tc1.min())
         tc2 = frames[2.0][1]
-        assert tc2.max() - tc2.min() < 0.1 and tc2 @ luma > 0.5, "a parry's frame is bone"
+        assert tc2.max() - tc2.min() < 0.16 and tc2 @ luma > 0.5, "a parry's frame is bone (spread %.3f, luma %.2f)" % (tc2.max() - tc2.min(), tc2 @ luma)
         # a heavy blow's and a knockdown's frame (2026-10-03, the System): its
-        # cyan, a blue-white flash -- blue over red, light
+        # glow (a cyan, a blue-white flash until 2026-11-19; a cerise since)
         tc3 = frames[3.0][1]
         sysd = np.array(display(LOOK["HUD_SYSTEM"]))
         dh3 = abs((hue(tc3) - hue(sysd) + 180.0) % 360.0 - 180.0)
-        assert dh3 <= 15.0 and tc3[2] > 1.5 * tc3[0] and tc3 @ luma > 0.5, \
-            "a heavy blow's impact frame is the System's cyan (hue %.0f off, b/r %.1f)" % (dh3, tc3[2] / max(tc3[0], 1e-6))
+        # (2026-11-19, the palette: the System is a cerise now, not a cyan --
+        # its green the least of its channels, as light as it is: 0.38 on
+        # the screen where the cyan's was 0.69)
+        assert dh3 <= 15.0 and tc3[1] < 0.67 * min(tc3[0], tc3[2]) and tc3 @ luma > 0.3, \
+            "a heavy blow's impact frame is the System's cerise (hue %.0f off, g over r-b %.2f)" % (dh3, tc3[1] / max(min(tc3[0], tc3[2]), 1e-6))
         em = np.array(LOOK["EMBER"])
         assert em[0] > 2.0 * em[1] and em[1] > em[2], "what burns is an ember, not paper"
         # ... and fills the screen: the vignette does not cut an iris into
@@ -4476,12 +4595,15 @@ def check(bite=None, rig=None):
         assert diff[rr < LOOK["SPEED_INNER"]].mean() == 0.0, "the blow itself is clear"
         assert 0.1 < diff[rr > LOOK["SPEED_OUTER"]].mean() < 0.7, "streaks, not a fill"
         assert diff[on].mean() == 0.0, "the speed lines stop at a fighter"
-        # a share of them the System's cyan, the rest bone or ink (2026-09-28:
+        # a share of them the System's cerise (cyan until 2026-11-19), the rest bone or ink (2026-09-28:
         # 0.15 to 0.45, where it was 0.15 to 0.7 and let 55 % through; blood
         # until 2026-10-03)
-        reds = diff & (sp[..., 2] > sp[..., 0] + 0.15)
+        # (2026-11-19, the palette: the System's streaks are cerise -- red and
+        # blue over a green far under both -- where they were a cyan, blue
+        # over red)
+        reds = diff & (sp[..., 1] < 0.6 * np.minimum(sp[..., 0], sp[..., 2])) & (sp[..., 0] > 0.5)
         share = reds.sum() / max(diff.sum(), 1)
-        assert 0.15 < share < 0.45, "a share of the streaks are the System's cyan, the rest bone or ink (%.2f)" % share
+        assert 0.15 < share < 0.45, "a share of the streaks are the System's cerise, the rest bone or ink (%.2f)" % share
         # ... needles: a point at the blow, full width at the edge (off the
         #     sphere, just past their start against beyond SPEED_OUTER)
         near = ~on & (rr > 0.31) & (rr < 0.36)
@@ -4521,8 +4643,10 @@ def check(bite=None, rig=None):
         # (2026-10-07) its corners lean violet-navy -- blue kept, red a touch
         # over green -- and no darker than a grey vignette's
         cb = base_v[:c, :c].reshape(-1, 3).mean(0) / np.maximum(plain[:c, :c].reshape(-1, 3).mean(0), 1e-6)
-        assert cb[2] >= 1.06 * cb[1] and cb[0] >= cb[1], \
-            "the vignette's corners lean violet-navy (r %.3f, g %.3f, b %.3f of the picture)" % tuple(cb)
+        # (2026-11-19, the palette: plum -- the green the least kept, red and
+        # blue about as much; the corners keep going into the dark by 0.65)
+        assert cb[2] >= 1.06 * cb[1] and cb[0] >= 1.06 * cb[1], \
+            "the vignette's corners lean plum (r %.3f, g %.3f, b %.3f of the picture)" % tuple(cb)
         gp = LOOK["GRAIN"], LOOK["PAPER"], LOOK["VIGNETTE_TINT"]
         LOOK["GRAIN"], LOOK["PAPER"], LOOK["VIGNETTE_TINT"] = 0.0, 0.0, (1.0, 1.0, 1.0)
         grey_v = frame(to_display(out), on, D=D)
@@ -4549,11 +4673,15 @@ def check(bite=None, rig=None):
         la, l0 = (out @ luma)[away], (out0 @ luma)[away]
         gain = np.median(la) / max(np.median(l0), 1e-9)
         assert away.sum() > 100 and gain > 2.0, "a hard rim of light on a man's shadow side (%.1fx)" % gain
-        assert br(out[away]) > 1.15 * br(out[lit]), "and it is cold (%.2f against %.2f)" % (br(out[away]), br(out[lit]))
-        # (2026-10-07) the System's light, a little deeper toward the night's
-        # violet-navy: past the cyan (209 degrees) and short of violet
+        # (2026-11-19, the palette: the rim is the System's cerise, pinker than
+        # the key that lights the other side -- red over green 1.15x the lit
+        # side's; it was cold, blue over red 1.15x)
+        rgr = lambda px: np.median(px[:, 0] / np.maximum(px[:, 1], 1e-6))
+        assert rgr(out[away]) > 1.15 * rgr(out[lit]), "and it is pinker than the key (%.2f against %.2f)" % (rgr(out[away]), rgr(out[lit]))
+        # (2026-10-07: a little deeper toward the night's violet-navy, 214-236
+        # degrees; 2026-11-19: the cerise's, 330-356)
         hr = _hue(LOOK["RIM_TINT"])
-        assert 214.0 <= hr <= 236.0, "the rim leans a little deeper toward violet-navy (hue %.0f)" % hr
+        assert 330.0 <= hr <= 356.0, "the rim is the System's cerise (hue %.0f)" % hr
         assert np.abs(out[toward] - out0[toward]).max() < 1e-9, "none on the side the key lights"
         assert np.abs(ow - ow0).max() < 1e-9, "and none on the world"
         # 1. tones. A man's shadow is dark but a face still reads in it: no

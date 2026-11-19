@@ -134,7 +134,12 @@ SITE_R = 0.18                   # the fight site's ground: this share of the hei
 # --night-check, on the LIGHT (lit/base): the world spec's numbers. Read on
 # the fast fight scene of 2026-09-30: pools 8.39, R/B 60, moon B/R 1.82,
 # the fire 0.61 of the light at the fight site (0.00 with the fires out).
-NIGHT = dict(pools=2.5, warm_rb=2.0, moon_br=1.4, fire_share=0.5)
+# 2026-11-19 ("remove all current colors use new colors"): the moon is the
+# palette's dusty mauve #998696, B/R 0.96 in the render, not the old night's
+# cold navy (1.82), so "moon B/R at least 1.4" became a WINDOW: over moon_br[0]
+# the moon is still not an amber (the only warm light is what burns -- an amber
+# moon reads 0.63), under moon_br[1] it is not the old navy night (1.82).
+NIGHT = dict(pools=2.5, warm_rb=2.0, moon_br=(0.80, 1.25), fire_share=0.5)
 # --graded-check, on the graded picture (MERGE, 2026-09-28)
 GRADED = dict(contrast=1.5, shadow_over_ink=2.0, pools=2.0, fire_rb=1.4,
               eye_share=0.5,          # of Saud's iris px drawn lit or shadow (not deep, ink, a dot)
@@ -178,7 +183,7 @@ GRADED = dict(contrast=1.5, shadow_over_ink=2.0, pools=2.0, fire_rb=1.4,
 
 # --bite only: each breaks the one mechanism a check guards
 SABOTAGE = set()
-NIGHT_BITES = {"no_fires": "pools", "warm_moon": "moon"}
+NIGHT_BITES = {"no_fires": "pools", "warm_moon": "moon is warm", "navy_moon": "old night"}
 GRADED_BITES = {"flat_world": "contrast", "sooted_world": "shadow tone", "flat_pools": "pools",
                 "grey_fire": "fire", "chin_down": "eyes", "deep_eyes": "eyes",
                 # 2026-10-14, the range: the picture before the levels (no white
@@ -802,8 +807,11 @@ def night_misses(r):
         miss.append("the street has no pools: light p95/p50 %.2f, wanted %.1f" % (r["pools"], NIGHT["pools"]))
     if r["warm_rb"] < NIGHT["warm_rb"]:
         miss.append("the brightest light is not the fires': top-5 %% R/B %.2f, wanted %.1f" % (r["warm_rb"], NIGHT["warm_rb"]))
-    if r["moon_br"] < NIGHT["moon_br"]:
-        miss.append("the moon is not cold: moon-group B/R %.2f, wanted %.1f" % (r["moon_br"], NIGHT["moon_br"]))
+    lo, hi = NIGHT["moon_br"]
+    if r["moon_br"] < lo:
+        miss.append("the moon is warm: moon-group B/R %.2f, wanted %.2f-%.2f (the palette's mauve; the only warm light is what burns)" % (r["moon_br"], lo, hi))
+    elif r["moon_br"] > hi:
+        miss.append("the moon is the old night's navy: moon-group B/R %.2f, wanted %.2f-%.2f (the palette's mauve)" % (r["moon_br"], lo, hi))
     if "fire_share" in r and r["fire_share"] < NIGHT["fire_share"]:
         miss.append("the fight site is not fire-lit: the fire %.2f of the light on its ground, wanted %.2f" % (r["fire_share"], NIGHT["fire_share"]))
     return miss
@@ -820,10 +828,12 @@ def _sabotage_night(which):
     if which == "no_fires":
         for o in _night_lights():
             o.data.energy = 0.0
-    elif which == "warm_moon":
+    elif which in ("warm_moon", "navy_moon"):
+        # an amber moon (B/R 0.63), or the night this palette replaced (1.82)
+        col = (1.0, 0.85, 0.63) if which == "warm_moon" else (0.55, 0.75, 1.0)
         for o in bpy.data.objects:
             if o.type == "LIGHT" and o.data.type == "SUN":
-                o.data.color = (1.0, 0.85, 0.63)
+                o.data.color = col
     else:
         raise SystemExit("no such sabotage: %s (%s)" % (which, ", ".join(NIGHT_BITES)))
 
