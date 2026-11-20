@@ -6344,7 +6344,7 @@ AL-SAQR's bone band go mauve-grey in shadow (the look's lilac grade). HAWK FIST'
 (#FF2E92) differ by lightness only (dE76 30.8): both are the palette's. A denied purchase draws a thin vermilion keyline on
 the focused plate (1.3-1.5:1, a 1.2 s state with a hint beside it). The Prologue's fog keeps its old luminance in the new hue
 (a pastel haze): unjudged without the engine. The Kuwait flag patch's red is #C8102E, not the flag's #CE1126 (older, left).
-Windows' and the baked pictures' accents, the gate and island plan pictures are the palette's; the island's props are rebaked.
+The gate sheet and the island and souq plan pictures are drawn from the palette; the island's ground and prop maps are rebaked.
 
 **Not verified.** No engine has built either material (the HLSL takes the same numbers, and its new heart line is
 read-reviewed, not compiled), imported a kit map, or drawn the HUD; the pictures are Blender's through the numpy mirror; the
