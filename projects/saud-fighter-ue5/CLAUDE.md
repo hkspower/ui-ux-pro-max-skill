@@ -59,7 +59,7 @@ leveling all design", settled as its style and none of its names,
 characters or logos): the HUD and the menus are a game's own system's
 windows -- plum panels, glowing cerise edges, cream lettering, red for
 danger, pink for Saud's power -- heavy blows flash cerise, Saud's full
-rage burns as an orange aura with glowing eyes, and the night is a dusty
+rage burns as a pink aura (the power slot, #FF84C0; the rage cells are orange) with glowing eyes, and the night is a dusty
 mauve with a cerise rim on the fighters. The ink, the flat tones and the
 dark stay. See "The System's HUD", "The System's menus", "Saud's power-up,
 and the System's hits" and "The System's night" (their colour numbers are
