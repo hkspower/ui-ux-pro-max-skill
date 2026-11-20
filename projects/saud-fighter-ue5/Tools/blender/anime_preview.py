@@ -184,12 +184,12 @@ GRADED = dict(contrast=1.5, shadow_over_ink=2.0, pools=2.0, fire_rb=1.4,
 # --bite only: each breaks the one mechanism a check guards
 SABOTAGE = set()
 NIGHT_BITES = {"no_fires": "pools", "warm_moon": "moon is warm", "navy_moon": "old night"}
-GRADED_BITES = {"flat_world": "contrast", "sooted_world": "shadow tone", "flat_pools": "pools",
+GRADED_BITES = {"flat_world": "contrast", "sooted_world": "shadow tone", "moon_hearts": "pools",
                 "grey_fire": "fire", "chin_down": "eyes", "deep_eyes": "eyes",
                 # 2026-10-14, the range: the picture before the levels (no white
                 # point, no gamma), the pools' hearts a step over the body, and
                 # the levels' gamma sinking the middle or lifting it to a dusk
-                "short_range": "range", "dim_hearts": "range", "sunk_middle": "middle", "lifted_middle": "middle",
+                "short_range": "range", "dim_glare": "range", "sunk_middle": "middle", "lifted_middle": "middle",
                 # 2026-10-04: the previews drawn at their stand-in key's level
                 # (0.8-1.7 EV under the game), and a night keyed on the men
                 "stand_in_level": "previews", "fighter_key": "night's key",
@@ -1235,10 +1235,20 @@ def graded_check(blend, height, samples, bite=False, out=None, cache=None):
         # level alone no longer makes a dusk: at 0.75 the median is 30.4
         # now the pool's rim holds the fight's ground, where it read 42
         # on 2026-10-04)
+        # (2026-11-20, the palette Sodium Afterglow: two of these were re-aimed at
+        # what now decides their rule on the real frames. flat_pools (the pool's
+        # steps taken) no longer lowers the gate's p95/p50 -- 2.17 against the
+        # unbroken 2.03 -- so the pools' sabotage is moon_hearts: the heart given
+        # to the moon's light as well as the fire's (HEART_FIRE 0), the defect
+        # that made the gate read 1.46. dim_hearts (POOL_BRIGHT 1.6) no longer
+        # touches the fight's range, whose white is the glare tone now; the range's
+        # sabotage is dim_glare: Q_HIGHLIGHT back at 1.10, the fight's brightest
+        # 0.1 % at 237. flat_pools and dim_hearts still run in anime_look.py's own
+        # check, where they are caught.)
         over = {"flat_world": dict(WORLD_LEVEL=1.0, FIGHTER_LEVEL=1.0), "grey_fire": dict(WORLD_SATURATION=0.10, POOL_SAT=0.10),
                 "sooted_world": dict(BLACK_DEEP=0.0, BLACK_SHADOW=0.0, BLACK_LIT=0.0),
-                "flat_pools": dict(POOL_DIM=1.0, POOL_BRIGHT=1.0), "deep_eyes": dict(T_DEEP=2.0),
-                "short_range": dict(LV_WHITE=1.0, LV_GAMMA=1.0), "dim_hearts": dict(POOL_BRIGHT=1.6),
+                "moon_hearts": dict(HEART_FIRE=0.0), "deep_eyes": dict(T_DEEP=2.0),
+                "short_range": dict(LV_WHITE=1.0, LV_GAMMA=1.0), "dim_glare": dict(Q_HIGHLIGHT=1.10),
                 "sunk_middle": dict(LV_GAMMA=1.45), "lifted_middle": dict(LV_GAMMA=2.4),
                 "crushed_floors": dict(BLACK_DEEP=0.0105, BLACK_SHADOW=0.0155, BLACK_LIT=0.0220,
                                        Q_SHADOW_WORLD=0.12, Q_DEEP_WORLD=0.016, WORLD_LEVEL=0.60),
