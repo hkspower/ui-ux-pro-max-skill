@@ -272,7 +272,19 @@ LOOK = {
     "Q_DEEP": 0.07,
     "Q_SHADOW_WORLD": 0.16,
     "Q_DEEP_WORLD": 0.05,
-    "Q_HIGHLIGHT": 1.10,
+    # 2026-11-20 (the palette, the graded check on real frames): the glare tone
+    # 1.10 -> 1.40. The palette has no near-white (its brightest hexes by display
+    # luma: fire core 243.9, lettering 235.9, Saud's cream 233.3, bone 230.2),
+    # the men's kit is solved so a flat-lit patch draws the hex, and the old
+    # fight frame's 248 was the old kit's white tops lit and glared; the new
+    # frame's brightest 0.1 % (518 px at 540 lines) stood at 237 where the
+    # range rule wants 245. The glare -- "a sharp highlight where sweat
+    # catches", T over T_HIGHLIGHT 1.9 -- is the art direction's own white, so
+    # it is the one that moved: 1.30 gives 244, 1.35 is on the edge (245),
+    # 1.40 gives 246 and 707 px at 245 or over, 1.50 pushes skin and hair
+    # toward a yellow-white. A flat-lit patch (T 1.2) never reaches it, so no
+    # man's displayed kit colour moves.
+    "Q_HIGHLIGHT": 1.40,
     # 1d. the firelight ladder and the men's level (2026-10-03, "improve
     # color levels at game"). Every lit surface of the world took one flat
     # tone, so a fire's pool had no heart: lit or not, the gate's ground
@@ -330,6 +342,19 @@ LOOK = {
     # clipped (unbounded, its blue went to nothing: R/B 248 on the screen).
     "POOL_SAT": 1.6,
     "POOL_WARM": (1.05, 1.4),
+    # 2026-11-20 (the palette Sodium Afterglow, the graded check on real
+    # frames): the pool's HEART (over T_POOL2, POOL_BRIGHT 3.6 of the lit tone)
+    # is a FIRE's, so it is given only to a light that is one: HEART_FIRE 1
+    # takes the heart through HEART_WARM, the light's red over its blue from
+    # 2.0 (half way between the moon and a fire) to 3.5. The heart was given
+    # to any light bright enough, and the cold moon on pale paving rarely was;
+    # the palette's moon is a dusty mauve (R/B 1.05) and the gate's pale
+    # flagstone, moonlit and firelit together, came out as hearts over a third
+    # of its ground: graded ground p95/p50 1.53 where the rule wants 2.0. With
+    # the heart a fire's, the gate reads 2.13 and its fire R/B 1.68 -> 2.7; the
+    # street (a fire alone) is unchanged. 0 gives every light a heart as before.
+    "HEART_FIRE": 1.0,
+    "HEART_WARM": (2.0, 3.5),
     "POOL_GAMUT": 0.3,
     # 1c. the black ladder (2026-10-03, "improve black levels separation"):
     # black is the ink's alone. Measured on the souq fight through the
@@ -1141,6 +1166,7 @@ def _sub(code):
         "T_POOL1": _f(L["T_POOL1"]), "T_POOL2": _f(L["T_POOL2"]), "POOL_DIM": _f(L["POOL_DIM"]),
         "POOL_BRIGHT": _f(L["POOL_BRIGHT"]), "FIGHTER_LEVEL": _f(L["FIGHTER_LEVEL"]), "FIGHTER_KNEE": _f(L["FIGHTER_KNEE"]), "POOL_SAT": _f(L["POOL_SAT"]),
         "POOL_WARM0": _f(L["POOL_WARM"][0]), "POOL_GAMUT": _f(L["POOL_GAMUT"]), "POOL_WARM1": _f(L["POOL_WARM"][1]),
+        "HEART_FIRE": _f(L["HEART_FIRE"]), "HEART_WARM0": _f(L["HEART_WARM"][0]), "HEART_WARM1": _f(L["HEART_WARM"][1]),
         "Q_SHADOW": _f(L["Q_SHADOW"]), "Q_DEEP": _f(L["Q_DEEP"]),
         "Q_SHADOW_WORLD": _f(L["Q_SHADOW_WORLD"]), "Q_DEEP_WORLD": _f(L["Q_DEEP_WORLD"]),
         "BLACK_DEEP": _f(L["BLACK_DEEP"]), "BLACK_SHADOW": _f(L["BLACK_SHADOW"]), "BLACK_LIT": _f(L["BLACK_LIT"]), "BLACK_KNEE": _f(L["BLACK_KNEE"]),
@@ -1323,13 +1349,15 @@ float Qd = Fighter ? Q_DEEP : Q_DEEP_WORLD;
 // rim, its body, its heart; a fighter's every tone at his own level
 float Pool1 = smoothstep(T_POOL1 - SOFT, T_POOL1 + SOFT, T);
 float Pool2 = smoothstep(T_POOL2 - SOFT, T_POOL2 + SOFT, T);
-float Gp = Fighter ? 1.0 : lerp(lerp(POOL_DIM, 1.0, Pool1), POOL_BRIGHT, Pool2);
+// the heart is a fire's (2026-11-20): the light's hue, here, before the tone
+float3 Hue = C / max(A, 0.02);
+float Heart = Pool2 * lerp(1.0, smoothstep(HEART_WARM0, HEART_WARM1, Hue.r / max(Hue.b, 0.0001)), HEART_FIRE);
+float Gp = Fighter ? 1.0 : lerp(lerp(POOL_DIM, 1.0, Pool1), POOL_BRIGHT, Heart);
 float Q = lerp(lerp(lerp(Q_LIT * Gp, Q_HIGH * Gp, High), Qs, Shad), Qd, Deep);
 // The tone is laid on the BASE colour, in the light's own hue: a neon
 // sign still colours what it lights, but a glint of white specular does
 // not bleach the skin under it. Far brighter than any lit surface can be
 // is a light itself (a lantern, a sign): it keeps its own colour.
-float3 Hue = C / max(A, 0.02);
 float Warm = smoothstep(POOL_WARM0, POOL_WARM1, Hue.r / max(Hue.b, 0.0001));   // the light a fire's
 Hue = clamp(lerp(float3(1, 1, 1), Hue / max(dot(Hue, LUMA), 0.0001), Fighter ? TINT_KEEP_FIGHTER : TINT_KEEP), 0.0, 2.0);
 // 1a. the world's base colour onto the palette's world (2026-11-19): a
@@ -2309,11 +2337,12 @@ def preview(C, A, N, D, fighter, key=None, impact=0.0, invert=0.0, boil=0.0, V=N
     qd = np.where(fighter, L["Q_DEEP"], L["Q_DEEP_WORLD"])
     pool1 = _smooth(L["T_POOL1"] - s, L["T_POOL1"] + s, T)
     pool2 = _smooth(L["T_POOL2"] - s, L["T_POOL2"] + s, T)
-    gp = np.where(fighter & ("pools_on_men" not in _FLAGS), 1.0, lerp(lerp(L["POOL_DIM"], 1.0, pool1), L["POOL_BRIGHT"], pool2))
+    hue = C / np.maximum(A, 0.02)
+    heart = pool2 * lerp(1.0, _smooth(L["HEART_WARM"][0], L["HEART_WARM"][1], hue[..., 0] / np.maximum(hue[..., 2], 1e-4)), L["HEART_FIRE"])
+    gp = np.where(fighter & ("pools_on_men" not in _FLAGS), 1.0, lerp(lerp(L["POOL_DIM"], 1.0, pool1), L["POOL_BRIGHT"], heart))
     if "flat_pools" in _FLAGS:
         gp = np.ones_like(T)
     Q = lerp(lerp(lerp(L["Q_LIT"] * gp, L["Q_HIGHLIGHT"] * gp, high), qs, shad), qd, deep)
-    hue = C / np.maximum(A, 0.02)
     warm = _smooth(L["POOL_WARM"][0], L["POOL_WARM"][1], hue[..., 0] / np.maximum(hue[..., 2], 1e-4))
     keep = np.where(fighter, L["TINT_KEEP_FIGHTER"], L["TINT_KEEP"])[..., None]
     hue = np.clip(lerp(np.ones(3), hue / np.maximum(hue @ luma, 1e-4)[..., None], keep), 0.0, 2.0)
@@ -3340,7 +3369,7 @@ BITES = ("no_terminator", "no_ink", "grey_ink", "inner_only", "limb_gap", "speck
          # 2026-11-18, the reds: lifted pink by the levels' gamma
          "grey_reds",
          # 2026-11-19, the palette: the world's base colour onto one family
-         "grey_world", "world_on_men", "bright_world")
+         "grey_world", "world_on_men", "bright_world", "moon_hearts")
 
 
 def power_checks(Cw, Aw, Nw, Dw, onw, wall, nh, is_c):
@@ -3822,6 +3851,8 @@ def check(bite=None, rig=None):
             LOOK["WORLD_DIR"] = (1.55, 1.25, 1.25)       # a direction of luminance 1.3: the world a third lighter
         if bite == "black_clouds":
             LOOK["CLOUD_DARK"] = (0.016, 0.018, 0.027)
+        if bite == "moon_hearts":
+            LOOK["HEART_FIRE"] = 0.0        # every light bright enough gets a heart, the moon's too
         if bite == "dim_hearts":
             LOOK["POOL_BRIGHT"] = 1.6       # the heart a step over the body, no white in it
         if bite == "sunk_middle":
@@ -4214,9 +4245,15 @@ def check(bite=None, rig=None):
             #    flat; a man under the same light is one tone
             cl_t1, cl_t2 = LOOK["T_POOL1"], LOOK["T_POOL2"]
             cl_tr, cl_tb, cl_th = 0.5 * (LOOK["T_SHADOW"] + cl_t1), 0.5 * (cl_t1 + cl_t2), cl_t2 + 0.6
-            cl_rim, cl_body, cl_heart = (cl_wall(0.15, cl_t, False)[0] for cl_t in (cl_tr, cl_tb, cl_th))
+            cl_rim, cl_body, cl_heart = (cl_wall(0.15, cl_t, False, cl_fire)[0] for cl_t in (cl_tr, cl_tb, cl_th))
             assert cl_body >= cl_rim + 8.0 and cl_heart >= cl_body + 8.0, \
                 "a fire's pool is three steps of its light (L* rim %.1f, body %.1f, heart %.1f)" % (cl_rim, cl_body, cl_heart)
+            # 2026-11-20: ... and the heart is a fire's: the palette's moon (a dusty
+            # mauve, R/B 1.05) on the same ground, as bright, has the glare and not the heart's step
+            cl_mauve = np.array([0.854, 0.639, 0.817])
+            cl_mh = cl_wall(0.15, cl_th, False, cl_mauve)[0]
+            assert cl_mh <= cl_heart - 8.0, \
+                "the moon's light has no heart (L* %.1f where a fire's heart is %.1f): the heart is a fire's" % (cl_mh, cl_heart)
             cl_a, cl_b = cl_wall(0.15, cl_t1 + 0.1, False)[0], cl_wall(0.15, cl_t2 - 0.1, False)[0]
             assert abs(cl_a - cl_b) <= 1.0, "each step of the pool is flat (L* %.1f and %.1f)" % (cl_a, cl_b)
             cl_a, cl_b = cl_wall(0.15, cl_tr, True)[0], cl_wall(0.15, cl_tb, True)[0]
@@ -4288,16 +4325,20 @@ def check(bite=None, rig=None):
         try:
             rg_mid = (slice(24, 72), slice(24, 72))
 
-            def rg_tile(rg_alb, rg_t, rg_man=False):
-                rg_d, rg_m = look(*_flat(96, rg_alb, lit=rg_t, depth=600.0, fighter=rg_man))
+            def rg_tile(rg_alb, rg_t, rg_man=False, rg_hue=None):
+                rg_c, rg_a, rg_n, rg_dp, rg_on = _flat(96, rg_alb, lit=rg_t, depth=600.0, fighter=rg_man)
+                if rg_hue is not None:          # a fire's light (2026-11-20: the heart is a fire's)
+                    rg_c = rg_c * rg_hue / (rg_hue @ luma)
+                rg_d, rg_m = look(rg_c, rg_a, rg_n, rg_dp, rg_on)
                 rg_fill = ((rg_m["hatch"][rg_mid] < 0.02) & (rg_m["screentone"][rg_mid] < 0.02)
                            & (rg_m["ink"][rg_mid] < 0.02))
                 return np.median(rg_d[rg_mid][rg_fill], axis=0)
             rg_heart = LOOK["T_POOL2"] + 0.6
+            rg_fire = np.array([1.0, 0.50, 0.22])
             rg_tiles = {"the ink": levels(to_display(np.array(LOOK["INK"]))),
                         "soot deep": rg_tile(0.004, 0.10), "soot shadow": rg_tile(0.004, 0.40), "soot lit": rg_tile(0.004, 1.2),
-                        "ground shadow": rg_tile(0.11, 0.40), "ground lit": rg_tile(0.11, 1.2), "ground heart": rg_tile(0.11, rg_heart),
-                        "grey lit": rg_tile(0.18, 1.2), "pale lit": rg_tile(0.35, 1.2), "pale heart": rg_tile(0.35, rg_heart),
+                        "ground shadow": rg_tile(0.11, 0.40), "ground lit": rg_tile(0.11, 1.2), "ground heart": rg_tile(0.11, rg_heart, False, rg_fire),
+                        "grey lit": rg_tile(0.18, 1.2), "pale lit": rg_tile(0.35, 1.2), "pale heart": rg_tile(0.35, rg_heart, False, rg_fire),
                         "skin shadow": rg_tile(0.45, 0.40, True), "skin lit": rg_tile(0.45, 1.2, True),
                         "bone": levels(np.array(display(LOOK["BONE"]))), "the moon": levels(to_display(np.array(LOOK["MOON_COL"])))}
             rg_8 = {k: float(np.round(np.clip(v, 0.0, 1.0) @ np.array([0.299, 0.587, 0.114]) * 255.0)) for k, v in rg_tiles.items()}
@@ -4309,8 +4350,12 @@ def check(bite=None, rig=None):
             assert rg_hi[1] >= 250.0, "the range: the chart's brightest tone reaches the white clip (%s at %.0f of 255)" % rg_hi
             assert 26.0 <= rg_L["ground lit"] <= 34.0, \
                 "the range: the lit ground's middle is placed (L* %.1f, wanted 26-34)" % rg_L["ground lit"]
-            assert rg_L["ground heart"] >= 85.0 and rg_L["pale heart"] >= 98.0, \
-                "the range: a fire's heart is the fires' white (L* %.1f on the souq's ground, wanted 85; %.1f on pale paving, wanted 98)" \
+            # 2026-11-20: the heart is a fire's, so it is read under a fire's light
+            # (rg_fire), not a neutral one; on pale paving that is L* 97.9 where the
+            # neutral light read 98 and over -- white still (R, G, B all over 250 of
+            # 255), so the bound is 97.5; dim_hearts (POOL_BRIGHT 1.6) reads far under
+            assert rg_L["ground heart"] >= 85.0 and rg_L["pale heart"] >= 97.5, \
+                "the range: a fire's heart is the fires' white (L* %.1f on the souq's ground, wanted 85; %.1f on pale paving, wanted 97.5)" \
                 % (rg_L["ground heart"], rg_L["pale heart"])
         finally:
             LOOK["GRAIN"], LOOK["PAPER"] = rg_gp

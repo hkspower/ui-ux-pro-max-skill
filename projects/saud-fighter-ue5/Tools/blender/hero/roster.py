@@ -165,7 +165,7 @@ UNREAL_KIT = {
     ("saud", "bottom"):    "#210C11",   # shows #6B2A3A madder wine
     ("saud", "band"):      "#AB2949",   # shows #F42A63 cerise (was Kuwait red #ff1a3c)
     ("thug", "top"):       "#6C668C",   # shows #B7A7C9 ash-lilac
-    ("thug", "bottom"):    "#100D15",   # the lilac, dark
+    ("thug", "bottom"):    "#40384D",   # the lilac, lifted (2026-11-20: was #100D15, which drew at the ground's own lightness; the graded rule wants the men 1.5x the world)
     ("thug", "band"):      "#5B5260",   # estimate: a muted lilac, the ash-lilac's hue
     ("brawler", "top"):    "#174E44",   # shows #138C7C jade
     ("brawler", "bottom"): "#071E1B",   # the jade, dark
