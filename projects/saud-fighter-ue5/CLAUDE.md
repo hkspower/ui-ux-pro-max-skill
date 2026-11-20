@@ -2095,6 +2095,8 @@ what a burning punch costs; not asked for.
 
 ## The dark -- 2026-09-26
 
+> **Colours superseded 2026-11-19.** The cold slate, navy and cyan this section names were replaced by the palette Sodium Afterglow (a dusty-mauve night, rose-umber stone, plum shadow, a sodium fire); the tones, thresholds and rules here stand. For any colour read "Sodium Afterglow", near the end of this file.
+
 Asked as "use darker theme style like Demon's Souls", settled as the
 Unreal build; darken the anime look rather than replace it; over the
 grade, light and fog, the world and backgrounds, the HUD, and the hit
@@ -4073,6 +4075,8 @@ draws its defaults. Nothing in the game reads a browser colour from
 design -- so `FindColor` on a browser row has no caller today.
 
 ## The night's light: cheaper, and as bright as the previews -- 2026-10-03
+
+> **Colours superseded 2026-11-19.** The cold slate, navy and cyan this section names were replaced by the palette Sodium Afterglow (a dusty-mauve night, rose-umber stone, plum shadow, a sodium fire); the tones, thresholds and rules here stand. For any colour read "Sodium Afterglow", near the end of this file.
 
 Asked as "make light and brightness optimization", settled as the Unreal
 build and both: faster lighting and better brightness. Before, measured on
@@ -6258,6 +6262,93 @@ fight frames, the street, the title, the IK sheet, the posture sheet, the HUD,
 menus and System windows, and the men's own 3D renders. **Not verified:** no
 engine has imported a model or a texture; the checks above are the builder's
 own, and the second reading's list of what they cannot catch stands.
+
+## Sodium Afterglow -- 2026-11-19, rendered and fixed 2026-11-20 (Riyadh)
+
+Asked as "remove all current colors use new colors". Via questions it was settled as the Unreal build, a palette I
+proposed, and the whole picture (world, sky, fire, the men's skin and kit, accents, HUD, hit effects; the dark seinen
+mood kept). The palette -- plum, mauve, rose-umber, sodium orange, cerise -- was shown on a swatch sheet and a
+before/after picture sheet and approved as proposed ("Approve, apply everything"). The old cold navy / cyan / violet /
+crimson night is gone from every table; the browser's numbers are untouched.
+
+**The palette** (hex; the look's table, `Tools/look/anime_look.py` LOOK, holds the linear values):
+world ground #63494D, wall #765D5E, brick #6F484C, cloth #5A3A66, metal #504356, wood #5C4035; ink #130A18, shadow tint
+#5E4660, lit tint #D8A890, rim #FF5BA7, fog #3A2535, vignette #1A0B1E; sky horizon #5A3345, zenith #150A1C, moon #998696,
+halo #7E4A63, star #B9A9B4, cloud dark #2F1B3A, cloud lit #9A5A55; fire core #FFF4D6, body #FF6B3A, edge #8B2335, lamp
+#FFDDA8, ember #FF8C5A; blood #B4142E, bone #F3E4D0; HUD panel #1B1020, trough #2E1B35, lettering #F6EADB, health #E63D36,
+stamina #BDF7D9, rage #FF8F1A, System #FF2E92, power #FF84C0, danger #FF4B36; the men's kit saud top #F0E8DE, bottom
+#6B2A3A, band #F42A63, thug #B7A7C9, brawler #138C7C, AL-SAQR #E8B020, AL-WAHSH #6E2A9C, ZAYOS's gloves #4A8EF2.
+
+**What changed.**
+- **The look.** New constants (tints, fog, vignette, sky, moon, halo, clouds, fire, impact, speed lines, rim); the world's
+  base colour is pulled to `WORLD_DIR` (stone) or `CLOTH_DIR` (a dye, by saturation) with its lightness kept, in the tone step
+  of both materials and the numpy mirror; a 13th HUD colour (`HUD_HEALTH`) in `DT_LookColors.csv` (regenerated with
+  `--colors`). Its colour-specific checks were rewritten for the palette, not loosened (fog, the black ladder's tint, the
+  horizon hue, the impact frame, the speed lines, the vignette, the rim, the reds at 7 degrees, bone's spread), with a
+  "world's palette" block and sabotages `grey_world`, `world_on_men`, `bright_world`.
+- **The HUD, menus and System** (`SaudAnime.h` Defaults, 13 slots; `SaudMenu.h`, `SaudSystem.h`, `SaudControls.h`):
+  repointed; each frame and edge is held to its slot, the count is the table's length, the focused plate's keyline is the
+  cream slot (a cerise one reached 1.25-1.48:1 against the fill and no hue can hold both a 3:1 fill and a 1.8:1 cerise
+  keyline); 305 of 305 harness sabotages caught.
+- **The world** (`build_souq.py`, `build_world.py`, `build_city.py`, `build_island*.py`, `build_levels.py`, ...): the moon,
+  sun, sky, fog and water in the palette; stone held to its own windows (warm 350-30, cool 293-330, a chroma floor of 5),
+  the cast an explicit argument of `_worn` (paint is a dye: the look's `CLOTH_DIR` does it at run time), a water window
+  (150-200, teal-green: the palette gives no water), sabotages for a grey, magenta, navy or neon world; the plan pictures
+  and the gate sheet drawn from the palette. The souq's, the island's and the stone's base-colour maps are rebaked.
+- **The six men** (`hero/roster.py` `UNREAL_KIT`, `hero/finish.py`): the browser's kit colours are replaced for the Unreal
+  build only, by albedos solved against the look so a flat lit patch draws the palette hex (`finish.shown()`), each line's
+  displayed colour held within dE 6 (`UNREAL_SHOWS`; AL-SAQR's saffron top, out of the look's reach, has its own limit 26.0),
+  the table whole (18 lines), the skin rule 20 with a near-limit bite, the shoe a plum black, the neutrals (shoe, sole, bars,
+  tape) the palette's ink and bone. All six were re-laid from their checkpoints with it (15 minutes a man; the geometry
+  counts are the same).
+
+**What the real frames said, and what moved** (`--graded-check`, 540 lines). Unbroken on the new picture it failed 3 of its 15
+rules; each had one measured cause, and none moved a palette hex:
+1. *The fight's range* (brightest 0.1 % at 237, wanted 245). The palette has no near-white (its brightest hexes by display
+   luma: fire core 243.9, lettering 235.9, Saud's cream 233.3, bone 230.2) and the old frame's 248 was the old kit's white
+   tops. The glare tone (`Q_HIGHLIGHT`, "a sharp highlight where sweat catches") is the art direction's own white: 1.10 ->
+   1.40 gives 246 and 707 px at 245 or over; a flat lit patch never reaches it, so no man's kit colour moves.
+2. *The gate's pools* (p95/p50 1.53, wanted 2.0). The pool heart (`POOL_BRIGHT` over `T_POOL2`) was given to any light bright
+   enough; the mauve moon (R/B 1.05) on pale flagstone got hearts over a third of the ground. `HEART_FIRE` 1 and `HEART_WARM`
+   (2.0, 3.5): the heart is a fire's only (numpy and HLSL). The gate reads 2.03, the street 3.16, the fire's R/B 5.22 and
+   2.24. Tried and not kept: `POOL_WARM` moved up (it made the gate's fire R/B worse, 1.68 -> 1.30), `POOL_BRIGHT` up (worse),
+   `WORLD_LEVEL` down (better, but it cost the fight's Auto Contrast).
+3. *The men against the world* (contrast 1.23, wanted 1.5). The new kit's dark half drew at the ground's own lightness (Y 0.30
+   against the world's 0.294; the old fabric floor lifted the old kit to 0.40-0.45). The world's median is floor-limited
+   (the black ladder, lifted 2026-11-18 on the user's "fix over dark areas") so it cannot come down; the men's look levers
+   (`FIGHTER_LEVEL`, the knee) move four to nine kit lines off their hexes; a better metric buys nothing that still bites.
+   Saud's wine trousers are the palette's and stay at L* 31; the other men's bottoms were the lead's derivation (the top's
+   colour at 0.30). The thug's trousers went #100D15 -> #40384D (the look draws them #7F6B85): contrast 1.56, the sabotage
+   `flat_world` still caught at 1.40. Only the thug and the brawler fight Saud in the souq, so only the thug's were lifted.
+Two graded sabotages were re-aimed, not dropped: `flat_pools` (no longer lowers the gate, 2.17 against 2.03) became
+`moon_hearts` (the defect that read 1.46) and `dim_hearts` (no longer touches the fight's range) became `dim_glare`
+(`Q_HIGHLIGHT` back at 1.10: 237); both old ones still run, and are caught, in the look's own check. In the look's range
+chart the fire's heart is read under a fire's light and the pale-paving bound is 97.5 where it was 98 (L* 97.9 under a
+fire's hue, white still). A check now holds the moon's light to no heart (`moon_hearts` in the look's `BITES`), and the night
+check's moon rule is a window, B/R 0.80-1.25, with an amber and a navy moon as sabotages (the palette's is 0.96).
+
+**Measured.** `anime_look.py --check` passes. `--graded-check --bite`: unbroken passes, 15 of 15 sabotages caught (contrast
+1.56, the fight's range 5-246 and Auto Contrast 0.58 L*, median L* 33.1, 0.6 % dark, 0.00 % lemon, gate pools 2.03, street
+3.16, eyes 269 of 296). `--night-check --bite`: 3 of 3. `data_colours.py --baked`: 28 maps, every one within dE 2.3 (the
+shoe's map holds the upper, the sole and three bars, so the shoe is read on its darkest quarter, 0.0); its two sabotages
+are caught. The baked kit, the souq's maps and every picture are re-rendered (see the commits).
+
+**A bound moved, said plainly:** the look's pale-paving heart bound 98 -> 97.5 (above). The kit's skin rule is back at 20
+after a round at 19: Saud's cream (#A0A197) is 21.05 from his skin in a*b*, 1.05 to spare, so a refinement of the cream toward
+his skin trips it.
+
+**Seen, left.** AL-SAQR's saffron (#E8B020) cannot be reached by the look with a believable cloth (the nearest albedo is an
+orange, dE 8.6; his #936E10 draws 25.8 off, limit 26.0): the render decides it. ZAYOS's gloves draw an ultramarine in the
+mid tone (#002BB2, C* 85) where the lit tone is the azure: inherent to reaching the azure on the lit patch. Saud's cream and
+AL-SAQR's bone band go mauve-grey in shadow (the look's lilac grade). HAWK FIST's pink (#FF84C0) and the System's cerise
+(#FF2E92) differ by lightness only (dE76 30.8): both are the palette's. A denied purchase draws a thin vermilion keyline on
+the focused plate (1.3-1.5:1, a 1.2 s state with a hint beside it). The Prologue's fog keeps its old luminance in the new hue
+(a pastel haze): unjudged without the engine. The Kuwait flag patch's red is #C8102E, not the flag's #CE1126 (older, left).
+Windows' and the baked pictures' accents, the gate and island plan pictures are the palette's; the island's props are rebaked.
+
+**Not verified.** No engine has built either material (the HLSL takes the same numbers, and its new heart line is
+read-reviewed, not compiled), imported a kit map, or drawn the HUD; the pictures are Blender's through the numpy mirror; the
+posture half of `--check` and the island props' bites need assets a light checkout lacks.
 
 ## Working rules
 
