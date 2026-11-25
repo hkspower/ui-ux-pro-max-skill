@@ -6451,3 +6451,43 @@ Don't re-discover them; don't fix them without being told to.
   by the anime look over the whole build ("The anime look"): the stepped
   tones and the ink are `M_Anime_Post`, built by `Tools/look/anime_look.py`
   in the editor -- still never compiled.
+
+## Bosses: stand-off, knockdown and get-up -- 2026-11-25 (Riyadh)
+
+Asked as "fix the stand-off distance and the knockdown and get-up gates",
+the three cheap ones from the boss scan of the same day. The scan's other
+findings (the 24 fps clips, the death pose, the pairs at boss size) are not
+touched here.
+
+- **Stand-off.** `build_data_assets.plan_styles`: a boss stands at 0.70 of
+  his reach, as the browser's enemy does (`wantX = p.x + side * (reach *
+  0.70 + lane)`, index.html:3733). It was 1.12 x reach for a kicker and 0.95
+  for everyone else, which put AL-WAHSH at 193.8 cm, AL-SAQR at 203.8 and
+  ZAYOS at 177.7. Now 121.1, 127.4 and 130.9 cm. Street men are unchanged.
+  The generator's own numbers are what the editor builds, so the styles come
+  out right only after `build_data_assets.py` is run inside the editor.
+- **Knockdown.** The browser gives the 12% knockdown chance to AL-WAHSH and
+  AL-SAQR only (`kdChance`, index.html:3564; the same `isBoss` line gives
+  them phase two, index.html:3688). Unreal gave all three bosses the 12%
+  through `bIsBoss`, and then blocked knockdown outright in
+  `ReceiveKnockback` for every resisting fighter, so no boss could be put
+  down by a knockdown blow. Now: `EnemyFighter` sets `bResistsKnockdown` from
+  `bHasPhaseTwo` (the browser's rule, so ZAYOS takes the ordinary 45%); the
+  attacker rolls the victim's chance in `SaudAttackAbility` (12% for a
+  resisting fighter, the strike's own otherwise); multi-hit strikes still
+  always knock down, as the browser's `|| a.multi` does; and
+  `ReceiveKnockback` follows the roll instead of blocking it.
+  `AFighterBase::BossKnockdownChance` (0.12) names the constant.
+- **Get-up.** `FightStyleComponent::TickStyle`: a boss with `GetUpRemaining`
+  above zero makes no decision, so he cannot swing on the first free tick
+  after standing. The browser holds him 0.3-0.8 s (index.html:3708); the
+  Unreal get-up is 0.6 s. Only bosses are held, so the street men keep their
+  own pace, which the scan also flagged (the gap is the same for them).
+
+**Not verified.** The C++ was not compiled: there is no engine in the
+container. `Tools/harness/run.sh` passes (it builds the tests that do not
+include these files). The stand-offs were checked by running `plan_styles`
+with `unreal` stubbed. Nothing has been played: the new stand-offs,
+knockdown chance and get-up hold need an engine run and a look at a boss
+fight before they are called right. The 0.12 is the browser's number, not a
+measurement of Unreal's feel.

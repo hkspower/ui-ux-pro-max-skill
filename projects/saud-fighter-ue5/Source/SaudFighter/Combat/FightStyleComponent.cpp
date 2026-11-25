@@ -77,7 +77,13 @@ void UFightStyleComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	// Mid-swing, stunned or on the floor: not making decisions. Ticking a
 	// style through those states is how AI queues three strikes into a
 	// knockdown and throws them all on standing up.
-	if (Fighter->IsBusy())
+	// A boss who is getting up makes no decision either. The browser holds
+	// him 0.3-0.8 s after the floor (index.html:3708); GetUpRemaining is that
+	// wait here (0.6 s), so he cannot strike the moment he is standing. Only
+	// bosses take the wait, so the street men keep their own pace.
+	const AEnemyFighter* Enemy = Cast<AEnemyFighter>(Fighter);
+	const bool bBossGettingUp = Enemy && Enemy->bIsBoss && Fighter->GetUpRemaining > 0.f;
+	if (Fighter->IsBusy() || bBossGettingUp)
 	{
 		return;
 	}

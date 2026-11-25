@@ -249,6 +249,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	bool bResistsKnockdown = false;
 
+	/** A resisting fighter goes down on this share of heavy blows (the browser's 0.12). */
+	static constexpr float BossKnockdownChance = 0.12f;
+
 	/** Table the fighter's move names resolve against. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	TObjectPtr<UDataTable> AttackTable = nullptr;

@@ -249,10 +249,14 @@ def plan_styles():
         out.append(dict(
             asset="DA_Style_%s" % name,
             DisplayName=row.get("DisplayName", name),
-            # Kickers stand a little further out than their reach suggests,
-            # because a kick thrown from punching distance is a kick that
-            # jams -- which is the mistake the old uniform AI made all night.
-            PreferredRange=round(reach * (1.12 if has_long else 0.95), 1),
+            # A boss stands where the browser stands him: 0.70 of his reach
+            # (saud-fighter/index.html, the enemy's wanted x). Kickers stand
+            # a little further out than their reach suggests, because a kick
+            # thrown from punching distance is a kick that jams -- which is
+            # the mistake the old uniform AI made all night -- but a boss's
+            # punches and kicks were authored to land from the browser's
+            # distance, so his stand-off is the browser's, not the kicker's.
+            PreferredRange=round(reach * (0.70 if boss else (1.12 if has_long else 0.95)), 1),
             RangeDiscipline=round(discipline, 2),
             ResetDistance=round(reach * 2.6, 1) if hit_run else 0.0,
             # Light and fast bounces; heavy and slow plants its feet.

@@ -236,7 +236,9 @@ void AFighterBase::ReceiveKnockback(const FVector& Impulse, bool bKnockdown)
 	GetUpRemaining = 0.f;
 	++MotionSerial;
 
-	if (bKnockdown && !bResistsKnockdown)
+	// The attacker rolled the knockdown already, with the victim's own chance
+	// (SaudAttackAbility: a boss who resists takes BossKnockdownChance).
+	if (bKnockdown)
 	{
 		State = EFighterState::Down;
 		DownRemaining = 0.85f;
@@ -617,7 +619,7 @@ FHitResultData AFighterBase::ReceiveHit(AFighterBase* Attacker, const FAttackDef
 
 	// Knockdown: always on a killing blow, sometimes on a heavy one, always on
 	// the finisher. Bosses shrug most of them off so they cannot be stunlocked.
-	const float KnockdownChance = bResistsKnockdown ? 0.12f : 0.45f;
+	const float KnockdownChance = bResistsKnockdown ? BossKnockdownChance : 0.45f;
 	const bool bKnockdown = Health <= 0.f
 		|| Attack.bMultiHit
 		|| (Attack.bHeavy && FMath::FRand() < KnockdownChance);

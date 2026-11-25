@@ -276,9 +276,15 @@ void USaudAttackAbility::ResolveHits()
 
 		// Knockback and knockdown are the victim's business, but the strike
 		// is what decides how hard: heavy blows put people down, and the
-		// finisher always does.
+		// finisher always does. A boss who resists knockdowns (AL-WAHSH and
+		// AL-SAQR, the browser's isBoss line) goes down on 12% of heavy blows
+		// rather than the strike's own chance, as the browser has it
+		// (kdChance, index.html:3564); multi-hit strikes still always do.
+		const float KnockdownChance = Target->bResistsKnockdown
+			? AFighterBase::BossKnockdownChance
+			: Attack->KnockdownChance;
 		const bool bKnockdown = Attack->bMultiHit
-			|| (Attack->bHeavy && FMath::FRand() < Attack->KnockdownChance);
+			|| (Attack->bHeavy && FMath::FRand() < KnockdownChance);
 		Target->ReceiveKnockback(FVector(Facing * Attack->Knockback, 0.f, 0.f), bKnockdown);
 
 		if (Attack->ImpactCue.IsValid())

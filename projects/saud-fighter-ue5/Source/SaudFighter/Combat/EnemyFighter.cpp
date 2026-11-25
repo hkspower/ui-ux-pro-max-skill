@@ -38,7 +38,10 @@ void AEnemyFighter::ConfigureFromDefinition(const FFighterDef& Def, int32 Tier,
 	// MotionSet is his row (AWaveDirector sets it before this).
 	bHasPhaseTwo     = Def.bIsBoss && SaudBrain::HasPhaseTwo(TCHAR_TO_ANSI(*MotionSet.ToString()));
 	DisplayName      = Def.DisplayName;
-	bResistsKnockdown = Def.bIsBoss;
+	// The browser's isBoss line (index.html:3564, 3688): AL-WAHSH and AL-SAQR
+	// only. ZAYOS is a boss in the roster but takes the ordinary knockdown
+	// chance in the browser, so he takes it here too.
+	bResistsKnockdown = bHasPhaseTwo;
 	ExperienceValue  = Def.ExperienceValue;
 	Moves            = Def.Moves;
 
